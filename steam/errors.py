@@ -25,12 +25,21 @@ class NotFound(HTTPException):
 
 
 class LoginError(SteamException):
+    """Exception that's thrown when a login fails.
+    Subclass of :exc:`SteamException`
+    """
     pass
 
 
 class InvalidCredentials(LoginError):
+    """Exception that's thrown when credentials are incorrect.
+    Subclass of :exc:`LoginError`
+    """
     pass
 
 
 class SteamAuthenticatorError(LoginError):
+    """Exception that's thrown when steam guard loading fails.
+    Subclass of :exc:`LoginError`
+    """
     pass

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import logging
 
 __title__ = 'steam'
@@ -7,9 +8,9 @@ __license__ = 'MIT'
 __version__ = '0.0.1a'
 
 
-from . import utils
+from .utils import *
 from .errors import *
-from .http import HTTPClient
+from .client import Client
 
 
 try:
