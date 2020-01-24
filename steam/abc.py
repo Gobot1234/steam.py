@@ -1,3 +1,32 @@
+# -*- coding: utf-8 -*-
+
+"""
+MIT License
+
+Copyright (c) 2020 James
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Loosely based on
+https://github.com/Rapptz/discord.py/blob/master/discord/abc.py
+"""
+
 import abc
 
 
@@ -8,7 +37,7 @@ class BaseUser(metaclass=abc.ABCMeta):
     - :class:`~steam.ClientUser`
 
     Attributes
-    -----------
+    ----------
     name: :class:`str`
         The user's username.
     id64: :class:`int`
@@ -29,7 +58,7 @@ class Messageable(metaclass=abc.ABCMeta):
 
     __slots__ = ()
 
-    async def send(self, content=None, *, delete_after=None):
+    async def send(self, content: str = None, *, delete_after=None):
         """|coro|
         Send a message to a certain destination.
 
@@ -39,7 +68,7 @@ class Messageable(metaclass=abc.ABCMeta):
             The content of the message to send.
         delete_after: :class:`float`
             If provided deletes the message after waiting
-            the
+            for the timer.
 
         Raises
         ------
@@ -53,17 +82,12 @@ class Messageable(metaclass=abc.ABCMeta):
         :class:`~steam.Message`
             The message that was sent.
         """
+        # state = None
 
-        channel = await self._get_channel()
-        state = self.state
-        if content:
-            content = str(content)
-        else:
-            raise
+        # data = await state.http.send_message(channel=channel, content)
 
-        data = await state.http.send_message(channel.id, content)
-
-        ret = state.create_message(channel=channel, data=data)
-        if delete_after is not None:
-            await ret.delete(delay=delete_after)
-        return ret
+        # ret = state.create_message(channel=channel, data=data)
+        # if delete_after is not None:
+        # await ret.delete(delay=delete_after)
+        # return ret
+        pass

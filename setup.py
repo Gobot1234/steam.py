@@ -1,5 +1,6 @@
-from setuptools import setup
 import re
+
+from setuptools import setup
 
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
@@ -25,7 +26,7 @@ setup(name='steam',
       version=version,
       packages=['steam'],
       license='MIT',
-      description='A python wrapper for the Steam API',
+      description='A Python wrapper for the Steam API',
       long_description=readme,
       long_description_content_type="text/x-rst",
       include_package_data=True,

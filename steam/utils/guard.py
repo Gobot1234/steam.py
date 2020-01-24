@@ -23,8 +23,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This is a sped up version of https://github.com/bukson/steampy/blob/master/steampy/guard.py
-with extra doc-strings
+This copy of
+https://github.com/bukson/steampy/blob/master/steampy/guard.py
+with extra doc-strings and it's slightly sped up
 """
 
 from base64 import b64decode, b64encode
@@ -44,17 +45,17 @@ def load_steam_guard(steam_guard: str) -> dict:
     Parameters
     ----------
     steam_guard: :class:`str`
-        The location of the Steam Guard info
+        The location of the Steam Guard info.
 
     Raises
     ------
     :exc:`SteamAuthenticatorError`
-        The file wasn't loadable
+        The file wasn't loadable.
 
     Returns
     -------
     :class:`dict`
-        Dictionary of steam guard info
+        Dictionary of the Steam Guard info.
     """
     if isfile(steam_guard):
         with open(steam_guard, 'r') as f:
@@ -75,16 +76,16 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
     """Generate a Steam Guard code for signing in.
 
     Parameters
-    -----------
+    ----------
     shared_secret: :class:`str`
-        Identity secret from steam guard
+        Identity secret from steam guard.
     timestamp: Optional[:class:`int`]
-        The time to generate the key for a specific time
+        The time to generate the key for the set time.
 
     Returns
     -------
-    :class:`str`
-        2FA code
+    code: :class:`str`
+        The desired 2FA code for the timestamp.
     """
     time_buffer = pack('>Q', timestamp // 30)  # pack as Big endian, uint64
     time_hmac = new(b64decode(shared_secret), time_buffer, digestmod=sha1).digest()
@@ -92,11 +93,9 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
     full_code = unpack('>I', time_hmac[begin:begin + 4])[0] & 0x7fffffff  # unpack as Big endian uint32
     chars = '23456789BCDFGHJKMNPQRTVWXY'
     code = []
-
     for _ in range(5):
         full_code, i = divmod(full_code, len(chars))
         code.append(chars[i])
-
     return ''.join(code)  # faster than string concatenation
 
 
@@ -104,40 +103,43 @@ def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = i
     """Generate a trade confirmation key.
 
     Parameters
-    -----------
+    ----------
     identity_secret: :class:`str`
-        Identity secret from steam guard
+        Identity secret from steam guard.
     tag: :class:`str`
         Tag to encode to
     timestamp: Optional[:class:`int`]
-        The time to generate the key for
+        The time to generate the key for.
 
     Returns
     -------
-    :class:`bytes`
-        Confirmation key for set timestamp
+    key: :class:`bytes`
+        Confirmation key for the set timestamp.
     """
     buffer = f'{pack(">Q", timestamp)}{tag.encode("ascii")}'
     return b64encode(new(b64decode(identity_secret), buffer, digestmod=sha1).digest())
 
 
-# It works, however it's different that one generated from mobile app
-def generate_device_id(steam_id: str):
+def generate_device_id(steam_id: str) -> str:
     """
     Parameters
-    -----------
+    ----------
     steam_id: :class:`str`
         The steam id to generate the id for
 
     Returns
     -------
-    :class:`str`
-        Device id
+    id: :class:`str`
+        The device id
     """
+    # It works, however it's different that one generated from mobile app
+
     hexed_steam_id = sha1(steam_id.encode('ascii')).hexdigest()
-    partial_id = [hexed_steam_id[:8],
-                 hexed_steam_id[8:12],
-                 hexed_steam_id[12:16],
-                 hexed_steam_id[16:20],
-                 hexed_steam_id[20:32]]
+    partial_id = [
+        hexed_steam_id[:8],
+        hexed_steam_id[8:12],
+        hexed_steam_id[12:16],
+        hexed_steam_id[16:20],
+        hexed_steam_id[20:32]
+    ]
     return f'android:{"-".join(partial_id)}'

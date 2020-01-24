@@ -28,10 +28,11 @@ Thanks confern for letting me use this :D
 """
 
 import logging
-from aiohttp import ClientSession
 from typing import Union
 
-from .models import ECurrencyCode, URL
+from aiohttp import ClientSession
+
+from .enums import ECurrencyCode, URL
 
 log = logging.getLogger(__name__)
 
@@ -75,17 +76,16 @@ def fix_name(name: str) -> Union[bool, str]:
 
 
 class Market:
-    r"""
-    Represents a client connection that interacts with the Steam Market.
+    """Represents a client connection that interacts with the Steam Market.
     This class is used to interact with the Steam Market.
 
     Parameters
     ----------
-    session: :class:`aiohttp.ClientSession`
+    session: :py:class:`aiohttp.ClientSession`
         The session used to make web requests.
-    currency: :class:`typing.Union`[:class:`int`, :class:`str`]
+    currency: :py:class:`typing.Union`[:class:`int`, :class:`str`]
         Sets the currency to be outputted.
-        1, 'USD' or leave empty for American Dollars. For other currencies take a look at the README.
+        1, 'USD' or leave empty for American Dollars.
     """
 
     def __init__(self, session: ClientSession, currency: Union[int, str] = 1):
@@ -129,7 +129,7 @@ class Market:
         Returns
         -------
         price: :class:`dict`
-            A dictionary with the price.
+            A dictionary of the prices.
         """
         if not isinstance(name, str):
             raise TypeError('name must be str')
@@ -168,7 +168,7 @@ class Market:
         prices = {}
 
         if not isinstance(names, list):
-            raise TypeError('names must be list')
+            raise TypeError('Names must be list')
 
         if isinstance(app_id, int):
             for name in names:
@@ -180,7 +180,7 @@ class Market:
                     name = names[i]
                     prices[name] = await self.get_price(name, app_id[i])
             else:
-                raise IndexError('names and app_id needs to have the same len')
+                raise IndexError('Names and app_id needs to have the same lengh')
 
         return prices
 
@@ -202,7 +202,7 @@ class Market:
         prices = {}
 
         if not isinstance(items, dict):
-            raise TypeError('items must be dict')
+            raise TypeError('Items must be dict')
 
         for item in items:
             prices[item] = await self.get_price(item, items[item]['appid'])

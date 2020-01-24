@@ -22,6 +22,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Taken from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
 import enum
@@ -29,7 +31,7 @@ import enum
 __all__ = [
     obj.__name__
     for obj in globals().values()
-    if obj.__class__ is enum.EnumMeta and obj.__name__ != 'enum.IntEnum'
+    if obj.__class__ is enum.EnumMeta
 ]
 
 
@@ -38,7 +40,6 @@ class EResult(enum.IntEnum):
     OK = 1  #: success
     Fail = 2  #: generic failure
     NoConnection = 3  #: no/failed network connection
-    #   NoConnectionRetry = 4               #: OBSOLETE - removed
     InvalidPassword = 5  #: password/ticket is invalid
     LoggedInElsewhere = 6  #: same user logged in elsewhere
     InvalidProtocolVer = 7  #: protocol version is incorrect
@@ -153,7 +154,6 @@ class EUniverse(enum.IntEnum):
     Beta = 2
     Internal = 3
     Dev = 4
-    #   RC = 5  #: doesn't exit anymore
     Max = 6
 
 
@@ -188,7 +188,6 @@ class EServerType(enum.IntEnum):
     Invalid = -1
     First = 0
     GM = 1
-    BUM = 2  # obsolete
     AM = 3
     BS = 4
     VS = 5
@@ -215,7 +214,6 @@ class EServerType(enum.IntEnum):
     AppInformation = 26
     Spare = 27
     FTS = 28
-    EPM = 29  # obsolete
     PS = 30
     IS = 31
     CCS = 32
@@ -237,7 +235,6 @@ class EServerType(enum.IntEnum):
     Econ = 48
     Backpack = 49
     UGS = 50
-    #   Store = 51 # obsolete
     StoreFeature = 51
     MoneyStats = 52
     CRE = 53
@@ -331,21 +328,16 @@ class EOSType(enum.IntEnum):
     Win98 = 3
     WinME = 4
     WinNT = 5
-    #   Win200 = 6 # obsolete
     Win2000 = 6
     WinXP = 7
     Win2003 = 8
     WinVista = 9
-    #   Win7 = 10 # obsolete
     Windows7 = 10
     Win2008 = 11
     Win2012 = 12
-    #   Win8 = 13 # obsolete "renamed to Windows8"
     Windows8 = 13
-    #   Win81 = 14 # obsolete "renamed to Windows81"
     Windows81 = 14
     Win2012R2 = 15
-    #   Win10 = 16 # obsolete "renamed to Windows10"
     Windows10 = 16
 
     WinMAX = 15
@@ -431,13 +423,9 @@ class EPersonaStateFlag(enum.IntEnum):
     HasRichPresence = 1
     InJoinableGame = 2
     HasGoldenProfile = 4
-    #   OnlineUsingWeb = 256 obsolete "renamed to ClientTypeWeb"
     ClientTypeWeb = 256
-    #   OnlineUsingMobile = 512 obsolete "renamed to ClientTypeMobile"
     ClientTypeMobile = 512
-    #   OnlineUsingBigPicture = 1024 obsolete "renamed to ClientTypeTenfoot"
     ClientTypeTenfoot = 1024
-    #   OnlineUsingVR = 2048 obsolete "renamed to ClientTypeVR"
     ClientTypeVR = 2048
     LaunchTypeGamepad = 4096
 
@@ -448,7 +436,6 @@ class EClientPersonaStateFlag(enum.IntEnum):
     QueryPort = 4
     SourceID = 8
     Presence = 16
-    Metadata = 32  # obsolete
     LastSeen = 64
     ClanInfo = 128
     GameExtraInfo = 256

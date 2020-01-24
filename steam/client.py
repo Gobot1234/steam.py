@@ -1,15 +1,42 @@
+# -*- coding: utf-8 -*-
+
+"""
+MIT License
+
+Copyright (c) 2020 James
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+This is a modified version of
+https://github.com/Rapptz/discord.py/blob/master/discord/client.py
+"""
+
 import asyncio
 import logging
+import signal
 import sys
 import traceback
-import signal
 
 from aiohttp import ClientSession, CookieJar
 
 from .https import HTTPClient
 from .state import State
-from .user import ClientUser
-
 
 log = logging.getLogger(__name__)
 
@@ -51,11 +78,14 @@ class Client:
 
     def __init__(self, loop=None, **options):
         self.loop = asyncio.get_event_loop() if loop is None else loop
-        self._session = ClientSession(loop=loop, cookie_jar=CookieJar(),
-                                      headers={"User-Agent": f'steam.py/{__import__("steam").__version__}'})
+        self._session = ClientSession(
+            loop=loop, cookie_jar=CookieJar(),
+            headers={"User-Agent": f'steam.py/{__import__("steam").__version__}'}
+        )
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
         self.state = State(loop=self.loop, http=self.http)
+
         self.username = None
         self.password = None
         self.shared_secret = None
@@ -63,6 +93,7 @@ class Client:
         self.shared_secret = None
 
         self._user = None
+        self._keep_alive = None
         self._listeners = {}
         self._closed = True
         self._handlers = {
@@ -70,7 +101,16 @@ class Client:
         }
         self._ready = asyncio.Event()
 
+    @property
+    def user(self):
+        """Optional[:class:`user.ClientUser`]: Represents the connected client.
+        None if not logged in."""
+        return self._user
+
     def event(self, coro):
+        """A decorator that registers an event to listen to.
+        The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
+        """
         if not asyncio.iscoroutinefunction(coro):
             self.loop.run_until_complete(self.http.logout())
             raise TypeError('Event registered must be a coroutine function')
@@ -140,6 +180,12 @@ class Client:
         return self._ready.is_set()
 
     def run(self, *args, **kwargs):
+        """A blocking call that abstracts away the event loop
+        initialisation from you.
+
+        If you want more control over the event loop then this
+        function should not be used. Use :meth:`start` coroutine
+        or :meth:`login`."""
         loop = self.loop
 
         try:
@@ -178,11 +224,6 @@ class Client:
         """Indicates if the API connection is closed."""
         return self._closed
 
-    @property
-    def user(self):
-        """Optional[:class:`.ClientUser`]: Represents the connected client. None if not logged in."""
-        return self._user
-
     async def on_error(self, event_method, *args, **kwargs):
         """|coro|
         The default error handler provided by the client.
@@ -190,10 +231,29 @@ class Client:
         print(f'Ignoring exception in {event_method}', file=sys.stderr)
         traceback.print_exc()
 
-    async def login(self, username: str, password: str, shared_secret: str,
-                    identity_secret: str = None):
+    async def login(self, username: str, password: str, shared_secret: str, identity_secret: str = None):
         """|coro|
-        Login to the Steam API and an account.
+        Logs in a Steam account and the Steam API with the specified credentials.
+
+        Parameters
+        ----------
+        username: :class:`str`
+            The username of the desired Steam account.
+        password: :class:`str`
+            The password of the desired Steam account.
+        shared_secret: :class:`str`
+            The shared_secret of the desired Steam account,
+            used to generate the 2FA code for login.
+        identity_secret: Optional[:class:`str`]
+            The identity_secret of the desired Steam account,
+            used to generate trade confirmations.
+
+        Raises
+        ------
+        :exc:`.LoginFailure`
+            The wrong credentials are passed.
+        :exc:`.HTTPException`
+            An unknown HTTP related error occurred.
         """
         log.info(f'Logging in as {username}')
         self.username = username
@@ -203,9 +263,9 @@ class Client:
 
         await self.http.login(username=self.username, password=self.password,
                               shared_secret=self.shared_secret)
-        self._user = ClientUser(state=self.state)
+        self._user = self.http._user
         self._closed = False
-        print(self._user)
+        self.dispatch('ready')
 
     async def close(self):
         """|coro|
@@ -218,13 +278,33 @@ class Client:
         self._closed = True
         self._ready.clear()
 
+        self._ready.clear()
+
+    def clear(self):
+        """Clears the internal state of the bot.
+        After this, the bot can be considered "re-opened", i.e. :meth:`is_closed`
+        and :meth:`is_ready` both return ``False``.
+        """
+        self._closed = False
+        self._ready.clear()
+        self.http.recreate()
+
     async def start(self, *args, **kwargs):
+        """|coro|
+        A shorthand coroutine for :meth:`login`.
+        Doesn't do much at the moment.
+
+        Raises
+        ------
+        TypeError
+            An unexpected keyword argument was received.
+        """
         username = kwargs.pop('username', None)
         password = kwargs.pop('password', None)
         shared_secret = kwargs.pop('shared_secret', None)
         identity_secret = kwargs.pop('identity_secret', None)
         if kwargs:
-            raise TypeError(f"unexpected keyword argument(s) {list(kwargs.keys())}")
+            raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
 
         await self.login(username=username, password=password,
                          shared_secret=shared_secret, identity_secret=identity_secret)
