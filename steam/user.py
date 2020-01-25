@@ -312,8 +312,7 @@ class User(BaseUser):
 
 
 def make_steam64(_id=0, *args, **kwargs):
-    """
-    Returns steam64 from various other representations.
+    """Returns steam64 from various other representations.
     .. code:: python
         make_steam64()  # invalid steamid
         make_steam64(12345)  # accountid
@@ -482,8 +481,7 @@ def steam3_to_tuple(value):
 
 
 async def steam64_from_url(url: str, http_timeout=30):
-    """
-    Takes a Steam Community url and returns steam64 or None
+    """Takes a Steam Community url and returns steam64 or None
     .. note::
         Each call makes a http request to ``steamcommunity.com``
     .. note::
@@ -563,6 +561,27 @@ async def from_url(url, http_timeout=30):
         return SteamID(steam64)
 
     return None
+
+
+async def profile(user_id):
+    """Takes a Steam Community url and returns steam64 or None
+    .. note::
+        Each call makes a http request to ``steamcommunity.com``
+
+    Parameters
+    ----------
+    user_id: :py:class:`Union`[:class:`int`, :class:`str`]
+        The ID to search for. For accepted IDs see :meth:`make_steam64`
+
+    Returns
+    -------
+    Optional[:class:`dict`]
+        The user or ``None`` if not found.
+    """
+    async with aiohttp.ClientSession() as session:
+        post = await (await session.get(
+            url=f'https://steamcommunity.com/miniprofile/{SteamID(make_steam64(user_id)).as_steam3[5:-1]}/json')).json()
+        return post if post else None
 
 
 SteamID.from_url = staticmethod(from_url)

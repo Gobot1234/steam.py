@@ -1,29 +1,29 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
-Copyright (c) 2020 James
+Copyright (c) 2015-2020 Rapptz
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 
-This is a modified version of
+This is a slightly modified version of
 https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 """
 
@@ -35,8 +35,11 @@ import traceback
 
 from aiohttp import ClientSession, CookieJar
 
+from . import __version__
 from .https import HTTPClient
+from .market import Market
 from .state import State
+from .user import User, SteamID, make_steam64
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +61,6 @@ class _ClientEventTask(asyncio.Task):
         return f'<ClientEventTask {" ".join(f"{t}={t}" for t in info)}>'
 
 
-# this all looks rather familiar
 class Client:
     r"""Represents a client connection that connects to Steam.
     This class is used to interact with the Steam API.
@@ -80,11 +82,12 @@ class Client:
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self._session = ClientSession(
             loop=loop, cookie_jar=CookieJar(),
-            headers={"User-Agent": f'steam.py/{__import__("steam").__version__}'}
+            headers={"User-Agent": f'steam.py/{__version__}'}
         )
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
         self.state = State(loop=self.loop, http=self.http)
+        self.market = Market(session=self._session)
 
         self.username = None
         self.password = None
@@ -278,8 +281,6 @@ class Client:
         self._closed = True
         self._ready.clear()
 
-        self._ready.clear()
-
     def clear(self):
         """Clears the internal state of the bot.
         After this, the bot can be considered "re-opened", i.e. :meth:`is_closed`
@@ -308,3 +309,20 @@ class Client:
 
         await self.login(username=username, password=password,
                          shared_secret=shared_secret, identity_secret=identity_secret)
+
+    async def get_user(self, user_id):  # TODO cache these
+        """Returns a user with the given ID.
+
+        Parameters
+        ----------
+        user_id: :py:class:`Union`[:class:`int`, :class:`str`]
+            The ID to search for. For accepted IDs see
+            :py:class:`steam`.:py:file:`user`.:py:meth:`make_steam64`
+
+        Returns
+        -------
+        Optional[:class:`~steam.User`]
+            The user or ``None`` if not found.
+        """
+        user = SteamID(make_steam64(user_id))
+        return User(state=self.state, data=await self.http.mini_profile(user.as_steam3))

@@ -3,7 +3,7 @@
 """
 MIT License
 
-Copyright (c) 2020 James
+Copyright (c) 2020 offish
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -38,8 +38,7 @@ log = logging.getLogger(__name__)
 
 
 def has_invalid_name(name: str) -> bool:
-    """
-    Check if the name of an item is serializable.
+    """Check if the name of an item is serializable.
 
     Parameters
     ----------
@@ -57,8 +56,7 @@ def has_invalid_name(name: str) -> bool:
 
 
 def fix_name(name: str) -> Union[bool, str]:
-    """
-    Sterilize the name of an item to be able to request the price.
+    """Sterilize the name of an item to be able to request the price.
 
     Parameters
     ----------
@@ -108,16 +106,15 @@ class Market:
         self.url = f'{URL.COMMUNITY}/market/priceoverview'
 
     async def request(self, url: str, payload: dict) -> dict:
-        r = await self.session.get(url=url, data=payload)
-
-        try:
-            return await r.json()
-        except ValueError:
-            return {'success': False, 'status_code': r.status, 'text': await r.text()}
+        log.debug(f'Requesting price info for with {payload}')
+        async with self.session.post(url=url, params=payload) as r:
+            if r.status == 200:
+                return await r.json()
+            else:
+                return {'success': False, 'status_code': r.status, 'text': await r.text()}
 
     async def get_price(self, name: str, app_id: int) -> dict:
-        """
-        Gets the price(s) and volume sales of an item.
+        """Gets the price(s) and volume sales of an item.
 
         Parameters
         ----------
@@ -149,8 +146,7 @@ class Market:
         return await self.request(self.url, payload)
 
     async def get_prices(self, names: list, app_id: Union[int, list]) -> dict:
-        """
-        Gets the price(s) and volume of each item in the list.
+        """Get the price(s) and volume of each item in the list.
         If both are lists, then they need to have the same amount of elements.
 
         Parameters
@@ -158,7 +154,7 @@ class Market:
         names: :class:`str`
             A list of item names how each item appears on the Steam Community Market.
         app_id: :class:`str`
-            The AppID of the item(s). Either a list or int. For more information check the example.py file.
+            The AppID of the item(s). Either a list or int.
 
         Returns
         -------
@@ -176,11 +172,11 @@ class Market:
 
         elif isinstance(app_id, list):
             if len(names) == len(app_id):
-                for i in range(len(names)):
-                    name = names[i]
+                for i, name in enumerate(names):
+                    print(name, app_id[i])
                     prices[name] = await self.get_price(name, app_id[i])
             else:
-                raise IndexError('Names and app_id needs to have the same lengh')
+                raise IndexError('names and app_id needs to have the same length')
 
         return prices
 
@@ -202,7 +198,7 @@ class Market:
         prices = {}
 
         if not isinstance(items, dict):
-            raise TypeError('Items must be dict')
+            raise TypeError('items must be dict')
 
         for item in items:
             prices[item] = await self.get_price(item, items[item]['appid'])

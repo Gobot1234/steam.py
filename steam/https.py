@@ -24,7 +24,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-
 import logging
 from asyncio import AbstractEventLoop
 from base64 import b64encode
@@ -36,11 +35,12 @@ import rsa
 from Cryptodome.Hash import SHA1
 from aiohttp import ClientSession, ClientResponse, CookieJar
 
+from . import __version__
 from .enums import URL
 from .errors import LoginError, InvalidCredentials, HTTPException
+from .guard import generate_one_time_code
 from .state import State
-from .user import ClientUser, SteamID
-from .utils import generate_one_time_code
+from .user import User, ClientUser, SteamID
 
 log = logging.getLogger(__name__)
 
@@ -66,8 +66,9 @@ class HTTPClient:
 
     def recreate(self):
         if self.session.closed:
-            self.session = ClientSession(loop=self.loop, cookie_jar=CookieJar(),
-                                         headers={"User-Agent": f'steam.py/{__import__("steam").__version__}'})
+            self.session = ClientSession(
+                loop=self.loop, cookie_jar=CookieJar(),
+                headers={"User-Agent": f'steam.py/{__version__}'})
 
     async def login(self, username: str, password: str, shared_secret: str):
         self.username = username
@@ -81,44 +82,24 @@ class HTTPClient:
         await self._perform_redirects(login_response)
 
         self.session_id = hexlify(SHA1.new(random_bytes(32)).digest())[:32].decode('ascii')
-        #await self._set_cookies()
+        self.session.cookie_jar.update_cookies(cookies={'sessionid': self.session_id})
         self.client.dispatch('login')
 
         self._steam_id = SteamID(login_response['transfer_parameters']['steamid'])
         data = await self.mini_profile(self._steam_id.as_steam3)
         self._user = ClientUser(self.state, data)
 
-    async def _send_login(self, rsa_params: dict, rsa_timestamp: str):
-        data = {
-            'username': self.username,
-            'password': b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_params['rsa_key'])).decode(),
-            "emailauth": '',
-            "emailsteamid": '',
-            "twofactorcode": self.one_time_code or '',
-            "captchagid": '-1',
-            "captcha_text": '',
-            "loginfriendlyname": 'steam.py bot',
-            "rsatimestamp": rsa_timestamp,
-            "remember_login": 'true',
-            "donotcache": int(time() * 1000),
-        }
-        try:
-            return await self.session.post(f'{URL.COMMUNITY}/login/dologin/', data=data, timeout=15)
-        except Exception as e:
-            await self.session.close()
-            raise HTTPException(e)
+    async def logout(self) -> None:
+        log.debug('Logging out of session')
+        await self.session.post(f'{URL.COMMUNITY}/login/logout/')
+        await self.session.close()
+        self.client.dispatch('logout')
 
     async def _send_login_request(self) -> dict:
         rsa_params = await self._fetch_rsa_params()
         rsa_timestamp = rsa_params['rsa_timestamp']
         login_request = await self._send_login(rsa_params, rsa_timestamp)
         return await login_request.json()
-
-    async def logout(self) -> None:
-        log.debug('Logging out of session')
-        await self.session.post(f'{URL.COMMUNITY}/login/logout/')
-        await self.session.close()
-        self.client.dispatch('logout')
 
     async def _fetch_rsa_params(self, current_repetitions: int = 0) -> dict:
         maximum_repetitions = 5
@@ -143,6 +124,26 @@ class HTTPClient:
                 return await self._fetch_rsa_params(current_repetitions + 1)
             else:
                 raise ValueError('Could not obtain rsa-key')
+
+    async def _send_login(self, rsa_params: dict, rsa_timestamp: str):
+        data = {
+            'username': self.username,
+            'password': b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_params['rsa_key'])).decode(),
+            "emailauth": '',
+            "emailsteamid": '',
+            "twofactorcode": self.one_time_code or '',
+            "captchagid": '-1',
+            "captcha_text": '',
+            "loginfriendlyname": 'steam.py bot',
+            "rsatimestamp": rsa_timestamp,
+            "remember_login": 'true',
+            "donotcache": int(time() * 1000),
+        }
+        try:
+            return await self.session.post(f'{URL.COMMUNITY}/login/dologin/', data=data, timeout=15)
+        except Exception as e:
+            await self.session.close()
+            raise HTTPException(e)
 
     async def _enter_steam_guard_if_necessary(self, login_response: dict) -> dict:
         if login_response['requires_twofactor']:
@@ -170,41 +171,36 @@ class HTTPClient:
             await self.session.close()
             raise InvalidCredentials(login_response['message'])
 
-    '''async def _set_cookies(self):
-        self.session.cookie_jar.update_cookies(cookies={'Steam_Language': 'english'})
-        self.session.cookie_jar.update_cookies(cookies={'birthtime': -3333})
-        self.session.cookie_jar.update_cookies(cookies={'sessionid': self.session_id})'''
-
     async def _fetch_home_page(self) -> ClientResponse:
         return await self.session.post(f'{URL.COMMUNITY}/my/home/')
 
-    async def block(self, user):
+    async def block(self, user: User) -> ClientResponse:
         """Block a user using there Steam ID"""
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
             "block": 1
         }
-        await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
 
-    async def unblock(self, user):
+    async def unblock(self, user: User) -> ClientResponse:
         """Unblock a user using there Steam ID"""
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
             "block": 0
         }
-        await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
 
-    async def add_friend(self, user):
+    async def add_friend(self, user: User) -> ClientResponse:
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
             "accept_invite": 0
         }
-        await self.session.post(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
 
-    async def remove_friend(self, user) -> ClientResponse:
+    async def remove_friend(self, user: User) -> ClientResponse:
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
