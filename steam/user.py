@@ -3,14 +3,15 @@
 """
 MIT License
 
+Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
@@ -33,7 +34,8 @@ import re
 
 import aiohttp
 
-from .abc import BaseUser
+from . import errors
+from .abc import BaseUser, Messageable
 from .enums import EType, EUniverse, EInstanceFlag, ETypeChar
 
 ETypeChars = ''.join(ETypeChar.__members__.keys())
@@ -53,12 +55,10 @@ class SteamID(int):
         super().__init__()
 
     def __repr__(self):
-        return "{0}(id={1}, type={2}, universe={3}, instance={4})".format(
-            self.__class__.__name__,
-            self.id,
+        return "<id={0.id}, type={1}, universe={2}, instance={0.instance}>".format(
+            self,
             repr(self.type.name),
             repr(self.universe.name),
-            self.instance
         )
 
     @property
@@ -84,7 +84,7 @@ class SteamID(int):
         """
         Returns
         -------
-        type: :py:class:`steam.enum.EType`
+        type: :class:`~steam.enum.EType`
         """
         return EType((int(self) >> 52) & 0xF)
 
@@ -93,7 +93,7 @@ class SteamID(int):
         """
         Returns
         -------
-        universe: :py:class:`steam.enum.EUniverse`
+        universe: :class:`~steam.enum.EUniverse`
         """
         return EUniverse((int(self) >> 56) & 0xFF)
 
@@ -121,7 +121,7 @@ class SteamID(int):
         Returns
         -------
         steam2: :class:`str`
-            e.g ``STEAM_1:0:1234``
+            e.g ``STEAM_1:0:1234``.
 
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
@@ -134,12 +134,12 @@ class SteamID(int):
     def as_steam2_zero(self):
         """
         For GoldSrc and Orange Box games.
-        See :attr:`SteamID.as_steam2`
+        See :attr:`SteamID.as_steam2`.
 
         Returns
         -------
         steam2: :class:`str`
-            (e.g ``STEAM_0:0:1234``)
+            e.g ``STEAM_0:0:1234``.
         """
         return self.as_steam2.replace('_1', '_0')
 
@@ -149,7 +149,7 @@ class SteamID(int):
         Returns
         -------
         steam3: :class:`str`
-            e.g ``[U:1:1234]``
+            e.g ``[U:1:1234]``.
         """
         typechar = str(ETypeChar(self.type))
         instance = None
@@ -180,11 +180,11 @@ class SteamID(int):
         Returns
         -------
         url: :class:`str`
-            e.g https://steamcommunity.com/profiles/123456789
+            e.g https://steamcommunity.com/profiles/123456789.
         """
         suffix = {
-            EType.Individual: "profiles/%s",
-            EType.Clan: "gid/%s",
+            EType.Individual: 'profiles',
+            EType.Clan: 'gid',
         }
         if self.type in suffix:
             return f'https://steamcommunity.com/{suffix[self.type]}/{self.as_64}'
@@ -224,31 +224,34 @@ class SteamID(int):
 
 
 class ClientUser(BaseUser):
-    # __slots__ = ('id64', 'id2', 'id3', 'avatar_url', 'activity', 'state', 'profile_url')  # TODO wtf is the happen here
+    '''__slots__ = (
+        '_name', '_avatar_url', '_level', '_steam_id', 'avatar_url', 'status',
+        'profile_url', 'id64', 'id2', 'id3', '_state'
+    )'''
 
     def __init__(self, state, data: dict):
-        self.state = state
+        self._state = state
         self._update(data)
 
     def __repr__(self):
-        return "<name='{0.name}' id64={0._steam_id} level={0.level}>".format(self)
+        return "<name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
 
     def _update(self, data):
         self._name = data['persona_name']
         self._avatar_url = data['avatar_url']
         self._level = data['level']
-        self._steam_id = self.state.http._steam_id
+        self._steam_id = self._state.http._steam_id
 
     @property
-    async def id64(self):
+    def id64(self):
         return self._steam_id.as_64
 
     @property
-    async def id2(self):
+    def id2(self):
         return self._steam_id.as_steam2
 
     @property
-    async def id3(self):
+    def id3(self):
         return self._steam_id.as_steam3
 
     @property
@@ -263,33 +266,40 @@ class ClientUser(BaseUser):
     def avatar_url(self):
         return self._avatar_url
 
+    @property
+    def steam_id(self):
+        return self._steam_id
 
-class User(BaseUser):
-    # __slots__ = ('name', 'id64', 'avatar_url', 'activity', 'state', 'profile_url')
+
+class User(Messageable, BaseUser):
+    '''__slots__ = (
+        '_name', '_avatar_url', '_level', '_steam_id', 'avatar_url', 'status',
+        'profile_url', 'id64', 'id2', 'id3', '_state'
+    )'''
 
     def __init__(self, state, data: dict):
-        self.state = state
+        self._state = state
         self._update(data)
 
     def __repr__(self):
-        return "<name='{0.name}' id64={0._steam_id} level={0.level}>".format(self)
+        return "<name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
 
     def _update(self, data):
         self._name = data['persona_name']
         self._avatar_url = data['avatar_url']
         self._level = data['level']
-        self._steam_id = SteamID(data['steam_id'])
+        self._steam_id = SteamID(data['id64'])
 
     @property
-    async def id64(self):
+    def id64(self):
         return self._steam_id.as_64
 
     @property
-    async def id2(self):
+    def id2(self):
         return self._steam_id.as_steam2
 
     @property
-    async def id3(self):
+    def id3(self):
         return self._steam_id.as_steam3
 
     @property
@@ -304,11 +314,59 @@ class User(BaseUser):
     def avatar_url(self):
         return self._avatar_url
 
-    async def block(self):
-        return await self.state.http.block()
+    @property
+    def steam_id(self):
+        return self._steam_id
 
     async def add(self):
-        return await self.state.http.add_friend()
+        request = await self._state.http.add_user(self)
+        resp = await request.json()
+        print(resp)
+        if resp:
+            return resp
+        else:
+            raise errors.Forbidden('Adding the user failed')
+
+    async def remove(self):
+        request = await self._state.http.remove_user(self)
+        resp = await request.json()
+        print(resp)
+        if resp:
+            return resp
+        else:
+            raise errors.Forbidden('Removing the user failed')
+
+    async def unblock(self):
+        request = await self._state.http.unblock_user(self)
+        resp = await request.json()
+        if resp:
+            return resp
+        else:
+            raise errors.Forbidden('Unblocking the user failed')
+
+    async def block(self):
+        request = await self._state.http.block_user(self)
+        resp = await request.json()
+        if resp:
+            return resp
+        else:
+            raise errors.Forbidden('Blocking the user failed')
+
+    async def accept_invite(self):
+        request = await self._state.http.accept_user_invite(self)
+        resp = await request.json()
+        if resp:
+            return resp
+        else:
+            raise errors.Forbidden("Accepting the user's invite failed")
+
+    async def decline_invite(self):
+        request = await self._state.http.decline_user_invite(self)
+        resp = await request.json()
+        if resp:
+            return resp
+        else:
+            raise errors.Forbidden("Declining the user's invite failed")
 
 
 def make_steam64(_id=0, *args, **kwargs):
@@ -322,6 +380,10 @@ def make_steam64(_id=0, *args, **kwargs):
         make_steam64('103582791429521412')
         make_steam64('STEAM_1:0:2')  # steam2
         make_steam64('[g:1:4]')  # steam3
+
+    Raises
+    ------
+    TypeError: Too many arguments have been given.
 
     Returns
     -------
@@ -404,14 +466,14 @@ def steam2_to_tuple(value):
     Parameters
     ----------
     value: :class:`str`
-        steam2 e.g. ``STEAM_1:0:1234``
+        steam2 e.g. ``STEAM_1:0:1234``.
 
     Returns
     -------
-    steam2: :class:`tuple` or :class:`None`
-        (account_id, type, universe, instance)
+    steam2: Optional[:class:`tuple`]
+        e.g. (account_id, type, universe, instance) or ``None``.
     .. note::
-        The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`
+        The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
     """
     match = re.match(
         r"^STEAM_(?P<universe>\d+)"
@@ -437,12 +499,12 @@ def steam3_to_tuple(value):
     Parameters
     ----------
     value: :class:`str`
-        steam3 e.g. ``[U:1:1234]``
+        steam3 e.g. ``[U:1:1234]``.
 
     Returns
     -------
-    steam2: :class:`tuple` or :class:`None`
-        (account_id, type, universe, instance)
+    steam2: Optional[:class:`tuple`]
+        e.g. (account_id, type, universe, instance) or ``None``.
     """
     match = re.match(
         r"^\["
@@ -480,7 +542,7 @@ def steam3_to_tuple(value):
     return steam32, etype, universe, instance
 
 
-async def steam64_from_url(url: str, http_timeout=30):
+async def steam64_from_url(url: str, timeout=30):
     """Takes a Steam Community url and returns steam64 or None
     .. note::
         Each call makes a http request to ``steamcommunity.com``
@@ -490,14 +552,14 @@ async def steam64_from_url(url: str, http_timeout=30):
     Parameters
     ----------
     url: :class:`str`
-        steam community url
-    http_timeout: :class:`int`
-        how long to wait on http request before turning ``None``
+        The Steam community url.
+    timeout: :class:`int`
+        How long to wait on http request before turning ``None``.
 
     Returns
     -------
-    steam64: :class:`int` or :class:`None`
-        if ``steamcommunity.com`` is down returns None
+    steam64: Optional[:class:`int`]
+        if ``steamcommunity.com`` is down returns ``None``
 
     Example URLs::
         https://steamcommunity.com/gid/[g:1:4]
@@ -519,7 +581,7 @@ async def steam64_from_url(url: str, http_timeout=30):
     try:
         # user profiles
         if match.group('type') in ('id', 'profiles'):
-            async with session.get(match.group('clean_url'), timeout=http_timeout) as r:
+            async with session.get(match.group('clean_url'), timeout=timeout) as r:
                 text = await r.text()
             data_match = re.search("g_rgProfileData = (?P<json>{.*?});[ \t\r]*\n", text)
 
@@ -528,7 +590,7 @@ async def steam64_from_url(url: str, http_timeout=30):
                 return int(data['steamid'])
         # group profiles
         else:
-            async with session.get(match.group('clean_url'), timeout=http_timeout) as r:
+            async with session.get(match.group('clean_url'), timeout=timeout) as r:
                 text = await r.text()
             data_match = re.search(r"'steam://friends/joinchat/(?P<steamid>\d+)'", text)
 
@@ -538,24 +600,23 @@ async def steam64_from_url(url: str, http_timeout=30):
         return None
 
 
-async def from_url(url, http_timeout=30):
-    """
-    Takes Steam community url and returns a SteamID instance or ``None``
-    See :py:func:`steam64_from_url` for details
-     Parameters
+async def from_url(url, timeout=30):
+    """Takes Steam community url and returns a SteamID instance or ``None``.
+    See :func:`steam64_from_url` for details.
+    Parameters
     ----------
     url: :class:`str`
-        steam community url
-    http_timeout: :class:`int`
-        how long to wait on http request before turning ``None``
+        The Steam community url.
+    timeout: :class:`int`
+        How long to wait for the http request before turning ``None``.
 
     Returns
     -------
-    SteamID: :py:class:`steam.SteamID`
-        `SteamID` instance or :class:`None`
+    SteamID: Optional[:class:`~steam.SteamID`]
+        `SteamID` instance or ``None``.
     """
 
-    steam64 = steam64_from_url(url, http_timeout)
+    steam64 = steam64_from_url(url, timeout)
 
     if steam64:
         return SteamID(steam64)
@@ -564,24 +625,28 @@ async def from_url(url, http_timeout=30):
 
 
 async def profile(user_id):
-    """Takes a Steam Community url and returns steam64 or None
+    """Formats a users mini profile from
+    ``steamcommunity.com/miniprofile/ID3/json``.
     .. note::
-        Each call makes a http request to ``steamcommunity.com``
+        Each call makes a http request to ``steamcommunity.com``.
 
     Parameters
     ----------
-    user_id: :py:class:`Union`[:class:`int`, :class:`str`]
-        The ID to search for. For accepted IDs see :meth:`make_steam64`
+    user_id: :class:`Union`[:class:`int`, :class:`str`]
+        The ID to search for. For accepted IDs see :meth:`make_steam64`.
 
     Returns
     -------
     Optional[:class:`dict`]
-        The user or ``None`` if not found.
+        The user's miniprofile or ``None`` if no profile
+        is found or its a private account.
     """
     async with aiohttp.ClientSession() as session:
-        post = await (await session.get(
-            url=f'https://steamcommunity.com/miniprofile/{SteamID(make_steam64(user_id)).as_steam3[5:-1]}/json')).json()
-        return post if post else None
+        post = await session.get(
+            url=f'https://steamcommunity.com/miniprofile/{SteamID(make_steam64(user_id)).as_steam3[5:-1]}/json'
+        )
+
+        return await post.json() if (await post.json())['persona_name'] else None
 
 
 SteamID.from_url = staticmethod(from_url)

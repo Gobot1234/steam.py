@@ -23,17 +23,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
+import asyncio
 import logging
-from asyncio import AbstractEventLoop
 from base64 import b64encode
 from binascii import hexlify
 from os import urandom as random_bytes
 from time import time
 
+import aiohttp
 import rsa
 from Cryptodome.Hash import SHA1
-from aiohttp import ClientSession, ClientResponse, CookieJar
 
 from . import __version__
 from .enums import URL
@@ -48,7 +47,7 @@ log = logging.getLogger(__name__)
 class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
 
-    def __init__(self, loop: AbstractEventLoop, session: ClientSession, client):
+    def __init__(self, loop: asyncio.AbstractEventLoop, session: aiohttp.ClientSession, client):
         self.loop = loop
         self.session = session
 
@@ -66,9 +65,10 @@ class HTTPClient:
 
     def recreate(self):
         if self.session.closed:
-            self.session = ClientSession(
-                loop=self.loop, cookie_jar=CookieJar(),
-                headers={"User-Agent": f'steam.py/{__version__}'})
+            self.session = aiohttp.ClientSession(
+                loop=self.loop, cookie_jar=aiohttp.CookieJar(),
+                headers={"User-Agent": f'steam.py/{__version__}'}
+            )
 
     async def login(self, username: str, password: str, shared_secret: str):
         self.username = username
@@ -79,10 +79,10 @@ class HTTPClient:
         await self._check_for_captcha(login_response)
         login_response = await self._enter_steam_guard_if_necessary(login_response)
         await self._assert_valid_credentials(login_response)
+
+        self.session_id = hexlify(SHA1.new(random_bytes(24)).digest())[:24].decode('ascii')
         await self._perform_redirects(login_response)
 
-        self.session_id = hexlify(SHA1.new(random_bytes(32)).digest())[:32].decode('ascii')
-        self.session.cookie_jar.update_cookies(cookies={'sessionid': self.session_id})
         self.client.dispatch('login')
 
         self._steam_id = SteamID(login_response['transfer_parameters']['steamid'])
@@ -157,6 +157,7 @@ class HTTPClient:
             raise Exception('Cannot perform redirects after login, no parameters fetched')
         for url in response_dict['transfer_urls']:
             await self.session.post(url, data=parameters)
+            self.session.cookie_jar.update_cookies(cookies={'sessionid': self.session_id})
 
     async def _check_for_captcha(self, login_response: dict) -> None:
         try:
@@ -171,43 +172,71 @@ class HTTPClient:
             await self.session.close()
             raise InvalidCredentials(login_response['message'])
 
-    async def _fetch_home_page(self) -> ClientResponse:
+    async def _fetch_home_page(self) -> aiohttp.ClientResponse:
         return await self.session.post(f'{URL.COMMUNITY}/my/home/')
 
-    async def block(self, user: User) -> ClientResponse:
-        """Block a user using there Steam ID"""
+    async def block_user(self, user: User) -> aiohttp.ClientResponse:  # TODO add more doc strings
+        """Block a :class:`~steam.User`"""
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
             "block": 1
         }
-        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
+        print(data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', params=data)
 
-    async def unblock(self, user: User) -> ClientResponse:
-        """Unblock a user using there Steam ID"""
+    async def unblock(self, user: User) -> aiohttp.ClientResponse:
+        """Unblock a :class:`~steam.User`"""
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
             "block": 0
         }
-        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', params=data)
 
-    async def add_friend(self, user: User) -> ClientResponse:
+    async def add_user(self, user: User) -> aiohttp.ClientResponse:
+        """Add a :class:`~steam.User`"""
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
             "accept_invite": 0
         }
-        return await self.session.post(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
+        resp = await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
+        print(resp.url)
+        return resp
 
-    async def remove_friend(self, user: User) -> ClientResponse:
+    async def remove_user(self, user: User) -> aiohttp.ClientResponse:
+        """Remove a :class:`~steam.User`"""
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
         }
-        return await self.session.post(url=f'{URL.COMMUNITY}/actions/RemoveFriendAjax', data=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/RemoveFriendAjax', params=data)
+
+    async def accept_user_invite(self, user: User):
+        """Accept an invite from a :class:`~steam.User`"""
+        data = {
+            "sessionID": self.session_id,
+            "steamid": user.id64,
+            "accept_invite": 1
+        }
+        resp = await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
+        print(resp.url)
+        return resp
+
+    async def decline_user_invite(self, user: User):
+        """Decline an invite from a :class:`~steam.User`"""
+        data = {
+            "sessionID": self.session_id,
+            "steamid": user.id64,
+            "accept_invite": 0
+        }
+        resp = await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
+        print(resp.url)
+        return resp
 
     async def mini_profile(self, ID3: str) -> dict:
         post = await self.session.get(
             url=f'https://steamcommunity.com/miniprofile/{ID3[5:-1]}/json')
         return await post.json()
+

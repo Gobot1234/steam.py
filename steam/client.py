@@ -39,7 +39,7 @@ from . import __version__
 from .https import HTTPClient
 from .market import Market
 from .state import State
-from .user import User, SteamID, make_steam64
+from .user import User, SteamID
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class Client:
     @property
     def user(self):
         """Optional[:class:`user.ClientUser`]: Represents the connected client.
-        None if not logged in."""
+        ``None`` if not logged in."""
         return self._user
 
     def event(self, coro):
@@ -268,7 +268,7 @@ class Client:
                               shared_secret=self.shared_secret)
         self._user = self.http._user
         self._closed = False
-        self.dispatch('ready')
+        self._handle_ready()
 
     async def close(self):
         """|coro|
@@ -310,19 +310,21 @@ class Client:
         await self.login(username=username, password=password,
                          shared_secret=shared_secret, identity_secret=identity_secret)
 
-    async def get_user(self, user_id):  # TODO cache these
+    async def get_user(self, user_id):  # TODO cache these to make this not a coro
         """Returns a user with the given ID.
 
         Parameters
         ----------
-        user_id: :py:class:`Union`[:class:`int`, :class:`str`]
+        user_id: :class:`Union`[:class:`int`, :class:`str`]
             The ID to search for. For accepted IDs see
-            :py:class:`steam`.:py:file:`user`.:py:meth:`make_steam64`
+            :meth:`~steam.User.make_steam64`
 
         Returns
         -------
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        user = SteamID(make_steam64(user_id))
-        return User(state=self.state, data=await self.http.mini_profile(user.as_steam3))
+        user = SteamID(user_id)
+        data = await self.http.mini_profile(user.as_steam3)
+        data['id64'] = user.as_64
+        return User(state=self.state, data=data)
