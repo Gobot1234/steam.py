@@ -53,6 +53,8 @@ class HTTPClient:
     def __init__(self, loop: asyncio.AbstractEventLoop, session: aiohttp.ClientSession, client):
         self.loop = loop
         self.session = session
+        self.client = client
+        self.state = State(loop=loop, http=self)
 
         self.username = None
         self.password = None
@@ -62,9 +64,6 @@ class HTTPClient:
 
         self._steam_id = None
         self._user = None
-
-        self.state = State(loop=loop, http=self)
-        self.client = client
 
     def recreate(self):
         if self.session.closed:
@@ -79,41 +78,41 @@ class HTTPClient:
         self.shared_secret = shared_secret
 
         login_response = await self._send_login_request()
-        await self._check_for_captcha(login_response)
-        login_response = await self._enter_steam_guard_if_necessary(login_response)
+        if 'captcha_needed' in login_response.keys():
+            raise LoginError('A captcha code is required, please try again in 30 minutes')
+
         await self._assert_valid_credentials(login_response)
-
-        self.session_id = hexlify(SHA1.new(random_bytes(24)).digest())[:24].decode('ascii')
         await self._perform_redirects(login_response)
+        self._set_cookies(URL.STORE[8:], URL.COMMUNITY[8:])
 
-        new_cookies = self._copy_cookies(URL.STORE[8:], URL.COMMUNITY[8:])
-        self.session.cookie_jar.update_cookies(new_cookies, URL_CONVERTER(URL.COMMUNITY))
         self.client.dispatch('login')
-        self.session.cookie_jar.filter_cookies(URL.COMMUNITY)
 
         self._steam_id = SteamID(login_response['transfer_parameters']['steamid'])
         data = await self.mini_profile(self._steam_id)
         self._user = ClientUser(self.state, data)
 
-    def _copy_cookies(self, prev_domain, new_domain):
-        prev_cookies = self.session.cookie_jar.filter_cookies(prev_domain)
+        return self.session
 
-        self.session.cookie_jar.update_cookies(cookies={'sessionid': self.session_id})
+    def _set_cookies(self, prev_domain, new_domain):
+        prev_cookies = self.session.cookie_jar.filter_cookies(prev_domain)
+        self.session_id = hexlify(SHA1.new(random_bytes(24)).digest())[:24].decode('ascii')
+
         for cookie in prev_cookies:
             cookie['domain'] = new_domain
-        return prev_cookies
+        prev_cookies['sessionid'] = self.session_id
+        self.session.cookie_jar.update_cookies(prev_cookies, URL_CONVERTER(URL.COMMUNITY))
 
-    async def logout(self) -> None:
+    async def logout(self):
         log.debug('Logging out of session')
         await self.session.post(f'{URL.STORE}/login/logout/')
         await self.session.close()
         self.client.dispatch('logout')
 
-    async def _send_login_request(self) -> dict:
+    async def _send_login_request(self):
         rsa_params = await self._fetch_rsa_params()
         rsa_timestamp = rsa_params['rsa_timestamp']
-        login_request = await self._send_login(rsa_params, rsa_timestamp)
-        return await login_request.json()
+
+        return await self._send_login(rsa_params, rsa_timestamp)
 
     async def _fetch_rsa_params(self, current_repetitions: int = 0) -> dict:
         maximum_repetitions = 5
@@ -154,16 +153,17 @@ class HTTPClient:
             "donotcache": int(time() * 1000),
         }
         try:
-            return await self.session.post(f'{URL.STORE}/login/dologin/', data=data, timeout=15)
+            post = await self.session.post(f'{URL.STORE}/login/dologin/', data=data, timeout=15)
+            login_response = await post.json()
+
+            if login_response['requires_twofactor']:
+                self.one_time_code = generate_one_time_code(self.shared_secret)
+                return await self._send_login_request()
+            return login_response
+
         except Exception as e:
             await self.session.close()
             raise HTTPException(e)
-
-    async def _enter_steam_guard_if_necessary(self, login_response: dict) -> dict:
-        if login_response['requires_twofactor']:
-            self.one_time_code = generate_one_time_code(self.shared_secret)
-            return await self._send_login_request()
-        return login_response
 
     async def _perform_redirects(self, response_dict: dict) -> None:
         parameters = response_dict.get('transfer_parameters')
@@ -171,14 +171,6 @@ class HTTPClient:
             raise Exception('Cannot perform redirects after login, no parameters fetched')
         for url in response_dict['transfer_urls']:
             await self.session.post(url, data=parameters)
-
-    async def _check_for_captcha(self, login_response: dict) -> None:
-        try:
-            if login_response['captcha_needed']:
-                await self.session.close()
-                raise LoginError('Captcha required')
-        except KeyError:
-            pass
 
     async def _assert_valid_credentials(self, login_response: dict) -> None:
         if not login_response['success']:
