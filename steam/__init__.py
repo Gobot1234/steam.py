@@ -10,7 +10,6 @@ from .client import Client
 from .errors import *
 from .market import *
 from .message import *
-from .utils import *
 
 try:
     from logging import NullHandler

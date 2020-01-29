@@ -321,7 +321,6 @@ class User(Messageable, BaseUser):
     async def add(self):
         request = await self._state.http.add_user(self)
         resp = await request.json()
-        print(resp)
         if resp:
             return resp
         else:
@@ -330,7 +329,6 @@ class User(Messageable, BaseUser):
     async def remove(self):
         request = await self._state.http.remove_user(self)
         resp = await request.json()
-        print(resp)
         if resp:
             return resp
         else:

@@ -23,16 +23,19 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 import asyncio
 import logging
 from base64 import b64encode
 from binascii import hexlify
 from os import urandom as random_bytes
 from time import time
+from typing import Union
 
 import aiohttp
 import rsa
 from Cryptodome.Hash import SHA1
+from yarl import URL as URL_CONVERTER
 
 from . import __version__
 from .enums import URL
@@ -66,7 +69,7 @@ class HTTPClient:
     def recreate(self):
         if self.session.closed:
             self.session = aiohttp.ClientSession(
-                loop=self.loop, cookie_jar=aiohttp.CookieJar(),
+                loop=self.loop,
                 headers={"User-Agent": f'steam.py/{__version__}'}
             )
 
@@ -83,15 +86,26 @@ class HTTPClient:
         self.session_id = hexlify(SHA1.new(random_bytes(24)).digest())[:24].decode('ascii')
         await self._perform_redirects(login_response)
 
+        new_cookies = self._copy_cookies(URL.STORE[8:], URL.COMMUNITY[8:])
+        self.session.cookie_jar.update_cookies(new_cookies, URL_CONVERTER(URL.COMMUNITY))
         self.client.dispatch('login')
+        self.session.cookie_jar.filter_cookies(URL.COMMUNITY)
 
         self._steam_id = SteamID(login_response['transfer_parameters']['steamid'])
-        data = await self.mini_profile(self._steam_id.as_steam3)
+        data = await self.mini_profile(self._steam_id)
         self._user = ClientUser(self.state, data)
+
+    def _copy_cookies(self, prev_domain, new_domain):
+        prev_cookies = self.session.cookie_jar.filter_cookies(prev_domain)
+
+        self.session.cookie_jar.update_cookies(cookies={'sessionid': self.session_id})
+        for cookie in prev_cookies:
+            cookie['domain'] = new_domain
+        return prev_cookies
 
     async def logout(self) -> None:
         log.debug('Logging out of session')
-        await self.session.post(f'{URL.COMMUNITY}/login/logout/')
+        await self.session.post(f'{URL.STORE}/login/logout/')
         await self.session.close()
         self.client.dispatch('logout')
 
@@ -106,7 +120,7 @@ class HTTPClient:
         data = {'username': self.username,
                 'donotcache': int(time() * 1000)}
         try:
-            request = await self.session.post(f'{URL.COMMUNITY}/login/getrsakey/',
+            request = await self.session.post(f'{URL.STORE}/login/getrsakey/',
                                               data=data, timeout=15)
         except Exception as e:
             await self.session.close()
@@ -140,7 +154,7 @@ class HTTPClient:
             "donotcache": int(time() * 1000),
         }
         try:
-            return await self.session.post(f'{URL.COMMUNITY}/login/dologin/', data=data, timeout=15)
+            return await self.session.post(f'{URL.STORE}/login/dologin/', data=data, timeout=15)
         except Exception as e:
             await self.session.close()
             raise HTTPException(e)
@@ -157,7 +171,6 @@ class HTTPClient:
             raise Exception('Cannot perform redirects after login, no parameters fetched')
         for url in response_dict['transfer_urls']:
             await self.session.post(url, data=parameters)
-            self.session.cookie_jar.update_cookies(cookies={'sessionid': self.session_id})
 
     async def _check_for_captcha(self, login_response: dict) -> None:
         try:
@@ -175,14 +188,35 @@ class HTTPClient:
     async def _fetch_home_page(self) -> aiohttp.ClientResponse:
         return await self.session.post(f'{URL.COMMUNITY}/my/home/')
 
-    async def block_user(self, user: User) -> aiohttp.ClientResponse:  # TODO add more doc strings
+    async def mini_profile(self, user: Union[User, SteamID]) -> dict:
+        post = await self.session.get(
+            url=f'{URL.COMMUNITY}/miniprofile/{user.as_steam3[5:-1]}/json')
+        return await post.json()
+
+    async def add_user(self, user: User) -> aiohttp.ClientResponse:
+        """Add a :class:`~steam.User`"""
+        data = {
+            "sessionID": self.session_id,
+            "steamid": user.id64,
+            "accept_invite": 0
+        }
+        return await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
+
+    async def remove_user(self, user: User) -> aiohttp.ClientResponse:
+        """Remove a :class:`~steam.User`"""
+        data = {
+            "sessionID": self.session_id,
+            "steamid": user.id64,
+        }
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/RemoveFriendAjax', params=data)
+
+    async def block_user(self, user: User) -> aiohttp.ClientResponse:
         """Block a :class:`~steam.User`"""
         data = {
             "sessionID": self.session_id,
             "steamid": user.id64,
             "block": 1
         }
-        print(data)
         return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', params=data)
 
     async def unblock(self, user: User) -> aiohttp.ClientResponse:
@@ -194,25 +228,6 @@ class HTTPClient:
         }
         return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', params=data)
 
-    async def add_user(self, user: User) -> aiohttp.ClientResponse:
-        """Add a :class:`~steam.User`"""
-        data = {
-            "sessionID": self.session_id,
-            "steamid": user.id64,
-            "accept_invite": 0
-        }
-        resp = await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
-        print(resp.url)
-        return resp
-
-    async def remove_user(self, user: User) -> aiohttp.ClientResponse:
-        """Remove a :class:`~steam.User`"""
-        data = {
-            "sessionID": self.session_id,
-            "steamid": user.id64,
-        }
-        return await self.session.post(url=f'{URL.COMMUNITY}/actions/RemoveFriendAjax', params=data)
-
     async def accept_user_invite(self, user: User):
         """Accept an invite from a :class:`~steam.User`"""
         data = {
@@ -221,7 +236,6 @@ class HTTPClient:
             "accept_invite": 1
         }
         resp = await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
-        print(resp.url)
         return resp
 
     async def decline_user_invite(self, user: User):
@@ -231,12 +245,4 @@ class HTTPClient:
             "steamid": user.id64,
             "accept_invite": 0
         }
-        resp = await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
-        print(resp.url)
-        return resp
-
-    async def mini_profile(self, ID3: str) -> dict:
-        post = await self.session.get(
-            url=f'https://steamcommunity.com/miniprofile/{ID3[5:-1]}/json')
-        return await post.json()
-
+        return await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)

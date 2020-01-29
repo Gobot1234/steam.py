@@ -33,9 +33,9 @@ import signal
 import sys
 import traceback
 
-from aiohttp import ClientSession, CookieJar
+from aiohttp import ClientSession
 
-from . import __version__
+from . import errors, __version__
 from .https import HTTPClient
 from .market import Market
 from .state import State
@@ -81,7 +81,7 @@ class Client:
     def __init__(self, loop=None, **options):
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self._session = ClientSession(
-            loop=loop, cookie_jar=CookieJar(),
+            loop=loop,
             headers={"User-Agent": f'steam.py/{__version__}'}
         )
 
@@ -306,6 +306,8 @@ class Client:
         identity_secret = kwargs.pop('identity_secret', None)
         if kwargs:
             raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
+        if not (username or password or shared_secret):
+            raise errors.LoginError("One or more required login detail is missing")
 
         await self.login(username=username, password=password,
                          shared_secret=shared_secret, identity_secret=identity_secret)
@@ -325,6 +327,6 @@ class Client:
             The user or ``None`` if not found.
         """
         user = SteamID(user_id)
-        data = await self.http.mini_profile(user.as_steam3)
+        data = await self.http.mini_profile(user)
         data['id64'] = user.as_64
         return User(state=self.state, data=data)
