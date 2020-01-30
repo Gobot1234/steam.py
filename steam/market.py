@@ -55,7 +55,7 @@ def has_invalid_name(name: str) -> bool:
     return False
 
 
-def fix_name(name: str) -> Union[bool, str]:
+def fix_name(name: str) -> str:
     """Sterilize the name of an item to be able to request the price.
 
     Parameters
@@ -65,7 +65,7 @@ def fix_name(name: str) -> Union[bool, str]:
 
     Returns
     -------
-    price: :class:`typing.Union`[:class:`bool`, :class:`str`]
+    price: :class:`str`
         The fixed name.
     """
     if isinstance(name, str):
@@ -79,9 +79,9 @@ class Market:
 
     Parameters
     ----------
-    session: :py:class:`aiohttp.ClientSession`
+    session: :class:`aiohttp.ClientSession`
         The session used to make web requests.
-    currency: :py:class:`typing.Union`[:class:`int`, :class:`str`]
+    currency: :class:`typing.Union`[:class:`int`, :class:`str`]
         Sets the currency to be outputted.
         1, 'USD' or leave empty for American Dollars.
     """
