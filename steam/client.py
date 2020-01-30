@@ -36,12 +36,14 @@ import traceback
 from aiohttp import ClientSession
 
 from . import errors, __version__
+from .guard import generate_one_time_code
 from .https import HTTPClient
 from .market import Market
 from .state import State
 from .user import User, SteamID
 
 log = logging.getLogger(__name__)
+__all__ = ('Client',)
 
 
 class _ClientEventTask(asyncio.Task):
@@ -110,12 +112,16 @@ class Client:
         ``None`` if not logged in."""
         return self._user
 
+    @property
+    def code(self):
+        """:class:`str` The current steam guard code"""
+        return generate_one_time_code(self.shared_secret)
+
     def event(self, coro):
         """A decorator that registers an event to listen to.
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
         """
         if not asyncio.iscoroutinefunction(coro):
-            self.loop.run_until_complete(self.http.logout())
             raise TypeError('Event registered must be a coroutine function')
 
         setattr(self, coro.__name__, coro)
@@ -269,6 +275,7 @@ class Client:
         self._user = self.http._user
         self._closed = False
         self._handle_ready()
+        self.dispatch('ready')
 
     async def close(self):
         """|coro|
@@ -299,6 +306,8 @@ class Client:
         ------
         TypeError
             An unexpected keyword argument was received.
+        :class:`~steam.errors.LoginError`
+            Login details were missing
         """
         username = kwargs.pop('username', None)
         password = kwargs.pop('password', None)
@@ -306,14 +315,15 @@ class Client:
         identity_secret = kwargs.pop('identity_secret', None)
         if kwargs:
             raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
-        if not (username or password or shared_secret):
+        if not (username or password):
             raise errors.LoginError("One or more required login detail is missing")
 
         await self.login(username=username, password=password,
                          shared_secret=shared_secret, identity_secret=identity_secret)
 
     async def get_user(self, user_id):  # TODO cache these to make this not a coro
-        """Returns a user with the given ID.
+        """|coro|
+        Returns a user with the given ID.
 
         Parameters
         ----------

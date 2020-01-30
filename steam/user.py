@@ -319,6 +319,7 @@ class User(Messageable, BaseUser):
         return self._steam_id
 
     async def add(self):
+        """|coro|"""
         request = await self._state.http.add_user(self)
         resp = await request.json()
         if resp:
@@ -327,6 +328,7 @@ class User(Messageable, BaseUser):
             raise errors.Forbidden('Adding the user failed')
 
     async def remove(self):
+        """|coro|"""
         request = await self._state.http.remove_user(self)
         resp = await request.json()
         if resp:
@@ -335,6 +337,7 @@ class User(Messageable, BaseUser):
             raise errors.Forbidden('Removing the user failed')
 
     async def unblock(self):
+        """|coro|"""
         request = await self._state.http.unblock_user(self)
         resp = await request.json()
         if resp:
@@ -343,6 +346,7 @@ class User(Messageable, BaseUser):
             raise errors.Forbidden('Unblocking the user failed')
 
     async def block(self):
+        """|coro|"""
         request = await self._state.http.block_user(self)
         resp = await request.json()
         if resp:
@@ -351,6 +355,7 @@ class User(Messageable, BaseUser):
             raise errors.Forbidden('Blocking the user failed')
 
     async def accept_invite(self):
+        """|coro|"""
         request = await self._state.http.accept_user_invite(self)
         resp = await request.json()
         if resp:
@@ -359,6 +364,7 @@ class User(Messageable, BaseUser):
             raise errors.Forbidden("Accepting the user's invite failed")
 
     async def decline_invite(self):
+        """|coro|"""
         request = await self._state.http.decline_user_invite(self)
         resp = await request.json()
         if resp:
@@ -641,10 +647,10 @@ async def profile(user_id):
     """
     async with aiohttp.ClientSession() as session:
         post = await session.get(
-            url=f'https://steamcommunity.com/miniprofile/{SteamID(make_steam64(user_id)).as_steam3[5:-1]}/json'
+            url=f'https://steamcommunity.com/miniprofile/{SteamID(user_id).as_steam3[5:-1]}/json'
         )
-
-        return await post.json() if (await post.json())['persona_name'] else None
+        resp = await post.json()
+        return resp if resp['persona_name'] else None
 
 
 SteamID.from_url = staticmethod(from_url)

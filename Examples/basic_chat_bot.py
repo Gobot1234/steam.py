@@ -1,20 +1,18 @@
-import logging
-
 import steam
 
 api_key = ''
 username = ''
 password = ''
 shared_secret = ''
+user_to_add = 1234567890
 
-logging.basicConfig(level=logging.INFO)
 client = steam.Client(api_key=api_key)
 
 
 @client.event
 async def on_login():
     print('Logged in')
-    user = await client.get_user(76561198248053954)
+    user = await client.get_user(user_to_add)
     print(f'Attempting to add user {user.name}')
     print(f'Result: {await user.add()}')
 

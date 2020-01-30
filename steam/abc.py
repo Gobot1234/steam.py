@@ -52,9 +52,9 @@ class BaseUser(metaclass=abc.ABCMeta):
 
 class Messageable(metaclass=abc.ABCMeta):
     """An ABC that details the common operations on a Steam user.
-        The following implement this ABC:
+    The following implement this ABC:
         - :class:`~steam.User`
-        """
+    """
 
     __slots__ = ()
 
@@ -68,7 +68,7 @@ class Messageable(metaclass=abc.ABCMeta):
             The content of the message to send.
         delete_after: :class:`float`
             If provided deletes the message after waiting
-            for the timer.
+            for the time specified.
 
         Raises
         ------

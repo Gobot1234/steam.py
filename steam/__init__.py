@@ -3,9 +3,8 @@
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.2a'
+__version__ = '0.0.3a'
 
-from . import guard
 from .client import Client
 from .errors import *
 from .market import *

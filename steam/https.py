@@ -26,16 +26,13 @@ SOFTWARE.
 
 import asyncio
 import logging
+import re
+import typing
 from base64 import b64encode
-from binascii import hexlify
-from os import urandom as random_bytes
 from time import time
-from typing import Union
 
 import aiohttp
 import rsa
-from Cryptodome.Hash import SHA1
-from yarl import URL as URL_CONVERTER
 
 from . import __version__
 from .enums import URL
@@ -79,11 +76,10 @@ class HTTPClient:
 
         login_response = await self._send_login_request()
         if 'captcha_needed' in login_response.keys():
-            raise LoginError('A captcha code is required, please try again in 30 minutes')
+            raise LoginError('A captcha code is required, please try again later')
 
         await self._assert_valid_credentials(login_response)
         await self._perform_redirects(login_response)
-        self._set_cookies(URL.STORE[8:], URL.COMMUNITY[8:])
 
         self.client.dispatch('login')
 
@@ -93,14 +89,11 @@ class HTTPClient:
 
         return self.session
 
-    def _set_cookies(self, prev_domain, new_domain):
-        prev_cookies = self.session.cookie_jar.filter_cookies(prev_domain)
-        self.session_id = hexlify(SHA1.new(random_bytes(24)).digest())[:24].decode('ascii')
-
-        for cookie in prev_cookies:
-            cookie['domain'] = new_domain
-        prev_cookies['sessionid'] = self.session_id
-        self.session.cookie_jar.update_cookies(prev_cookies, URL_CONVERTER(URL.COMMUNITY))
+    def code(self):
+        if self.shared_secret:
+            return generate_one_time_code(self.shared_secret)
+        else:
+            return input('Please enter a Steam guard code: ')
 
     async def logout(self):
         log.debug('Logging out of session')
@@ -111,21 +104,25 @@ class HTTPClient:
     async def _send_login_request(self):
         rsa_params = await self._fetch_rsa_params()
         rsa_timestamp = rsa_params['rsa_timestamp']
+        self.encrypted_password = \
+            b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_params['rsa_key'])).decode()
 
-        return await self._send_login(rsa_params, rsa_timestamp)
+        return await self._send_login(rsa_timestamp)
 
     async def _fetch_rsa_params(self, current_repetitions: int = 0) -> dict:
         maximum_repetitions = 5
         data = {'username': self.username,
-                'donotcache': int(time() * 1000)}
+                'donotcache': str(int(time() * 1000))}
         try:
-            request = await self.session.post(f'{URL.STORE}/login/getrsakey/',
-                                              data=data, timeout=15)
+            request = await self.session.post(f'{URL.STORE}/login/getrsakey/', data=data)
         except Exception as e:
             await self.session.close()
             raise LoginError(e)
-
-        key_response = await request.json()
+        try:
+            key_response = await request.json()
+        except aiohttp.ContentTypeError as e:
+            raise HTTPException(f'The Steam API likely is down, please '
+                                f'try again later {" ".join(e.args)}')
         try:
             rsa_mod = int(key_response['publickey_mod'], 16)
             rsa_exp = int(key_response['publickey_exp'], 16)
@@ -138,10 +135,10 @@ class HTTPClient:
             else:
                 raise ValueError('Could not obtain rsa-key')
 
-    async def _send_login(self, rsa_params: dict, rsa_timestamp: str):
+    async def _send_login(self, rsa_timestamp: str):
         data = {
             'username': self.username,
-            'password': b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_params['rsa_key'])).decode(),
+            'password': self.encrypted_password,
             "emailauth": '',
             "emailsteamid": '',
             "twofactorcode": self.one_time_code or '',
@@ -150,14 +147,14 @@ class HTTPClient:
             "loginfriendlyname": 'steam.py bot',
             "rsatimestamp": rsa_timestamp,
             "remember_login": 'true',
-            "donotcache": int(time() * 1000),
+            "donotcache": str(int(time() * 1000)),
         }
         try:
-            post = await self.session.post(f'{URL.STORE}/login/dologin/', data=data, timeout=15)
+            post = await self.session.post(f'{URL.STORE}/login/dologin/', data=data)
             login_response = await post.json()
 
             if login_response['requires_twofactor']:
-                self.one_time_code = generate_one_time_code(self.shared_secret)
+                self.one_time_code = self.code()
                 return await self._send_login_request()
             return login_response
 
@@ -165,25 +162,27 @@ class HTTPClient:
             await self.session.close()
             raise HTTPException(e)
 
-    async def _perform_redirects(self, response_dict: dict) -> None:
+    async def _perform_redirects(self, response_dict: dict):
         parameters = response_dict.get('transfer_parameters')
         if parameters is None:
-            raise Exception('Cannot perform redirects after login, no parameters fetched')
+            raise HTTPException(f'Cannot perform redirects after login, no parameters fetched. '
+                                f'The Steam API likely is down, please try again later ')
         for url in response_dict['transfer_urls']:
             await self.session.post(url, data=parameters)
 
-    async def _assert_valid_credentials(self, login_response: dict) -> None:
+    async def _assert_valid_credentials(self, login_response: dict):
         if not login_response['success']:
             await self.session.close()
             raise InvalidCredentials(login_response['message'])
+        async with self.session.get(f'{URL.COMMUNITY}/my/home/') as resp:
+            self.session_id = re.search(r'g_sessionID = "(?P<sessionID>(?:.*?))";',
+                                        await resp.text()).group('sessionID')
 
-    async def _fetch_home_page(self) -> aiohttp.ClientResponse:
-        return await self.session.post(f'{URL.COMMUNITY}/my/home/')
-
-    async def mini_profile(self, user: Union[User, SteamID]) -> dict:
+    async def mini_profile(self, user: typing.Union[User, SteamID]) -> dict:
         post = await self.session.get(
             url=f'{URL.COMMUNITY}/miniprofile/{user.as_steam3[5:-1]}/json')
-        return await post.json()
+        resp = await post.json()
+        return resp if resp['persona_name'] else None
 
     async def add_user(self, user: User) -> aiohttp.ClientResponse:
         """Add a :class:`~steam.User`"""
@@ -192,7 +191,7 @@ class HTTPClient:
             "steamid": user.id64,
             "accept_invite": 0
         }
-        return await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
 
     async def remove_user(self, user: User) -> aiohttp.ClientResponse:
         """Remove a :class:`~steam.User`"""
@@ -200,7 +199,7 @@ class HTTPClient:
             "sessionID": self.session_id,
             "steamid": user.id64,
         }
-        return await self.session.post(url=f'{URL.COMMUNITY}/actions/RemoveFriendAjax', params=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/RemoveFriendAjax', data=data)
 
     async def block_user(self, user: User) -> aiohttp.ClientResponse:
         """Block a :class:`~steam.User`"""
@@ -209,7 +208,7 @@ class HTTPClient:
             "steamid": user.id64,
             "block": 1
         }
-        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', params=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
 
     async def unblock(self, user: User) -> aiohttp.ClientResponse:
         """Unblock a :class:`~steam.User`"""
@@ -218,7 +217,7 @@ class HTTPClient:
             "steamid": user.id64,
             "block": 0
         }
-        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', params=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
 
     async def accept_user_invite(self, user: User):
         """Accept an invite from a :class:`~steam.User`"""
@@ -227,8 +226,7 @@ class HTTPClient:
             "steamid": user.id64,
             "accept_invite": 1
         }
-        resp = await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
-        return resp
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
 
     async def decline_user_invite(self, user: User):
         """Decline an invite from a :class:`~steam.User`"""
@@ -237,4 +235,4 @@ class HTTPClient:
             "steamid": user.id64,
             "accept_invite": 0
         }
-        return await self.session.get(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', params=data)
+        return await self.session.post(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)

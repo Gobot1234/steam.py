@@ -62,14 +62,14 @@ def load_steam_guard(steam_guard: str) -> dict:
             try:
                 return loads(f.read())
             except Exception as e:
-                raise SteamAuthenticatorError(f'{steam_guard} is not able to be loaded\n{"".join(e.args)}')
+                raise SteamAuthenticatorError(f'{steam_guard} is not able to be loaded\n{" ".join(e.args)}')
             finally:
                 f.close()
     else:
         try:
             return loads(steam_guard)
         except Exception as e:
-            raise SteamAuthenticatorError(f'{steam_guard} is not able to be loaded\n{"".join(e.args)}')
+            raise SteamAuthenticatorError(f'{steam_guard} is not able to be loaded\n{" ".join(e.args)}')
 
 
 def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> str:
