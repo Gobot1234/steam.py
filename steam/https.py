@@ -89,7 +89,6 @@ class HTTPClient:
         self._steam_id = SteamID(login_response['transfer_parameters']['steamid'])
         data = await self.mini_profile(self._steam_id)
         self._user = ClientUser(self._state, data)
-        await self._final_check()
 
         return self._session
 
@@ -177,8 +176,6 @@ class HTTPClient:
         if not login_response['success']:
             await self._session.close()
             raise InvalidCredentials(login_response['message'])
-
-    async def _final_check(self):
         async with self._session.get(f'{URL.COMMUNITY}/my/home/') as resp:
             self.session_id = re.search(r'g_sessionID = "(?P<sessionID>(?:.*?))";',
                                         await resp.text()).group('sessionID')
