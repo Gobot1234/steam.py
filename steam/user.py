@@ -36,7 +36,8 @@ import aiohttp
 
 from . import errors
 from .abc import BaseUser, Messageable
-from .enums import EType, EUniverse, EInstanceFlag, ETypeChar
+from .enums import EType, EUniverse, EInstanceFlag, ETypeChar, Game
+from .trade import Inventory
 
 ETypeChars = ''.join(ETypeChar.__members__.keys())
 
@@ -55,7 +56,7 @@ class SteamID(int):
         super().__init__()
 
     def __repr__(self):
-        return "<id={0.id}, type={1}, universe={2}, instance={0.instance}>".format(
+        return "<SteamID id={0.id}, type={1}, universe={2}, instance={0.instance}>".format(
             self,
             repr(self.type.name),
             repr(self.universe.name),
@@ -224,22 +225,22 @@ class SteamID(int):
 
 
 class ClientUser(BaseUser):
-    '''__slots__ = (
-        '_name', '_avatar_url', '_level', '_steam_id', 'avatar_url', 'status',
-        'profile_url', 'id64', 'id2', 'id3', '_state'
-    )'''
+    __slots__ = ('name', 'avatar_url', 'level', 'avatar_url', '_steam_id', '_state')
 
     def __init__(self, state, data: dict):
         self._state = state
         self._update(data)
 
+    def __str__(self):
+        return self.name
+
     def __repr__(self):
-        return "<name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
+        return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
 
     def _update(self, data):
-        self._name = data['persona_name']
-        self._avatar_url = data['avatar_url']
-        self._level = data['level']
+        self.name = data['persona_name']
+        self.avatar_url = data['avatar_url']
+        self.level = data['level']
         self._steam_id = self._state.http._steam_id
 
     @property
@@ -255,39 +256,32 @@ class ClientUser(BaseUser):
         return self._steam_id.as_steam3
 
     @property
-    def name(self):
-        return self._name
-
-    @property
-    def level(self):
-        return self._level
-
-    @property
-    def avatar_url(self):
-        return self._avatar_url
-
-    @property
     def steam_id(self):
         return self._steam_id
 
+    async def fetch_friends(self):
+        'view-source:https://steamcommunity.com/id/Gobot1234/friends/pending'
+        r'g_rgCounts = (?P<json>{.*?});[ \t\r]*\n'
+
+
 
 class User(Messageable, BaseUser):
-    '''__slots__ = (
-        '_name', '_avatar_url', '_level', '_steam_id', 'avatar_url', 'status',
-        'profile_url', 'id64', 'id2', 'id3', '_state'
-    )'''
+    __slots__ = ('name', 'avatar_url', 'level', 'avatar_url', '_steam_id', '_state')
 
     def __init__(self, state, data: dict):
         self._state = state
         self._update(data)
 
+    def __str__(self):
+        return self.name
+
     def __repr__(self):
-        return "<name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
+        return "<User name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
 
     def _update(self, data):
-        self._name = data['persona_name']
-        self._avatar_url = data['avatar_url']
-        self._level = data['level']
+        self.name = data['persona_name']
+        self.avatar_url = data['avatar_url']
+        self.level = data['level']
         self._steam_id = SteamID(data['id64'])
 
     @property
@@ -301,18 +295,6 @@ class User(Messageable, BaseUser):
     @property
     def id3(self):
         return self._steam_id.as_steam3
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def level(self):
-        return self._level
-
-    @property
-    def avatar_url(self):
-        return self._avatar_url
 
     @property
     def steam_id(self):
@@ -372,6 +354,18 @@ class User(Messageable, BaseUser):
         else:
             raise errors.Forbidden("Declining the user's invite failed")
 
+    async def fetch_inventory(self, game: Game):
+        request = await self._state.http.fetch_user_inventory(self, game)
+        return Inventory(self._state, await request.json())
+
+    async def send_trade_offer(self, game: Game,
+                               items_to_send: list, items_to_receive: list,
+                               offer_message: str):
+        request = await self._state.http.send_trade_offer(self, game, items_to_send,
+                                                          items_to_receive, offer_message)
+        resp = await request.json()
+        return resp
+
 
 def make_steam64(_id=0, *args, **kwargs):
     """Returns steam64 from various other representations.
@@ -420,12 +414,10 @@ def make_steam64(_id=0, *args, **kwargs):
             result = steam2_to_tuple(value) or steam3_to_tuple(value)
 
             if result:
-                (
-                    account_id,
-                    etype,
-                    universe,
-                    instance,
-                ) = result
+                (account_id,
+                etype,
+                universe,
+                instance) = result
             else:
                 account_id = 0
 

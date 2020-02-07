@@ -26,12 +26,6 @@ Taken from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 
 import enum
 
-__all__ = [
-    obj.__name__
-    for obj in globals().values()
-    if obj.__class__ is enum.EnumMeta
-]
-
 
 class EResult(enum.IntEnum):
     Invalid = 0
@@ -562,4 +556,52 @@ class URL:
     STORE = 'https://store.steampowered.com'
 
 
-del enum.EnumMeta
+class NotificationType(enum.IntEnum):
+    trade = 1
+    # "2": 0,
+    # "3": 0,
+    comment = 4
+    item_receive = 5
+    # "6": 0,
+    # "8": 0,
+    # "9": 9,  # chat messages
+    # "10": 0,
+    # "11": 0
+
+
+class Game:
+    GAMES = {
+        440: ('Team Fortress 2', 440, 2),
+        570: ('DOTA 2', 570, 2),
+        730: ('Counter Strike Global-Offensive', 730, 2),
+        753: ('Steam', 753, 6),
+        'Team Fortress 2': ('Team Fortress 2', 440, 2),
+        'TF2': ('Team Fortress 2', 440, 2),
+        'DOTA 2': ('DOTA 2', 570, 2),
+        'Counter Strike Global-Offensive': ('Counter Strike Global-Offensive', 730, 2),
+        'CSGO': ('Counter Strike Global-Offensive', 730, 2),
+        'Steam': ('Steam', 753, 6)
+    }
+
+    def __init__(self, title: str = None, app_id: int = None):
+        if title:
+            self.game = self.GAMES[title]
+        elif app_id:
+            self.game = self.GAMES[app_id]
+        else:
+            raise ValueError('Missing a game title or app_id kwarg')
+
+    def __repr__(self):
+        return '<Game title={0.title} app_id={0.app_id} context_id={0.context_id}>'.format(self)
+
+    @property
+    def title(self):
+        return self.game[0]
+
+    @property
+    def app_id(self):
+        return self.game[1]
+
+    @property
+    def context_id(self):
+        return self.game[2]

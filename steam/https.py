@@ -35,7 +35,7 @@ import aiohttp
 import rsa
 
 from . import __version__
-from .enums import URL
+from .enums import URL, Game
 from .errors import LoginError, InvalidCredentials, HTTPException
 from .guard import generate_one_time_code
 from .state import State
@@ -86,6 +86,7 @@ class HTTPClient:
         self._steam_id = SteamID(login_response['transfer_parameters']['steamid'])
         data = await self.mini_profile(self._steam_id)
         self._user = ClientUser(self.state, data)
+        await self.poll_status()
 
         return self.session
 
@@ -236,3 +237,89 @@ class HTTPClient:
             "accept_invite": 0
         }
         return await self.session.post(url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
+
+    async def fetch_user_inventory(self, user: User, game: Game):
+        """Fetch a :class:`~steam.User`'s inventory for a game on steam"""
+        url = f'{URL.COMMUNITY}/inventory/{user.id64}/{game.app_id}/{game.context_id}'
+        return await self.session.post(url=url)
+
+    async def send_trade_offer(self, user: User, game: Game,
+                               items_to_send: list, items_to_receive: list,
+                               offer_message: str = ''):
+        data = {
+            "sessionID": self.session_id,
+            "serverid": 1,
+            "partner": user.id64,
+            "tradeoffermessage": offer_message,
+            "json_tradeoffer": {
+                "newversion": True,
+                "version": 2,
+                "me": {
+                    "assets": [
+                        {
+                            "app_id": game.app_id,
+                            "context_id": game.context_id,
+                            "asset_id": item.asset_id
+                        }
+                        for item in items_to_send
+                    ],
+                    "currency": [],
+                    "ready": False
+                },
+                "them": {
+                    "assets": [
+                        {
+                            "app_id": game.app_id,
+                            "context_id": game.context_id,
+                            "asset_id": item.asset_id
+                        }
+                        for item in items_to_receive
+                    ],
+                    "currency": [],
+                    "ready": False
+                }
+            },
+            "captcha": '',
+            "trade_offer_create_params": {}
+        }
+        post = await self.session.post(url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=data)
+        return post
+
+    async def poll_notifications(self):
+        initial_resp = await self.session.get(f'{URL.COMMUNITY}/actions/GetNotificationCounts')
+        cached_notifications = (await initial_resp.json())['notifications']
+        await asyncio.sleep(5)
+        while 1:
+            request = await self.session.get(f'{URL.COMMUNITY}/actions/GetNotificationCounts')
+            notifications = (await request.json())['notifications']
+            if notifications != cached_notifications:
+                for cached_notification, notification in zip(cached_notifications, notifications):
+                    if cached_notifications[cached_notification] != notifications[notification]:
+                        await self._refactor_notification(notification)
+                cached_notifications = notifications
+
+            await asyncio.sleep(5)
+
+    async def _refactor_notification(self, notification):
+        pass
+
+
+    async def poll_status(self):
+        resp = await self.session.get(f'{URL.COMMUNITY}/chat/clientjstoken')
+        """
+        access_token = (await resp.json())['token']
+        print(access_token)
+        params = {
+            "steamid": self._user.id64,
+            "access_token": access_token[-32:],
+            "ui_mode": "web",
+        }
+        post = await self.session.post(url=f'{URL.API}/ISteamWebUserPresenceOAuth/Logon/v1',
+                                       # data=params,
+                                       params=params)"""
+        # print(post.status)
+        async with self.session.ws_connect(f'wss://cm-03-ams1.cm.steampowered.com/cmsocket/') as ws:
+            async for msg in ws:
+                print(msg)
+        print(post.url)
+        return post
