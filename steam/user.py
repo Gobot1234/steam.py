@@ -28,7 +28,6 @@ This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 with some extra doc-strings
 """
-
 import json
 import re
 
@@ -36,16 +35,13 @@ import aiohttp
 
 from . import errors
 from .abc import BaseUser, Messageable
-from .enums import EType, EUniverse, EInstanceFlag, ETypeChar
+from .enums import EType, EUniverse, EInstanceFlag, ETypeChar, EFriendRelationship, EChatEntryType
 
 ETypeChars = ''.join(ETypeChar.__members__.keys())
 
 
 class SteamID(int):
     """Convert a Steam ID to its various representations."""
-    EType = EType  #: reference to EType
-    EUniverse = EUniverse  #: reference to EUniverse
-    EInstanceFlag = EInstanceFlag  #: reference to EInstanceFlag
 
     def __new__(cls, *args, **kwargs):
         steam64 = make_steam64(*args, **kwargs)
@@ -53,6 +49,9 @@ class SteamID(int):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
+        self.EType = EType  #: reference to EType
+        self.EUniverse = EUniverse  #: reference to EUniverse
+        self.EInstanceFlag = EInstanceFlag  #: reference to EInstanceFlag
 
     def __repr__(self):
         return "<id={0.id}, type={1}, universe={2}, instance={0.instance}>".format(
@@ -93,7 +92,7 @@ class SteamID(int):
         """
         Returns
         -------
-        universe: :class:`~steam.enum.EUniverse`
+        :class:`~steam.enum.EUniverse`
         """
         return EUniverse((int(self) >> 56) & 0xFF)
 
@@ -236,23 +235,14 @@ class ClientUser(BaseUser):
     def __repr__(self):
         return "<name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
 
+    def __str__(self):
+        return self.name
+
     def _update(self, data):
         self._name = data['persona_name']
         self._avatar_url = data['avatar_url']
         self._level = data['level']
         self._steam_id = self._state.http._steam_id
-
-    @property
-    def id64(self):
-        return self._steam_id.as_64
-
-    @property
-    def id2(self):
-        return self._steam_id.as_steam2
-
-    @property
-    def id3(self):
-        return self._steam_id.as_steam3
 
     @property
     def name(self):
@@ -265,6 +255,18 @@ class ClientUser(BaseUser):
     @property
     def avatar_url(self):
         return self._avatar_url
+
+    @property
+    def id64(self):
+        return self._steam_id.as_64
+
+    @property
+    def id2(self):
+        return self._steam_id.as_steam2
+
+    @property
+    def id3(self):
+        return self._steam_id.as_steam3
 
     @property
     def steam_id(self):
@@ -279,10 +281,14 @@ class User(Messageable, BaseUser):
 
     def __init__(self, state, data: dict):
         self._state = state
+        self.relationship = EFriendRelationship.NONE
         self._update(data)
 
     def __repr__(self):
-        return "<name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
+        return "<name='{0.name}' level={0.level} relationship{0.relationship} steam_id={0.steam_id!r}>".format(self)
+
+    def __str__(self):
+        return self.name
 
     def _update(self, data):
         self._name = data['persona_name']
@@ -290,17 +296,8 @@ class User(Messageable, BaseUser):
         self._level = data['level']
         self._steam_id = SteamID(data['id64'])
 
-    @property
-    def id64(self):
-        return self._steam_id.as_64
-
-    @property
-    def id2(self):
-        return self._steam_id.as_steam2
-
-    @property
-    def id3(self):
-        return self._steam_id.as_steam3
+    def get_ps(self, param):
+        pass
 
     @property
     def name(self):
@@ -315,62 +312,85 @@ class User(Messageable, BaseUser):
         return self._avatar_url
 
     @property
+    def id64(self):
+        return self._steam_id.as_64
+
+    @property
+    def id2(self):
+        return self._steam_id.as_steam2
+
+    @property
+    def id3(self):
+        return self._steam_id.as_steam3
+
+    @property
     def steam_id(self):
         return self._steam_id
+
+    @property
+    def last_logon(self):
+        """:rtype: :class:`datetime`, :class:`None`"""
+        ts = self.get_ps('last_logon')
+        return datetime.utcfromtimestamp(ts) if ts else None
+
+    @property
+    def last_logoff(self):
+        """:rtype: :class:`datetime`, :class:`None`"""
+        ts = self.get_ps('last_logoff')
+        return datetime.utcfromtimestamp(ts) if ts else None
+
+    async def is_friend(self):
+        """|coro|"""
+        pass
 
     async def add(self):
         """|coro|"""
         request = await self._state.http.add_user(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden('Adding the user failed')
 
     async def remove(self):
         """|coro|"""
         request = await self._state.http.remove_user(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden('Removing the user failed')
 
     async def unblock(self):
         """|coro|"""
         request = await self._state.http.unblock_user(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden('Unblocking the user failed')
 
     async def block(self):
         """|coro|"""
         request = await self._state.http.block_user(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden('Blocking the user failed')
 
     async def accept_invite(self):
         """|coro|"""
         request = await self._state.http.accept_user_invite(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden("Accepting the user's invite failed")
 
     async def decline_invite(self):
         """|coro|"""
         request = await self._state.http.decline_user_invite(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden("Declining the user's invite failed")
+
+    async def send(self, content: str = None):
+        self._steam.send_um("FriendMessages.SendMessage#1", {
+            'steamid': self.steam_id,
+            'message': content,
+            'chat_entry_type': EChatEntryType.ChatMsg,
+        })
 
 
 def make_steam64(_id=0, *args, **kwargs):
@@ -465,7 +485,7 @@ def make_steam64(_id=0, *args, **kwargs):
     return (universe << 56) | (etype << 52) | (instance << 32) | account_id
 
 
-def steam2_to_tuple(value):
+def steam2_to_tuple(value: str):
     """
     Parameters
     ----------
@@ -498,7 +518,7 @@ def steam2_to_tuple(value):
     return steam32, EType(1), EUniverse(universe), 1
 
 
-def steam3_to_tuple(value):
+def steam3_to_tuple(value: str):
     """
     Parameters
     ----------
@@ -636,7 +656,7 @@ async def profile(user_id):
 
     Parameters
     ----------
-    user_id: :class:`Union`[:class:`int`, :class:`str`]
+    user_id: Union[:class:`int`, :class:`str`]
         The ID to search for. For accepted IDs see :meth:`make_steam64`.
 
     Returns
