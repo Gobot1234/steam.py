@@ -33,9 +33,9 @@ import signal
 import sys
 import traceback
 
-from aiohttp import ClientSession
+import aiohttp
 
-from . import errors, __version__
+from . import errors
 from .guard import generate_one_time_code
 from .https import HTTPClient
 from .market import Market
@@ -43,7 +43,46 @@ from .state import State
 from .user import User, SteamID
 
 log = logging.getLogger(__name__)
-__all__ = ('Client',)
+
+
+def _cancel_tasks(loop):
+    try:
+        task_retriever = asyncio.Task.all_tasks
+    except AttributeError:
+        # future proofing for 3.9 I guess
+        task_retriever = asyncio.all_tasks
+
+    tasks = {t for t in task_retriever(loop=loop) if not t.done()}
+
+    if not tasks:
+        return
+
+    log.info(f'Cleaning up after {len(tasks)} tasks.')
+    for task in tasks:
+        task.cancel()
+
+    loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+    log.info('All tasks finished cancelling.')
+
+    for task in tasks:
+        if task.cancelled():
+            continue
+        if task.exception() is not None:
+            loop.call_exception_handler({
+                'message': 'Unhandled exception during Client.run shutdown.',
+                'exception': task.exception(),
+                'task': task
+            })
+
+
+def _cleanup_loop(loop):
+    try:
+        _cancel_tasks(loop)
+        if sys.version_info >= (3, 6):
+            loop.run_until_complete(loop.shutdown_asyncgens())
+    finally:
+        log.info('Closing the event loop.')
+        loop.close()
 
 
 class _ClientEventTask(asyncio.Task):
@@ -82,10 +121,7 @@ class Client:
 
     def __init__(self, loop=None, **options):
         self.loop = asyncio.get_event_loop() if loop is None else loop
-        self._session = ClientSession(
-            loop=loop,
-            headers={"User-Agent": f'steam.py/{__version__}'}
-        )
+        self._session = aiohttp.ClientSession(loop=self.loop)
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
         self.state = State(loop=self.loop, http=self.http)
@@ -221,7 +257,7 @@ class Client:
         finally:
             future.remove_done_callback(stop_loop_on_completion)
             log.info('Cleaning up tasks.')
-            loop.close()
+            _cleanup_loop(loop)
 
         if not future.cancelled():
             return future.result()
@@ -240,7 +276,7 @@ class Client:
         print(f'Ignoring exception in {event_method}', file=sys.stderr)
         traceback.print_exc()
 
-    async def login(self, username: str, password: str, shared_secret: str, identity_secret: str = None):
+    async def login(self, username: str, password: str, shared_secret: str = None, identity_secret: str = None):
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
 
@@ -321,7 +357,7 @@ class Client:
         await self.login(username=username, password=password,
                          shared_secret=shared_secret, identity_secret=identity_secret)
 
-    async def get_user(self, user_id):  # TODO cache these to make this not a coro
+    async def fetch_user(self, user_id):  # TODO cache these to make this not a coro
         """|coro|
         Returns a user with the given ID.
 
