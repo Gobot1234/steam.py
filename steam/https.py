@@ -321,5 +321,5 @@ class HTTPClient:
         async with self.session.ws_connect(f'wss://cm-03-ams1.cm.steampowered.com/cmsocket/') as ws:
             async for msg in ws:
                 print(msg)
-        print(post.url)
-        return post
+        #print(post.url)
+        #return post
