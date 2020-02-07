@@ -27,6 +27,50 @@ Taken from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 import enum
 
 
+class URL:
+    API = 'https://api.steampowered.com'
+    COMMUNITY = 'https://steamcommunity.com'
+    STORE = 'https://store.steampowered.com'
+
+
+class Game:
+    GAMES = {
+        440: ('Team Fortress 2', 440, 2),
+        570: ('DOTA 2', 570, 2),
+        730: ('Counter Strike Global-Offensive', 730, 2),
+        753: ('Steam', 753, 6),
+        'Team Fortress 2': ('Team Fortress 2', 440, 2),
+        'TF2': ('Team Fortress 2', 440, 2),
+        'DOTA 2': ('DOTA 2', 570, 2),
+        'Counter Strike Global-Offensive': ('Counter Strike Global-Offensive', 730, 2),
+        'CSGO': ('Counter Strike Global-Offensive', 730, 2),
+        'Steam': ('Steam', 753, 6)
+    }
+
+    def __init__(self, title: str = None, app_id: int = None):
+        if title:
+            self.game = self.GAMES[title]
+        elif app_id:
+            self.game = self.GAMES[app_id]
+        else:
+            raise ValueError('Missing a game title or app_id kwarg')
+
+    def __repr__(self):
+        return '<Game title={0.title} app_id={0.app_id} context_id={0.context_id}>'.format(self)
+
+    @property
+    def title(self):
+        return self.game[0]
+
+    @property
+    def app_id(self):
+        return self.game[1]
+
+    @property
+    def context_id(self):
+        return self.game[2]
+
+
 class EResult(enum.IntEnum):
     Invalid = 0
     OK = 1  #: success
@@ -448,7 +492,7 @@ class EChatEntryType(enum.IntEnum):
     WasKicked = 8  #: user was kicked (data: 64-bit steamid of actor performing the kick)
     WasBanned = 9  #: user was banned (data: 64-bit steamid of actor performing the ban)
     Disconnected = 10  #: user disconnected
-    HistoricalChat = 11  #: a chat message from user's chat history or offilne message
+    HistoricalChat = 11  #: a chat message from user's chat history or offline message
     Reserved1 = 12  #: No longer used
     Reserved2 = 13  #: No longer used
     LinkBlocked = 14  #: a link was removed by the chat filter.
@@ -550,12 +594,6 @@ class ETypeChar(enum.IntEnum):
         return self.name
 
 
-class URL:
-    API = 'https://api.steampowered.com'
-    COMMUNITY = 'https://steamcommunity.com'
-    STORE = 'https://store.steampowered.com'
-
-
 class NotificationType(enum.IntEnum):
     trade = 1
     # "2": 0,
@@ -567,41 +605,3 @@ class NotificationType(enum.IntEnum):
     # "9": 9,  # chat messages
     # "10": 0,
     # "11": 0
-
-
-class Game:
-    GAMES = {
-        440: ('Team Fortress 2', 440, 2),
-        570: ('DOTA 2', 570, 2),
-        730: ('Counter Strike Global-Offensive', 730, 2),
-        753: ('Steam', 753, 6),
-        'Team Fortress 2': ('Team Fortress 2', 440, 2),
-        'TF2': ('Team Fortress 2', 440, 2),
-        'DOTA 2': ('DOTA 2', 570, 2),
-        'Counter Strike Global-Offensive': ('Counter Strike Global-Offensive', 730, 2),
-        'CSGO': ('Counter Strike Global-Offensive', 730, 2),
-        'Steam': ('Steam', 753, 6)
-    }
-
-    def __init__(self, title: str = None, app_id: int = None):
-        if title:
-            self.game = self.GAMES[title]
-        elif app_id:
-            self.game = self.GAMES[app_id]
-        else:
-            raise ValueError('Missing a game title or app_id kwarg')
-
-    def __repr__(self):
-        return '<Game title={0.title} app_id={0.app_id} context_id={0.context_id}>'.format(self)
-
-    @property
-    def title(self):
-        return self.game[0]
-
-    @property
-    def app_id(self):
-        return self.game[1]
-
-    @property
-    def context_id(self):
-        return self.game[2]

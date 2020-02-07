@@ -44,9 +44,6 @@ ETypeChars = ''.join(ETypeChar.__members__.keys())
 
 class SteamID(int):
     """Convert a Steam ID to its various representations."""
-    EType = EType  #: reference to EType
-    EUniverse = EUniverse  #: reference to EUniverse
-    EInstanceFlag = EInstanceFlag  #: reference to EInstanceFlag
 
     def __new__(cls, *args, **kwargs):
         steam64 = make_steam64(*args, **kwargs)
@@ -54,6 +51,9 @@ class SteamID(int):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
+        self.EType = EType  #: reference to EType
+        self.EUniverse = EUniverse  #: reference to EUniverse
+        self.EInstanceFlag = EInstanceFlag  #: reference to EInstanceFlag
 
     def __repr__(self):
         return "<SteamID id={0.id}, type={1}, universe={2}, instance={0.instance}>".format(
@@ -94,7 +94,7 @@ class SteamID(int):
         """
         Returns
         -------
-        universe: :class:`~steam.enum.EUniverse`
+        :class:`~steam.enum.EUniverse`
         """
         return EUniverse((int(self) >> 56) & 0xFF)
 
@@ -225,7 +225,8 @@ class SteamID(int):
 
 
 class ClientUser(BaseUser):
-    __slots__ = ('name', 'avatar_url', 'level', 'avatar_url', '_steam_id', '_state')
+    __slots__ = ('name', 'avatar_url', 'level', 'avatar_url', 
+                 'id64', 'id2', 'id3', 'steam_id', '_state')
 
     def __init__(self, state, data: dict):
         self._state = state
@@ -237,27 +238,17 @@ class ClientUser(BaseUser):
     def __repr__(self):
         return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
 
+    def __str__(self):
+        return self.name
+
     def _update(self, data):
         self.name = data['persona_name']
         self.avatar_url = data['avatar_url']
         self.level = data['level']
-        self._steam_id = self._state.http._steam_id
-
-    @property
-    def id64(self):
-        return self._steam_id.as_64
-
-    @property
-    def id2(self):
-        return self._steam_id.as_steam2
-
-    @property
-    def id3(self):
-        return self._steam_id.as_steam3
-
-    @property
-    def steam_id(self):
-        return self._steam_id
+        self.steam_id = self._state.http._steam_id
+        self.id64 = self.steam_id.as_64
+        self.id2 = self.steam_id.as_steam2
+        self.id3 = self.steam_id.as_steam3
 
     async def fetch_friends(self):
         'view-source:https://steamcommunity.com/id/Gobot1234/friends/pending'
@@ -266,7 +257,8 @@ class ClientUser(BaseUser):
 
 
 class User(Messageable, BaseUser):
-    __slots__ = ('name', 'avatar_url', 'level', 'avatar_url', '_steam_id', '_state')
+    __slots__ = ('name', 'avatar_url', 'level', 'avatar_url', 
+                 'id64', 'id2', 'id3', 'steam_id', '_state')
 
     def __init__(self, state, data: dict):
         self._state = state
@@ -278,80 +270,62 @@ class User(Messageable, BaseUser):
     def __repr__(self):
         return "<User name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
 
+    def __str__(self):
+        return self.name
+
     def _update(self, data):
         self.name = data['persona_name']
         self.avatar_url = data['avatar_url']
         self.level = data['level']
-        self._steam_id = SteamID(data['id64'])
+        self.steam_id = self._state.http._steam_id
+        self.id64 = self.steam_id.as_64
+        self.id2 = self.steam_id.as_steam2
+        self.id3 = self.steam_id.as_steam3
 
-    @property
-    def id64(self):
-        return self._steam_id.as_64
-
-    @property
-    def id2(self):
-        return self._steam_id.as_steam2
-
-    @property
-    def id3(self):
-        return self._steam_id.as_steam3
-
-    @property
-    def steam_id(self):
-        return self._steam_id
+    async def is_friend(self):
+        """|coro|"""
+        pass
 
     async def add(self):
         """|coro|"""
         request = await self._state.http.add_user(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden('Adding the user failed')
 
     async def remove(self):
         """|coro|"""
         request = await self._state.http.remove_user(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden('Removing the user failed')
 
     async def unblock(self):
         """|coro|"""
         request = await self._state.http.unblock_user(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden('Unblocking the user failed')
 
     async def block(self):
         """|coro|"""
         request = await self._state.http.block_user(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden('Blocking the user failed')
 
     async def accept_invite(self):
         """|coro|"""
         request = await self._state.http.accept_user_invite(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden("Accepting the user's invite failed")
 
     async def decline_invite(self):
         """|coro|"""
         request = await self._state.http.decline_user_invite(self)
         resp = await request.json()
-        if resp:
-            return resp
-        else:
+        if not resp:
             raise errors.Forbidden("Declining the user's invite failed")
 
     async def fetch_inventory(self, game: Game):
@@ -457,7 +431,7 @@ def make_steam64(_id=0, *args, **kwargs):
     return (universe << 56) | (etype << 52) | (instance << 32) | account_id
 
 
-def steam2_to_tuple(value):
+def steam2_to_tuple(value: str):
     """
     Parameters
     ----------
@@ -490,7 +464,7 @@ def steam2_to_tuple(value):
     return steam32, EType(1), EUniverse(universe), 1
 
 
-def steam3_to_tuple(value):
+def steam3_to_tuple(value: str):
     """
     Parameters
     ----------
@@ -620,7 +594,7 @@ async def from_url(url, timeout=30):
     return None
 
 
-async def profile(user_id):
+async def mini_profile(user_id):
     """Formats a users mini profile from
     ``steamcommunity.com/miniprofile/ID3/json``.
     .. note::
@@ -628,7 +602,7 @@ async def profile(user_id):
 
     Parameters
     ----------
-    user_id: :class:`Union`[:class:`int`, :class:`str`]
+    user_id: Union[:class:`int`, :class:`str`]
         The ID to search for. For accepted IDs see :meth:`make_steam64`.
 
     Returns

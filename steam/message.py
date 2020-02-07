@@ -10,7 +10,7 @@ class Message(Messageable):
         pass
 
     def __repr__(self):
-        return '<author={0.author} flags={0.flags}>'.format(self)
+        return '<author={0.author!r} flags={0.flags}>'.format(self)
 
     @property
     def author(self):

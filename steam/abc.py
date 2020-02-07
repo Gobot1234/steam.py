@@ -58,7 +58,7 @@ class Messageable(metaclass=abc.ABCMeta):
 
     __slots__ = ()
 
-    async def send(self, content: str = None, *, delete_after=None):
+    async def send(self, content: str = None):
         """|coro|
         Send a message to a certain destination.
 
@@ -66,9 +66,6 @@ class Messageable(metaclass=abc.ABCMeta):
         ----------
         content: :class:`str`
             The content of the message to send.
-        delete_after: :class:`float`
-            If provided deletes the message after waiting
-            for the time specified.
 
         Raises
         ------
@@ -82,12 +79,8 @@ class Messageable(metaclass=abc.ABCMeta):
         :class:`~steam.Message`
             The message that was sent.
         """
-        # state = None
-
-        # data = await state.http.send_message(channel=channel, content)
+        # data = await state.http.send_message(channel=channel, content=content)
 
         # ret = state.create_message(channel=channel, data=data)
-        # if delete_after is not None:
-        # await ret.delete(delay=delete_after)
         # return ret
         pass

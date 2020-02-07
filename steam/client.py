@@ -45,6 +45,7 @@ from .user import User, SteamID
 log = logging.getLogger(__name__)
 
 
+
 def _cancel_tasks(loop):
     try:
         task_retriever = asyncio.Task.all_tasks
@@ -85,6 +86,7 @@ def _cleanup_loop(loop):
         loop.close()
 
 
+
 class _ClientEventTask(asyncio.Task):
     def __init__(self, original_coro, event_name, coro, *, loop):
         super().__init__(coro, loop=loop)
@@ -117,6 +119,8 @@ class Client:
     -----------
     loop: :class:`asyncio.AbstractEventLoop`
         The event loop that the client uses for HTTP requests.
+    market: :class:`~steam.Market`
+        Represents the markey instance given to the client
     """
 
     def __init__(self, loop=None, **options):
@@ -124,8 +128,8 @@ class Client:
         self._session = aiohttp.ClientSession(loop=self.loop)
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
-        self.state = State(loop=self.loop, http=self.http)
         self.market = Market(session=self._session)
+        self._state = State(loop=self.loop, http=self.http)
 
         self.username = None
         self.password = None
@@ -150,8 +154,9 @@ class Client:
 
     @property
     def code(self):
-        """:class:`str` The current steam guard code"""
-        return generate_one_time_code(self.shared_secret)
+        """Optional[:class:`str`]: The current steam guard code.
+        ``None`` if no shared_secret is passed"""
+        return generate_one_time_code(self.shared_secret) if self.shared_secret else None
 
     def event(self, coro):
         """A decorator that registers an event to listen to.
@@ -161,7 +166,7 @@ class Client:
             raise TypeError('Event registered must be a coroutine function')
 
         setattr(self, coro.__name__, coro)
-        log.debug(f'{coro.__name__} has successfully been registered as an event', )
+        log.debug(f'{coro.__name__} has successfully been registered as an event')
         return coro
 
     async def _run_event(self, coro, event_name, *args, **kwargs):
@@ -269,6 +274,10 @@ class Client:
         """Indicates if the API connection is closed."""
         return self._closed
 
+    def is_logged_in(self):
+        """Indicates if the bot is logged in."""
+        return self.http._logged_in
+
     async def on_error(self, event_method, *args, **kwargs):
         """|coro|
         The default error handler provided by the client.
@@ -363,7 +372,7 @@ class Client:
 
         Parameters
         ----------
-        user_id: :class:`Union`[:class:`int`, :class:`str`]
+        user_id: Union[:class:`int`, :class:`str`]
             The ID to search for. For accepted IDs see
             :meth:`~steam.User.make_steam64`
 
@@ -374,5 +383,7 @@ class Client:
         """
         user = SteamID(user_id)
         data = await self.http.mini_profile(user)
-        data['id64'] = user.as_64
-        return User(state=self.state, data=data)
+        if data:
+            data['id64'] = user.as_64
+            return User(state=self._state, data=data)
+        return None
