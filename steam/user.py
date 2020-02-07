@@ -28,6 +28,7 @@ This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 with some extra doc-strings
 """
+
 import json
 import re
 
@@ -35,7 +36,7 @@ import aiohttp
 
 from . import errors
 from .abc import BaseUser, Messageable
-from .enums import EType, EUniverse, EInstanceFlag, ETypeChar, EFriendRelationship, EChatEntryType
+from .enums import EType, EUniverse, EInstanceFlag, ETypeChar
 
 ETypeChars = ''.join(ETypeChar.__members__.keys())
 
@@ -281,11 +282,10 @@ class User(Messageable, BaseUser):
 
     def __init__(self, state, data: dict):
         self._state = state
-        self.relationship = EFriendRelationship.NONE
         self._update(data)
 
     def __repr__(self):
-        return "<name='{0.name}' level={0.level} relationship{0.relationship} steam_id={0.steam_id!r}>".format(self)
+        return "<name='{0.name}' steam_id={0.steam_id!r} level={0.level}>".format(self)
 
     def __str__(self):
         return self.name
@@ -295,9 +295,6 @@ class User(Messageable, BaseUser):
         self._avatar_url = data['avatar_url']
         self._level = data['level']
         self._steam_id = SteamID(data['id64'])
-
-    def get_ps(self, param):
-        pass
 
     @property
     def name(self):
@@ -313,7 +310,7 @@ class User(Messageable, BaseUser):
 
     @property
     def id64(self):
-        return self._steam_id.as_64
+        return self.steam_id.as_64
 
     @property
     def id2(self):
@@ -326,18 +323,6 @@ class User(Messageable, BaseUser):
     @property
     def steam_id(self):
         return self._steam_id
-
-    @property
-    def last_logon(self):
-        """:rtype: :class:`datetime`, :class:`None`"""
-        ts = self.get_ps('last_logon')
-        return datetime.utcfromtimestamp(ts) if ts else None
-
-    @property
-    def last_logoff(self):
-        """:rtype: :class:`datetime`, :class:`None`"""
-        ts = self.get_ps('last_logoff')
-        return datetime.utcfromtimestamp(ts) if ts else None
 
     async def is_friend(self):
         """|coro|"""
@@ -384,13 +369,6 @@ class User(Messageable, BaseUser):
         resp = await request.json()
         if not resp:
             raise errors.Forbidden("Declining the user's invite failed")
-
-    async def send(self, content: str = None):
-        self._steam.send_um("FriendMessages.SendMessage#1", {
-            'steamid': self.steam_id,
-            'message': content,
-            'chat_entry_type': EChatEntryType.ChatMsg,
-        })
 
 
 def make_steam64(_id=0, *args, **kwargs):

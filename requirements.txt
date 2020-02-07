@@ -1,4 +1,3 @@
 aiohttp
 rsa
 bs4
-pycryptodomex
