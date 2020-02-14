@@ -30,9 +30,7 @@ Thanks confern for letting me use this :D
 import logging
 from typing import Union
 
-from aiohttp import ClientSession
-
-from .enums import ECurrencyCode, URL
+from .enums import ECurrencyCode, URL, Game
 
 log = logging.getLogger(__name__)
 
@@ -75,51 +73,44 @@ def fix_name(name: str) -> str:
 
 class Market:
     """Represents a client connection that interacts with the Steam Market.
-    This class is used to interact with the Steam Market.
+    This class is used to interact with the Steam Market and
+    shouldn't have instances of it made by libary users.
 
     Parameters
     ----------
-    session: :class:`aiohttp.ClientSession`
+    http: :class:`~steam.HTTPClient`
         The session used to make web requests.
-    currency: :class:`typing.Union`[:class:`int`, :class:`str`]
+    currency: Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]
         Sets the currency to be outputted.
-        1, 'USD' or leave empty for American Dollars.
+        1, 'USD' or leave empty for United State Dollars.
     """
+    BASE = f'{URL.COMMUNITY}/market/'
 
-    def __init__(self, session: ClientSession, currency: Union[int, str] = 1):
-        if isinstance(currency, str):
+    def __init__(self, http, currency: Union[ECurrencyCode, int, str] = ECurrencyCode.USD):
+        self.http = http
+
+        if isinstance(currency, ECurrencyCode):
+            self.currency = currency.value
+
+        elif isinstance(currency, str):
             currency = currency.upper()
-
-            if currency in [i.name for i in ECurrencyCode]:
-                currency = ECurrencyCode[currency].value
+            if currency in [item.name for item in ECurrencyCode]:
+                self.currency = ECurrencyCode[currency].value
             else:
                 raise IndexError(f'Currency {currency} not found')
 
-        if isinstance(currency, int):
+        elif isinstance(currency, int):
             if currency > 32 or currency < 1:
-                currency = 1
-        else:
-            currency = 1
+                self.currency = 1
 
-        self.currency = currency
-        self.session = session
-        self.url = f'{URL.COMMUNITY}/market/priceoverview'
-
-    async def request(self, url: str, payload: dict) -> dict:
-        log.debug(f'Requesting price info for with {payload}')
-        async with self.session.post(url=url, params=payload) as r:
-            if r.status == 200:
-                return await r.json()
-            else:
-                return {'success': False, 'status_code': r.status, 'text': await r.text()}
-
-    async def get_price(self, name: str, app_id: int) -> dict:
+    async def fetch_price(self, name: str, app_id: int) -> dict:
         """Gets the price(s) and volume sales of an item.
 
         Parameters
         ----------
         name: :class:`str`
-            The name of the item how it appears on the Steam Community Market.
+            The name of the item as it appears on the
+            Steam Community Market.
         app_id: :class:`int`
             The AppID of the item.
 
@@ -137,15 +128,15 @@ class Market:
         if has_invalid_name(name):
             name = fix_name(name)
 
-        payload = {
+        data = {
             'appid': app_id,
             'market_hash_name': name,
             'currency': self.currency
         }
 
-        return await self.request(self.url, payload)
+        return await self.http._request('POST', f'{self.BASE}/priceoverview', data=data)
 
-    async def get_prices(self, names: list, app_id: Union[int, list]) -> dict:
+    async def fetch_prices(self, names: list, app_id: Game) -> dict:
         """Get the price(s) and volume of each item in the list.
         If both are lists, then they need to have the same amount of elements.
 
@@ -164,17 +155,16 @@ class Market:
         prices = {}
 
         if not isinstance(names, list):
-            raise TypeError('Names must be list')
+            raise TypeError('names must be list')
 
         if isinstance(app_id, int):
             for name in names:
-                prices[name] = await self.get_price(name, app_id)
+                prices[name] = await self.fetch_price(name, app_id)
 
         elif isinstance(app_id, list):
             if len(names) == len(app_id):
                 for i, name in enumerate(names):
-                    print(name, app_id[i])
-                    prices[name] = await self.get_price(name, app_id[i])
+                    prices[name] = await self.fetch_price(name, app_id[i])
             else:
                 raise IndexError('names and app_id needs to have the same length')
 
@@ -194,12 +184,16 @@ class Market:
         prices: :class:`dict`
             A dictionary of the prices.
         """
-
-        prices = {}
-
         if not isinstance(items, dict):
             raise TypeError('items must be dict')
 
-        for item in items:
-            prices[item] = await self.get_price(item, items[item]['appid'])
-        return prices
+        return {item: await self.fetch_price(item, items[item]['appid']) for item in items}
+
+    async def fetch_price_history(self, item: str, game: Game, currency: str = ECurrencyCode.USD) -> dict:
+        params = {
+            'appid': game.app_id,
+            'currency': currency,
+            'market_hash_name': item
+        }
+        response = await self.http._request('GET', url=f'{self.BASE}/pricehistory/', params=params)
+        return response

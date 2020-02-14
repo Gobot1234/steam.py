@@ -32,6 +32,7 @@ import logging
 import signal
 import sys
 import traceback
+import weakref
 
 import aiohttp
 
@@ -39,11 +40,9 @@ from . import errors
 from .guard import generate_one_time_code
 from .https import HTTPClient
 from .market import Market
-from .state import State
 from .user import User, SteamID
 
 log = logging.getLogger(__name__)
-
 
 
 def _cancel_tasks(loop):
@@ -86,7 +85,6 @@ def _cleanup_loop(loop):
         loop.close()
 
 
-
 class _ClientEventTask(asyncio.Task):
     def __init__(self, original_coro, event_name, coro, *, loop):
         super().__init__(coro, loop=loop)
@@ -120,16 +118,16 @@ class Client:
     loop: :class:`asyncio.AbstractEventLoop`
         The event loop that the client uses for HTTP requests.
     market: :class:`~steam.Market`
-        Represents the markey instance given to the client
+        Represents the market instance given to the client
     """
 
     def __init__(self, loop=None, **options):
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self._session = aiohttp.ClientSession(loop=self.loop)
+        self.api_key = options.get('api_key')
 
-        self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
-        self.market = Market(session=self._session)
-        self._state = State(loop=self.loop, http=self.http)
+        self.http = HTTPClient(loop=self.loop, session=self._session, client=self, api_key=self.api_key)
+        self.market = Market(http=self.http, currency=options.get('currency'))
 
         self.username = None
         self.password = None
@@ -138,9 +136,9 @@ class Client:
         self.shared_secret = None
 
         self._user = None
-        self._keep_alive = None
-        self._listeners = {}
+        self._users = weakref.WeakValueDictionary()
         self._closed = True
+        self._listeners = {}
         self._handlers = {
             'ready': self._handle_ready
         }
@@ -148,9 +146,14 @@ class Client:
 
     @property
     def user(self):
-        """Optional[:class:`user.ClientUser`]: Represents the connected client.
+        """Optional[:class:`~steam.user.ClientUser`]: Represents the connected client.
         ``None`` if not logged in."""
         return self._user
+
+    @property
+    def users(self):
+        """List[:class:`~steam.User`]: Returns a list of all the users the account can see."""
+        return list(self._users.values())
 
     @property
     def code(self):
@@ -247,25 +250,26 @@ class Client:
         async def runner():
             try:
                 await self.start(*args, **kwargs)
+                await asyncio.sleep(120)
             finally:
                 await self.close()
 
         def stop_loop_on_completion(f):
             loop.stop()
 
-        future = asyncio.ensure_future(runner(), loop=loop)
-        future.add_done_callback(stop_loop_on_completion)
+        task = loop.create_task(runner())
+        task.add_done_callback(stop_loop_on_completion)
         try:
             loop.run_forever()
         except KeyboardInterrupt:
             log.info('Received signal to terminate bot and event loop.')
         finally:
-            future.remove_done_callback(stop_loop_on_completion)
+            task.remove_done_callback(stop_loop_on_completion)
             log.info('Cleaning up tasks.')
             _cleanup_loop(loop)
 
-        if not future.cancelled():
-            return future.result()
+        if not task.cancelled():
+            return task.result()
 
     def _handle_ready(self):
         self._ready.set()
@@ -285,7 +289,8 @@ class Client:
         print(f'Ignoring exception in {event_method}', file=sys.stderr)
         traceback.print_exc()
 
-    async def login(self, username: str, password: str, shared_secret: str = None, identity_secret: str = None):
+    async def login(self, username: str, password: str,
+                    shared_secret: str = None, identity_secret: str = None):
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
 
@@ -319,8 +324,6 @@ class Client:
                               shared_secret=self.shared_secret)
         self._user = self.http._user
         self._closed = False
-        self._handle_ready()
-        self.dispatch('ready')
 
     async def close(self):
         """|coro|
@@ -366,9 +369,8 @@ class Client:
         await self.login(username=username, password=password,
                          shared_secret=shared_secret, identity_secret=identity_secret)
 
-    async def fetch_user(self, user_id):  # TODO cache these to make this not a coro
-        """|coro|
-        Returns a user with the given ID.
+    def get_user(self, user_id):
+        """Returns a user with the given ID.
 
         Parameters
         ----------
@@ -381,9 +383,35 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        user = SteamID(user_id)
-        data = await self.http.mini_profile(user)
+        steam_id = SteamID(user_id)
+        return self._users.get(steam_id.as_64)
+
+    async def fetch_user(self, user_id):
+        """|coro|
+        Fetches a user from the API with the given ID.
+
+        Parameters
+        ----------
+        user_id: Union[:class:`int`, :class:`str`]
+            The ID to search for. For accepted IDs see
+            :meth:`~steam.User.make_steam64`
+
+        Returns
+        -------
+        Optional[:class:`~steam.User`]
+            The user or ``None`` if not found.
+        """
+        steam_id = SteamID(user_id)
+        data = await self.http.fetch_profile(steam_id)
         if data:
-            data['id64'] = user.as_64
-            return User(state=self._state, data=data)
+            self._store_user(data)
         return None
+
+    def _store_user(self, data):
+        # this way is 300% faster than `dict.setdefault`.
+        try:
+            return self._users[data['steamid']]
+        except KeyError:
+            user = User(state=self.http._state, data=data)
+            self._users[user.id64] = user
+            return user

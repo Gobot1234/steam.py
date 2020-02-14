@@ -4,22 +4,21 @@ api_key = ''
 username = ''
 password = ''
 shared_secret = ''
-user_to_add = 1234567890
 
 client = steam.Client(api_key=api_key)
 
 
 @client.event
 async def on_ready():
-    print('Ready!')
-    print(f'Currently logged and ready as:\n'
-          f'Username: {client.user.name}\n'
-          f'ID: {client.user.id64}')
+    print(f'Currently logged and ready!')
+    print(f'Username: {client.user.name}')
+    print(f'ID: {client.user.id64}')
+    print(f'Friends: {len(client.user.friends)}')
 
 
 @client.event
 async def on_login():
-    print('Logged in')
+    print(f'Logged in with the code: {client.code}')
 
 
 @client.event

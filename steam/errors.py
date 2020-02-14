@@ -24,6 +24,10 @@ class NotFound(HTTPException):
     pass
 
 
+class TooManyRequests(HTTPException):
+    pass
+
+
 class LoginError(SteamException):
     """Exception that's thrown when a login fails.
     Subclass of :exc:`SteamException`

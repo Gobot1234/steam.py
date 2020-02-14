@@ -1,5 +1,4 @@
 from .enums import Game, URL
-from .user import User
 
 
 class TradeOffer:
@@ -10,13 +9,13 @@ class TradeOffer:
         self._update(data)
 
     def _update(self, data):
-        pass
+        self.comment = data['comment']
 
 
 class Inventory:
     """Represents a Users inventory"""
 
-    __slots__ = ('items', 'owner', 'game', '_state')
+    __slots__ = ('items', 'owner', 'game', '_inventory', '_state')
 
     def __init__(self, state, data):
         self._state = state
@@ -30,8 +29,8 @@ class Inventory:
 
     def _update(self, data):
         self._inventory = data
-        self.game = Game(data[0]['app_id'])
-        self.owner = User(self._state, data['steam_id64'])
+        self.game = Game(app_id=data[0]['app_id'])
+        self.owner = self._state.client.fetch_user(user_id=data['steam_id64'])
         self.items = [Item(item) for item in self._inventory['descriptions']]
 
     def filter_items(self, item_name: str):
@@ -60,23 +59,23 @@ class Inventory:
         Returns
         -------
         Item: :class:`~steam.Item`
-            Returns the first found item
+            Returns the first found item with a matching name
         """
         return [item for item in self.items if item.name == item_name][0]
 
     async def update_inventory(self):
-        """Update a :class:`~steam.User`'s :class:`~steam.Inventory`
+        """Update an :class:`~steam.User`'s :class:`~steam.Inventory`
         Returns
         -------
         Inventory: :class:`~steam.Inventory`
         """
-        resp = await self._state.http.session.get(f'{URL.COMMUNITY}/inventory/{self.owner.id64}/'
-                                                  f'{self.game.app_id}/{self.game.context_id}')
+        resp = await self._state.http._request('GET', f'{URL.COMMUNITY}/inventory/{self.owner.id64}/'
+                                                      f'{self.game.app_id}/{self.game.context_id}')
         return Inventory(state=self._state, data=await resp.json())
 
 
 class Item:
-    """Represents an item in a User's inventory"""
+    """Represents an item in an User's inventory"""
 
     __slots__ = ('name', 'asset_id', 'colour', 'sterilised_name', 'descriptions',
                  'type', 'tags', 'game', 'icon_url', 'icon_url_large')
@@ -90,7 +89,7 @@ class Item:
 
     def _update(self, data):
         self.name = data['name']
-        self.assest_id = data['asset_id']
+        self.asset_id = data['asset_id']
         self.colour = int(data['name_color'], 16)
         self.sterilised_name = data['market_name']
         self.descriptions = data['descriptions']

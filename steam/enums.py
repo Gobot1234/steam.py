@@ -25,6 +25,7 @@ Taken from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 """
 
 import enum
+from collections import namedtuple
 
 
 class URL:
@@ -34,41 +35,46 @@ class URL:
 
 
 class Game:
+    __slots__ = ('title', 'app_id', 'context_id', 'is_steam_game', '_game')
+
+    GAME_TUPLE = namedtuple('GAME_TUPLE', ('title', 'app_id', 'context_id', 'is_steam_game'))
     GAMES = {
-        440: ('Team Fortress 2', 440, 2),
-        570: ('DOTA 2', 570, 2),
-        730: ('Counter Strike Global-Offensive', 730, 2),
-        753: ('Steam', 753, 6),
-        'Team Fortress 2': ('Team Fortress 2', 440, 2),
-        'TF2': ('Team Fortress 2', 440, 2),
-        'DOTA 2': ('DOTA 2', 570, 2),
-        'Counter Strike Global-Offensive': ('Counter Strike Global-Offensive', 730, 2),
-        'CSGO': ('Counter Strike Global-Offensive', 730, 2),
-        'Steam': ('Steam', 753, 6)
+        440: GAME_TUPLE('Team Fortress 2', 440, 2, True),
+        570: GAME_TUPLE('DOTA 2', 570, 2, True),
+        730: GAME_TUPLE('Counter Strike Global-Offensive', 730, 2, True),
+        753: GAME_TUPLE('Steam', 753, 6, True),
+        'Team Fortress 2': GAME_TUPLE('Team Fortress 2', 440, 2, True),
+        'TF2': GAME_TUPLE('Team Fortress 2', 440, 2, True),
+        'DOTA 2': GAME_TUPLE('DOTA 2', 570, 2, True),
+        'Counter Strike Global-Offensive': GAME_TUPLE('Counter Strike Global-Offensive', 730, 2, True),
+        'CSGO': GAME_TUPLE('Counter Strike Global-Offensive', 730, 2, True),
+        'Steam': GAME_TUPLE('Steam', 753, 6, True)
     }
 
-    def __init__(self, title: str = None, app_id: int = None):
-        if title:
-            self.game = self.GAMES[title]
-        elif app_id:
-            self.game = self.GAMES[app_id]
+    def __init__(self, title: str = None, app_id: int = None, is_steam_game: bool = True):
+        try:
+            if title:
+                self._game = self.GAMES[title]
+            elif app_id:
+                self._game = self.GAMES[app_id]
+            elif not is_steam_game:
+                self.title = title
+                self.context_id = 2
+                self.is_steam_game = False
+            else:
+                raise ValueError('Missing a game title or app_id kwarg')
+        except KeyError:  # Make the game a fake game
+            self.title = title
+            self.app_id = app_id
+            self.context_id = 2
+            self.is_steam_game = True
         else:
-            raise ValueError('Missing a game title or app_id kwarg')
+            self.title = self._game[0]
+            self.app_id = self._game[1]
+            self.context_id = self._game[2]
 
     def __repr__(self):
         return '<Game title={0.title} app_id={0.app_id} context_id={0.context_id}>'.format(self)
-
-    @property
-    def title(self):
-        return self.game[0]
-
-    @property
-    def app_id(self):
-        return self.game[1]
-
-    @property
-    def context_id(self):
-        return self.game[2]
 
 
 class EResult(enum.IntEnum):
@@ -100,7 +106,7 @@ class EResult(enum.IntEnum):
     Revoked = 26  #: Access has been revoked (used for revoked guest passes)
     Expired = 27  #: License/Guest pass the user is trying to access is expired
     AlreadyRedeemed = 28  #: Guest pass has already been redeemed by account, cannot be acked again
-    DuplicateRequest = 29  #: The request is a duplicate and the action has already occurred in the past, ignored this time
+    DuplicateRequest = 29  #: The request is a duplicate and the action has already occurred in the past
     AlreadyOwned = 30  #: All the games in this guest pass redemption request are already owned by the user
     IPNotFound = 31  #: IP address not found
     PersistFailed = 32  #: failed to write change to the data store
@@ -130,7 +136,7 @@ class EResult(enum.IntEnum):
     PasswordUnset = 56  #: Password could not be verified as it's unset server side
     ExternalAccountUnlinked = 57  #: External account (PSN, Facebook...) is not linked to a Steam account
     PSNTicketInvalid = 58  #: PSN ticket was invalid
-    ExternalAccountAlreadyLinked = 59  #: External account (PSN, Facebook...) is already linked to some other account, must explicitly request to replace/delete the link first
+    ExternalAccountAlreadyLinked = 59  #: External account (PSN, Facebook...) is already linked to some other account
     RemoteFileConflict = 60  #: The sync cannot resume due to a conflict between the local and remote files
     IllegalPassword = 61  #: The requested new password is not legal
     SameAsPreviousValue = 62  #: new value is the same as the old one ( secret question and answer )
@@ -155,7 +161,7 @@ class EResult(enum.IntEnum):
     InvalidCEGSubmission = 81  #: The set of files submitted to the CEG server are not valid !
     RestrictedDevice = 82  #: The device being used is not allowed to perform this action
     RegionLocked = 83  #: The action could not be complete because it is region restricted
-    RateLimitExceeded = 84  #: Temporary rate limit exceeded, try again later, different from k_EResultLimitExceeded which may be permanent
+    RateLimitExceeded = 84  #: Temporary rate limit exceeded, try again later, different from k_EResultLimitExceeded
     AccountLoginDeniedNeedTwoFactor = 85  #: Need two-factor code to login
     ItemDeleted = 86  #: The thing we're trying to access has been deleted
     AccountLoginDeniedThrottle = 87  #: login attempt failed, try to throttle response to possible attacker
@@ -174,7 +180,7 @@ class EResult(enum.IntEnum):
     NotSettled = 100  #: Can't perform operation till payment has settled
     NeedCaptcha = 101  #: Needs to provide a valid captcha
     GSLTDenied = 102  #: a game server login token owned by this token's owner has been banned
-    GSOwnerDenied = 103  #: game server owner is denied for other reason (account lock, community ban, vac ban, missing phone)
+    GSOwnerDenied = 103  #: game server owner is denied for other reason
     InvalidItemType = 104  #: the type of thing we were requested to act on is invalid
     IPBanned = 105  #: the ip address has been banned from taking this action
     GSLTExpired = 106  #: this token has expired from disuse; can be reset for use
@@ -208,177 +214,28 @@ class EType(enum.IntEnum):
     Max = 11
 
 
+class ETypeChar(enum.IntEnum):
+    I = EType.Invalid
+    U = EType.Individual
+    M = EType.Multiseat
+    G = EType.GameServer
+    A = EType.AnonGameServer
+    P = EType.Pending
+    C = EType.ContentServer
+    g = EType.Clan
+    T = EType.Chat
+    L = EType.Chat  # lobby chat, 'c' for clan chat
+    c = EType.Chat  # clan chat
+    a = EType.AnonUser
+
+    def __str__(self):
+        return self.name
+
+
 class EInstanceFlag(enum.IntEnum):
     MMSLobby = 0x20000
     Lobby = 0x40000
     Clan = 0x80000
-
-
-class EVanityUrlType(enum.IntEnum):
-    Individual = 1
-    Group = 2
-    GameGroup = 3
-
-
-class EServerType(enum.IntEnum):
-    Invalid = -1
-    First = 0
-    GM = 1
-    AM = 3
-    BS = 4
-    VS = 5
-    ATS = 6
-    CM = 7
-    FBS = 8
-    BoxMonitor = 9
-    SS = 10
-    DRMS = 11
-    HubOBSOLETE = 12
-    Console = 13
-    PICS = 14
-    Client = 15
-    BootstrapOBSOLETE = 16
-    DP = 17
-    WG = 18
-    SM = 19
-    SLC = 20
-    UFS = 21
-    Util = 23
-    DSS = 24
-    Community = 24
-    P2PRelayOBSOLETE = 25
-    AppInformation = 26
-    Spare = 27
-    FTS = 28
-    PS = 30
-    IS = 31
-    CCS = 32
-    DFS = 33
-    LBS = 34
-    MDS = 35
-    CS = 36
-    GC = 37
-    NS = 38
-    OGS = 39
-    WebAPI = 40
-    UDS = 41
-    MMS = 42
-    GMS = 43
-    KGS = 44
-    UCM = 45
-    RM = 46
-    FS = 47
-    Econ = 48
-    Backpack = 49
-    UGS = 50
-    StoreFeature = 51
-    MoneyStats = 52
-    CRE = 53
-    UMQ = 54
-    Workshop = 55
-    BRP = 56
-    GCH = 57
-    MPAS = 58
-    Trade = 59
-    Secrets = 60
-    Logsink = 61
-    Market = 62
-    Quest = 63
-    WDS = 64
-    ACS = 65
-    PNP = 66
-    TaxForm = 67
-    ExternalMonitor = 68
-    Parental = 69
-    PartnerUpload = 70
-    Partner = 71
-    ES = 72
-    DepotWebContent = 73
-    ExternalConfig = 74
-    GameNotifications = 75
-    MarketRepl = 76
-    MarketSearch = 77
-    Localization = 78
-    Steam2Emulator = 79
-    PublicTest = 80
-    SolrMgr = 81
-    BroadcastRelay = 82
-    BroadcastDirectory = 83
-    VideoManager = 84
-    TradeOffer = 85
-    BroadcastChat = 86
-    Phone = 87
-    AccountScore = 88
-    Support = 89
-    LogRequest = 90
-    LogWorker = 91
-    EmailDelivery = 92
-    InventoryManagement = 93
-    Auth = 94
-    StoreCatalog = 95
-    HLTVRelay = 96
-
-    Max = 97
-
-
-class EOSType(enum.IntEnum):
-    Unknown = -1
-
-    IOSUnknown = -600
-
-    AndroidUnknown = -500
-
-    UMQ = -400
-
-    PS3 = -300
-
-    MacOSUnknown = -102
-    MacOS104 = -101
-    MacOS105 = -100
-    MacOS1058 = -99
-    MacOS106 = -95
-    MacOS1063 = -94
-    MacOS1064_slgu = -93
-    MacOS1067 = -92
-    MacOS107 = -90
-    MacOS108 = -89
-    MacOS109 = -88
-    MacOS1010 = -87
-    MacOS1011 = -86
-    MacOS1012 = -85
-    MacOSMax = -1
-
-    LinuxUnknown = -203
-    Linux22 = -202
-    Linux24 = -201
-    Linux26 = -200
-    Linux32 = -199
-    Linux35 = -198
-    Linux36 = -197
-    Linux310 = -196
-    LinuxMax = -103
-
-    WinUnknown = 0
-    Win311 = 1
-    Win95 = 2
-    Win98 = 3
-    WinME = 4
-    WinNT = 5
-    Win2000 = 6
-    WinXP = 7
-    Win2003 = 8
-    WinVista = 9
-    Windows7 = 10
-    Win2008 = 11
-    Win2012 = 12
-    Windows8 = 13
-    Windows81 = 14
-    Win2012R2 = 15
-    Windows10 = 16
-
-    WinMAX = 15
-
-    Max = 26
 
 
 class EFriendRelationship(enum.IntEnum):
@@ -393,58 +250,7 @@ class EFriendRelationship(enum.IntEnum):
     Max = 8
 
 
-class EAccountFlags(enum.IntEnum):
-    NormalUser = 0
-    PersonaNameSet = 1
-    Unbannable = 2
-    PasswordSet = 4
-    Support = 8
-    Admin = 16
-    Supervisor = 32
-    AppEditor = 64
-    HWIDSet = 128
-    PersonalQASet = 256
-    VacBeta = 512
-    Debug = 1024
-    Disabled = 2048
-    LimitedUser = 4096
-    LimitedUserForce = 8192
-    EmailValidated = 16384
-    MarketingTreatment = 32768
-    OGGInviteOptOut = 65536
-    ForcePasswordChange = 131072
-    ForceEmailVerification = 262144
-    LogonExtraSecurity = 524288
-    LogonExtraSecurityDisabled = 1048576
-    Steam2MigrationComplete = 2097152
-    NeedLogs = 4194304
-    Lockdown = 8388608
-    MasterAppEditor = 16777216
-    BannedFromWebAPI = 33554432
-    ClansOnlyFromFriends = 67108864
-    GlobalModerator = 134217728
-    ParentalSettings = 268435456
-    ThirdPartySupport = 536870912
-    NeedsSSANextSteamLogon = 1073741824
-
-
-class EFriendFlags(enum.IntEnum):
-    NONE = 0
-    Blocked = 1
-    FriendshipRequested = 2
-    Immediate = 4
-    ClanMember = 8
-    OnGameServer = 16
-    RequestingFriendship = 128
-    RequestingInfo = 256
-    Ignored = 512
-    IgnoredFriend = 1024
-    Suggested = 2048
-    ChatMember = 4096
-    FlagAll = 65535
-
-
-class EPersonaState(enum.IntEnum):
+class EPersonaState(enum.Enum):
     Offline = 0
     Online = 1
     Busy = 2
@@ -456,6 +262,7 @@ class EPersonaState(enum.IntEnum):
 
 
 class EPersonaStateFlag(enum.IntEnum):
+    NONE = 0
     HasRichPresence = 1
     InJoinableGame = 2
     HasGoldenProfile = 4
@@ -466,36 +273,11 @@ class EPersonaStateFlag(enum.IntEnum):
     LaunchTypeGamepad = 4096
 
 
-class EClientPersonaStateFlag(enum.IntEnum):
-    Status = 1
-    PlayerName = 2
-    QueryPort = 4
-    SourceID = 8
-    Presence = 16
-    LastSeen = 64
-    ClanInfo = 128
-    GameExtraInfo = 256
-    GameDataBlob = 512
-    ClanTag = 1024
-    Facebook = 2048
-
-
-class EChatEntryType(enum.IntEnum):
-    Invalid = 0
-    ChatMsg = 1  #: Normal text message from another user
-    Typing = 2  #: Another user is typing (not used in multi-user chat)
-    InviteGame = 3  #: Invite from other user into that users current game
-    Emote = 4  #: text emote message (deprecated, should be treated as ChatMsg)
-    LobbyGameStart = 5  #: lobby game is starting (dead - listen for LobbyGameCreated_t callback instead)
-    LeftConversation = 6  #: user has left the conversation ( closed chat window )
-    Entered = 7  #: user has entered the conversation (used in multi-user chat and group chat)
-    WasKicked = 8  #: user was kicked (data: 64-bit steamid of actor performing the kick)
-    WasBanned = 9  #: user was banned (data: 64-bit steamid of actor performing the ban)
-    Disconnected = 10  #: user disconnected
-    HistoricalChat = 11  #: a chat message from user's chat history or offline message
-    Reserved1 = 12  #: No longer used
-    Reserved2 = 13  #: No longer used
-    LinkBlocked = 14  #: a link was removed by the chat filter.
+class ECommunityVisibilityState(enum.IntEnum):
+    NONE = 0
+    Private = 1
+    FriendsOnly = 2
+    Public = 3
 
 
 class EChatRoomEnterResponse(enum.IntEnum):
@@ -574,34 +356,3 @@ class ETradeOfferState(enum.IntEnum):
     ConfirmationNeed = 9
     CanceledBySecondaryFactor = 10
     StateInEscrow = 11
-
-
-class ETypeChar(enum.IntEnum):
-    I = EType.Invalid
-    U = EType.Individual
-    M = EType.Multiseat
-    G = EType.GameServer
-    A = EType.AnonGameServer
-    P = EType.Pending
-    C = EType.ContentServer
-    g = EType.Clan
-    T = EType.Chat
-    L = EType.Chat  # lobby chat, 'c' for clan chat
-    c = EType.Chat  # clan chat
-    a = EType.AnonUser
-
-    def __str__(self):
-        return self.name
-
-
-class NotificationType(enum.IntEnum):
-    trade = 1
-    # "2": 0,
-    # "3": 0,
-    comment = 4
-    item_receive = 5
-    # "6": 0,
-    # "8": 0,
-    # "9": 9,  # chat messages
-    # "10": 0,
-    # "11": 0
