@@ -10,10 +10,10 @@ client = steam.Client(api_key=api_key)
 
 @client.event
 async def on_ready():
-    print(f'Currently logged and ready!')
-    print(f'Username: {client.user.name}')
-    print(f'ID: {client.user.id64}')
-    print(f'Friends: {len(client.user.friends)}')
+    print('Currently logged and ready!')
+    print('Username:', client.user.name)
+    print('ID:', client.user.id64)
+    print('Friends:', len(client.user.friends))
 
 
 @client.event
