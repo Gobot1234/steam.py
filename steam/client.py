@@ -32,7 +32,6 @@ import logging
 import signal
 import sys
 import traceback
-import weakref
 
 import aiohttp
 
@@ -40,6 +39,7 @@ from . import errors
 from .guard import generate_one_time_code
 from .https import HTTPClient
 from .market import Market
+from .trade import TradeOffer
 from .user import User, SteamID
 
 log = logging.getLogger(__name__)
@@ -127,7 +127,7 @@ class Client:
         self.api_key = options.get('api_key')
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self, api_key=self.api_key)
-        self.market = Market(http=self.http, currency=options.get('currency'))
+        self.market = Market(http=self.http, currency=options.get('currency', 1))
 
         self.username = None
         self.password = None
@@ -136,7 +136,8 @@ class Client:
         self.shared_secret = None
 
         self._user = None
-        self._users = weakref.WeakValueDictionary()
+        self._users = {}
+        self._trades = {}
         self._closed = True
         self._listeners = {}
         self._handlers = {
@@ -402,7 +403,7 @@ class Client:
             The user or ``None`` if not found.
         """
         steam_id = SteamID(user_id)
-        data = await self.http.fetch_profile(steam_id)
+        data = await self.http.fetch_profile(steam_id.as_64)
         if data:
             self._store_user(data)
         return None
@@ -410,8 +411,35 @@ class Client:
     def _store_user(self, data):
         # this way is 300% faster than `dict.setdefault`.
         try:
-            return self._users[data['steamid']]
+            return self._users[int(data['steamid'])]
         except KeyError:
             user = User(state=self.http._state, data=data)
             self._users[user.id64] = user
             return user
+
+    def get_trade(self, trade_id):
+        """Get a trade from cache
+
+        Parameters
+        ----------
+        trade_id: int
+            The id to search for from the cache
+
+        Returns
+        -------
+        Optional[:class:`~steam.TradeOffer`]
+            The trade offer or ``None`` if not found.
+        """
+        return self._trades.get(trade_id)
+
+    async def fetch_trade(self, trade_id):
+        data = await self.http.fetch_trade(trade_id)
+        self._store_trade(data)
+
+    def _store_trade(self, data):
+        try:
+            return self._trades[data['tradeofferid']]
+        except KeyError:
+            offer = TradeOffer(state=self.http._state, data=data)
+            self._trades[offer.id] = offer
+            return offer
