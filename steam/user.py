@@ -28,9 +28,11 @@ This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 with some extra doc-strings
 """
+
 import json
 import re
 from datetime import datetime
+from typing import List
 
 import aiohttp
 
@@ -38,7 +40,7 @@ from steam.enums import EType, EUniverse, EInstanceFlag, ETypeChar, \
     EPersonaState, EPersonaStateFlag, ECommunityVisibilityState, Game
 from . import errors
 from .abc import BaseUser, Messageable
-from .trade import Inventory
+from .trade import Inventory, Item
 
 ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
 
@@ -167,6 +169,7 @@ class SteamID(int):
 
     def is_valid(self):
         """Check whether this SteamID is valid.
+
         Returns
         -------
         :class:`bool`
@@ -250,10 +253,10 @@ class User(Messageable, BaseUser):
         The id2 of the user's account. Used for older steam games.
     """
 
-    __slots__ = ('name', 'real_name', 'avatar_url', 'commentable',
-                 'has_setup_profile', 'created_at', 'last_logoff',
-                 'status', 'game', 'flags', 'is_public', 'country',
-                 'steam_id', 'id64', 'id2', 'id3', '_state', '__weakref__')
+    __slots__ = ('name', 'real_name', 'avatar_url', 'community_url', 'commentable',
+                 'has_setup_profile', 'created_at', 'last_logoff', 'status',
+                 'game', 'flags', 'is_public', 'country', 'steam_id',
+                 'id64', 'id2', 'id3', '_state', '__weakref__')
 
     def __init__(self, state, data: dict):
         self._state = state
@@ -269,6 +272,7 @@ class User(Messageable, BaseUser):
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
+        self.community_url = data['profileurl']
         self.commentable = bool(data.get('commentpermission'))
         self.has_setup_profile = bool(data.get('profilestate'))
         self.country = data.get('loccountrycode')
@@ -347,18 +351,29 @@ class User(Messageable, BaseUser):
         """|coro|
         Fetch an :class:`~steam.User`'s inventory for trading
         """
-        resp = await self._state.http.fetch_user_inventory(self.id64, game)
-        return Inventory(state=self._state, data=resp)
+        resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
+        return Inventory(state=self._state, data=resp, owner=self)
 
-    async def send_trade_offer(self, game: Game,
-                               items_to_send: list, items_to_receive: list,
-                               offer_message: str = ''):
+    async def send_trade(self, game: Game, items_to_send: List[Item], items_to_receive: List[Item],
+                         offer_message: str = ''):
         """|coro|
         Send a trade offer to an :class:`~steam.User`
         """
-        resp = await self._state.http.send_trade_offer(self.id64, game, items_to_send,
-                                                       items_to_receive, offer_message)
+        if len(offer_message) > 128:
+            raise errors.Forbidden('Offer message is too large to send with the trade offer')
+        resp = await self._state.http.send_trade_offer(user_id64=self.id64,
+                                                       app_id=game.app_id, context_id=game.context_id,
+                                                       to_send=items_to_send, to_receive=items_to_receive,
+                                                       offer_message=offer_message)
         return resp
+
+    async def achievements(self):
+        # TODO stuff from enums to separate files
+        # eg make achievements class
+        pass
+
+    def is_friend(self):
+        return self in self._state.client.user.friends
 
 
 class ClientUser(BaseUser):
@@ -384,7 +399,7 @@ class ClientUser(BaseUser):
             The user's username.
         steam_id: :class:`SteamID`
             The SteamID instance attached to the user.
-        friends: List[:class:`~steam.User`]
+        friends: List[:class:`User`]
             A list of the ClientUser's friends.
         status: :class:`str`
             The current status of the account (e.g. LookingToTrade).
@@ -441,8 +456,8 @@ class ClientUser(BaseUser):
         self.commentable = bool(data.get('commentpermission'))
         self.has_setup_profile = bool(data.get('profilestate'))
         self.country = data.get('loccountrycode')
-        self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data.keys() else None
-        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data.keys() else None
+        self.created_at = datetime.utcfromtimestamp(data['timecreated']).now() if 'timecreated' in data.keys() else None
+        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']).now() if 'lastlogoff' in data.keys() else None
         self.status = EPersonaState(data.get('personastate')).name
         self.flags = EPersonaStateFlag(data.get('personastateflags')).name
         self.is_public = bool(ECommunityVisibilityState(data.get('communityvisibilitystate')).name)
@@ -454,14 +469,27 @@ class ClientUser(BaseUser):
         self.id3 = self.steam_id.as_steam3
 
     async def fetch_friends(self):
-        self.friends = await self._state.http.fetch_friends(self.id64)
-        for friend in self.friends:
-            self._state.client._users[friend.id64] = friend
+        friends = await self._state.http.fetch_friends(self.id64)
+        for friend in friends:
+            self._state.client._store_user(friend)
+            self.friends.append(User(state=self._state, data=friend))
         self._state.client._handle_ready()
         self._state.client.dispatch('ready')
 
-    def is_friend(self, user: User):
-        return user in self.friends
+    async def comment(self, comment: str):
+        """|coro|
+        Post a comment to an :class:`~steam.User`'s profile.
+        """
+        resp = await self._state.http.post_comment(self.id64, comment)
+        if not resp:
+            raise errors.Forbidden("Posting the comment failed")
+
+    async def fetch_inventory(self, game: Game):
+        """|coro|
+        Fetch an :class:`~steam.User`'s inventory for trading
+        """
+        resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
+        return Inventory(state=self._state, data=resp, owner=self)
 
 
 def make_steam64(account_id=0, *args, **kwargs):
