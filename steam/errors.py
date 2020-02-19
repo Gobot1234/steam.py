@@ -3,6 +3,13 @@ class SteamException(Exception):
     pass
 
 
+class ClientException(SteamException):
+    """Exception that's thrown when something isn't possible
+    but is handled by the client.
+    Subclass of :exc:`SteamException`
+    """
+
+
 class HTTPException(SteamException):
     """Exception that's thrown for any web API error.
     Subclass of :exc:`SteamException`
@@ -25,12 +32,15 @@ class NotFound(HTTPException):
 
 
 class TooManyRequests(HTTPException):
+    """Exception that's thrown when a 429 is received.
+    Subclass of :exc:`HTTPException`
+    """
     pass
 
 
-class LoginError(SteamException):
+class LoginError(HTTPException):
     """Exception that's thrown when a login fails.
-    Subclass of :exc:`SteamException`
+    Subclass of :exc:`HTTPException`
     """
     pass
 

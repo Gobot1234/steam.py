@@ -59,6 +59,7 @@ class Game:
                 self._game = self.GAMES[app_id]
             elif not is_steam_game:
                 self.title = title
+                self.app_id = app_id
                 self.context_id = 2
                 self.is_steam_game = False
             else:
@@ -72,6 +73,7 @@ class Game:
             self.title = self._game[0]
             self.app_id = self._game[1]
             self.context_id = self._game[2]
+            self.is_steam_game = self._game[3]
 
     def __repr__(self):
         return '<Game title={0.title} app_id={0.app_id} context_id={0.context_id}>'.format(self)
