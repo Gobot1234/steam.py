@@ -74,7 +74,7 @@ def fix_name(name: str) -> str:
 class Market:
     """Represents a client connection that interacts with the Steam Market.
     This class is used to interact with the Steam Market and
-    shouldn't have instances of it made by libary users.
+    shouldn't have instances of it made by library users.
 
     Parameters
     ----------
@@ -91,17 +91,19 @@ class Market:
 
         if isinstance(currency, ECurrencyCode):
             self.currency = currency.value
-
         elif isinstance(currency, str):
             currency = currency.upper()
             if currency in [item.name for item in ECurrencyCode]:
                 self.currency = ECurrencyCode[currency].value
             else:
                 raise IndexError(f'Currency {currency} not found')
-
         elif isinstance(currency, int):
             if currency > 32 or currency < 1:
                 self.currency = 1
+            else:
+                self.currency = currency
+        else:
+            self.currency = 1
 
     async def fetch_price(self, name: str, app_id: int) -> dict:
         """Gets the price(s) and volume sales of an item.
