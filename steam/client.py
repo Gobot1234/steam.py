@@ -37,7 +37,7 @@ import aiohttp
 
 from . import errors
 from .guard import generate_one_time_code
-from .https import HTTPClient
+from .http import HTTPClient
 from .market import Market
 from .trade import TradeOffer
 from .user import User, SteamID
@@ -78,8 +78,7 @@ def _cancel_tasks(loop):
 def _cleanup_loop(loop):
     try:
         _cancel_tasks(loop)
-        if sys.version_info >= (3, 6):
-            loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.run_until_complete(loop.shutdown_asyncgens())
     finally:
         log.info('Closing the event loop.')
         loop.close()
@@ -113,7 +112,7 @@ class Client:
         Defaults to ``None``, in which case the default event loop is used via
         :func:`asyncio.get_event_loop()`.
 
-     Attributes
+    Attributes
     -----------
     loop: :class:`asyncio.AbstractEventLoop`
         The event loop that the client uses for HTTP requests.
@@ -124,12 +123,12 @@ class Client:
     def __init__(self, loop=None, **options):
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self._session = aiohttp.ClientSession(loop=self.loop)
-        self.api_key = options.get('api_key')
 
-        self.http = HTTPClient(loop=self.loop, session=self._session, client=self, api_key=self.api_key)
+        self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
         self.market = Market(http=self.http, currency=options.get('currency', 1))
 
         self.username = None
+        self.api_key = None
         self.password = None
         self.shared_secret = None
         self.identity_secret = None
@@ -290,7 +289,7 @@ class Client:
         print(f'Ignoring exception in {event_method}', file=sys.stderr)
         traceback.print_exc()
 
-    async def login(self, username: str, password: str,
+    async def login(self, username: str, password: str, api_key: str,
                     shared_secret: str = None, identity_secret: str = None):
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
@@ -301,7 +300,9 @@ class Client:
             The username of the desired Steam account.
         password: :class:`str`
             The password of the desired Steam account.
-        shared_secret: :class:`str`
+        api_key: :class:`str`
+            The accounts api key for fetching info about the account.
+        shared_secret: Optional[:class:`str`]
             The shared_secret of the desired Steam account,
             used to generate the 2FA code for login.
         identity_secret: Optional[:class:`str`]
@@ -316,13 +317,15 @@ class Client:
             An unknown HTTP related error occurred.
         """
         log.info(f'Logging in as {username}')
+        self.api_key = api_key
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
         self.identity_secret = identity_secret
 
-        await self.http.login(username=self.username, password=self.password,
-                              shared_secret=self.shared_secret)
+        await self.http.login(username=username, password=password,
+                              api_key=api_key, shared_secret=shared_secret,
+                              identity_secret=identity_secret)
         self._user = self.http._user
         self._closed = False
 
@@ -358,16 +361,17 @@ class Client:
         :class:`~steam.errors.LoginError`
             Login details were missing
         """
+        api_key = kwargs.pop('api_key', None)
         username = kwargs.pop('username', None)
         password = kwargs.pop('password', None)
         shared_secret = kwargs.pop('shared_secret', None)
         identity_secret = kwargs.pop('identity_secret', None)
         if kwargs:
             raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
-        if not (username or password):
+        if not (api_key or username or password):
             raise errors.LoginError("One or more required login detail is missing")
 
-        await self.login(username=username, password=password,
+        await self.login(username=username, password=password, api_key=api_key,
                          shared_secret=shared_secret, identity_secret=identity_secret)
 
     def get_user(self, user_id):
@@ -418,12 +422,12 @@ class Client:
             return user
 
     def get_trade(self, trade_id):
-        """Get a trade from cache
+        """Get a trade from cache.
 
         Parameters
         ----------
         trade_id: int
-            The id to search for from the cache
+            The id to search for from the cache.
 
         Returns
         -------
