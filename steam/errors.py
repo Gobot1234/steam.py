@@ -53,7 +53,14 @@ class InvalidCredentials(LoginError):
 
 
 class SteamAuthenticatorError(LoginError):
-    """Exception that's thrown when steam guard loading fails.
+    """Exception that's thrown when steam cannot authenticate your details.
     Subclass of :exc:`LoginError`
+    """
+    pass
+
+
+class ConfirmationError(SteamAuthenticatorError):
+    """Exception that's thrown when a confirmation fails.
+    Subclass of :exc:`SteamAuthenticatorError`
     """
     pass

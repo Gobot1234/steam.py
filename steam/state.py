@@ -4,4 +4,4 @@ class State:
         self.loop = loop
         self.http = http
         self.client = client
-        self.request = http._request
+        self.request = http.request
