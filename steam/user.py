@@ -39,7 +39,7 @@ import aiohttp
 from steam.enums import *
 from . import errors
 from .abc import BaseUser, Messageable
-from .trade import Inventory, Item
+from .trade import Inventory, Item, TradeOffer
 
 ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
 
@@ -262,7 +262,7 @@ class User(Messageable, BaseUser):
         self._update(data)
 
     def __repr__(self):
-        return "<User name='{0.name}' steam_id={0.steam_id!r} status={0.status}>".format(self)
+        return "<User name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
 
     def __str__(self):
         return self.name
@@ -276,10 +276,10 @@ class User(Messageable, BaseUser):
         self.has_setup_profile = bool(data.get('profilestate'))
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data.keys() else None
-        # Steam is dumb I have no clue why this sometimes isn't given
+        # Steam is dumb I have no clue why this sometimes isn't given sometimes
         self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data.keys() else None
-        self.status = EPersonaState(data.get('personastate', 0)).name
-        self.flags = EPersonaStateFlag(data.get('personastateflags', 0)).name
+        self.status = EPersonaState(data.get('personastate', 0))
+        self.flags = EPersonaStateFlag(data.get('personastateflags', 0))
         self.is_public = bool(ECommunityVisibilityState(data.get('communityvisibilitystate', 0)).name)
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid']), is_steam_game=False) \
             if 'gameextrainfo' and 'gameid' in data.keys() else None
@@ -347,10 +347,10 @@ class User(Messageable, BaseUser):
         """
         if len(offer_message) > 128:
             raise errors.Forbidden('Offer message is too large to send with the trade offer')
-        resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send, items_to_receive,
-                                                       offer_message)
-        self._state.client.dispatch('trade_send')
-        return resp
+        resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
+                                                       items_to_receive, offer_message)
+        trade = TradeOffer(state=self._state, data=await self._state.http.fetch_trade(resp['tradeofferid']))
+        self._state.client.dispatch('trade_send', trade)
 
     async def fetch_escrow(self):
         unix = self._state.http.fetch_user_escrow(url=self.community_url)
@@ -433,7 +433,7 @@ class ClientUser(BaseUser):
         return self.name
 
     def __repr__(self):
-        return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} status={0.status}>".format(self)
+        return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
 
     def _update(self, data):
         self.name = data['personaname']
@@ -444,8 +444,8 @@ class ClientUser(BaseUser):
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data.keys() else None
         self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data.keys() else None
-        self.status = EPersonaState(data.get('personastate')).name
-        self.flags = EPersonaStateFlag(data.get('personastateflags')).name
+        self.status = EPersonaState(data.get('personastate'))
+        self.flags = EPersonaStateFlag(data.get('personastateflags'))
         self.is_public = bool(ECommunityVisibilityState(data.get('communityvisibilitystate')).name)
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid']), is_steam_game=False) \
             if 'gameextrainfo' and 'gameid' in data.keys() else None
