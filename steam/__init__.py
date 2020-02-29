@@ -1,18 +1,26 @@
 # -*- coding: utf-8 -*-
 
+"""
+steam.py
+~~~~~~~~~~~~~~~~~~~
+A basic wrapper for the Steam API and Web UI.
+
+:copyright: (c) 2020
+:license: MIT, see LICENSE for more details.
+"""
+
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.5a'
+__version__ = '0.0.6a'
 
 from logging import NullHandler
 
 from . import guard
 from .client import Client
-from .enums import Game, ECurrencyCode, EResult
+from .enums import *
 from .errors import *
 from .market import *
-from .message import *
 from .trade import *
 from .user import *
 
