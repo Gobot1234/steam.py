@@ -5,25 +5,27 @@ username = ''
 password = ''
 shared_secret = ''
 
-client = steam.Client(api_key=api_key)
+
+class MyClient(steam.Client):
+    async def on_ready(self):
+        print('Logged in as')
+        print('Username:', self.user.name)
+        print('ID:', self.user.id64)
+        print('Friends:', len(self.user.friends))
+        print('------------')
+
+    async def on_login(self):
+        print('Logged in with the code:', self.code)
+
+    async def on_logout(self):
+        print('Logged out from:', self.user.name)
+
+    async def on_trade_receive(self, trade):
+        print(f'Received trade: #{trade.id}')
+        print('From user:', trade.partner.name)
+        print('We are sending:\n' + '\n'.join([item.name for item in trade.items_to_give]))
+        print('We are receiving:\n' + '\n'.join([item.name for item in trade.items_to_receive]))
 
 
-@client.event
-async def on_ready():
-    print('Currently logged and ready!')
-    print('Username:', client.user.name)
-    print('ID:', client.user.id64)
-    print('Friends:', len(client.user.friends))
-
-
-@client.event
-async def on_login():
-    print(f'Logged in with the code: {client.code}')
-
-
-@client.event
-async def on_logout():
-    print('Logged out')
-
-
-client.run(username=username, password=password, shared_secret=shared_secret)
+client = MyClient()
+client.run(username, api_key, password, shared_secret)
