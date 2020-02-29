@@ -36,8 +36,7 @@ from typing import List
 
 import aiohttp
 
-from steam.enums import EType, EUniverse, EInstanceFlag, ETypeChar, \
-    EPersonaState, EPersonaStateFlag, ECommunityVisibilityState, Game
+from steam.enums import *
 from . import errors
 from .abc import BaseUser, Messageable
 from .trade import Inventory, Item
@@ -255,7 +254,7 @@ class User(Messageable, BaseUser):
 
     __slots__ = ('name', 'real_name', 'avatar_url', 'community_url', 'commentable',
                  'has_setup_profile', 'created_at', 'last_logoff', 'status',
-                 'game', 'flags', 'is_public', 'country', 'steam_id',
+                 'game', 'flags', 'is_public', 'country', 'steam_id', 'id',
                  'id64', 'id2', 'id3', '_state', '__weakref__')
 
     def __init__(self, state, data: dict):
@@ -287,90 +286,77 @@ class User(Messageable, BaseUser):
         # Setting is_steam_game to False allows for fake game instances to be better without having them pre-defined
         # without making the defined ones being
         self.steam_id = SteamID(data['steamid'])
+        self.id = self.steam_id.id
         self.id64 = self.steam_id.as_64
         self.id2 = self.steam_id.as_steam2
         self.id3 = self.steam_id.as_steam3
 
     async def add(self):  # TODO make raises give error add raises to docs and make them better
         """|coro|
-        Add an :class:`~steam.User` to your friends list.
+        Add an :class:`User` to your friends list.
         """
-        resp = await self._state.http.add_user(self.id64)
-        if not resp:
-            raise errors.Forbidden('Adding the user failed')
+        return await self._state.http.add_user(self.id64)
 
     async def remove(self):
         """|coro|
-        Remove an :class:`~steam.User` from your friends list.
+        Remove an :class:`User` from your friends list.
         """
-        resp = await self._state.http.remove_user(self.id64)
-        if not resp:
-            raise errors.Forbidden('Removing the user failed')
+        return await self._state.http.remove_user(self.id64)
 
     async def unblock(self):
         """|coro|
-        Unblock an :class:`~steam.User`.
+        Unblock an :class:`User`.
         """
-        resp = await self._state.http.unblock_user(self.id64)
-        if not resp:
-            raise errors.Forbidden('Unblocking the user failed')
+        return await self._state.http.unblock_user(self.id64)
 
     async def block(self):
         """|coro|
-        Block an :class:`~steam.User`.
+        Block an :class:`User`.
         """
-        resp = await self._state.http.block_user(self.id64)
-        if not resp:
-            raise errors.Forbidden('Blocking the user failed')
+        return await self._state.http.block_user(self.id64)
 
     async def accept_invite(self):
         """|coro|
-        Accept a friend invite from an :class:`~steam.User.
+        Accept a friend invite from an :class:`User`.
         """
-        resp = await self._state.http.accept_user_invite(self.id64)
-        if not resp:
-            raise errors.Forbidden("Accepting the user's invite failed")
+        return await self._state.http.accept_user_invite(self.id64)
 
     async def decline_invite(self):
         """|coro|
-        Decline a friend invite from an :class:`~steam.User`.
+        Decline a friend invite from an :class:`User`.
         """
-        resp = await self._state.http.decline_user_invite(self.id64)
-        if not resp:
-            raise errors.Forbidden("Declining the user's invite failed")
+        return await self._state.http.decline_user_invite(self.id64)
 
     async def comment(self, comment: str):
         """|coro|
-        Post a comment to an :class:`~steam.User`'s profile.
+        Post a comment to an :class:`User`'s profile.
         """
-        resp = await self._state.http.post_comment(self.id64, comment)
-        if not resp:
-            raise errors.Forbidden("Posting the comment failed")
+        return await self._state.http.post_comment(self.id64, comment)
 
     async def fetch_inventory(self, game: Game):
         """|coro|
-        Fetch an :class:`~steam.User`'s inventory for trading
+        Fetch an :class:`User`'s inventory for trading
         """
         resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
-    async def send_trade(self, game: Game, items_to_send: List[Item], items_to_receive: List[Item],
-                         offer_message: str = ''):
+    async def send_trade(self, items_to_send: List[Item] = None, items_to_receive: List[Item] = None,
+                         offer_message: str = None):
         """|coro|
-        Send a trade offer to an :class:`~steam.User`
+        Send a trade offer to an :class:`User`
         """
         if len(offer_message) > 128:
             raise errors.Forbidden('Offer message is too large to send with the trade offer')
-        resp = await self._state.http.send_trade_offer(user_id64=self.id64,
-                                                       app_id=game.app_id, context_id=game.context_id,
-                                                       to_send=items_to_send, to_receive=items_to_receive,
-                                                       offer_message=offer_message)
+        resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send, items_to_receive,
+                                                       offer_message)
+        self._state.client.dispatch('trade_send')
         return resp
 
-    async def achievements(self):
-        # TODO stuff from enums to separate files
-        # eg make achievements class
-        pass
+    async def fetch_escrow(self):
+        unix = self._state.http.fetch_user_escrow(url=self.community_url)
+        if unix:
+            return datetime.utcfromtimestamp(unix)
+        return None
 
     def is_friend(self):
         return self in self._state.client.user.friends
@@ -456,8 +442,8 @@ class ClientUser(BaseUser):
         self.commentable = bool(data.get('commentpermission'))
         self.has_setup_profile = bool(data.get('profilestate'))
         self.country = data.get('loccountrycode')
-        self.created_at = datetime.utcfromtimestamp(data['timecreated']).now() if 'timecreated' in data.keys() else None
-        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']).now() if 'lastlogoff' in data.keys() else None
+        self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data.keys() else None
+        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data.keys() else None
         self.status = EPersonaState(data.get('personastate')).name
         self.flags = EPersonaStateFlag(data.get('personastateflags')).name
         self.is_public = bool(ECommunityVisibilityState(data.get('communityvisibilitystate')).name)
@@ -728,7 +714,7 @@ async def from_url(url, timeout=30):
 
     Returns
     -------
-    SteamID: Optional[:class:`~steam.SteamID`]
+    SteamID: Optional[:class:`SteamID`]
         `SteamID` instance or ``None``.
     """
 
@@ -742,7 +728,7 @@ async def from_url(url, timeout=30):
 
 async def mini_profile(user_id):
     """Formats a users mini profile from
-    ``steamcommunity.com/miniprofile/ID3/json``.
+    ``steamcommunity.com/miniprofile/ID/json``.
     .. note::
         Each call makes a http request to ``steamcommunity.com``.
 
@@ -759,7 +745,7 @@ async def mini_profile(user_id):
     """
     async with aiohttp.ClientSession() as session:
         post = await session.get(
-            url=f'https://steamcommunity.com/miniprofile/{SteamID(user_id).as_steam3[5:-1]}/json'
+            url=f'https://steamcommunity.com/miniprofile/{SteamID(user_id).id}/json'
         )
         resp = await post.json()
         return resp if resp['persona_name'] else None
