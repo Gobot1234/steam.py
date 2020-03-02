@@ -112,7 +112,7 @@ class TradeOffer:
                     if item.name is None:
                         # this is awful I am aware but getting identical items and assets are annoying
                         for item_ in to_ret:
-                            if repr(item.asset) == repr(item_.asset):  # idu why this is the only thing that works
+                            if item.asset == item_.asset:
                                 ignore = True
                     if not ignore:  # this is equally dumb
                         to_ret.append(item)
@@ -225,6 +225,12 @@ class Asset:
                 (self.id, self.amount, self.game.app_id, str(self.game.context_id))
         ):
             yield (key, value)
+
+    def __eq__(self, other):
+        return True in [getattr(self, attr) == getattr(other, attr) for attr in self.__slots__]
+
+    def __ne__(self, other):
+        return False in [getattr(self, attr) != getattr(other, attr) for attr in self.__slots__]
 
 
 class Item(Asset):
