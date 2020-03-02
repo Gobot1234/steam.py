@@ -1,7 +1,6 @@
-import re
 from datetime import datetime
 
-from .enums import Game, URL, ETradeOfferState
+from .enums import Game, ETradeOfferState
 from .errors import ClientException
 
 
@@ -30,51 +29,50 @@ class TradeOffer:
     escrow: Optional[class:`datetime.datetime`]
         The time at which the escrow will end. Can be None
         if there is no escrow on the trade.
-    is_one_sided: :class:`bool`
-        Whether the offer is one sided towards the user.
     """
 
     __slots__ = ('partner', 'message', 'state', 'is_our_offer', 'id',
-                 'expires', 'escrow', 'is_one_sided', 'items_to_give',
-                 'items_to_receive', '_sent', '_counter', '_state', '_data')
+                 'expires', 'escrow', 'items_to_give', 'items_to_receive',
+                 '_state', '_data')
 
-    def __init__(self, state, data):
+    def __init__(self, state, data, partner):
         self._state = state
-        self._data = data
+        self.partner = partner
         self._update(data)
+
+    def __repr__(self):
+        attrs = (
+            'id', 'partner'
+        )
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        return f"<TradeOffer {' '.join(resolved)}>"
 
     def _update(self, data):
         self.message = data['message'] or None
         self.is_our_offer = data['is_our_offer']
-
         self.id = int(data['tradeofferid'])
         self.expires = datetime.utcfromtimestamp(data['expiration_time'])
-        self.escrow = datetime.utcfromtimestamp(data['escrow_end_date']) \
-            if data['escrow_end_date'] != 0 else None
-        self.partner = self._state.loop.run_until_complete(self._fetch_partner())
-        self.is_one_sided = True if 'items_to_give' not in data.keys() and 'items_to_receive' in data.keys() else False
+        self.escrow = datetime.utcfromtimestamp(data['escrow_end_date']) if data['escrow_end_date'] != 0 else None
         self.state = ETradeOfferState(data.get('trade_offer_state', 1))
+        self._data = data
 
-        self.items_to_give = \
-            self._state.loop.run_until_complete(self.fetch_items(
-                user_id64=self._state.client.user.id64,
-                assets=data['items_to_give']
-            )) if 'items_to_give' in data.keys() else []
-        self.items_to_receive = \
-            self._state.loop.run_until_complete(self.fetch_items(
-                user_id64=self.partner.id64,
-                assets=data['items_to_receive']
-            )) if 'items_to_receive' in data.keys() else []
-        self._counter = 0
-        self._sent = True if self.id else False
+    async def _async__init__(self):
+        if self.partner is None:  # not great cause this can be your account sometimes
+            self.partner = await self._state.client.fetch_user(self._data['accountid_other'])
+            print(self.partner)
+        self.items_to_give = await self.fetch_items(
+            user_id64=self._state.client.user.id64,
+            assets=self._data['items_to_receive']
+        ) if 'items_to_receive' in self._data.keys() else []
 
-    async def _fetch_partner(self):
-        resp = await self._state.request('GET', url=f'{URL.COMMUNITY}/tradeoffer/{self.id}')
-        user_id = re.search(r"var g_ulTradePartnerSteamID = '(?:.*?)';", resp)
-        return await self._state.client.fetch_user(user_id)
+        self.items_to_receive = await self.fetch_items(
+            user_id64=self.partner.id64,
+            assets=self._data['items_to_give']
+        ) if 'items_to_give' in self._data.keys() else []
 
     async def update(self):
         data = await self._state.http.fetch_trade(self.id)
+        await self._async__init__()
         self._update(data)
         return self
 
@@ -104,7 +102,25 @@ class TradeOffer:
         self._state.dispatch('trade_cancel', self)
 
     async def fetch_items(self, user_id64, assets):
-        return await self._state.http.fetch_user_items(user_id64=user_id64, assets=assets)
+        items = await self._state.http.fetch_trade_items(user_id64=user_id64, assets=assets)
+        to_ret = []
+        for asset in assets:
+            for item in items:
+                if item.asset_id == asset['assetid'] and item.class_id == asset['classid'] \
+                        and item.instance_id == asset['instanceid']:
+                    ignore = False
+                    if item.name is None:
+                        # this is awful I am aware but getting identical items and assets are annoying
+                        for item_ in to_ret:
+                            if repr(item.asset) == repr(item_.asset):  # idu why this is the only thing that works
+                                ignore = True
+                    if not ignore:  # this is equally dumb
+                        to_ret.append(item)
+                    continue
+        return to_ret
+
+    def is_one_sided(self):
+        return True if self.items_to_receive and not self.items_to_give else False
 
 
 class Inventory:
@@ -129,7 +145,11 @@ class Inventory:
         self._update(data)
 
     def __repr__(self):
-        return "<Inventory game={0.game!r} owner={0.owner!r} len={1}>".format(self, len(self))
+        attrs = (
+            'owner', 'game'
+        )
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        return f"<Inventory {' '.join(resolved)}>"
 
     def __len__(self):
         return self._data['total_inventory_count']
@@ -137,42 +157,41 @@ class Inventory:
     def _update(self, data):
         self._data = data
         self.game = Game(app_id=int(data['assets'][0]['appid']), is_steam_game=False)
-        for raw_item in data['assets']:
-            instance_id = raw_item['instanceid']
-            for item_desc in data['descriptions']:
-                if raw_item['instanceid'] == instance_id:
-                    self.items.append(Item(data=self._merge_item(raw_item, item_desc)))
+        for asset in data['assets']:
+            for item in data['descriptions']:
+                if item['instanceid'] == asset['instanceid'] and item['classid'] == asset['classid']:
+                    item.update(asset)
+                    self.items.append(Item(data=item))
                     continue
-            self.items.append(Item(data=raw_item, missing=True))
+            self.items.append(Item(data=asset, missing=True))
             continue
 
-    def _merge_item(self, raw_item, desc):
-        for key, value in raw_item.items():
-            desc[key] = value
-        return desc
-
     def filter_items(self, item_name: str):
-        """Filters items by name into a list of one type of item
+        """Filters items by name into a list of one type of item.
 
         Parameters
         ------------
         item_name: `str`
-            The item to filter
+            The item to filter.
 
         Returns
         ---------
         Items: :class:`list`
             List of `Item`s
+            This also removes the item from the inventory.
         """
-        return [item for item in self.items if item.name == item_name]
+        items = [item for item in self.items if item.name == item_name]
+        for item in items:
+            self.items.remove(item)
+        return items
 
     def get_item(self, item_name: str):
-        """Get an item by name from a :class:`Inventory`
+        """Get an item by name from a :class:`Inventory`.
 
         Parameters
         ----------
         item_name: `str`
-            The item to get from the inventory
+            The item to get from the inventory.
 
         Returns
         -------
@@ -184,23 +203,9 @@ class Inventory:
         self.items.remove(item)
         return item
 
-    async def update_inventory(self):
-        """|coro|
-        Update an :class:`~steam.User`'s :class:`Inventory`
-
-        Returns
-        -------
-        Inventory: :class:`Inventory`
-        """
-        resp = await self._state.request('GET', f'{URL.COMMUNITY}/inventory/{self.owner.id64}/'
-                                                f'{self.game.app_id}/{self.game.context_id}')
-        if not resp['success']:
-            return None
-        return Inventory(state=self._state, data=resp, owner=self.owner)
-
 
 class Asset:
-    __slots__ = ('id', 'game', 'app_id', 'class_id', 'amount', 'instance_id')
+    __slots__ = ('id', 'app_id', 'class_id', 'amount', 'instance_id', 'game')
 
     def __init__(self, data):
         self.id = data['assetid']
@@ -211,12 +216,14 @@ class Asset:
         self.class_id = data['classid']
 
     def __repr__(self):
-        return "<Asset id={0.id} app_id={0.app_id} amount={0.amount} instance_id={0.instance_id} " \
-               "class_id={0.class_id} game={0.game!r}>".format(self)
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in self.__slots__]
+        return f"<Asset {' '.join(resolved)}>"
 
     def __iter__(self):
-        for key, value in zip(('assetid', 'amount', 'appid', 'contextid'),
-                              (self.id, self.amount, self.game.app_id, str(self.game.context_id))):
+        for key, value in zip(
+                ('assetid', 'amount', 'appid', 'contextid'),
+                (self.id, self.amount, self.game.app_id, str(self.game.context_id))
+        ):
             yield (key, value)
 
 
@@ -251,21 +258,15 @@ class Item(Asset):
         The type of the item.
     tags: Optional[class:`str`]
         The tags of the item.
-    is_tradable: Optional[class:`bool`]
-        Whether or not the item is tradable.
-    is_marketable: Optional[class:`bool`]
-        Whether or not the item is marketable.
     icon_url: Optional[class:`str`]
         The icon_url of the item.
     icon_url_large: Optional[class:`str`]
         The icon_url_large of the item.
-
     """
 
     __slots__ = ('name', 'game', 'asset', 'asset_id', 'app_id', 'colour', 'market_name',
-                 'descriptions', 'type', 'tags', 'class_id', 'is_tradable',
-                 'is_marketable', 'amount', 'instance_id', 'icon_url',
-                 'icon_url_large', 'missing')
+                 'descriptions', 'type', 'tags', 'class_id', 'amount', 'instance_id',
+                 'icon_url', 'icon_url_large', 'missing', '_data')
 
     def __init__(self, data, missing: bool = False):
         super().__init__(data)
@@ -273,8 +274,11 @@ class Item(Asset):
         self._update(data)
 
     def __repr__(self):
-        return "<Item name='{0.name}' asset={0.asset!r} is_tradable={0.is_tradable} " \
-               "is_marketable={0.is_marketable}>".format(self)
+        attrs = (
+            'name', 'asset',
+        )
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        return f"<Item {' '.join(resolved)}>"
 
     def _update(self, data):
         self.asset = Asset(data)
@@ -291,9 +295,16 @@ class Item(Asset):
         self.descriptions = data.get('descriptions')
         self.type = data.get('type')
         self.tags = data.get('tags')
-        self.is_tradable = bool(data['tradable']) if 'tradable' in data.keys() else None
-        self.is_marketable = bool(data['marketable']) if 'marketable' in data.keys() else None
         self.icon_url = f'https://steamcommunity-a.akamaihd.net/economy/image/{data.get("icon_url")}' \
             if 'icon_url' in data.keys() else None
         self.icon_url_large = f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url_large"]}' \
             if 'icon_url_large' in data.keys() else None
+        self._data = data
+
+    def is_tradable(self):
+        """Whether or not the item is tradable."""
+        return bool(self._data['tradable']) if 'tradable' in self._data.keys() else False
+
+    def is_marketable(self):
+        """Whether or not the item is marketable."""
+        bool(self._data['marketable']) if 'marketable' in self._data.keys() else False

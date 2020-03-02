@@ -155,6 +155,7 @@ class HTTPClient:
         self._user = ClientUser(state=self._state, data=data)
         self._confirmation_manager = ConfirmationManager(state=self._state)
         self._loop.create_task(self._poll_notifications())
+        self._loop.create_task(self._poll_trades())
 
     async def logout(self):
         log.debug('Logging out of session')
@@ -227,7 +228,11 @@ class HTTPClient:
             await self._session.close()
             raise errors.InvalidCredentials(login_response['message'])
         home = await self._session.get(url=f'{URL.COMMUNITY}/my/home/')
-        self.session_id = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', await home.text()).group('sessionID')
+        search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', await home.text())
+        if search:
+            self.session_id = search.group('sessionID')
+        else:
+            raise errors.LoginError('Cannot get the home page')
 
     async def fetch_profile(self, user_id64: int):
         params = {
@@ -335,15 +340,18 @@ class HTTPClient:
         trades_cache = await self._get_trade_offers()
         await asyncio.sleep(5)
         while 1:
-            trades = await self._get_trade_offers()
-            if trades != trades_cache:
-                for trades_cache, trade in zip(trades_cache, trades):
-                    if trades_cache[trades_cache] != trades[trade]:
-                        log.debug(f'Received raw trade {trades[trade]}')
-                        trade = self._client._store_trade(trades[trade])
-                        self._client.dispatch('trade_receive', trade)
-                trades_cache = trades
-            await asyncio.sleep(5)
+            try:
+                trades = await self._get_trade_offers()
+                if trades != trades_cache:
+                    for trades_cache, trade in zip(trades_cache, trades):
+                        if trades_cache[trades_cache] != trades[trade]:
+                            log.debug(f'Received raw trade {trades[trade]}')
+                            trade = self._client._store_trade(trades[trade])
+                            self._client.dispatch('trade_receive', trade)
+                    trades_cache = trades
+                await asyncio.sleep(5)
+            except aiohttp.ClientError:
+                self._loop.create_task(self._poll_trades())
 
     async def _get_trade_offers(self, active_only=True, sent=False, received=True):
         params = {
@@ -388,15 +396,12 @@ class HTTPClient:
             if self.identity_secret:
                 await asyncio.sleep(2)
                 for tries in range(3):
-                    try:
-                        conf = await self._confirmation_manager.get_trade_confirmation(trade_id)
-                    except errors.SteamAuthenticatorError:
-                        raise
+                    conf = await self._confirmation_manager.get_trade_confirmation(trade_id)
                     resp = await conf.confirm()
                     if isinstance(resp, dict):
                         return conf
                     log.debug(f'Failed to except the trade #{trade_id}, with the error:\n{resp}')
-                    raise errors.SteamAuthenticatorError('Failed to except the trade, see the log for the response')
+                    raise errors.SteamAuthenticatorError('Failed to except the trade')
                 raise errors.ClientException("Couldn't find a matching confirmation")
             else:
                 raise errors.ClientException('Accepting trades requires an identity_secret')
@@ -414,13 +419,13 @@ class HTTPClient:
         }
         return await self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/cancel', data=data)
 
-    async def fetch_user_items(self, user_id64, assets):
+    async def fetch_trade_items(self, user_id64, assets):
         items = []
         app_ids = list(OrderedDict.fromkeys([item['appid'] for item in assets]))  # remove duplicate app_ids
-        context_ids = list(OrderedDict.fromkeys([item['contextid'] for item in assets]))  # and ctx_ids
+        context_ids = list(OrderedDict.fromkeys([item['contextid'] for item in assets]))  # and context_ids
         for app_id, context_id in zip(app_ids, context_ids):
-            inv = await self.fetch_user_inventory(user_id64, app_id, context_id)
-            inventory = Inventory(state=self._state, data=inv, owner=await self._client.fetch_user(user_id64))
+            data = await self.fetch_user_inventory(user_id64, app_id, context_id)
+            inventory = Inventory(state=self._state, data=data, owner=await self._client.fetch_user(user_id64))
             items.extend(inventory.items)
         return items
 
@@ -453,3 +458,51 @@ class HTTPClient:
         }
         post = await self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=data, headers=headers)
         return post
+
+    async def _connect_to_chat(self):
+        """
+        1. find socket
+            https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?cellid=0
+
+        2. post ping
+            from {URL.COMMUNITY}/chat/clientjstoken is fine
+
+        3. listen time:
+            https://steamcommunity-a.akamaihd.net/public/javascript/webui/steammessages.js
+            https://cm2-iad1.cm.steampowered.com:27021/cmping/
+        """
+        f'{URL.API}/ISteamDirectory/GetCMList/v1/?cellid=1'
+        resp = await self._session.get(f'{URL.COMMUNITY}/chat/clientjstoken')
+        access_token = (await resp.json())['token']
+        async with self._session.ws_connect(f'wss://cm-03-ams1.cm.steampowered.com/cmsocket/') as ws:
+            async for msg in ws:
+                print(msg)
+
+    async def _poll_notifications(self):
+        request = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
+        cached_notifications = request['notifications']
+        await asyncio.sleep(5)
+        while 1:
+            request = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
+            notifications = request['notifications']
+            if notifications != cached_notifications:
+                for cached_notification, notification in zip(cached_notifications, notifications):
+                    if notification in self._notifications.keys() and \
+                            cached_notifications[cached_notification] != notifications[notification]:
+                        event_name, event_parser = self._notifications[notification]
+                        log.debug(f'Received raw event {event_name} from the notifications')
+                        parsed_notification = await event_parser()
+                        self._client.dispatch(event_name, parsed_notification)
+                cached_notifications = notifications
+
+            await asyncio.sleep(5)
+
+    async def _parse_comment(self):
+        print('received comment')
+
+    async def _parse_item_receive(self):
+        print('received items')
+
+    async def _parse_invite_receive(self):
+        """https://steamcommunity.com/id/Gobot1234/friends/pending"""
+        print('received invite')

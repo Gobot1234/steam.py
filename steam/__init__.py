@@ -12,7 +12,7 @@ A basic wrapper for the Steam API and Web UI.
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.6a'
+__version__ = '0.0.7a'
 
 from logging import NullHandler
 

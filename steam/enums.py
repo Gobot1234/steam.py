@@ -76,7 +76,11 @@ class Game:
             self.is_steam_game = self._game[3]
 
     def __repr__(self):
-        return '<Game title={0.title} app_id={0.app_id} context_id={0.context_id}>'.format(self)
+        attrs = (
+            'title', 'app_id', 'context_id'
+        )
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        return f"<Game {' '.join(resolved)}>"
 
 
 class EResult(enum.IntEnum):
@@ -262,6 +266,9 @@ class EPersonaState(enum.Enum):
     LookingToPlay = 6
     Max = 7
 
+    def __str__(self):
+        return self.name
+
 
 class EPersonaStateFlag(enum.IntEnum):
     NONE = 0
@@ -273,6 +280,9 @@ class EPersonaStateFlag(enum.IntEnum):
     ClientTypeTenfoot = 1024
     ClientTypeVR = 2048
     LaunchTypeGamepad = 4096
+
+    def __str__(self):
+        return self.name
 
 
 class ECommunityVisibilityState(enum.IntEnum):

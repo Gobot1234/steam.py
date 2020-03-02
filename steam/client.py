@@ -250,7 +250,8 @@ class Client:
         async def runner():
             try:
                 await self.start(*args, **kwargs)
-                await asyncio.sleep(120)
+                while 1:
+                    await asyncio.sleep(5)
             finally:
                 await self.close()
 
@@ -444,6 +445,7 @@ class Client:
         try:
             return self._trades[data['tradeofferid']]
         except KeyError:
-            offer = TradeOffer(state=self.http._state, data=data)
-            self._trades[offer.id] = offer
-            return offer
+            trade = TradeOffer(state=self.http._state, data=data, partner=None)
+            self.loop.create_task(trade._async__init__())
+            self._trades[trade.id] = trade
+            return trade

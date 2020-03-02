@@ -28,7 +28,6 @@ This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 with some extra doc-strings
 """
-
 import json
 import re
 from datetime import datetime
@@ -234,14 +233,8 @@ class User(Messageable, BaseUser):
         The time at which the user's account was created. Could be None.
     last_logoff: Optional[:class:`datetime.datetime`]
         The last time the user logged into steam. Could be None (e.g. if they are currently online).
-    commentable: :class:`bool`
-        Specifies if the user's account is able to be commented on.
     country: Optional[:class:`str`]
         The country code of the account. Could be None.
-    has_setup_profile: :class:`bool`
-        Bool determining if the user has set up their profile.
-    is_public: :class:`bool`
-        Bool determining if the user has a public profile.
     flags: :class:`str`
         The persona state flags of the account.
     id64: :class:`int`
@@ -252,10 +245,9 @@ class User(Messageable, BaseUser):
         The id2 of the user's account. Used for older steam games.
     """
 
-    __slots__ = ('name', 'real_name', 'avatar_url', 'community_url', 'commentable',
-                 'has_setup_profile', 'created_at', 'last_logoff', 'status',
-                 'game', 'flags', 'is_public', 'country', 'steam_id', 'id',
-                 'id64', 'id2', 'id3', '_state', '__weakref__')
+    __slots__ = ('name', 'real_name', 'avatar_url', 'community_url', 'created_at',
+                 'last_logoff', 'status', 'game', 'flags', 'country', 'steam_id', 'id',
+                 'id64', 'id2', 'id3', '_state', '_data', '__weakref__')
 
     def __init__(self, state, data: dict):
         self._state = state
@@ -268,19 +260,18 @@ class User(Messageable, BaseUser):
         return self.name
 
     def _update(self, data):
+        self._data = data
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
         self.community_url = data['profileurl']
-        self.commentable = bool(data.get('commentpermission'))
-        self.has_setup_profile = bool(data.get('profilestate'))
+
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data.keys() else None
         # Steam is dumb I have no clue why this sometimes isn't given sometimes
         self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data.keys() else None
         self.status = EPersonaState(data.get('personastate', 0))
         self.flags = EPersonaStateFlag(data.get('personastateflags', 0))
-        self.is_public = bool(ECommunityVisibilityState(data.get('communityvisibilitystate', 0)).name)
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid']), is_steam_game=False) \
             if 'gameextrainfo' and 'gameid' in data.keys() else None
         # Setting is_steam_game to False allows for fake game instances to be better without having them pre-defined
@@ -335,7 +326,12 @@ class User(Messageable, BaseUser):
 
     async def fetch_inventory(self, game: Game):
         """|coro|
-        Fetch an :class:`User`'s inventory for trading
+        Fetch an :class:`User`'s class:`Inventory` for trading.
+        Update an :class:`~steam.User`'s :
+
+        Returns
+        -------
+        Inventory: :class:`Inventory`
         """
         resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
@@ -349,7 +345,9 @@ class User(Messageable, BaseUser):
             raise errors.Forbidden('Offer message is too large to send with the trade offer')
         resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
                                                        items_to_receive, offer_message)
-        trade = TradeOffer(state=self._state, data=await self._state.http.fetch_trade(resp['tradeofferid']))
+        data = await self._state.http.fetch_trade(resp['tradeofferid'])
+        trade = TradeOffer(state=self._state, data=data, partner=self)
+        await trade._async__init__()
         self._state.client.dispatch('trade_send', trade)
 
     async def fetch_escrow(self):
@@ -359,7 +357,24 @@ class User(Messageable, BaseUser):
         return None
 
     def is_friend(self):
+        """Species if the user is in the ClientUser's friends"""
         return self in self._state.client.user.friends
+
+    def is_commentable(self):
+        """Specifies if the user's account is able to be commented on."""
+        return bool(self._data.get('commentpermission'))
+
+    def is_private(self):
+        """Specifies if the user has a public profile."""
+        state = self._data.get('communityvisibilitystate', 0)
+        if state == (0, 1, 2):
+            return False
+        else:
+            return True
+
+    def has_setup_profile(self):
+        """Specifies if the user has a setup their profile."""
+        return bool(self._data.get('profilestate'))
 
 
 class ClientUser(BaseUser):
@@ -478,9 +493,11 @@ class ClientUser(BaseUser):
         return Inventory(state=self._state, data=resp, owner=self)
 
 
-def make_steam64(account_id=0, *args, **kwargs):
+def make_steam64(id=0, *args, **kwargs):
     """Returns steam64 from various other representations.
+
     .. code:: python
+
         make_steam64()  # invalid steam_id
         make_steam64(12345)  # accountid
         make_steam64('12345')
@@ -500,12 +517,13 @@ def make_steam64(account_id=0, *args, **kwargs):
     id64: :class:`int`
     """
 
+    accountid = id
     etype = EType.Invalid
     universe = EUniverse.Invalid
     instance = None
 
     if len(args) == 0 and len(kwargs) == 0:
-        value = str(account_id)
+        value = str(accountid)
 
         # numeric input
         if value.isdigit():
@@ -513,7 +531,7 @@ def make_steam64(account_id=0, *args, **kwargs):
 
             # 32 bit account id
             if 0 < value < 2 ** 32:
-                account_id = value
+                accountid = value
                 etype = EType.Individual
                 universe = EUniverse.Public
             # 64 bit
@@ -525,15 +543,13 @@ def make_steam64(account_id=0, *args, **kwargs):
             result = steam2_to_tuple(value) or steam3_to_tuple(value)
 
             if result:
-                (
-                    account_id,
-                    etype,
-                    universe,
-                    instance
-                ) \
-                    = result
+                (accountid,
+                 etype,
+                 universe,
+                 instance,
+                 ) = result
             else:
-                account_id = 0
+                accountid = 0
 
     elif len(args) > 0:
         length = len(args)
@@ -544,23 +560,29 @@ def make_steam64(account_id=0, *args, **kwargs):
         elif length == 3:
             etype, universe, instance = args
         else:
-            raise TypeError(f'Takes at most 4 arguments ({length} given)')
+            raise TypeError("Takes at most 4 arguments (%d given)" % length)
 
     if len(kwargs) > 0:
         etype = kwargs.get('type', etype)
         universe = kwargs.get('universe', universe)
         instance = kwargs.get('instance', instance)
 
-    etype = (EType(etype) if isinstance(etype, (int, EType)) else EType[etype])
-    universe = (EUniverse(universe) if isinstance(universe, (int, EUniverse)) else EUniverse[universe])
+    etype = (EType(etype)
+             if isinstance(etype, (int, EType))
+             else EType[etype]
+             )
+
+    universe = (EUniverse(universe)
+                if isinstance(universe, (int, EUniverse))
+                else EUniverse[universe]
+                )
 
     if instance is None:
         instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
 
-    if instance <= 0xffffF:
-        raise ValueError("Your instance is larger than 20 bits")
+    assert instance <= 0xffffF, "instance larger than 20bits"
 
-    return (universe << 56) | (etype << 52) | (instance << 32) | account_id
+    return (universe << 56) | (etype << 52) | (instance << 32) | accountid
 
 
 def steam2_to_tuple(value: str):

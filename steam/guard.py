@@ -4,6 +4,7 @@
 MIT License
 
 Copyright (c) 2016 Michał Bukowski gigibukson@gmail.com
+Copyright (c) 2017 Nate the great
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,74 +24,45 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This copy of
+This contains a copy of
 https://github.com/bukson/steampy/blob/master/steampy/guard.py
-with extra doc-strings and it's slightly sped up
+and
+https://github.com/Zwork101/steam-trade/blob/master/pytrade/confirmations.py
+with extra doc-strings and it's slightly sped up.
 """
 
-from base64 import b64decode, b64encode
+import base64
+import hmac
+import re
+import struct
 from hashlib import sha1
-from hmac import new
-from json import loads
-from os.path import isfile
-from struct import pack, unpack
 from time import time
 
-from steam.errors import SteamAuthenticatorError
+from bs4 import BeautifulSoup
 
-
-def load_steam_guard(steam_guard: str) -> dict:
-    """Load a Steam Guard :class:`dict` or :mod:`json` file.
-
-    Parameters
-    ----------
-    steam_guard: :class:`str`
-        The location of the Steam Guard info.
-
-    Raises
-    ------
-    :exc:`SteamAuthenticatorError`
-        The file wasn't loadable.
-
-    Returns
-    -------
-    :class:`dict`
-        Dictionary of the Steam Guard info.
-    """
-    if isfile(steam_guard):
-        with open(steam_guard, 'r') as f:
-            try:
-                return loads(f.read())
-            except Exception as e:
-                raise SteamAuthenticatorError(f'{steam_guard} is not able to be loaded\n{" ".join(e.args)}')
-            finally:
-                f.close()
-    else:
-        try:
-            return loads(steam_guard)
-        except Exception as e:
-            raise SteamAuthenticatorError(f'{steam_guard} is not able to be loaded\n{" ".join(e.args)}')
+from . import errors
+from .enums import URL
 
 
 def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> str:
     """Generate a Steam Guard code for signing in.
 
     Parameters
-    ----------
+    -----------
     shared_secret: :class:`str`
         Identity secret from steam guard.
     timestamp: Optional[:class:`int`]
         The time to generate the key for the set time.
 
     Returns
-    -------
+    --------
     code: :class:`str`
         The desired 2FA code for the timestamp.
     """
-    time_buffer = pack('>Q', timestamp // 30)  # pack as Big endian, uint64
-    time_hmac = new(b64decode(shared_secret), time_buffer, digestmod=sha1).digest()
+    time_buffer = struct.pack('>Q', timestamp // 30)  # pack as Big endian, uint64
+    time_hmac = hmac.new(base64.b64decode(shared_secret), time_buffer, digestmod=sha1).digest()
     begin = ord(time_hmac[19:20]) & 0xf
-    full_code = unpack('>I', time_hmac[begin:begin + 4])[0] & 0x7fffffff  # unpack as Big endian uint32
+    full_code = struct.unpack('>I', time_hmac[begin:begin + 4])[0] & 0x7fffffff  # unpack as Big endian uint32
     chars = '23456789BCDFGHJKMNPQRTVWXY'
     code = []
     for _ in range(5):
@@ -103,32 +75,32 @@ def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = i
     """Generate a trade confirmation key.
 
     Parameters
-    ----------
+    -----------
     identity_secret: :class:`str`
         Identity secret from steam guard.
     tag: :class:`str`
-        Tag to encode to
+        Tag to encode to.
     timestamp: Optional[:class:`int`]
         The time to generate the key for.
 
     Returns
-    -------
+    --------
     key: :class:`bytes`
         Confirmation key for the set timestamp.
     """
-    buffer = f'{pack(">Q", timestamp)}{tag.encode("ascii")}'
-    return b64encode(new(b64decode(identity_secret), buffer, digestmod=sha1).digest())
+    buffer = f'{struct.pack(">Q", timestamp)}{tag.encode("ascii")}'
+    return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest())
 
 
 def generate_device_id(steam_id: str) -> str:
     """
     Parameters
-    ----------
+    -----------
     steam_id: :class:`str`
         The steam id to generate the id for
 
     Returns
-    -------
+    --------
     id: :class:`str`
         The device id
     """
@@ -143,3 +115,103 @@ def generate_device_id(steam_id: str) -> str:
         hexed_steam_id[20:32]
     ]
     return f'android:{"-".join(partial_id)}'
+
+
+def parse_token(url: str):
+    return re.search(r"https?://(?:www.)?steamcommunity.com/tradeoffer/new/\?partner=(?:\d+)(?:&|&amp;)token=("
+                     r"?P<token>[a-zA-Z0-9-_]+)", url)
+
+
+class Confirmation:
+    def __init__(self, manager, state, offer_id, data_config_id, data_key, creator):
+        self.manager = manager
+        self._state = state
+        self.id = offer_id.split('conf')[1]
+        self.data_config_id = data_config_id
+        self.data_key = data_key
+        self.tag = f'details{self.id}'
+        self.creator = creator
+
+    def _confirm_params(self, tag):
+        timestamp = int(time())
+        conf_key = self.manager.gen_conf_key(tag, timestamp)
+        return {
+            'p': self.manager.device_id,
+            'a': self.manager.id,
+            'k': conf_key.decode(),
+            't': timestamp,
+            'm': 'android',
+            'tag': tag
+        }
+
+    async def confirm(self, loop=0):
+        params = self._confirm_params('allow')
+        params['op'] = 'allow'
+        params['cid'] = self.data_config_id
+        params['ck'] = self.data_key
+        try:
+            return await self._state.request('GET', url=f'{self.manager.BASE}/ajaxop', params=params)
+        except TypeError:
+            if loop:
+                raise errors.LoginError("Unable to re-login")
+            self._state.http._logged_on = False
+            await self.confirm(loop=1)
+
+    async def cancel(self):
+        params = self._confirm_params('cancel')
+        params['op'] = 'cancel'
+        params['cid'] = self.data_config_id
+        params['ck'] = self.data_key
+        return await self._state.request('GET', url=f'{self.manager.BASE}/ajaxop', params=params)
+
+    async def details(self):
+        params = self._confirm_params(self.tag)
+        resp = await self._state.request('GET', url=f'{self.manager.BASE}/details/{self.id}', params=params)
+        return resp['html']
+
+
+class ConfirmationManager:
+    BASE = f'{URL.COMMUNITY}/mobileconf/conf'
+
+    def __init__(self, state):
+        self._state = state
+        self.identity_secret = state.client.identity_secret
+        self.id64 = state.http._user.id64
+
+    def _create_confirmation_params(self, tag):
+        return {
+            'p': generate_device_id(self.id64),
+            'a': self.id64,
+            'k': generate_confirmation_key(self.identity_secret, tag).decode(),
+            't': int(time()),
+            'm': 'android',
+            'tag': tag
+        }
+
+    async def get_confirmations(self):
+        params = self._create_confirmation_params('conf')
+        resp = await self._state.request('GET', f'{self.BASE}/conf', params=params)
+        if 'incorrect Steam Guard codes.' in resp:
+            raise errors.SteamAuthenticatorError('Steam Guard codes are incorrect')
+        if 'Oh nooooooes!' in resp:
+            raise errors.ConfirmationError()
+        soup = BeautifulSoup(resp, 'html.parser')
+        if soup.select('#mobileconf_empty'):
+            return []
+        confirms = []
+        for confirmation in soup.select('#mobileconf_list .mobileconf_list_entry'):
+            offer_id = confirmation['id']
+            data_config_id = confirmation['data-confid']
+            key = confirmation['data-key']
+            creator = confirmation.get('data-creator')
+            confirms.append(Confirmation(manager=self, state=self._state, offer_id=offer_id,
+                                         data_config_id=data_config_id, data_key=key, creator=creator))
+        return confirms
+
+    async def get_trade_confirmation(self, trade_offer_id, confirmations=None):
+        if confirmations is None:
+            confirmations = await self.get_confirmations()
+        for confirmation in confirmations:
+            if confirmation.creator == trade_offer_id:
+                return confirmation
+        raise errors.ConfirmationError(f'Could not find confirmation for trade: {trade_offer_id}')
