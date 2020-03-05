@@ -227,10 +227,11 @@ class Asset:
             yield (key, value)
 
     def __eq__(self, other):
-        return True in [getattr(self, attr) == getattr(other, attr) for attr in self.__slots__]
+        return isinstance(other, Asset) and \
+               False not in [getattr(self, attr) == getattr(other, attr) for attr in self.__slots__]
 
     def __ne__(self, other):
-        return False in [getattr(self, attr) != getattr(other, attr) for attr in self.__slots__]
+        return not self.__eq__(other)
 
 
 class Item(Asset):

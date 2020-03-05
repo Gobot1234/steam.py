@@ -245,7 +245,7 @@ class User(Messageable, BaseUser):
         The id2 of the user's account. Used for older steam games.
     """
 
-    __slots__ = ('name', 'real_name', 'avatar_url', 'community_url', 'created_at',
+    __slots__ = ('name', 'real_name', 'avatar_url', 'community_url', 'created_at', 'trade_url',
                  'last_logoff', 'status', 'game', 'flags', 'country', 'steam_id', 'id',
                  'id64', 'id2', 'id3', '_state', '_data', '__weakref__')
 
@@ -259,12 +259,24 @@ class User(Messageable, BaseUser):
     def __str__(self):
         return self.name
 
+    def __eq__(self, other):
+        return isinstance(other, User) and self.id == other.id
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def _update(self, data):
         self._data = data
+        self.steam_id = SteamID(data['steamid'])
+        self.id = self.steam_id.id
+        self.id64 = self.steam_id.as_64
+        self.id2 = self.steam_id.as_steam2
+        self.id3 = self.steam_id.as_steam3
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
         self.community_url = data['profileurl']
+        self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data.keys() else None
@@ -276,11 +288,6 @@ class User(Messageable, BaseUser):
             if 'gameextrainfo' and 'gameid' in data.keys() else None
         # Setting is_steam_game to False allows for fake game instances to be better without having them pre-defined
         # without making the defined ones being
-        self.steam_id = SteamID(data['steamid'])
-        self.id = self.steam_id.id
-        self.id64 = self.steam_id.as_64
-        self.id2 = self.steam_id.as_steam2
-        self.id3 = self.steam_id.as_steam3
 
     async def add(self):  # TODO make raises give error add raises to docs and make them better
         """|coro|
@@ -442,13 +449,19 @@ class ClientUser(BaseUser):
         self.friends = []
         self._state = state
         self._update(data)
-        state.loop.create_task(self.fetch_friends())
+        state.loop.wait_for(self.async__init__())
+
+    def __repr__(self):
+        return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
 
     def __str__(self):
         return self.name
 
-    def __repr__(self):
-        return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
+    def __eq__(self, other):
+        return isinstance(other, User) and self.id == other.id
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def _update(self, data):
         self.name = data['personaname']
@@ -469,13 +482,16 @@ class ClientUser(BaseUser):
         self.id2 = self.steam_id.as_steam2
         self.id3 = self.steam_id.as_steam3
 
+    async def async__init__(self):
+        await self.fetch_friends()
+        self._state.client._handle_ready()
+        self._state.client.dispatch('ready')
+
     async def fetch_friends(self):
         friends = await self._state.http.fetch_friends(self.id64)
         for friend in friends:
             self._state.client._store_user(friend)
             self.friends.append(User(state=self._state, data=friend))
-        self._state.client._handle_ready()
-        self._state.client.dispatch('ready')
 
     async def comment(self, comment: str):
         """|coro|

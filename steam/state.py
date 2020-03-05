@@ -1,14 +1,16 @@
 import logging
-import socket
-from collections import defaultdict
-from random import shuffle
-from time import time
 
-from .enums import EResult
+# import socket
+# from collections import defaultdict
+# from random import shuffle
+# from time import time
+
+# from .enums import EResult
 
 log = logging.getLogger(__name__)
 
-
+# This is still in the works I pushed it by accident oops
+'''
 class CMServerList(object):
     """
     Managing object for CM servers
@@ -67,30 +69,6 @@ class CMServerList(object):
             log.debug("List cleared.")
         self.list.clear()
 
-    def bootstrap_from_dns(self):
-        """
-        Fetches CM server list from WebAPI and replaces the current one
-        """
-        self.log.debug("Attempting bootstrap via DNS")
-
-        try:
-            answer = socket.getaddrinfo("cm0.steampowered.com",
-                                        27017, socket.AF_INET,
-                                        proto=socket.IPPROTO_TCP)
-        except Exception as exp:
-            self.log.error("DNS boostrap failed: %s" % str(exp))
-            return False
-
-        servers = list(map(lambda addr: addr[4], answer))
-
-        if servers:
-            self.clear()
-            self.merge_list(servers)
-            return True
-        else:
-            self.log.error("DNS boostrap: cm0.steampowered.com resolved no A records")
-            return False
-
     async def bootstrap_from_webapi(self, cell_id=0):
         """
         Fetches CM server list from WebAPI and replaces the current one
@@ -140,7 +118,7 @@ class CMServerList(object):
         :param server_addr: (ip, port) tuple
         :type server_addr: :class:`tuple`
         """
-        self.list[server_addr].update({'quality': CMServerList.GOOD, 'timestamp': time()})
+        self.list[server_addr].update({'quality': self.GOOD, 'timestamp': time()})
 
     def mark_bad(self, server_addr):
         """Mark server address as bad, when unable to connect for example
@@ -148,7 +126,7 @@ class CMServerList(object):
         :type server_addr: :class:`tuple`
         """
         self.log.debug("Marking %s as Bad." % repr(server_addr))
-        self.list[server_addr].update({'quality': CMServerList.BAD, 'timestamp': time()})
+        self.list[server_addr].update({'quality': self.BAD, 'timestamp': time()})
 
     def merge_list(self, new_list):
         """Add new CM servers to the list
@@ -165,6 +143,8 @@ class CMServerList(object):
             self.log.debug("Added %d new CM addresses." % (len(self.list) - total))
 
         self.last_updated = int(time())
+
+'''
 
 
 class State:

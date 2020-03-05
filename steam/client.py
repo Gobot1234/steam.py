@@ -102,7 +102,7 @@ class _ClientEventTask(asyncio.Task):
 
 
 class Client:
-    r"""Represents a client connection that connects to Steam.
+    """Represents a client connection that connects to Steam.
     This class is used to interact with the Steam API.
 
     Parameters
@@ -111,7 +111,9 @@ class Client:
         The :class:`asyncio.AbstractEventLoop` used for asynchronous operations.
         Defaults to ``None``, in which case the default event loop is used via
         :func:`asyncio.get_event_loop()`.
-
+    currency: Optional[Union[:class:`~steam.enums.ECurrencyCode, :class:`int`, :class:`str`]]
+        The currency used for market interactions.
+        Defaults to :class:`~steam.enums.ECurrencyCode.USD`.
     Attributes
     -----------
     loop: :class:`asyncio.AbstractEventLoop`
