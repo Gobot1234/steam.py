@@ -1,67 +1,47 @@
 import logging
+import time
+from collections import defaultdict
+from random import shuffle
 
-# import socket
-# from collections import defaultdict
-# from random import shuffle
-# from time import time
+import websockets
 
-# from .enums import EResult
 
 log = logging.getLogger(__name__)
 
-# This is still in the works I pushed it by accident oops
-'''
-class CMServerList(object):
-    """
-    Managing object for CM servers
-    Comes with built in list of CM server to bootstrap a connection
-    To get a server address from the list simply iterate over it
-    .. code:: python
-        servers = CMServerList()
-        for server_addr in servers:
-            pass
-    The good servers are returned first, then bad ones. After failing to connect
-    call :meth:`mark_bad` with the server addr. When connection succeeds break
-    out of the loop.
-    """
 
+class CMServerList:
+    """A class to represent the severs the user can connect to."""
     GOOD = 1
     BAD = 2
-    last_updated = 0  #: timestamp of when the list was last updated
-    cell_id = 0  #: cell id of the server list
-    bad_timestamp = 300  #: how long bad mark lasts in seconds
+    last_updated = 0
+    cell_id = 0
+    bad_timestamp = 300
 
     def __init__(self, state):
-        self._state = state
-        self.log = logging.getLogger("CMServerList")
+        self.state = state
         self.list = defaultdict(dict)
+        self.state.loop.create_task(self.bootstrap_from_webapi())
 
     def __repr__(self):
-        return "<CMServerList {} servers>".format(len(self))
+        return f"<CMServerList {len(self)} servers>"
 
     def __len__(self):
         return len(self.list)
 
     def __iter__(self):
-        def cm_server_iter():
-            if not self.list:
-                self.log.error("Server list is empty.")
-                return
+        if not self.list:
+            return log.error("Server list is empty.")
 
-            good_servers = list(filter(lambda x: x[1]['quality'] == CMServerList.GOOD,
-                                       self.list.items()))
+        good_servers = list(filter(lambda x: x[1]['quality'] == self.GOOD, self.list.items()))
 
-            if len(good_servers) == 0:
-                self.log.debug("No good servers left. Reseting...")
-                self.reset_all()
-                return
+        if len(good_servers) == 0:
+            log.debug("No good servers left. Resetting...")
+            return self.reset_all()
 
-            shuffle(good_servers)
+        shuffle(good_servers)
 
-            for server_addr, meta in good_servers:
-                yield server_addr
-
-        return cm_server_iter()
+        for server_address, meta in good_servers:
+            yield server_address
 
     def clear(self):
         """Clears the server list"""
@@ -70,81 +50,53 @@ class CMServerList(object):
         self.list.clear()
 
     async def bootstrap_from_webapi(self, cell_id=0):
-        """
-        Fetches CM server list from WebAPI and replaces the current one
-        :param cell_id:
-        :param cellid: cell id (0 = global)
-        :type cellid: :class:`int`
-        :return: booststrap success
-        :rtype: :class:`bool`
-        """
-        self.log.debug("Attempting bootstrap via WebAPI")
+        log.debug("Attempting bootstrap via WebAPI")
 
         try:
-            resp = await self._state.http.get_cm_list(cell_id)
+            resp = await self.state.http.fetch_cm_list(cell_id)
         except Exception as exp:
-            self.log.error("WebAPI boostrap failed: %s" % str(exp))
+            log.error(f'WebAPI bootstrap failed: {repr(exp)}')
             return False
 
-        result = EResult(resp['response']['result'])
+        result = resp['response']['result']
 
-        if result != EResult.OK:
-            self.log.error("GetCMList failed with %s" % repr(result))
+        if result != 1:
+            self.log.error(f'GetCMList failed with {repr(result)}')
             return False
 
-        serverlist = resp['response']['serverlist']
-        self.log.debug("Recieved %d servers from WebAPI" % len(serverlist))
-
-        def str_to_tuple(serveraddr):
-            ip, port = serveraddr.split(':')
-            return str(ip), int(port)
+        websocket_list = resp['response']['serverlist_websockets']
+        log.debug(f'Received {len(websocket_list)} servers from WebAPI')
 
         self.clear()
         self.cell_id = cell_id
-        self.merge_list(map(str_to_tuple, serverlist))
+        self.merge_list(websocket_list)
 
         return True
 
     def reset_all(self):
-        """Reset status for all servers in the list"""
+        log.debug('Marking all CM servers as Good.')
+        for server in self.list:
+            self.mark_good(server)
 
-        self.log.debug("Marking all CMs as Good.")
+    def mark_good(self, server):
+        log.debug(f'Marking {repr(server)} as good.')
+        self.list[server] = {'quality': self.GOOD, 'timestamp': time.time()}
 
-        for key in self.list:
-            self.mark_good(key)
+    def mark_bad(self, server):
+        log.debug(f'Marking {repr(server)} as bad.')
+        self.list[server] = {'quality': self.BAD, 'timestamp': time.time()}
 
-    def mark_good(self, server_addr):
-        """Mark server address as good
-        :param server_addr: (ip, port) tuple
-        :type server_addr: :class:`tuple`
-        """
-        self.list[server_addr].update({'quality': self.GOOD, 'timestamp': time()})
-
-    def mark_bad(self, server_addr):
-        """Mark server address as bad, when unable to connect for example
-        :param server_addr: (ip, port) tuple
-        :type server_addr: :class:`tuple`
-        """
-        self.log.debug("Marking %s as Bad." % repr(server_addr))
-        self.list[server_addr].update({'quality': self.BAD, 'timestamp': time()})
-
-    def merge_list(self, new_list):
-        """Add new CM servers to the list
-        :param new_list: a list of ``(ip, port)`` tuples
-        :type new_list: :class:`list`
-        """
+    def merge_list(self, hosts):
         total = len(self.list)
 
-        for ip, port in new_list:
-            if (ip, port) not in self.list:
-                self.mark_good((ip, port))
+        for host in hosts:
+            if host not in self.list:
+                self.mark_good(host)
 
         if len(self.list) > total:
-            self.log.debug("Added %d new CM addresses." % (len(self.list) - total))
+            log.debug(f'Added {len(self.list) - total} new CM server addresses.')
 
-        self.last_updated = int(time())
-
-'''
+        self.last_updated = int(time.time())
 
 
 class State:
@@ -153,4 +105,35 @@ class State:
         self.loop = loop
         self.http = http
         self.client = client
-        self.request = http.request
+        self.servers = CMServerList(self)
+
+    async def connect(self):
+        """ TODO make this work silly
+        2. post ping
+            .........:.A....
+            00000001: 0108 ac80 0438 c4fa ffff 0fa8 0102 8002  .....8..........
+            00000002: 0488 0202 9203 0a67 6f62 6f74 3132 3334  .......gobot1234
+            00000003: 31a0 0600 ba06 3864 7942 6b58 6e45 6245  1.....8dyBkXnEbE
+            00000004: 3159 4141 4141 4141 4141 4141 4141 4141  1YAAAAAAAAAAAAAA
+            00000005: 4141 4141 4141 4141 7741 7633 7357 6232  AAAAAAAAwAv3sWb2
+            00000006: 7034 4d34 382f 374e 3076 5a76 784a 6e    p4M48/7N0vZvxJn
+
+            First part is wtf
+            account name
+            token
+
+        3. listen time:
+            https://steamcommunity-a.akamaihd.net/public/javascript/webui/steammessages.js
+            https://cm2-iad1.cm.steampowered.com:27021/cmping/
+        """
+
+        account_name, token = await self.http.fetch_token()
+        for server in self.servers:
+            if self.servers.list[server]['quality'] == 1:
+                log.debug(f'Requesting {server}/cmsocket')
+                async with websockets.connect(f'wss://{server}/cmsocket/') as ws:
+                    log.debug(f'Successfully connected to')
+                    ping = f".....8.................{account_name}.....{token}"
+                    await ws.send(ping)
+                    async for msg in ws:
+                        print(msg)
