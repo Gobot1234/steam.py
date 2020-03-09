@@ -110,7 +110,7 @@ class HTTPClient:
                 data = await json_or_text(r)
 
                 if data == 'Access is denied. Retrying will not help. Please verify your <pre>key=</pre> parameter':
-                    raise errors.InvalidCredentials('Invalid API key')
+                    raise errors.InvalidCredentials('You have passed an invalid API key')
                 # the request was successful so just return the text/json
                 if 300 > r.status >= 200:
                     log.debug(f'{method} {url} has received {data}')
@@ -118,7 +118,9 @@ class HTTPClient:
 
                 # we are being rate limited
                 if r.status == 429:
-                    raise errors.TooManyRequests('We are being rate limited try again soon')
+                    await asyncio.sleep(3 ** tries + 1)
+                    continue
+
                 # we've received a 500 or 502, unconditional retry
                 if r.status in {500, 502}:
                     await asyncio.sleep(1 + tries * 2)
@@ -154,7 +156,7 @@ class HTTPClient:
         data = await self.fetch_profile(login_response['transfer_parameters']['steamid'])
         self._user = ClientUser(state=self._state, data=data)
         self._confirmation_manager = ConfirmationManager(state=self._state)
-        self._loop.create_task(self._poll_notifications())
+        # self._loop.create_task(self._poll_notifications())
         self._loop.create_task(self._poll_trades())
 
     async def logout(self):
@@ -459,24 +461,15 @@ class HTTPClient:
         post = await self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=data, headers=headers)
         return post
 
-    async def _connect_to_chat(self):
-        """
-        1. find socket
-            https://api.steampowered.com/ISteamDirectory/GetCMList/v1/?cellid=0
+    async def fetch_token(self):
+        resp = await self.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
+        return resp['account_name'], resp['token']
 
-        2. post ping
-            from {URL.COMMUNITY}/chat/clientjstoken is fine
-
-        3. listen time:
-            https://steamcommunity-a.akamaihd.net/public/javascript/webui/steammessages.js
-            https://cm2-iad1.cm.steampowered.com:27021/cmping/
-        """
-        f'{URL.API}/ISteamDirectory/GetCMList/v1/?cellid=1'
-        resp = await self._session.get(f'{URL.COMMUNITY}/chat/clientjstoken')
-        access_token = (await resp.json())['token']
-        async with self._session.ws_connect(f'wss://cm-03-ams1.cm.steampowered.com/cmsocket/') as ws:
-            async for msg in ws:
-                print(msg)
+    async def fetch_cm_list(self, cell_id):
+        params = {
+            "cellid": cell_id
+        }
+        return await self.request('GET', url=Route('ISteamDirectory', 'GetCMList'), params=params)
 
     async def _poll_notifications(self):
         request = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
