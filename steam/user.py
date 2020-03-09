@@ -449,7 +449,7 @@ class ClientUser(BaseUser):
         self.friends = []
         self._state = state
         self._update(data)
-        state.loop.wait_for(self.async__init__())
+        state.loop.create_task(self.async__init__())
 
     def __repr__(self):
         return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
