@@ -5,7 +5,6 @@ from random import shuffle
 
 import websockets
 
-
 log = logging.getLogger(__name__)
 
 
@@ -20,7 +19,7 @@ class CMServerList:
     def __init__(self, state):
         self.state = state
         self.list = defaultdict(dict)
-        self.state.loop.create_task(self.bootstrap_from_webapi())
+        state.loop.create_task(self.bootstrap_from_webapi())
 
     def __repr__(self):
         return f"<CMServerList {len(self)} servers>"
@@ -61,7 +60,7 @@ class CMServerList:
         result = resp['response']['result']
 
         if result != 1:
-            self.log.error(f'GetCMList failed with {repr(result)}')
+            log.error(f'GetCMList failed with {repr(result)}')
             return False
 
         websocket_list = resp['response']['serverlist_websockets']
@@ -91,7 +90,7 @@ class CMServerList:
 
         for host in hosts:
             if host not in self.list:
-                self.mark_good(host)
+                self.mark_good(f'wss://{host}/cmsocket')
 
         if len(self.list) > total:
             log.debug(f'Added {len(self.list) - total} new CM server addresses.')
@@ -99,9 +98,11 @@ class CMServerList:
         self.last_updated = int(time.time())
 
 
-class State:
+class State(websockets.client.WebSocketClientProtocol):
+    __slots__ = ('loop', 'http', 'client', 'servers')
 
     def __init__(self, loop, client, http):
+        super().__init__()
         self.loop = loop
         self.http = http
         self.client = client
@@ -130,9 +131,10 @@ class State:
         account_name, token = await self.http.fetch_token()
         for server in self.servers:
             if self.servers.list[server]['quality'] == 1:
-                log.debug(f'Requesting {server}/cmsocket')
-                async with websockets.connect(f'wss://{server}/cmsocket/') as ws:
-                    log.debug(f'Successfully connected to')
+                log.debug(f'Requesting {server}')
+                async with websockets.connect(server) as ws:
+                    log.debug(f'Successfully connected to {server}')
+                    self.client.dispatch('connect')
                     ping = f".....8.................{account_name}.....{token}"
                     await ws.send(ping)
                     async for msg in ws:

@@ -34,8 +34,10 @@ import sys
 import traceback
 
 import aiohttp
+import websockets
 
 from . import errors
+from .enums import ECurrencyCode
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .market import Market
@@ -127,7 +129,7 @@ class Client:
         self._session = aiohttp.ClientSession(loop=self.loop)
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
-        self.market = Market(http=self.http, currency=options.get('currency', 1))
+        self.market = Market(http=self.http, currency=options.get('currency', ECurrencyCode.USD))
 
         self.username = None
         self.api_key = None
@@ -140,6 +142,7 @@ class Client:
         self._users = {}
         self._trades = {}
         self._closed = True
+        self._state = None
         self._listeners = {}
         self._handlers = {
             'ready': self._handle_ready
@@ -330,6 +333,7 @@ class Client:
                               api_key=api_key, shared_secret=shared_secret,
                               identity_secret=identity_secret)
         self._user = self.http._user
+        self._state = self.http._state
         self._closed = False
 
     async def close(self):
@@ -377,6 +381,34 @@ class Client:
         await self.login(username=username, password=password, api_key=api_key,
                          shared_secret=shared_secret, identity_secret=identity_secret)
 
+    async def _connect(self):
+        coro = self._state.connect
+        self.ws = await asyncio.wait_for(coro, timeout=180.0)
+        '''
+        while 1:
+            try:
+                await self.ws.poll_event()
+            except ResumeWebSocket:
+                log.info('Got a request to RESUME the websocket.')
+                self.dispatch('disconnect')
+                coro = DiscordWebSocket.from_client(self, )
+                self.ws = await asyncio.wait_for(coro, timeout=180.0)
+                '''
+
+    async def connect(self):
+        while not self.is_closed():
+            try:
+                await self._connect()
+            except (OSError,
+                    errors.HTTPException,
+                    aiohttp.ClientError,
+                    asyncio.TimeoutError,
+                    websockets.InvalidHandshake,
+                    websockets.WebSocketProtocolError):
+                self.dispatch('disconnect')
+                if self.is_closed():
+                    return
+
     def get_user(self, user_id):
         """Returns a user with the given ID.
 
@@ -420,7 +452,7 @@ class Client:
         try:
             return self._users[int(data['steamid'])]
         except KeyError:
-            user = User(state=self.http._state, data=data)
+            user = User(state=self._state, data=data)
             self._users[user.id64] = user
             return user
 
@@ -447,7 +479,6 @@ class Client:
         try:
             return self._trades[data['tradeofferid']]
         except KeyError:
-            trade = TradeOffer(state=self.http._state, data=data, partner=None)
-            self.loop.create_task(trade._async__init__())
+            trade = TradeOffer(state=self._state, data=data, partner=None)
             self._trades[trade.id] = trade
             return trade

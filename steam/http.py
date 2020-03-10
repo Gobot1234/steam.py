@@ -65,7 +65,7 @@ class HTTPClient:
 
     def __init__(self, loop, session, client):
         self._loop = loop
-        self._session: aiohttp.ClientSession = session
+        self._session = session
         self._client = client
         self._state = State(loop=loop, client=client, http=self)
 
