@@ -39,6 +39,7 @@ class TradeOffer:
         self._state = state
         self.partner = partner
         self._update(data)
+        state.loop.create_task(self.__ainit__())
 
     def __repr__(self):
         attrs = (
@@ -56,7 +57,7 @@ class TradeOffer:
         self.state = ETradeOfferState(data.get('trade_offer_state', 1))
         self._data = data
 
-    async def _async__init__(self):
+    async def __ainit__(self):
         if self.partner is None:  # not great cause this can be your account sometimes
             self.partner = await self._state.client.fetch_user(self._data['accountid_other'])
             print(self.partner)
@@ -72,7 +73,7 @@ class TradeOffer:
 
     async def update(self):
         data = await self._state.http.fetch_trade(self.id)
-        await self._async__init__()
+        await self.__ainit__()
         self._update(data)
         return self
 

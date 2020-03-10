@@ -354,7 +354,7 @@ class User(Messageable, BaseUser):
                                                        items_to_receive, offer_message)
         data = await self._state.http.fetch_trade(resp['tradeofferid'])
         trade = TradeOffer(state=self._state, data=data, partner=self)
-        await trade._async__init__()
+        await trade.__ainit__()
         self._state.client.dispatch('trade_send', trade)
 
     async def fetch_escrow(self):
@@ -442,14 +442,14 @@ class ClientUser(BaseUser):
 
     __slots__ = ('name', 'real_name', 'avatar_url', 'commentable',
                  'has_setup_profile', 'created_at', 'last_logoff',
-                 'status', 'game', 'flags', 'is_public', 'country',
+                 'status', 'game', 'flags', 'is_public', 'country', 'id',
                  'steam_id', 'id64', 'id2', 'id3', 'friends', '_state')
 
     def __init__(self, state, data: dict):
         self.friends = []
         self._state = state
         self._update(data)
-        state.loop.create_task(self.async__init__())
+        state.loop.create_task(self.__ainit__())
 
     def __repr__(self):
         return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
@@ -464,6 +464,12 @@ class ClientUser(BaseUser):
         return not self.__eq__(other)
 
     def _update(self, data):
+        self.steam_id = SteamID(data['steamid'])
+        self.id = self.steam_id.id
+        self.id64 = self.steam_id.as_64
+        self.id2 = self.steam_id.as_steam2
+        self.id3 = self.steam_id.as_steam3
+
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
@@ -477,12 +483,8 @@ class ClientUser(BaseUser):
         self.is_public = bool(ECommunityVisibilityState(data.get('communityvisibilitystate')).name)
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid']), is_steam_game=False) \
             if 'gameextrainfo' and 'gameid' in data.keys() else None
-        self.steam_id = SteamID(data['steamid'])
-        self.id64 = self.steam_id.as_64
-        self.id2 = self.steam_id.as_steam2
-        self.id3 = self.steam_id.as_steam3
 
-    async def async__init__(self):
+    async def __ainit__(self):
         await self.fetch_friends()
         self._state.client._handle_ready()
         self._state.client.dispatch('ready')
@@ -490,8 +492,9 @@ class ClientUser(BaseUser):
     async def fetch_friends(self):
         friends = await self._state.http.fetch_friends(self.id64)
         for friend in friends:
-            self._state.client._store_user(friend)
-            self.friends.append(User(state=self._state, data=friend))
+            if friend not in self.friends:
+                self._state.client._store_user(friend)
+                self.friends.append(User(state=self._state, data=friend))
 
     async def comment(self, comment: str):
         """|coro|
