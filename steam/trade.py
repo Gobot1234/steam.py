@@ -9,12 +9,12 @@ class TradeOffer:
 
     Attributes
     -------------
-    partner: class:`~steam.User`
+    partner: :class:`~steam.User`
         The trade offer partner.
     items_to_give: List[`Item`]
-        A list of items to give to the trade partner.
+        A list of items to give to the partner.
     items_to_receive: List[`Item`]
-        A list of items to receive from the.
+        A list of items to receive from the partner.
     state:
         The offer state of the trade for the possible types see
         :class:`~enums.ETradeOfferState`.
@@ -26,14 +26,14 @@ class TradeOffer:
         The trade offer id of the trade.
     expires: :class:`datetime.datetime`
         The time at which the trade automatically expires.
-    escrow: Optional[class:`datetime.datetime`]
+    escrow: Optional[:class:`datetime.datetime`]
         The time at which the escrow will end. Can be None
         if there is no escrow on the trade.
     """
 
     __slots__ = ('partner', 'message', 'state', 'is_our_offer', 'id',
                  'expires', 'escrow', 'items_to_give', 'items_to_receive',
-                 '_state', '_data')
+                 '_state', '_data', '__weakref__')
 
     def __init__(self, state, data, partner):
         self._state = state
@@ -60,16 +60,15 @@ class TradeOffer:
     async def __ainit__(self):
         if self.partner is None:  # not great cause this can be your account sometimes
             self.partner = await self._state.client.fetch_user(self._data['accountid_other'])
-            print(self.partner)
         self.items_to_give = await self.fetch_items(
             user_id64=self._state.client.user.id64,
             assets=self._data['items_to_receive']
-        ) if 'items_to_receive' in self._data.keys() else []
+        ) if 'items_to_receive' in self._data else []
 
         self.items_to_receive = await self.fetch_items(
             user_id64=self.partner.id64,
             assets=self._data['items_to_give']
-        ) if 'items_to_give' in self._data.keys() else []
+        ) if 'items_to_give' in self._data else []
 
     async def update(self):
         data = await self._state.http.fetch_trade(self.id)
@@ -103,22 +102,22 @@ class TradeOffer:
         self._state.dispatch('trade_cancel', self)
 
     async def fetch_items(self, user_id64, assets):
-        items = await self._state.http.fetch_trade_items(user_id64=user_id64, assets=assets)
-        to_ret = []
+        items_ = await self._state.http.fetch_trade_items(user_id64=user_id64, assets=assets)
+        items = []
         for asset in assets:
-            for item in items:
+            for item in items_:
                 if item.asset_id == asset['assetid'] and item.class_id == asset['classid'] \
                         and item.instance_id == asset['instanceid']:
                     ignore = False
                     if item.name is None:
-                        # this is awful I am aware but getting identical items and assets are annoying
-                        for item_ in to_ret:
+                        # this is awful I am aware but it is necessary to not get identical items and assets
+                        for item_ in items:
                             if item.asset == item_.asset:
                                 ignore = True
                     if not ignore:  # this is equally dumb
-                        to_ret.append(item)
+                        items.append(item)
                     continue
-        return to_ret
+        return items
 
     def is_one_sided(self):
         return True if self.items_to_receive and not self.items_to_give else False
@@ -129,11 +128,11 @@ class Inventory:
 
     Attributes
     -------------
-    items: List[class:`Item`]
+    items: List[:class:`Item`]
         A list of the inventories owner's items.
-    owner: class:`~steam.User`
+    owner: :class:`~steam.User`
         The owner of the inventory.
-    game: class:`steam.Game`
+    game: :class:`steam.Game`
         The game the inventory the game belongs to.
     """
 
@@ -178,8 +177,7 @@ class Inventory:
         Returns
         ---------
         Items: :class:`list`
-            List of `Item`s
-            This also removes the item from the inventory.
+            List of `Item`s. This also removes the item from the inventory.
         """
         items = [item for item in self.items if item.name == item_name]
         for item in items:
@@ -221,10 +219,9 @@ class Asset:
         return f"<Asset {' '.join(resolved)}>"
 
     def __iter__(self):
-        for key, value in zip(
-                ('assetid', 'amount', 'appid', 'contextid'),
-                (self.id, self.amount, self.game.app_id, str(self.game.context_id))
-        ):
+        steam_names = ('assetid', 'amount', 'appid', 'contextid')
+        pythonic_names = (self.id, self.amount, self.game.app_id, str(self.game.context_id))
+        for key, value in zip(steam_names, pythonic_names):
             yield (key, value)
 
     def __eq__(self, other):
@@ -240,35 +237,35 @@ class Item(Asset):
 
     Attributes
     -------------
-    name: class:`str`
+    name: :class:`str`
         The name of the item.
-    asset: class:`Asset`
+    asset: :class:`Asset`
         The item as an asset.
-    game: class:`~steam.Game`
+    game: :class:`~steam.Game`
         The game the item is from.
-    asset_id: class:`str`
+    asset_id: :class:`str`
         The assetid of the item.
-    app_id: class:`str`
+    app_id: :class:`str`
         The appid of the item.
-    amount: class:`int`
+    amount: :class:`int`
         The amount of the item the inventory contains.
-    instance_id: class:`str`
+    instance_id: :class:`str`
         The instanceid of the item.
-    class_id: class:`str`
+    class_id: :class:`str`
         The classid of the item.
-    colour: Optional[class:`int`]
+    colour: Optional[:class:`int`]
         The colour of the item.
-    market_name: Optional[class:`str`]
+    market_name: Optional[:class:`str`]
         The market_name of the item.
-    descriptions: Optional[class:`str`]
+    descriptions: Optional[:class:`str`]
         The descriptions of the item.
-    type: Optional[class:`str`]
+    type: Optional[:class:`str`]
         The type of the item.
-    tags: Optional[class:`str`]
+    tags: Optional[:class:`str`]
         The tags of the item.
-    icon_url: Optional[class:`str`]
+    icon_url: Optional[:class:`str`]
         The icon_url of the item.
-    icon_url_large: Optional[class:`str`]
+    icon_url_large: Optional[:class:`str`]
         The icon_url_large of the item.
     """
 
@@ -279,7 +276,7 @@ class Item(Asset):
     def __init__(self, data, missing: bool = False):
         super().__init__(data)
         self.missing = missing
-        self._update(data)
+        self._from_data(data)
 
     def __repr__(self):
         attrs = (
@@ -288,7 +285,7 @@ class Item(Asset):
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Item {' '.join(resolved)}>"
 
-    def _update(self, data):
+    def _from_data(self, data):
         self.asset = Asset(data)
         self.game = self.asset.game
         self.asset_id = self.asset.id
@@ -298,21 +295,21 @@ class Item(Asset):
         self.class_id = self.asset.class_id
 
         self.name = data.get('name')
-        self.colour = int(data['name_color'], 16) if 'name_color' in data.keys() else None
+        self.colour = int(data['name_color'], 16) if 'name_color' in data else None
         self.market_name = data.get('market_name')
         self.descriptions = data.get('descriptions')
         self.type = data.get('type')
         self.tags = data.get('tags')
         self.icon_url = f'https://steamcommunity-a.akamaihd.net/economy/image/{data.get("icon_url")}' \
-            if 'icon_url' in data.keys() else None
+            if 'icon_url' in data else None
         self.icon_url_large = f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url_large"]}' \
-            if 'icon_url_large' in data.keys() else None
+            if 'icon_url_large' in data else None
         self._data = data
 
     def is_tradable(self):
         """Whether or not the item is tradable."""
-        return bool(self._data['tradable']) if 'tradable' in self._data.keys() else False
+        return bool(self._data.get('tradable', False))
 
     def is_marketable(self):
         """Whether or not the item is marketable."""
-        bool(self._data['marketable']) if 'marketable' in self._data.keys() else False
+        bool(self._data.get('marketable', False))
