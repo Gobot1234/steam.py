@@ -7,10 +7,10 @@ with open('requirements.txt') as f:
     f.close()
 
 with open('steam/__init__.py') as f:
-    version = re.search(r"__version__ = ('|\")(?P<version>(?:.*?))('|\")", f.read(), re.MULTILINE).group('version')
+    version = re.search(r"""^__version__\s*=\s*['"]([^\'"]*)['"]""", f.read(), re.MULTILINE).group(1)
     f.close()
 
-if not version:
+if version is None:
     raise RuntimeError('Version is not set')
 
 with open('README.md') as f:
