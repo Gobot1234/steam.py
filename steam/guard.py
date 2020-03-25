@@ -52,7 +52,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
     shared_secret: :class:`str`
         Identity secret from steam guard.
     timestamp: Optional[:class:`int`]
-        The time to generate the key for the set time.
+        The unix timestamp to generate the key for.
 
     Returns
     --------
@@ -89,7 +89,7 @@ def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = i
         Confirmation key for the set timestamp.
     """
     buffer = f'{struct.pack(">Q", timestamp)}{tag.encode("ascii")}'
-    return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest())
+    return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
 
 
 def generate_device_id(steam_id: str) -> str:
@@ -118,28 +118,26 @@ def generate_device_id(steam_id: str) -> str:
 
 
 def parse_token(url: str):
-    return re.search(r"https?://(?:www.)?steamcommunity.com/tradeoffer/new/\?partner=(?:\d+)(?:&|&amp;)token=("
-                     r"?P<token>[a-zA-Z0-9-_]+)", url)
+    return re.search(r"https?://(?:www.)?steamcommunity.com/tradeoffer/new/\?partner=(?:\d+)(?:&|&amp;)"
+                     r"token=(?P<token>[a-zA-Z0-9-_]+)", url)
 
 
 class Confirmation:
-    def __init__(self, manager, state, offer_id, data_config_id, data_key, creator):
+    def __init__(self, manager, state, offer_id, confirmation_id, data_key, creator):
         self.manager = manager
         self._state = state
         self.id = offer_id.split('conf')[1]
-        self.data_config_id = data_config_id
+        self.confirmation_id = confirmation_id
         self.data_key = data_key
         self.tag = f'details{self.id}'
         self.creator = creator
 
     def _confirm_params(self, tag):
-        timestamp = int(time())
-        conf_key = self.manager.gen_conf_key(tag, timestamp)
         return {
             'p': self.manager.device_id,
             'a': self.manager.id,
-            'k': conf_key.decode(),
-            't': timestamp,
+            'k': generate_confirmation_key(tag, self.manager.identity_secret),
+            't': int(time()),
             'm': 'android',
             'tag': tag
         }
@@ -147,7 +145,7 @@ class Confirmation:
     async def confirm(self, loop=0):
         params = self._confirm_params('allow')
         params['op'] = 'allow'
-        params['cid'] = self.data_config_id
+        params['cid'] = self.confirmation_id
         params['ck'] = self.data_key
         try:
             return await self._state.request('GET', url=f'{self.manager.BASE}/ajaxop', params=params)
@@ -160,7 +158,7 @@ class Confirmation:
     async def cancel(self):
         params = self._confirm_params('cancel')
         params['op'] = 'cancel'
-        params['cid'] = self.data_config_id
+        params['cid'] = self.confirmation_id
         params['ck'] = self.data_key
         return await self._state.request('GET', url=f'{self.manager.BASE}/ajaxop', params=params)
 
@@ -173,16 +171,16 @@ class Confirmation:
 class ConfirmationManager:
     BASE = f'{URL.COMMUNITY}/mobileconf/conf'
 
-    def __init__(self, state):
+    def __init__(self, state, id64):
         self._state = state
         self.identity_secret = state.client.identity_secret
-        self.id64 = state.http._user.id64
+        self.id64 = id64
 
     def _create_confirmation_params(self, tag):
         return {
             'p': generate_device_id(self.id64),
             'a': self.id64,
-            'k': generate_confirmation_key(self.identity_secret, tag).decode(),
+            'k': generate_confirmation_key(self.identity_secret, tag),
             't': int(time()),
             'm': 'android',
             'tag': tag
@@ -191,22 +189,20 @@ class ConfirmationManager:
     async def get_confirmations(self):
         params = self._create_confirmation_params('conf')
         resp = await self._state.request('GET', f'{self.BASE}/conf', params=params)
-        if 'incorrect Steam Guard codes.' in resp:
-            raise errors.SteamAuthenticatorError('Steam Guard codes are incorrect')
         if 'Oh nooooooes!' in resp:
             raise errors.ConfirmationError()
         soup = BeautifulSoup(resp, 'html.parser')
         if soup.select('#mobileconf_empty'):
             return []
-        confirms = []
+        to_confirm = []
         for confirmation in soup.select('#mobileconf_list .mobileconf_list_entry'):
             offer_id = confirmation['id']
-            data_config_id = confirmation['data-confid']
+            confirmation_id = confirmation['data-confid']
             key = confirmation['data-key']
             creator = confirmation.get('data-creator')
-            confirms.append(Confirmation(manager=self, state=self._state, offer_id=offer_id,
-                                         data_config_id=data_config_id, data_key=key, creator=creator))
-        return confirms
+            to_confirm.append(Confirmation(manager=self, state=self._state, offer_id=offer_id,
+                                           confirmation_id=confirmation_id, data_key=key, creator=creator))
+        return to_confirm
 
     async def get_trade_confirmation(self, trade_offer_id, confirmations=None):
         if confirmations is None:
