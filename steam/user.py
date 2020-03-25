@@ -256,7 +256,7 @@ class User(Messageable, BaseUser):
 
     def __repr__(self):
         attrs = (
-            'name', 'steam_id', 'status'
+            'name', 'steam_id', 'state'
         )
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<User {' '.join(resolved)}>"
@@ -485,7 +485,7 @@ class ClientUser(BaseUser):
         self._update(data)
 
     def __repr__(self):
-        return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
+        return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} state={0.state!r}>".format(self)
 
     def __str__(self):
         return self.name

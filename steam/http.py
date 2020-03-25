@@ -389,13 +389,13 @@ class HTTPClient:
         if resp.get('needs_mobile_confirmation', False):
             if self.identity_secret:
                 await asyncio.sleep(2)
-                for tries in range(3):
+                for _ in range(3):
                     conf = await self._confirmation_manager.get_trade_confirmation(trade_id)
                     resp = await conf.confirm()
                     if isinstance(resp, dict):
                         return conf
-                    log.debug(f'Failed to except the trade #{trade_id}, with the error:\n{resp}')
-                    raise errors.SteamAuthenticatorError('Failed to except the trade')
+                    log.debug(f'Failed to accept the trade #{trade_id}, with the error:\n{resp}')
+                    raise errors.SteamAuthenticatorError('Failed to accept the trade')
                 raise errors.ClientException("Couldn't find a matching confirmation")
             else:
                 raise errors.ClientException('Accepting trades requires an identity_secret')
