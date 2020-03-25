@@ -406,12 +406,12 @@ class Client:
                 if self.is_closed():
                     break
 
-    def get_user(self, id) -> Optional[User]:
+    def get_user(self, user_id) -> Optional[User]:
         """Returns a user with the given ID.
 
         Parameters
         ----------
-        id: Union[:class:`int`, :class:`str`]
+        user_id: Union[:class:`int`, :class:`str`]
             The ID to search for. For accepted IDs see
             :meth:`~steam.User.make_steam64`
 
@@ -420,16 +420,16 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        steam_id = SteamID(id)
+        steam_id = SteamID(user_id)
         return self._connection.get_user(steam_id)
 
-    async def fetch_user(self, id) -> Optional[User]:
+    async def fetch_user(self, user_id) -> Optional[User]:
         """|coro|
         Fetches a user from the API with the given ID.
 
         Parameters
         ----------
-        id: Union[:class:`int`, :class:`str`]
+        user_id: Union[:class:`int`, :class:`str`]
             The ID to search for. For accepted IDs see
             :meth:`~steam.User.make_steam64`
 
@@ -438,7 +438,7 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        steam_id = SteamID(id)
+        steam_id = SteamID(user_id)
         return await self._connection.fetch_user(steam_id)
 
     def get_trade(self, trade_id) -> Optional[TradeOffer]:

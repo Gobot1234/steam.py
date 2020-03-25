@@ -1,6 +1,6 @@
-__all__ = ('CommandError', 'CommandNotFound', 'MissingRequiredArgument', 'BadArgument', 'CheckFailure',)
+from ...errors import SteamException
 
-from steam.errors import SteamException
+__all__ = ('CommandError', 'CommandNotFound', 'MissingRequiredArgument', 'BadArgument', 'CheckFailure')
 
 
 class CommandError(SteamException):
@@ -15,10 +15,12 @@ class CommandNotFound(CommandError):
 
 class CheckFailure(CommandError):
     """Exception raised when a check fails."""
+    pass
 
 
 class MissingRequiredArgument(CommandError):
     """Exception raised when a required argument is not passed to a command.
+
     Attributes
     ----------
     param: :class:`inspect.Parameter`
@@ -32,3 +34,4 @@ class MissingRequiredArgument(CommandError):
 
 class BadArgument(CommandError):
     """Exception raised when a bad argument is passed to a command."""
+    pass

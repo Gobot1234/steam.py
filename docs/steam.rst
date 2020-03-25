@@ -242,20 +242,3 @@ The following exceptions are thrown by the library.
 .. autoexception:: Forbidden
 
 .. autoexception:: NotFound
-
-
-Exception Hierarchy
-~~~~~~~~~~~~~~~~~~~~~
-
-.. exception_hierarchy::
-
-    - :exc:`Exception`
-        - :exc:`SteamException`
-            - :exc:`ClientException`
-            - :exc:`HTTPException`
-		    - :exc:`LoginError`
-			- :exc:`InvalidCredentials`
-		    - :exc:`SteamAuthenticatorError`
-			- :exc:`ConfirmationError`
-                - :exc:`Forbidden`
-                - :exc:`NotFound`
