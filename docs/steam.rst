@@ -1,6 +1,5 @@
 .. currentmodule:: steam
 
-
 API reference
 =============
 
@@ -145,6 +144,7 @@ Enumerations
 -------------
 
 .. autoclass:: Game
+    :members:
 
 .. autoclass:: EResult
     :members:
@@ -165,7 +165,6 @@ Enumerations
     :members:
     :undoc-members:
 
-
 Guard
 ------------------
 
@@ -174,7 +173,6 @@ Guard
 .. autofunction:: steam.guard.generate_confirmation_key
 
 .. autofunction:: steam.guard.generate_device_id
-
 
 Market
 -------------------
@@ -204,7 +202,6 @@ Trading
 .. autoclass:: Item()
     :members:
 
-
 User
 -----------------
 
@@ -218,7 +215,6 @@ User
 
 .. autoclass:: User()
     :members:
-
 
 Exceptions
 ------------
