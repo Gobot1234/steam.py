@@ -1,10 +1,9 @@
 """Classes to (de)serialize various struct messages"""
 import struct
 
-import vdf
-
 from .emsg import EMsg
 from ..enums import EResult, EUniverse
+from ..utils import binary_loads
 
 _emsg_map = dict()
 
@@ -341,7 +340,7 @@ class ClientChatEnter(StructMessage):
         self.chatRoomName = buf.read_cstring().decode('utf-8')
 
         for _ in range(self.numMembers):
-            self.memberList.append(vdf.binary_loads(buf.read(64))['MessageObject'])
+            self.memberList.append(binary_loads(buf.read(64))['MessageObject'])
 
         self.UNKNOWN1, = buf.unpack("<I")
 
