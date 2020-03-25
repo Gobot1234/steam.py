@@ -31,7 +31,7 @@ overriding the specific events. For example: ::
     import steam
 
     class MyClient(steam.Client):
-    	async def on_trade_receive(self, trade):
+        async def on_trade_receive(self, trade):
             print(f'Received trade: #{trade.id}')
             print('To user:', trade.partner.name, 'Is one-sided:', trade.is_one_sided())
             print('We are sending:')
@@ -75,7 +75,7 @@ to handle it, which defaults to print a traceback and ignoring the exception.
         Likewise, this function is **not** guaranteed to only be called
         once. This library implements reconnection logic and thus will
         end up calling this event whenever a 
-	RESUME request fails.
+    RESUME request fails.
 
 .. function:: on_login()
 
