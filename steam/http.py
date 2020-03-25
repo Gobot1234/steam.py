@@ -39,7 +39,6 @@ import rsa
 from . import __version__, errors
 from .enums import URL
 from .guard import generate_one_time_code, ConfirmationManager
-from .state import State
 from .trade import Inventory
 from .user import ClientUser
 
@@ -67,27 +66,19 @@ class HTTPClient:
         self._loop = loop
         self._session = session
         self._client = client
-        self._state = State(loop=loop, client=client, http=self)
 
         self.shared_secret = None
         self.identity_secret = None
         self._one_time_code = None
 
         self.session_id = None
-        self._confirmation_manager = None
         self._steam_id = None
         self._user = None
+        self._confirmation_manager = None
         self._logged_in = False
         self._user_agent = \
             f'steam.py/{__version__} bot (https://github.com/Gobot1234/steam.py), ' \
             f'Python/{version_info[0]}.{version_info[1]}, aiohttp/{aiohttp.__version__}'
-
-        self._notifications = {
-            4: ('comment', self._parse_comment),
-            5: ('receive_items', self._parse_item_receive),
-            6: ('receive_invite', self._parse_invite_receive),
-            8: ('receive_gift', self._parse_item_receive),
-        }
 
     def recreate(self):
         if self._session.closed:
@@ -145,26 +136,27 @@ class HTTPClient:
         self.identity_secret = identity_secret
 
         login_response = await self._send_login_request()
-        if 'captcha_needed' in login_response.keys():
+        if 'captcha_needed' in login_response:
             raise errors.LoginError('A captcha code is required, please try again later')
 
         await self._assert_valid_credentials(login_response)
         await self._perform_redirects(login_response)
 
         self._logged_in = True
-        self._client.dispatch('login')
-        data = await self.fetch_profile(login_response['transfer_parameters']['steamid'])
-        self._user = ClientUser(state=self._state, data=data)
-        self._confirmation_manager = ConfirmationManager(state=self._state)
-        # self._loop.create_task(self._poll_notifications())
-        self._loop.create_task(self._poll_trades())
+        id64 = login_response['transfer_parameters']['steamid']
+        data = await self.fetch_profile(id64)
+        self._user = ClientUser(state=self._client._connection, data=data)
+        await self._user.__ainit__()
+        if self.identity_secret:
+            self._confirmation_manager = ConfirmationManager(state=self._client._connection, id64=id64)
 
-    async def logout(self):
+        self._client.dispatch('login')
+
+    def logout(self):
         log.debug('Logging out of session')
-        await self._session.get(url=f'{URL.COMMUNITY}/login/logout/')
-        await self._session.close()
         self._logged_in = False
         self._client.dispatch('logout')
+        return self._session.get(url=f'{URL.COMMUNITY}/login/logout/')
 
     async def _send_login_request(self):
         rsa_key, rsa_timestamp = await self._fetch_rsa_params()
@@ -172,7 +164,7 @@ class HTTPClient:
             b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_key)).decode()
         return await self._send_login(rsa_timestamp, encrypted_password)
 
-    async def _fetch_rsa_params(self, current_repetitions: int = 0) -> tuple:
+    async def _fetch_rsa_params(self, current_repetitions: int = 0):
         maximum_repetitions = 5
         data = {
             'username': self.username,
@@ -236,24 +228,21 @@ class HTTPClient:
         else:
             raise errors.LoginError('Cannot get the home page')
 
-    async def fetch_profile(self, user_id64: int):
+    def fetch_profile(self, user_id64: int):
         params = {
             "key": self.api_key,
             "steamids": user_id64
         }
-        full_resp = await self.request('GET', url=Route('ISteamUser', 'GetPlayerSummaries', 'v2'), params=params)
-        resp = full_resp['response']['players'][0]
-        return resp if resp else None
+        return self.request('GET', url=Route('ISteamUser', 'GetPlayerSummaries', 'v2'), params=params)
 
     async def fetch_profiles(self, user_id64s: list):
-        to_ret = []
+        ret = []
 
         def chunk():  # chunk the list into 100 element sublists for the requests
             for i in range(0, len(user_id64s), 100):
                 yield user_id64s[i:i + 100]
 
-        chunked_user_ids = list(chunk())
-        for sublist in chunked_user_ids:  # make the requests
+        for sublist in chunk():  # make the requests
             for _ in sublist:
                 params = {
                     "key": self.api_key,
@@ -261,65 +250,68 @@ class HTTPClient:
                 }
 
             full_resp = await self.request('GET', Route('ISteamUser', 'GetPlayerSummaries', 'v2'), params=params)
-            to_ret.extend([user for user in full_resp['response']['players']])
-        return to_ret
+            ret.extend([user for user in full_resp['response']['players']])
+        return ret
 
-    async def add_user(self, user_id64):
+    def add_user(self, user_id64):
         data = {
             "sessionid": self.session_id,
             "steamid": user_id64,
             "accept_invite": 0
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
 
-    async def remove_user(self, user_id64):
+    def remove_user(self, user_id64):
         data = {
             "sessionid": self.session_id,
             "steamid": user_id64,
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/actions/RemoveFriendAjax', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/actions/RemoveFriendAjax', data=data)
 
-    async def block_user(self, user_id64):
+    def block_user(self, user_id64):
         data = {
             "sessionID": self.session_id,
             "steamid": user_id64,
             "block": 1
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
 
-    async def unblock_user(self, user_id64):
+    def unblock_user(self, user_id64):
         data = {
             "sessionID": self.session_id,
             "steamid": user_id64,
             "block": 0
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/actions/BlockUserAjax', data=data)
 
-    async def accept_user_invite(self, user_id64):
+    def accept_user_invite(self, user_id64):
         data = {
             "sessionID": self.session_id,
             "steamid": user_id64,
             "accept_invite": 1
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/actions/AddFriendAjax', data=data)
 
-    async def decline_user_invite(self, user_id64):
+    def decline_user_invite(self, user_id64):
         data = {
             "sessionID": self.session_id,
             "steamid": user_id64,
             "accept_invite": 0
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/actions/IgnoreFriendInviteAjax', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/actions/IgnoreFriendInviteAjax', data=data)
 
-    async def post_comment(self, user_id64, comment):
+    def post_comment(self, user_id64, comment):
         data = {
             "sessionid": self.session_id,
             "comment": comment,
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/comment/Profile/post/{user_id64}/', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/comment/Profile/post/{user_id64}', data=data)
 
-    async def fetch_user_inventory(self, user_id64, app_id, context_id):
-        return await self.request('GET', url=f'{URL.COMMUNITY}/inventory/{user_id64}/{app_id}/{context_id}?count=5000')
+    def fetch_user_inventory(self, user_id64, app_id, context_id):
+        params = {
+            "count": 5000,
+        }
+        return self.request('GET', url=f'{URL.COMMUNITY}/inventory/{user_id64}/{app_id}/{context_id}', params=params)
 
     async def fetch_user_escrow(self, url):
         headers = {
@@ -348,7 +340,8 @@ class HTTPClient:
                     for trades_cache, trade in zip(trades_cache, trades):
                         if trades_cache[trades_cache] != trades[trade]:
                             log.debug(f'Received raw trade {trades[trade]}')
-                            trade = self._client._store_trade(trades[trade])
+                            trade = self._client._connection.store_trade(trades[trade])
+                            await trade.__ainit__()
                             self._client.dispatch('trade_receive', trade)
                     trades_cache = trades
                 await asyncio.sleep(5)
@@ -379,8 +372,7 @@ class HTTPClient:
             "key": self.api_key,
             "tradeofferid": trade_id
         }
-        request = await self.request('GET', url=Route('IEconService', 'GetTradeOffer'), params=params)
-        return request['response']['offer']
+        return await self.request('GET', url=Route('IEconService', 'GetTradeOffer'), params=params)
 
     async def accept_user_trade(self, user_id64, trade_id):
         data = {
@@ -409,17 +401,17 @@ class HTTPClient:
                 raise errors.ClientException('Accepting trades requires an identity_secret')
         return resp
 
-    async def decline_user_trade(self, trade_id):
+    def decline_user_trade(self, trade_id):
         data = {
             "sessionid": self.session_id
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/decline', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/decline', data=data)
 
-    async def cancel_user_trade(self, trade_id):
+    def cancel_user_trade(self, trade_id):
         data = {
             "sessionid": self.session_id
         }
-        return await self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/cancel', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/cancel', data=data)
 
     async def fetch_trade_items(self, user_id64, assets):
         items = []
@@ -427,11 +419,12 @@ class HTTPClient:
         context_ids = list(OrderedDict.fromkeys([item['contextid'] for item in assets]))  # and context_ids
         for app_id, context_id in zip(app_ids, context_ids):
             data = await self.fetch_user_inventory(user_id64, app_id, context_id)
-            inventory = Inventory(state=self._state, data=data, owner=await self._client.fetch_user(user_id64))
+            inventory = Inventory(state=self._client._connection, data=data,
+                                  owner=await self._client.fetch_user(user_id64))
             items.extend(inventory.items)
         return items
 
-    async def send_trade_offer(self, user_id64, user_id, to_send, to_receive, offer_message):
+    def send_trade_offer(self, user_id64, user_id, to_send, to_receive, offer_message):
         data = {
             "sessionid": self.session_id,
             "serverid": 1,
@@ -458,44 +451,10 @@ class HTTPClient:
             'Referer': f'{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}',
             'Origin': URL.COMMUNITY
         }
-        post = await self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=data, headers=headers)
-        return post
+        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=data, headers=headers)
 
-    async def fetch_token(self):
-        resp = await self.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
-        return resp['account_name'], resp['token']
-
-    async def fetch_cm_list(self, cell_id):
+    def fetch_cm_list(self, cell_id):
         params = {
             "cellid": cell_id
         }
-        return await self.request('GET', url=Route('ISteamDirectory', 'GetCMList'), params=params)
-
-    async def _poll_notifications(self):
-        request = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
-        cached_notifications = request['notifications']
-        await asyncio.sleep(5)
-        while 1:
-            request = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
-            notifications = request['notifications']
-            if notifications != cached_notifications:
-                for cached_notification, notification in zip(cached_notifications, notifications):
-                    if notification in self._notifications.keys() and \
-                            cached_notifications[cached_notification] != notifications[notification]:
-                        event_name, event_parser = self._notifications[notification]
-                        log.debug(f'Received raw event {event_name} from the notifications')
-                        parsed_notification = await event_parser()
-                        self._client.dispatch(event_name, parsed_notification)
-                cached_notifications = notifications
-
-            await asyncio.sleep(5)
-
-    async def _parse_comment(self):
-        print('received comment')
-
-    async def _parse_item_receive(self):
-        print('received items')
-
-    async def _parse_invite_receive(self):
-        """https://steamcommunity.com/id/Gobot1234/friends/pending"""
-        print('received invite')
+        return self.request('GET', url=Route('ISteamDirectory', 'GetCMList'), params=params)
