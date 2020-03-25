@@ -40,8 +40,8 @@ class BaseUser(metaclass=abc.ABCMeta):
     ----------
     name: :class:`str`
         The user's username.
-    id64: :class:`int`
-        The user's 64 id.
+    steam_id: :class:`steam`
+        The user's steam id.
     avatar_url: Optional[:class:`str`]
         The avatar url the user has.
     profile_url: :class:`str`
@@ -51,14 +51,15 @@ class BaseUser(metaclass=abc.ABCMeta):
 
 
 class Messageable(metaclass=abc.ABCMeta):
-    """An ABC that details the common operations on a Steam user.
+    """An ABC that details the common operations on a Steam message.
     The following implement this ABC:
         - :class:`~steam.User`
+        - :class:`~steam.Message`
     """
 
     __slots__ = ()
 
-    async def send(self, content: str = None):
+    async def send(self, content: str):
         """|coro|
         Send a message to a certain destination.
 
@@ -79,8 +80,6 @@ class Messageable(metaclass=abc.ABCMeta):
         :class:`~steam.Message`
             The message that was sent.
         """
-        # data = await state.http.send_message(channel=channel, content=content)
-
         # ret = state.create_message(channel=channel, data=data)
         # return ret
         pass
