@@ -79,7 +79,6 @@ class State:
         except KeyError:
             user = User(state=self, data=data)
             self._users[user.id64] = user
-            print(user)
             return user
 
     def get_trade(self, trade_id):
