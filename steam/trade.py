@@ -11,13 +11,13 @@ class TradeOffer:
     -------------
     partner: :class:`~steam.User`
         The trade offer partner.
-    items_to_give: List[`Item`]
+    items_to_give: List[:class:`Item`]
         A list of items to give to the partner.
-    items_to_receive: List[`Item`]
+    items_to_receive: List[:class:`Item`]
         A list of items to receive from the partner.
-    state:
+    state: :class:`~steam.ETradeOfferState`
         The offer state of the trade for the possible types see
-        :class:`~enums.ETradeOfferState`.
+        :class:`~steam.ETradeOfferState`.
     message: :class:`str`
         The message included with the trade offer.
     is_our_offer: :class:`bool`
@@ -39,7 +39,6 @@ class TradeOffer:
         self._state = state
         self.partner = partner
         self._update(data)
-        state.loop.create_task(self.__ainit__())
 
     def __repr__(self):
         attrs = (
@@ -76,7 +75,17 @@ class TradeOffer:
         self._update(data)
         return self
 
+    async def confirm(self):
+        """|coro|
+        Confirm a :class:`TradeOffer`"""
+        if self.state != ETradeOfferState.Active:
+            raise ClientException('This trade is not active')
+        confirmation = await self._state.confirmation_manager.get_trade_confirmation(self.id)
+        await confirmation.confirm()
+
     async def accept(self):
+        """|coro|
+        Accept a :class:`TradeOffer`"""
         if self.state != ETradeOfferState.Active:
             raise ClientException('This trade is not active')
         await self._state.http.accept_trade(self.id)
@@ -84,6 +93,8 @@ class TradeOffer:
         self._state.dispatch('trade_accept', self)
 
     async def decline(self):
+        """|coro|
+        Decline a :class:`TradeOffer`"""
         if self.state != ETradeOfferState.Active and self.state != ETradeOfferState.ConfirmationNeed:
             raise ClientException('This trade is not active')
         elif self.is_our_offer:
@@ -93,6 +104,8 @@ class TradeOffer:
         self._state.dispatch('trade_decline', self)
 
     async def cancel(self):
+        """|coro|
+        Cancel a :class:`TradeOffer`"""
         if self.state != ETradeOfferState.Active and self.state != ETradeOfferState.ConfirmationNeed:
             raise ClientException('This trade is not active')
         if not self.is_our_offer:
@@ -120,11 +133,18 @@ class TradeOffer:
         return items
 
     def is_one_sided(self):
+        """Checks if an offer is one-sided towards the ClientUser"""
         return True if self.items_to_receive and not self.items_to_give else False
 
 
 class Inventory:
     """Represents a User's inventory.
+
+    .. container:: operations
+
+        .. describe:: len(x)
+
+            Returns how large the inventory is.
 
     Attributes
     -------------
@@ -171,13 +191,13 @@ class Inventory:
 
         Parameters
         ------------
-        item_name: `str`
+        item_name: :class:`str`
             The item to filter.
 
         Returns
         ---------
-        Items: :class:`list`
-            List of `Item`s. This also removes the item from the inventory.
+        Items: List[:class:`Item`]
+            List of :class:`Item`s. This also removes the item from the inventory.
         """
         items = [item for item in self.items if item.name == item_name]
         for item in items:
@@ -235,9 +255,19 @@ class Asset:
 class Item(Asset):
     """Represents an item in an User's inventory.
 
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two items are equal.
+
+        .. describe:: x != y
+
+            Checks if two items are not equal.
+
     Attributes
     -------------
-    name: :class:`str`
+    name: `str`
         The name of the item.
     asset: :class:`Asset`
         The item as an asset.
@@ -306,10 +336,10 @@ class Item(Asset):
             if 'icon_url_large' in data else None
         self._data = data
 
-    def is_tradable(self):
+    def is_tradable(self) -> bool:
         """Whether or not the item is tradable."""
         return bool(self._data.get('tradable', False))
 
-    def is_marketable(self):
+    def is_marketable(self) -> bool:
         """Whether or not the item is marketable."""
         bool(self._data.get('marketable', False))
