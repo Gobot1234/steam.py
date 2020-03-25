@@ -28,14 +28,14 @@ Thanks confern for letting me use this :D
 """
 
 import logging
-from typing import Union
+from typing import Union, List
 
 from .enums import ECurrencyCode, URL, Game
 
 log = logging.getLogger(__name__)
 
 
-def has_invalid_name(name: str) -> bool:
+def has_valid_name(name: str) -> bool:
     """Check if the name of an item is serializable.
 
     Parameters
@@ -49,7 +49,7 @@ def has_invalid_name(name: str) -> bool:
         Returns if an can be sterilized.
     """
     if isinstance(name, str):
-        return '/' in name
+        return '/' not in name
     return False
 
 
@@ -71,20 +71,50 @@ def fix_name(name: str) -> str:
     raise TypeError('name is not a string')
 
 
+class FakeItem:
+    __slots__ = ('name', 'game', 'app_id')
+
+    def __init__(self, name: str, game: Game):
+        self.name = name
+        self.game = game
+        self.app_id = game.app_id
+
+
+class PriceOverview:
+    """Represents the data received from https://steamcommunity.com/market/priceoverview
+
+    Attributes
+    -------------
+    currency: :class:`str`
+        The currency identifier for the item eg. "$" or "£".
+    volume: :class:`int`
+        The amount of items are currently on the market.
+    lowest_price: :class:`float`
+        The lowest price observed by the market.
+    median_price: :class:`float`
+        The median price observed by the market.
+    """
+
+    __slots__ = ('currency', 'volume', 'lowest_price', 'median_price')
+
+    def __init__(self, data):
+        self.currency = data['lowest_price'][:1]
+        self.volume = int(data['volume'].replace(',', ''))
+        self.lowest_price = float(data['lowest_price'][1:])
+        self.median_price = float(data['median_price'][1:])
+
+
 class Market:
     """Represents a client connection that interacts with the Steam Market.
-    This class is used to interact with the Steam Market and
-    shouldn't have instances of it made by library users.
+    This class is used to interact with the Steam Market.
 
     Parameters
     ----------
-    http: :class:`~steam.HTTPClient`
-        The session used to make web requests.
     currency: Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]
-        Sets the currency to be outputted.
-        1, 'USD' or leave empty for United State Dollars.
+        Sets the currency to be outputted. 1, 'USD' default is United State Dollars.
     """
-    BASE = f'{URL.COMMUNITY}/market/'
+
+    BASE = f'{URL.COMMUNITY}/market'
 
     def __init__(self, http, currency: Union[ECurrencyCode, int, str] = ECurrencyCode.USD):
         self.http = http
@@ -101,101 +131,72 @@ class Market:
             if currency > 32 or currency < 1:
                 self.currency = 1
             else:
-                self.currency = currency
+                raise IndexError(f'Currency {currency} not found')
         else:
             self.currency = 1
 
-    async def fetch_price(self, name: str, app_id: int) -> dict:
+    async def fetch_price(self, item_name: str, game: Game) -> PriceOverview:
         """Gets the price(s) and volume sales of an item.
 
         Parameters
         ----------
-        name: :class:`str`
-            The name of the item as it appears on the
-            Steam Community Market.
-        app_id: :class:`int`
-            The AppID of the item.
+        item_name: str
+            The name of the item to fetch the price of.
+        game: :class:`~steam.enums.Game`
+            The game the item is from
 
         Returns
         -------
-        price: :class:`dict`
-            A dictionary of the prices.
+        price_overview: :class:`PriceOverview`
+            A class to represent the data from these transactions
         """
-        if not isinstance(name, str):
-            raise TypeError('name must be str')
-
-        if not isinstance(app_id, int):
-            raise TypeError('app_id must be int')
-
-        if has_invalid_name(name):
-            name = fix_name(name)
-
+        item = FakeItem(fix_name(item_name), game)
         data = {
-            'appid': app_id,
-            'market_hash_name': name,
+            'appid': item.app_id,
+            'market_hash_name': item.name,
             'currency': self.currency
         }
 
-        return await self.http._request('POST', f'{self.BASE}/priceoverview', data=data)
+        return PriceOverview(await self.http.request('POST', f'{self.BASE}/priceoverview', data=data))
 
-    async def fetch_prices(self, names: list, app_id: Game) -> dict:
+    async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]) -> dict:
         """Get the price(s) and volume of each item in the list.
-        If both are lists, then they need to have the same amount of elements.
 
         Parameters
         ----------
-        names: :class:`str`
-            A list of item names how each item appears on the Steam Community Market.
-        app_id: :class:`str`
-            The AppID of the item(s). Either a list or int.
+        item_names: List[str]
+            A list of the items to get the prices for.
+        games: Union[List[Game], Game]
+            A list of :class:`~steam.Game`s or :class:`~steam.Game` the items are from.
 
         Returns
         -------
         prices: :class:`dict`
-            A dictionary of the prices.
+            A dictionary of the prices with the mapping of {:class:`~steam.Item`: :class:`PriceOverview`}
         """
-        prices = {}
-
-        if not isinstance(names, list):
-            raise TypeError('names must be list')
-
-        if isinstance(app_id, int):
-            for name in names:
-                prices[name] = await self.fetch_price(name, app_id)
-
-        elif isinstance(app_id, list):
-            if len(names) == len(app_id):
-                for i, name in enumerate(names):
-                    prices[name] = await self.fetch_price(name, app_id[i])
+        items = []
+        if isinstance(games, Game):  # this is for the same game items
+            for name in item_names:
+                items.append(FakeItem(name, games))
+        elif isinstance(games, list):
+            if len(item_names) == len(games):  # this is for funky lists
+                for name, game in zip(item_names, games):
+                    items.append(FakeItem(name, game))
             else:
-                raise IndexError('names and app_id needs to have the same length')
+                raise IndexError('item_names and games need to have the same length')
 
+        prices = {item: await self.fetch_price(item.name, item.game) for item in items}
         return prices
 
-    async def get_prices_from_dict(self, items: dict) -> dict:
-        """
-        Gets the price(s) and volume of each item in the list.
-
-        Parameters
-        ----------
-        items: :class:`dict
-            A dict including item names and AppIDs.
-
-        Returns
-        -------
-        prices: :class:`dict`
-            A dictionary of the prices.
-        """
-        if not isinstance(items, dict):
-            raise TypeError('items must be dict')
-
-        return {item: await self.fetch_price(item, items[item]['appid']) for item in items}
-
-    async def fetch_price_history(self, item: str, game: Game, currency: str = ECurrencyCode.USD) -> dict:
+    async def fetch_price_history(self, item: str, game: Game, currency: str = ECurrencyCode.USD, *, limit=100) -> dict:
+        # {"success":true,"price_prefix":"\u00a3","prices":[
+        # ["Mar 19 2020 15: +0",1.893,"341"]
+        # ]}
+        #  "%b %d %Y %H: %z" +0, avg??, num_sold
         params = {
             'appid': game.app_id,
             'currency': currency,
             'market_hash_name': item
         }
-        response = await self.http._request('GET', url=f'{self.BASE}/pricehistory/', params=params)
+        response = await self.http.request('GET', url=f'{self.BASE}/pricehistory', params=params)
         return response
