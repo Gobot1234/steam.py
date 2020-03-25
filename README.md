@@ -38,14 +38,14 @@ class MyClient(steam.Client):
 		print('Logged on as', self.user)
 
 	async def on_trade_receive(self, trade):
-        print(f'Received trade: #{trade.id}')
-        print('To user:', trade.partner.name, 'Is one-sided:', trade.is_one_sided())
-        print('We are sending:')
-        print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_give])
-              if trade.items_to_give else 'Nothing')
-        print('We are receiving:')
-        print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_receive])
-              if trade.items_to_receive else 'Nothing')
+        	print(f'Received trade: #{trade.id}')
+     		print('To user:', trade.partner.name, 'Is one-sided:', trade.is_one_sided())
+        	print('We are sending:')
+        	print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_give])
+        	      if trade.items_to_give else 'Nothing')
+        	print('We are receiving:')
+        	print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_receive])
+        	      if trade.items_to_receive else 'Nothing')
 
 client = MyClient()
 client.run(username='username', api_key='api_key', password='password', shared_secret='shared_secret')
