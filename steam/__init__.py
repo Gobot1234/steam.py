@@ -3,7 +3,7 @@
 """
 steam.py
 ~~~~~~~~~~~~~~~~~~~
-A basic wrapper for the Steam API and Web UI.
+A basic wrapper for the Steam API and its Web UI.
 
 :copyright: (c) 2020
 :license: MIT, see LICENSE for more details.
@@ -12,16 +12,17 @@ A basic wrapper for the Steam API and Web UI.
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.7a'
+__version__ = '0.0.8a'
 
-from logging import NullHandler
+import logging
 
 from . import guard
 from .client import Client
 from .enums import *
 from .errors import *
-from .market import *
+from .market import Market, PriceOverview
+from .message import Message
 from .trade import *
 from .user import *
 
-logging.getLogger(__name__).addHandler(NullHandler())
+logging.getLogger(__name__).addHandler(logging.NullHandler())
