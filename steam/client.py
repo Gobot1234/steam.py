@@ -32,15 +32,18 @@ import logging
 import signal
 import sys
 import traceback
+from typing import List, Optional
 
 import aiohttp
 import websockets
 
 from . import errors
 from .enums import ECurrencyCode
+from .gateway import SteamWebsocket
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .market import Market
+from .state import State
 from .trade import TradeOffer
 from .user import User, SteamID
 
@@ -113,9 +116,9 @@ class Client:
         The :class:`asyncio.AbstractEventLoop` used for asynchronous operations.
         Defaults to ``None``, in which case the default event loop is used via
         :func:`asyncio.get_event_loop()`.
-    currency: Optional[Union[:class:`~steam.enums.ECurrencyCode, :class:`int`, :class:`str`]]
+    currency: Optional[Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]]
         The currency used for market interactions.
-        Defaults to :class:`~steam.enums.ECurrencyCode.USD`.
+        Defaults to :class:`~steam.ECurrencyCode.USD`.
     Attributes
     -----------
     loop: :class:`asyncio.AbstractEventLoop`
@@ -129,6 +132,7 @@ class Client:
         self._session = aiohttp.ClientSession(loop=self.loop)
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
+        self._connection = State(loop=loop, client=self, http=self.http)
         self.market = Market(http=self.http, currency=options.get('currency', ECurrencyCode.USD))
 
         self.username = None
@@ -140,28 +144,24 @@ class Client:
 
         self._user = None
         self._users = {}
-        self._trades = {}
         self._closed = True
         self._state = None
         self._listeners = {}
-        self._handlers = {
-            'ready': self._handle_ready
-        }
         self._ready = asyncio.Event()
 
     @property
     def user(self):
-        """Optional[:class:`~steam.user.ClientUser`]: Represents the connected client.
+        """Optional[:class:`~steam.ClientUser`]: Represents the connected client.
         ``None`` if not logged in."""
         return self._user
 
     @property
-    def users(self):
+    def users(self) -> List[User]:
         """List[:class:`~steam.User`]: Returns a list of all the users the account can see."""
         return list(self._users.values())
 
     @property
-    def code(self):
+    def code(self) -> Optional[str]:
         """Optional[:class:`str`]: The current steam guard code.
         ``None`` if no shared_secret is passed"""
         return generate_one_time_code(self.shared_secret) if self.shared_secret else None
@@ -255,8 +255,6 @@ class Client:
         async def runner():
             try:
                 await self.start(*args, **kwargs)
-                while 1:
-                    await asyncio.sleep(5)
             finally:
                 await self.close()
 
@@ -277,16 +275,9 @@ class Client:
         if not task.cancelled():
             return task.result()
 
-    def _handle_ready(self):
-        self._ready.set()
-
     def is_closed(self):
         """Indicates if the API connection is closed."""
         return self._closed
-
-    def is_logged_in(self):
-        """Indicates if the bot is logged in."""
-        return self.http._logged_in
 
     async def on_error(self, event_method, *args, **kwargs):
         """|coro|
@@ -317,7 +308,7 @@ class Client:
 
         Raises
         ------
-        :exc:`.LoginFailure`
+        :exc:`.InvalidCredentials`
             The wrong credentials are passed.
         :exc:`.HTTPException`
             An unknown HTTP related error occurred.
@@ -333,17 +324,18 @@ class Client:
                               api_key=api_key, shared_secret=shared_secret,
                               identity_secret=identity_secret)
         self._user = self.http._user
-        self._state = self.http._state
         self._closed = False
 
     async def close(self):
         """|coro|
-        Closes the connection to the Steam web API and logs out.
+        Closes the connection to Steam CMs and logs out.
         """
         if self._closed:
             return
 
         await self.http.logout()
+        await self.http._session.close()
+        # await self.ws.close()
         self._closed = True
         self._ready.clear()
 
@@ -355,18 +347,20 @@ class Client:
         self._closed = False
         self._ready.clear()
         self.http.recreate()
+        self.loop.create_task(self.ws.close())
 
     async def start(self, *args, **kwargs):
         """|coro|
-        A shorthand coroutine for :meth:`login`.
-        Doesn't do much at the moment.
+        A shorthand coroutine for :meth:`login` and :meth:`connect`
 
         Raises
         ------
         TypeError
             An unexpected keyword argument was received.
-        :class:`~steam.errors.LoginError`
-            Login details were missing
+        :exc:`.InvalidCredentials`
+            The wrong credentials are passed.
+        :exc:`.HTTPException`
+            An unknown HTTP related error occurred.
         """
         api_key = kwargs.pop('api_key', None)
         username = kwargs.pop('username', None)
@@ -380,20 +374,23 @@ class Client:
 
         await self.login(username=username, password=password, api_key=api_key,
                          shared_secret=shared_secret, identity_secret=identity_secret)
+        while 1:
+            await asyncio.sleep(5)
+        #await self.connect()
 
     async def _connect(self):
-        coro = self._state.connect
-        self.ws = await asyncio.wait_for(coro, timeout=180.0)
-        '''
+        self.ws = SteamWebsocket()
+        coro = self.ws.from_client(self, fetch=True)
+        await asyncio.wait_for(coro, timeout=180.0)
         while 1:
             try:
                 await self.ws.poll_event()
-            except ResumeWebSocket:
+            except Exception as e:
+                print(e)
                 log.info('Got a request to RESUME the websocket.')
                 self.dispatch('disconnect')
-                coro = DiscordWebSocket.from_client(self, )
+                coro = self.ws.from_client(self)
                 self.ws = await asyncio.wait_for(coro, timeout=180.0)
-                '''
 
     async def connect(self):
         while not self.is_closed():
@@ -407,14 +404,14 @@ class Client:
                     websockets.WebSocketProtocolError):
                 self.dispatch('disconnect')
                 if self.is_closed():
-                    return
+                    break
 
-    def get_user(self, user_id):
+    def get_user(self, id) -> Optional[User]:
         """Returns a user with the given ID.
 
         Parameters
         ----------
-        user_id: Union[:class:`int`, :class:`str`]
+        id: Union[:class:`int`, :class:`str`]
             The ID to search for. For accepted IDs see
             :meth:`~steam.User.make_steam64`
 
@@ -423,16 +420,16 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        steam_id = SteamID(user_id)
-        return self._users.get(steam_id.as_64)
+        steam_id = SteamID(id)
+        return self._connection.get_user(steam_id)
 
-    async def fetch_user(self, user_id):
+    async def fetch_user(self, id) -> Optional[User]:
         """|coro|
         Fetches a user from the API with the given ID.
 
         Parameters
         ----------
-        user_id: Union[:class:`int`, :class:`str`]
+        id: Union[:class:`int`, :class:`str`]
             The ID to search for. For accepted IDs see
             :meth:`~steam.User.make_steam64`
 
@@ -441,44 +438,39 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        steam_id = SteamID(user_id)
-        data = await self.http.fetch_profile(steam_id.as_64)
-        if data:
-            self._store_user(data)
-        return None
+        steam_id = SteamID(id)
+        return await self._connection.fetch_user(steam_id)
 
-    def _store_user(self, data):
-        # this way is 300% faster than `dict.setdefault`.
-        try:
-            return self._users[int(data['steamid'])]
-        except KeyError:
-            user = User(state=self._state, data=data)
-            self._users[user.id64] = user
-            return user
-
-    def get_trade(self, trade_id):
+    def get_trade(self, trade_id) -> Optional[TradeOffer]:
         """Get a trade from cache.
 
         Parameters
         ----------
         trade_id: int
-            The id to search for from the cache.
+            The id of the trade to search for from the cache.
 
         Returns
         -------
         Optional[:class:`~steam.TradeOffer`]
             The trade offer or ``None`` if not found.
         """
-        return self._trades.get(trade_id)
+        return self._connection.get_trade(trade_id)
 
-    async def fetch_trade(self, trade_id):
-        data = await self.http.fetch_trade(trade_id)
-        self._store_trade(data)
+    async def fetch_trade(self, trade_id) -> Optional[TradeOffer]:
+        """|coro|
+        Fetches a trade from the API with the given ID.
+        .. note::
+            The partner's id from the API is often incorrect,
+            relying the on getting the correct partner would be inadvisable.
 
-    def _store_trade(self, data):
-        try:
-            return self._trades[data['tradeofferid']]
-        except KeyError:
-            trade = TradeOffer(state=self._state, data=data, partner=None)
-            self._trades[trade.id] = trade
-            return trade
+        Parameters
+        ----------
+        trade_id: int
+            The id of the trade to search for from the API.
+
+        Returns
+        -------
+        Optional[:class:`~steam.TradeOffer`]
+            The trade offer or ``None`` if not found.
+        """
+        return await self._connection.fetch_trade(trade_id)
