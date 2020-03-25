@@ -17,6 +17,14 @@ with open('README.md') as f:
     readme = f.read()
     f.close()
 
+extras_require = {
+    'docs': [
+        'sphinx==1.8.5',
+        'sphinxcontrib_trio==1.1.0',
+        'sphinxcontrib-websupport',
+    ]
+}
+
 setup(name='steam.py',
       author='Gobot1234',
       url='https://github.com/Gobot1234/steam.py',
@@ -31,6 +39,7 @@ setup(name='steam.py',
       long_description_content_type='text/x-md',
       include_package_data=True,
       install_requires=requirements,
+      extras_require=extras_require,
       python_requires='>=3.6',
       classifiers=[
           'Development Status :: 3 - Alpha',
