@@ -28,23 +28,27 @@ This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 with some extra doc-strings
 """
+
 import json
 import re
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 import aiohttp
 
-from steam.enums import *
 from . import errors
 from .abc import BaseUser, Messageable
+from .enums import *
 from .trade import Inventory, Item, TradeOffer
 
 ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
 
 
 class SteamID(int):
-    """Convert a Steam ID to its various representations."""
+    """Convert a Steam ID to its various representations.
+
+    This takes a steam 64 bit account id, however, :meth:`make_steam64`
+    is called on this class's initialization"""
 
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -57,15 +61,13 @@ class SteamID(int):
         return super(SteamID, cls).__new__(cls, steam64)
 
     def __repr__(self):
-        return "<SteamID id={0.id}, type={1}, universe={2}, instance={0.instance}>".format(
-            self,
-            repr(self.type.name),
-            repr(self.universe.name),
-        )
+        return f"<SteamID id={self.id}, type={repr(self.type.name)}, " \
+               f"universe={repr(self.universe.name)}, instance={self.instance}>"
 
     @property
     def id(self):
-        """:class:`int`: Represents the account id."""
+        """:class:`int`: Represents the account id.
+        This is also known as the 32 bit id"""
         return int(self) & 0xFFffFFff
 
     @property
@@ -90,7 +92,7 @@ class SteamID(int):
     @property
     def as_32(self):
         """:class:`int`: The account's id.
-        A.K.A the the 32 bit id of the account.
+        An alias to :attr:`SteamID.id`
         """
         return self.id
 
@@ -108,16 +110,15 @@ class SteamID(int):
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :property:`SteamID.as_steam2_zero`
+            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`
         """
         return f'STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}'
 
     @property
     def as_steam2_zero(self):
         """:class:`str`: The steam2 id of the account.
-        for GoldSrc and Orange Box games.
-
-        See :property:`~steam.SteamID.as_steam2` .
+        For GoldSrc and Orange Box games.
+        See :class:`SteamID`:attr:`as_steam2`.
             e.g ``STEAM_0:0:1234``.
         """
         return self.as_steam2.replace('_1', '_0')
@@ -165,7 +166,7 @@ class SteamID(int):
 
         return None
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """Check whether this SteamID is valid.
 
         Returns
@@ -220,8 +221,8 @@ class User(Messageable, BaseUser):
         The user's username.
     steam_id: :class:`SteamID`
         The SteamID instance attached to the user.
-    status: :class:`str`
-        The current status of the account (e.g. LookingToTrade).
+    state: :class:`~steam.EPersonaState`
+        The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
         The Game instance attached to the user. Is None if the user
         isn't in a game or one that is recognised by the api.
@@ -235,7 +236,7 @@ class User(Messageable, BaseUser):
         The last time the user logged into steam. Could be None (e.g. if they are currently online).
     country: Optional[:class:`str`]
         The country code of the account. Could be None.
-    flags: :class:`str`
+    flags: :class:`~steam.EPersonaStateFlag`
         The persona state flags of the account.
     id64: :class:`int`
         The 64 bit id of the user's account.
@@ -246,7 +247,7 @@ class User(Messageable, BaseUser):
     """
 
     __slots__ = ('name', 'real_name', 'avatar_url', 'community_url', 'created_at', 'trade_url',
-                 'last_logoff', 'status', 'game', 'flags', 'country', 'steam_id', 'id',
+                 'last_logoff', 'state', 'game', 'flags', 'country', 'steam_id', 'id',
                  'id64', 'id2', 'id3', '_state', '_data', '__weakref__')
 
     def __init__(self, state, data: dict):
@@ -254,7 +255,11 @@ class User(Messageable, BaseUser):
         self._update(data)
 
     def __repr__(self):
-        return "<User name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
+        attrs = (
+            'name', 'steam_id', 'status'
+        )
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        return f"<User {' '.join(resolved)}>"
 
     def __str__(self):
         return self.name
@@ -279,13 +284,13 @@ class User(Messageable, BaseUser):
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
         self.country = data.get('loccountrycode')
-        self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data.keys() else None
+        self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
         # Steam is dumb I have no clue why this sometimes isn't given sometimes
-        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data.keys() else None
-        self.status = EPersonaState(data.get('personastate', 0))
+        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data else None
+        self.state = EPersonaState(data.get('personastate', 0))
         self.flags = EPersonaStateFlag(data.get('personastateflags', 0))
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid']), is_steam_game=False) \
-            if 'gameextrainfo' and 'gameid' in data.keys() else None
+            if 'gameextrainfo' and 'gameid' in data else None
         # Setting is_steam_game to False allows for fake game instances to be better without having them pre-defined
         # without making the defined ones being
 
@@ -328,13 +333,26 @@ class User(Messageable, BaseUser):
     async def comment(self, comment: str):
         """|coro|
         Post a comment to an :class:`User`'s profile.
-        """
-        return await self._state.http.post_comment(self.id64, comment)
 
-    async def fetch_inventory(self, game: Game):
+        Parameters
+        -----------
+        comment: :class:`str`
+            The comment to add the :class:`User`'s profile.
+        """
+        if self.is_commentable():
+            if len(comment) < 1000:
+                return await self._state.http.post_comment(self.id64, comment)
+            raise errors.Forbidden('Comment message is too large post')
+        raise errors.Forbidden("We cannot post on this user's profile")
+
+    async def fetch_inventory(self, game: Game) -> Inventory:
         """|coro|
-        Fetch an :class:`User`'s class:`Inventory` for trading.
-        Update an :class:`~steam.User`'s :
+        Fetch an :class:`User`'s class:`~steam.trade.Inventory` for trading.
+
+        Parameters
+        -----------
+        game: :class:`~steam.Game`
+            The game to fetch the inventory for.
 
         Returns
         -------
@@ -346,42 +364,58 @@ class User(Messageable, BaseUser):
     async def send_trade(self, items_to_send: List[Item] = None, items_to_receive: List[Item] = None,
                          offer_message: str = None):
         """|coro|
-        Send a trade offer to an :class:`User`
+        Sends a trade offer to an :class:`User`.
+
+        Parameters
+        -----------
+        items_to_send: Optional[List[:class:`steam.Item`]]
+            The items you are sending to the other user.
+        items_to_receive: Optional[List[:class:`steam.Item`]]
+            The items you are sending to the other user.
+        offer_message: :class:`str`
+             The offer message to send with the trade.
+
+        Raises
+        ------
+        :exc:`.Forbidden`
+            The offer message was over 128 characters.
         """
-        if len(offer_message) > 128:
-            raise errors.Forbidden('Offer message is too large to send with the trade offer')
-        resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
-                                                       items_to_receive, offer_message)
-        data = await self._state.http.fetch_trade(resp['tradeofferid'])
-        trade = TradeOffer(state=self._state, data=data, partner=self)
-        await trade.__ainit__()
-        self._state.client.dispatch('trade_send', trade)
+        if self.is_friend():
+            if len(offer_message) > 128:
+                raise errors.Forbidden('Offer message is too large to send with the trade offer')
+            resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
+                                                           items_to_receive, offer_message)
+            data = await self._state.http.fetch_trade(resp['tradeofferid'])
+            trade = TradeOffer(state=self._state, data=data, partner=self)
+            self._state.client.dispatch('trade_send', trade)
+        raise errors.Forbidden('We cannot send a trade to a user that is not in our friends list')
 
-    async def fetch_escrow(self):
+    async def fetch_escrow(self) -> Optional[datetime]:
+        """|coro|
+        Check how long a :class:`User`'s escrow is.
+        """
         unix = self._state.http.fetch_user_escrow(url=self.community_url)
-        if unix:
-            return datetime.utcfromtimestamp(unix)
-        return None
+        return datetime.utcfromtimestamp(unix) if unix else None
 
-    def is_friend(self):
+    def is_friend(self) -> bool:
         """Species if the user is in the ClientUser's friends"""
         return self in self._state.client.user.friends
 
-    def is_commentable(self):
+    def is_commentable(self) -> bool:
         """Specifies if the user's account is able to be commented on."""
         return bool(self._data.get('commentpermission'))
 
-    def is_private(self):
+    def is_private(self) -> bool:
         """Specifies if the user has a public profile."""
         state = self._data.get('communityvisibilitystate', 0)
-        if state == (0, 1, 2):
-            return False
-        else:
-            return True
+        return state in (0, 1, 2)
 
-    def has_setup_profile(self):
+    def has_setup_profile(self) -> bool:
         """Specifies if the user has a setup their profile."""
         return bool(self._data.get('profilestate'))
+
+    async def send(self, content: str = None):
+        self._state.send_message(steam_id=self.steam_id, content=content)
 
 
 class ClientUser(BaseUser):
@@ -409,8 +443,8 @@ class ClientUser(BaseUser):
             The SteamID instance attached to the user.
         friends: List[:class:`User`]
             A list of the ClientUser's friends.
-        status: :class:`str`
-            The current status of the account (e.g. LookingToTrade).
+        state: :class:`~steam.EPersonaState`
+            The current persona state of the account (e.g. LookingToTrade).
         game: Optional[:class:`~steam.Game`]
             The Game instance attached to the user. Is None if the user
             isn't in a game or one that is recognised by the api.
@@ -442,14 +476,13 @@ class ClientUser(BaseUser):
 
     __slots__ = ('name', 'real_name', 'avatar_url', 'commentable',
                  'has_setup_profile', 'created_at', 'last_logoff',
-                 'status', 'game', 'flags', 'is_public', 'country', 'id',
+                 'state', 'game', 'flags', 'is_public', 'country', 'id',
                  'steam_id', 'id64', 'id2', 'id3', 'friends', '_state')
 
-    def __init__(self, state, data: dict):
+    def __init__(self, state, data):
         self.friends = []
         self._state = state
         self._update(data)
-        state.loop.create_task(self.__ainit__())
 
     def __repr__(self):
         return "<ClientUser name='{0.name}' steam_id={0.steam_id!r} status={0.status!r}>".format(self)
@@ -464,6 +497,7 @@ class ClientUser(BaseUser):
         return not self.__eq__(other)
 
     def _update(self, data):
+        data = data['response']['players'][0]
         self.steam_id = SteamID(data['steamid'])
         self.id = self.steam_id.id
         self.id64 = self.steam_id.as_64
@@ -476,33 +510,29 @@ class ClientUser(BaseUser):
         self.commentable = bool(data.get('commentpermission'))
         self.has_setup_profile = bool(data.get('profilestate'))
         self.country = data.get('loccountrycode')
-        self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data.keys() else None
-        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data.keys() else None
-        self.status = EPersonaState(data.get('personastate'))
+        self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
+        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data else None
+        self.state = EPersonaState(data.get('personastate'))
         self.flags = EPersonaStateFlag(data.get('personastateflags'))
         self.is_public = bool(ECommunityVisibilityState(data.get('communityvisibilitystate')).name)
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid']), is_steam_game=False) \
-            if 'gameextrainfo' and 'gameid' in data.keys() else None
+            if 'gameextrainfo' and 'gameid' in data else None
 
     async def __ainit__(self):
         await self.fetch_friends()
-        self._state.client._handle_ready()
-        self._state.client.dispatch('ready')
 
     async def fetch_friends(self):
         friends = await self._state.http.fetch_friends(self.id64)
         for friend in friends:
             if friend not in self.friends:
-                self._state.client._store_user(friend)
+                self._state._store_user(friend)
                 self.friends.append(User(state=self._state, data=friend))
 
     async def comment(self, comment: str):
         """|coro|
         Post a comment to an :class:`~steam.User`'s profile.
         """
-        resp = await self._state.http.post_comment(self.id64, comment)
-        if not resp:
-            raise errors.Forbidden("Posting the comment failed")
+        await self._state.http.post_comment(self.id64, comment)
 
     async def fetch_inventory(self, game: Game):
         """|coro|
@@ -512,13 +542,13 @@ class ClientUser(BaseUser):
         return Inventory(state=self._state, data=resp, owner=self)
 
 
-def make_steam64(id=0, *args, **kwargs):
+def make_steam64(account_id=0, *args, **kwargs):
     """Returns steam64 from various other representations.
 
     .. code:: python
 
         make_steam64()  # invalid steam_id
-        make_steam64(12345)  # accountid
+        make_steam64(12345)  # account_id
         make_steam64('12345')
         make_steam64(id=12345, type='Invalid', universe='Invalid', instance=0)
         make_steam64(103582791429521412)  # steam64
@@ -528,21 +558,22 @@ def make_steam64(id=0, *args, **kwargs):
 
     Raises
     ------
-    TypeError: Too many arguments have been given.
-    ValueError: Instance is too large.
+    :exc:`TypeError`
+        Too many arguments have been given.
+    :exc:`ValueError`
+        Instance is too large.
 
     Returns
     -------
     id64: :class:`int`
     """
 
-    accountid = id
     etype = EType.Invalid
     universe = EUniverse.Invalid
     instance = None
 
     if len(args) == 0 and len(kwargs) == 0:
-        value = str(accountid)
+        value = str(account_id)
 
         # numeric input
         if value.isdigit():
@@ -550,7 +581,7 @@ def make_steam64(id=0, *args, **kwargs):
 
             # 32 bit account id
             if 0 < value < 2 ** 32:
-                accountid = value
+                account_id = value
                 etype = EType.Individual
                 universe = EUniverse.Public
             # 64 bit
@@ -562,13 +593,14 @@ def make_steam64(id=0, *args, **kwargs):
             result = steam2_to_tuple(value) or steam3_to_tuple(value)
 
             if result:
-                (accountid,
-                 etype,
-                 universe,
-                 instance,
-                 ) = result
+                (
+                    account_id,
+                    etype,
+                    universe,
+                    instance,
+                ) = result
             else:
-                accountid = 0
+                account_id = 0
 
     elif len(args) > 0:
         length = len(args)
@@ -579,29 +611,23 @@ def make_steam64(id=0, *args, **kwargs):
         elif length == 3:
             etype, universe, instance = args
         else:
-            raise TypeError("Takes at most 4 arguments (%d given)" % length)
+            raise TypeError(f"Takes at most 4 arguments ({length} given)")
 
     if len(kwargs) > 0:
         etype = kwargs.get('type', etype)
         universe = kwargs.get('universe', universe)
         instance = kwargs.get('instance', instance)
 
-    etype = (EType(etype)
-             if isinstance(etype, (int, EType))
-             else EType[etype]
-             )
-
-    universe = (EUniverse(universe)
-                if isinstance(universe, (int, EUniverse))
-                else EUniverse[universe]
-                )
+    etype = (EType(etype) if isinstance(etype, (int, EType)) else EType[etype])
+    universe = (EUniverse(universe) if isinstance(universe, (int, EUniverse)) else EUniverse[universe])
 
     if instance is None:
         instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
 
-    assert instance <= 0xffffF, "instance larger than 20bits"
+    if instance <= 0xffffF:
+        raise ValueError("instance is larger than 20bits")
 
-    return (universe << 56) | (etype << 52) | (instance << 32) | accountid
+    return (universe << 56) | (etype << 52) | (instance << 32) | account_id
 
 
 def steam2_to_tuple(value: str):
@@ -688,17 +714,21 @@ def steam3_to_tuple(value: str):
 async def steam64_from_url(url: str, timeout=30):
     """Takes a Steam Community url and returns steam64 or None
     .. note::
-        Each call makes a http request to ``steamcommunity.com``
-    .. note::
-        For a reliable resolving of vanity urls use ``ISteamUser.ResolveVanityURL`` web api
+        Each call makes a http request to steamcommunity.com
+        For a reliable resolving of vanity urls use ``ISteamUser.ResolveVanityURL`` web api.
     .. note::
         Example URLs
-        https://steamcommunity.com/gid/[g:1:4]
-        https://steamcommunity.com/gid/103582791429521412
-        https://steamcommunity.com/groups/Valve
-        https://steamcommunity.com/profiles/[U:1:12]
-        https://steamcommunity.com/profiles/76561197960265740
-        https://steamcommunity.com/id/johnc
+            https://steamcommunity.com/gid/[g:1:4]
+
+            https://steamcommunity.com/gid/103582791429521412
+
+            https://steamcommunity.com/groups/Valve
+
+            https://steamcommunity.com/profiles/[U:1:12]
+
+            https://steamcommunity.com/profiles/76561197960265740
+
+            https://steamcommunity.com/id/johnc
 
     Parameters
     ----------
@@ -710,7 +740,7 @@ async def steam64_from_url(url: str, timeout=30):
     Returns
     -------
     steam64: Optional[:class:`int`]
-        if ``steamcommunity.com`` is down returns ``None``
+        If ``steamcommunity.com`` is down or no matching account is found returns ``None``
     """
 
     match = re.match(r'^(?P<clean_url>https?://steamcommunity.com/'
@@ -746,6 +776,7 @@ async def steam64_from_url(url: str, timeout=30):
 async def from_url(url, timeout=30):
     """Takes Steam community url and returns a SteamID instance or ``None``.
     See :func:`steam64_from_url` for details.
+
     Parameters
     ----------
     url: :class:`str`
@@ -767,16 +798,20 @@ async def from_url(url, timeout=30):
     return None
 
 
+SteamID.from_url = staticmethod(from_url)
+
+
 async def mini_profile(user_id):
     """Formats a users mini profile from
     ``steamcommunity.com/miniprofile/ID/json``.
+
     .. note::
-        Each call makes a http request to ``steamcommunity.com``.
+        Each call makes a http request to steamcommunity.com.
 
     Parameters
     ----------
     user_id: Union[:class:`int`, :class:`str`]
-        The ID to search for. For accepted IDs see :meth:`~make_steam64`.
+        The ID to search for. For accepted IDs see :meth:`make_steam64`.
 
     Returns
     -------
@@ -790,6 +825,3 @@ async def mini_profile(user_id):
         )
         resp = await post.json()
         return resp if resp['persona_name'] else None
-
-
-SteamID.from_url = staticmethod(from_url)
