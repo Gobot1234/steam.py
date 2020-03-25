@@ -34,11 +34,8 @@ class URL:
     STORE = 'https://store.steampowered.com'
 
 
-class Game:
-    __slots__ = ('title', 'app_id', 'context_id', 'is_steam_game', '_game')
-
-    GAME_TUPLE = namedtuple('GAME_TUPLE', ('title', 'app_id', 'context_id', 'is_steam_game'))
-    GAMES = {
+GAME_TUPLE = namedtuple('GAME_TUPLE', ('title', 'app_id', 'context_id', 'is_steam_game'))
+GAMES = {
         440: GAME_TUPLE('Team Fortress 2', 440, 2, True),
         570: GAME_TUPLE('DOTA 2', 570, 2, True),
         730: GAME_TUPLE('Counter Strike Global-Offensive', 730, 2, True),
@@ -51,19 +48,47 @@ class Game:
         'Steam': GAME_TUPLE('Steam', 753, 6, True)
     }
 
-    def __init__(self, title: str = None, app_id: int = None, is_steam_game: bool = True):
+
+class Game:
+    """Represents a Steam game.
+
+    Parameters
+    ----------
+    title: Optional[:class:`str`]
+        The game's title.
+    app_id: Optional[:class:`int`]
+        The game's app_id.
+    is_steam_game: Optional[bool]
+        Whether or not the game is an official Steam game.
+        Defaults to ``True``
+
+    Attributes
+    -----------
+    title: Optional[:class:`str`]
+        The game's title.
+    app_id: Optional[:class:`int`]
+        The game's app_id.
+    context_id: :class:`int`
+        The context id of the game normally 2.
+    is_steam_game: bool
+        Whether or not the game is an official Steam game.
+    """
+
+    __slots__ = ('title', 'app_id', 'context_id', 'is_steam_game', '_game')
+
+    def __init__(self, *, title: str = None, app_id: int = None, is_steam_game: bool = True):
         try:
             if title:
-                self._game = self.GAMES[title]
+                self._game = GAMES[title]
             elif app_id:
-                self._game = self.GAMES[app_id]
+                self._game = GAMES[app_id]
             elif not is_steam_game:
                 self.title = title
-                self.app_id = app_id
-                self.context_id = 2
+                self.app_id = None
+                self.context_id = None
                 self.is_steam_game = False
             else:
-                raise ValueError('Missing a game title or app_id kwarg')
+                raise ValueError('missing a game title or app_id kwarg')
         except KeyError:  # Make the game a fake game
             self.title = title
             self.app_id = app_id
@@ -82,101 +107,107 @@ class Game:
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Game {' '.join(resolved)}>"
 
+    def __eq__(self, other):
+        return isinstance(other, Game) and self.app_id == other.app_id
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class EResult(enum.IntEnum):
     Invalid = 0
-    OK = 1  #: success
-    Fail = 2  #: generic failure
-    NoConnection = 3  #: no/failed network connection
-    InvalidPassword = 5  #: password/ticket is invalid
-    LoggedInElsewhere = 6  #: same user logged in elsewhere
-    InvalidProtocolVer = 7  #: protocol version is incorrect
-    InvalidParam = 8  #: a parameter is incorrect
-    FileNotFound = 9  #: file was not found
-    Busy = 10  #: called method busy - action not taken
-    InvalidState = 11  #: called object was in an invalid state
-    InvalidName = 12  #: name is invalid
-    InvalidEmail = 13  #: email is invalid
-    DuplicateName = 14  #: name is not unique
-    AccessDenied = 15  #: access is denied
-    Timeout = 16  #: operation timed out
+    OK = 1  #: Success
+    Fail = 2  #: Generic failure
+    NoConnection = 3  #: No/failed network connection
+    InvalidPassword = 5  #: Password/ticket is invalid
+    LoggedInElsewhere = 6  #: Same user logged in elsewhere
+    InvalidProtocolVersion = 7
+    InvalidParameter = 8
+    FileNotFound = 9
+    Busy = 10  #: Called method busy - action not taken
+    InvalidState = 11  #: Called object was in an invalid state
+    InvalidName = 12
+    InvalidEmail = 13
+    DuplicateName = 14
+    AccessDenied = 15
+    Timeout = 16
     Banned = 17  #: VAC2 banned
-    AccountNotFound = 18  #: account not found
-    InvalidSteamID = 19  #: steamID is invalid
+    AccountNotFound = 18
+    InvalidSteamID = 19
     ServiceUnavailable = 20  #: The requested service is currently unavailable
-    NotLoggedOn = 21  #: The user is not logged on
+    NotLoggedOn = 21
     Pending = 22  #: Request is pending (may be in process, or waiting on third party)
-    EncryptionFailure = 23  #: Encryption or Decryption failed
-    InsufficientPrivilege = 24  #: Insufficient privilege
+    EncryptionFailure = 23
+    InsufficientPrivilege = 24
     LimitExceeded = 25  #: Too much of a good thing
     Revoked = 26  #: Access has been revoked (used for revoked guest passes)
     Expired = 27  #: License/Guest pass the user is trying to access is expired
     AlreadyRedeemed = 28  #: Guest pass has already been redeemed by account, cannot be acked again
-    DuplicateRequest = 29  #: The request is a duplicate and the action has already occurred in the past
-    AlreadyOwned = 30  #: All the games in this guest pass redemption request are already owned by the user
-    IPNotFound = 31  #: IP address not found
-    PersistFailed = 32  #: failed to write change to the data store
-    LockingFailed = 33  #: failed to acquire access lock for this operation
+    DuplicateRequest = 29
+    AlreadyOwned = 30  #: All the games in guest pass redemption request are already owned by the user
+    IPNotFound = 31
+    PersistFailed = 32  #: Failed to write change to the data store
+    LockingFailed = 33  #: Failed to acquire access lock for this operation
     LogonSessionReplaced = 34
     ConnectFailed = 35
     HandshakeFailed = 36
     IOFailure = 37
     RemoteDisconnect = 38
-    ShoppingCartNotFound = 39  #: failed to find the shopping cart requested
-    Blocked = 40  #: a user didn't allow it
-    Ignored = 41  #: target is ignoring sender
-    NoMatch = 42  #: nothing matching the request found
+    ShoppingCartNotFound = 39
+    Blocked = 40
+    Ignored = 41
+    NoMatch = 42
     AccountDisabled = 43
-    ServiceReadOnly = 44  #: this service is not accepting content changes right now
-    AccountNotFeatured = 45  #: account doesn't have value, so this feature isn't available
-    AdministratorOK = 46  #: allowed to take this action, but only because requester is admin
-    ContentVersion = 47  #: A Version mismatch in content transmitted within the Steam protocol.
-    TryAnotherCM = 48  #: The current CM can't service the user making a request, user should try another.
-    PasswordRequiredToKickSession = 49  #: You are already logged in elsewhere, this cached credential login has failed.
+    ServiceReadOnly = 44
+    AccountNotFeatured = 45  #: Account doesn't have value, so this feature isn't available
+    AdministratorOK = 46  #: Allowed to take this action, but only because requester is admin
+    ContentVersion = 47  #: A Version mismatch in content transmitted within the Steam protocol
+    TryAnotherCM = 48  #: The current CM can't service the user making a request, should try another
+    PasswordRequiredToKickSession = 49  #: You are already logged in elsewhere, this cached credential login has failed
     AlreadyLoggedInElsewhere = 50  #: You are already logged in elsewhere, you must wait
     Suspended = 51  #: Long running operation (content download) suspended/paused
-    Cancelled = 52  #: Operation canceled (typically by user: content download)
+    Cancelled = 52  #: Operation canceled (typically by user content download)
     DataCorruption = 53  #: Operation canceled because data is ill formed or unrecoverable
     DiskFull = 54  #: Operation canceled - not enough disk space.
-    RemoteCallFailed = 55  #: an remote call or IPC call failed
+    RemoteCallFailed = 55  #: An remote call or IPC call failed
     PasswordUnset = 56  #: Password could not be verified as it's unset server side
     ExternalAccountUnlinked = 57  #: External account (PSN, Facebook...) is not linked to a Steam account
     PSNTicketInvalid = 58  #: PSN ticket was invalid
     ExternalAccountAlreadyLinked = 59  #: External account (PSN, Facebook...) is already linked to some other account
     RemoteFileConflict = 60  #: The sync cannot resume due to a conflict between the local and remote files
     IllegalPassword = 61  #: The requested new password is not legal
-    SameAsPreviousValue = 62  #: new value is the same as the old one ( secret question and answer )
-    AccountLogonDenied = 63  #: account login denied due to 2nd factor authentication failure
+    SameAsPreviousValue = 62  #: New value is the same as the old one (secret question and answer)
+    AccountLogonDenied = 63  #: Account login denied due to 2nd factor authentication failure
     CannotUseOldPassword = 64  #: The requested new password is not legal
-    InvalidLoginAuthCode = 65  #: account login denied due to auth code invalid
-    AccountLogonDeniedNoMail = 66  #: account login denied due to 2nd factor auth failure - and no mail has been sent
+    InvalidLoginAuthCode = 65  #: Account login denied due to auth code invalid
+    AccountLogonDeniedNoMail = 66  #: Account login denied due to 2nd factor auth failure and no mail has been sent
     HardwareNotCapableOfIPT = 67
     IPTInitError = 68
-    ParentalControlRestricted = 69  #: operation failed due to parental control restrictions for current user
-    FacebookQueryError = 70  #: Facebook query returned an error
-    ExpiredLoginAuthCode = 71  #: account login denied due to auth code expired
+    ParentalControlRestricted = 69  #: Operation failed due to parental control restrictions for current user
+    FacebookQueryError = 70
+    ExpiredLoginAuthCode = 71  #: Account login denied due to auth code expired
     IPLoginRestrictionFailed = 72
     AccountLockedDown = 73
-    AccountLogonDeniedVerifiedEmailRequired = 74
+    VerifiedEmailRequired = 74
     NoMatchingURL = 75
-    BadResponse = 76  #: parse failure, missing field, etc.
+    BadResponse = 76  #: Parse failure, missing field, etc.
     RequirePasswordReEntry = 77  #: The user cannot complete the action until they re-enter their password
-    ValueOutOfRange = 78  #: the value entered is outside the acceptable range
-    UnexpectedError = 79  #: something happened that we didn't expect to ever happen
+    ValueOutOfRange = 78  #: The value entered is outside the acceptable range
+    UnexpectedError = 79  #: Something happened that we didn't expect to ever happen
     Disabled = 80  #: The requested service has been configured to be unavailable
-    InvalidCEGSubmission = 81  #: The set of files submitted to the CEG server are not valid !
+    InvalidCEGSubmission = 81  #: The set of files submitted to the CEG server are not valid!
     RestrictedDevice = 82  #: The device being used is not allowed to perform this action
     RegionLocked = 83  #: The action could not be complete because it is region restricted
-    RateLimitExceeded = 84  #: Temporary rate limit exceeded, try again later, different from k_EResultLimitExceeded
-    AccountLoginDeniedNeedTwoFactor = 85  #: Need two-factor code to login
+    RateLimitExceeded = 84  #: Temporary rate limit exceeded. different from k_EResultLimitExceeded
+    LoginDeniedNeedTwoFactor = 85  #: Need two-factor code to login
     ItemDeleted = 86  #: The thing we're trying to access has been deleted
-    AccountLoginDeniedThrottle = 87  #: login attempt failed, try to throttle response to possible attacker
-    TwoFactorCodeMismatch = 88  #: two factor code mismatch
-    TwoFactorActivationCodeMismatch = 89  #: activation code for two-factor didn't match
-    AccountAssociatedToMultiplePartners = 90  #: account has been associated with multiple partners
-    NotModified = 91  #: data not modified
-    NoMobileDevice = 92  #: the account does not have a mobile device associated with it
-    TimeNotSynced = 93  #: the time presented is out of range or tolerance
+    AccountLoginDeniedThrottle = 87  #: Login attempt failed, try to throttle response to possible attacker
+    TwoFactorCodeMismatch = 88  #: Two factor code mismatch
+    TwoFactorActivationCodeMismatch = 89  #: Activation code for two-factor didn't match
+    AccountAssociatedToMultiplePartners = 90  #: Account has been associated with multiple partners
+    NotModified = 91  #: Data not modified
+    NoMobileDevice = 92  #: The account does not have a mobile device associated with it
+    TimeNotSynced = 93  #: The time presented is out of range or tolerance
     SMSCodeFailed = 94  #: SMS code failure (no match, none pending, etc.)
     AccountLimitExceeded = 95  #: Too many accounts access this resource
     AccountActivityLimitExceeded = 96  #: Too many changes to this account
@@ -185,15 +216,15 @@ class EResult(enum.IntEnum):
     EmailSendFailure = 99  #: Cannot send an email
     NotSettled = 100  #: Can't perform operation till payment has settled
     NeedCaptcha = 101  #: Needs to provide a valid captcha
-    GSLTDenied = 102  #: a game server login token owned by this token's owner has been banned
-    GSOwnerDenied = 103  #: game server owner is denied for other reason
-    InvalidItemType = 104  #: the type of thing we were requested to act on is invalid
-    IPBanned = 105  #: the ip address has been banned from taking this action
-    GSLTExpired = 106  #: this token has expired from disuse; can be reset for use
-    InsufficientFunds = 107  #: user doesn't have enough wallet funds to complete the action
+    GSLTDenied = 102  #: A game server login token owned by this token's owner has been banned
+    GSOwnerDenied = 103  #: Game server owner is denied for other reason
+    InvalidItemType = 104  #: The type of thing we were requested to act on is invalid
+    IPBanned = 105  #: The ip address has been banned from taking this action
+    GSLTExpired = 106  #: This token has expired from disuse; can be reset for use
+    InsufficientFunds = 107  #: User doesn't have enough wallet funds to complete the action
     TooManyPending = 108  #: There are too many of this thing pending already
     NoSiteLicensesFound = 109  #: No site licenses found
-    WGNetworkSendExceeded = 110  #: the WG couldn't send a response because we exceeded max network send size
+    WGNetworkSendExceeded = 110  #: The WG couldn't send a response because we exceeded max network send size
 
 
 class EUniverse(enum.IntEnum):
@@ -207,12 +238,12 @@ class EUniverse(enum.IntEnum):
 
 class EType(enum.IntEnum):
     Invalid = 0
-    Individual = 1  #: single user account
-    Multiseat = 2  #: multiseat (e.g. cybercafe) account
-    GameServer = 3  #: game server account
-    AnonGameServer = 4  #: anonymous game server account
-    Pending = 5  #: pending
-    ContentServer = 6  #: content server
+    Individual = 1  #: Single user account
+    Multiseat = 2  #: Multiseat (e.g. cybercafe) account
+    GameServer = 3  #: Game server account
+    AnonGameServer = 4  #: Anonymous game server account
+    Pending = 5
+    ContentServer = 6  #: Content server
     Clan = 7
     Chat = 8
     ConsoleUser = 9  #: Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
@@ -304,9 +335,6 @@ class EChatRoomEnterResponse(enum.IntEnum):
     CommunityBan = 9  #: Attempt to join a chat when the user has a community lock on their account
     MemberBlockedYou = 10  #: Join failed - some member in the chat has blocked you from joining
     YouBlockedMember = 11  #: Join failed - you have blocked some member already in the chat
-    NoRankingDataLobby = 12  #: No longer used
-    NoRankingDataUser = 13  #: No longer used
-    RankOutOfRange = 14  #: No longer used
     RatelimitExceeded = 15  #: Join failed - to many join attempts in a very short period of time
 
 
@@ -368,3 +396,18 @@ class ETradeOfferState(enum.IntEnum):
     ConfirmationNeed = 9
     CanceledBySecondaryFactor = 10
     StateInEscrow = 11
+
+
+class EChatEntryType(enum.IntEnum):
+    Invalid = 0
+    ChatMsg = 1  #: Normal text message from another user
+    Typing = 2  #: Another user is typing (not used in multi-user chat)
+    InviteGame = 3  #: Invite from other user into that users current game
+    LobbyGameStart = 5  #: lobby game is starting (dead - listen for LobbyGameCreated_t callback instead)
+    LeftConversation = 6  #: user has left the conversation ( closed chat window )
+    Entered = 7  #: User has entered the conversation (used in multi-user chat and group chat)
+    WasKicked = 8  #: user was kicked (data: 64-bit steamid of actor performing the kick)
+    WasBanned = 9  #: user was banned (data: 64-bit steamid of actor performing the ban)
+    Disconnected = 10  #: user disconnected
+    HistoricalChat = 11  #: a chat message from user's chat history or offline message
+    LinkBlocked = 14  #: a link was removed by the chat filter.
