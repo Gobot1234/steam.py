@@ -176,15 +176,10 @@ def proto_to_dict(message):
     return data
 
 
-_list_types = list, range, _GeneratorType, map, filter
+_list_types = (list, range, _GeneratorType, map, filter)
 
 
 def proto_fill_from_dict(message, data, clear=True):
-    if not isinstance(message, _ProtoMessageType):
-        raise TypeError("Expected `message` to be a instance of protobuf message")
-    if not isinstance(data, dict):
-        raise TypeError("Expected `data` to be of type `dict`")
-
     if clear:
         message.Clear()
     field_descs = message.DESCRIPTOR.fields_by_name
@@ -354,3 +349,13 @@ def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
         raise SyntaxError("Binary VDF ended at offset %d, but length is %d" % (idx, len(s)))
 
     return stack.pop()
+
+
+def dict_diff(dict1, dict2):
+    diff = {}
+    if dict1 != dict2:
+        for key in dict2:
+            if dict1[key] != dict2[key]:
+                diff[key] = dict2[key]
+
+    return diff
