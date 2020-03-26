@@ -140,8 +140,9 @@ class HTTPClient:
 
         self._logged_in = True
         id64 = login_response['transfer_parameters']['steamid']
-        data = await self.fetch_profile(id64)
-        self._user = ClientUser(state=self._client._connection, data=data)
+        resp = await self.fetch_profile(id64)
+        user = resp['response']['players'][0]
+        self._user = ClientUser(state=self._client._connection, data=user)
         await self._user.__ainit__()
         if self.identity_secret:
             self._confirmation_manager = ConfirmationManager(state=self._client._connection, id64=id64)
