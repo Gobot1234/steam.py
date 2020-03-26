@@ -44,7 +44,7 @@ from . import errors
 from .enums import URL
 
 
-def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> str:
+def generate_one_time_code(shared_secret: str, timestamp: int = int(time())):
     """Generate a Steam Guard code for signing in.
 
     Parameters
@@ -56,7 +56,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
 
     Returns
     --------
-    code: :class:`str`
+    :class:`str`
         The desired 2FA code for the timestamp.
     """
     time_buffer = struct.pack('>Q', timestamp // 30)  # pack as Big endian, uint64
@@ -71,7 +71,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
     return ''.join(code)  # faster than string concatenation
 
 
-def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = int(time())) -> bytes:
+def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = int(time())):
     """Generate a trade confirmation key.
 
     Parameters
@@ -85,14 +85,14 @@ def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = i
 
     Returns
     --------
-    key: :class:`bytes`
+    :class:`bytes`
         Confirmation key for the set timestamp.
     """
     buffer = f'{struct.pack(">Q", timestamp)}{tag.encode("ascii")}'
     return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
 
 
-def generate_device_id(steam_id: str) -> str:
+def generate_device_id(steam_id: str):
     """
     Parameters
     -----------
@@ -101,7 +101,7 @@ def generate_device_id(steam_id: str) -> str:
 
     Returns
     --------
-    id: :class:`str`
+    :class:`str`
         The device id
     """
     # It works, however it's different that one generated from mobile app
