@@ -102,22 +102,18 @@ class HTTPClient:
 
                 if data == 'Access is denied. Retrying will not help. Please verify your <pre>key=</pre> parameter':
                     raise errors.InvalidCredentials('You have passed an invalid API key')
-                # the request was successful so just return the text/json
                 if 300 > r.status >= 200:
                     log.debug(f'{method} {url} has received {data}')
                     return data
 
-                # we are being rate limited
                 if r.status == 429:
                     await asyncio.sleep(3 ** tries + 1)
                     continue
 
-                # we've received a 500 or 502, unconditional retry
                 if r.status in {500, 502}:
-                    await asyncio.sleep(1 + tries * 2)
+                    await asyncio.sleep(1 + tries * 3)
                     continue
 
-                # the usual error cases
                 if r.status == 403:
                     raise errors.Forbidden(r, data)
                 elif r.status == 404:
