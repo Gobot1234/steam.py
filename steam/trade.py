@@ -57,7 +57,7 @@ class TradeOffer:
         self._data = data
 
     async def __ainit__(self):
-        if self.partner is None:  # not great cause this can be your account sometimes
+        if self.partner is None:  # not great cause this can be your account or anyone else's
             self.partner = await self._state.client.fetch_user(self._data['accountid_other'])
         self.items_to_give = await self.fetch_items(
             user_id64=self._state.client.user.id64,
@@ -224,6 +224,7 @@ class Inventory:
 
 
 class Asset:
+    """A striped down version of an item."""
     __slots__ = ('id', 'app_id', 'class_id', 'amount', 'instance_id', 'game')
 
     def __init__(self, data):
@@ -336,10 +337,10 @@ class Item(Asset):
             if 'icon_url_large' in data else None
         self._data = data
 
-    def is_tradable(self) -> bool:
-        """Whether or not the item is tradable."""
+    def is_tradable(self):
+        """:class:`bool`: Whether or not the item is tradable."""
         return bool(self._data.get('tradable', False))
 
-    def is_marketable(self) -> bool:
-        """Whether or not the item is marketable."""
-        bool(self._data.get('marketable', False))
+    def is_marketable(self):
+        """:class:`bool`: Whether or not the item is marketable."""
+        return bool(self._data.get('marketable', False))
