@@ -32,7 +32,7 @@ with some extra doc-strings
 import json
 import re
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 import aiohttp
 
@@ -166,7 +166,7 @@ class SteamID(int):
 
         return None
 
-    def is_valid(self) -> bool:
+    def is_valid(self):
         """Check whether this SteamID is valid.
 
         Returns
@@ -345,7 +345,7 @@ class User(Messageable, BaseUser):
             raise errors.Forbidden('Comment message is too large post')
         raise errors.Forbidden("We cannot post on this user's profile")
 
-    async def fetch_inventory(self, game: Game) -> Inventory:
+    async def fetch_inventory(self, game: Game):
         """|coro|
         Fetch an :class:`User`'s class:`~steam.trade.Inventory` for trading.
 
@@ -383,38 +383,46 @@ class User(Messageable, BaseUser):
         if self.is_friend():
             if len(offer_message) > 128:
                 raise errors.Forbidden('Offer message is too large to send with the trade offer')
-            resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
-                                                           items_to_receive, offer_message)
-            data = await self._state.http.fetch_trade(resp['tradeofferid'])
+            resp = await self._state.http.send_trade_offer(self.id64, self.id, list(items_to_send),
+                                                           list(items_to_receive), offer_message)
+            trade_id = int(resp['tradeofferid'])
+            if resp.get('needsconfirmation'):
+                confirmation = await self._state.confirmation_manager.get_trade_confirmation(trade_id)
+                await confirmation.confirm()
+            data = await self._state.http.fetch_trade(trade_id)
             trade = TradeOffer(state=self._state, data=data, partner=self)
             self._state.client.dispatch('trade_send', trade)
         raise errors.Forbidden('We cannot send a trade to a user that is not in our friends list')
 
-    async def fetch_escrow(self) -> Optional[datetime]:
+    async def fetch_escrow(self):
         """|coro|
         Check how long a :class:`User`'s escrow is.
         """
         unix = self._state.http.fetch_user_escrow(url=self.community_url)
         return datetime.utcfromtimestamp(unix) if unix else None
 
-    def is_friend(self) -> bool:
-        """Species if the user is in the ClientUser's friends"""
+    def is_friend(self):
+        """:class:`bool`: Species if the user is in the ClientUser's friends"""
         return self in self._state.client.user.friends
 
-    def is_commentable(self) -> bool:
-        """Specifies if the user's account is able to be commented on."""
+    def is_commentable(self):
+        """:class:`bool`: Specifies if the user's account is able to be commented on."""
         return bool(self._data.get('commentpermission'))
 
-    def is_private(self) -> bool:
-        """Specifies if the user has a public profile."""
+    def is_private(self):
+        """:class:`bool`: Specifies if the user has a public profile."""
         state = self._data.get('communityvisibilitystate', 0)
-        return state in (0, 1, 2)
+        return state in {0, 1, 2}
 
-    def has_setup_profile(self) -> bool:
-        """Specifies if the user has a setup their profile."""
+    def has_setup_profile(self):
+        """:class:`bool`: Specifies if the user has a setup their profile."""
         return bool(self._data.get('profilestate'))
 
     async def send(self, content: str = None):
+        """Send a message to the user
+        .. note::
+            This does not currently function.
+        """
         self._state.send_message(steam_id=self.steam_id, content=content)
 
 
@@ -456,14 +464,6 @@ class ClientUser(BaseUser):
             The time at which the user's account was created. Could be None.
         last_logoff: Optional[:class:`datetime.datetime`]
             The last time the user logged into steam. Could be None (e.g. if they are currently online).
-        commentable: :class:`bool`
-            Specifies if the user's account is able to be commented on.
-        country: Optional[:class:`str`]
-            The country code of the account. Could be None.
-        has_setup_profile: :class:`bool`
-            Bool determining if the user has set up their profile.
-        is_public: :class:`bool`
-            Bool determining if the user has a public profile.
         flags: :class:`str`
             The persona state flags of the account.
         id64: :class:`int`
@@ -474,10 +474,9 @@ class ClientUser(BaseUser):
             The id2 of the user's account. Used for older steam games.
         """
 
-    __slots__ = ('name', 'real_name', 'avatar_url', 'commentable',
-                 'has_setup_profile', 'created_at', 'last_logoff',
-                 'state', 'game', 'flags', 'is_public', 'country', 'id',
-                 'steam_id', 'id64', 'id2', 'id3', 'friends', '_state')
+    __slots__ = ('name', 'real_name', 'avatar_url', 'created_at', 'last_logoff',
+                 'state', 'game', 'flags', 'country', 'id', 'steam_id',
+                 'id64', 'id2', 'id3', 'friends', '_state', '_data')
 
     def __init__(self, state, data):
         self.friends = []
@@ -497,7 +496,7 @@ class ClientUser(BaseUser):
         return not self.__eq__(other)
 
     def _update(self, data):
-        data = data['response']['players'][0]
+        self._data = data
         self.steam_id = SteamID(data['steamid'])
         self.id = self.steam_id.id
         self.id64 = self.steam_id.as_64
@@ -507,14 +506,11 @@ class ClientUser(BaseUser):
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
-        self.commentable = bool(data.get('commentpermission'))
-        self.has_setup_profile = bool(data.get('profilestate'))
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
         self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data else None
         self.state = EPersonaState(data.get('personastate'))
         self.flags = EPersonaStateFlag(data.get('personastateflags'))
-        self.is_public = bool(ECommunityVisibilityState(data.get('communityvisibilitystate')).name)
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid']), is_steam_game=False) \
             if 'gameextrainfo' and 'gameid' in data else None
 
@@ -540,6 +536,19 @@ class ClientUser(BaseUser):
         """
         resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
+
+    def is_commentable(self):
+        """:class:`bool`: Specifies if the user's account is able to be commented on."""
+        return bool(self._data.get('commentpermission'))
+
+    def is_private(self):
+        """:class:`bool`: Specifies if the user has a public profile."""
+        state = self._data.get('communityvisibilitystate', 0)
+        return state in {0, 1, 2}
+
+    def has_setup_profile(self):
+        """:class:`bool`: Specifies if the user has a setup their profile."""
+        return bool(self._data.get('profilestate'))
 
 
 def make_steam64(account_id=0, *args, **kwargs):
