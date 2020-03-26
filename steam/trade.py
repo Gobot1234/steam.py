@@ -224,7 +224,23 @@ class Inventory:
 
 
 class Asset:
-    """A striped down version of an item."""
+    """A striped down version of an item.
+
+    Attributes
+    -------------
+    game: :class:`~steam.Game`
+        The game the item is from.
+    id: :class:`str`
+        The assetid of the item.
+    app_id: :class:`str`
+        The appid of the item.
+    amount: :class:`int`
+        The amount of the item the inventory contains.
+    instance_id: :class:`str`
+        The instanceid of the item.
+    class_id: :class:`str`
+        The classid of the item.
+    """
     __slots__ = ('id', 'app_id', 'class_id', 'amount', 'instance_id', 'game')
 
     def __init__(self, data):
