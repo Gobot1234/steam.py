@@ -28,6 +28,7 @@ Thanks confern for letting me use this :D
 """
 
 import logging
+from datetime import datetime
 from typing import Union, List
 
 from .enums import ECurrencyCode, URL, Game
@@ -104,6 +105,32 @@ class PriceOverview:
         self.median_price = float(data['median_price'][1:])
 
 
+def convert_items(item_names, games, prices=None):
+    items = []
+    if isinstance(games, Game):  # this is for the same game items
+        if prices is None:
+            for name in item_names:
+                items.append(FakeItem(name, games))
+        else:
+            for name, price in zip(item_names, prices):
+                items.append((FakeItem(name, games), price))
+    elif isinstance(games, list):
+        if prices is None:
+            if len(item_names) == len(games):  # this is for funky lists
+                for name, game in zip(item_names, games):
+                    items.append(FakeItem(name, game))
+            else:
+                raise IndexError('item_names and games need to have the same length')
+        else:
+            if len(item_names) == len(games) == len(prices):
+                for name, game, price in zip(item_names, games, prices):
+                    items.append((FakeItem(name, game), price))
+            else:
+                raise IndexError('item_names and games need to have the same length')
+
+    return items
+
+
 class Market:
     """Represents a client connection that interacts with the Steam Market.
     This class is used to interact with the Steam Market.
@@ -143,7 +170,7 @@ class Market:
         item_name: str
             The name of the item to fetch the price of.
         game: :class:`~steam.enums.Game`
-            The game the item is from
+            The game the item is from.
 
         Returns
         -------
@@ -174,29 +201,82 @@ class Market:
         prices: :class:`dict`
             A dictionary of the prices with the mapping of {:class:`~steam.Item`: :class:`PriceOverview`}
         """
-        items = []
-        if isinstance(games, Game):  # this is for the same game items
-            for name in item_names:
-                items.append(FakeItem(name, games))
-        elif isinstance(games, list):
-            if len(item_names) == len(games):  # this is for funky lists
-                for name, game in zip(item_names, games):
-                    items.append(FakeItem(name, game))
-            else:
-                raise IndexError('item_names and games need to have the same length')
+        items = convert_items(item_names, games)
 
         prices = {item: await self.fetch_price(item.name, item.game) for item in items}
         return prices
 
-    async def fetch_price_history(self, item: str, game: Game, currency: str = ECurrencyCode.USD, *, limit=100):
-        # {"success":true,"price_prefix":"\u00a3","prices":[
-        # ["Mar 19 2020 15: +0",1.893,"341"]
-        # ]}
-        #  "%b %d %Y %H: %z" +0, avg??, num_sold
+    async def fetch_price_history(self, item_name: str, game: Game, *, limit=100):
+        example = {
+            "success": True,
+            "price_prefix": "\u00a3",
+            "prices": [
+                [datetime.strptime("%b %d %Y %H: %z +0"), 1.893, "341"]
+            ]
+        }
         params = {
             'appid': game.app_id,
-            'currency': currency,
-            'market_hash_name': item
+            'currency': self.currency,
+            'market_hash_name': item_name
         }
         response = await self.http.request('GET', url=f'{self.BASE}/pricehistory', params=params)
         return response
+
+    async def create_market_listing(self, item_name: str, game: Game, *, price: float):
+        """Creates a market listing for an item.
+        .. note::
+            This could end up getting your account terminated.
+
+        Parameters
+        ----------
+        item_name: str
+            The name of the item to order.
+        game: :class:`~steam.enums.Game`
+            The game the item is from.
+        price: Union[:class:`int`, :class:`float`]
+            The price to pay for the item in decimal form.
+            eg. $1 = 1.00 or £2.50 = 2.50
+        """
+        item = FakeItem(fix_name(item_name), game)
+        data = {
+            "sessionid": self.http.session_id,
+            "currency": self.currency,
+            "appid": item.app_id,
+            "market_hash_name": item.name,
+            "price_total": price * 100,
+            "quantity": 1
+        }
+
+        headers = {"Referer": f'{URL.COMMUNITY}/market/listings/{game.app_id}/{item.name}'}
+
+        await self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder/', data=data, headers=headers)
+
+    async def create_market_listings(self, item_names: List[str], games: Union[List[Game], Game],
+                                     prices: Union[List[Union[int, float]], Union[int, float]]):
+        """Creates market listing for items.
+        .. note::
+            This could end up getting your account terminated.
+
+        Parameters
+        ----------
+        item_names: List[str]
+            A list of item names to order.
+        games: :class:`~steam.enums.Game`
+            The game the item(s) is/are from.
+        prices: Union[List[Union[:class:`int`, :class:`float`]], Union[:class:`int`, :class:`float`]]
+            The price to pay for each item in decimal form.
+            eg. $1 = 1.00 or £2.50 = 2.50
+        """
+        items = convert_items(item_names, games, prices)  # TODO make this support multiple of the same items
+        for (item, price) in items:
+            data = {
+                "sessionid": self.http.session_id,
+                "currency": self.currency,
+                "appid": item.app_id,
+                "market_hash_name": item.name,
+                "price_total": price * 100,
+                "quantity": 1
+            }
+            headers = {"Referer": f'{URL.COMMUNITY}/market/listings/{item.app_id}/{item.name}'}
+
+            await self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder/', data=data, headers=headers)
