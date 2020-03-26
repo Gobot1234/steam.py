@@ -167,9 +167,9 @@ Enumerations
 Guard
 ------------------
 
-.. autofunction:: steam.guard.generate_one_time_code
+.. autofunction:: steam.guard.generate_one_time_code(shared_secret: str, timestamp: int = time.time())
 
-.. autofunction:: steam.guard.generate_confirmation_key
+.. autofunction:: steam.guard.generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = time.time())
 
 .. autofunction:: steam.guard.generate_device_id
 
