@@ -77,7 +77,7 @@ class TradeOffer:
 
     async def confirm(self):
         """|coro|
-        Confirm a :class:`TradeOffer`"""
+        Confirms the :class:`TradeOffer`"""
         if self.state != ETradeOfferState.Active:
             raise ClientException('This trade is not active')
         confirmation = await self._state.confirmation_manager.get_trade_confirmation(self.id)
@@ -85,7 +85,7 @@ class TradeOffer:
 
     async def accept(self):
         """|coro|
-        Accept a :class:`TradeOffer`"""
+        Accepts the :class:`TradeOffer`"""
         if self.state != ETradeOfferState.Active:
             raise ClientException('This trade is not active')
         await self._state.http.accept_trade(self.id)
@@ -94,7 +94,7 @@ class TradeOffer:
 
     async def decline(self):
         """|coro|
-        Decline a :class:`TradeOffer`"""
+        Declines the :class:`TradeOffer`"""
         if self.state != ETradeOfferState.Active and self.state != ETradeOfferState.ConfirmationNeed:
             raise ClientException('This trade is not active')
         elif self.is_our_offer:
@@ -105,7 +105,7 @@ class TradeOffer:
 
     async def cancel(self):
         """|coro|
-        Cancel a :class:`TradeOffer`"""
+        Cancels the :class:`TradeOffer`"""
         if self.state != ETradeOfferState.Active and self.state != ETradeOfferState.ConfirmationNeed:
             raise ClientException('This trade is not active')
         if not self.is_our_offer:
@@ -235,7 +235,7 @@ class Asset:
     app_id: :class:`str`
         The appid of the item.
     amount: :class:`int`
-        The amount of the item the inventory contains.
+        The amount of the same asset there are in the inventory.
     instance_id: :class:`str`
         The instanceid of the item.
     class_id: :class:`str`
