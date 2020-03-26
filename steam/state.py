@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from .enums import EChatEntryType
+from .enums import EChatEntryType, ETradeOfferState
 from .protobufs import get_um, MsgProto, EMsg
 from .trade import TradeOffer
 from .user import User
@@ -91,12 +91,19 @@ class State:
             self._store_trade(data)
         return None
 
-    def _store_trade(self, data) -> TradeOffer:
+    def _store_trade(self, data):
         try:
-            return self._trades[data['tradeofferid']]
+            trade = self._trades[data['tradeofferid']]
         except KeyError:
             trade = TradeOffer(state=self, data=data, partner=None)
             self._trades[trade.id] = trade
+        else:
+            if data['trade_offer_state'] != trade.state:
+                trade.state = ETradeOfferState(data['trade_offer_state'])
+                name = trade.state.name.lower()
+                event_name = name[:-2] if name != 'declined' else 'decline'
+                self.dispatch(event_name, trade)
+        finally:
             return trade
 
     def send_message(self, steam_id, content):
