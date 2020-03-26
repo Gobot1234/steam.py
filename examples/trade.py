@@ -7,7 +7,7 @@ shared_secret = ''
 
 
 class MyClient(steam.Client):
-    async def on_ready(self):
+    async def on_ready(self):  # this event isn't currently called but will be in the future  
         print('------------')
         print('Logged in as')
         print('Username:', self.user.name)
@@ -23,7 +23,7 @@ class MyClient(steam.Client):
 
     async def on_trade_receive(self, trade):
         print(f'Received trade: #{trade.id}')
-        print('To user:', trade.partner.name, 'Is one-sided:', trade.is_one_sided())
+        print('From user:', trade.partner.name, 'Is one-sided:', trade.is_one_sided())
         print('We are sending:')
         print('\n'.join([item.name if item.name is not None else item.asset_id for item in trade.items_to_give])
               if trade.items_to_give else 'Nothing')
