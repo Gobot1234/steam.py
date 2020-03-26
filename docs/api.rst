@@ -201,6 +201,9 @@ Trading
 
 .. autoclass:: Item()
     :members:
+    
+.. autoclass:: Asset()
+    :members:
 
 User
 -----------------
