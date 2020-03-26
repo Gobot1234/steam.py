@@ -35,7 +35,7 @@ from .enums import ECurrencyCode, URL, Game
 log = logging.getLogger(__name__)
 
 
-def has_valid_name(name: str) -> bool:
+def has_valid_name(name: str):
     """Check if the name of an item is serializable.
 
     Parameters
@@ -53,7 +53,7 @@ def has_valid_name(name: str) -> bool:
     return False
 
 
-def fix_name(name: str) -> str:
+def fix_name(name: str):
     """Sterilize the name of an item to be able to request the price.
 
     Parameters
@@ -111,7 +111,7 @@ class Market:
     Parameters
     ----------
     currency: Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]
-        Sets the currency to be outputted. 1, 'USD' default is United State Dollars.
+        Sets the currency for requests. :attr:`~steam.ECurrencyCode.USD`/United State Dollars is default.
     """
 
     BASE = f'{URL.COMMUNITY}/market'
@@ -135,7 +135,7 @@ class Market:
         else:
             self.currency = 1
 
-    async def fetch_price(self, item_name: str, game: Game) -> PriceOverview:
+    async def fetch_price(self, item_name: str, game: Game):
         """Gets the price(s) and volume sales of an item.
 
         Parameters
@@ -159,7 +159,7 @@ class Market:
 
         return PriceOverview(await self.http.request('POST', f'{self.BASE}/priceoverview', data=data))
 
-    async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]) -> dict:
+    async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]):
         """Get the price(s) and volume of each item in the list.
 
         Parameters
@@ -188,7 +188,7 @@ class Market:
         prices = {item: await self.fetch_price(item.name, item.game) for item in items}
         return prices
 
-    async def fetch_price_history(self, item: str, game: Game, currency: str = ECurrencyCode.USD, *, limit=100) -> dict:
+    async def fetch_price_history(self, item: str, game: Game, currency: str = ECurrencyCode.USD, *, limit=100):
         # {"success":true,"price_prefix":"\u00a3","prices":[
         # ["Mar 19 2020 15: +0",1.893,"341"]
         # ]}
