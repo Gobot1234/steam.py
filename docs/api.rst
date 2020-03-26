@@ -72,9 +72,8 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
         This function is not guaranteed to be the first event called.
         Likewise, this function is **not** guaranteed to only be called
-        once. This library implements reconnection logic and thus will
-        end up calling this event whenever a 
-    RESUME request fails.
+        once. This library implements reconnection logic and will therefore
+        end up calling this event whenever a RESUME request fails.
 
 .. function:: on_login()
 
