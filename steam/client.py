@@ -158,7 +158,12 @@ class Client:
     @property
     def users(self) -> List[User]:
         """List[:class:`~steam.User`]: Returns a list of all the users the account can see."""
-        return list(self._users.values())
+        return list(self._connection._users.values())
+
+    @property
+    def trades(self) -> List[TradeOffer]:
+        """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the user has seen."""
+        return list(self._connection._trades.values())
 
     @property
     def code(self) -> Optional[str]:
