@@ -126,7 +126,7 @@ class Confirmation:
     def __init__(self, manager, state, offer_id, confirmation_id, data_key, creator):
         self.manager = manager
         self._state = state
-        self.id = offer_id.split('conf')[1]
+        self.id = int(offer_id.split('conf')[1])
         self.confirmation_id = confirmation_id
         self.data_key = data_key
         self.tag = f'details{self.id}'
@@ -190,7 +190,7 @@ class ConfirmationManager:
         params = self._create_confirmation_params('conf')
         resp = await self._state.request('GET', f'{self.BASE}/conf', params=params)
         if 'Oh nooooooes!' in resp:
-            raise errors.ConfirmationError()
+            raise errors.ConfirmationError
         soup = BeautifulSoup(resp, 'html.parser')
         if soup.select('#mobileconf_empty'):
             return []
@@ -204,10 +204,10 @@ class ConfirmationManager:
                                            confirmation_id=confirmation_id, data_key=key, creator=creator))
         return to_confirm
 
-    async def get_trade_confirmation(self, trade_offer_id, confirmations=None):
+    async def get_trade_confirmation(self, trade_id, confirmations=None):
         if confirmations is None:
             confirmations = await self.get_confirmations()
         for confirmation in confirmations:
-            if confirmation.creator == trade_offer_id:
+            if confirmation.id == trade_id:
                 return confirmation
-        raise errors.ConfirmationError(f'Could not find confirmation for trade: {trade_offer_id}')
+        raise errors.ConfirmationError(f'Could not find confirmation for trade: {trade_id}')
