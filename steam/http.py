@@ -36,6 +36,7 @@ from time import time
 import aiohttp
 import rsa
 
+from steam import utils
 from . import __version__, errors
 from .enums import URL
 from .guard import generate_one_time_code, ConfirmationManager
@@ -232,7 +233,7 @@ class HTTPClient:
         }
         return self.request('GET', url=Route('ISteamUser', 'GetPlayerSummaries', 'v2'), params=params)
 
-    async def fetch_profiles(self, user_id64s: list):
+    async def fetch_profiles(self, user_id64s):
         ret = []
 
         def chunk():  # chunk the list into 100 element sublists for the requests
@@ -333,14 +334,14 @@ class HTTPClient:
         while 1:
             try:
                 trades = await self._get_trade_offers()
-                if trades != trades_cache:
-                    for trades_cache, trade in zip(trades_cache, trades):
-                        if trades_cache[trades_cache] != trades[trade]:
-                            log.debug(f'Received raw trade {trades[trade]}')
-                            trade = self._client._connection.store_trade(trades[trade])
-                            await trade.__ainit__()
-                            self._client.dispatch('trade_receive', trade)
-                    trades_cache = trades
+                diff = utils.dict_diff(trades_cache, trades)
+                for trade in diff:
+                    log.debug(f'Received raw trade {trades[trade]}')
+                    trade = self._client._connection.store_trade(trades[trade])
+                    if trade not in self._client.trades:
+                        await trade.__ainit__()
+                        self._client.dispatch('trade_receive', trade)
+                trades_cache = trades
                 await asyncio.sleep(5)
             except aiohttp.ClientError:
                 self._loop.create_task(self._poll_trades())
