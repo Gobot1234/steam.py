@@ -32,20 +32,18 @@ import logging
 import signal
 import sys
 import traceback
-from typing import List, Optional
 
 import aiohttp
 import websockets
 
 from . import errors
 from .enums import ECurrencyCode
-from .gateway import SteamWebsocket
+from .gateway import SteamWebSocket, ResumeSocket
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .market import Market
 from .state import State
-from .trade import TradeOffer
-from .user import User, SteamID
+from .user import SteamID
 
 log = logging.getLogger(__name__)
 
@@ -119,6 +117,7 @@ class Client:
     currency: Optional[Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]]
         The currency used for market interactions.
         Defaults to :class:`~steam.ECurrencyCode.USD`.
+
     Attributes
     -----------
     loop: :class:`asyncio.AbstractEventLoop`
@@ -143,7 +142,6 @@ class Client:
         self.shared_secret = None
 
         self._user = None
-        self._users = {}
         self._closed = True
         self._state = None
         self._listeners = {}
@@ -156,24 +154,41 @@ class Client:
         return self._user
 
     @property
-    def users(self) -> List[User]:
+    def users(self):
         """List[:class:`~steam.User`]: Returns a list of all the users the account can see."""
-        return list(self._connection._users.values())
+        return self._connection.users
 
     @property
-    def trades(self) -> List[TradeOffer]:
+    def trades(self):
         """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the user has seen."""
-        return list(self._connection._trades.values())
+        return self._connection.trades
 
     @property
-    def code(self) -> Optional[str]:
+    def code(self):
         """Optional[:class:`str`]: The current steam guard code.
         ``None`` if no shared_secret is passed"""
         return generate_one_time_code(self.shared_secret) if self.shared_secret else None
 
+    @property
+    def latency(self):
+        return float('nan') if self.ws is None else self.ws.latency
+
     def event(self, coro):
         """A decorator that registers an event to listen to.
+
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
+
+        Example
+        ---------
+        .. code-block:: python3
+            @client.event
+            async def on_ready():
+                print('Ready!')
+
+        Raises
+        --------
+        TypeError
+            The coroutine passed is not a coroutine.
         """
         if not asyncio.iscoroutinefunction(coro):
             raise TypeError('Event registered must be a coroutine function')
@@ -379,19 +394,18 @@ class Client:
 
         await self.login(username=username, password=password, api_key=api_key,
                          shared_secret=shared_secret, identity_secret=identity_secret)
+        # await self.connect()
         while 1:
             await asyncio.sleep(5)
-        #await self.connect()
 
     async def _connect(self):
-        self.ws = SteamWebsocket()
+        self.ws = SteamWebSocket()
         coro = self.ws.from_client(self, fetch=True)
         await asyncio.wait_for(coro, timeout=180.0)
         while 1:
             try:
                 await self.ws.poll_event()
-            except Exception as e:
-                print(e)
+            except ResumeSocket:
                 log.info('Got a request to RESUME the websocket.')
                 self.dispatch('disconnect')
                 coro = self.ws.from_client(self)
@@ -402,23 +416,23 @@ class Client:
             try:
                 await self._connect()
             except (OSError,
-                    errors.HTTPException,
                     aiohttp.ClientError,
                     asyncio.TimeoutError,
+                    errors.HTTPException,
                     websockets.InvalidHandshake,
                     websockets.WebSocketProtocolError):
                 self.dispatch('disconnect')
                 if self.is_closed():
                     break
 
-    def get_user(self, user_id) -> Optional[User]:
+    def get_user(self, user_id):
         """Returns a user with the given ID.
 
         Parameters
         ----------
         user_id: Union[:class:`int`, :class:`str`]
             The ID to search for. For accepted IDs see
-            :meth:`~steam.User.make_steam64`
+            :meth:`~steam.make_steam64`
 
         Returns
         -------
@@ -428,7 +442,7 @@ class Client:
         steam_id = SteamID(user_id)
         return self._connection.get_user(steam_id)
 
-    async def fetch_user(self, user_id) -> Optional[User]:
+    async def fetch_user(self, user_id):
         """|coro|
         Fetches a user from the API with the given ID.
 
@@ -436,7 +450,7 @@ class Client:
         ----------
         user_id: Union[:class:`int`, :class:`str`]
             The ID to search for. For accepted IDs see
-            :meth:`~steam.User.make_steam64`
+            :meth:`~steam.make_steam64`
 
         Returns
         -------
@@ -446,7 +460,7 @@ class Client:
         steam_id = SteamID(user_id)
         return await self._connection.fetch_user(steam_id)
 
-    def get_trade(self, trade_id) -> Optional[TradeOffer]:
+    def get_trade(self, trade_id):
         """Get a trade from cache.
 
         Parameters
@@ -461,7 +475,7 @@ class Client:
         """
         return self._connection.get_trade(trade_id)
 
-    async def fetch_trade(self, trade_id) -> Optional[TradeOffer]:
+    async def fetch_trade(self, trade_id):
         """|coro|
         Fetches a trade from the API with the given ID.
         .. note::
