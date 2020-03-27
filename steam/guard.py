@@ -134,7 +134,7 @@ class Confirmation:
 
     def _confirm_params(self, tag):
         return {
-            'p': self.manager.device_id,
+            'p': generate_device_id(self.manager.id64),
             'a': self.manager.id,
             'k': generate_confirmation_key(tag, self.manager.identity_secret),
             't': int(time()),
@@ -188,7 +188,8 @@ class ConfirmationManager:
 
     async def get_confirmations(self):
         params = self._create_confirmation_params('conf')
-        resp = await self._state.request('GET', f'{self.BASE}/conf', params=params)
+        headers = {'X-Requested-With': 'com.valvesoftware.android.steam.community'}
+        resp = await self._state.request('GET', f'{self.BASE}/conf', params=params, headers=headers)
         if 'Oh nooooooes!' in resp:
             raise errors.ConfirmationError
         soup = BeautifulSoup(resp, 'html.parser')
