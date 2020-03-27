@@ -28,7 +28,6 @@ Thanks confern for letting me use this :D
 """
 
 import logging
-from datetime import datetime
 from typing import Union, List
 
 from .enums import ECurrencyCode, URL, Game
@@ -139,6 +138,7 @@ class Market:
     ----------
     currency: Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]
         Sets the currency for requests. :attr:`~steam.ECurrencyCode.USD`/United State Dollars is default.
+        Pass this as a `kwarg` to the :class:`~steam.Client` initialization.
     """
 
     BASE = f'{URL.COMMUNITY}/market'
@@ -174,7 +174,7 @@ class Market:
 
         Returns
         -------
-        price_overview: :class:`PriceOverview`
+        :class:`PriceOverview`
             A class to represent the data from these transactions
         """
         item = FakeItem(fix_name(item_name), game)
@@ -191,21 +191,22 @@ class Market:
 
         Parameters
         ----------
-        item_names: List[str]
+        item_names: List[:class:`str`]
             A list of the items to get the prices for.
-        games: Union[List[Game], Game]
+        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
             A list of :class:`~steam.Game`s or :class:`~steam.Game` the items are from.
 
         Returns
         -------
-        prices: :class:`dict`
-            A dictionary of the prices with the mapping of {:class:`~steam.Item`: :class:`PriceOverview`}
+        :class:`dict`
+            A dictionary of the prices with the mapping of {item_name: :class:`PriceOverview`}
         """
         items = convert_items(item_names, games)
 
         prices = {item: await self.fetch_price(item.name, item.game) for item in items}
         return prices
 
+    """
     async def fetch_price_history(self, item_name: str, game: Game, *, limit=100):
         example = {
             "success": True,
@@ -221,21 +222,22 @@ class Market:
         }
         response = await self.http.request('GET', url=f'{self.BASE}/pricehistory', params=params)
         return response
-
+    """
     async def create_market_listing(self, item_name: str, game: Game, *, price: float):
         """Creates a market listing for an item.
         .. note::
-            This could end up getting your account terminated and is just added for completeness.
+            This could result in an account termination,
+            this is just added for completeness sake.
 
         Parameters
         ----------
-        item_name: str
+        item_name: :class:`str`
             The name of the item to order.
         game: :class:`~steam.Game`
             The game the item is from.
         price: Union[:class:`int`, :class:`float`]
             The price to pay for the item in decimal form.
-            eg. $1 = 1.00 or £2.50 = 2.50
+            eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
         item = FakeItem(fix_name(item_name), game)
         data = {
@@ -255,20 +257,30 @@ class Market:
                                      prices: Union[List[Union[int, float]], Union[int, float]]):
         """Creates market listing for items.
         .. note::
-            This could end up getting your account terminated and is just added for completeness.
+            This could result in an account termination,
+            this is just added for completeness sake.
 
         Parameters
         ----------
-        item_names: List[str]
+        item_names: List[:class:`str`]
             A list of item names to order.
-        games: :class:`~steam.Game`
+        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
             The game the item(s) is/are from.
         prices: Union[List[Union[:class:`int`, :class:`float`]], Union[:class:`int`, :class:`float`]]
             The price to pay for each item in decimal form.
-            eg. $1 = 1.00 or £2.50 = 2.50
+            eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
-        items = convert_items(item_names, games, prices)  # TODO make this support multiple of the same items
+        to_list = []
+        items = convert_items(item_names, games, prices)
         for (item, price) in items:
+            final_price = price * items.count((item, price))
+            for (_, __) in items:
+                items.remove((item, price))
+            to_list.append((item, final_price))
+        for (item, price) in items:
+            to_list.append((item, price))
+
+        for (item, price) in to_list:
             data = {
                 "sessionid": self.http.session_id,
                 "currency": self.currency,
