@@ -46,8 +46,8 @@ def has_valid_name(name: str):
 
     Returns
     -------
-    is_valid: :class:`bool`
-        Returns if an can be sterilized.
+    :class:`bool`
+        Returns if it can be sterilized.
     """
     if isinstance(name, str):
         return '/' not in name
@@ -64,7 +64,7 @@ def fix_name(name: str):
 
     Returns
     -------
-    price: :class:`str`
+    :class:`str`
         The fixed name.
     """
     if isinstance(name, str):
@@ -169,7 +169,7 @@ class Market:
         ----------
         item_name: str
             The name of the item to fetch the price of.
-        game: :class:`~steam.enums.Game`
+        game: :class:`~steam.Game`
             The game the item is from.
 
         Returns
@@ -225,13 +225,13 @@ class Market:
     async def create_market_listing(self, item_name: str, game: Game, *, price: float):
         """Creates a market listing for an item.
         .. note::
-            This could end up getting your account terminated.
+            This could end up getting your account terminated and is just added for completeness.
 
         Parameters
         ----------
         item_name: str
             The name of the item to order.
-        game: :class:`~steam.enums.Game`
+        game: :class:`~steam.Game`
             The game the item is from.
         price: Union[:class:`int`, :class:`float`]
             The price to pay for the item in decimal form.
@@ -255,13 +255,13 @@ class Market:
                                      prices: Union[List[Union[int, float]], Union[int, float]]):
         """Creates market listing for items.
         .. note::
-            This could end up getting your account terminated.
+            This could end up getting your account terminated and is just added for completeness.
 
         Parameters
         ----------
         item_names: List[str]
             A list of item names to order.
-        games: :class:`~steam.enums.Game`
+        games: :class:`~steam.Game`
             The game the item(s) is/are from.
         prices: Union[List[Union[:class:`int`, :class:`float`]], Union[:class:`int`, :class:`float`]]
             The price to pay for each item in decimal form.
