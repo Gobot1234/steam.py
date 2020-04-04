@@ -12,8 +12,8 @@ class TradeOffer:
     -------------
     partner: :class:`~steam.User`
         The trade offer partner.
-    items_to_give: List[:class:`Item`]
-        A list of items to give to the partner.
+    items_to_send: List[:class:`Item`]
+        A list of items to send to the partner.
     items_to_receive: List[:class:`Item`]
         A list of items to receive from the partner.
     state: :class:`~steam.ETradeOfferState`
@@ -33,7 +33,7 @@ class TradeOffer:
     """
 
     __slots__ = ('partner', 'message', 'state', 'is_our_offer', 'id',
-                 'expires', 'escrow', 'items_to_give', 'items_to_receive',
+                 'expires', 'escrow', 'items_to_send', 'items_to_receive',
                  '_state', '_data', '__weakref__')
 
     def __init__(self, state, data, partner=None):
@@ -43,7 +43,7 @@ class TradeOffer:
 
     def __repr__(self):
         attrs = (
-            'id', 'partner'
+            'id', 'state', 'partner'
         )
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
@@ -60,15 +60,15 @@ class TradeOffer:
     async def __ainit__(self):
         if self.partner is None:  # not great cause this can be your account or anyone else's
             self.partner = await self._state.client.fetch_user(self._data['accountid_other'])
-        self.items_to_give = await self.fetch_items(
+        self.items_to_send = await self._fetch_items(
             user_id64=self._state.client.user.id64,
-            assets=self._data['items_to_receive']
-        ) if 'items_to_receive' in self._data else []
-
-        self.items_to_receive = await self.fetch_items(
-            user_id64=self.partner.id64,
-            assets=self._data['items_to_give']
+            assets=[Asset(data=asset) for asset in self._data['items_to_give']]
         ) if 'items_to_give' in self._data else []
+
+        self.items_to_receive = await self._fetch_items(
+            user_id64=self.partner.id64,
+            assets=[Asset(data=asset) for asset in self._data['items_to_receive']]
+        ) if 'items_to_receive' in self._data else []
 
     async def update(self):
         data = await self._state.http.fetch_trade(self.id)
@@ -115,27 +115,20 @@ class TradeOffer:
         self.state = ETradeOfferState.Canceled
         self._state.dispatch('trade_cancel', self)
 
-    async def fetch_items(self, user_id64, assets):
-        items_ = await self._state.http.fetch_trade_items(user_id64=user_id64, assets=assets)
-        items = []
+    async def _fetch_items(self, user_id64, assets):
+        ret = []
+        items = await self._state.http.fetch_trade_items(user_id64=user_id64, assets=assets)
         for asset in assets:
-            for item in items_:
-                if item.asset_id == asset['assetid'] and item.class_id == asset['classid'] \
-                        and item.instance_id == asset['instanceid']:
-                    ignore = False
-                    if item.name is None:
-                        # this is awful I am aware but it is necessary to not get identical items and assets
-                        for item_ in items:
-                            if item.asset == item_.asset:
-                                ignore = True
-                    if not ignore:  # this is equally dumb
-                        items.append(item)
-                    continue
-        return items
+            for item in items:
+                if item.asset == asset:
+                    print(item)
+                    if item not in ret and not item.is_asset():
+                        ret.append(item)
+        return ret
 
     def is_one_sided(self):
         """Checks if an offer is one-sided towards the ClientUser"""
-        return True if self.items_to_receive and not self.items_to_give else False
+        return True if self.items_to_receive is not None and self.items_to_send else False
 
 
 class Inventory:
@@ -177,7 +170,7 @@ class Inventory:
 
     def _update(self, data):
         self._data = data
-        self.game = Game(app_id=int(data['assets'][0]['appid']), is_steam_game=False)
+        self.game = Game(app_id=int(data['assets'][0]['appid']), is_steam_game=True)
         for asset in data['assets']:
             for item in data['descriptions']:
                 if item['instanceid'] == asset['instanceid'] and item['classid'] == asset['classid']:
@@ -185,7 +178,6 @@ class Inventory:
                     self.items.append(Item(data=item))
                     continue
             self.items.append(Item(data=asset, missing=True))
-            continue
 
     def filter_items(self, item_name: str):
         """Filters items by name into a list of one type of item.
@@ -198,7 +190,7 @@ class Inventory:
         Returns
         ---------
         Items: Optional[List[:class:`Item`]]
-            List of :class:`Item`s.
+            List of :class:`Item`.
             Can be an empty list if no matching items are found.
             This also removes the item from the inventory, if possible.
         """
@@ -250,24 +242,16 @@ class Asset:
     __slots__ = ('id', 'app_id', 'class_id', 'amount', 'instance_id', 'game')
 
     def __init__(self, data):
-        self.id = data['assetid']
+        self.id = int(data['assetid'])
         self.game = Game(app_id=data['appid'])
-        self.app_id = data['appid']
+        self.app_id = int(data['appid'])
         self.amount = int(data['amount'])
-        self.instance_id = data['instanceid']
-        self.class_id = data['classid']
+        self.instance_id = int(data['instanceid'])
+        self.class_id = int(data['classid'])
 
     def __repr__(self):
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in self.__slots__]
         return f"<Asset {' '.join(resolved)}>"
-
-    def to_dict(self):
-        return {
-            "assetid": self.id,
-            "amount": self.amount,
-            "appid": self.app_id,
-            "contextid": str(self.game.context_id)
-        }
 
     def __eq__(self, other):
         return isinstance(other, Asset) and \
@@ -275,6 +259,14 @@ class Asset:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def to_dict(self):
+        return {
+            "assetid": str(self.id),
+            "amount": self.amount,
+            "appid": str(self.app_id),
+            "contextid": str(self.game.context_id)
+        }
 
 
 class Item(Asset):
@@ -368,3 +360,6 @@ class Item(Asset):
     def is_marketable(self):
         """:class:`bool`: Whether or not the item is marketable."""
         return bool(self._data.get('marketable', False))
+
+    def is_asset(self):
+        return self.name is None
