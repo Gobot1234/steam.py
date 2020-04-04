@@ -32,6 +32,7 @@ import logging
 import signal
 import sys
 import traceback
+from typing import Union, List
 
 import aiohttp
 import websockets
@@ -42,8 +43,9 @@ from .gateway import SteamWebSocket, ResumeSocket
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .market import Market
+from .models import Game
 from .state import State
-from .user import SteamID
+from .user import make_steam64
 
 log = logging.getLogger(__name__)
 
@@ -122,8 +124,6 @@ class Client:
     -----------
     loop: :class:`asyncio.AbstractEventLoop`
         The event loop that the client uses for HTTP requests.
-    market: :class:`~steam.Market`
-        Represents the market instance given to the client
     """
 
     def __init__(self, loop=None, **options):
@@ -132,7 +132,7 @@ class Client:
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
         self._connection = State(loop=loop, client=self, http=self.http)
-        self.market = Market(http=self.http, currency=options.get('currency', ECurrencyCode.USD))
+        self._market = Market(http=self.http, currency=options.get('currency', ECurrencyCode.USD))
 
         self.username = None
         self.api_key = None
@@ -317,8 +317,9 @@ class Client:
             The username of the desired Steam account.
         password: :class:`str`
             The password of the desired Steam account.
-        api_key: :class:`str`
+        api_key: Optional[:class:`str`]
             The accounts api key for fetching info about the account.
+            This can be left and the library will fetch it for you.
         shared_secret: Optional[:class:`str`]
             The shared_secret of the desired Steam account,
             used to generate the 2FA code for login.
@@ -340,10 +341,9 @@ class Client:
         self.shared_secret = shared_secret
         self.identity_secret = identity_secret
 
-        await self.http.login(username=username, password=password,
-                              api_key=api_key, shared_secret=shared_secret,
-                              identity_secret=identity_secret)
-        self._user = self.http._user
+        await self.http.login(username=username, password=password, api_key=api_key,
+                              shared_secret=shared_secret, identity_secret=identity_secret)
+        self._user = self.http.user
         self._closed = False
 
     async def close(self):
@@ -353,9 +353,9 @@ class Client:
         if self._closed:
             return
 
-        await self.http.logout()
-        await self.http._session.close()
         # await self.ws.close()
+        await self.http.logout()
+        await self._session.close()
         self._closed = True
         self._ready.clear()
 
@@ -367,7 +367,7 @@ class Client:
         self._closed = False
         self._ready.clear()
         self.http.recreate()
-        self.loop.create_task(self.ws.close())
+        #self.loop.create_task(self.ws.close())
 
     async def start(self, *args, **kwargs):
         """|coro|
@@ -389,12 +389,12 @@ class Client:
         identity_secret = kwargs.pop('identity_secret', None)
         if kwargs:
             raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
-        if not (api_key or username or password):
+        if not (username or password):
             raise errors.LoginError("One or more required login detail is missing")
 
         await self.login(username=username, password=password, api_key=api_key,
                          shared_secret=shared_secret, identity_secret=identity_secret)
-        # await self.connect()
+        #await self.connect()
         while 1:
             await asyncio.sleep(5)
 
@@ -439,8 +439,8 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        steam_id = SteamID(user_id)
-        return self._connection.get_user(steam_id)
+        id64 = make_steam64(user_id)
+        return self._connection.get_user(id64)
 
     async def fetch_user(self, user_id):
         """|coro|
@@ -457,15 +457,15 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        steam_id = SteamID(user_id)
-        return await self._connection.fetch_user(steam_id)
+        id64 = make_steam64(user_id)
+        return await self._connection.fetch_user(id64)
 
-    def get_trade(self, trade_id):
+    def get_trade(self, id):
         """Get a trade from cache.
 
         Parameters
         ----------
-        trade_id: int
+        id: int
             The id of the trade to search for from the cache.
 
         Returns
@@ -473,9 +473,9 @@ class Client:
         Optional[:class:`~steam.TradeOffer`]
             The trade offer or ``None`` if not found.
         """
-        return self._connection.get_trade(trade_id)
+        return self._connection.get_trade(id)
 
-    async def fetch_trade(self, trade_id):
+    async def fetch_trade(self, id):
         """|coro|
         Fetches a trade from the API with the given ID.
         .. note::
@@ -484,7 +484,7 @@ class Client:
 
         Parameters
         ----------
-        trade_id: int
+        id: int
             The id of the trade to search for from the API.
 
         Returns
@@ -492,4 +492,75 @@ class Client:
         Optional[:class:`~steam.TradeOffer`]
             The trade offer or ``None`` if not found.
         """
-        return await self._connection.fetch_trade(trade_id)
+        return await self._connection.fetch_trade(id)
+
+    async def fetch_price(self, item_name: str, game: Game):
+        """Gets the price(s) and volume sales of an item.
+
+        Parameters
+        ----------
+        item_name: str
+            The name of the item to fetch the price of.
+        game: :class:`~steam.Game`
+            The game the item is from.
+
+        Returns
+        -------
+        :class:`PriceOverview`
+            A class to represent the data from these transactions
+        """
+        return await self._market.fetch_price(item_name, game)
+
+    async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]):
+        """Get the price(s) and volume of each item in the list.
+
+        Parameters
+        ----------
+        item_names: List[:class:`str`]
+            A list of the items to get the prices for.
+        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
+            A list of :class:`~steam.Game`s or :class:`~steam.Game` the items are from.
+
+        Returns
+        -------
+        Mapping
+            A mapping of the prices. {item_name: :class:`PriceOverview`}
+        """
+        return self._market.fetch_prices(item_names, games)
+
+    async def create_listing(self, item_name: str, game: Game, *, price: float):
+        """Creates a market listing for an item.
+        .. note::
+            This could result in an account termination,
+            this is just added for completeness sake.
+
+        Parameters
+        ----------
+        item_name: :class:`str`
+            The name of the item to order.
+        game: :class:`~steam.Game`
+            The game the item is from.
+        price: Union[:class:`int`, :class:`float`]
+            The price to pay for the item in decimal form.
+            eg. $1 = 1.00 or £2.50 = 2.50 etc.
+        """
+        return self._market.create_market_listing(item_name, game, price=price)
+
+    async def create_listings(self, item_names: List[str], games: Union[List[Game], Game],
+                              prices: Union[List[Union[int, float]], Union[int, float]]):
+        """Creates market listing for items.
+        .. note::
+            This could result in an account termination,
+            this is just added for completeness sake.
+
+        Parameters
+        ----------
+        item_names: List[:class:`str`]
+            A list of item names to order.
+        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
+            The game the item(s) is/are from.
+        prices: Union[List[Union[:class:`int`, :class:`float`]], Union[:class:`int`, :class:`float`]]
+            The price to pay for each item in decimal form.
+            eg. $1 = 1.00 or £2.50 = 2.50 etc.
+        """
+        return await self._market.create_market_listings(item_names, games, prices=prices)
