@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from .enums import Game, ETradeOfferState
+from .enums import ETradeOfferState
 from .errors import ClientException
+from .models import Game
 
 
 class TradeOffer:
@@ -35,7 +36,7 @@ class TradeOffer:
                  'expires', 'escrow', 'items_to_give', 'items_to_receive',
                  '_state', '_data', '__weakref__')
 
-    def __init__(self, state, data, partner):
+    def __init__(self, state, data, partner=None):
         self._state = state
         self.partner = partner
         self._update(data)
@@ -196,8 +197,10 @@ class Inventory:
 
         Returns
         ---------
-        Items: List[:class:`Item`]
-            List of :class:`Item`s. This also removes the item from the inventory.
+        Items: Optional[List[:class:`Item`]]
+            List of :class:`Item`s.
+            Can be an empty list if no matching items are found.
+            This also removes the item from the inventory, if possible.
         """
         items = [item for item in self.items if item.name == item_name]
         for item in items:
@@ -214,13 +217,16 @@ class Inventory:
 
         Returns
         -------
-        Item: :class:`Item`
+        Item: Optional[:class:`Item`]
             Returns the first found item with a matching name.
-            This also removes the item from the inventory.
+            Can be ``None`` if no matching item is found.
+            This also removes the item from the inventory, if possible
         """
-        item = [item for item in self.items if item.name == item_name][0]
-        self.items.remove(item)
-        return item
+        item = [item for item in self.items if item.name == item_name]
+        if item:
+            self.items.remove(item[0])
+            return item[0]
+        return None
 
 
 class Asset:
@@ -255,11 +261,13 @@ class Asset:
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in self.__slots__]
         return f"<Asset {' '.join(resolved)}>"
 
-    def __iter__(self):
-        steam_names = ('assetid', 'amount', 'appid', 'contextid')
-        pythonic_names = (self.id, self.amount, self.game.app_id, str(self.game.context_id))
-        for key, value in zip(steam_names, pythonic_names):
-            yield (key, value)
+    def to_dict(self):
+        return {
+            "assetid": self.id,
+            "amount": self.amount,
+            "appid": self.app_id,
+            "contextid": str(self.game.context_id)
+        }
 
     def __eq__(self, other):
         return isinstance(other, Asset) and \
