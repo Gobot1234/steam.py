@@ -431,8 +431,8 @@ class HTTPClient:
 
     async def fetch_trade_items(self, user_id64, assets):
         items = []
-        app_ids = list(OrderedDict.fromkeys([item['appid'] for item in assets]))  # remove duplicate app_ids
-        context_ids = list(OrderedDict.fromkeys([item['contextid'] for item in assets]))  # and context_ids
+        app_ids = list(OrderedDict.fromkeys([asset.app_id for asset in assets]))  # remove duplicate app_ids
+        context_ids = list(OrderedDict.fromkeys([asset.game.context_id for asset in assets]))  # and context_ids
         for app_id, context_id in zip(app_ids, context_ids):
             data = await self.fetch_user_inventory(user_id64, app_id, context_id)
             inventory = Inventory(state=self._state, data=data, owner=await self._client.fetch_user(user_id64))
