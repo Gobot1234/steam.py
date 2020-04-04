@@ -41,7 +41,7 @@ from time import time
 from bs4 import BeautifulSoup
 
 from . import errors
-from .enums import URL
+from .models import URL
 
 
 def generate_one_time_code(shared_secret: str, timestamp: int = int(time())):
