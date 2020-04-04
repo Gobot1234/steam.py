@@ -37,7 +37,7 @@ import aiohttp
 from .abc import BaseUser, Messageable
 from .enums import *
 from .models import *
-from .trade import Item, TradeOffer
+from .trade import Item
 
 ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
 
@@ -200,10 +200,54 @@ class SteamID(int):
 
 
 class User(Messageable, BaseUser):
-    """Represents a Steam user's account."""
+    """Represents a Steam user's account.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two users are equal.
+
+        .. describe:: x != y
+
+            Checks if two users are not equal.
+
+        .. describe:: str(x)
+
+            Returns the user's name.
+
+    Attributes
+    ----------
+    name: :class:`str`
+        The user's username.
+    steam_id: :class:`SteamID`
+        The SteamID instance attached to the user.
+    state: :class:`~steam.EPersonaState`
+        The current persona state of the account (e.g. LookingToTrade).
+    game: Optional[:class:`~steam.Game`]
+        The Game instance attached to the user. Is None if the user
+        isn't in a game or one that is recognised by the api.
+    avatar_url: :class:`str`
+        The avatar url of the user. Uses the large (184x184 px) image url.
+    real_name: Optional[:class:`str`]
+        The user's real name defined by them. Could be None.
+    created_at: Optional[:class:`datetime.datetime`]
+        The time at which the user's account was created. Could be None.
+    last_logoff: Optional[:class:`datetime.datetime`]
+        The last time the user logged into steam. Could be None (e.g. if they are currently online).
+    country: Optional[:class:`str`]
+        The country code of the account. Could be None.
+    flags: :class:`~steam.EPersonaStateFlag`
+        The persona state flags of the account.
+    id64: :class:`int`
+        The 64 bit id of the user's account.
+    id3: :class:`str`
+        The id3 of the user's account. Used for newer steam games.
+    id2: :class:`str`
+        The id2 of the user's account. Used for older steam games.
+    """
 
     def __init__(self, state, data):
-        self._state = state
         super().__init__(state, data)
 
     async def add(self):
@@ -265,13 +309,9 @@ class User(Messageable, BaseUser):
         items_to_receive = [] if items_to_receive is None else items_to_receive
         resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send, items_to_receive, message)
         trade_id = int(resp['tradeofferid'])
-        if resp.get('needsconfirmation'):
+        if resp.get('needs_mobile_confirmation', False):
             confirmation = await self._state.confirmation_manager.get_trade_confirmation(trade_id)
             await confirmation.confirm()
-        resp = await self._state.http.fetch_trade(trade_id)
-        data = resp['response']['offer']
-        trade = TradeOffer(state=self._state, data=data, partner=self)
-        self._state.client.dispatch('trade_send', trade)
 
     async def fetch_escrow(self):
         """|coro|
@@ -287,13 +327,58 @@ class User(Messageable, BaseUser):
     async def send(self, content: str = None):
         """Send a message to the user
         .. note::
-            This does not currently function.
+        This does not currently function.
         """
         self._state.send_message(user_id64=self.id64, content=content)
 
 
 class ClientUser(BaseUser):
-    """Represents your account."""
+    """Represents your account.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two users are equal.
+
+        .. describe:: x != y
+
+            Checks if two users are not equal.
+
+        .. describe:: str(x)
+
+            Returns the user's name.
+
+    Attributes
+    ----------
+    name: :class:`str`
+        The user's username.
+    steam_id: :class:`SteamID`
+        The SteamID instance attached to the user.
+    state: :class:`~steam.EPersonaState`
+        The current persona state of the account (e.g. LookingToTrade).
+    game: Optional[:class:`~steam.Game`]
+        The Game instance attached to the user. Is None if the user
+        isn't in a game or one that is recognised by the api.
+    avatar_url: :class:`str`
+        The avatar url of the user. Uses the large (184x184 px) image url.
+    real_name: Optional[:class:`str`]
+        The user's real name defined by them. Could be None.
+    created_at: Optional[:class:`datetime.datetime`]
+        The time at which the user's account was created. Could be None.
+    last_logoff: Optional[:class:`datetime.datetime`]
+        The last time the user logged into steam. Could be None (e.g. if they are currently online).
+    country: Optional[:class:`str`]
+        The country code of the account. Could be None.
+    flags: :class:`~steam.EPersonaStateFlag`
+        The persona state flags of the account.
+    id64: :class:`int`
+        The 64 bit id of the user's account.
+    id3: :class:`str`
+        The id3 of the user's account. Used for newer steam games.
+    id2: :class:`str`
+        The id2 of the user's account. Used for older steam games.
+    """
 
     __slots__ = ('name', 'real_name', 'avatar_url', 'created_at', 'last_logoff',
                  'state', 'game', 'flags', 'country', 'id', 'steam_id',
@@ -322,7 +407,7 @@ class ClientUser(BaseUser):
                 self.friends.append(User(state=self._state, data=friend))
 
     async def trades(self, limit=None, before: datetime = None, after: datetime = None):
-        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`s.
+        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`(s).
 
         Examples
         -----------
