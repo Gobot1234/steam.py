@@ -185,7 +185,7 @@ Abstract Base Classes
 An :term:`py:abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
 They are only used for subclassing.
 
-.. autoclass:: steam.abc.User
+.. autoclass:: steam.abc.BaseUser
     :members:
 
 .. autoclass:: steam.abc.Messageable
