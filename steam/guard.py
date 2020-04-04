@@ -33,6 +33,7 @@ with extra doc-strings and it's slightly sped up.
 
 import base64
 import hmac
+import logging
 import re
 import struct
 from hashlib import sha1
@@ -42,6 +43,8 @@ from bs4 import BeautifulSoup
 
 from . import errors
 from .models import URL
+
+log = logging.getLogger(__name__)
 
 
 def generate_one_time_code(shared_secret: str, timestamp: int = int(time())):
@@ -147,13 +150,7 @@ class Confirmation:
         params['op'] = 'allow'
         params['cid'] = self.confirmation_id
         params['ck'] = self.data_key
-        try:
-            return await self._state.request('GET', url=f'{self.manager.BASE}/ajaxop', params=params)
-        except TypeError:
-            if loop:
-                raise errors.LoginError("Unable to re-login")
-            self._state.http._logged_on = False
-            await self.confirm(loop=1)
+        return await self._state.request('GET', url=f'{self.manager.BASE}/ajaxop', params=params)
 
     async def cancel(self):
         params = self._confirm_params('cancel')
@@ -201,14 +198,13 @@ class ConfirmationManager:
             confirmation_id = confirmation['data-confid']
             key = confirmation['data-key']
             creator = confirmation.get('data-creator')
-            to_confirm.append(Confirmation(manager=self, state=self._state, offer_id=offer_id,
-                                           confirmation_id=confirmation_id, data_key=key, creator=creator))
+            to_confirm.append(Confirmation(self, self._state, offer_id, confirmation_id, key, creator))
         return to_confirm
 
     async def get_trade_confirmation(self, trade_id, confirmations=None):
         if confirmations is None:
             confirmations = await self.get_confirmations()
         for confirmation in confirmations:
-            if confirmation.id == trade_id:
+            if confirmation.creator == trade_id:
                 return confirmation
-        raise errors.ConfirmationError(f'Could not find confirmation for trade: {trade_id}')
+        return []
