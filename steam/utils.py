@@ -31,9 +31,9 @@ from os import urandom as random_bytes
 from types import GeneratorType as _GeneratorType
 
 from Cryptodome.Cipher import AES as AES
-from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5
+from Cryptodome.Cipher import PKCS1_OAEP
 from Cryptodome.Hash import SHA1, HMAC
-from Cryptodome.PublicKey.RSA import import_key as rsa_import_key, construct as rsa_construct
+from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
 from google.protobuf.message import Message as _ProtoMessageType
 
 
@@ -69,10 +69,6 @@ def symmetric_encrypt(message, key):
     return symmetric_encrypt_with_iv(message, key, iv)
 
 
-def symmetric_encrypt_ecb(message, key):
-    return AES.new(key, AES.MODE_ECB).encrypt(pad(message))
-
-
 def symmetric_encrypt_HMAC(message, key, hmac_secret):
     prefix = random_bytes(3)
     hmac = hmac_sha1(hmac_secret, prefix + message)
@@ -93,10 +89,6 @@ def symmetric_encrypt_with_iv(message, key, iv):
 def symmetric_decrypt(cyphertext, key):
     iv = symmetric_decrypt_iv(cyphertext, key)
     return symmetric_decrypt_with_iv(cyphertext, key, iv)
-
-
-def symmetric_decrypt_ecb(cyphertext, key):
-    return unpad(AES.new(key, AES.MODE_ECB).decrypt(cyphertext))
 
 
 def symmetric_decrypt_HMAC(cyphertext, key, hmac_secret):
@@ -121,18 +113,6 @@ def symmetric_decrypt_with_iv(cyphertext, key, iv):
 
 def hmac_sha1(secret, data):
     return HMAC.new(secret, data, SHA1).digest()
-
-
-def sha1_hash(data):
-    return SHA1.new(data).digest()
-
-
-def rsa_publickey(mod, exp):
-    return rsa_construct((mod, exp))
-
-
-def pkcs1v15_encrypt(key, message):
-    return PKCS1_v1_5.new(key).encrypt(message)
 
 
 def ip_from_int(ip):
@@ -176,7 +156,7 @@ def proto_to_dict(message):
     return data
 
 
-_list_types = (list, range, _GeneratorType, map, filter)
+_list_types = (list, range, _GeneratorType)
 
 
 def proto_fill_from_dict(message, data, clear=True):
@@ -218,24 +198,19 @@ def proto_fill_from_dict(message, data, clear=True):
     return message
 
 
-class BASE_INT(int):
-    def __repr__(self):
-        return "%s(%d)" % (self.__class__.__name__, self)
-
-
-class UINT_64(BASE_INT):
+class UINT_64(int):
     pass
 
 
-class INT_64(BASE_INT):
+class INT_64(int):
     pass
 
 
-class POINTER(BASE_INT):
+class POINTER(int):
     pass
 
 
-class COLOR(BASE_INT):
+class COLOR(int):
     pass
 
 
@@ -253,16 +228,6 @@ BIN_END_ALT = b'\x0B'
 
 
 def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
-    """
-    Deserialize ``s`` (``bytes`` containing a VDF in "binary form")
-    to a Python object.
-    ``mapper`` specifies the Python object used after deserializetion. ``dict` is
-    used by default. Alternatively, ``collections.OrderedDict`` can be used if you
-    wish to preserve key order. Or any object that acts like a ``dict``.
-    ``merge_duplicate_keys`` when ``True`` will merge multiple KeyValue lists with the
-    same key into one instead of overwriting. You can se this to ``False`` if you are
-    using ``VDFDict`` and need to preserve the duplicates.
-    """
     if not isinstance(s, bytes):
         raise TypeError("Expected s to be bytes, got %s" % type(s))
     if not issubclass(mapper, dict):
@@ -292,7 +257,7 @@ def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
         else:
             try:
                 result.decode('ascii')
-            except:
+            except UnicodeDecodeError:
                 result = result.decode('utf-8', 'replace')
         return result, end + (2 if wide else 1)
 
