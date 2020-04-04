@@ -26,6 +26,8 @@ SOFTWARE.
 
 import re
 
+from bs4 import BeautifulSoup
+
 
 class SteamException(Exception):
     """Base exception class for steam.py"""
@@ -42,6 +44,17 @@ class ClientException(SteamException):
 class HTTPException(SteamException):  # TODO add some messages for these
     """Exception that's thrown for any web API error.
     Subclass of :exc:`SteamException`
+
+    Attributes
+    ------------
+    response: :class:`aiohttp.ClientResponse`
+        The response of the failed HTTP request.
+    message: :class:`str`
+        The message associated with the error. Could be an empty string if the message is html.
+    status: :class:`int`
+        The status code of the HTTP request.
+    code: :class:`int`
+        The Steam specific error code for the failure.
     """
 
     def __init__(self, response, data):
@@ -59,8 +72,11 @@ class HTTPException(SteamException):  # TODO add some messages for these
                 self.code = 0
                 self.message = message
         else:
-            self.message = data
-            self.code = 0
+            if bool(BeautifulSoup(data, 'html.parser').find()):
+                self.message = ''
+            else:
+                self.message = data.replace('  ', ' ')
+                self.code = 0
         super().__init__(f'{response.status} {response.reason} (error code: {self.code})'
                          f'{f": {self.message}" if self.message else ""}')
 
