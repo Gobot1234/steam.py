@@ -30,7 +30,6 @@ https://github.com/Rapptz/discord.py/blob/master/discord/abc.py
 import abc
 from datetime import datetime
 
-from . import errors
 from .enums import *
 from .models import URL, Game, CommentsIterator
 from .trade import Inventory
@@ -145,15 +144,11 @@ class BaseUser(metaclass=abc.ABCMeta):
         comment: :class:`str`
             The comment to add the :class:`User`'s profile.
         """
-        if self.is_commentable():
-            if len(comment) < 1000:
-                return await self._state.http.post_comment(self.id64, comment)
-            raise errors.Forbidden('Comment message is too large post')
-        raise errors.Forbidden("We cannot post on this user's profile")
+        return await self._state.http.post_comment(self.id64, comment)
 
     async def fetch_inventory(self, game: Game):
         """|coro|
-        Fetch an :class:`User`'s class:`~steam.trade.Inventory` for trading.
+        Fetch an :class:`User`'s class:`~steam.Inventory` for trading.
 
         Parameters
         -----------
@@ -184,7 +179,7 @@ class BaseUser(metaclass=abc.ABCMeta):
         return bool(self._data.get('profilestate'))
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None):
-        """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment`s.
+        """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment`(s).
 
         Examples
         -----------
