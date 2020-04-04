@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import re
+
 
 class SteamException(Exception):
     """Base exception class for steam.py"""
@@ -37,11 +39,30 @@ class ClientException(SteamException):
     """
 
 
-class HTTPException(SteamException):
+class HTTPException(SteamException):  # TODO add some messages for these
     """Exception that's thrown for any web API error.
     Subclass of :exc:`SteamException`
     """
-    pass
+
+    def __init__(self, response, data):
+        self.response = response
+        self.status = response.status
+
+        if isinstance(data, dict):
+            message = list(data.values())[0]
+            code_regex = re.compile(r'[^\s]([0-9]{1,3})[^\s]')
+            code = re.findall(code_regex, message)[0]
+            if code:
+                self.code = int(code)  # would like to EResult however steam trades don't use the same system
+                self.message = re.sub(code_regex, '', message).replace('  ', ' ')
+            else:
+                self.code = 0
+                self.message = message
+        else:
+            self.message = data
+            self.code = 0
+        super().__init__(f'{response.status} {response.reason} (error code: {self.code})'
+                         f'{f": {self.message}" if self.message else ""}')
 
 
 class Forbidden(HTTPException):
@@ -58,9 +79,9 @@ class NotFound(HTTPException):
     pass
 
 
-class LoginError(HTTPException):
+class LoginError(SteamException):
     """Exception that's thrown when a login fails.
-    Subclass of :exc:`HTTPException`
+    Subclass of :exc:`SteamException`
     """
     pass
 
