@@ -75,7 +75,7 @@ class State:
         resp = await self.http.fetch_profile(id64)
         data = resp['response']['players'][0] if resp['response']['players'][0] else None
         if data:
-            self._store_user(data)
+            return self._store_user(data)
         return None
 
     def get_user(self, id64):
@@ -99,7 +99,9 @@ class State:
         data = await self.http.fetch_trade(trade_id)
         data = data['response']['offer']
         if data:
-            self._store_trade(data)
+            trade = self._store_trade(data)
+            await trade.__ainit__()
+            return trade
         return None
 
     def _store_trade(self, data):
@@ -114,8 +116,7 @@ class State:
                 name = trade.state.name.lower()
                 event_name = name[:-2] if name != 'declined' else 'decline'
                 self.dispatch(event_name, trade)
-        finally:
-            return trade
+        return trade
 
     def send_message(self, steam_id, content):
         self.send_um(
