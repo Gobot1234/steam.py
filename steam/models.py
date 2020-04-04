@@ -82,7 +82,7 @@ class Comment:
     author: :class:`~steam.User`
         The author of the comment.
     created_at: :class:`datetime.datetime`
-        The context id of the game normally 2.
+        The time the comment was posted at.
     """
 
     __slots__ = ('content', 'id', 'created_at', 'author', '_owner_id', '_state')
