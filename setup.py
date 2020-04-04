@@ -32,7 +32,11 @@ setup(name='steam.py',
           "Issue tracker": 'https://github.com/Gobot1234/steam.py/issues',
       },
       version=version,
-      packages=['steam'],
+      packages=[
+          'steam',
+          'steam.protobufs',
+          'steam.ext'
+      ],
       license='MIT',
       description='A Python wrapper for the Steam API',
       long_description=readme,
