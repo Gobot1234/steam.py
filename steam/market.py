@@ -28,44 +28,20 @@ Thanks confern for letting me use this :D
 """
 
 import logging
-from typing import Union, List
 
-from .enums import ECurrencyCode, URL, Game
+from .enums import ECurrencyCode
+from .models import Game, URL
 
 log = logging.getLogger(__name__)
 
 
 def has_valid_name(name: str):
-    """Check if the name of an item is serializable.
-
-    Parameters
-    ----------
-    name: :class:`str`
-        The name of the item to check.
-
-    Returns
-    -------
-    :class:`bool`
-        Returns if it can be sterilized.
-    """
     if isinstance(name, str):
         return '/' not in name
     return False
 
 
 def fix_name(name: str):
-    """Sterilize the name of an item to be able to request the price.
-
-    Parameters
-    ----------
-    name: :class:`str`
-        The name of the item to sterilize.
-
-    Returns
-    -------
-    :class:`str`
-        The fixed name.
-    """
     if isinstance(name, str):
         return name.replace('/', '-')
     raise TypeError('name is not a string')
@@ -138,12 +114,12 @@ class Market:
     ----------
     currency: Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]
         Sets the currency for requests. :attr:`~steam.ECurrencyCode.USD`/United State Dollars is default.
-        Pass this as a `kwarg` to the :class:`~steam.Client` initialization.
+        Pass this as a :term:`py:kwarg` to the :class:`~steam.Client` initialization.
     """
 
     BASE = f'{URL.COMMUNITY}/market'
 
-    def __init__(self, http, currency: Union[ECurrencyCode, int, str] = ECurrencyCode.USD):
+    def __init__(self, http, currency=ECurrencyCode.USD):
         self.http = http
 
         if isinstance(currency, ECurrencyCode):
@@ -162,21 +138,7 @@ class Market:
         else:
             self.currency = 1
 
-    async def fetch_price(self, item_name: str, game: Game):
-        """Gets the price(s) and volume sales of an item.
-
-        Parameters
-        ----------
-        item_name: str
-            The name of the item to fetch the price of.
-        game: :class:`~steam.Game`
-            The game the item is from.
-
-        Returns
-        -------
-        :class:`PriceOverview`
-            A class to represent the data from these transactions
-        """
+    async def fetch_price(self, item_name, game):
         item = FakeItem(fix_name(item_name), game)
         data = {
             'appid': item.app_id,
@@ -186,59 +148,12 @@ class Market:
 
         return PriceOverview(await self.http.request('POST', f'{self.BASE}/priceoverview', data=data))
 
-    async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]):
-        """Get the price(s) and volume of each item in the list.
-
-        Parameters
-        ----------
-        item_names: List[:class:`str`]
-            A list of the items to get the prices for.
-        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
-            A list of :class:`~steam.Game`s or :class:`~steam.Game` the items are from.
-
-        Returns
-        -------
-        :class:`dict`
-            A dictionary of the prices with the mapping of {item_name: :class:`PriceOverview`}
-        """
+    async def fetch_prices(self, item_names, games):
         items = convert_items(item_names, games)
 
-        prices = {item: await self.fetch_price(item.name, item.game) for item in items}
-        return prices
+        return {item: await self.fetch_price(item.name, item.game) for item in items}
 
-    """
-    async def fetch_price_history(self, item_name: str, game: Game, *, limit=100):
-        example = {
-            "success": True,
-            "price_prefix": "\u00a3",
-            "prices": [
-                [datetime.strptime("%b %d %Y %H: %z +0"), 1.893, "341"]
-            ]
-        }
-        params = {
-            'appid': game.app_id,
-            'currency': self.currency,
-            'market_hash_name': item_name
-        }
-        response = await self.http.request('GET', url=f'{self.BASE}/pricehistory', params=params)
-        return response
-    """
-    async def create_market_listing(self, item_name: str, game: Game, *, price: float):
-        """Creates a market listing for an item.
-        .. note::
-            This could result in an account termination,
-            this is just added for completeness sake.
-
-        Parameters
-        ----------
-        item_name: :class:`str`
-            The name of the item to order.
-        game: :class:`~steam.Game`
-            The game the item is from.
-        price: Union[:class:`int`, :class:`float`]
-            The price to pay for the item in decimal form.
-            eg. $1 = 1.00 or £2.50 = 2.50 etc.
-        """
+    def create_listing(self, item_name, game, *, price):
         item = FakeItem(fix_name(item_name), game)
         data = {
             "sessionid": self.http.session_id,
@@ -251,25 +166,9 @@ class Market:
 
         headers = {"Referer": f'{URL.COMMUNITY}/market/listings/{game.app_id}/{item.name}'}
 
-        await self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder/', data=data, headers=headers)
+        self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder/', data=data, headers=headers)
 
-    async def create_market_listings(self, item_names: List[str], games: Union[List[Game], Game],
-                                     prices: Union[List[Union[int, float]], Union[int, float]]):
-        """Creates market listing for items.
-        .. note::
-            This could result in an account termination,
-            this is just added for completeness sake.
-
-        Parameters
-        ----------
-        item_names: List[:class:`str`]
-            A list of item names to order.
-        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
-            The game the item(s) is/are from.
-        prices: Union[List[Union[:class:`int`, :class:`float`]], Union[:class:`int`, :class:`float`]]
-            The price to pay for each item in decimal form.
-            eg. $1 = 1.00 or £2.50 = 2.50 etc.
-        """
+    def create_listings(self, item_names, games, *, prices):
         to_list = []
         items = convert_items(item_names, games, prices)
         for (item, price) in items:
@@ -291,4 +190,4 @@ class Market:
             }
             headers = {"Referer": f'{URL.COMMUNITY}/market/listings/{item.app_id}/{item.name}'}
 
-            await self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder/', data=data, headers=headers)
+            self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder/', data=data, headers=headers)
