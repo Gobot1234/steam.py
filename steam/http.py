@@ -47,8 +47,11 @@ log = logging.getLogger(__name__)
 
 async def json_or_text(response):
     text = await response.text(encoding='utf-8')
-    if 'application/json' in response.headers['content-type']:  # thanks steam very cool
-        return json.loads(text)
+    try:
+        if 'application/json' in response.headers['content-type']:  # thanks steam very cool
+            return json.loads(text)
+    except KeyError:
+        pass
     return text
 
 
