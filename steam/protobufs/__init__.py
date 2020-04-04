@@ -179,19 +179,19 @@ class MsgProto:
         self._header.msg = EMsg(value)
 
     @property
-    def steamID(self):
+    def steam_id(self):
         return self.header.steamid
 
-    @steamID.setter
-    def steamID(self, value):
+    @steam_id.setter
+    def steam_id(self, value):
         self.header.steamid = value
 
     @property
-    def sessionID(self):
+    def session_id(self):
         return self.header.client_sessionid
 
-    @sessionID.setter
-    def sessionID(self, value):
+    @session_id.setter
+    def session_id(self, value):
         self.header.client_sessionid = value
 
     def serialize(self):
