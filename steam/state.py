@@ -63,15 +63,26 @@ class State:
 
         return await self.send_job(message)
 
-    async def fetch_user(self, steam_id):
-        resp = await self.http.fetch_profile(steam_id.as_64)
+    @property
+    def users(self):
+        return list(self._users.values())
+
+    @property
+    def trades(self):
+        return list(self._trades.values())
+
+    async def fetch_user(self, id64):
+        resp = await self.http.fetch_profile(id64)
         data = resp['response']['players'][0] if resp['response']['players'][0] else None
         if data:
             self._store_user(data)
         return None
 
-    def get_user(self, steam_id):
-        return self._users[steam_id.as_64]
+    def get_user(self, id64):
+        return self._users.get(id64)
+
+    async def ensure_user(self, id64):
+        return self.get_user(id64) or await self.fetch_user(id64)
 
     def _store_user(self, data):
         try:
