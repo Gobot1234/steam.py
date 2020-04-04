@@ -25,93 +25,6 @@ Taken from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 """
 
 import enum
-from collections import namedtuple
-
-
-class URL:
-    API = 'https://api.steampowered.com'
-    COMMUNITY = 'https://steamcommunity.com'
-    STORE = 'https://store.steampowered.com'
-
-
-GAME_TUPLE = namedtuple('GAME_TUPLE', ('title', 'app_id', 'context_id', 'is_steam_game'))
-GAMES = {
-        440: GAME_TUPLE('Team Fortress 2', 440, 2, True),
-        570: GAME_TUPLE('DOTA 2', 570, 2, True),
-        730: GAME_TUPLE('Counter Strike Global-Offensive', 730, 2, True),
-        753: GAME_TUPLE('Steam', 753, 6, True),
-        'Team Fortress 2': GAME_TUPLE('Team Fortress 2', 440, 2, True),
-        'TF2': GAME_TUPLE('Team Fortress 2', 440, 2, True),
-        'DOTA 2': GAME_TUPLE('DOTA 2', 570, 2, True),
-        'Counter Strike Global-Offensive': GAME_TUPLE('Counter Strike Global-Offensive', 730, 2, True),
-        'CSGO': GAME_TUPLE('Counter Strike Global-Offensive', 730, 2, True),
-        'Steam': GAME_TUPLE('Steam', 753, 6, True)
-    }
-
-
-class Game:
-    """Represents a Steam game.
-
-    Parameters
-    ----------
-    title: Optional[:class:`str`]
-        The game's title.
-    app_id: Optional[:class:`int`]
-        The game's app_id.
-    is_steam_game: Optional[bool]
-        Whether or not the game is an official Steam game.
-        Defaults to ``True``
-
-    Attributes
-    -----------
-    title: Optional[:class:`str`]
-        The game's title.
-    app_id: Optional[:class:`int`]
-        The game's app_id.
-    context_id: :class:`int`
-        The context id of the game normally 2.
-    is_steam_game: bool
-        Whether or not the game is an official Steam game.
-    """
-
-    __slots__ = ('title', 'app_id', 'context_id', 'is_steam_game', '_game')
-
-    def __init__(self, *, title: str = None, app_id: int = None, is_steam_game: bool = True):
-        try:
-            if title:
-                self._game = GAMES[title]
-            elif app_id:
-                self._game = GAMES[app_id]
-            elif not is_steam_game:
-                self.title = title
-                self.app_id = None
-                self.context_id = None
-                self.is_steam_game = False
-            else:
-                raise ValueError('missing a game title or app_id kwarg')
-        except KeyError:  # Make the game a fake game
-            self.title = title
-            self.app_id = app_id
-            self.context_id = 2
-            self.is_steam_game = True
-        else:
-            self.title = self._game[0]
-            self.app_id = self._game[1]
-            self.context_id = self._game[2]
-            self.is_steam_game = self._game[3]
-
-    def __repr__(self):
-        attrs = (
-            'title', 'app_id', 'context_id'
-        )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
-        return f"<Game {' '.join(resolved)}>"
-
-    def __eq__(self, other):
-        return isinstance(other, Game) and self.app_id == other.app_id
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
 
 
 class EResult(enum.IntEnum):
@@ -170,7 +83,6 @@ class EResult(enum.IntEnum):
     DataCorruption = 53  #: Operation canceled because data is ill formed or unrecoverable
     DiskFull = 54  #: Operation canceled - not enough disk space.
     RemoteCallFailed = 55  #: An remote call or IPC call failed
-    PasswordUnset = 56  #: Password could not be verified as it's unset server side
     ExternalAccountUnlinked = 57  #: External account (PSN, Facebook...) is not linked to a Steam account
     PSNTicketInvalid = 58  #: PSN ticket was invalid
     ExternalAccountAlreadyLinked = 59  #: External account (PSN, Facebook...) is already linked to some other account
@@ -180,14 +92,12 @@ class EResult(enum.IntEnum):
     AccountLogonDenied = 63  #: Account login denied due to 2nd factor authentication failure
     CannotUseOldPassword = 64  #: The requested new password is not legal
     InvalidLoginAuthCode = 65  #: Account login denied due to auth code invalid
-    AccountLogonDeniedNoMail = 66  #: Account login denied due to 2nd factor auth failure and no mail has been sent
     HardwareNotCapableOfIPT = 67
     IPTInitError = 68
     ParentalControlRestricted = 69  #: Operation failed due to parental control restrictions for current user
     FacebookQueryError = 70
     ExpiredLoginAuthCode = 71  #: Account login denied due to auth code expired
     IPLoginRestrictionFailed = 72
-    AccountLockedDown = 73
     VerifiedEmailRequired = 74
     NoMatchingURL = 75
     BadResponse = 76  #: Parse failure, missing field, etc.
@@ -204,12 +114,9 @@ class EResult(enum.IntEnum):
     AccountLoginDeniedThrottle = 87  #: Login attempt failed, try to throttle response to possible attacker
     TwoFactorCodeMismatch = 88  #: Two factor code mismatch
     TwoFactorActivationCodeMismatch = 89  #: Activation code for two-factor didn't match
-    AccountAssociatedToMultiplePartners = 90  #: Account has been associated with multiple partners
     NotModified = 91  #: Data not modified
-    NoMobileDevice = 92  #: The account does not have a mobile device associated with it
     TimeNotSynced = 93  #: The time presented is out of range or tolerance
     SMSCodeFailed = 94  #: SMS code failure (no match, none pending, etc.)
-    AccountLimitExceeded = 95  #: Too many accounts access this resource
     AccountActivityLimitExceeded = 96  #: Too many changes to this account
     PhoneActivityLimitExceeded = 97  #: Too many changes to this phone
     RefundToWallet = 98  #: Cannot refund to payment method, must use wallet
@@ -225,6 +132,9 @@ class EResult(enum.IntEnum):
     TooManyPending = 108  #: There are too many of this thing pending already
     NoSiteLicensesFound = 109  #: No site licenses found
     WGNetworkSendExceeded = 110  #: The WG couldn't send a response because we exceeded max network send size
+    AccountNotFriends = 111
+    LimitedUserAccount = 112
+    CantRemoveItem = 113
 
 
 class EUniverse(enum.IntEnum):
@@ -234,6 +144,9 @@ class EUniverse(enum.IntEnum):
     Internal = 3
     Dev = 4
     Max = 6
+
+    def __str__(self):
+        return self.name
 
 
 class EType(enum.IntEnum):
@@ -249,6 +162,9 @@ class EType(enum.IntEnum):
     ConsoleUser = 9  #: Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
     AnonUser = 10
     Max = 11
+
+    def __str__(self):
+        return self.name
 
 
 class ETypeChar(enum.IntEnum):
@@ -287,7 +203,7 @@ class EFriendRelationship(enum.IntEnum):
     Max = 8
 
 
-class EPersonaState(enum.Enum):
+class EPersonaState(enum.IntEnum):
     Offline = 0
     Online = 1
     Busy = 2
@@ -309,6 +225,7 @@ class EPersonaStateFlag(enum.IntEnum):
     ClientTypeWeb = 256
     ClientTypeMobile = 512
     ClientTypeTenfoot = 1024
+    NoClue = 3072  # TODO figure out what this is
     ClientTypeVR = 2048
     LaunchTypeGamepad = 4096
 
