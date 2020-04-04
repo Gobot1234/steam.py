@@ -341,6 +341,9 @@ class Client:
         self.shared_secret = shared_secret
         self.identity_secret = identity_secret
 
+        if identity_secret is None:
+            log.info('Trades will not be automatically accepted when sent as no identity_secret was passed')
+
         await self.http.login(username=username, password=password, api_key=api_key,
                               shared_secret=shared_secret, identity_secret=identity_secret)
         self._user = self.http.user
@@ -544,7 +547,7 @@ class Client:
             The price to pay for the item in decimal form.
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
-        return self._market.create_market_listing(item_name, game, price=price)
+        return self._market.create_listing(item_name, game, price=price)
 
     async def create_listings(self, item_names: List[str], games: Union[List[Game], Game],
                               prices: Union[List[Union[int, float]], Union[int, float]]):
@@ -563,4 +566,4 @@ class Client:
             The price to pay for each item in decimal form.
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
-        return await self._market.create_market_listings(item_names, games, prices=prices)
+        return await self._market.create_listings(item_names, games, prices=prices)
