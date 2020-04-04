@@ -107,7 +107,7 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
     Called when the client receives a trade offer.
     
-    :param trade: The trade offer that was recieved.
+    :param trade: The trade offer that was received.
     :type trade: :class:`~steam.TradeOffer`
 
 .. function:: on_trade_send(trade)
@@ -142,9 +142,6 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 Enumerations
 -------------
 
-.. autoclass:: Game
-    :members:
-
 .. autoclass:: EResult
     :members:
     :undoc-members:
@@ -176,21 +173,63 @@ Guard
 Market
 -------------------
 
-.. autoclass:: steam.Market()
+.. autoclass:: steam.market.Market()
     :members:
 
-.. autoclass:: steam.PriceOverview()
+.. autoclass:: PriceOverview()
+    :members:
+
+Abstract Base Classes
+-----------------------
+
+An :term:`py:abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
+They are only used for subclassing.
+
+.. autoclass:: steam.abc.User
+    :members:
+
+.. autoclass:: steam.abc.Messageable
+    :members:
+
+Steam Models
+---------------
+
+Game
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Game
+    :members:
+
+There are some predefined games which are:
+
++---------------------------------+-----------------+
+| Game Title                      | Accessed via    |
++=================================+=================+
+| Team Fortress 2                 | ``steam.TF2``   |
++---------------------------------+-----------------+
+| DOTA2                           | ``steam.DOTA2`` |
++---------------------------------+-----------------+
+| Counter Strike Global-Offensive | ``steam.CSGO``  |
++---------------------------------+-----------------+
+| Steam                           | ``steam.STEAM`` |
++---------------------------------+-----------------+
+
+Comments
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Comment()
     :members:
 
 Message
---------------------
-This is currently under development and **does not** currently function.
+~~~~~~~~~~~~~~~
+
+This is currently under development and does **not** currently function.
 
 .. autoclass:: Message()
     :members:
 
 Trading
-------------------
+~~~~~~~~~~~~~~~
 
 .. autoclass:: TradeOffer()
     :members:
@@ -200,23 +239,29 @@ Trading
 
 .. autoclass:: Item()
     :members:
-    
+
 .. autoclass:: Asset()
     :members:
 
-User
------------------
+Steam IDs
+~~~~~~~~~~~~~~~
 
 .. autoclass:: SteamID
     :members:
+
+Users
+~~~~~~~~~~~~~~~
 
 .. autofunction:: make_steam64
 
 .. autoclass:: ClientUser()
     :members:
+    :inherited-members:
+
 
 .. autoclass:: User()
     :members:
+    :inherited-members:
 
 Exceptions
 ------------
