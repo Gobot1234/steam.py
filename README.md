@@ -8,9 +8,9 @@ A modern, easy to use, and async ready package to interact with the Steam API. H
 Key Features
 --------------
 
-  - Modern Pythonic API using `async`/`await` syntax
-  - Proper rate limit handling.
-  - Easy to use with an object oriented design
+- Modern Pythonic API using `async`/`await` syntax
+- Proper rate limit handling.
+- Easy to use with an object oriented design
 
 Installation
 --------------
@@ -53,7 +53,7 @@ client.run(username='username', api_key='api_key', password='password', shared_s
 Links
 ------
 
-  - [Documentation](https://steampy.readthedocs.io/en/latest/index.html)
-  - [Official Discord Server](https://discord.gg/MQ68WUS)
+- [Documentation](https://steampy.readthedocs.io/en/latest/index.html)
+- [Official Discord Server](https://discord.gg/MQ68WUS)
 
-#### Please note this repo is still in alpha if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new).
+#### Please note this repo is still in alpha if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new)
