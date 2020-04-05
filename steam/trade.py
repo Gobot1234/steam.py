@@ -138,7 +138,7 @@ class Inventory:
 
         .. describe:: len(x)
 
-            Returns how large the inventory is.
+            Returns how many items are in the inventory.
 
     Attributes
     -------------

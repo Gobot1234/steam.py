@@ -406,7 +406,8 @@ class ClientUser(BaseUser):
                 self._state._store_user(friend)
                 self.friends.append(User(state=self._state, data=friend))
 
-    async def trades(self, limit=None, before: datetime = None, after: datetime = None):
+    def trades(self, limit=None, before: datetime = None, after: datetime = None,
+               active_only: bool = True, include_sent: bool = True, include_received: bool = True):
         """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`(s).
 
         Examples
@@ -435,12 +436,19 @@ class ClientUser(BaseUser):
             A time to search for trades before.
         after: Optional[:class:`datetime.datetime`]
             A time to search for trades after.
+        active_only: Optional[:class:`bool`]
+            The option passed when fetching trades defaults to ``True``.
+        include_sent: Optional[:class:`bool`]
+            The option passed when fetching trades defaults to ``True``.
+        include_received: Optional[:class:`bool`]
+            The option passed when fetching trades defaults to ``True``.
 
         Yields
         ---------
         :class:`~steam.TradeOffer`
         """
-        return TradesIterator(state=self._state, limit=limit, before=before, after=after)
+        return TradesIterator(state=self._state, limit=limit, before=before, after=after,
+                              active_only=active_only, sent=include_sent, received=include_received)
 
 
 def make_steam64(account_id=0, *args, **kwargs):

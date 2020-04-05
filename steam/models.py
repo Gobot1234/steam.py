@@ -137,9 +137,14 @@ class AsyncIterator:
     async def __anext__(self):
         return await self.next()
 
+    async def fill(self):
+        self._current_iteration += 1
+        if self._current_iteration == 2:
+            raise StopAsyncIteration
+
 
 class CommentsIterator(AsyncIterator):
-    __slots__ = ('comments', 'before', 'after', 'owner', 'limit', '_user_id', '_current_iteration', '_state')
+    __slots__ = ('comments', 'owner', '_user_id') + AsyncIterator.__slots__
 
     def __init__(self, state, user_id, before, after, limit):
         super().__init__(state, limit, before, after)
@@ -147,9 +152,7 @@ class CommentsIterator(AsyncIterator):
         self.comments = asyncio.Queue()
 
     async def fill_comments(self):
-        self._current_iteration += 1
-        if self._current_iteration == 2:
-            raise StopAsyncIteration
+        await super().fill()
         from .user import make_steam64, User
 
         data = await self._state.http.fetch_comments(id64=self._user_id, limit=self.limit)
@@ -169,6 +172,9 @@ class CommentsIterator(AsyncIterator):
                 to_fetch.append(make_steam64(author_id))
                 self.comments.put_nowait(Comment(state=self._state, comment_id=comment_id, timestamp=timestamp,
                                                  content=content, author=author_id, owner_id=self._user_id))
+                if self.limit is not None:
+                    if self.comments.qsize <= self.limit:
+                        return
         users = await self._state.http.fetch_profiles(to_fetch)
         for user in users:
             author = User(state=self._state, data=user)
@@ -177,31 +183,34 @@ class CommentsIterator(AsyncIterator):
                     comment.author = author
 
     async def next(self):
+        await super().next()
         if self.comments.empty():
             await self.fill_comments()
         return self.comments.get_nowait()
 
 
 class TradesIterator(AsyncIterator):
-    __slots__ = ('trades', 'before', 'after', 'limit', '_current_iteration', '_state')
+    __slots__ = ('trades', '_active_only', '_sent', '_received') + AsyncIterator.__slots__
 
-    def __init__(self, state, before, after, limit):
+    def __init__(self, state, limit, before, after, active_only, sent, received):
         super().__init__(state, limit, before, after)
+        self._active_only = active_only
+        self._sent = sent
+        self._received = received
         self.trades = asyncio.Queue()
 
     async def fill_trades(self):
-        self._current_iteration += 1
-        if self._current_iteration == 2:
-            raise StopAsyncIteration
-
+        await super().fill()
         from .trade import TradeOffer
 
-        data = await self._state.http.get_trade_offers()
+        resp = await self._state.http.fetch_trade_offers(self._active_only, self._sent, self._received)
+        data = resp['response']
         for trade in data['trade_offers_sent']:
             if self.after.timestamp() < trade['time_created'] < self.before.timestamp():
                 self.trades.put_nowait(TradeOffer(state=self._state, data=trade))
-            if self.trades.qsize <= self.limit:
-                return
+            if self.limit is not None:
+                if self.trades.qsize <= self.limit:
+                    return
 
     async def next(self):
         if self.trades.empty():
