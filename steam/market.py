@@ -114,27 +114,20 @@ class Market:
     ----------
     currency: Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]
         Sets the currency for requests. :attr:`~steam.ECurrencyCode.USD`/United State Dollars is default.
-        Pass this as a :term:`py:kwarg` to the :class:`~steam.Client` initialization.
+        Pass this as a ``kwarg`` to the :class:`~steam.Client` initialization.
     """
 
     BASE = f'{URL.COMMUNITY}/market'
 
-    def __init__(self, http, currency=ECurrencyCode.USD):
+    def __init__(self, http, currency):
         self.http = http
 
         if isinstance(currency, ECurrencyCode):
             self.currency = currency.value
         elif isinstance(currency, str):
-            currency = currency.upper()
-            if currency in [item.name for item in ECurrencyCode]:
-                self.currency = ECurrencyCode[currency].value
-            else:
-                raise IndexError(f'Currency {currency} not found')
+            self.currency = ECurrencyCode[currency.upper()].value
         elif isinstance(currency, int):
-            if currency > 32 or currency < 1:
-                self.currency = 1
-            else:
-                raise IndexError(f'Currency {currency} not found')
+            self.currency = ECurrencyCode(currency).value
         else:
             self.currency = 1
 
