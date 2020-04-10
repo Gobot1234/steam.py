@@ -32,22 +32,21 @@ Quick Example
 ```py
 import steam
 
-class MyClient(steam.Client):
-    async def on_login(self):
-        print('Logged on as', self.user)
 
-    async def on_trade_receive(self, trade):
+class MyClient(steam.Client):
+    async def on_trade_receive(self, trade: steam.TradeOffer):
         print(f'Received trade: #{trade.id}')
-     	print('From user:', trade.partner.name, 'Is one-sided:', trade.is_one_sided())
-        print('We are sending:')
-        print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_give])
-              if trade.items_to_give else 'Nothing')
-        print('We are receiving:')
-        print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_receive])
+        print('Trade partner is:', trade.partner.name)
+        print('We are going to send:')
+        print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send])
+              if trade.items_to_send else 'Nothing')
+        print('We are going to receive:')
+        print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
               if trade.items_to_receive else 'Nothing')
 
-client = MyClient()
-client.run(username='username', api_key='api_key', password='password', shared_secret='shared_secret')
+        if trade.is_one_sided():
+            print('Accepting the trade as it one sided towards the ClientUser')
+            await trade.accept()
 ```
 
 Links

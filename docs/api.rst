@@ -13,7 +13,7 @@ Version Related Info
 
 
 Client
--------------------
+---------------
 
 .. autoclass:: Client
     :members:
@@ -29,16 +29,21 @@ overriding the specific events. For example: ::
 
     import steam
 
+
     class MyClient(steam.Client):
-        async def on_trade_receive(self, trade):
+        async def on_trade_receive(self, trade: steam.TradeOffer):
             print(f'Received trade: #{trade.id}')
-            print('From user:', trade.partner.name, 'Is one-sided:', trade.is_one_sided())
-            print('We are sending:')
-            print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_give])
-                  if trade.items_to_give else 'Nothing')
-            print('We are receiving:')
-            print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_receive])
+            print('Trade partner is:', trade.partner.name)
+            print('We are going to send:')
+            print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send])
+                  if trade.items_to_send else 'Nothing')
+            print('We are going to receive:')
+            print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
                   if trade.items_to_receive else 'Nothing')
+
+            if trade.is_one_sided():
+                print('Accepting the trade as it one sided towards the ClientUser')
+                await trade.accept()
 
 
 If an event handler raises an exception, :func:`on_error` will be called
@@ -62,11 +67,12 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     Called when the client has disconnected from Steam. This could happen either through
     the internet disconnecting, an explicit call to logout, or Steam terminating the connection.
 
-    This function can be called many times.
+    This function can be called multiple times.
 
 .. function:: on_ready()
 
-    Called when the client is done preparing the data received from Steam. Usually after login is successful.
+    Called when the client is done preparing the data received from Steam.
+    Usually after login to a CM is successful.
 
     .. warning::
 
@@ -105,39 +111,52 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. function:: on_trade_receive(trade)
 
-    Called when the client receives a trade offer.
+    Called when the client receives a trade offer from a user.
     
     :param trade: The trade offer that was received.
     :type trade: :class:`~steam.TradeOffer`
 
 .. function:: on_trade_send(trade)
 
-    Called when the client sends a trade offer
+    Called when the client or a user sends a trade offer.
     
     :param trade: The trade offer that was sent.
     :type trade: :class:`~steam.TradeOffer`
 
 .. function:: on_trade_accept(trade)
 
-    Called when the client accepts a trade offer
+    Called when the client or the trade partner accepts a trade offer.
     
     :param trade: The trade offer that was accepted.
     :type trade: :class:`~steam.TradeOffer`
 
 .. function:: on_trade_decline(trade)
 
-    Called when the client declines a trade offer
+    Called when the client or the trade partner declines a trade offer.
     
     :param trade: The trade offer that was declined.
     :type trade: :class:`~steam.TradeOffer`
 
 .. function:: on_trade_cancel(trade)
 
-    Called when the client cancels a trade offer
+    Called when the client or the trade partner cancels a trade offer.
+    .. note::
+        This is called when the trade state also is
+        :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`
     
     :param trade: The trade offer that was canceled.
     :type trade: :class:`~steam.TradeOffer`
 
+.. function:: on_trade_counter(before, after)
+
+    Called when the client or the trade partner counters a trade offer.
+    The trade in the after parameter will also be heard by either
+    :func:`~steam.on_trade_receive()` or :func:`~steam.on_trade_send()`.
+
+    :param before: The trade offer before it was countered.
+    :type before: :class:`~steam.TradeOffer`
+    :param after: The trade offer after it was countered.
+    :type after: :class:`~steam.TradeOffer`
    
 Enumerations
 -------------
@@ -148,6 +167,7 @@ Enumerations
 
 .. autoclass:: EType
     :members:
+    :undoc-members:
 
 .. autoclass:: EPersonaState
     :members:
@@ -162,7 +182,7 @@ Enumerations
     :undoc-members:
 
 Guard
-------------------
+---------------
 
 .. autofunction:: steam.guard.generate_one_time_code(shared_secret: str, timestamp: int = time.time())
 
@@ -171,7 +191,7 @@ Guard
 .. autofunction:: steam.guard.generate_device_id
 
 Market
--------------------
+---------------
 
 .. autoclass:: steam.market.Market()
     :members:
@@ -185,10 +205,10 @@ Abstract Base Classes
 An :term:`py:abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
 They are only used for subclassing.
 
-.. autoclass:: steam.abc.BaseUser
+.. autoclass:: steam.abc.BaseUser()
     :members:
 
-.. autoclass:: steam.abc.Messageable
+.. autoclass:: steam.abc.Messageable()
     :members:
 
 Steam Models
