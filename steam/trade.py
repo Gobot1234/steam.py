@@ -187,7 +187,7 @@ class TradeOffer:
             await confirmation.confirm()
 
     def is_one_sided(self):
-        """Checks if an offer is one-sided towards the ClientUser"""
+        """:class:`bool`: Checks if an offer is one-sided towards the ClientUser"""
         return True if self.items_to_receive is not None and self.items_to_send else False
 
     def is_our_offer(self):

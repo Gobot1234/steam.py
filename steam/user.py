@@ -112,6 +112,7 @@ class SteamID(int):
     def as_steam2(self):
         """class:`str`: The steam2 id of the account.
             e.g ``STEAM_1:0:1234``.
+
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
@@ -309,19 +310,21 @@ class _BaseUser(BaseUser):
         return bool(self._data.get('profilestate'))
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None):
-        r"""An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment`s.
+        r"""An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment` s.
 
         Examples
         -----------
 
         Usage
         ~~~~~~~~~~
+
         .. code-block:: python3
             async for comment in user.comments(limit=10):
                 print('Author:', comment.author, 'Said:', comment.content)
 
         Flattening into a list:
         ~~~~~~~~~
+
         .. code-block:: python3
 
             comments = await user.comments(limit=50).flatten()
@@ -472,6 +475,7 @@ class User(Messageable, _BaseUser):
 
     async def send(self, content: str = None):
         """Send a message to the user
+
         .. note::
             This does not currently function.
         """
@@ -547,13 +551,11 @@ class ClientUser(_BaseUser):
 
     def trades(self, limit=None, before: datetime = None, after: datetime = None,
                active_only: bool = True, include_sent: bool = True, include_received: bool = True):
-        r"""An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`s.
+        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer` s.
 
         Examples
         -----------
 
-        Usage
-        ~~~~~~~~~~
         .. code-block:: python3
 
             async for trade in client.user.trades(limit=10):
@@ -563,6 +565,7 @@ class ClientUser(_BaseUser):
 
         Flattening into a list:
         ~~~~~~~~~
+
         .. code-block:: python3
 
             trades = await client.user.trades(limit=50).flatten()
@@ -688,6 +691,7 @@ def steam2_to_tuple(value: str):
     -------
     Optional[:class:`tuple`]
         e.g. (account_id, type, universe, instance) or ``None``.
+
     .. note::
         The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
     """
@@ -760,8 +764,10 @@ def steam3_to_tuple(value: str):
 
 async def steam64_from_url(url: str, timeout=30):
     """Takes a Steam Community url and returns steam64 or None
+
     .. note::
         Each call makes a http request to steamcommunity.com
+
     .. note::
         Example URLs
             https://steamcommunity.com/gid/[g:1:4]

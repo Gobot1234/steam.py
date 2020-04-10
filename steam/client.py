@@ -469,7 +469,7 @@ class Client:
 
         Parameters
         ----------
-        id: int
+        id: :class`int`
             The id of the trade to search for from the cache.
 
         Returns
@@ -482,13 +482,14 @@ class Client:
     async def fetch_trade(self, id):
         """|coro|
         Fetches a trade from the API with the given ID.
+
         .. note::
             The partner's id from the API is often incorrect,
             relying the on getting the correct partner would be inadvisable.
 
         Parameters
         ----------
-        id: int
+        id: :class`int`
             The id of the trade to search for from the API.
 
         Returns
@@ -534,6 +535,7 @@ class Client:
 
     async def create_listing(self, item_name: str, game: Game, *, price: float):
         """Creates a market listing for an item.
+
         .. note::
             This could result in an account termination,
             this is just added for completeness sake.
@@ -553,6 +555,7 @@ class Client:
     async def create_listings(self, item_names: List[str], games: Union[List[Game], Game],
                               prices: Union[List[Union[int, float]], Union[int, float]]):
         """Creates market listing for items.
+
         .. note::
             This could result in an account termination,
             this is just added for completeness sake.
