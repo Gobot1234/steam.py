@@ -127,11 +127,11 @@ class Client:
     """
 
     def __init__(self, loop=None, **options):
-        self.loop = asyncio.get_event_loop() if loop is None else loop
+        self.loop = loop or asyncio.get_event_loop()
         self._session = aiohttp.ClientSession(loop=self.loop)
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
-        self._connection = State(loop=loop, client=self, http=self.http)
+        self._connection = State(loop=self.loop, client=self, http=self.http)
         self._market = Market(http=self.http, currency=options.get('currency', ECurrencyCode.USD))
 
         self.username = None
@@ -397,13 +397,14 @@ class Client:
 
         await self.login(username=username, password=password, api_key=api_key,
                          shared_secret=shared_secret, identity_secret=identity_secret)
+        await self._connection.poll_trades()
         #await self.connect()
         while 1:
             await asyncio.sleep(5)
 
     async def _connect(self):
         self.ws = SteamWebSocket()
-        coro = self.ws.from_client(self, fetch=True)
+        coro = self.ws.from_client(self)
         await asyncio.wait_for(coro, timeout=180.0)
         while 1:
             try:
@@ -412,7 +413,7 @@ class Client:
                 log.info('Got a request to RESUME the websocket.')
                 self.dispatch('disconnect')
                 coro = self.ws.from_client(self)
-                self.ws = await asyncio.wait_for(coro, timeout=180.0)
+                await asyncio.wait_for(coro, timeout=180.0)
 
     async def connect(self):
         while not self.is_closed():
@@ -567,3 +568,65 @@ class Client:
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
         return await self._market.create_listings(item_names, games, prices=prices)
+
+    async def wait_until_ready(self):
+        """|coro|
+        Waits until the client's internal cache is all ready.
+        """
+        await self._ready.wait()
+
+    def wait_for(self, event, *, check=None, timeout=None):
+        """|coro|
+        Waits for a WebSocket event to be dispatched.
+
+        The ``timeout`` parameter is passed onto :func:`asyncio.wait_for`. By default,
+        it does not timeout. Note that this does propagate the
+        :exc:`asyncio.TimeoutError` for you in case of timeout and is provided for
+        ease of use.
+        In case the event returns multiple arguments, a :class:`tuple` containing those
+        arguments is returned instead. Please check the
+        :ref:`documentation <steam-api-events>` for a list of events and their
+        parameters.
+        This function returns the **first event that meets the requirements**.
+
+        Parameters
+        ------------
+        event: :class:`str`
+            The event name, similar to the :ref:`event reference <steam-api-events>`,
+            but without the ``on_`` prefix, to wait for.
+        check: Optional[Callable[..., :class:`bool`]]
+            A predicate to check what to wait for. The arguments must meet the
+            parameters of the event being waited for.
+        timeout: Optional[:class:`float`]
+            The number of seconds to wait before timing out and raising
+            :exc:`asyncio.TimeoutError`.
+
+        Raises
+        -------
+        asyncio.TimeoutError
+            If a timeout is provided and it was reached.
+
+        Returns
+        --------
+        Any
+            Returns no arguments, a single argument, or a :class:`tuple` of multiple
+            arguments that mirrors the parameters passed in the
+            :ref:`event reference <steam-api-events>`.
+        """
+
+        future = self.loop.create_future()
+        if check is None:
+            def _check(*args):
+                return True
+
+            check = _check
+
+        ev = event.lower()
+        try:
+            listeners = self._listeners[ev]
+        except KeyError:
+            listeners = []
+            self._listeners[ev] = listeners
+
+        listeners.append((future, check))
+        return asyncio.wait_for(future, timeout)
