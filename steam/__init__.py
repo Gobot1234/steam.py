@@ -2,8 +2,8 @@
 
 """
 steam.py
-~~~~~~~~~~~~~~~~~~~
-A basic wrapper for the Steam API and its Web UI.
+~~~~~~~~~~~~~
+A basic wrapper for the Steam API and its Community Managers.
 
 :copyright: (c) 2020
 :license: MIT, see LICENSE for more details.
@@ -12,7 +12,7 @@ A basic wrapper for the Steam API and its Web UI.
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.9a'
+__version__ = '0.0.10a'
 
 import logging
 
