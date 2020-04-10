@@ -469,7 +469,7 @@ class Client:
 
         Parameters
         ----------
-        id: :class`int`
+        id: :class:`int`
             The id of the trade to search for from the cache.
 
         Returns
@@ -489,7 +489,7 @@ class Client:
 
         Parameters
         ----------
-        id: :class`int`
+        id: :class:`int`
             The id of the trade to search for from the API.
 
         Returns
@@ -580,7 +580,7 @@ class Client:
 
     def wait_for(self, event, *, check=None, timeout=None):
         """|coro|
-        Waits for a WebSocket event to be dispatched.
+        Waits for an event to be dispatched.
 
         The ``timeout`` parameter is passed onto :func:`asyncio.wait_for`. By default,
         it does not timeout. Note that this does propagate the

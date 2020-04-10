@@ -317,7 +317,7 @@ class Asset:
     -------------
     game: :class:`~steam.Game`
         The game the item is from.
-    id: :class:`str`
+    asset_id: :class:`str`
         The assetid of the item.
     app_id: :class:`str`
         The appid of the item.

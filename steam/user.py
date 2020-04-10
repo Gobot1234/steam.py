@@ -310,25 +310,22 @@ class _BaseUser(BaseUser):
         return bool(self._data.get('profilestate'))
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None):
-        r"""An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment` s.
+        """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment`​s.
 
         Examples
         -----------
 
-        Usage
-        ~~~~~~~~~~
+        Usage::
 
-        .. code-block:: python3
             async for comment in user.comments(limit=10):
                 print('Author:', comment.author, 'Said:', comment.content)
 
-        Flattening into a list:
-        ~~~~~~~~~
-
-        .. code-block:: python3
+        Flattening into a list::
 
             comments = await user.comments(limit=50).flatten()
             # comments is now a list of Comment
+
+        All parameters are optional.
 
         Parameters
         ----------
@@ -551,25 +548,24 @@ class ClientUser(_BaseUser):
 
     def trades(self, limit=None, before: datetime = None, after: datetime = None,
                active_only: bool = True, include_sent: bool = True, include_received: bool = True):
-        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer` s.
+        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`​s.
 
         Examples
         -----------
 
-        .. code-block:: python3
+        Usage: ::
 
             async for trade in client.user.trades(limit=10):
                 print('Partner:', trade.partner, 'Sent:')
                 print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_receive])
                       if trade.items_to_receive else 'Nothing')
 
-        Flattening into a list:
-        ~~~~~~~~~
-
-        .. code-block:: python3
+        Flattening into a list: ::
 
             trades = await client.user.trades(limit=50).flatten()
             # trades is now a list of TradeOffer
+
+        All parameters are optional.
 
         Parameters
         ----------
