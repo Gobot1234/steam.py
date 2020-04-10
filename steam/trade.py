@@ -1,4 +1,31 @@
+# -*- coding: utf-8 -*-
+
+"""
+MIT License
+
+Copyright (c) 2020 James
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 from datetime import datetime
+from typing import List
 
 from .enums import ETradeOfferState
 from .errors import ClientException
@@ -21,8 +48,6 @@ class TradeOffer:
         :class:`~steam.ETradeOfferState`.
     message: :class:`str`
         The message included with the trade offer.
-    is_our_offer: :class:`bool`
-        Whether the offer was created by the ClientUser.
     id: :class:`int`
         The trade offer id of the trade.
     expires: :class:`datetime.datetime`
@@ -32,13 +57,12 @@ class TradeOffer:
         if there is no escrow on the trade.
     """
 
-    __slots__ = ('partner', 'message', 'state', 'is_our_offer', 'id',
-                 'expires', 'escrow', 'items_to_send', 'items_to_receive',
-                 '_state', '_data', '__weakref__')
+    __slots__ = ('id', 'state', 'escrow', 'partner', 'message',
+                 'expires', 'items_to_send', 'items_to_receive',
+                 '_id_other', '_state', '_is_our_offer', '__weakref__')
 
-    def __init__(self, state, data, partner=None):
+    def __init__(self, state, data):
         self._state = state
-        self.partner = partner
         self._update(data)
 
     def __repr__(self):
@@ -50,85 +74,125 @@ class TradeOffer:
 
     def _update(self, data):
         self.message = data['message'] or None
-        self.is_our_offer = data['is_our_offer']
         self.id = int(data['tradeofferid'])
         self.expires = datetime.utcfromtimestamp(data['expiration_time'])
         self.escrow = datetime.utcfromtimestamp(data['escrow_end_date']) if data['escrow_end_date'] != 0 else None
         self.state = ETradeOfferState(data.get('trade_offer_state', 1))
-        self._data = data
+        self.items_to_send = [Item(data=item) for item in data.get('items_to_give', [])]
+        self.items_to_receive = [Item(data=item) for item in data.get('items_to_receive', [])]
+        self._is_our_offer = data['is_our_offer']
+        self._id_other = data['accountid_other']
 
     async def __ainit__(self):
-        if self.partner is None:  # not great cause this can be your account or anyone else's
-            self.partner = await self._state.client.fetch_user(self._data['accountid_other'])
-        self.items_to_send = await self._fetch_items(
-            user_id64=self._state.client.user.id64,
-            assets=[Asset(data=asset) for asset in self._data['items_to_give']]
-        ) if 'items_to_give' in self._data else []
-
-        self.items_to_receive = await self._fetch_items(
-            user_id64=self.partner.id64,
-            assets=[Asset(data=asset) for asset in self._data['items_to_receive']]
-        ) if 'items_to_receive' in self._data else []
-
-    async def update(self):
-        data = await self._state.http.fetch_trade(self.id)
-        await self.__ainit__()
-        self._update(data)
-        return self
+        self.partner = await self._state.client.fetch_user(self._id_other)
 
     async def confirm(self):
         """|coro|
-        Confirms the :class:`TradeOffer`"""
-        if self.state != ETradeOfferState.Active:
-            raise ClientException('This trade is not active')
+        Confirms the :class:`TradeOffer`.
+        This rarely needs to be called as the client handles most of these.
+
+        Raises
+        ------
+        :exc:`~steam.ClientException`
+            The trade is not active.
+        """
+        if self.state != ETradeOfferState.ConfirmationNeed:
+            raise ClientException('This trade cannot be confirmed')
+        if self.is_one_sided():  # we don't need to confirm gifts
+            return
         confirmation = await self._state.confirmation_manager.get_trade_confirmation(self.id)
         await confirmation.confirm()
 
     async def accept(self):
         """|coro|
-        Accepts the :class:`TradeOffer`"""
+        Accepts the :class:`TradeOffer`.
+        This also calls :meth:`TradeOffer.confirm`.
+
+        Raises
+        ------
+        :exc:`~steam.ClientException`
+            The trade is either not active, already accepted or not from the ClientUser.
+        """
         if self.state != ETradeOfferState.Active:
             raise ClientException('This trade is not active')
+        if self.state == ETradeOfferState.Accepted:
+            raise ClientException('This trade has already been accepted')
+        if self.is_our_offer():
+            raise ClientException('You cannot accept an offer the ClientUser has made')
         await self._state.http.accept_trade(self.id)
-        self.state = ETradeOfferState.Accepted
-        self._state.dispatch('trade_accept', self)
+        confirmation = await self._state.confirmation_manager.get_trade_confirmation(self.id)
+        await confirmation.confirm()
 
     async def decline(self):
         """|coro|
-        Declines the :class:`TradeOffer`"""
-        if self.state != ETradeOfferState.Active and self.state != ETradeOfferState.ConfirmationNeed:
+        Declines the :class:`TradeOffer`
+
+        Raises
+        ------
+        :exc:`~steam.ClientException`
+            The trade is either not active, already declined or not from the ClientUser.
+        """
+        if self.state not in (ETradeOfferState.Active or ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade is not active')
-        elif self.is_our_offer:
+        if self.state == ETradeOfferState.Declined:
+            raise ClientException('This trade has already been declined')
+        if self.is_our_offer():
             raise ClientException('You cannot decline an offer the ClientUser has made')
         await self._state.http.decline_user_trade(self.id)
-        self.state = ETradeOfferState.Declined
-        self._state.dispatch('trade_decline', self)
 
     async def cancel(self):
         """|coro|
-        Cancels the :class:`TradeOffer`"""
-        if self.state != ETradeOfferState.Active and self.state != ETradeOfferState.ConfirmationNeed:
+        Cancels the :class:`TradeOffer`
+
+        Raises
+        ------
+        :exc:`~steam.ClientException`
+            The trade is either not active, already cancelled or is from the ClientUser.
+        """
+        if self.state not in (ETradeOfferState.Active or ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade is not active')
-        if not self.is_our_offer:
+        if self.state == ETradeOfferState.Canceled:
+            raise ClientException('This trade has already been cancelled')
+        if not self.is_our_offer():
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
-        self.state = ETradeOfferState.Canceled
-        self._state.dispatch('trade_cancel', self)
 
-    async def _fetch_items(self, user_id64, assets):
-        ret = []
-        items = await self._state.http.fetch_trade_items(user_id64=user_id64, assets=assets)
-        for asset in assets:
-            for item in items:
-                if item.asset == asset:
-                    print(item)
-                    if item not in ret and not item.is_asset():
-                        ret.append(item)
-        return ret
+    async def counter(self, items_to_send=None, items_to_receive=None, *, message: str = None):
+        """|coro|
+        Counters a trade offer from an :class:`~steam.User`.
+
+        Parameters
+        -----------
+        items_to_send: Optional[List[:class:`steam.Item`]]
+            The items you are sending to the other user.
+        items_to_receive: Optional[List[:class:`steam.Item`]]
+            The items you are sending to the other user.
+        message: :class:`str`
+             The offer message to send with the trade.
+
+        Raises
+        ------
+        :exc:`~steam.ClientException`
+            The trade from the ClientUser.
+        """
+        if self.is_our_offer():
+            raise ClientException('You cannot counter an offer the ClientUser has made')
+        items_to_send = [] if items_to_send is None else items_to_send
+        items_to_receive = [] if items_to_receive is None else items_to_receive
+        message = message if message is not None else ''
+        resp = await self._state.http.send_counter_trade_offer(self.id, self.partner.id64, self.partner.id,
+                                                               items_to_send, items_to_receive, message)
+        if resp.get('needs_mobile_confirmation', False):
+            confirmation = await self._state.confirmation_manager.get_trade_confirmation(int(resp['tradeofferid']))
+            await confirmation.confirm()
 
     def is_one_sided(self):
         """Checks if an offer is one-sided towards the ClientUser"""
         return True if self.items_to_receive is not None and self.items_to_send else False
+
+    def is_our_offer(self):
+        """:class:`bool`: Whether the offer was created by the ClientUser."""
+        return self._is_our_offer
 
 
 class Inventory:
@@ -150,7 +214,7 @@ class Inventory:
         The game the inventory the game belongs to.
     """
 
-    __slots__ = ('items', 'owner', 'game', '_data', '_state')
+    __slots__ = ('game', 'items', 'owner', '_state', '_total_inventory_count')
 
     def __init__(self, state, data, owner):
         self._state = state
@@ -166,35 +230,50 @@ class Inventory:
         return f"<Inventory {' '.join(resolved)}>"
 
     def __len__(self):
-        return self._data['total_inventory_count']
+        return self._total_inventory_count
 
     def _update(self, data):
-        self._data = data
         self.game = Game(app_id=int(data['assets'][0]['appid']), is_steam_game=True)
         for asset in data['assets']:
             for item in data['descriptions']:
                 if item['instanceid'] == asset['instanceid'] and item['classid'] == asset['classid']:
                     item.update(asset)
                     self.items.append(Item(data=item))
-                    continue
             self.items.append(Item(data=asset, missing=True))
+        self._total_inventory_count = data['total_inventory_count']
 
-    def filter_items(self, item_name: str):
+    async def update(self):
+        """|coro|
+        Re-fetches the :class:`~steam.User`'s inventory.
+
+        Returns
+        ---------
+        :class:`~steam.Inventory`
+            The refreshed inventory.
+        """
+        data = await self._state.http.fetch_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
+        self._update(data)
+        return self
+
+    def filter_items(self, item_name: str, *, limit: int = None):
         """Filters items by name into a list of one type of item.
 
         Parameters
         ------------
         item_name: :class:`str`
             The item to filter.
+        limit: Optional[:class:`int`]
+            The maximum amount of items to filter.
 
         Returns
         ---------
-        Items: Optional[List[:class:`Item`]]
+        Optional[List[:class:`Item`]]
             List of :class:`Item`.
             Can be an empty list if no matching items are found.
             This also removes the item from the inventory, if possible.
         """
         items = [item for item in self.items if item.name == item_name]
+        items = items[:len(items) - 1 if limit is not None else limit]
         for item in items:
             self.items.remove(item)
         return items
@@ -209,7 +288,7 @@ class Inventory:
 
         Returns
         -------
-        Item: Optional[:class:`Item`]
+        Optional[:class:`Item`]
             Returns the first found item with a matching name.
             Can be ``None`` if no matching item is found.
             This also removes the item from the inventory, if possible
@@ -223,6 +302,16 @@ class Inventory:
 
 class Asset:
     """A striped down version of an item.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two assets are equal.
+
+        .. describe:: x != y
+
+            Checks if two assets are not equal.
 
     Attributes
     -------------
@@ -239,10 +328,10 @@ class Asset:
     class_id: :class:`str`
         The classid of the item.
     """
-    __slots__ = ('id', 'app_id', 'class_id', 'amount', 'instance_id', 'game')
+    __slots__ = ('game', 'amount', 'app_id', 'class_id', 'asset_id', 'instance_id')
 
     def __init__(self, data):
-        self.id = int(data['assetid'])
+        self.asset_id = int(data['assetid'])
         self.game = Game(app_id=data['appid'])
         self.app_id = int(data['appid'])
         self.amount = int(data['amount'])
@@ -286,8 +375,6 @@ class Item(Asset):
     -------------
     name: `str`
         The name of the item.
-    asset: :class:`Asset`
-        The item as an asset.
     game: :class:`~steam.Game`
         The game the item is from.
     asset_id: :class:`str`
@@ -316,9 +403,9 @@ class Item(Asset):
         The icon_url_large of the item.
     """
 
-    __slots__ = ('name', 'game', 'asset', 'asset_id', 'app_id', 'colour', 'market_name',
-                 'descriptions', 'type', 'tags', 'class_id', 'amount', 'instance_id',
-                 'icon_url', 'icon_url_large', 'missing', '_data')
+    __slots__ = ('name', 'type', 'tags', 'colour', 'missing',
+                 'icon_url', 'market_name', 'descriptions',
+                 'icon_url_large', '_is_tradable', '_is_marketable') + Asset.__slots__
 
     def __init__(self, data, missing: bool = False):
         super().__init__(data)
@@ -327,39 +414,33 @@ class Item(Asset):
 
     def __repr__(self):
         attrs = (
-            'name', 'asset',
-        )
+                    'name',
+                ) + Asset.__slots__
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Item {' '.join(resolved)}>"
 
     def _from_data(self, data):
-        self.asset = Asset(data)
-        self.game = self.asset.game
-        self.asset_id = self.asset.id
-        self.app_id = self.asset.app_id
-        self.amount = self.asset.amount
-        self.instance_id = self.asset.instance_id
-        self.class_id = self.asset.class_id
-
         self.name = data.get('name')
         self.colour = int(data['name_color'], 16) if 'name_color' in data else None
         self.market_name = data.get('market_name')
         self.descriptions = data.get('descriptions')
         self.type = data.get('type')
         self.tags = data.get('tags')
-        self.icon_url = f'https://steamcommunity-a.akamaihd.net/economy/image/{data.get("icon_url")}' \
+        self.icon_url = f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url"]}' \
             if 'icon_url' in data else None
         self.icon_url_large = f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url_large"]}' \
             if 'icon_url_large' in data else None
-        self._data = data
+        self._is_tradable = bool(data.get('tradable', False))
+        self._is_marketable = bool(data.get('marketable', False))
 
     def is_tradable(self):
-        """:class:`bool`: Whether or not the item is tradable."""
-        return bool(self._data.get('tradable', False))
+        """:class:`bool`: Whether the item is tradable."""
+        return self._is_tradable
 
     def is_marketable(self):
-        """:class:`bool`: Whether or not the item is marketable."""
-        return bool(self._data.get('marketable', False))
+        """:class:`bool`: Whether the item is marketable."""
+        return self._is_marketable
 
     def is_asset(self):
+        """:class:`bool`: Whether the item is an :class:`Asset` just wrapped in an :class:`Item`."""
         return self.name is None
