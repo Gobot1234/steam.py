@@ -29,17 +29,15 @@ import json
 import logging
 import re
 from base64 import b64encode
-from collections import OrderedDict
 from sys import version_info
 from time import time
 
 import aiohttp
 import rsa
 
-from . import __version__, errors, utils
+from . import __version__, errors
 from .guard import generate_one_time_code, ConfirmationManager
 from .models import URL
-from .trade import Inventory
 from .user import ClientUser
 
 log = logging.getLogger(__name__)
@@ -50,7 +48,7 @@ async def json_or_text(response):
     try:
         if 'application/json' in response.headers['content-type']:  # thanks steam very cool
             return json.loads(text)
-    except KeyError:
+    except KeyError:  # this should only really happen if steam is down
         pass
     return text
 
@@ -99,7 +97,17 @@ class HTTPClient:
         else:
             return input('Please enter a Steam guard code\n>>> ')
 
-    async def request(self, method, url, **kwargs):
+    async def request(self, method, url, **kwargs):  # adapted from d.py
+        headers = {
+            'User-Agent': self.user_agent,
+            'X-Ratelimit-Precision': 'millisecond',
+        }
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+
+        # some checking if it's a JSON request
+        if 'data' in kwargs:
+            headers['Content-Type'] = 'application/json'
         async with self._lock:
             for tries in range(5):
                 async with self._session.request(method, url, **kwargs) as r:
@@ -113,22 +121,38 @@ class HTTPClient:
                         params=self.PARAMS_REQUEST.format(params) if params else '',
                         status=r.status)
                     )
+
+                    # even errors have text involved in them so this is safe to call
                     data = await json_or_text(r)
 
+                    # api key either got revoked or it was never valid
                     if data == 'Access is denied. Retrying will not help. Please verify your <pre>key=</pre> parameter':
-                        raise errors.InvalidCredentials('You have passed an invalid API key')
+                        # time to fetch a new key
+                        self.api_key = await self.fetch_api_key()
+                        kwargs['key'] = self.api_key
+                        continue  # retry with our new key
+
+                    # the request was successful so just return the text/json
                     if 300 > r.status >= 200:
                         log.debug(f'{method} {url} has received {data}')
                         return data
 
+                    # we are being rate limited
                     if r.status == 429:
-                        await asyncio.sleep(3 ** tries + 1)
+                        # I haven't been able to get a 429 from the API but we should probably still handle it
+                        try:
+                            await asyncio.sleep(float(r.headers['X-Retry-After'] / 1000))
+                        except KeyError:
+                            await asyncio.sleep(3 ** tries)
+
                         continue
 
+                    # we've received a 500 or 502, unconditional retry
                     if r.status in {500, 502}:
                         await asyncio.sleep(1 + tries * 3)
                         continue
 
+                    # the usual error cases
                     if r.status == 403:
                         raise errors.Forbidden(r, data)
                     elif r.status == 404:
@@ -136,6 +160,7 @@ class HTTPClient:
                     else:
                         raise errors.HTTPException(r, data)
 
+            # we've run out of retries, raise
             raise errors.HTTPException(r, data)
 
     async def login(self, username: str, password: str, api_key: str, shared_secret: str, identity_secret: str = None):
@@ -145,12 +170,28 @@ class HTTPClient:
         self.identity_secret = identity_secret
 
         login_response = await self._send_login_request()
+
         if 'captcha_needed' in login_response:
             await self._client.close()
             raise errors.LoginError('A captcha code is required, please try again later')
 
-        await self._assert_valid_credentials(login_response)
-        await self._perform_redirects(login_response)
+        if not login_response['success']:
+            await self._client.close()
+            raise errors.InvalidCredentials(login_response['message'])
+
+        parameters = login_response.get('transfer_parameters')
+        if parameters is None:
+            raise errors.LoginError('Cannot perform redirects after login, no parameters fetched. '
+                                    'The Steam API likely is down, please try again later.')
+
+        for url in login_response['transfer_urls']:
+            await self.request('POST', url=url, data=parameters)
+
+        home = await self.request('GET', url=f'{URL.COMMUNITY}/my/home/')
+        search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', home)
+        if search:
+            self.session_id = search.group('sessionID')
+
         self._client.api_key = api_key or await self.fetch_api_key()
         self.api_key = self._client.api_key
         self._state = self._client._connection
@@ -172,12 +213,6 @@ class HTTPClient:
         self._client.dispatch('logout')
         return self.request('GET', url=f'{URL.COMMUNITY}/login/logout/')
 
-    async def _send_login_request(self):
-        rsa_key, rsa_timestamp = await self._fetch_rsa_params()
-        encrypted_password = \
-            b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_key)).decode()
-        return await self._send_login(rsa_timestamp, encrypted_password)
-
     async def _fetch_rsa_params(self, current_repetitions: int = 0):
         maximum_repetitions = 5
         data = {
@@ -185,7 +220,7 @@ class HTTPClient:
             'donotcache': int(time() * 1000)
         }
         try:
-            key_response = await self.request('POST', url=f'{URL.COMMUNITY}/login/getrsakey/', data=data)
+            key_response = await self.request('POST', url=f'{URL.COMMUNITY}/login/getrsakey', data=data)
         except Exception as e:
             await self._session.close()
             raise errors.LoginError(e)
@@ -200,7 +235,9 @@ class HTTPClient:
             else:
                 raise ValueError('Could not obtain rsa-key')
 
-    async def _send_login(self, rsa_timestamp: str, encrypted_password: str):
+    async def _send_login_request(self):
+        rsa_key, rsa_timestamp = await self._fetch_rsa_params()
+        encrypted_password = b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_key)).decode()
         data = {
             'username': self.username,
             'password': encrypted_password,
@@ -215,32 +252,13 @@ class HTTPClient:
             "donotcache": int(time() * 1000),
         }
         try:
-            login_response = await self.request('POST', url=f'{URL.COMMUNITY}/login/dologin/', data=data)
+            login_response = await self.request('POST', url=f'{URL.COMMUNITY}/login/dologin', data=data)
             if login_response['requires_twofactor']:
                 self._one_time_code = self.code()
                 return await self._send_login_request()
             return login_response
         except Exception as e:
             raise errors.HTTPException from e
-
-    async def _perform_redirects(self, response_dict: dict):
-        parameters = response_dict.get('transfer_parameters')
-        if parameters is None:
-            raise errors.LoginError('Cannot perform redirects after login, no parameters fetched. '
-                                    'The Steam API likely is down, please try again later.')
-        for url in response_dict['transfer_urls']:
-            await self.request('POST', url=url, data=parameters)
-
-    async def _assert_valid_credentials(self, login_response: dict):
-        if not login_response['success']:
-            await self._session.close()
-            raise errors.InvalidCredentials(login_response['message'])
-        resp = await self.request('GET', url=f'{URL.COMMUNITY}/my/home/')
-        search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', resp)
-        if search:
-            self.session_id = search.group('sessionID')
-        else:
-            raise errors.LoginError('Cannot get the home page')
 
     def fetch_profile(self, user_id64: int):
         params = {
@@ -256,7 +274,7 @@ class HTTPClient:
             for i in range(0, len(user_id64s), 100):
                 yield user_id64s[i:i + 100]
 
-        for sublist in chunk():  # make the requests
+        for sublist in chunk():
             for _ in sublist:
                 params = {
                     "key": self.api_key,
@@ -345,42 +363,12 @@ class HTTPClient:
         friends = await self.request('GET', url=Route('ISteamUser', 'GetFriendList'), params=params)
         return await self.fetch_profiles([friend['steamid'] for friend in friends['friendslist']['friends']])
 
-    async def _poll_trades(self):
-        trades = await self.fetch_trade_offers()
-        self._trades_sent_cache = trades['response']['trade_offers_sent']
-        self._trades_received_cache = trades['response']['trade_offers_received']
-        while 1:
-            try:
-                await asyncio.sleep(5)
-                trades = await self.fetch_trade_offers()
-                trades_sent = trades['response']['trade_offers_sent']
-                trades_received = trades['response']['trade_offers_received']
-                received_diff = utils.dict_diff(self._trades_received_cache, trades_received)
-                for trade in received_diff:
-                    log.debug(f'Received raw trade {received_diff[trade]}')
-                    trade = self._state.store_trade(trades[trade])
-                    if trade not in self._client.trades:
-                        await trade.__ainit__()
-                        self._client.dispatch('trade_receive', trade)
-
-                sent_diff = utils.dict_diff(self._trades_sent_cache, trades_sent)
-                for trade in sent_diff:
-                    log.debug(f'Sent raw trade {sent_diff[trade]}')
-                    trade = self._state.store_trade(sent_diff[trade])
-                    if trade not in self._client.trades:
-                        await trade.__ainit__()
-                        self._client.dispatch('trade_send', trade)
-
-                self._trades_received_cache = trades_received
-                self._trades_sent_cache = trades_sent
-            except aiohttp.ClientError:
-                self._loop.create_task(self._poll_trades())
-
     def fetch_trade_offers(self, active_only=True, sent=True, received=True):
         params = {
             "key": self.api_key,
             "active_only": int(active_only),
             "get_sent_offers": int(sent),
+            "get_descriptions": 1,
             "get_received_offers": int(received)
         }
         return self.request('GET', url=Route('IEconService', 'GetTradeOffers'), params=params)
@@ -388,7 +376,8 @@ class HTTPClient:
     def fetch_trade(self, trade_id):
         params = {
             "key": self.api_key,
-            "tradeofferid": trade_id
+            "tradeofferid": trade_id,
+            "get_descriptions": 1
         }
         return self.request('GET', url=Route('IEconService', 'GetTradeOffer'), params=params)
 
@@ -408,11 +397,7 @@ class HTTPClient:
             if self.identity_secret:
                 for _ in range(3):
                     conf = await self._confirmation_manager.get_trade_confirmation(trade_id)
-                    if isinstance(resp, dict):
-                        await conf.confirm()
-                    log.debug(f'Failed to accept the trade #{trade_id}, with the error:\n{resp}')
-                    raise errors.SteamAuthenticatorError('Failed to accept the trade')
-                raise errors.ClientException("Couldn't find a matching confirmation")
+                    await conf.confirm()
             else:
                 raise errors.ClientException('Accepting trades requires an identity_secret')
         return resp
@@ -429,17 +414,7 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/cancel', data=data)
 
-    async def fetch_trade_items(self, user_id64, assets):
-        items = []
-        app_ids = list(OrderedDict.fromkeys([asset.app_id for asset in assets]))  # remove duplicate app_ids
-        context_ids = list(OrderedDict.fromkeys([asset.game.context_id for asset in assets]))  # and context_ids
-        for app_id, context_id in zip(app_ids, context_ids):
-            data = await self.fetch_user_inventory(user_id64, app_id, context_id)
-            inventory = Inventory(state=self._state, data=data, owner=await self._client.fetch_user(user_id64))
-            items.extend(inventory.items)
-        return items
-
-    def send_trade_offer(self, user_id64, user_id, to_send, to_receive, offer_message):
+    def send_trade_offer(self, user_id64, user_id, to_send, to_receive, offer_message, **kwargs):
         data = {
             "sessionid": self.session_id,
             "serverid": 1,
@@ -462,11 +437,12 @@ class HTTPClient:
             "captcha": '',
             "trade_offer_create_params": {}
         }
-        headers = {
-            'Referer': f'{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}',
-            'Origin': URL.COMMUNITY
-        }
+        data = {**data, **kwargs}
+        headers = {'Referer': f'{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}'}
         return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=data, headers=headers)
+
+    def send_counter_trade_offer(self, trade_id, user_id64, user_id, to_send, to_receive, offer_message):
+        return self.send_trade_offer(user_id64, user_id, to_send, to_receive, offer_message, trade_id=trade_id)
 
     def fetch_cm_list(self, cell_id):
         params = {
@@ -507,8 +483,9 @@ class HTTPClient:
 
     async def fetch_api_key(self):
         resp = await self.request('GET', url=f'{URL.COMMUNITY}/dev/apikey')
-        if 'You must have a validated email address to create a Steam Web API key.' in resp:
-            raise errors.LoginError('You must have a validated email address to create a Steam Web API key')
+        error = 'You must have a validated email address to create a Steam Web API key'
+        if error in resp:
+            raise errors.LoginError(error)
 
         match = re.findall(r'<p>Key: ([0-9A-F]+)</p>', resp)
         if match:
