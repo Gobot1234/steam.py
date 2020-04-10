@@ -314,16 +314,3 @@ def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
         raise SyntaxError("Binary VDF ended at offset %d, but length is %d" % (idx, len(s)))
 
     return stack.pop()
-
-
-def dict_diff(dict1, dict2):
-    diff = {}
-    if dict1 != dict2:
-        for key in dict2:
-            try:
-                if dict1[key] != dict2[key]:
-                    diff[key] = dict2[key]
-            except KeyError:
-                diff[key] = dict2[key]
-
-    return diff
