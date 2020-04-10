@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
+MIT License
+
+Copyright (c) 2015-2020 Rapptz
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -21,13 +24,147 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+EnumMeta and Enum from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
 Taken from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
-import enum
+import types
+from collections import namedtuple
+
+__all__ = (
+    'Enum',
+    'IntEnum',
+    'EType',
+    'EResult',
+    'EUniverse',
+    'ETypeChar',
+    'EInstanceFlag',
+    'ECurrencyCode',
+    'EPersonaState',
+    'EChatEntryType',
+    'ETradeOfferState',
+    'EPersonaStateFlag',
+    'EFriendRelationship',
+    'EChatRoomEnterResponse',
+    'ECommunityVisibilityState',
+
+)
 
 
-class EResult(enum.IntEnum):
+def _create_value_cls(name):
+    cls = namedtuple(f'_EnumValue_{name}', 'name value')
+    cls.__repr__ = lambda self: f'<{name}.{self.name}: {repr(self.value)}>'
+    cls.__str__ = lambda self: f'{name}.{self.name}'
+    return cls
+
+
+def _is_descriptor(obj):
+    return hasattr(obj, '__get__') or hasattr(obj, '__set__') or hasattr(obj, '__delete__')
+
+
+class EnumMeta(type):
+    def __new__(cls, name, bases, attrs):
+        value_mapping = {}
+        member_mapping = {}
+        member_names = []
+
+        value_cls = _create_value_cls(name)
+        for key, value in list(attrs.items()):
+            is_descriptor = _is_descriptor(value)
+            if key[0] == '_' and not is_descriptor:
+                continue
+
+            # Special case classmethod to just pass through
+            if isinstance(value, classmethod):
+                continue
+
+            if is_descriptor:
+                setattr(value_cls, key, value)
+                del attrs[key]
+                continue
+
+            try:
+                new_value = value_mapping[value]
+            except KeyError:
+                new_value = value_cls(name=key, value=value)
+                value_mapping[value] = new_value
+                member_names.append(key)
+
+            member_mapping[key] = new_value
+            attrs[key] = new_value
+
+        attrs['_enum_value_map_'] = value_mapping
+        attrs['_enum_member_map_'] = member_mapping
+        attrs['_enum_member_names_'] = member_names
+        actual_cls = super().__new__(cls, name, bases, attrs)
+        value_cls._actual_enum_cls_ = actual_cls
+        return actual_cls
+
+    def __iter__(cls):
+        return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
+
+    def __reversed__(cls):
+        return (cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_))
+
+    def __len__(cls):
+        return len(cls._enum_member_names_)
+
+    def __repr__(cls):
+        return f'<enum {repr(cls.__name__)}>'
+
+    @property
+    def __members__(cls):
+        return types.MappingProxyType(cls._enum_member_map_)
+
+    def __call__(cls, value):
+        try:
+            return cls._enum_value_map_[value]
+        except (KeyError, TypeError):
+            raise ValueError(f"{repr(value)} is not a valid {cls.__name__}")
+
+    def __getitem__(cls, key):
+        return cls._enum_member_map_[key]
+
+    def __setattr__(cls, name, value):
+        raise TypeError('Enums are immutable.')
+
+    def __delattr__(cls, attr):
+        raise TypeError('Enums are immutable')
+
+    def __instancecheck__(self, instance):
+        # isinstance(x, Y)
+        # -> __instancecheck__(Y, x)
+        try:
+            return instance._actual_enum_cls_ is self
+        except AttributeError:
+            return False
+
+
+class Enum(metaclass=EnumMeta):
+    @classmethod
+    def try_value(cls, value):
+        try:
+            return cls._enum_value_map_[value]
+        except (KeyError, TypeError):
+            return value
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.value == other.value
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class IntEnum(int, Enum):
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.value == other.value
+        elif isinstance(other, int):
+            return self.value == other
+        return False
+
+
+class EResult(IntEnum):
     Invalid = 0
     OK = 1  #: Success
     Fail = 2  #: Generic failure
@@ -137,7 +274,7 @@ class EResult(enum.IntEnum):
     CantRemoveItem = 113
 
 
-class EUniverse(enum.IntEnum):
+class EUniverse(IntEnum):
     Invalid = 0
     Public = 1
     Beta = 2
@@ -148,8 +285,11 @@ class EUniverse(enum.IntEnum):
     def __str__(self):
         return self.name
 
+    def __int__(self):
+        return self.value
 
-class EType(enum.IntEnum):
+
+class EType(IntEnum):
     Invalid = 0
     Individual = 1  #: Single user account
     Multiseat = 2  #: Multiseat (e.g. cybercafe) account
@@ -167,7 +307,7 @@ class EType(enum.IntEnum):
         return self.name
 
 
-class ETypeChar(enum.IntEnum):
+class ETypeChar(IntEnum):
     I = EType.Invalid
     U = EType.Individual
     M = EType.Multiseat
@@ -185,13 +325,13 @@ class ETypeChar(enum.IntEnum):
         return self.name
 
 
-class EInstanceFlag(enum.IntEnum):
+class EInstanceFlag(IntEnum):
     MMSLobby = 0x20000
     Lobby = 0x40000
     Clan = 0x80000
 
 
-class EFriendRelationship(enum.IntEnum):
+class EFriendRelationship(IntEnum):
     NONE = 0
     Blocked = 1
     RequestRecipient = 2
@@ -203,7 +343,7 @@ class EFriendRelationship(enum.IntEnum):
     Max = 8
 
 
-class EPersonaState(enum.IntEnum):
+class EPersonaState(IntEnum):
     Offline = 0
     Online = 1
     Busy = 2
@@ -217,7 +357,7 @@ class EPersonaState(enum.IntEnum):
         return self.name
 
 
-class EPersonaStateFlag(enum.IntEnum):
+class EPersonaStateFlag(IntEnum):
     NONE = 0
     HasRichPresence = 1
     InJoinableGame = 2
@@ -233,14 +373,14 @@ class EPersonaStateFlag(enum.IntEnum):
         return self.name
 
 
-class ECommunityVisibilityState(enum.IntEnum):
+class ECommunityVisibilityState(IntEnum):
     NONE = 0
     Private = 1
     FriendsOnly = 2
     Public = 3
 
 
-class EChatRoomEnterResponse(enum.IntEnum):
+class EChatRoomEnterResponse(IntEnum):
     Success = 1  #: Success
     DoesntExist = 2  #: Chat doesn't exist (probably closed)
     NotAllowed = 3  #: General Denied - You don't have the permissions needed to join the chat
@@ -255,7 +395,7 @@ class EChatRoomEnterResponse(enum.IntEnum):
     RatelimitExceeded = 15  #: Join failed - to many join attempts in a very short period of time
 
 
-class ECurrencyCode(enum.IntEnum):
+class ECurrencyCode(IntEnum):
     Invalid = 0
     USD = 1
     GBP = 2
@@ -301,7 +441,7 @@ class ECurrencyCode(enum.IntEnum):
     Max = 42
 
 
-class ETradeOfferState(enum.IntEnum):
+class ETradeOfferState(IntEnum):
     Invalid = 1
     Active = 2
     Accepted = 3
@@ -315,7 +455,7 @@ class ETradeOfferState(enum.IntEnum):
     StateInEscrow = 11
 
 
-class EChatEntryType(enum.IntEnum):
+class EChatEntryType(IntEnum):
     Invalid = 0
     ChatMsg = 1  #: Normal text message from another user
     Typing = 2  #: Another user is typing (not used in multi-user chat)
