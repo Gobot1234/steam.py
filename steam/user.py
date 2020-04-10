@@ -309,7 +309,7 @@ class _BaseUser(BaseUser):
         return bool(self._data.get('profilestate'))
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None):
-        """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment`s.
+        r"""An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment`s.
 
         Examples
         -----------
@@ -547,7 +547,7 @@ class ClientUser(_BaseUser):
 
     def trades(self, limit=None, before: datetime = None, after: datetime = None,
                active_only: bool = True, include_sent: bool = True, include_received: bool = True):
-        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`(s).
+        r"""An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`s.
 
         Examples
         -----------
