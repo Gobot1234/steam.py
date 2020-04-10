@@ -43,8 +43,7 @@ class Game:
         self.context_id = context_id
         self._is_steam_game = is_steam_game
 
-        # api defined stuff
-        # TODO add ^
+        # TODO add api defined stuff
 
     def __repr__(self):
         attrs = (
@@ -183,7 +182,6 @@ class CommentsIterator(AsyncIterator):
                     comment.author = author
 
     async def next(self):
-        await super().next()
         if self.comments.empty():
             await self.fill_comments()
         return self.comments.get_nowait()
