@@ -130,6 +130,7 @@ class Market:
             self.currency = ECurrencyCode(currency).value
         else:
             self.currency = 1
+        log.info(f'Currency is set to {self.currency}')
 
     async def fetch_price(self, item_name, game):
         item = FakeItem(fix_name(item_name), game)
@@ -159,7 +160,7 @@ class Market:
 
         headers = {"Referer": f'{URL.COMMUNITY}/market/listings/{game.app_id}/{item.name}'}
 
-        self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder/', data=data, headers=headers)
+        return self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder', data=data, headers=headers)
 
     def create_listings(self, item_names, games, *, prices):
         to_list = []
@@ -183,4 +184,4 @@ class Market:
             }
             headers = {"Referer": f'{URL.COMMUNITY}/market/listings/{item.app_id}/{item.name}'}
 
-            self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder/', data=data, headers=headers)
+            return self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder', data=data, headers=headers)
