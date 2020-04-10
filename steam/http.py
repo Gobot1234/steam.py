@@ -100,7 +100,6 @@ class HTTPClient:
     async def request(self, method, url, **kwargs):  # adapted from d.py
         headers = {
             'User-Agent': self.user_agent,
-            'X-Ratelimit-Precision': 'millisecond',
         }
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
@@ -141,7 +140,7 @@ class HTTPClient:
                     if r.status == 429:
                         # I haven't been able to get a 429 from the API but we should probably still handle it
                         try:
-                            await asyncio.sleep(float(r.headers['X-Retry-After'] / 1000))
+                            await asyncio.sleep(float(r.headers['X-Retry-After']))
                         except KeyError:
                             await asyncio.sleep(3 ** tries)
 
