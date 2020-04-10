@@ -310,7 +310,7 @@ class _BaseUser(BaseUser):
         return bool(self._data.get('profilestate'))
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None):
-        """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment`​s.
+        """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment` objects.
 
         Examples
         -----------
@@ -548,7 +548,7 @@ class ClientUser(_BaseUser):
 
     def trades(self, limit=None, before: datetime = None, after: datetime = None,
                active_only: bool = True, include_sent: bool = True, include_received: bool = True):
-        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`​s.
+        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
 
         Examples
         -----------
@@ -557,7 +557,7 @@ class ClientUser(_BaseUser):
 
             async for trade in client.user.trades(limit=10):
                 print('Partner:', trade.partner, 'Sent:')
-                print('\n'.join([item.name if item.name else item.asset_id for item in trade.items_to_receive])
+                print(', '.join([item.name if item.name else item.asset_id for item in trade.items_to_receive])
                       if trade.items_to_receive else 'Nothing')
 
         Flattening into a list: ::
