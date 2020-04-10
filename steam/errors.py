@@ -28,6 +28,8 @@ import re
 
 from bs4 import BeautifulSoup
 
+from .enums import EResult
+
 
 class SteamException(Exception):
     """Base exception class for steam.py"""
@@ -39,9 +41,10 @@ class ClientException(SteamException):
     but is handled by the client.
     Subclass of :exc:`SteamException`
     """
+    pass
 
 
-class HTTPException(SteamException):  # TODO add some messages for these
+class HTTPException(SteamException):
     """Exception that's thrown for any web API error.
     Subclass of :exc:`SteamException`
 
@@ -50,9 +53,13 @@ class HTTPException(SteamException):  # TODO add some messages for these
     response: :class:`aiohttp.ClientResponse`
         The response of the failed HTTP request.
     message: :class:`str`
-        The message associated with the error. Could be an empty string if the message is html.
+        The message associated with the error.
+        Could be an empty string if the message is html.
     status: :class:`int`
         The status code of the HTTP request.
+    EResult: :class:`~steam.EResult`
+        The associated EResult for the HTTP request.
+        This is likely to be :attr:`~steam.EResult.Invalid`
     code: :class:`int`
         The Steam specific error code for the failure.
     """
@@ -60,14 +67,15 @@ class HTTPException(SteamException):  # TODO add some messages for these
     def __init__(self, response, data):
         self.response = response
         self.status = response.status
+        self.EResult = EResult(int(response.headers.get('X-eresult', 0)))
 
         if isinstance(data, dict):
-            message = list(data.values())[0]
-            code_regex = re.compile(r'[^\s]([0-9]{1,3})[^\s]')
-            code = re.findall(code_regex, message)[0]
+            name, message = list(data.values())
+            code_regex = re.compile(r'[^\s]([0-9]+)')
+            code = re.findall(code_regex, message)
             if code:
-                self.code = int(code)  # would like to EResult however steam trades don't use the same system
-                self.message = re.sub(code_regex, '', message).replace('  ', ' ')
+                self.code = int(code[0])  # would like to EResult however steam trades don't use the same system
+                self.message = re.sub(code_regex, '', message)
             else:
                 self.code = 0
                 self.message = message
@@ -75,9 +83,11 @@ class HTTPException(SteamException):  # TODO add some messages for these
             if bool(BeautifulSoup(data, 'html.parser').find()):
                 self.message = ''
             else:
-                self.message = data.replace('  ', ' ')
+                self.message = data
                 self.code = 0
-        super().__init__(f'{response.status} {response.reason} (error code: {self.code})'
+
+        self.message = self.message.replace('  ', ' ')
+        super().__init__(f'{response.status} {response.reason} (error code: {self.code} EResult: {self.EResult})'
                          f'{f": {self.message}" if self.message else ""}')
 
 
