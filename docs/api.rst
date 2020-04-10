@@ -140,6 +140,7 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 .. function:: on_trade_cancel(trade)
 
     Called when the client or the trade partner cancels a trade offer.
+
     .. note::
         This is called when the trade state also is
         :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`
