@@ -193,9 +193,6 @@ Guard
 Market
 ---------------
 
-.. autoclass:: steam.market.Market()
-    :members:
-
 .. autoclass:: PriceOverview()
     :members:
 
