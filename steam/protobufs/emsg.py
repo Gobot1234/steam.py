@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from ..enums import IntEnum
 
-import enum
 
-
-class EMsg(enum.IntEnum):
+class EMsg(IntEnum):
     Invalid = 0
     Multi = 1
     ProtobufWrapped = 2
