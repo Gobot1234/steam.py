@@ -95,7 +95,8 @@ How can I get help with my code?
 - Try searching for something using the documentation or ``=rtfm`` in an appropriate channel.
 - Trying something for yourself.
 
-  .. raw:: html
+    .. raw:: html
+
         <video width="320" height="240" controls>
             <source src="https://tryitands.ee/tias.mp4" type="video/mp4">
         Your browser does not support the video :(

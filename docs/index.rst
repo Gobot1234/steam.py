@@ -24,6 +24,7 @@ Documentation Contents
    :maxdepth: 2
 
    api
+   faq
 
 
 If you still can't find what you're looking for, try in one of the following pages:
