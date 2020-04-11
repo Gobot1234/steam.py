@@ -9,6 +9,8 @@ Find answers to some common questions relating to steam.py and help in the disco
 .. contents:: Questions
     :local:
 
+General
+--------
 
 How much Python should I need to know?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -111,7 +113,7 @@ How can I wait for an event?
     @client.event
     async def on_message(message):
         if message.content.startswith('?trade'):
-            await message.send('Send me a trade')
+            await message.send('Send me a trade and I will read the contents')
 
             def check(trade):
                 return trade.partner == message.author
@@ -127,3 +129,19 @@ How can I wait for an event?
                     if trade.items_to_receive else 'Nothing'
                 await message.send(f'You were going to send:\n{to_receive}\nYou were going to receive:\n{to_send}')
                 await trade.decline()
+
+This will end up looking like
+
+    User: ?trade
+
+    Bot:  Send me a trade
+
+    User: User sent a new trade offer
+
+    Bot: You were going to send:
+
+    Mann Co. Supply Crate Key, Refined Metal
+
+    You were going to receive:
+
+    Burning Team Captain
