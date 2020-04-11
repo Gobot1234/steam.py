@@ -267,7 +267,7 @@ class _BaseUser(BaseUser):
 
     async def fetch_inventory(self, game: Game):
         """|coro|
-        Fetch an :class:`User`'s class:`~steam.Inventory` for trading.
+        Fetch an :class:`User`'s :class:`~steam.Inventory` for trading.
 
         Parameters
         -----------
