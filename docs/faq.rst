@@ -1,14 +1,17 @@
+.. currentmodule:: steam
+.. _faq:
+
 F.A.Q
 ======
 
-Find answers to some common questions
+Find answers to some common questions relating to steam.py and help in the discord server
 
-- :ref:`How much Python should I need to know?`
-- :ref:`How can I get help with my code?`
+.. contents:: Questions
+    :local:
 
 
 How much Python should I need to know?
-----------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **A list of required knowledge courtesy of Scragly:**
 
@@ -66,7 +69,7 @@ and when debugging any issues in your code.
 
 
 How can I get help with my code?
----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **What not to do:**
 
@@ -92,4 +95,33 @@ How can I get help with my code?
 - Try searching for something using the documentation or ``=rtfm`` in an appropriate channel.
 - Trying something for yourself.
   .. raw:: html
-       <video controls src="https://tryitands.ee/tias.mp4" width="620" height="620"/>
+      <video width="320" height="240" controls>
+        <source src="https://tryitands.ee/tias.mp4" type="video/mp4">
+      Your browser does not support the video :(
+      </video>
+
+
+How can I wait for an event?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python3
+
+    @client.event
+    async def on_message(message):
+        if message.content.startswith('?trade'):
+            await message.send('Send me a trade')
+
+            def check(trade):
+                return trade.partner == message.author
+
+            try:
+                trade = await client.wait_for('trade_receive', timeout=60, check=check)
+            except asyncio.TimeoutError:
+                await channel.send('You took too long')
+            else:
+                to_send = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send]) \
+                    if trade.items_to_send else 'Nothing'
+                to_receive = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive]) \
+                    if trade.items_to_receive else 'Nothing'
+                await message.send(f'You were going to send:\n{to_receive}\nYou were going to receive:\n{to_send}')
+                await trade.decline()
