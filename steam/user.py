@@ -301,7 +301,13 @@ class _BaseUser(BaseUser):
         return [self._state._store_user(friend) for friend in friends]
 
     async def fetch_games(self) -> Optional[List[Game]]:
-        """|coro|"""
+        """|coro|
+        Fetches the list of :class:`~steam.Game` objects from the API.
+
+        Returns
+        -------
+        Optional[List[:class:`~steam.Game`]]
+        """
         data = await self._state.http.fetch_user_games(self.id64)
         games = data['response'].get('games')
         if games:
