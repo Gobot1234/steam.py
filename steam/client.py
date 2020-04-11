@@ -485,10 +485,6 @@ class Client:
         """|coro|
         Fetches a trade from the API with the given ID.
 
-        .. note::
-            The partner's id from the API is often incorrect,
-            relying the on getting the correct partner would be inadvisable.
-
         Parameters
         ----------
         id: :class:`int`
@@ -584,20 +580,22 @@ class Client:
         """|coro|
         Waits for an event to be dispatched.
 
-        The ``timeout`` parameter is passed onto :func:`asyncio.wait_for`. By default,
+        The ``timeout`` parameter is passed to :func:`asyncio.wait_for`. By default,
         it does not timeout. Note that this does propagate the
         :exc:`asyncio.TimeoutError` for you in case of timeout and is provided for
         ease of use.
         In case the event returns multiple arguments, a :class:`tuple` containing those
         arguments is returned instead. Please check the
-        :ref:`documentation <steam-api-event-reference>` for a list of events and their
+        `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_
+        for a list of events and their
         parameters.
         This function returns the **first event that meets the requirements**.
 
         Parameters
         ------------
         event: :class:`str`
-            The event name, similar to the :ref:`event reference <steam-api-event-reference>`,
+            The event name, similar to the
+            `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
             but without the ``on_`` prefix, to wait for.
         check: Optional[Callable[..., :class:`bool`]]
             A predicate to check what to wait for. The arguments must meet the
@@ -616,7 +614,7 @@ class Client:
         Any
             Returns no arguments, a single argument, or a :class:`tuple` of multiple
             arguments that mirrors the parameters passed in the
-            :ref:`event reference <steam-api-event-reference>`.
+            `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
         """
 
         future = self.loop.create_future()
