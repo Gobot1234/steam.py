@@ -178,9 +178,6 @@ class Client:
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
 
-        Example
-        ---------
-
         Usage::
 
             @client.event
