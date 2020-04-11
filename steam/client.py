@@ -294,7 +294,7 @@ class Client:
         if not task.cancelled():
             return task.result()
 
-    def is_closed(self):
+    def is_closed(self) -> bool:
         """Indicates if the API connection is closed."""
         return self._closed
 
