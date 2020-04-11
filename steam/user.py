@@ -123,17 +123,19 @@ class SteamID(int):
     @property
     def as_steam2_zero(self):
         """:class:`str`: The steam2 id of the account.
+            e.g ``STEAM_0:0:1234``.
+
         For GoldSrc and Orange Box games.
         See :class:`SteamID`:attr:`as_steam2`.
-            e.g ``STEAM_0:0:1234``.
         """
         return self.as_steam2.replace('_1', '_0')
 
     @property
     def as_steam3(self):
         """:class:`str`: The steam3 id of the account.
-        This is used for more recent games
             e.g ``[U:1:1234]``.
+
+        This is used for more recent games
         """
         typechar = str(ETypeChar(self.type))
         instance = None
