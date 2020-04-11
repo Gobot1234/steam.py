@@ -80,7 +80,6 @@ class HTTPException(SteamException):
                 self.code = 0
                 self.message = message
         else:
-            print(data)
             try:
                 if bool(BeautifulSoup(data, 'html.parser').find()):
                     self.message = ''
