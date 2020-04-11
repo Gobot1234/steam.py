@@ -233,14 +233,21 @@ class Inventory:
         return self._total_inventory_count
 
     def _update(self, data):
-        self.game = Game(app_id=int(data['assets'][0]['appid']), is_steam_game=True)
-        for asset in data['assets']:
-            for item in data['descriptions']:
-                if item['instanceid'] == asset['instanceid'] and item['classid'] == asset['classid']:
-                    item.update(asset)
-                    self.items.append(Item(data=item))
-            self.items.append(Item(data=asset, missing=True))
-        self._total_inventory_count = data['total_inventory_count']
+        try:
+            self.game = Game(app_id=int(data['assets'][0]['appid']), is_steam_game=True)
+        except KeyError:  # they don't have an inventory for this game
+            self.game = None
+            self.items = []
+            self._total_inventory_count = 0
+            return
+        else:
+            for asset in data['assets']:
+                for item in data['descriptions']:
+                    if item['instanceid'] == asset['instanceid'] and item['classid'] == asset['classid']:
+                        item.update(asset)
+                        self.items.append(Item(data=item))
+                self.items.append(Item(data=asset, missing=True))
+            self._total_inventory_count = data['total_inventory_count']
 
     async def update(self):
         """|coro|

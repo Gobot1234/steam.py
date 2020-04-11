@@ -272,6 +272,12 @@ class _BaseUser(BaseUser):
         game: :class:`~steam.Game`
             The game to fetch the inventory for.
 
+
+        Raises
+        ------
+        :class:`~steam.Forbidden`
+            The user's inventory is private.
+
         Returns
         -------
         :class:`Inventory`
