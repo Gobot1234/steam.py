@@ -127,7 +127,7 @@ class Client:
         The event loop that the client uses for HTTP requests.
     """
 
-    def __init__(self, loop=None, **options):
+    def __init__(self, loop: asyncio.AbstractEventLoop = None, **options):
         self.loop = loop or asyncio.get_event_loop()
         self._session = aiohttp.ClientSession(loop=self.loop)
 

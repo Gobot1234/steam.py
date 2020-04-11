@@ -14,6 +14,12 @@ class URL:
 class Game:
     """Represents a Steam game.
 
+    .. note::
+
+        This class can be defined by users using the above parameters, or
+        it can be from an API call this is when :meth:`~steam.User.fetch_games`
+        is called.
+
     Parameters
     ----------
     title: Optional[:class:`str`]
@@ -23,12 +29,6 @@ class Game:
     is_steam_game: Optional[bool]
         Whether or not the game is an official Steam game.
         Defaults to ``True``
-
-    .. note::
-
-        This class can be defined by users using the above parameters, or
-        it can be from an API call this is when :meth:`~steam.User.fetch_games`
-        is called.
 
     Attributes
     -----------
@@ -129,11 +129,13 @@ class Comment:
         return f"<Comment {' '.join(resolved)}>"
 
     async def report(self):
-        """Report a comment"""
+        """|coro|
+        Reports the comment"""
         await self._state.http.report_comment(self._owner_id, self.id)
 
     async def delete(self):
-        """Delete a comment"""
+        """|coro|
+        Deletes the comment"""
         await self._state.http.delete_comment(self._owner_id, self.id)
 
 
