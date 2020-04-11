@@ -34,7 +34,7 @@ with open('README.md') as f:
 
 extras_require = {
     'docs': [
-        'sphinx==3.1.0',
+        'sphinx==3.0.1',
         'sphinxcontrib_trio==1.1.0',
         'sphinxcontrib-websupport',
         ''
