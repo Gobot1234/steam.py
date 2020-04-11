@@ -32,7 +32,7 @@ import logging
 import signal
 import sys
 import traceback
-from typing import Union, List
+from typing import Union, List, Optional
 
 import aiohttp
 import websockets
@@ -45,6 +45,7 @@ from .http import HTTPClient
 from .market import Market
 from .models import Game
 from .state import State
+from .trade import TradeOffer
 from .user import make_steam64, User
 
 log = logging.getLogger(__name__)
@@ -478,7 +479,7 @@ class Client:
         """
         return self._connection.get_trade(id)
 
-    async def fetch_trade(self, id):
+    async def fetch_trade(self, id: int) -> Optional[TradeOffer]:
         """|coro|
         Fetches a trade from the API with the given ID.
 
