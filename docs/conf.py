@@ -32,6 +32,7 @@ extensions = [
 ]
 
 autodoc_member_order = 'bysource'
+autodoc_typehints = 'none'
 
 extlinks = {
     'issue': ('https://github.com/Gobot1234/steam.py/issues/%s', 'GH-'),
