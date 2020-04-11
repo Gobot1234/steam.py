@@ -285,17 +285,19 @@ class _BaseUser(BaseUser):
         Returns
         -------
         :class:`Inventory`
+            The inventory.
         """
         resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
     async def fetch_friends(self) -> List[User]:
         """|coro|
-        Fetch a :class:`~steam.User`'s friends from the API.
+        Fetch the list of :class:`~steam.User`'s friends from the API.
 
         Returns
         -------
         List[:class:`~steam.User`]
+            The list of :class:`~steam.User`'s friends from the API
         """
         friends = await self._state.http.fetch_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
@@ -307,6 +309,7 @@ class _BaseUser(BaseUser):
         Returns
         -------
         Optional[List[:class:`~steam.Game`]]
+            The list of :class:`~steam.Game` objects from the API.
         """
         data = await self._state.http.fetch_user_games(self.id64)
         games = data['response'].get('games')
