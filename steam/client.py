@@ -45,7 +45,7 @@ from .http import HTTPClient
 from .market import Market
 from .models import Game
 from .state import State
-from .user import make_steam64
+from .user import make_steam64, User
 
 log = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ class Client:
         return self._user
 
     @property
-    def users(self):
+    def users(self) -> List[User]:
         """List[:class:`~steam.User`]: Returns a list of all the users the account can see."""
         return self._connection.users
 
