@@ -180,7 +180,9 @@ class Client:
 
         Example
         ---------
-        .. code-block:: python3
+
+        Usage::
+
             @client.event
             async def on_ready():
                 print('Ready!')
