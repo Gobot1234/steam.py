@@ -3,6 +3,13 @@
 API reference
 =============
 
+The following document outlines the front facing aspects of steam.py.
+
+.. note::
+    This module uses Python's logging module to debug, give information and
+    diagnose errors, it is recommended to configure this if necessary as errors or warnings
+    will not be propagated properly.
+
 Version Related Info
 ---------------------
 
@@ -83,7 +90,8 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. function:: on_login()
 
-    Called when the client has logged into https://steamcommunity.com.
+    Called when the client has logged into https://steamcommunity.com and
+    the :class:`~steam.ClientUser` is setup along with its friends list.
 
 .. function:: on_error(event, \*args, \*\*kwargs)
 
@@ -142,8 +150,9 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     Called when the client or the trade partner cancels a trade offer.
 
     .. note::
-        This is called when the trade state also is
-        :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`
+        This is called when the trade state becomes
+        :attr:`~steam.ETradeOfferState.Canceled` and
+        :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`.
     
     :param trade: The trade offer that was canceled.
     :type trade: :class:`~steam.TradeOffer`
@@ -181,6 +190,8 @@ Enumerations
 .. autoclass:: ETradeOfferState
     :members:
     :undoc-members:
+
+.. TODO make these individually
 
 Guard
 ---------------
