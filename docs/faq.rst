@@ -97,7 +97,7 @@ How can I get help with my code?
 
     .. raw:: html
 
-        <video width="320" height="240" controls>
+        <video width="480" height="360" controls>
             <source src="https://tryitands.ee/tias.mp4" type="video/mp4">
         Your browser does not support the video :(
         </video>
