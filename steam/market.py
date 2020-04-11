@@ -132,23 +132,18 @@ class Market:
             self.currency = 1
         log.info(f'Currency is set to {self.currency}')
 
-    async def fetch_price(self, item_name, game):
-        item = FakeItem(fix_name(item_name), game)
+    async def fetch_price(self, item):
         data = {
             'appid': item.app_id,
             'market_hash_name': item.name,
             'currency': self.currency
         }
-
         return PriceOverview(await self.http.request('POST', f'{self.BASE}/priceoverview', data=data))
 
-    async def fetch_prices(self, item_names, games):
-        items = convert_items(item_names, games)
+    async def fetch_prices(self, items):
+        return {item: await self.fetch_price(item) for item in items}
 
-        return {item: await self.fetch_price(item.name, item.game) for item in items}
-
-    def create_listing(self, item_name, game, *, price):
-        item = FakeItem(fix_name(item_name), game)
+    def create_listing(self, item, *, price):
         data = {
             "sessionid": self.http.session_id,
             "currency": self.currency,
@@ -157,22 +152,10 @@ class Market:
             "price_total": price * 100,
             "quantity": 1
         }
-
         headers = {"Referer": f'{URL.COMMUNITY}/market/listings/{game.app_id}/{item.name}'}
-
         return self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder', data=data, headers=headers)
 
-    def create_listings(self, item_names, games, *, prices):
-        to_list = []
-        items = convert_items(item_names, games, prices)
-        for (item, price) in items:
-            final_price = price * items.count((item, price))
-            for (_, __) in items:
-                items.remove((item, price))
-            to_list.append((item, final_price))
-        for (item, price) in items:
-            to_list.append((item, price))
-
+    def create_listings(self, to_list):
         for (item, price) in to_list:
             data = {
                 "sessionid": self.http.session_id,
@@ -183,5 +166,4 @@ class Market:
                 "quantity": 1
             }
             headers = {"Referer": f'{URL.COMMUNITY}/market/listings/{item.app_id}/{item.name}'}
-
             return self.http.request('POST', f'{URL.COMMUNITY}/market/createbuyorder', data=data, headers=headers)

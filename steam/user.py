@@ -28,8 +28,11 @@ This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
 
+from __future__ import annotations
+
 import json
-from typing import List
+from datetime import timedelta
+from typing import List, Optional
 
 import aiohttp
 
@@ -263,9 +266,9 @@ class _BaseUser(BaseUser):
         comment: :class:`str`
             The comment to add the :class:`User`'s profile.
         """
-        return await self._state.http.post_comment(self.id64, comment)
+        await self._state.http.post_comment(self.id64, comment)
 
-    async def fetch_inventory(self, game: Game):
+    async def fetch_inventory(self, game: Game) -> Inventory:
         """|coro|
         Fetch an :class:`User`'s :class:`~steam.Inventory` for trading.
 
@@ -286,7 +289,7 @@ class _BaseUser(BaseUser):
         resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
-    async def fetch_friends(self):
+    async def fetch_friends(self) -> List[User]:
         """|coro|
         Fetch a :class:`~steam.User`'s friends from the API.
 
@@ -297,26 +300,28 @@ class _BaseUser(BaseUser):
         friends = await self._state.http.fetch_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
-    async def fetch_games(self):
-        """|coro|
+    async def fetch_games(self) -> Optional[List[Game]]:
+        """|coro|"""
+        data = await self._state.http.fetch_user_games(self.id64)
+        games = data['response'].get('games')
+        if games:
+            return [Game(_data=game) for game in games]
+        return []
 
-        """
-        return await self._state.http.fetch_user_games(self.id64)
-
-    def is_commentable(self):
+    def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
         return bool(self._data.get('commentpermission'))
 
-    def is_private(self):
+    def is_private(self) -> bool:
         """:class:`bool`: Specifies if the user has a public profile."""
         state = self._data.get('communityvisibilitystate', 0)
         return state in {0, 1, 2}
 
-    def has_setup_profile(self):
+    def has_setup_profile(self) -> bool:
         """:class:`bool`: Specifies if the user has a setup their profile."""
         return bool(self._data.get('profilestate'))
 
-    def comments(self, limit=None, before: datetime = None, after: datetime = None):
+    def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
         """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment` objects.
 
         Examples
@@ -407,25 +412,25 @@ class User(Messageable, _BaseUser):
         """|coro|
         Add an :class:`User` to your friends list.
         """
-        return await self._state.http.add_user(self.id64)
+        await self._state.http.add_user(self.id64)
 
     async def remove(self):
         """|coro|
         Remove an :class:`User` from your friends list.
         """
-        return await self._state.http.remove_user(self.id64)
+        await self._state.http.remove_user(self.id64)
 
     async def unblock(self):
         """|coro|
         Unblock an :class:`User`.
         """
-        return await self._state.http.unblock_user(self.id64)
+        await self._state.http.unblock_user(self.id64)
 
     async def block(self):
         """|coro|
         Block an :class:`User`.
         """
-        return await self._state.http.block_user(self.id64)
+        await self._state.http.block_user(self.id64)
 
     async def accept_invite(self):
         """|coro|
@@ -437,7 +442,7 @@ class User(Messageable, _BaseUser):
         """|coro|
         Decline a friend invite from an :class:`User`.
         """
-        return await self._state.http.decline_user_invite(self.id64)
+        await self._state.http.decline_user_invite(self.id64)
 
     async def send_trade(self, items_to_send: List[Item] = None, items_to_receive: List[Item] = None, *,
                          message: str = None):
@@ -466,14 +471,21 @@ class User(Messageable, _BaseUser):
             confirmation = await self._state.confirmation_manager.get_trade_confirmation(int(resp['tradeofferid']))
             await confirmation.confirm()
 
-    async def fetch_escrow(self):
+    async def fetch_escrow(self) -> Optional[datetime]:
         """|coro|
         Check how long a :class:`User`'s escrow is.
-        """
-        unix = self._state.http.fetch_user_escrow(url=self.community_url)
-        return datetime.utcfromtimestamp(unix) if unix else None
 
-    def is_friend(self):
+        Returns
+        --------
+        Optional[:class:`datetime.datetime`]
+            The time at which any items sent/received would arrive
+            ``None`` if the :class:`User` has no escrow.
+        """
+        resp = await self._state.http.fetch_user_escrow(self.id)
+        days = int(re.search(r'var g_daysTheirEscrow = (\d+);', resp).group(1))
+        return (datetime.utcnow() + timedelta(days=days)) if days else None
+
+    def is_friend(self) -> bool:
         """:class:`bool`: Species if the user is in the ClientUser's friends"""
         return self in self._state.client.user.friends
 
@@ -482,8 +494,13 @@ class User(Messageable, _BaseUser):
 
         .. note::
             This does not currently function.
+
+        Returns
+        ---------
+        :class:`~steam.Message`
+            The send message
         """
-        self._state.send_message(user_id64=self.id64, content=str(content))
+        return await self._state.send_message(user_id64=self.id64, content=str(content))
 
 
 class ClientUser(_BaseUser):
@@ -554,7 +571,8 @@ class ClientUser(_BaseUser):
         self.friends = await super().fetch_friends()
 
     def trades(self, limit=None, before: datetime = None, after: datetime = None,
-               active_only: bool = True, include_sent: bool = True, include_received: bool = True):
+               active_only: bool = True, include_sent: bool = True, include_received: bool = True) \
+            -> TradesIterator:
         """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
 
         Examples
@@ -598,7 +616,7 @@ class ClientUser(_BaseUser):
                               active_only=active_only, sent=include_sent, received=include_received)
 
 
-def make_steam64(account_id=0, *args, **kwargs):
+def make_steam64(account_id=0, *args, **kwargs) -> int:
     """Returns steam64 from various other representations.
 
     .. code:: python

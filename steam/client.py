@@ -32,7 +32,7 @@ import logging
 import signal
 import sys
 import traceback
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Any, Callable
 
 import aiohttp
 import websockets
@@ -42,11 +42,11 @@ from .enums import ECurrencyCode
 from .gateway import SteamWebSocket, ResumeSocket
 from .guard import generate_one_time_code
 from .http import HTTPClient
-from .market import Market
+from .market import Market, PriceOverview, FakeItem, fix_name, convert_items
 from .models import Game
 from .state import State
 from .trade import TradeOffer
-from .user import make_steam64, User
+from .user import make_steam64, User, ClientUser
 
 log = logging.getLogger(__name__)
 
@@ -149,7 +149,7 @@ class Client:
         self._ready = asyncio.Event()
 
     @property
-    def user(self):
+    def user(self) -> Optional[ClientUser]:
         """Optional[:class:`~steam.ClientUser`]: Represents the connected client.
         ``None`` if not logged in."""
         return self._user
@@ -160,18 +160,18 @@ class Client:
         return self._connection.users
 
     @property
-    def trades(self):
+    def trades(self) -> List[TradeOffer]:
         """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the user has seen."""
         return self._connection.trades
 
     @property
-    def code(self):
+    def code(self) -> Optional[str]:
         """Optional[:class:`str`]: The current steam guard code.
         ``None`` if no shared_secret is passed"""
         return generate_one_time_code(self.shared_secret) if self.shared_secret else None
 
     @property
-    def latency(self):
+    def latency(self) -> float:
         return float('nan') if self.ws is None else self.ws.latency
 
     def event(self, coro):
@@ -253,7 +253,7 @@ class Client:
         else:
             self._schedule_event(coro, method, *args, **kwargs)
 
-    def is_ready(self):
+    def is_ready(self) -> bool:
         """Specifies if the client's internal cache is ready for use."""
         return self._ready.is_set()
 
@@ -299,7 +299,7 @@ class Client:
         """Indicates if the API connection is closed."""
         return self._closed
 
-    async def on_error(self, event_method, *args, **kwargs):
+    async def on_error(self, event_method, *args, **kwargs) -> None:
         """|coro|
         The default error handler provided by the client.
         """
@@ -307,7 +307,7 @@ class Client:
         traceback.print_exc()
 
     async def login(self, username: str, password: str, api_key: str,
-                    shared_secret: str = None, identity_secret: str = None):
+                    shared_secret: str = None, identity_secret: str = None) -> None:
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
 
@@ -349,7 +349,7 @@ class Client:
         self._user = self.http.user
         self._closed = False
 
-    async def close(self):
+    async def close(self) -> None:
         """|coro|
         Closes the connection to Steam CMs and logs out.
         """
@@ -362,7 +362,7 @@ class Client:
         self._closed = True
         self._ready.clear()
 
-    def clear(self):
+    def clear(self) -> None:
         """Clears the internal state of the bot.
         After this, the bot can be considered "re-opened", i.e. :meth:`is_closed`
         and :meth:`is_ready` both return ``False``.
@@ -372,7 +372,7 @@ class Client:
         self.http.recreate()
         #self.loop.create_task(self.ws.close())
 
-    async def start(self, *args, **kwargs):
+    async def start(self, *args, **kwargs) -> None:
         """|coro|
         A shorthand coroutine for :meth:`login` and :meth:`connect`
 
@@ -415,7 +415,7 @@ class Client:
                 coro = self.ws.from_client(self)
                 await asyncio.wait_for(coro, timeout=180.0)
 
-    async def connect(self):
+    async def connect(self) -> None:
         while not self.is_closed():
             try:
                 await self._connect()
@@ -429,7 +429,7 @@ class Client:
                 if self.is_closed():
                     break
 
-    def get_user(self, user_id):
+    def get_user(self, user_id: int) -> Optional[User]:
         """Returns a user with the given ID.
 
         Parameters
@@ -446,7 +446,7 @@ class Client:
         id64 = make_steam64(user_id)
         return self._connection.get_user(id64)
 
-    async def fetch_user(self, user_id):
+    async def fetch_user(self, user_id) -> Optional[User]:
         """|coro|
         Fetches a user from the API with the given ID.
 
@@ -464,7 +464,7 @@ class Client:
         id64 = make_steam64(user_id)
         return await self._connection.fetch_user(id64)
 
-    def get_trade(self, id):
+    def get_trade(self, id) -> Optional[TradeOffer]:
         """Get a trade from cache.
 
         Parameters
@@ -495,7 +495,7 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    async def fetch_price(self, item_name: str, game: Game):
+    async def fetch_price(self, item_name: str, game: Game) -> Optional[PriceOverview]:
         """Gets the price(s) and volume sales of an item.
 
         Parameters
@@ -510,7 +510,8 @@ class Client:
         :class:`PriceOverview`
             A class to represent the data from these transactions
         """
-        return await self._market.fetch_price(item_name, game)
+        item = FakeItem(fix_name(item_name), game)
+        return await self._market.fetch_price(item)
 
     async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]):
         """Get the price(s) and volume of each item in the list.
@@ -527,7 +528,8 @@ class Client:
         Mapping
             A mapping of the prices. {item_name: :class:`PriceOverview`}
         """
-        return self._market.fetch_prices(item_names, games)
+        items = convert_items(item_names, games)
+        return self._market.fetch_prices(items)
 
     async def create_listing(self, item_name: str, game: Game, *, price: float):
         """Creates a market listing for an item.
@@ -546,7 +548,8 @@ class Client:
             The price to pay for the item in decimal form.
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
-        return self._market.create_listing(item_name, game, price=price)
+        item = FakeItem(fix_name(item_name), game)
+        return self._market.create_listing(item, price=price)
 
     async def create_listings(self, item_names: List[str], games: Union[List[Game], Game],
                               prices: Union[List[Union[int, float]], Union[int, float]]):
@@ -566,7 +569,16 @@ class Client:
             The price to pay for each item in decimal form.
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
-        return await self._market.create_listings(item_names, games, prices=prices)
+        to_list = []
+        items = convert_items(item_names, games, prices)
+        for (item, price) in items:
+            final_price = price * items.count((item, price))
+            for (_, __) in items:
+                items.remove((item, price))
+            to_list.append((item, final_price))
+        for (item, price) in items:
+            to_list.append((item, price))
+        return await self._market.create_listings(to_list)
 
     async def wait_until_ready(self):
         """|coro|
@@ -574,7 +586,7 @@ class Client:
         """
         await self._ready.wait()
 
-    def wait_for(self, event, *, check=None, timeout=None):
+    def wait_for(self, event: str, *, check: Callable = None, timeout: float = None) -> Any:
         """|coro|
         Waits for an event to be dispatched.
 

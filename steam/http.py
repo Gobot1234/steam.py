@@ -124,13 +124,6 @@ class HTTPClient:
                     # even errors have text involved in them so this is safe to call
                     data = await json_or_text(r)
 
-                    # api key either got revoked or it was never valid
-                    if data == 'Access is denied. Retrying will not help. Please verify your <pre>key=</pre> parameter':
-                        # time to fetch a new key
-                        self.api_key = await self.fetch_api_key()
-                        kwargs['key'] = self.api_key
-                        continue  # retry with our new key
-
                     # the request was successful so just return the text/json
                     if 300 > r.status >= 200:
                         log.debug(f'{method} {url} has received {data}')
@@ -150,6 +143,14 @@ class HTTPClient:
                     if r.status in {500, 502}:
                         await asyncio.sleep(1 + tries * 3)
                         continue
+
+                    if r.status == 401:
+                        # api key either got revoked or it was never valid
+                        if 'Access is denied. Retrying will not help. Please verify your <pre>key=</pre>' in data:
+                            # time to fetch a new key
+                            self.api_key = await self.fetch_api_key()
+                            kwargs['key'] = self.api_key
+                            continue  # retry with our new key
 
                     # the usual error cases
                     if r.status == 403:
@@ -333,6 +334,7 @@ class HTTPClient:
 
     def fetch_user_games(self, user_id64):
         params = {
+            "key": self.api_key,
             "steamid": user_id64,
             "include_appinfo": 1,
             "include_played_free_games": 1
@@ -345,13 +347,13 @@ class HTTPClient:
         }
         return self.request('GET', url=f'{URL.COMMUNITY}/inventory/{user_id64}/{app_id}/{context_id}', params=params)
 
-    async def fetch_user_escrow(self, url):
+    def fetch_user_escrow(self, user_id):
+        trade_offer_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}'
         headers = {
-            'Referer': f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id64}',
+            'Referer': trade_offer_url,
             'Origin': URL.COMMUNITY
         }
-        resp = await self.request('GET', url=url, headers=headers)
-        return int(re.search(r'var g_daysTheirEscrow = (?P<escrow>(?:.*?));', resp).group('escrow'))
+        return self.request('GET', url=trade_offer_url, headers=headers)
 
     async def fetch_friends(self, user_id64):
         params = {

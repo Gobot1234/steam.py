@@ -24,6 +24,12 @@ class Game:
         Whether or not the game is an official Steam game.
         Defaults to ``True``
 
+    .. note::
+
+        This class can be defined by users using the above parameters, or
+        it can be from an API call this is when :meth:`~steam.User.fetch_games`
+        is called.
+
     Attributes
     -----------
     title: Optional[:class:`str`]
@@ -32,18 +38,39 @@ class Game:
         The game's app_id.
     context_id: :class:`int`
         The context id of the game normally 2.
+    total_play_time: Optional[:class:`int`]
+        The total time the game has been played for.
+        Only applies to a :class:`~steam.User`'s games.
+    icon_url: Optional[:class:`str`]
+        The icon url of the game.
+        Only applies to a :class:`~steam.User`'s games.
+    logo_url: Optional[:class:`str`]
+        The logo url of the game.
+        Only applies to a :class:`~steam.User`'s games.
+    stats_visible: Optional[:class:`bool`]
+        Whether the game has publicly visible stats.
+        Only applies to a :class:`~steam.User`'s games.
     """
 
-    __slots__ = ('title', 'app_id', 'context_id', '_is_steam_game', '_game')
-
-    def __init__(self, *, title: str = None, app_id: int = None, is_steam_game: bool = True, context_id: int = 2):
+    def __init__(self, *, title: str = None, app_id: int = None, is_steam_game: bool = True, context_id: int = 2,
+                 _data=None):
         # user defined stuff
-        self.title = title
-        self.app_id = app_id
-        self.context_id = context_id
-        self._is_steam_game = is_steam_game
+        if _data is None:
+            self.title = title
+            self.app_id = app_id
+            self.context_id = context_id
+            self._is_steam_game = is_steam_game
 
-        # TODO add api defined stuff
+        # api stuff
+        else:
+            self.title = _data.get('name')
+            self.app_id = _data.get('appid')
+            self.context_id = 2
+            self.total_play_time = _data.get('playtime_forever', 0)
+            self.icon_url = _data.get('img_icon_url')
+            self.logo_url = _data.get('img_logo_url')
+            self.stats_visible = _data.get('has_community_visible_stats', False)
+            self._is_steam_game = True
 
     def __repr__(self):
         attrs = (

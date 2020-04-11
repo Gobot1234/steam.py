@@ -47,7 +47,7 @@ from .models import URL
 log = logging.getLogger(__name__)
 
 
-def generate_one_time_code(shared_secret: str, timestamp: int = int(time())):
+def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> str:
     """Generate a Steam Guard code for signing in.
 
     Parameters
@@ -74,7 +74,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())):
     return ''.join(code)  # faster than string concatenation
 
 
-def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = int(time())):
+def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = int(time())) -> str:
     """Generate a trade confirmation key.
 
     Parameters
@@ -95,7 +95,7 @@ def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = i
     return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
 
 
-def generate_device_id(steam_id: str):
+def generate_device_id(steam_id: str) -> str:
     """
     Parameters
     -----------
@@ -145,7 +145,7 @@ class Confirmation:
             'tag': tag
         }
 
-    async def confirm(self, loop=0):
+    async def confirm(self):
         params = self._confirm_params('allow')
         params['op'] = 'allow'
         params['cid'] = self.confirmation_id
@@ -207,4 +207,4 @@ class ConfirmationManager:
         for confirmation in confirmations:
             if confirmation.creator == trade_id:
                 return confirmation
-        return []
+        return None
