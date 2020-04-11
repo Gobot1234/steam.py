@@ -80,10 +80,15 @@ class HTTPException(SteamException):
                 self.code = 0
                 self.message = message
         else:
-            if bool(BeautifulSoup(data, 'html.parser').find()):
+            print(data)
+            try:
+                if bool(BeautifulSoup(data, 'html.parser').find()):
+                    self.message = ''
+                else:
+                    self.message = data
+                    self.code = 0
+            except TypeError:  # data is None
                 self.message = ''
-            else:
-                self.message = data
                 self.code = 0
 
         self.message = self.message.replace('  ', ' ')
