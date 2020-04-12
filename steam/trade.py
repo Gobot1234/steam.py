@@ -383,7 +383,7 @@ class TradeOffer:
 
     async def decline(self) -> None:
         """|coro|
-        Declines the :class:`TradeOffer`
+        Declines the :class:`TradeOffer`.
 
         Raises
         ------
@@ -452,4 +452,3 @@ class TradeOffer:
     def is_our_offer(self) -> bool:
         """:class:`bool`: Whether the offer was created by the ClientUser."""
         return self._is_our_offer
-
