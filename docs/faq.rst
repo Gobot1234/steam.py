@@ -12,8 +12,10 @@ Find answers to some common questions relating to steam.py and help in the disco
 General
 --------
 
-How much Python should I need to know?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+These are some general questions relating to steam.py
+
+How much Python do I need to know?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **A list of required knowledge courtesy of Scragly:**
 
@@ -56,7 +58,7 @@ How much Python should I need to know?
     - `Logging <https://realpython.com/courses/logging-python/>`_
     - `Decorators <https://realpython.com/primer-on-python-decorators/>`_
 
-You should have knowledge over all of the above this is due to the to the semi-complex nature of the library along
+You should have knowledge over all of the above this is due to the semi-complex nature of the library along
 with asynchronous programming, it can be rather overwhelming for a beginner. Properly learning python will both
 prevent confusion and frustration when receiving help from others but will make it easier when reading documentation
 and when debugging any issues in your code.
@@ -64,7 +66,7 @@ and when debugging any issues in your code.
 **Places to learn more python**
 
 - https://docs.python.org/3/tutorial/index.html (official tutorial)
-- https://greenteapress.com/wp/think-python-2e/ for beginners to programming or to python
+- https://greenteapress.com/wp/think-python-2e/ for beginners to programming or python
 - https://www.codeabbey.com/ (exercises for beginners)
 - https://www.real-python.com/ (good for individual quick tutorials)
 - https://gto76.github.io/python-cheatsheet/ (cheat sheet)
@@ -80,16 +82,16 @@ How can I get help with my code?
 - Send screenshots/text files of code/errors unless relevant.
     - As they are difficult to read.
 - Use https://pastebin.com,
-    - As it is very bloated and ad heavy.
-    - Instead you could use of:
+    - As it is very bloated and ad-heavy.
+    - Instead, you could use any of:
         - https://hastebin.com/
         - https://mystb.in/
         - https://gist.github.com/
         - https://starb.in/
 - Ask if you can ask a question about the library.
     - The answer will always be yes.
-- Saying This code doesn't work or What's wrong with this code? Without any traceback.
-    - This not helpful for yourself or others. Describe what you expected to happen and/or tried (with your code),
+- Saying "This code doesn't work" or "What's wrong with this code?" Without any traceback.
+    - This is not helpful for yourself or others. Describe what you expected to happen and/or tried (with your code),
       and what isn't going right. Along with a traceback.
 
 **Encouraged practices:**
@@ -101,12 +103,15 @@ How can I get help with my code?
 
         <video width="480" height="360" controls>
             <source src="https://tryitands.ee/tias.mp4" type="video/mp4">
-        Your browser does not support the video :(
+        Your browser does not support video :(
         </video>
 
 
 How can I wait for an event?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+    ``on_message`` isn't currently a dispatched event
 
 .. code-block:: python3
 
@@ -115,12 +120,15 @@ How can I wait for an event?
         if message.content.startswith('?trade'):
             await message.send('Send me a trade and I will read the contents')
 
-            def check(trade):
+            # the check function must return a boolean.
+            def check(trade: steam.TradeOffer) -> bool:
                 return trade.partner == message.author
+
+                # here we check that the trades partner is the message's author
 
             try:
                 trade = await client.wait_for('trade_receive', timeout=60, check=check)
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError:  # they took too long to send the trade
                 await channel.send('You took too long')
             else:
                 to_send = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send]) \
@@ -128,9 +136,9 @@ How can I wait for an event?
                 to_receive = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive]) \
                     if trade.items_to_receive else 'Nothing'
                 await message.send(f'You were going to send:\n{to_receive}\nYou were going to receive:\n{to_send}')
-                await trade.decline()
+                await trade.decline()  # we don't want to clog up trade offers
 
-This will end up looking like
+The final interaction will end up looking something like this:
 
     User: ?trade
 
@@ -145,3 +153,19 @@ This will end up looking like
     You were going to receive:
 
     Burning Team Captain
+
+
+What is the difference between fetch and get?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- **GET**
+    This retrieves an object from the client's cache. If it happened recently, it will be cached.
+    So this method is best in this case. This is also the faster of the two methods as it is a dictionary
+    lookup.
+
+- **FETCH**
+    This retrieves an object from the API, it is also a coroutine because of this.
+    This is good in case something needs to be updated, due to the cache being stale or the object not
+    being in cache at all. These, however, should be used less frequently as they are a request to the API
+    and are generally slower to return values. Fetched values are however added to cache if they aren't
+    already in it.
