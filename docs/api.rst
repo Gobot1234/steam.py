@@ -196,9 +196,9 @@ Enumerations
 Guard
 ---------------
 
-.. autofunction:: steam.guard.generate_one_time_code
+.. autofunction:: steam.guard.generate_one_time_code(shared_secret, timestamp=time.time())
 
-.. autofunction:: steam.guard.generate_confirmation_key
+.. autofunction:: steam.guard.generate_confirmation_key(identity_secret, tag, timestamp=time.time())
 
 .. autofunction:: steam.guard.generate_device_id
 
@@ -226,7 +226,7 @@ Steam Models
 Game
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: Game
+.. autoclass:: Game(app_id, title=None, *, is_steam_game=True, context_id=2)
     :members:
 
 There are some predefined games which are:

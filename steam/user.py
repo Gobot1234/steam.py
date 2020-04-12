@@ -314,8 +314,7 @@ class _BaseUser(BaseUser):
         data = await self._state.http.fetch_user_games(self.id64)
         games = data['response'].get('games')
         if games:
-            return [Game(_data=game) for game in games]
-        return []
+            return [Game(0, _data=game) for game in games]
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""

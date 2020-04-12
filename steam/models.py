@@ -1,6 +1,5 @@
 import asyncio
 import re
-import typing
 from datetime import datetime
 
 from bs4 import BeautifulSoup
@@ -53,7 +52,7 @@ class Game:
         Only applies to a :class:`~steam.User`'s games.
     """
 
-    def __init__(self, title: typing.Optional[str], *, app_id: int, is_steam_game: bool = True, context_id: int = 2,
+    def __init__(self, app_id: int, title: str = None, *, is_steam_game: bool = True, context_id: int = 2,
                  _data=None):
         # user defined stuff
         if _data is None:
