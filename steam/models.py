@@ -203,7 +203,7 @@ class CommentsIterator(AsyncIterator):
                 self.comments.put_nowait(Comment(state=self._state, comment_id=comment_id, timestamp=timestamp,
                                                  content=content, author=author_id, owner_id=self._user_id))
                 if self.limit is not None:
-                    if self.comments.qsize <= self.limit:
+                    if self.comments.qsize == self.limit:
                         return
         users = await self._state.http.fetch_profiles(to_fetch)
         for user in users:
@@ -248,7 +248,7 @@ class TradesIterator(AsyncIterator):
                 await trade.__ainit__()
                 self.trades.put_nowait(trade)
             if self.limit is not None:
-                if self.trades.qsize <= self.limit:
+                if self.trades.qsize == self.limit:
                     return
         for trade in data['trade_offers_received']:
             if self.after.timestamp() < trade['time_created'] < self.before.timestamp():
@@ -264,7 +264,7 @@ class TradesIterator(AsyncIterator):
                 await trade.__ainit__()
                 self.trades.put_nowait(trade)
             if self.limit is not None:
-                if self.trades.qsize <= self.limit:
+                if self.trades.qsize == self.limit:
                     return
 
     async def next(self):
