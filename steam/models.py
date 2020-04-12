@@ -1,5 +1,6 @@
 import asyncio
 import re
+import typing
 from datetime import datetime
 
 from bs4 import BeautifulSoup
@@ -34,7 +35,7 @@ class Game:
     -----------
     title: Optional[:class:`str`]
         The game's title.
-    app_id: Optional[:class:`int`]
+    app_id: :class:`int`
         The game's app_id.
     context_id: :class:`int`
         The context id of the game normally 2.
@@ -52,7 +53,7 @@ class Game:
         Only applies to a :class:`~steam.User`'s games.
     """
 
-    def __init__(self, *, title: str = None, app_id: int = None, is_steam_game: bool = True, context_id: int = 2,
+    def __init__(self, title: typing.Optional[str], *, app_id: int, is_steam_game: bool = True, context_id: int = 2,
                  _data=None):
         # user defined stuff
         if _data is None:
@@ -85,7 +86,7 @@ class Game:
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def is_steam_game(self):
+    def is_steam_game(self) -> bool:
         """:class:`bool`: Whether or not the game is an official Steam game."""
         return self._is_steam_game
 
@@ -128,12 +129,12 @@ class Comment:
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Comment {' '.join(resolved)}>"
 
-    async def report(self):
+    async def report(self) -> None:
         """|coro|
         Reports the comment"""
         await self._state.http.report_comment(self._owner_id, self.id)
 
-    async def delete(self):
+    async def delete(self) -> None:
         """|coro|
         Deletes the comment"""
         await self._state.http.delete_comment(self._owner_id, self.id)
@@ -178,6 +179,7 @@ class CommentsIterator(AsyncIterator):
         super().__init__(state, limit, before, after)
         self._user_id = user_id
         self.comments = asyncio.Queue()
+        self.owner = None
 
     async def fill_comments(self):
         await super().fill()
@@ -234,7 +236,33 @@ class TradesIterator(AsyncIterator):
         data = resp['response']
         for trade in data['trade_offers_sent']:
             if self.after.timestamp() < trade['time_created'] < self.before.timestamp():
-                self.trades.put_nowait(TradeOffer(state=self._state, data=trade))
+                for item in data['descriptions']:
+                    for asset in trade.get('items_to_receive', []):
+                        if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                            asset.update(item)
+                    for asset in trade.get('items_to_give', []):
+                        if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                            asset.update(item)
+
+                trade = TradeOffer(state=self._state, data=trade)
+                await trade.__ainit__()
+                self.trades.put_nowait(trade)
+            if self.limit is not None:
+                if self.trades.qsize <= self.limit:
+                    return
+        for trade in data['trade_offers_received']:
+            if self.after.timestamp() < trade['time_created'] < self.before.timestamp():
+                for item in data['descriptions']:
+                    for asset in trade.get('items_to_receive', []):
+                        if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                            asset.update(item)
+                    for asset in trade.get('items_to_give', []):
+                        if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                            asset.update(item)
+
+                trade = TradeOffer(state=self._state, data=trade)
+                await trade.__ainit__()
+                self.trades.put_nowait(trade)
             if self.limit is not None:
                 if self.trades.qsize <= self.limit:
                     return
