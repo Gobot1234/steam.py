@@ -1,3 +1,29 @@
+# -*- coding: utf-8 -*-
+
+"""
+MIT License
+
+Copyright (c) 2020 James
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 import asyncio
 import re
 from datetime import datetime
@@ -196,8 +222,9 @@ class CommentsIterator(AsyncIterator):
             if self.after < timestamp < self.before:
                 comment_id = int(re.findall(r'comment_([0-9]*)', comment)[0])
                 author_id = int(re.findall(r'data-miniprofile="([0-9]*)"', comment)[0])
-                content = re.findall(rf'id="comment_content_{comment_id}">\s*(.*?)\s*</div>',
-                                     comment)[0].replace('<br/>', '\n').strip()
+                html_content = re.findall(rf'id="comment_content_{comment_id}">\s*(.*?)\s*</div>',
+                                          comment)[0]
+                content = re.sub(r'<.*?>', '', html_content)
                 to_fetch.append(make_steam64(author_id))
                 self.comments.put_nowait(Comment(state=self._state, comment_id=comment_id, timestamp=timestamp,
                                                  content=content, author=author_id, owner_id=self._user_id))
