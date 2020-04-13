@@ -1,5 +1,5 @@
 .. currentmodule:: steam
-.. _faq:
+.. faq:
 
 F.A.Q
 ======
