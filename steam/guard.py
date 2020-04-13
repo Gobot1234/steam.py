@@ -91,7 +91,7 @@ def generate_confirmation_key(identity_secret: str, tag: str, timestamp: int = i
     :class:`bytes`
         Confirmation key for the set timestamp.
     """
-    buffer = f'{struct.pack(">Q", timestamp)}{tag.encode("ascii")}'
+    buffer = struct.pack('>Q', timestamp) + tag.encode('ascii')
     return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
 
 
