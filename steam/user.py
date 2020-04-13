@@ -312,9 +312,8 @@ class _BaseUser(BaseUser):
             The list of :class:`~steam.Game` objects from the API.
         """
         data = await self._state.http.fetch_user_games(self.id64)
-        games = data['response'].get('games')
-        if games:
-            return [Game(0, _data=game) for game in games]
+        games = data['response'].get('games', [])
+        return [Game(0, _data=game) for game in games]
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
