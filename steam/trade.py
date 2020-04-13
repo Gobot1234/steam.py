@@ -377,7 +377,7 @@ class TradeOffer:
             raise ClientException('This trade has already been accepted')
         if self.is_our_offer():
             raise ClientException('You cannot accept an offer the ClientUser has made')
-        await self._state.http.accept_trade(self.id)
+        await self._state.http.accept_user_trade(self.id)
         confirmation = await self._state.confirmation_manager.get_trade_confirmation(self.id)
         await confirmation.confirm()
 
