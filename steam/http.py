@@ -187,11 +187,6 @@ class HTTPClient:
         for url in login_response['transfer_urls']:
             await self.request('POST', url=url, data=parameters)
 
-        home = await self.request('GET', url=f'{URL.COMMUNITY}/my/home/')
-        search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', home)
-        if search:
-            self.session_id = search.group('sessionID')
-
         self._client.api_key = api_key or await self.fetch_api_key()
         self.api_key = self._client.api_key
         self._state = self._client._connection
@@ -438,7 +433,7 @@ class HTTPClient:
             "captcha": '',
             "trade_offer_create_params": {}
         }
-        data = {**data, **kwargs}
+        data.update(**kwargs)
         headers = {'Referer': f'{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}'}
         return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=data, headers=headers)
 
@@ -490,6 +485,9 @@ class HTTPClient:
 
         match = re.findall(r'<p>Key: ([0-9A-F]+)</p>', resp)
         if match:
+            search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', resp)
+            if search:
+                self.session_id = search.group('sessionID')
             return match[0]
         else:
             data = {
@@ -498,4 +496,5 @@ class HTTPClient:
                 "sessionid": self.session_id,
                 "Submit": 'Register'
             }
-            return await self.request('POST', url=f'{URL.COMMUNITY}/dev/registerkey', data=data)
+            await self.request('POST', url=f'{URL.COMMUNITY}/dev/registerkey', data=data)
+            return await self.fetch_api_key()
