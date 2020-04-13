@@ -85,8 +85,9 @@ class HTTPException(SteamException):
                 self.message = ''
         else:
             try:
-                if bool(BeautifulSoup(data, 'html.parser').find()):
-                    self.message = ''
+                text = BeautifulSoup(data, 'html.parser').getText('\n')
+                if bool(text):
+                    self.message = text
                 else:
                     self.message = data
                     self.code = 0
