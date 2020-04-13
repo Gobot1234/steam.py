@@ -70,15 +70,19 @@ class HTTPException(SteamException):
         self.EResult = EResult(int(response.headers.get('X-eresult', 0)))
 
         if isinstance(data, dict):
-            name, message = list(data.values())
-            code_regex = re.compile(r'[^\s]([0-9]+)')
-            code = re.findall(code_regex, message)
-            if code:
-                self.code = int(code[0])  # would like to EResult however steam trades don't use the same system
-                self.message = re.sub(code_regex, '', message)
-            else:
+            if data:
+                name, message = list(data.values())
+                code_regex = re.compile(r'[^\s]([0-9]+)')
+                code = re.findall(code_regex, message)
+                if code:
+                    self.code = int(code[0])  # would like to EResult however steam trades don't use the same system
+                    self.message = re.sub(code_regex, '', message)
+                else:
+                    self.code = 0
+                    self.message = message
+            else:  # they returned an empty dict???
                 self.code = 0
-                self.message = message
+                self.message = ''
         else:
             try:
                 if bool(BeautifulSoup(data, 'html.parser').find()):
