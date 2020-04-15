@@ -23,6 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 import asyncio
 import logging
 
@@ -45,7 +46,6 @@ class State:
         self.request = http.request
         self.client = client
         self.dispatch = client.dispatch
-        self.confirmation_manager = http._confirmation_manager
         self.started_poll = False
 
         self._trades = dict()  # TODO add weakref
@@ -143,6 +143,8 @@ class State:
             trade = TradeOffer(state=self, data=data)
             await trade.__ainit__()
             self._trades[trade.id] = trade
+            if trade.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+                return
             if trade.is_our_offer():
                 self.client.dispatch('trade_send', trade)
             else:
@@ -153,8 +155,8 @@ class State:
                 log.info(f'Trade #{trade.id} has updated its trade state to {trade.state}')
                 if trade.state == ETradeOfferState.Countered:
                     done, pending = await asyncio.wait([
-                        self.client.wait_for('trade_send', check=lambda t: t.partner.id == trade.partner.id),
-                        self.client.wait_for('trade_receive', check=lambda t: t.partner.id == trade.partner.id)
+                        self.client.wait_for('trade_send', check=lambda t: t.partner == trade.partner),
+                        self.client.wait_for('trade_receive', check=lambda t: t.partner == trade.partner)
                     ], return_when=asyncio.FIRST_COMPLETED, timeout=7.5)
                     if done:
                         after = done.pop().result()
@@ -183,7 +185,7 @@ class State:
         if self.started_poll:
             return
         else:
-            self.loop.create_task(self._poll_trades())
+            self._trade_poll_loop = self.loop.create_task(self._poll_trades())
 
     async def _process_trades(self, trades, descriptions):
         ret = []
@@ -208,8 +210,8 @@ class State:
         create_task(self._process_trades(self._trades_received_cache, self._descriptions_cache))
         create_task(self._process_trades(self._trades_sent_cache, self._descriptions_cache))
 
-        while 1:
-            try:
+        try:
+            while 1:
                 await asyncio.sleep(5)
                 resp = await self.http.fetch_trade_offers()
                 trades = resp['response']
@@ -226,9 +228,8 @@ class State:
                 self._trades_received_cache = trades_received
                 self._trades_sent_cache = trades_sent
                 self._descriptions_cache = descriptions
-
-            except (asyncio.TimeoutError, aiohttp.ClientError):
-                create_task(self._poll_trades())
-            except RuntimeError:
-                log.info('Closing polling of trades')
-                break
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            self._trade_poll_loop = self.loop.create_task(self._poll_trades())
+        finally:
+            log.info('Closing polling of trades')
+            self._trade_poll_loop.cancel()
