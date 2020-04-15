@@ -31,15 +31,19 @@ https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 from __future__ import annotations
 
 import json
-from datetime import timedelta
-from typing import List, Optional
+import re
+from datetime import timedelta, datetime
+from typing import List, Optional, Union
 
 import aiohttp
 
 from .abc import BaseUser, Messageable
 from .enums import *
-from .models import *
-from .trade import Item, Inventory
+from .game import Game
+from .group import Group
+from .iterators import CommentsIterator, TradesIterator
+from .models import URL
+from .trade import Item, Inventory, Asset
 
 __all__ = (
     'User',
@@ -55,7 +59,8 @@ class SteamID(int):
     """Convert a Steam ID to its various representations.
 
     This takes a steam 64 bit account id, however, :meth:`make_steam64`
-    is called on this class's initialization"""
+    is called on this class's initialization.
+    """
 
     EType = EType
     EUniverse = EUniverse
@@ -63,7 +68,7 @@ class SteamID(int):
 
     def __new__(cls, *args, **kwargs):
         user_id64 = make_steam64(*args, **kwargs)
-        return super(SteamID, cls).__new__(cls, user_id64)
+        return super().__new__(cls, user_id64)
 
     def __repr__(self):
         attrs = (
@@ -73,46 +78,55 @@ class SteamID(int):
         return f"<SteamID {' '.join(resolved)}>"
 
     @property
-    def id(self):
+    def id(self) -> int:
         """:class:`int`: Represents the account id.
         This is also known as the 32 bit id"""
         return int(self) & 0xFFffFFff
 
     @property
-    def instance(self):
+    def instance(self) -> int:
         """:class:`int`: Returns the instance of the account."""
         return (int(self) >> 32) & 0xFFffF
 
     @property
-    def type(self):
+    def type(self) -> EType:
         """:class:`~steam.EType`:
         Represents the steam type of the account.
         """
         return EType((int(self) >> 52) & 0xF)
 
     @property
-    def universe(self):
-        """:class:`~steam.enum.EUniverse`:
+    def universe(self) -> EUniverse:
+        """:class:`~steam.EUniverse`:
         Represents the steam universe of the account.
         """
         return EUniverse((int(self) >> 56) & 0xFF)
 
     @property
-    def as_32(self):
+    def as_32(self) -> int:
         """:class:`int`: The account's id.
         An alias to :attr:`SteamID.id`
         """
         return self.id
 
     @property
-    def as_64(self):
+    def id64(self) -> int:
         """:class:`int`: The steam 64 bit id of the account.
         Used for community profiles along with other useful things.
         """
         return int(self)
 
     @property
-    def as_steam2(self):
+    def as_64(self) -> int:
+        """:class:`int`: The steam 64 bit id of the account.
+        Used for community profiles along with other useful things.
+
+        An alias to :attr:`SteamID.id64`
+        """
+        return self.id64
+
+    @property
+    def id2(self) -> str:
         """class:`str`: The steam2 id of the account.
             e.g ``STEAM_1:0:1234``.
 
@@ -124,21 +138,35 @@ class SteamID(int):
         return f'STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}'
 
     @property
-    def as_steam2_zero(self):
+    def as_steam2(self) -> str:
+        """class:`str`: The steam2 id of the account.
+            e.g ``STEAM_1:0:1234``.
+
+        .. note::
+            ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
+            for ``Public``. However, there was a bug in GoldSrc and Orange Box games
+            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`
+
+        An alias to :attr:`SteamID.id2`
+        """
+        return self.id2
+
+    @property
+    def as_steam2_zero(self) -> str:
         """:class:`str`: The steam2 id of the account.
             e.g ``STEAM_0:0:1234``.
 
         For GoldSrc and Orange Box games.
-        See :class:`SteamID`:attr:`as_steam2`.
+        See :attr:`SteamID.as_steam2`.
         """
         return self.as_steam2.replace('_1', '_0')
 
     @property
-    def as_steam3(self):
+    def id3(self) -> str:
         """:class:`str`: The steam3 id of the account.
             e.g ``[U:1:1234]``.
 
-        This is used for more recent games
+        This is used for more recent games.
         """
         typechar = str(ETypeChar(self.type))
         instance = None
@@ -164,8 +192,18 @@ class SteamID(int):
         return f'[{":".join(map(str, parts))}]'
 
     @property
-    def community_url(self):
-        """:class:`str`: The community url of the account
+    def as_steam3(self) -> str:
+        """:class:`str`: The steam3 id of the account.
+            e.g ``[U:1:1234]``.
+
+        This is used for more recent games.
+        An alias to :attr:`SteamID.id3`
+        """
+        return self.id3
+
+    @property
+    def community_url(self) -> Optional[str]:
+        """Optional[:class:`str`]: The community url of the account
             e.g https://steamcommunity.com/profiles/123456789.
         """
         suffix = {
@@ -177,7 +215,7 @@ class SteamID(int):
 
         return None
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """Check whether this SteamID is valid.
 
         Returns
@@ -220,7 +258,7 @@ class _BaseUser(BaseUser):
 
     def __repr__(self):
         attrs = (
-            'name', 'steam_id', 'state'
+            'name', 'state', 'steam_id'
         )
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<User {' '.join(resolved)}>"
@@ -238,9 +276,9 @@ class _BaseUser(BaseUser):
         self._data = data
         self.steam_id = SteamID(data['steamid'])
         self.id = self.steam_id.id
-        self.id64 = self.steam_id.as_64
-        self.id2 = self.steam_id.as_steam2
-        self.id3 = self.steam_id.as_steam3
+        self.id64 = self.steam_id.id64
+        self.id2 = self.steam_id.id2
+        self.id3 = self.steam_id.id3
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
@@ -257,7 +295,7 @@ class _BaseUser(BaseUser):
         # setting is_steam_game to False allows for fake game instances to be better without having them pre-defined
         # without making the defined ones being
 
-    async def comment(self, comment: str):
+    async def comment(self, comment: str) -> None:
         """|coro|
         Post a comment to an :class:`User`'s profile.
 
@@ -302,18 +340,29 @@ class _BaseUser(BaseUser):
         friends = await self._state.http.fetch_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
-    async def fetch_games(self) -> Optional[List[Game]]:
+    async def fetch_games(self) -> List[Game]:
         """|coro|
         Fetches the list of :class:`~steam.Game` objects from the API.
 
         Returns
         -------
-        Optional[List[:class:`~steam.Game`]]
+        List[:class:`~steam.Game`]
             The list of :class:`~steam.Game` objects from the API.
         """
         data = await self._state.http.fetch_user_games(self.id64)
         games = data['response'].get('games', [])
         return [Game(0, _data=game) for game in games]
+
+    async def fetch_groups(self) -> List[Group]:
+        from .group import Group
+        data = await self._state.request('GET', f'https://steamcommunity.com/profiles/{self.id64}/groups')
+        ret = []
+        group_urls = re.findall(r'<a class="linkTitle" href="(.*?)">', data)
+        for group_url in group_urls:
+            group = Group(state=self._state, url=group_url)
+            await group.__ainit__()
+            ret.append(group)
+        return ret
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
@@ -415,52 +464,53 @@ class User(Messageable, _BaseUser):
     def __init__(self, state, data):
         super().__init__(state, data)
 
-    async def add(self):
+    async def add(self) -> None:
         """|coro|
         Add an :class:`User` to your friends list.
         """
         await self._state.http.add_user(self.id64)
 
-    async def remove(self):
+    async def remove(self) -> None:
         """|coro|
         Remove an :class:`User` from your friends list.
         """
         await self._state.http.remove_user(self.id64)
 
-    async def unblock(self):
+    async def unblock(self) -> None:
         """|coro|
         Unblock an :class:`User`.
         """
         await self._state.http.unblock_user(self.id64)
 
-    async def block(self):
+    async def block(self) -> None:
         """|coro|
         Block an :class:`User`.
         """
         await self._state.http.block_user(self.id64)
 
-    async def accept_invite(self):
+    async def accept_invite(self) -> None:
         """|coro|
         Accept a friend invite from an :class:`User`.
         """
         return await self._state.http.accept_user_invite(self.id64)
 
-    async def decline_invite(self):
+    async def decline_invite(self) -> None:
         """|coro|
         Decline a friend invite from an :class:`User`.
         """
         await self._state.http.decline_user_invite(self.id64)
 
-    async def send_trade(self, items_to_send: List[Item] = None, items_to_receive: List[Item] = None, *,
-                         message: str = None):
+    async def send_trade(self, items_to_send: Union[List[Item], List[Asset]] = None,
+                         items_to_receive: Union[List[Item], List[Asset]] = None, *,
+                         message: str = None) -> None:
         """|coro|
         Sends a trade offer to an :class:`User`.
 
         Parameters
         -----------
-        items_to_send: Optional[List[:class:`steam.Item`]]
+        items_to_send: Optional[Union[List[:class:`steam.Item`], List[:class:`steam.Asset`]]
             The items you are sending to the other user.
-        items_to_receive: Optional[List[:class:`steam.Item`]]
+        items_to_receive: Optional[Union[List[:class:`steam.Item`], List[:class:`steam.Asset`]]
             The items you are sending to the other user.
         message: :class:`str`
              The offer message to send with the trade.
@@ -478,19 +528,19 @@ class User(Messageable, _BaseUser):
             confirmation = await self._state.confirmation_manager.get_trade_confirmation(int(resp['tradeofferid']))
             await confirmation.confirm()
 
-    async def fetch_escrow(self) -> Optional[datetime]:
+    async def fetch_escrow(self) -> Optional[timedelta]:
         """|coro|
         Check how long a :class:`User`'s escrow is.
 
         Returns
         --------
-        Optional[:class:`datetime.datetime`]
+        Optional[:class:`datetime.timedelta`]
             The time at which any items sent/received would arrive
             ``None`` if the :class:`User` has no escrow.
         """
         resp = await self._state.http.fetch_user_escrow(self.id)
         days = int(re.search(r'var g_daysTheirEscrow = (\d+);', resp).group(1))
-        return (datetime.utcnow() + timedelta(days=days)) if days else None
+        return timedelta(days=days) if days else None
 
     def is_friend(self) -> bool:
         """:class:`bool`: Species if the user is in the ClientUser's friends"""
@@ -533,6 +583,8 @@ class ClientUser(_BaseUser):
         The user's username.
     steam_id: :class:`SteamID`
         The SteamID instance attached to the user.
+    friends: List[:class:`User`]
+        A list of the :class:`ClientUser`'s friends.
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
@@ -558,7 +610,7 @@ class ClientUser(_BaseUser):
         The id2 of the user's account. Used for older steam games.
     """
 
-    __slots__ = ('friends',) + _BaseUser.__slots__
+    __slots__ = ('friends', 'groups') + _BaseUser.__slots__
 
     def __init__(self, state, data):
         self.friends = []
@@ -574,12 +626,23 @@ class ClientUser(_BaseUser):
     async def __ainit__(self):
         await self.fetch_friends()
 
-    async def fetch_friends(self):
+    async def fetch_friends(self) -> List[User]:
         self.friends = await super().fetch_friends()
+        return self.friends
+
+    async def fetch_wallet_balance(self) -> Optional[float]:
+        resp = await self._state.request('GET', f'{URL.STORE}/steamaccount/addfunds')
+        search = re.search(r'Wallet <b>\(.(\d*)(?:[.,](\d*)|)\)</b>', resp, re.UNICODE)
+        if search is None:
+            return None
+        if search.group(2):
+            return float(f'{search.group(1)}.{search.group(2)}')
+        else:
+            return float(search.group())
 
     def trades(self, limit=None, before: datetime = None, after: datetime = None,
-               active_only: bool = True, include_sent: bool = True, include_received: bool = True) \
-            -> TradesIterator:
+               active_only: bool = True, include_sent: bool = True,
+               include_received: bool = True) -> TradesIterator:
         """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
 
         Examples
@@ -589,7 +652,7 @@ class ClientUser(_BaseUser):
 
             async for trade in client.user.trades(limit=10):
                 print('Partner:', trade.partner, 'Sent:')
-                print(', '.join([item.name if item.name else item.asset_id for item in trade.items_to_receive])
+                print(', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
                       if trade.items_to_receive else 'Nothing')
 
         Flattening into a list: ::
