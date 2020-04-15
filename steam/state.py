@@ -144,7 +144,7 @@ class State:
             await trade.__ainit__()
             self._trades[trade.id] = trade
             if trade.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
-                return
+                return trade
             if trade.is_our_offer():
                 self.client.dispatch('trade_send', trade)
             else:
