@@ -85,7 +85,7 @@ class HTTPException(SteamException):
                 self.message = ''
         else:
             try:
-                text = BeautifulSoup(data, 'html.parser').getText('\n')
+                text = BeautifulSoup(data, 'html.parser').get_text('\n')
                 if bool(text):
                     self.message = text
                 else:
@@ -128,15 +128,15 @@ class InvalidCredentials(LoginError):
     pass
 
 
-class SteamAuthenticatorError(LoginError):
-    """Exception that's thrown when steam cannot authenticate your details.
+class AuthenticatorError(LoginError):
+    """Exception that's thrown when Steam cannot authenticate your details.
     Subclass of :exc:`LoginError`
     """
     pass
 
 
-class ConfirmationError(SteamAuthenticatorError):
+class ConfirmationError(AuthenticatorError):
     """Exception that's thrown when a confirmation fails.
-    Subclass of :exc:`SteamAuthenticatorError`
+    Subclass of :exc:`AuthenticatorError`
     """
     pass
