@@ -4,6 +4,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
+Copyright (c) 2015-202 Rapptz
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -27,11 +28,11 @@ DEALINGS IN THE SOFTWARE.
 import socket
 import struct
 from base64 import b64decode
+from operator import attrgetter
 from os import urandom as random_bytes
 from types import GeneratorType as _GeneratorType
 
-from Cryptodome.Cipher import AES as AES
-from Cryptodome.Cipher import PKCS1_OAEP
+from Cryptodome.Cipher import AES as AES, PKCS1_OAEP
 from Cryptodome.Hash import SHA1, HMAC
 from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
 from google.protobuf.message import Message as _ProtoMessageType
@@ -314,3 +315,63 @@ def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
         raise SyntaxError("Binary VDF ended at offset %d, but length is %d" % (idx, len(s)))
 
     return stack.pop()
+
+
+# from discord.py https://github.com/rapptz/discord.py/blob/master/discord/utils.py
+
+
+def find(predicate, seq):
+    """A helper to return the first element found in the sequence.
+
+    Parameters
+    -----------
+    predicate
+        A function that returns a boolean-like result.
+    seq: iterable
+        The iterable to search through.
+    """
+
+    for element in seq:
+        if predicate(element):
+            return element
+    return None
+
+
+# also from discord.py
+
+
+def get(iterable, **attrs):
+    r"""A helper that returns the first element in the iterable that meets
+    all the traits passed in ``attrs``. This is an alternative for
+    :func:`utils.find`.
+
+    Parameters
+    -----------
+    iterable
+        An iterable to search through.
+    \*\*attrs
+        Keyword arguments that denote attributes to search with.
+    """
+
+    # global -> local
+    _all = all
+    attrget = attrgetter
+
+    # Special case the single element call
+    if len(attrs) == 1:
+        k, v = attrs.popitem()
+        pred = attrget(k.replace('__', '.'))
+        for elem in iterable:
+            if pred(elem) == v:
+                return elem
+        return None
+
+    converted = [
+        (attrget(attr.replace('__', '.')), value)
+        for attr, value in attrs.items()
+    ]
+
+    for elem in iterable:
+        if _all(pred(elem) == value for pred, value in converted):
+            return elem
+    return None
