@@ -39,11 +39,13 @@ import websockets
 
 from . import errors
 from .enums import ECurrencyCode
+from .game import Game
 from .gateway import SteamWebSocket, ResumeSocket
-from .guard import generate_one_time_code
+from .group import Group
+from .guard import generate_one_time_code, ConfirmationManager
 from .http import HTTPClient
 from .market import Market, PriceOverview, FakeItem, fix_name, convert_items
-from .models import Game
+from .models import URL
 from .state import State
 from .trade import TradeOffer
 from .user import make_steam64, User, ClientUser
@@ -144,7 +146,7 @@ class Client:
 
         self._user = None
         self._closed = True
-        self._state = None
+        self._confirmation_manager = None
         self._listeners = {}
         self._ready = asyncio.Event()
 
@@ -370,7 +372,7 @@ class Client:
         self._closed = False
         self._ready.clear()
         self.http.recreate()
-        #self.loop.create_task(self.ws.close())
+        # self.loop.create_task(self.ws.close())
 
     async def start(self, *args, **kwargs) -> None:
         """|coro|
@@ -398,7 +400,9 @@ class Client:
         await self.login(username=username, password=password, api_key=api_key,
                          shared_secret=shared_secret, identity_secret=identity_secret)
         await self._connection.poll_trades()
-        #await self.connect()
+        if self.identity_secret:
+            self._confirmation_manager = ConfirmationManager(state=self._connection)
+        # await self.connect()
         while 1:
             await asyncio.sleep(5)
 
@@ -494,6 +498,23 @@ class Client:
             The trade offer or ``None`` if not found.
         """
         return await self._connection.fetch_trade(id)
+
+    async def fetch_group(self, id: int) -> Optional[Group]:
+        """|coro|
+        Fetches a group from steamcommunity with the given ID.
+
+        Parameters
+        ----------
+        id: :class:`int`
+            The id of the group to search for from steamcommunity.
+
+        Returns
+        -------
+        Optional[:class:`~steam.Group`]
+            The group or ``None`` if not found."""
+        group = Group(state=self._connection, url=f'{URL.COMMUNITY}/gid/{id}')
+        await group.__ainit__()
+        return group if group.id else None
 
     async def fetch_price(self, item_name: str, game: Game) -> Optional[PriceOverview]:
         """Gets the price(s) and volume sales of an item.
