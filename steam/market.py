@@ -30,7 +30,8 @@ Thanks confern for letting me use this :D
 import logging
 
 from .enums import ECurrencyCode
-from .models import Game, URL
+from .game import Game
+from .models import URL
 
 log = logging.getLogger(__name__)
 
