@@ -36,7 +36,7 @@ import aiohttp
 import rsa
 
 from . import __version__, errors
-from .guard import generate_one_time_code, ConfirmationManager
+from .guard import generate_one_time_code
 from .models import URL
 from .user import ClientUser
 
@@ -44,7 +44,10 @@ log = logging.getLogger(__name__)
 
 
 async def json_or_text(response):
-    text = await response.text(encoding='utf-8')
+    try:
+        text = await response.text(encoding='utf-8')
+    except UnicodeDecodeError:
+        return await response.text(encoding='ascii')
     try:
         if 'application/json' in response.headers['content-type']:  # thanks steam very cool
             return json.loads(text)
@@ -134,7 +137,7 @@ class HTTPClient:
                         # I haven't been able to get a 429 from the API but we should probably still handle it
                         try:
                             await asyncio.sleep(float(r.headers['X-Retry-After']))
-                        except KeyError:
+                        except KeyError:  # steam being un-helpful as usual
                             await asyncio.sleep(3 ** tries)
 
                         continue
@@ -187,19 +190,22 @@ class HTTPClient:
         for url in login_response['transfer_urls']:
             await self.request('POST', url=url, data=parameters)
 
-        self._client.api_key = api_key or await self.fetch_api_key()
+        if api_key is None:
+            self._client.api_key = await self.fetch_api_key()
+        else:
+            self._client.api_key = api_key
+            resp = await self.request('GET', f'{URL.COMMUNITY}/home')
+            search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', resp)
+            self.session_id = search.group('sessionID')
         self.api_key = self._client.api_key
         self._state = self._client._connection
 
         self.logged_in = True
         id64 = login_response['transfer_parameters']['steamid']
         resp = await self.fetch_profile(id64)
-        user = resp['response']['players'][0]
-        self.user = ClientUser(state=self._state, data=user)
+        data = resp['response']['players'][0]
+        self.user = ClientUser(state=self._state, data=data)
         await self.user.__ainit__()
-        if self.identity_secret:
-            self._confirmation_manager = ConfirmationManager(state=self._state, id64=id64)
-
         self._client.dispatch('login')
 
     def logout(self):
@@ -377,7 +383,7 @@ class HTTPClient:
         }
         return self.request('GET', url=Route('IEconService', 'GetTradeOffer'), params=params)
 
-    async def accept_user_trade(self, user_id64, trade_id):
+    def accept_user_trade(self, user_id64, trade_id):
         data = {
             'sessionid': self.session_id,
             'tradeofferid': trade_id,
@@ -387,16 +393,7 @@ class HTTPClient:
         }
         headers = {'Referer': f'{URL.COMMUNITY}/tradeoffer/{trade_id}'}
 
-        resp = await self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/accept',
-                                  data=data, headers=headers)
-        if resp.get('needs_mobile_confirmation', False):
-            if self.identity_secret:
-                for _ in range(3):
-                    conf = await self._confirmation_manager.get_trade_confirmation(trade_id)
-                    await conf.confirm()
-            else:
-                raise errors.ClientException('Accepting trades requires an identity_secret')
-        return resp
+        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/accept', data=data, headers=headers)
 
     def decline_user_trade(self, trade_id):
         data = {
@@ -464,19 +461,6 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/comment/Profile/post/{user_id64}', data=data)
 
-    def report_comment(self, user_id, comment_id):
-        params = {
-            "gidcomment": comment_id,
-            "hide": 1
-        }
-        return self.request('POST', f'{URL.COMMUNITY}/comment/Profile/hideandreport/{user_id}', params=params)
-
-    def delete_comment(self, user_id, comment_id):
-        params = {
-            "gidcomment": comment_id,
-        }
-        return self.request('POST', f'{URL.COMMUNITY}/comment/Profile/delete/{user_id}', params=params)
-
     async def fetch_api_key(self):
         resp = await self.request('GET', url=f'{URL.COMMUNITY}/dev/apikey')
         error = 'You must have a validated email address to create a Steam Web API key'
@@ -486,8 +470,7 @@ class HTTPClient:
         match = re.findall(r'<p>Key: ([0-9A-F]+)</p>', resp)
         if match:
             search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', resp)
-            if search:
-                self.session_id = search.group('sessionID')
+            self.session_id = search.group('sessionID')
             return match[0]
         else:
             data = {
