@@ -27,11 +27,11 @@ SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from .enums import ETradeOfferState
-from .errors import ClientException
-from .models import Game
+from .errors import ClientException, ConfirmationError
+from .game import Game
 
 
 class Asset:
@@ -263,7 +263,7 @@ class Inventory:
             This also removes the item from the inventory, if possible.
         """
         items = [item for item in self.items if item.name == item_name]
-        items = items[:len(items) - 1 if limit is not None else limit]
+        items = items[:len(items) - 1 if limit is None else limit]
         for item in items:
             self.items.remove(item)
         return items
@@ -354,12 +354,13 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is not active.
         """
-        if self.state != ETradeOfferState.ConfirmationNeed:
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade cannot be confirmed')
-        if self.is_one_sided():  # we don't need to confirm gifts
-            return
-        confirmation = await self._state.confirmation_manager.get_trade_confirmation(self.id)
-        await confirmation.confirm()
+        confirmation = await self._state.client._confirmation_manager.get_confirmation(self.id)
+        if confirmation is not None:
+            await confirmation.confirm()
+        else:
+            raise ConfirmationError('no confirmation could be found for this trade')
 
     async def accept(self) -> None:
         """|coro|
@@ -377,9 +378,10 @@ class TradeOffer:
             raise ClientException('This trade has already been accepted')
         if self.is_our_offer():
             raise ClientException('You cannot accept an offer the ClientUser has made')
-        await self._state.http.accept_user_trade(self.partner.id64, self.id)
-        confirmation = await self._state.confirmation_manager.get_trade_confirmation(self.id)
-        await confirmation.confirm()
+        resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
+        if resp.get('needs_mobile_confirmation', False):
+            if self._state.client.identity_secret:
+                await self.confirm()
 
     async def decline(self) -> None:
         """|coro|
@@ -415,19 +417,21 @@ class TradeOffer:
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
 
-    async def counter(self, items_to_send: List[Item] = None, items_to_receive: List[Item] = None, *,
+    async def counter(self, items_to_send: Union[List[Item], List[Asset]] = None,
+                      items_to_receive: Union[List[Item], List[Asset]] = None, *,
                       message: str = None) -> None:
         """|coro|
-        Counters a trade offer from an :class:`~steam.User`.
+        Counters a trade offer from an :class:`User`.
 
         Parameters
         -----------
-        items_to_send: Optional[List[:class:`Item`]]
+        items_to_send: Optional[Union[List[:class:`steam.Item`], List[:class:`steam.Asset`]]
             The items you are sending to the other user.
-        items_to_receive: Optional[List[:class:`Item`]]
+        items_to_receive: Optional[Union[List[:class:`steam.Item`], List[:class:`steam.Asset`]]
             The items you are sending to the other user.
         message: :class:`str`
              The offer message to send with the trade.
+
 
         Raises
         ------
