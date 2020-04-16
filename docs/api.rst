@@ -167,7 +167,21 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     :type before: :class:`~steam.TradeOffer`
     :param after: The trade offer after it was countered.
     :type after: :class:`~steam.TradeOffer`
-   
+
+.. function:: on_comment(comment)
+
+    Called when the client receives a comment notification.
+
+    :param comment: The comment received.
+    :type comment: :class:`~steam.Comment`
+
+.. function:: on_invite(invite)
+
+    Called when the client receives an invite notification.
+
+    :param comment: The invite received.
+    :type comment: :class:`~steam.Invite`
+
 Enumerations
 -------------
 
@@ -248,6 +262,16 @@ Comments
 
 .. autoclass:: Comment()
     :members:
+
+Invites
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Invite()
+
+Groups
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Group()
 
 Message
 ~~~~~~~~~~~~~~~
