@@ -48,8 +48,10 @@ from .trade import Item, Inventory, Asset
 __all__ = (
     'User',
     'SteamID',
+    'from_url',
     'ClientUser',
     'make_steam64',
+    'steam64_from_url'
 )
 
 ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
@@ -282,7 +284,7 @@ class _BaseUser(BaseUser):
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
-        self.community_url = data['profileurl']
+        self.community_url = data['profileurl'][:-1]
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
         self.country = data.get('loccountrycode')
@@ -354,6 +356,14 @@ class _BaseUser(BaseUser):
         return [Game(0, _data=game) for game in games]
 
     async def fetch_groups(self) -> List[Group]:
+        """|coro|
+        Fetches a list of the :class:`User`'s :class:`~steam.Group` objects.
+
+        Returns
+        -------
+        List[:class:`~steam.Group`]
+            The user's groups.
+        """
         from .group import Group
         data = await self._state.request('GET', f'https://steamcommunity.com/profiles/{self.id64}/groups')
         ret = []
@@ -559,6 +569,17 @@ class User(Messageable, _BaseUser):
         """
         return await self._state.send_message(user_id64=self.id64, content=str(content))
 
+    async def invite_to_group(self, group: Group):
+        """|coro|
+        Invites a :class:`~steam.User` to a :class:`Group`.
+
+        Parameters
+        -----------
+        group: :class:`~steam.Group`
+            The group to invite the user to.
+        """
+        await self._state.http.invite_user_to_group(self.id64, group.id)
+
 
 class ClientUser(_BaseUser):
     """Represents your account.
@@ -631,6 +652,14 @@ class ClientUser(_BaseUser):
         return self.friends
 
     async def fetch_wallet_balance(self) -> Optional[float]:
+        """|coro|
+        Fetches the :class:ClientUser`'s current wallet balance.
+
+        Returns
+        -------
+        Optional[:class:`float`]
+            The current wallet balance.
+        """
         resp = await self._state.request('GET', f'{URL.STORE}/steamaccount/addfunds')
         search = re.search(r'Wallet <b>\(.(\d*)(?:[.,](\d*)|)\)</b>', resp, re.UNICODE)
         if search is None:
@@ -899,6 +928,7 @@ async def steam64_from_url(url: str, timeout=30):
         if match.group('type') in ('id', 'profiles'):
             async with session.get(match.group('clean_url'), timeout=timeout) as r:
                 text = await r.text()
+                await session.close()
             data_match = re.search("g_rgProfileData = (?P<json>{.*?});\s*", text)
 
             if data_match:
@@ -908,6 +938,7 @@ async def steam64_from_url(url: str, timeout=30):
         else:
             async with session.get(match.group('clean_url'), timeout=timeout) as r:
                 text = await r.text()
+                await session.close()
             data_match = re.search(r"'steam://friends/joinchat/(?P<steamid>\d+)'", text)
 
             if data_match:
@@ -933,7 +964,7 @@ async def from_url(url, timeout=30):
         `SteamID` instance or ``None``.
     """
 
-    steam64 = steam64_from_url(url, timeout)
+    steam64 = await steam64_from_url(url, timeout)
 
     if steam64:
         return SteamID(steam64)
@@ -941,4 +972,4 @@ async def from_url(url, timeout=30):
     return None
 
 
-SteamID.from_url = staticmethod(from_url)
+SteamID.from_url = classmethod(from_url)

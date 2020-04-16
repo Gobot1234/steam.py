@@ -131,7 +131,7 @@ class Group:
 
     async def invite(self, user: 'User'):
         """|coro|
-        Invites a :class:`~steam.User` to the :class:`Group`
+        Invites a :class:`~steam.User` to the :class:`Group`.
 
         Parameters
         -----------
