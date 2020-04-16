@@ -78,7 +78,7 @@ class CommentsIterator(AsyncIterator):
         await super().fill()
         from .user import make_steam64, User
 
-        data = await self._state.http.fetch_comments(id64=self._user_id, limit=self.limit)
+        data = await self._state.http.fetch_comments(user_id64=self._user_id, limit=self.limit)
         self.owner = await self._state.fetch_user(self._user_id)
         soup = BeautifulSoup(data['comments_html'], 'html.parser')
         comments = soup.find_all('div', attrs={'class': 'commentthread_comment responsive_body_text'})
@@ -90,12 +90,11 @@ class CommentsIterator(AsyncIterator):
             if self.after < timestamp < self.before:
                 comment_id = int(re.findall(r'comment_([0-9]*)', comment)[0])
                 author_id = int(re.findall(r'data-miniprofile="([0-9]*)"', comment)[0])
-                html_content = re.findall(rf'id="comment_content_{comment_id}">\s*(.*?)\s*</div>',
-                                          comment)[0]
-                content = re.sub(r'<.*?>', '', html_content)
+                html_content = re.findall(rf'id="comment_content_{comment_id}">\s*(.*?)\s*</div>', comment)[0]
+                content = BeautifulSoup(html_content, 'html.parser').get_text('\n')
                 to_fetch.append(make_steam64(author_id))
                 self.comments.put_nowait(Comment(state=self._state, comment_id=comment_id, timestamp=timestamp,
-                                                 content=content, author=author_id, owner_id=self._user_id))
+                                                 content=content, author=author_id, owner=self.owner))
                 if self.limit is not None:
                     if self.comments.qsize == self.limit:
                         return
