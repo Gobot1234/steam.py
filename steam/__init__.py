@@ -12,11 +12,11 @@ A basic wrapper for the Steam API and its Community Managers.
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.11a'
+__version__ = '0.0.12a'
 
 import logging
 
-from . import guard
+from . import guard, utils
 from .client import Client
 from .enums import *
 from .errors import *
@@ -24,7 +24,7 @@ from .game import Game, CSGO, TF2, DOTA2, STEAM
 from .group import Group
 from .market import PriceOverview
 from .message import Message
-from .models import Comment
+from .models import Comment, Invite
 from .trade import *
 from .user import *
 
