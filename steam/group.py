@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from .errors import HTTPException
 
 if TYPE_CHECKING:
-    from .user import SteamID
+    from .user import SteamID, User
 
 
 class Group:
@@ -122,3 +122,20 @@ class Group:
                                 ret.append(SteamID(sub.text))
         ret: List[SteamID]  # circular imports suck
         return ret
+
+    async def leave(self) -> None:
+        """|coro|
+        Leaves the :class:`Group`.
+        """
+        await self._state.http.leave_group(self.id)
+
+    async def invite(self, user: 'User'):
+        """|coro|
+        Invites a :class:`~steam.User` to the :class:`Group`
+
+        Parameters
+        -----------
+        user: :class:`~steam.User`
+            The user to invite to the group.
+        """
+        await self._state.http.invite_user_to_group(user_id64=user.id64, group_id=self.id)
