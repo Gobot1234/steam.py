@@ -107,9 +107,6 @@ class HTTPClient:
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
 
-        # some checking if it's a JSON request
-        if 'data' in kwargs:
-            headers['Content-Type'] = 'application/json'
         async with self._lock:
             for tries in range(5):
                 async with self._session.request(method, url, **kwargs) as r:
@@ -443,7 +440,7 @@ class HTTPClient:
         }
         return self.request('GET', url=Route('ISteamDirectory', 'GetCMList'), params=params)
 
-    def fetch_comments(self, id64, limit=None):
+    def fetch_comments(self, user_id64, limit=None):
         params = {
             "start": 0,
             "totalcount": 9999999999
@@ -452,7 +449,7 @@ class HTTPClient:
             params["count"] = 9999999999
         else:
             params["count"] = limit
-        return self.request('GET', f'{URL.COMMUNITY}/comment/Profile/render/{id64}', params=params)
+        return self.request('GET', f'{URL.COMMUNITY}/comment/Profile/render/{user_id64}', params=params)
 
     def post_comment(self, user_id64, comment):
         data = {
@@ -481,3 +478,40 @@ class HTTPClient:
             }
             await self.request('POST', url=f'{URL.COMMUNITY}/dev/registerkey', data=data)
             return await self.fetch_api_key()
+
+    def accept_group_invite(self, group_id):
+        data = {
+            "sessionid": self.session_id,
+            "steamid": self.user.id64,
+            "ajax": '1',
+            "action": 'group_accept',
+            "steamids[]": group_id
+        }
+        return self.request('POST', url=f'{self.user.community_url}/friends/action', data=data)
+
+    def decline_group_invite(self, group_id):
+        data = {
+            "sessionid": self.session_id,
+            "steamid": self.user.id64,
+            "ajax": '1',
+            "action": 'group_ignore',
+            "steamids[]": group_id
+        }
+        return self.request('POST', url=f'{self.user.community_url}/friends/action', data=data)
+
+    def leave_group(self, group_id):
+        data = {
+            "sessionID": self.session_id,
+            "action": 'leaveGroup',
+            "groupId": group_id
+        }
+        return self.request('POST', url=f'{self.user.community_url}/home_process', data=data)
+
+    def invite_user_to_group(self, user_id64, group_id):
+        data = {
+            "sessionID": self.session_id,
+            "group": group_id,
+            "invitee": user_id64,
+            "type": 'groupInvite'
+        }
+        return self.request('POST', url=f'{URL.COMMUNITY}/actions/GroupInvite', data=data)
