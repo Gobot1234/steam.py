@@ -105,7 +105,7 @@ class Invite:
         The user who sent the invite. For type
         'Friend', this is the user you would end up adding.
     group: Optional[:class:`~steam.Group`]
-        The group the invite proteins to,
+        The group the invite pertains to,
         only relevant if type is 'Group'.
     """
 
