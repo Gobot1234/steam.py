@@ -169,7 +169,7 @@ class Client:
     @property
     def code(self) -> Optional[str]:
         """Optional[:class:`str`]: The current steam guard code.
-        ``None`` if no shared_secret is passed"""
+        ``None`` if no shared_secret is passed to :meth:`run` or :meth:`start`."""
         return generate_one_time_code(self.shared_secret) if self.shared_secret else None
 
     @property
@@ -358,7 +358,7 @@ class Client:
         if self._closed:
             return
 
-        # await self.ws.close()
+        #        await self.ws.close()
         await self.http.logout()
         await self._session.close()
         self._closed = True
@@ -372,7 +372,8 @@ class Client:
         self._closed = False
         self._ready.clear()
         self.http.recreate()
-        # self.loop.create_task(self.ws.close())
+
+    #        self.loop.create_task(self.ws.close())
 
     async def start(self, *args, **kwargs) -> None:
         """|coro|
@@ -400,9 +401,10 @@ class Client:
         await self.login(username=username, password=password, api_key=api_key,
                          shared_secret=shared_secret, identity_secret=identity_secret)
         await self._connection.poll_trades()
+        await self._connection.poll_notifications()
         if self.identity_secret:
             self._confirmation_manager = ConfirmationManager(state=self._connection)
-        # await self.connect()
+        #        await self.connect()
         while 1:
             await asyncio.sleep(5)
 
