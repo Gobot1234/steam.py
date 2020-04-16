@@ -41,10 +41,13 @@ async def on_login():
 
 @client.event
 async def on_comment(comment: steam.Comment):
+    print(f'Received comment #{comment.id}, from {comment.author.name}')
     if comment.owner != client.user:  # if we don't own the section, don't watch the comments
+        print("We don't monitor comments here")
         return
 
     if comment.author in client.user.friends:  # ignore messages from friends
+        print('Ignoring as they are a friend')
         return
 
     if re.search(URL_REGEX, comment.content):  # there is a url in the comment's content
