@@ -26,13 +26,18 @@ SOFTWARE.
 
 import asyncio
 import logging
+import re
 
 import aiohttp
+from bs4 import BeautifulSoup
+from yarl import URL as _URL
 
 from .enums import EChatEntryType, ETradeOfferState
+from .http import HTTPClient
+from .models import URL, Invite
 from .protobufs import get_um, MsgProto, EMsg
 from .trade import TradeOffer
-from .user import User
+from .user import User, steam64_from_url
 from .utils import proto_fill_from_dict
 
 log = logging.getLogger(__name__)
@@ -40,13 +45,14 @@ log = logging.getLogger(__name__)
 
 class State:
 
-    def __init__(self, loop, client, http):
+    def __init__(self, loop, client, http: HTTPClient):
         self.loop = loop
         self.http = http
         self.request = http.request
         self.client = client
         self.dispatch = client.dispatch
-        self.started_poll = False
+        self.started_trade_poll = False
+        self.started_notification_poll = False
 
         self._trades = dict()  # TODO add weakref
         self._users = dict()
@@ -181,11 +187,13 @@ class State:
                     self.dispatch(f'trade_{event_name}', trade)
         return trade
 
+    # this will be going when I get cms going
+
     async def poll_trades(self):
-        if self.started_poll:
+        if self.started_trade_poll:
             return
         else:
-            self._trade_poll_loop = self.loop.create_task(self._poll_trades())
+            self.loop.create_task(self._poll_trades())
 
     async def _process_trades(self, trades, descriptions):
         ret = []
@@ -228,8 +236,68 @@ class State:
                 self._trades_received_cache = trades_received
                 self._trades_sent_cache = trades_sent
                 self._descriptions_cache = descriptions
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            self._trade_poll_loop = self.loop.create_task(self._poll_trades())
-        finally:
-            log.info('Closing polling of trades')
-            self._trade_poll_loop.cancel()
+        except (asyncio.TimeoutError, aiohttp.ClientError, aiohttp.ClientConnectorError):
+            self.loop.create_task(self._poll_trades())
+
+    async def poll_notifications(self):
+        if self.started_notification_poll:
+            return
+        else:
+            self.loop.create_task(self._poll_notifications())
+
+    async def _poll_notifications(self):
+        notification_mapping = {
+            "4": ('comment', self._parse_comment),
+            "6": ('invite', self._parse_invite)
+        }
+
+        resp = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
+        self._cached_notifications = resp['notifications']
+        try:
+            while 1:
+                await asyncio.sleep(5)
+                resp = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
+                notifications = resp['notifications']
+                if notifications != self._cached_notifications:
+                    for notification in notifications:
+                        if self._cached_notifications[notification] != notifications[notification]:
+                            if notifications[notification] == 0:
+                                continue
+                            non_cached_count = notifications[notification]
+                            cached_count = self._cached_notifications[notification]
+                            for i in range(non_cached_count - cached_count):
+                                try:
+                                    event_name, event_parser = notification_mapping[notification]
+                                except KeyError:
+                                    break
+                                else:
+                                    log.debug(f'Received raw event {event_name} from the notifications')
+                                    parsed_notification = await event_parser(i)
+                                    self.dispatch(event_name, parsed_notification)
+
+                    self._cached_notifications = notifications
+        except (asyncio.TimeoutError, aiohttp.ClientError, aiohttp.ClientConnectorError):
+            self.loop.create_task(self._poll_trades())
+
+    async def _parse_comment(self, l):  # this isn't very efficient not sure if it can be done better
+        resp = await self.request('GET', f'{self.client.user.community_url}/commentnotifications')
+        search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
+        group = search.group(1)
+        user_id64 = await steam64_from_url(group.replace(f'?{_URL(group).query_string}', ''))
+        user = await self.client.fetch_user(user_id64)
+        return (await user.comments(limit=1).flatten())[0]
+
+    async def _parse_invite(self, loop):
+        resp = await self.request('GET', f'{self.client.user.community_url}/friends/pending?ajax=1')
+        soup = BeautifulSoup(resp, 'html.parser')
+        invites = soup.find_all('div', attrs={"class": 'invite_row'})
+        if not invites:
+            resp = await self.request('GET', f'{self.client.user.community_url}/groups/pending?ajax=1')
+            soup = BeautifulSoup(resp, 'html.parser')
+            invites = soup.find_all('div', attrs={"class": 'invite_row'})
+            data = invites[loop]
+        else:
+            data = invites[loop]
+        invite = Invite(state=self, data=data)
+        await invite.__ainit__()
+        return invite
