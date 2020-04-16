@@ -123,7 +123,6 @@ How can I wait for an event?
             # the check function must return a boolean.
             def check(trade: steam.TradeOffer) -> bool:
                 return trade.partner == message.author
-
                 # here we check that the trades partner is the message's author
 
             try:
