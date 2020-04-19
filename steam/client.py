@@ -359,7 +359,7 @@ class Client:
         if self._closed:
             return
 
-        #        await self.ws.close()
+        # await self.ws.close()
         await self.http.logout()
         await self._session.close()
         self._closed = True
@@ -373,8 +373,7 @@ class Client:
         self._closed = False
         self._ready.clear()
         self.http.recreate()
-
-    #        self.loop.create_task(self.ws.close())
+        # self.loop.create_task(self.ws.close())
 
     async def start(self, *args, **kwargs) -> None:
         """|coro|
@@ -405,7 +404,7 @@ class Client:
         await self._connection.poll_notifications()
         if self.identity_secret:
             self._confirmation_manager = ConfirmationManager(state=self._connection)
-        #        await self.connect()
+        # await self.connect()
         while 1:
             await asyncio.sleep(5)
 
