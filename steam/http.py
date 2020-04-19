@@ -135,7 +135,7 @@ class HTTPClient:
                         try:
                             await asyncio.sleep(float(r.headers['X-Retry-After']))
                         except KeyError:  # steam being un-helpful as usual
-                            await asyncio.sleep(3 ** tries)
+                            await asyncio.sleep(2 ** tries)
 
                         continue
 
@@ -440,7 +440,7 @@ class HTTPClient:
         }
         return self.request('GET', url=Route('ISteamDirectory', 'GetCMList'), params=params)
 
-    def fetch_comments(self, user_id64, limit=None):
+    def fetch_comments(self, id64, comment_type, limit=None):
         params = {
             "start": 0,
             "totalcount": 9999999999
@@ -449,14 +449,27 @@ class HTTPClient:
             params["count"] = 9999999999
         else:
             params["count"] = limit
-        return self.request('GET', f'{URL.COMMUNITY}/comment/Profile/render/{user_id64}', params=params)
+        return self.request('GET', f'{URL.COMMUNITY}/comment/{comment_type}/render/{id64}', params=params)
 
-    def post_comment(self, user_id64, comment):
+    def post_comment(self, id64, comment_type, content):
         data = {
             "sessionid": self.session_id,
-            "comment": comment,
+            "comment": content,
         }
-        return self.request('POST', url=f'{URL.COMMUNITY}/comment/Profile/post/{user_id64}', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/comment/{comment_type}/post/{id64}', data=data)
+
+    def delete_comment(self, id, comment_type, user_id64):
+        params = {
+            "gidcomment": id,
+        }
+        return self.request('POST', f'{URL.COMMUNITY}/comment/{comment_type}/delete/{user_id64}', params=params)
+
+    def report_comment(self, id, comment_type, user_id64):
+        params = {
+            "gidcomment": id,
+            "hide": 1
+        }
+        return self.request('POST', f'{URL.COMMUNITY}/comment/{comment_type}/hideandreport/{user_id64}', params=params)
 
     async def fetch_api_key(self):
         resp = await self.request('GET', url=f'{URL.COMMUNITY}/dev/apikey')
@@ -499,6 +512,13 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{self.user.community_url}/friends/action', data=data)
 
+    def join_group(self, group_id):
+        data = {
+            "sessionID": self.session_id,
+            "action": 'join',
+        }
+        return self.request('POST', url=f'{URL.COMMUNITY}/gid/{group_id}', data=data)
+
     def leave_group(self, group_id):
         data = {
             "sessionID": self.session_id,
@@ -515,3 +535,10 @@ class HTTPClient:
             "type": 'groupInvite'
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/actions/GroupInvite', data=data)
+
+    def fetch_user_groups(self, user_id64):
+        params = {
+            "key": self.api_key,
+            "steamid": user_id64
+        }
+        return self.request('GET', url=Route('ISteamUser', 'GetUserGroupList'), params=params)
