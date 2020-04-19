@@ -38,7 +38,6 @@ import re
 import struct
 from hashlib import sha1
 from time import time
-from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
 
@@ -193,7 +192,7 @@ class ConfirmationManager:
     async def get_confirmations(self):
         params = self.create_confirmation_params('conf')
         headers = {'X-Requested-With': 'com.valvesoftware.android.steam.community'}
-        confs = await self.state.request('GET', f'{self.BASE}/conf?{urlencode(params)}', headers=headers)
+        confs = await self.state.request('GET', f'{self.BASE}/conf', params=params, headers=headers)
 
         if 'incorrect Steam Guard codes.' in confs:
             raise InvalidCredentials('identity secret is incorrect, or time is de-synced')
