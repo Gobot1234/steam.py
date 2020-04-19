@@ -66,11 +66,12 @@ class AsyncIterator:
 
 
 class CommentsIterator(AsyncIterator):
-    __slots__ = ('comments', 'owner', '_user_id') + AsyncIterator.__slots__
+    __slots__ = ('comments', 'owner', '_id', '_comment_type') + AsyncIterator.__slots__
 
-    def __init__(self, state, user_id, before, after, limit):
+    def __init__(self, state, id, before, after, limit, comment_type):
         super().__init__(state, limit, before, after)
-        self._user_id = user_id
+        self._id = id
+        self._comment_type = comment_type
         self.comments = asyncio.Queue()
         self.owner = None
 
@@ -78,8 +79,9 @@ class CommentsIterator(AsyncIterator):
         await super().fill()
         from .user import make_steam64, User
 
-        data = await self._state.http.fetch_comments(user_id64=self._user_id, limit=self.limit)
-        self.owner = await self._state.fetch_user(self._user_id)
+        data = await self._state.http.fetch_comments(id64=self._id, limit=self.limit, comment_type=self._comment_type)
+        self.owner = await self._state.fetch_user(self._id) if self._comment_type == 'Profile' else \
+            await self._state.client.fetch_group(self._id)
         soup = BeautifulSoup(data['comments_html'], 'html.parser')
         comments = soup.find_all('div', attrs={'class': 'commentthread_comment responsive_body_text'})
         to_fetch = []
@@ -93,7 +95,8 @@ class CommentsIterator(AsyncIterator):
                 html_content = re.findall(rf'id="comment_content_{comment_id}">\s*(.*?)\s*</div>', comment)[0]
                 content = BeautifulSoup(html_content, 'html.parser').get_text('\n')
                 to_fetch.append(make_steam64(author_id))
-                self.comments.put_nowait(Comment(state=self._state, comment_id=comment_id, timestamp=timestamp,
+                self.comments.put_nowait(Comment(state=self._state, comment_type=self._comment_type,
+                                                 comment_id=comment_id, timestamp=timestamp,
                                                  content=content, author=author_id, owner=self.owner))
                 if self.limit is not None:
                     if self.comments.qsize == self.limit:
