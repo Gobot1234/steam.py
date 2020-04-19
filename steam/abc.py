@@ -29,7 +29,7 @@ import abc
 
 class BaseUser(metaclass=abc.ABCMeta):
     """An ABC that details the common operations on a Steam user.
-    The following implement this ABC:
+    The following classes implement this ABC:
 
         - :class:`~steam.User`
         - :class:`~steam.ClientUser`
@@ -85,7 +85,7 @@ class BaseUser(metaclass=abc.ABCMeta):
 
 class Messageable(metaclass=abc.ABCMeta):
     """An ABC that details the common operations on a Steam message.
-    The following implement this ABC:
+    The following classes implement this ABC:
 
         - :class:`~steam.User`
         - :class:`~steam.Message`
