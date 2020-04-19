@@ -23,6 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 import re
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -55,10 +56,12 @@ class Comment:
         The comment sections owner.
     """
 
-    __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_state')
+    __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_comment_type', '_state')
 
-    def __init__(self, state, comment_id: int, content: str, timestamp: datetime, author: 'User', owner: 'User'):
+    def __init__(self, state, comment_type, comment_id: int, content: str, timestamp: datetime,
+                 author: 'User', owner: 'User'):
         self._state = state
+        self._comment_type = comment_type
         self.content = content
         self.id = comment_id
         self.created_at = timestamp
@@ -76,21 +79,13 @@ class Comment:
         """|coro|
         Reports the :class:`Comment`.
         """
-        params = {
-            "gidcomment": self.id,
-            "hide": 1
-        }
-        await self._state.request('POST', f'{URL.COMMUNITY}/comment/Profile/hideandreport/{self.owner.id64}',
-                                  params=params)
+        await self._state.http.report_comment(self.id, self._comment_type, self.owner.id64)
 
     async def delete(self) -> None:
         """|coro|
         Deletes the :class:`Comment`.
         """
-        params = {
-            "gidcomment": self.id,
-        }
-        await self._state.request('POST', f'{URL.COMMUNITY}/comment/Profile/delete/{self.owner.id64}', params=params)
+        await self._state.http.delete_comment(self.id, self._comment_type, self.owner.id64)
 
 
 class Invite:
@@ -109,16 +104,20 @@ class Invite:
         only relevant if type is 'Group'.
     """
 
+    __slots__ = ('type', 'group', 'invitee', '_data', '_state')
+
     def __init__(self, state, data):
         self._state = state
-        self._search = re.search(r"href=\"javascript:OpenGroupChat\( '(\d+)' \)\"", str(data))
-        self.type = 'Group' if self._search is not None else 'Friend'
-        self.invitee = re.search(r'data-miniprofile="(\d+)"', str(data)).group(1)
+        self._data = str(data)
 
     async def __ainit__(self):
+        search = re.search(r"href=\"javascript:OpenGroupChat\( '(\d+)' \)\"", self._data)
+        invitee_id = re.search(r'data-miniprofile="(\d+)"', self._data)
         client = self._state.client
-        self.invitee: User = await client.fetch_user(self.invitee)
-        self.group: Group = await client.fetch_group(self._search.group(1)) if self.type == 'Group' else None
+
+        self.type = 'Group' if search is not None else 'Friend'
+        self.invitee: User = await client.fetch_user(invitee_id.group(1))
+        self.group: Group = await client.fetch_group(search.group(1)) if self.type == 'Group' else None
 
     def __repr__(self):
         attrs = (
@@ -131,16 +130,16 @@ class Invite:
         """|coro|
         Accepts the invite request.
         """
-        if self.type is 'Friend':
+        if self.type == 'Friend':
             await self._state.http.accept_user_invite(self.invitee.id64)
         else:
-            await self._state.http.accept_group_invite(self.group.id)
+            await self._state.http.accept_group_invite(self.group.id64)
 
     async def decline(self) -> None:
         """|coro|
         Declines the invite request.
         """
-        if self.type is 'Friend':
+        if self.type == 'Friend':
             await self._state.http.decline_user_invite(self.invitee.id64)
         else:
-            await self._state.http.decline_group_invite(self.group.id)
+            await self._state.http.decline_group_invite(self.group.id64)
