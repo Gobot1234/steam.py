@@ -297,16 +297,16 @@ class _BaseUser(BaseUser):
         # setting is_steam_game to False allows for fake game instances to be better without having them pre-defined
         # without making the defined ones being
 
-    async def comment(self, comment: str) -> None:
+    async def comment(self, content: str) -> None:
         """|coro|
         Post a comment to an :class:`User`'s profile.
 
         Parameters
         -----------
-        comment: :class:`str`
+        content: :class:`str`
             The comment to add the :class:`User`'s profile.
         """
-        await self._state.http.post_comment(self.id64, comment)
+        await self._state.http.post_comment(self.id64, content)
 
     async def fetch_inventory(self, game: Game) -> Inventory:
         """|coro|
@@ -325,7 +325,7 @@ class _BaseUser(BaseUser):
         Returns
         -------
         :class:`Inventory`
-            The inventory.
+            The user's inventory.
         """
         resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
@@ -337,7 +337,7 @@ class _BaseUser(BaseUser):
         Returns
         -------
         List[:class:`~steam.User`]
-            The list of :class:`~steam.User`'s friends from the API
+            The list of :class:`~steam.User`'s friends from the API.
         """
         friends = await self._state.http.fetch_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
@@ -364,15 +364,13 @@ class _BaseUser(BaseUser):
         List[:class:`~steam.Group`]
             The user's groups.
         """
-        from .group import Group
-        data = await self._state.request('GET', f'https://steamcommunity.com/profiles/{self.id64}/groups')
-        ret = []
-        group_urls = re.findall(r'<a class="linkTitle" href="(.*?)">', data)
-        for group_url in group_urls:
-            group = Group(state=self._state, url=group_url)
+        resp = await self._state.http.fetch_user_groups(self.id64)
+        groups = []
+        for group in resp['response']['groups']:
+            group = Group(state=self._state, id=int(group['gid']))
             await group.__ainit__()
-            ret.append(group)
-        return ret
+            groups.append(group)
+        return groups
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
@@ -408,8 +406,8 @@ class _BaseUser(BaseUser):
         Parameters
         ----------
         limit: Optional[:class:`int`]
-            The maximum comments to search through.
-            Default is ``None`` which will fetch all the user's comments.
+            The maximum number of comments to search through.
+            Default is ``None`` which will fetch the user's entire comments section.
         before: Optional[:class:`datetime.datetime`]
             A time to search for comments before.
         after: Optional[:class:`datetime.datetime`]
@@ -420,7 +418,8 @@ class _BaseUser(BaseUser):
         :class:`~steam.Comment`
             The comment with the comment information parsed.
         """
-        return CommentsIterator(state=self._state, user_id=self.id64, limit=limit, before=before, after=after)
+        return CommentsIterator(state=self._state, id=self.id64, limit=limit, before=before, after=after,
+                                comment_type='Profile')
 
 
 class User(Messageable, _BaseUser):
@@ -578,7 +577,7 @@ class User(Messageable, _BaseUser):
         group: :class:`~steam.Group`
             The group to invite the user to.
         """
-        await self._state.http.invite_user_to_group(self.id64, group.id)
+        await self._state.http.invite_user_to_group(self.id64, group.id64)
 
 
 class ClientUser(_BaseUser):
@@ -715,8 +714,8 @@ class ClientUser(_BaseUser):
                               active_only=active_only, sent=include_sent, received=include_received)
 
 
-def make_steam64(account_id=0, *args, **kwargs) -> int:
-    """Returns steam64 from various other representations.
+def make_steam64(id=0, *args, **kwargs) -> int:
+    """Returns a Steam 64-bit ID from various other representations.
 
     .. code:: python
 
@@ -736,7 +735,8 @@ def make_steam64(account_id=0, *args, **kwargs) -> int:
 
     Returns
     -------
-    id64: :class:`int`
+    :class:`int`
+        The 64-bit Steam ID.
     """
 
     etype = EType.Invalid
@@ -744,7 +744,7 @@ def make_steam64(account_id=0, *args, **kwargs) -> int:
     instance = None
 
     if len(args) == 0 and len(kwargs) == 0:
-        value = str(account_id)
+        value = str(id)
 
         # numeric input
         if value.isdigit():
@@ -797,7 +797,7 @@ def make_steam64(account_id=0, *args, **kwargs) -> int:
     if instance is None:
         instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
 
-    return (universe.value << 56) | (etype.value << 52) | (instance << 32) | account_id
+    return (universe.value << 56) | (etype.value << 52) | (instance << 32) | id
 
 
 def steam2_to_tuple(value: str):
