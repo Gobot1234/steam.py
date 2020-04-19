@@ -66,14 +66,36 @@ class Game:
         Only applies to a :class:`~steam.User`'s games.
     """
 
-    def __init__(self, app_id: int, title: str = None, *, is_steam_game: bool = True, context_id: int = 2,
+    def __init__(self, app_id: int = None, title: str = None, *, is_steam_game: bool = True, context_id: int = 2,
                  _data=None):
         # user defined stuff
-        if _data is None:  # TODO ADD MAPPING TO GAMES
-            self.title = title
-            self.app_id = app_id
-            self.context_id = context_id
-            self._is_steam_game = is_steam_game
+        if _data is None:
+            mapping = {
+                'Team Fortress 2': [440, 2],
+                'DOTA 2': [570, 2],
+                'Counter Strike Global-Offensive': [730, 2],
+                'Steam': [753, 6],
+
+                440: ['Team Fortress 2', 2],
+                570: ['DOTA 2', 2],
+                730: ['Counter Strike Global-Offensive', 2],
+                753: ['Steam', 6]
+            }
+            if app_id is not None and title is None:
+                self.title = mapping[app_id][0]
+                self.app_id = app_id
+                self.context_id = mapping[app_id][1]
+                self._is_steam_game = True
+            if app_id is None and title is not None:
+                self.title = title
+                self.app_id = mapping[title][0]
+                self.context_id = mapping[title][1]
+                self._is_steam_game = True
+            else:
+                self.title = title
+                self.app_id = app_id
+                self.context_id = context_id
+                self._is_steam_game = is_steam_game
 
         # api stuff
         else:
