@@ -32,7 +32,7 @@ import logging
 import signal
 import sys
 import traceback
-from typing import Union, List, Optional, Any, Callable
+from typing import Union, List, Optional, Any, Callable, Mapping
 
 import aiohttp
 import websockets
@@ -44,8 +44,7 @@ from .gateway import SteamWebSocket, ResumeSocket
 from .group import Group
 from .guard import generate_one_time_code, ConfirmationManager
 from .http import HTTPClient
-from .market import Market, PriceOverview, FakeItem, fix_name, convert_items
-from .models import URL
+from .market import fix_name, convert_items, Market, PriceOverview, FakeItem
 from .state import State
 from .trade import TradeOffer
 from .user import make_steam64, User, ClientUser
@@ -120,8 +119,7 @@ class Client:
         Defaults to ``None``, in which case the default event loop is used via
         :func:`asyncio.get_event_loop()`.
     currency: Optional[Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]]
-        The currency used for market interactions.
-        Defaults to :class:`~steam.ECurrencyCode.USD`.
+        The currency used for market interactions. Defaults to :class:`~steam.ECurrencyCode.USD`.
 
     Attributes
     -----------
@@ -174,6 +172,7 @@ class Client:
 
     @property
     def latency(self) -> float:
+        """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return float('nan') if self.ws is None else self.ws.latency
 
     def event(self, coro):
@@ -212,7 +211,7 @@ class Client:
 
     def _schedule_event(self, coro, event_name, *args, **kwargs):
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
-        # Schedules the task
+        # schedules the task
         return _ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
 
     def dispatch(self, event, *args, **kwargs):
@@ -260,12 +259,14 @@ class Client:
         return self._ready.is_set()
 
     def run(self, *args, **kwargs):
-        """A blocking call that abstracts away the event loop
+        """
+        A blocking call that abstracts away the event loop
         initialisation from you.
 
         If you want more control over the event loop then this
         function should not be used. Use :meth:`start` coroutine
-        or :meth:`login`."""
+        or :meth:`login`.
+        """
         loop = self.loop
 
         try:
@@ -452,22 +453,23 @@ class Client:
         id64 = make_steam64(user_id)
         return self._connection.get_user(id64)
 
-    async def fetch_user(self, user_id) -> Optional[User]:
+    async def fetch_user(self, *args, **kwargs) -> Optional[User]:
         """|coro|
         Fetches a user from the API with the given ID.
 
         Parameters
         ----------
-        user_id: Union[:class:`int`, :class:`str`]
-            The ID to search for. For accepted IDs see
-            :meth:`~steam.make_steam64`
+        *args: Union[:class:`int`, :class:`str`]
+            The arguments to pass to :meth:`~steam.make_steam64`.
+        **kwargs: Union[:class:`int`, :class:`str`]
+            The arguments to pass to :meth:`~steam.make_steam64`.
 
         Returns
         -------
         Optional[:class:`~steam.User`]
             The user or ``None`` if not found.
         """
-        id64 = make_steam64(user_id)
+        id64 = make_steam64(*args, **kwargs)
         return await self._connection.fetch_user(id64)
 
     def get_trade(self, id) -> Optional[TradeOffer]:
@@ -501,22 +503,26 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    async def fetch_group(self, id: int) -> Optional[Group]:
+    async def fetch_group(self, *args, **kwargs) -> Optional[Group]:
         """|coro|
-        Fetches a group from steamcommunity with the given ID.
+        Fetches a group from https://steamcommunity.com with the given ID.
 
         Parameters
         ----------
-        id: :class:`int`
-            The id of the group to search for from steamcommunity.
+        *args: Union[:class:`int`, :class:`str`]
+            The arguments to pass to :meth:`~steam.make_steam64`.
+        **kwargs: Union[:class:`int`, :class:`str`]
+            The arguments to pass to :meth:`~steam.make_steam64`.
 
         Returns
         -------
         Optional[:class:`~steam.Group`]
-            The group or ``None`` if not found."""
-        group = Group(state=self._connection, url=f'{URL.COMMUNITY}/gid/{id}')
+            The group or ``None`` if not found.
+        """
+        id = make_steam64(*args, **kwargs) & 0xFFffFFff
+        group = Group(state=self._connection, id=id)
         await group.__ainit__()
-        return group if group.id else None
+        return group if group.name else None
 
     async def fetch_price(self, item_name: str, game: Game) -> Optional[PriceOverview]:
         """Gets the price(s) and volume sales of an item.
@@ -531,13 +537,14 @@ class Client:
         Returns
         -------
         :class:`PriceOverview`
-            A class to represent the data from these transactions
+            A class to represent the data from these transactions.
         """
         item = FakeItem(fix_name(item_name), game)
         return await self._market.fetch_price(item)
 
-    async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]):
-        """Get the price(s) and volume of each item in the list.
+    async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]) -> Mapping[str, PriceOverview]:
+        """|coro|
+        Get the price(s) and volume of each item in the list.
 
         Parameters
         ----------
@@ -548,14 +555,15 @@ class Client:
 
         Returns
         -------
-        Mapping
-            A mapping of the prices. {item_name: :class:`PriceOverview`}
+        Mapping[item_name, :class:`PriceOverview`]
+            A mapping of the prices.
         """
         items = convert_items(item_names, games)
-        return self._market.fetch_prices(items)
+        return await self._market.fetch_prices(items)
 
     async def create_listing(self, item_name: str, game: Game, *, price: float):
-        """Creates a market listing for an item.
+        """|coro|
+        Creates a market listing for an item.
 
         .. note::
             This could result in an account termination,
@@ -572,11 +580,12 @@ class Client:
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
         item = FakeItem(fix_name(item_name), game)
-        return self._market.create_listing(item, price=price)
+        await self._market.create_listing(item, price=price)
 
     async def create_listings(self, item_names: List[str], games: Union[List[Game], Game],
                               prices: Union[List[Union[int, float]], Union[int, float]]):
-        """Creates market listing for items.
+        """|coro|
+        Creates market listing for items.
 
         .. note::
             This could result in an account termination,
@@ -601,15 +610,15 @@ class Client:
             to_list.append((item, final_price))
         for (item, price) in items:
             to_list.append((item, price))
-        return await self._market.create_listings(to_list)
+        await self._market.create_listings(to_list)
 
-    async def wait_until_ready(self):
+    async def wait_until_ready(self) -> None:
         """|coro|
         Waits until the client's internal cache is all ready.
         """
         await self._ready.wait()
 
-    def wait_for(self, event: str, *, check: Callable = None, timeout: float = None) -> Any:
+    def wait_for(self, event: str, *, check: Callable[..., bool] = None, timeout: float = None) -> Any:
         """|coro|
         Waits for an event to be dispatched.
 
@@ -620,8 +629,7 @@ class Client:
         In case the event returns multiple arguments, a :class:`tuple` containing those
         arguments is returned instead. Please check the
         `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_
-        for a list of events and their
-        parameters.
+        for a list of events and their parameters.
         This function returns the **first event that meets the requirements**.
 
         Parameters
@@ -640,7 +648,7 @@ class Client:
         Raises
         -------
         asyncio.TimeoutError
-            If a timeout is provided and it was reached.
+            If the provided timeout was reached.
 
         Returns
         --------
