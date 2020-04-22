@@ -9,7 +9,6 @@ Key Features
 --------------
 
 - Modern Pythonic API using `async`/`await` syntax
-- Proper rate limit handling.
 - Easy to use with an object oriented design
 
 Installation
@@ -44,8 +43,8 @@ class MyClient(steam.Client):
         print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
               if trade.items_to_receive else 'Nothing')
 
-        if trade.is_one_sided():
-            print('Accepting the trade as it one sided towards the ClientUser')
+        if trade.is_gift():
+            print('Accepting the trade as it is a gift')
             await trade.accept()
 ```
 

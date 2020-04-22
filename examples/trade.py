@@ -38,8 +38,8 @@ class MyClient(steam.Client):
         print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
               if trade.items_to_receive else 'Nothing')  # list the items the ClientUser would receive
 
-        if trade.is_one_sided():  # check if the trade is a gift
-            print('Accepting the trade as it one sided towards the ClientUser')
+        if trade.is_gift():  # check if the trade is a gift
+            print('Accepting the trade as it is a gift')
             await trade.accept()  # auto-accept the trade
 
     async def on_trade_accept(self, trade: steam.TradeOffer):  # we accepted a trade
