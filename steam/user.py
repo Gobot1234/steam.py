@@ -281,8 +281,6 @@ class _BaseUser(BaseUser):
         self.state = EPersonaState(data.get('personastate', 0))
         self.flags = EPersonaStateFlag(data.get('personastateflags', 0))
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid'])) if 'gameextrainfo' in data else None
-        # setting is_steam_game to False allows for fake game instances to be better without having them pre-defined
-        # without making the defined ones being
 
     async def comment(self, content: str) -> None:
         """|coro|
