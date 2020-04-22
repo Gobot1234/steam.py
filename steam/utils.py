@@ -24,7 +24,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
-
+import re
 import socket
 import struct
 from base64 import b64decode
@@ -36,6 +36,8 @@ from Cryptodome.Cipher import AES as AES, PKCS1_OAEP
 from Cryptodome.Hash import SHA1, HMAC
 from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
 from google.protobuf.message import Message as _ProtoMessageType
+
+__all__ = ('find', 'get', 'parse_trade_url_token')
 
 
 class UniverseKey:
@@ -316,7 +318,6 @@ def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
 
     return stack.pop()
 
-
 # from discord.py https://github.com/rapptz/discord.py/blob/master/discord/utils.py
 
 
@@ -335,7 +336,6 @@ def find(predicate, seq):
         if predicate(element):
             return element
     return None
-
 
 # also from discord.py
 
@@ -374,4 +374,19 @@ def get(iterable, **attrs):
     for elem in iterable:
         if _all(pred(elem) == value for pred, value in converted):
             return elem
+    return None
+
+
+def parse_trade_url_token(url):
+    """Parses a trade URL for an user's token.
+
+    Returns
+    -------
+    Optional[:class:`str`]
+        The found token. ``None`` if the URL doesn't match the regex.
+    """
+    search = re.search(r"(?:https://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d{7,}"
+                       r"(?:&|&amp;)token=(?P<token>[\w-]{7,})", url)
+    if search:
+        return search.group('token')
     return None
