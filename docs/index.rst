@@ -12,7 +12,6 @@ for Steam. Heavily inspired by `discord.py <https://github.com/Rapptz/discord.py
 **Features:**
 
 - Modern Pythonic API using ``async``/``await`` syntax
-- Rate limit handling
 - Command extension to aid with bot creation (under development)
 - Easy to use with an object oriented design
 
