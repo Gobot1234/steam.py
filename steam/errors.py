@@ -114,9 +114,9 @@ class NotFound(HTTPException):
     pass
 
 
-class LoginError(SteamException):
+class LoginError(ClientException):
     """Exception that's thrown when a login fails.
-    Subclass of :exc:`SteamException`
+    Subclass of :exc:`ClientException`
     """
     pass
 
@@ -128,7 +128,7 @@ class InvalidCredentials(LoginError):
     pass
 
 
-class AuthenticatorError(LoginError):
+class AuthenticatorError(ClientException):
     """Exception that's thrown when Steam cannot authenticate your details.
     Subclass of :exc:`LoginError`
     """
