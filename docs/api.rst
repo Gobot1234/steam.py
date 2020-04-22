@@ -243,7 +243,7 @@ Guard
 
 .. autofunction:: steam.guard.generate_one_time_code(shared_secret, timestamp=time.time())
 
-.. autofunction:: steam.guard.generate_confirmation_key(identity_secret, tag, timestamp=time.time())
+.. autofunction:: steam.guard.generate_confirmation_code(identity_secret, tag, timestamp=time.time())
 
 .. autofunction:: steam.guard.generate_device_id
 
@@ -320,11 +320,13 @@ Groups
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: Group()
+    :members:
 
 Invites
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: Invite()
+    :members:
 
 Message
 ~~~~~~~~~~~~~~~
@@ -386,7 +388,7 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: InvalidCredentials
 
-.. autoexception:: SteamAuthenticatorError
+.. autoexception:: AuthenticatorError
 
 .. autoexception:: ConfirmationError
 
@@ -405,7 +407,7 @@ Exception Hierarchy
     - :exc:`Exception`
         - :exc:`SteamException`
             - :exc:`ClientException`
-                - :exc:`AuthenticationError`
+                - :exc:`AuthenticatorError`
                     - :exc:`ConfirmationError`
                 - :exc:`LoginError`
                     - :exc:`InvalidCredentials`
