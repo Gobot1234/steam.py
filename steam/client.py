@@ -377,7 +377,9 @@ class Client:
 
     async def start(self, *args, **kwargs) -> None:
         """|coro|
-        A shorthand coroutine for :meth:`login` and :meth:`connect`
+        A shorthand coroutine for :meth:`login` and :meth:`connect`.
+        If no shared_secret is passed, you will have to manually
+        enter a Steam guard code.
 
         Raises
         ------
