@@ -34,7 +34,6 @@ with extra doc-strings and it's slightly sped up.
 import base64
 import hmac
 import logging
-import re
 import struct
 from hashlib import sha1
 from time import time
@@ -121,11 +120,6 @@ def generate_device_id(id64: str) -> str:
     return f'android:{"-".join(partial_id)}'
 
 
-def parse_token(url: str):
-    return re.search(r"https?://(?:www.)?steamcommunity.com/tradeoffer/new/\?partner=\d+(?:&|&amp;)"
-                     r"token=(?P<token>\d+)", url)
-
-
 class Confirmation:
     def __init__(self, state, id, data_confid, data_key, manager, creator):
         self.state = state
@@ -197,7 +191,7 @@ class ConfirmationManager:
         if 'incorrect Steam Guard codes.' in confs:
             raise InvalidCredentials('identity secret is incorrect, or time is de-synced')
         elif 'Oh nooooooes!' in confs:
-            return AuthenticatorError
+            raise AuthenticatorError
 
         soup = BeautifulSoup(confs, 'html.parser')
         if soup.select('#mobileconf_empty'):
