@@ -18,7 +18,6 @@ Version Related Info
     A string representation of the version. e.g. ``'0.0.8a'``. This is based
     off of :pep:`440`.
 
-
 Client
 ---------------
 
@@ -48,8 +47,8 @@ overriding the specific events. For example: ::
             print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
                   if trade.items_to_receive else 'Nothing')
 
-            if trade.is_one_sided():
-                print('Accepting the trade as it one sided towards the ClientUser')
+            if trade.is_gift():
+                print('Accepting the trade as it is a gift')
                 await trade.accept()
 
 
@@ -157,6 +156,14 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     :param trade: The trade offer that was canceled.
     :type trade: :class:`~steam.TradeOffer`
 
+.. function:: on_trade_expire(trade)
+
+    Called when a trade offer expires due to being active for too long.
+
+    :param trade: The trade offer that expired.
+    :type trade: :class:`~steam.TradeOffer`
+
+
 .. function:: on_trade_counter(before, after)
 
     Called when the client or the trade partner counters a trade offer.
@@ -237,6 +244,26 @@ They are only used for subclassing.
 Steam Models
 ---------------
 
+steam.py provides wrappers around common Steam API objects.
+
+Badges
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Badge()
+    :members:
+
+Bans
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Ban()
+    :members:
+
+Comments
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Comment()
+    :members:
+
 Game
 ~~~~~~~~~~~~~~~
 
@@ -257,21 +284,23 @@ There are some predefined games which are:
 | Steam                           | ``steam.STEAM`` |
 +---------------------------------+-----------------+
 
-Comments
-~~~~~~~~~~~~~~~
+Games can be manually constructed using there app id eg:
 
-.. autoclass:: Comment()
-    :members:
+.. code-block:: python3
 
-Invites
-~~~~~~~~~~~~~~~
-
-.. autoclass:: Invite()
+    my_rust_instance = steam.Game(252490, 'Rust')
+    # this can then be used for trading
+    # a game title is not required for this
 
 Groups
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: Group()
+
+Invites
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Invite()
 
 Message
 ~~~~~~~~~~~~~~~
@@ -311,10 +340,12 @@ Users
     :members:
     :inherited-members:
 
-
 .. autoclass:: User()
     :members:
     :inherited-members:
+
+.. autoclass:: UserBadges()
+    :members:
 
 Exceptions
 ------------
@@ -338,3 +369,22 @@ The following exceptions are thrown by the library.
 .. autoexception:: Forbidden
 
 .. autoexception:: NotFound
+
+
+Exception Hierarchy
+~~~~~~~~~~~~~~~~~~~~~
+
+.. totally not from discord.py https://github.com/Rapptz/discord.py/blob/master/docs/extensions/exception_hierarchy.py
+
+.. exception_hierarchy::
+
+    - :exc:`Exception`
+        - :exc:`SteamException`
+            - :exc:`ClientException`
+                - :exc:`AuthenticationError`
+                    - :exc:`ConfirmationError`
+                - :exc:`LoginError`
+                    - :exc:`InvalidCredentials`
+            - :exc:`HTTPException`
+                - :exc:`Forbidden`
+                - :exc:`NotFound`
