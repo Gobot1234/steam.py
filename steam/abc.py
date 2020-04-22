@@ -52,7 +52,7 @@ class BaseUser(metaclass=abc.ABCMeta):
     ----------
     name: :class:`str`
         The user's username.
-    steam_id: :class:`SteamID`
+    steam_id: :class:`~steam.SteamID`
         The SteamID instance attached to the user.
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
