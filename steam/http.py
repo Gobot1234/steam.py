@@ -551,3 +551,17 @@ class HTTPClient:
             "steamid": user_id64
         }
         return self.request('GET', url=Route('ISteamUser', 'GetPlayerBans'), params=params)
+
+    def fetch_user_level(self, user_id64):
+        params = {
+            "key": self.api_key,
+            "steamid": user_id64
+        }
+        return self.request('GET', url=Route('IPlayerService', 'GetSteamLevel'), params=params)
+
+    def fetch_user_badges(self, user_id64):
+        params = {
+            "key": self.api_key,
+            "steamid": user_id64
+        }
+        return self.request('GET', url=Route('IPlayerService', 'GetBadges'), params=params)
