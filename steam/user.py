@@ -42,7 +42,7 @@ from .enums import *
 from .game import Game
 from .group import Group
 from .iterators import CommentsIterator, TradesIterator
-from .models import URL
+from .models import URL, Ban, UserBadges
 from .trade import Item, Inventory, Asset
 
 __all__ = (
@@ -92,16 +92,12 @@ class SteamID(int):
 
     @property
     def type(self) -> EType:
-        """:class:`~steam.EType`:
-        Represents the steam type of the account.
-        """
+        """:class:`~steam.EType`: Represents the Steam type of the account."""
         return EType((int(self) >> 52) & 0xF)
 
     @property
     def universe(self) -> EUniverse:
-        """:class:`~steam.EUniverse`:
-        Represents the steam universe of the account.
-        """
+        """:class:`~steam.EUniverse`: Represents the Steam universe of the account."""
         return EUniverse((int(self) >> 56) & 0xFF)
 
     @property
@@ -121,15 +117,13 @@ class SteamID(int):
     @property
     def as_64(self) -> int:
         """:class:`int`: The steam 64 bit id of the account.
-        Used for community profiles along with other useful things.
-
         An alias to :attr:`SteamID.id64`
         """
         return self.id64
 
     @property
     def id2(self) -> str:
-        """class:`str`: The steam2 id of the account.
+        """class:`str`: The Steam2 id of the account.
             e.g ``STEAM_1:0:1234``.
 
         .. note::
@@ -141,7 +135,7 @@ class SteamID(int):
 
     @property
     def as_steam2(self) -> str:
-        """class:`str`: The steam2 id of the account.
+        """class:`str`: The Steam2 id of the account.
             e.g ``STEAM_1:0:1234``.
 
         .. note::
@@ -155,7 +149,7 @@ class SteamID(int):
 
     @property
     def as_steam2_zero(self) -> str:
-        """:class:`str`: The steam2 id of the account.
+        """:class:`str`: The Steam2 id of the account.
             e.g ``STEAM_0:0:1234``.
 
         For GoldSrc and Orange Box games.
@@ -165,7 +159,7 @@ class SteamID(int):
 
     @property
     def id3(self) -> str:
-        """:class:`str`: The steam3 id of the account.
+        """:class:`str`: The Steam3 id of the account.
             e.g ``[U:1:1234]``.
 
         This is used for more recent games.
@@ -195,10 +189,7 @@ class SteamID(int):
 
     @property
     def as_steam3(self) -> str:
-        """:class:`str`: The steam3 id of the account.
-            e.g ``[U:1:1234]``.
-
-        This is used for more recent games.
+        """:class:`str`: The Steam3 id of the account.
         An alias to :attr:`SteamID.id3`
         """
         return self.id3
@@ -218,12 +209,8 @@ class SteamID(int):
         return None
 
     def is_valid(self) -> bool:
-        """Check whether this SteamID is valid.
-
-        Returns
-        -------
-        :class:`bool`
-        """
+        """:class:`bool`: Check whether this SteamID is valid.
+        This doesn't however mean that a matching profile can be found"""
         if self.type == EType.Invalid or self.type >= EType.Max:
             return False
 
@@ -365,12 +352,44 @@ class _BaseUser(BaseUser):
             The user's groups.
         """
         resp = await self._state.http.fetch_user_groups(self.id64)
-        groups = []
-        for group in resp['response']['groups']:
-            group = Group(state=self._state, id=int(group['gid']))
-            await group.__ainit__()
-            groups.append(group)
-        return groups
+        return [await self._state.client.fetch_group(group['gid']) for group in resp['response']['groups']]
+
+    async def fetch_bans(self) -> Ban:
+        """|coro|
+        Fetches the :class:`User`'s :class:`~steam.Ban` objects.
+
+        Returns
+        -------
+        :class:`~steam.Ban`
+            The user's bans.
+        """
+        resp = await self._state.http.fetch_user_bans(self.id64)
+        resp['EconomyBan'] = False if resp['EconomyBan'] == 'none' else resp['EconomyBan']
+        return Ban(data=resp)
+
+    async def fetch_badges(self) -> UserBadges:
+        """|coro|
+        Fetches the :class:`User`'s :class:`~steam.UserBadges` objects.
+
+        Returns
+        -------
+        :class:`~steam.UserBadges`
+            The user's badges.
+        """
+        resp = await self._state.http.fetch_user_badges(self.id64)
+        return UserBadges(data=resp['response'])
+
+    async def fetch_level(self) -> int:
+        """|coro|
+        Fetches the :class:`User`'s level.
+
+        Returns
+        -------
+        :class:`int`
+            The user's level.
+        """
+        resp = await self._state.http.fetch_user_level(self.id64)
+        return resp['response']['player_level']
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
@@ -384,6 +403,17 @@ class _BaseUser(BaseUser):
     def has_setup_profile(self) -> bool:
         """:class:`bool`: Specifies if the user has a setup their profile."""
         return bool(self._data.get('profilestate'))
+
+    async def is_banned(self) -> bool:
+        """:class:`bool`: Specifies if the user is banned from any part of Steam.
+
+        This is equivalent to::
+
+            bans = await user.fetch_bans()
+            return bans.is_banned()
+        """
+        bans = await self.fetch_bans()
+        return bans.is_banned()
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
         """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment` objects.
@@ -475,7 +505,7 @@ class User(Messageable, _BaseUser):
 
     async def add(self) -> None:
         """|coro|
-        Add an :class:`User` to your friends list.
+        Sends a friend invite to an :class:`User` to your friends list.
         """
         await self._state.http.add_user(self.id64)
 
@@ -487,31 +517,19 @@ class User(Messageable, _BaseUser):
 
     async def unblock(self) -> None:
         """|coro|
-        Unblock an :class:`User`.
+        Unblocks the :class:`User`.
         """
         await self._state.http.unblock_user(self.id64)
 
     async def block(self) -> None:
         """|coro|
-        Block an :class:`User`.
+        Blocks the :class:`User`.
         """
         await self._state.http.block_user(self.id64)
 
-    async def accept_invite(self) -> None:
-        """|coro|
-        Accept a friend invite from an :class:`User`.
-        """
-        return await self._state.http.accept_user_invite(self.id64)
-
-    async def decline_invite(self) -> None:
-        """|coro|
-        Decline a friend invite from an :class:`User`.
-        """
-        await self._state.http.decline_user_invite(self.id64)
-
     async def send_trade(self, items_to_send: Union[List[Item], List[Asset]] = None,
                          items_to_receive: Union[List[Item], List[Asset]] = None, *,
-                         message: str = None) -> None:
+                         token: str = None, message: str = None) -> None:
         """|coro|
         Sends a trade offer to an :class:`User`.
 
@@ -521,6 +539,9 @@ class User(Messageable, _BaseUser):
             The items you are sending to the other user.
         items_to_receive: Optional[Union[List[:class:`steam.Item`], List[:class:`steam.Asset`]]
             The items you are sending to the other user.
+        token: Optional[:class:`str`]
+            The the trade token used to send trades to users who aren't
+            on the ClientUser's friend's list.
         message: :class:`str`
              The offer message to send with the trade.
 
@@ -532,9 +553,10 @@ class User(Messageable, _BaseUser):
         items_to_send = [] if items_to_send is None else items_to_send
         items_to_receive = [] if items_to_receive is None else items_to_receive
         message = message if message is not None else ''
-        resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send, items_to_receive, message)
+        resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
+                                                       items_to_receive, token, message)
         if resp.get('needs_mobile_confirmation', False):
-            confirmation = await self._state.confirmation_manager.get_trade_confirmation(int(resp['tradeofferid']))
+            confirmation = await self._state.confirmation_manager.get_confirmation(int(resp['tradeofferid']))
             await confirmation.confirm()
 
     async def fetch_escrow(self) -> Optional[timedelta]:
@@ -550,10 +572,6 @@ class User(Messageable, _BaseUser):
         resp = await self._state.http.fetch_user_escrow(self.id)
         days = int(re.search(r'var g_daysTheirEscrow = (\d+);', resp).group(1))
         return timedelta(days=days) if days else None
-
-    def is_friend(self) -> bool:
-        """:class:`bool`: Species if the user is in the ClientUser's friends"""
-        return self in self._state.client.user.friends
 
     async def send(self, content: str = None):
         """Send a message to the user
@@ -578,6 +596,10 @@ class User(Messageable, _BaseUser):
             The group to invite the user to.
         """
         await self._state.http.invite_user_to_group(self.id64, group.id64)
+
+    def is_friend(self) -> bool:
+        """:class:`bool`: Species if the user is in the ClientUser's friends."""
+        return self in self._state.client.user.friends
 
 
 class ClientUser(_BaseUser):
