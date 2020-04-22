@@ -34,6 +34,8 @@ if TYPE_CHECKING:
     from .user import User
     from .group import Group
 
+__all__ = ('Comment', 'Invite', 'Ban', 'Badge', 'UserBadges')
+
 
 class URL:
     API = 'https://api.steampowered.com'

@@ -20,11 +20,11 @@ from . import guard, utils
 from .client import Client
 from .enums import *
 from .errors import *
-from .game import Game, CSGO, TF2, DOTA2, STEAM
+from .game import *
 from .group import Group
 from .market import PriceOverview
 from .message import Message
-from .models import Comment, Invite
+from .models import *
 from .trade import *
 from .user import *
 

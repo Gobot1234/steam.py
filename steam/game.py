@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+__all__ = ('Game', 'TF2', 'DOTA2', 'CSGO', 'STEAM')
+
 
 class Game:
     """Represents a Steam game.
