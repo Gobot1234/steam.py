@@ -20,9 +20,7 @@ username = ''
 password = ''
 shared_secret = ''
 
-URL_REGEX = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-
-
+URL_REGEX = re.compile(r'http[s]?://(?:\w|\d|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 # this regex matches any valid website url
 
 
@@ -53,8 +51,8 @@ async def on_comment(comment: steam.Comment):
     if re.search(URL_REGEX, comment.content):  # there is a url in the comment's content
         await comment.delete()  # delete the comment
         await comment.author.comment("Please don't post urls on my profile again.")
-        # finally warn them about posting urls in your comments
         print('Deleted a suspicious comment containing a url from', comment.author.name)
+        # finally warn them about posting urls in your comments
 
 
 client.run(username=username, password=password, shared_secret=shared_secret)
