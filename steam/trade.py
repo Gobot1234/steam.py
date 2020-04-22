@@ -29,6 +29,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional, Union
 
+from . import utils
 from .enums import ETradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game
@@ -262,7 +263,7 @@ class Inventory:
             Can be an empty list if no matching items are found.
             This also removes the item from the inventory, if possible.
         """
-        items = [item for item in self.items if item.name == item_name]
+        items = list(filter(lambda i: i.name == item_name, self.items))
         items = items[:len(items) - 1 if limit is None else limit]
         for item in items:
             self.items.remove(item)
@@ -281,12 +282,12 @@ class Inventory:
         Optional[:class:`Item`]
             Returns the first found item with a matching name.
             Can be ``None`` if no matching item is found.
-            This also removes the item from the inventory, if possible
+            This also removes the item from the inventory, if possible.
         """
-        item = [item for item in self.items if item.name == item_name]
+        item = utils.find(lambda i: i.name == item_name, self.items)
         if item:
-            self.items.remove(item[0])
-            return item[0]
+            self.items.remove(item)
+            return item
         return None
 
 
@@ -353,19 +354,25 @@ class TradeOffer:
         ------
         :exc:`~steam.ClientException`
             The trade is not active.
+        :exc:`~steam.ConfirmationError`
+            A matching confirmation could not be found.
         """
+        if self.is_gift():  # no point trying to confirm it
+            return
         if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade cannot be confirmed')
         confirmation = await self._state.client._confirmation_manager.get_confirmation(self.id)
         if confirmation is not None:
             await confirmation.confirm()
         else:
-            raise ConfirmationError('no confirmation could be found for this trade')
+            raise ConfirmationError('No matching confirmation could be found for this trade')
 
     async def accept(self) -> None:
         """|coro|
         Accepts the :class:`TradeOffer`.
-        This also calls :meth:`TradeOffer.confirm`.
+
+        .. note::
+            This also calls :meth:`TradeOffer.confirm` (if necessary) so you don't have to.
 
         Raises
         ------
@@ -413,13 +420,13 @@ class TradeOffer:
             raise ClientException('This trade is not active')
         if self.state == ETradeOfferState.Canceled:
             raise ClientException('This trade has already been cancelled')
-        if not self.is_our_offer():
+        if not self.is_gift():
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
 
     async def counter(self, items_to_send: Union[List[Item], List[Asset]] = None,
                       items_to_receive: Union[List[Item], List[Asset]] = None, *,
-                      message: str = None) -> None:
+                      token: str = None, message: str = None) -> None:
         """|coro|
         Counters a trade offer from an :class:`User`.
 
@@ -429,9 +436,11 @@ class TradeOffer:
             The items you are sending to the other user.
         items_to_receive: Optional[Union[List[:class:`steam.Item`], List[:class:`steam.Asset`]]
             The items you are sending to the other user.
+        token: Optional[:class:`str`]
+            The the trade token used to send trades to users who aren't
+            on the ClientUser's friend's list.
         message: :class:`str`
              The offer message to send with the trade.
-
 
         Raises
         ------
@@ -444,14 +453,22 @@ class TradeOffer:
         items_to_receive = [] if items_to_receive is None else items_to_receive
         message = message if message is not None else ''
         resp = await self._state.http.send_counter_trade_offer(self.id, self.partner.id64, self.partner.id,
-                                                               items_to_send, items_to_receive, message)
+                                                               items_to_send, items_to_receive, token, message)
         if resp.get('needs_mobile_confirmation', False):
             confirmation = await self._state.confirmation_manager.get_trade_confirmation(int(resp['tradeofferid']))
             await confirmation.confirm()
 
+    def is_gift(self) -> bool:
+        """:class:`bool`: Checks if an offer is a gift to the ClientUser"""
+        return True if not self.items_to_receive and self.items_to_send else False
+
     def is_one_sided(self) -> bool:
-        """:class:`bool`: Checks if an offer is one-sided towards the ClientUser"""
-        return True if self.items_to_receive is not None and self.items_to_send else False
+        """:class:`bool`: Checks if an offer is one-sided."""
+        if not self.items_to_receive and self.items_to_send:
+            return True
+        if self.items_to_receive and not self.items_to_send:
+            return True
+        return False
 
     def is_our_offer(self) -> bool:
         """:class:`bool`: Whether the offer was created by the ClientUser."""
