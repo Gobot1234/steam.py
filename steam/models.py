@@ -25,8 +25,10 @@ SOFTWARE.
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
+
+from .game import Game
 
 if TYPE_CHECKING:
     from .user import User
@@ -143,3 +145,98 @@ class Invite:
             await self._state.http.decline_user_invite(self.invitee.id64)
         else:
             await self._state.http.decline_group_invite(self.group.id64)
+
+
+class Ban:
+    """Represents a Steam ban.
+
+    Attributes
+    -----------
+    since_last_ban: :class:`datetime.timedelta`
+        How many days since the user was last banned
+    number_of_game_bans: :class:`int`
+        The number of game bans the User has.
+    """
+
+    __slots__ = ('since_last_ban', 'number_of_game_bans', '_vac_banned', '_community_banned', '_market_banned')
+
+    def __init__(self, data):
+        self._vac_banned = data['VACBanned']
+        self._community_banned = data['CommunityBanned']
+        self._market_banned = data['EconomyBan']
+        self.since_last_ban = timedelta(days=data['DaysSinceLastBan'])
+        self.number_of_game_bans = data['NumberOfGameBans']
+
+    def is_banned(self) -> bool:
+        """:class:`bool`: Species if the user is banned from any part of Steam."""
+        return False not in [getattr(self, attr) for attr in self.__slots__]
+
+    def is_vac_banned(self) -> bool:
+        """:class:`bool`: Species if the user is VAC banned."""
+        return self._vac_banned
+
+    def is_community_banned(self) -> bool:
+        """:class:`bool`: Species if the user is community banned."""
+        return self._community_banned
+
+    def is_market_banned(self) -> bool:
+        """:class:`bool`: Species if the user is market banned."""
+        return self._market_banned
+
+
+class Badge:
+    """Represents a Steam badge.
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The badge's ID.
+    level: :class:`int`
+        The badge's level.
+    xp: :class:`int`
+        The badges's XP.
+    completion_time: :class:`datetime.datetime`
+        The time the badge was completed at.
+    scarcity: :class:`int`
+        The scarcity of the badge.
+    game: Optional[:class:`~steam.Game`]
+        The game associated with the badge.
+    """
+
+    __slots__ = ('id', 'xp', 'game', 'level', 'scarcity', 'completion_time')
+
+    def __init__(self, data):
+        self.id = data['badgeid']
+        self.level = data['level']
+        self.xp = data['xp']
+        self.completion_time = datetime.utcfromtimestamp(data['completion_time'])
+        self.scarcity = data['scarcity']
+        self.game = Game(data['appid']) if 'appid' in data else None
+
+
+class UserBadges:
+    """Represents a Steam :class:`~steam.User`'s badges/level.
+
+    Attributes
+    ----------
+    level: :class:`int`
+        The badge's level.
+    xp: :class:`int`
+        The badges's XP.
+    xp_needed_to_level_up: :class:`int`
+        The amount of XP the user needs to level up.
+    xp_needed_for_current_level: :class:`int`
+        The amount of XP the user's current level requires
+        to achieve.
+    badges: List[:class:`Badge`]
+        A list of the user's badges.
+    """
+
+    __slots__ = ('xp', 'level', 'badges', 'xp_needed_to_level_up', 'xp_needed_for_current_level')
+
+    def __init__(self, data):
+        self.level = data['player_level']
+        self.xp = data['player_xp']
+        self.xp_needed_to_level_up = data['player_xp_needed_to_level_up']
+        self.xp_needed_for_current_level = data['player_xp_needed_current_level']
+        self.badges = [Badge(data) for data in data['badges']]
