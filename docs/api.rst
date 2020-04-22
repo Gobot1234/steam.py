@@ -194,11 +194,11 @@ Utilities
 
 steam.py provides some utility functions for Steam related problems.
 
-.. autofunction:: utils.parse_trade_url_token
+.. autofunction:: steam.utils.parse_trade_url_token
 
 Then some functions from discord.py
 
-.. autofunction:: utils.get
+.. autofunction:: steam.utils.get
 
 .. code-block:: python3
 
@@ -206,7 +206,7 @@ Then some functions from discord.py
     trade = steam.utils.get(client.trades, state=ETradeOfferState.Active, partner=ctx.author)
     # multiple attributes are also accepted
 
-.. autofunction:: utils.find
+.. autofunction:: steam.utils.find
 
 .. code-block:: python3
 
@@ -241,11 +241,11 @@ Enumerations
 Guard
 ---------------
 
-.. autofunction:: guard.generate_one_time_code(shared_secret, timestamp=time.time())
+.. autofunction:: steam.guard.generate_one_time_code(shared_secret, timestamp=time.time())
 
-.. autofunction:: guard.generate_confirmation_key(identity_secret, tag, timestamp=time.time())
+.. autofunction:: steam.guard.generate_confirmation_key(identity_secret, tag, timestamp=time.time())
 
-.. autofunction:: guard.generate_device_id
+.. autofunction:: steam.guard.generate_device_id
 
 Market
 ---------------
