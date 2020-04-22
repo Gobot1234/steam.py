@@ -33,6 +33,7 @@ from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
 from .enums import EChatEntryType, ETradeOfferState
+from .errors import HTTPException
 from .http import HTTPClient
 from .models import URL, Invite
 from .protobufs import get_um, MsgProto, EMsg
@@ -175,6 +176,7 @@ class State:
 
                 states = {
                     ETradeOfferState.Accepted: 'accept',
+                    ETradeOfferState.Expired: 'expire',
                     ETradeOfferState.Canceled: 'cancel',
                     ETradeOfferState.Declined: 'decline',
                     ETradeOfferState.CanceledBySecondaryFactor: 'cancel',
@@ -187,7 +189,7 @@ class State:
                     self.dispatch(f'trade_{event_name}', trade)
         return trade
 
-    # this will be going when I get cms going
+    # this will be going when I get cms working
 
     async def poll_trades(self):
         if self.started_trade_poll:
@@ -236,7 +238,10 @@ class State:
                 self._trades_received_cache = trades_received
                 self._trades_sent_cache = trades_sent
                 self._descriptions_cache = descriptions
-        except (asyncio.TimeoutError, aiohttp.ClientError, aiohttp.ClientConnectorError):
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            self.loop.create_task(self._poll_trades())
+        except HTTPException:
+            await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
     async def poll_notifications(self):
@@ -276,7 +281,10 @@ class State:
                                     self.dispatch(event_name, parsed_notification)
 
                     self._cached_notifications = notifications
-        except (asyncio.TimeoutError, aiohttp.ClientError, aiohttp.ClientConnectorError):
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            self.loop.create_task(self._poll_trades())
+        except HTTPException:
+            await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
     async def _parse_comment(self, l):  # this isn't very efficient not sure if it can be done better
