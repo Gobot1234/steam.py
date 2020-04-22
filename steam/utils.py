@@ -31,6 +31,7 @@ from base64 import b64decode
 from operator import attrgetter
 from os import urandom as random_bytes
 from types import GeneratorType as _GeneratorType
+from typing import Iterable, Callable
 
 from Cryptodome.Cipher import AES as AES, PKCS1_OAEP
 from Cryptodome.Hash import SHA1, HMAC
@@ -321,14 +322,14 @@ def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
 # from discord.py https://github.com/rapptz/discord.py/blob/master/discord/utils.py
 
 
-def find(predicate, seq):
+def find(predicate: Callable[..., bool], seq: Iterable):
     """A helper to return the first element found in the sequence.
 
     Parameters
     -----------
-    predicate
+    predicate: Callable[..., bool]
         A function that returns a boolean-like result.
-    seq: iterable
+    seq: Iterable
         The iterable to search through.
     """
 
@@ -340,14 +341,14 @@ def find(predicate, seq):
 # also from discord.py
 
 
-def get(iterable, **attrs):
+def get(iterable: Iterable, **attrs):
     r"""A helper that returns the first element in the iterable that meets
     all the traits passed in ``attrs``. This is an alternative for
     :func:`utils.find`.
 
     Parameters
     -----------
-    iterable
+    iterable: Iterable
         An iterable to search through.
     \*\*attrs
         Keyword arguments that denote attributes to search with.
@@ -377,8 +378,13 @@ def get(iterable, **attrs):
     return None
 
 
-def parse_trade_url_token(url):
+def parse_trade_url_token(url: str):
     """Parses a trade URL for an user's token.
+
+    Parameters
+    -----------
+    url: :class:`str`
+        The URL to search for a token.
 
     Returns
     -------
