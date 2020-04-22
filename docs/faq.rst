@@ -66,7 +66,7 @@ and when debugging any issues in your code.
 **Places to learn more python**
 
 - https://docs.python.org/3/tutorial/index.html (official tutorial)
-- https://greenteapress.com/wp/think-python-2e/ for beginners to programming or python
+- https://greenteapress.com/wp/think-python-2e/ (for beginners to programming or python)
 - https://www.codeabbey.com/ (exercises for beginners)
 - https://www.real-python.com/ (good for individual quick tutorials)
 - https://gto76.github.io/python-cheatsheet/ (cheat sheet)
@@ -118,7 +118,7 @@ How can I wait for an event?
     @client.event
     async def on_message(message):
         if message.content.startswith('?trade'):
-            await message.send('Send me a trade and I will read the contents')
+            await message.send('Send me a trade and I will read the contents of it')
 
             # the check function must return a boolean.
             def check(trade: steam.TradeOffer) -> bool:
@@ -126,9 +126,9 @@ How can I wait for an event?
                 # here we check that the trades partner is the message's author
 
             try:
-                trade = await client.wait_for('trade_receive', timeout=60, check=check)
+                trade: steam.TradeOffer = await client.wait_for('trade_receive', timeout=60, check=check)
             except asyncio.TimeoutError:  # they took too long to send the trade
-                await channel.send('You took too long')
+                await message.send('You took too long to send the offer')
             else:
                 to_send = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send]) \
                     if trade.items_to_send else 'Nothing'
@@ -151,7 +151,29 @@ The final interaction will end up looking something like this:
 
     You were going to receive:
 
-    Burning Team Captain
+    Unusual Burning Team Captain
+
+
+How do I send a trade?
+~~~~~~~~~~~~~~~~~~~~~~
+
+Sending a trade should be pretty simple.
+You need to first get the inventories of the User's involved.
+Then you need to find the items to trade for.
+Finally use the `send_trade <https://steampy.rtfd.io/en/latest/api.html#steam.User.send_trade>`_
+method on the User that you want to send the offer to.
+
+.. code-block:: python3
+
+    # we need to get the inventories to get items
+    my_inventory = await client.user.fetch_inventory()
+    their_inventory = await user.fetch_inventory()
+    # we need to get the items to be included in the trade
+    keys = my_inventory.filter_items('Mann Co. Supply Crate Key', limit=5)
+    earbuds = their_inventory.get_item('Earbuds')
+    # finally construct the trade
+    await user.send_trade(items_to_send=keys, items_to_receive=earbuds, message='This trade was made using steam.py')
+    # you don't need to confirm the trade manually, the client will handle that for you
 
 
 What is the difference between fetch and get?
