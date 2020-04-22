@@ -404,7 +404,7 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/cancel', data=data)
 
-    def send_trade_offer(self, user_id64, user_id, to_send, to_receive, offer_message, **kwargs):
+    def send_trade_offer(self, user_id64, user_id, to_send, to_receive, token, offer_message, **kwargs):
         data = {
             "sessionid": self.session_id,
             "serverid": 1,
@@ -425,14 +425,16 @@ class HTTPClient:
                 }
             }),
             "captcha": '',
-            "trade_offer_create_params": {}
+            "trade_offer_create_params": json.dumps({
+                'trade_offer_access_token': token
+            }) if token is not None else {}
         }
         data.update(**kwargs)
         headers = {'Referer': f'{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}'}
         return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=data, headers=headers)
 
-    def send_counter_trade_offer(self, trade_id, user_id64, user_id, to_send, to_receive, offer_message):
-        return self.send_trade_offer(user_id64, user_id, to_send, to_receive, offer_message, trade_id=trade_id)
+    def send_counter_trade_offer(self, trade_id, user_id64, user_id, to_send, to_receive, token, offer_message):
+        return self.send_trade_offer(user_id64, user_id, to_send, to_receive, token, offer_message, trade_id=trade_id)
 
     def fetch_cm_list(self, cell_id):
         params = {
@@ -542,3 +544,10 @@ class HTTPClient:
             "steamid": user_id64
         }
         return self.request('GET', url=Route('ISteamUser', 'GetUserGroupList'), params=params)
+
+    def fetch_user_bans(self, user_id64):
+        params = {
+            "key": self.api_key,
+            "steamid": user_id64
+        }
+        return self.request('GET', url=Route('ISteamUser', 'GetPlayerBans'), params=params)
