@@ -42,9 +42,6 @@ class Game:
         The game's title.
     app_id: Optional[:class:`int`]
         The game's app_id.
-    is_steam_game: Optional[bool]
-        Whether or not the game is an official Steam game.
-        Defaults to ``True``
 
     Attributes
     -----------
@@ -68,8 +65,7 @@ class Game:
         Only applies to a :class:`~steam.User`'s games.
     """
 
-    def __init__(self, app_id: int = None, title: str = None, *, is_steam_game: bool = True, context_id: int = 2,
-                 _data=None):
+    def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2, _data=None):
         # user defined stuff
         if _data is None:
             mapping = {
@@ -83,21 +79,32 @@ class Game:
                 730: ['Counter Strike Global-Offensive', 2],
                 753: ['Steam', 6]
             }
+
             if app_id is not None and title is None:
-                self.title = mapping[app_id][0]
+                mapping = mapping.get(app_id)
+                if mapping is not None:
+                    self.title = mapping[0]
+                    print(self.title)
+                    self.context_id = mapping[1]
+                else:
+                    self.title = None
+                    self.context_id = 2
                 self.app_id = app_id
-                self.context_id = mapping[app_id][1]
-                self._is_steam_game = True
-            if app_id is None and title is not None:
+
+            elif app_id is None and title is not None:
+                mapping = mapping.get(title)
+                if mapping is not None:
+                    self.app_id = mapping[0]
+                    self.context_id = mapping[1]
+                else:
+                    self.app_id = None
+                    self.context_id = 2
                 self.title = title
-                self.app_id = mapping[title][0]
-                self.context_id = mapping[title][1]
-                self._is_steam_game = True
+
             else:
                 self.title = title
                 self.app_id = app_id
                 self.context_id = context_id
-                self._is_steam_game = is_steam_game
 
         # api stuff
         else:
@@ -108,7 +115,6 @@ class Game:
             self.icon_url = _data.get('img_icon_url')
             self.logo_url = _data.get('img_logo_url')
             self.stats_visible = _data.get('has_community_visible_stats', False)
-            self._is_steam_game = True
 
     def __repr__(self):
         attrs = (
@@ -122,10 +128,6 @@ class Game:
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-    def is_steam_game(self) -> bool:
-        """:class:`bool`: Whether or not the game is an official Steam game."""
-        return self._is_steam_game
 
 
 TF2 = Game(title='Team Fortress 2', app_id=440)
