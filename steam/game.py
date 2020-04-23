@@ -84,7 +84,6 @@ class Game:
                 mapping = mapping.get(app_id)
                 if mapping is not None:
                     self.title = mapping[0]
-                    print(self.title)
                     self.context_id = mapping[1]
                 else:
                     self.title = None
