@@ -30,11 +30,12 @@ from datetime import datetime
 
 from bs4 import BeautifulSoup
 
-from .models import Comment
+from . import utils
+from .models import Comment, URL
 
 
 class AsyncIterator:
-    __slots__ = ('before', 'after', 'limit', '_current_iteration', '_state')
+    __slots__ = ('before', 'after', 'limit', 'queue', '_current_iteration', '_state')
 
     def __init__(self, state, limit, before, after):
         self._state = state
@@ -42,6 +43,7 @@ class AsyncIterator:
         self.before = before or datetime.utcnow()
         self.after = after or datetime.utcfromtimestamp(0)
         self._current_iteration = 0
+        self.queue = asyncio.Queue()
 
     async def flatten(self):
         ret = []
@@ -64,18 +66,22 @@ class AsyncIterator:
         if self._current_iteration == 2:
             raise StopAsyncIteration
 
+    async def next(self):
+        if self.queue.empty():
+            await self.fill()
+        return self.queue.get_nowait()
+
 
 class CommentsIterator(AsyncIterator):
-    __slots__ = ('comments', 'owner', '_id', '_comment_type') + AsyncIterator.__slots__
+    __slots__ = ('owner', '_id', '_comment_type') + AsyncIterator.__slots__
 
     def __init__(self, state, id, before, after, limit, comment_type):
         super().__init__(state, limit, before, after)
         self._id = id
         self._comment_type = comment_type
-        self.comments = asyncio.Queue()
         self.owner = None
 
-    async def fill_comments(self):
+    async def fill(self):
         await super().fill()
         from .user import make_steam64, User
 
@@ -95,36 +101,29 @@ class CommentsIterator(AsyncIterator):
                 html_content = re.findall(rf'id="comment_content_{comment_id}">\s*(.*?)\s*</div>', comment)[0]
                 content = BeautifulSoup(html_content, 'html.parser').get_text('\n')
                 to_fetch.append(make_steam64(author_id))
-                self.comments.put_nowait(Comment(state=self._state, comment_type=self._comment_type,
-                                                 comment_id=comment_id, timestamp=timestamp,
-                                                 content=content, author=author_id, owner=self.owner))
-                if self.limit is not None:
-                    if self.comments.qsize == self.limit:
-                        return
+                self.queue.put_nowait(Comment(state=self._state, comment_type=self._comment_type,
+                                              comment_id=comment_id, timestamp=timestamp,
+                                              content=content, author=author_id, owner=self.owner))
+                if self.limit is not None and self.queue.qsize == self.limit:
+                    return
         users = await self._state.http.fetch_profiles(to_fetch)
         for user in users:
             author = User(state=self._state, data=user)
-            for comment in self.comments._queue:
+            for comment in self.queue._queue:
                 if comment.author == author.id:
                     comment.author = author
 
-    async def next(self):
-        if self.comments.empty():
-            await self.fill_comments()
-        return self.comments.get_nowait()
-
 
 class TradesIterator(AsyncIterator):
-    __slots__ = ('trades', '_active_only', '_sent', '_received') + AsyncIterator.__slots__
+    __slots__ = ('_active_only', '_sent', '_received') + AsyncIterator.__slots__
 
     def __init__(self, state, limit, before, after, active_only, sent, received):
         super().__init__(state, limit, before, after)
         self._active_only = active_only
         self._sent = sent
         self._received = received
-        self.trades = asyncio.Queue()
 
-    async def fill_trades(self):
+    async def fill(self):
         await super().fill()
         from .trade import TradeOffer
 
@@ -142,10 +141,9 @@ class TradesIterator(AsyncIterator):
 
                 trade = TradeOffer(state=self._state, data=trade)
                 await trade.__ainit__()
-                self.trades.put_nowait(trade)
-            if self.limit is not None:
-                if self.trades.qsize == self.limit:
-                    return
+                self.queue.put_nowait(trade)
+            if self.limit is not None and self.queue.qsize == self.limit:
+                return
         for trade in data['trade_offers_received']:
             if self.after.timestamp() < trade['time_created'] < self.before.timestamp():
                 for item in data['descriptions']:
@@ -158,12 +156,56 @@ class TradesIterator(AsyncIterator):
 
                 trade = TradeOffer(state=self._state, data=trade)
                 await trade.__ainit__()
-                self.trades.put_nowait(trade)
+                self.queue.put_nowait(trade)
             if self.limit is not None:
-                if self.trades.qsize == self.limit:
+                if self.queue.qsize == self.limit:
                     return
 
-    async def next(self):
-        if self.trades.empty():
-            await self.fill_trades()
-        return self.trades.get_nowait()
+
+class MarketListingsIterator(AsyncIterator):
+
+    def __init__(self, state, limit, before, after):
+        super().__init__(state, limit, before, after)
+
+    async def fill(self):
+        await super().fill()
+        from .market import Listing
+
+        resp = await self._state.market.fetch_pages()
+        pages = resp['total_count']
+        if not pages:  # they have no listings just return
+            return
+        for start in range(0, pages, 100):
+            params = {
+                "start": start,
+                "count": 100
+            }
+            resp = await self._state.request('GET', url=f'{URL.COMMUNITY}/market/myhistory/render', params=params)
+            matches = re.findall(r"CreateItemHoverFromContainer\( \w+, 'history_row_\d+_(\d+)_\w+', "
+                                 r"\d+, '\d+', '(\d+)', \d+ \);", resp["hovers"])
+            # we need the listing id and the asset id(???)
+            prices = []
+            soup = BeautifulSoup(resp['results_html'], 'html.parser')
+            for listing in soup.find_all('div', attrs={"class": 'market_listing_row'}):
+                listing_ids = re.findall(r'history_row_\d+_(\d+)_\w+', str(listing))
+                findall = re.findall(r'[^\d]*(\d+)(?:[.,])(\d+)', listing.text, re.UNICODE)
+                try:
+                    price = float(f'{findall[0][0]}.{findall[0][1]}')
+                except IndexError:
+                    price = None
+                prices.append((listing_ids, price))
+
+            for context_id in resp['assets'].values():  # TODO fix this only returning some
+                for listings in context_id.values():
+                    for listing in listings.values():
+                        listing['assetid'] = listing['id']  # we need to swap the ids around
+                        try:
+                            listing['id'] = int(utils.find(lambda m: m[1] == listing['id'], matches)[0])
+                            _, listing['price'] = utils.find(lambda p: int(p[0][0]) == listing['id'], prices)
+                        except (TypeError, IndexError):
+                            pass
+                        else:
+                            listing = Listing(state=self._state, data=listing)
+                            self.queue.put_nowait(listing)
+                        if self.limit is not None and self.queue.qsize == self.limit:
+                            return
