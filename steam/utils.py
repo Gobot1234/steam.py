@@ -24,6 +24,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+
+import asyncio
+import datetime
 import re
 import socket
 import struct
@@ -38,7 +41,14 @@ from Cryptodome.Hash import SHA1, HMAC
 from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
 from google.protobuf.message import Message as _ProtoMessageType
 
-__all__ = ('find', 'get', 'parse_trade_url_token')
+__all__ = (
+    'get',
+    'find',
+    'sleep_until',
+    'parse_trade_url_token',
+)
+
+MAX_ASYNCIO_SECONDS = 3456000
 
 
 class UniverseKey:
@@ -202,6 +212,9 @@ def proto_fill_from_dict(message, data, clear=True):
     return message
 
 
+# from the VDF module
+
+
 class UINT_64(int):
     pass
 
@@ -319,7 +332,29 @@ def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
 
     return stack.pop()
 
-# from discord.py https://github.com/rapptz/discord.py/blob/master/discord/utils.py
+
+def parse_trade_url_token(url: str):
+    """Parses a trade URL for an user's token.
+
+    Parameters
+    -----------
+    url: :class:`str`
+        The URL to search for a token.
+
+    Returns
+    -------
+    Optional[:class:`str`]
+        The found token. ``None`` if the URL doesn't match the regex.
+    """
+    search = re.search(r"(?:https://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d{7,}"
+                       r"(?:&|&amp;)token=(?P<token>[\w-]{7,})", url)
+    if search:
+        return search.group('token')
+    return None
+
+
+# everything below here is directly from discord.py's utils
+# https://github.com/rapptz/discord.py/blob/master/discord/utils.py
 
 
 def find(predicate: Callable[..., bool], seq: Iterable):
@@ -337,8 +372,6 @@ def find(predicate: Callable[..., bool], seq: Iterable):
         if predicate(element):
             return element
     return None
-
-# also from discord.py
 
 
 def get(iterable: Iterable, **attrs):
@@ -378,21 +411,23 @@ def get(iterable: Iterable, **attrs):
     return None
 
 
-def parse_trade_url_token(url: str):
-    """Parses a trade URL for an user's token.
+async def sleep_until(when, result=None):
+    """|coro|
+    Sleep until a specified time.
+    If the time supplied is in the past this function will yield instantly.
 
     Parameters
     -----------
-    url: :class:`str`
-        The URL to search for a token.
-
-    Returns
-    -------
-    Optional[:class:`str`]
-        The found token. ``None`` if the URL doesn't match the regex.
+    when: :class:`datetime.datetime`
+        The timestamp in which to sleep until.
+    result: Any
+        If provided is returned to the caller when the coroutine completes.
     """
-    search = re.search(r"(?:https://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d{7,}"
-                       r"(?:&|&amp;)token=(?P<token>[\w-]{7,})", url)
-    if search:
-        return search.group('token')
-    return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    delta = (when - now).total_seconds()
+    while delta > MAX_ASYNCIO_SECONDS:
+        await asyncio.sleep(MAX_ASYNCIO_SECONDS)
+        delta -= MAX_ASYNCIO_SECONDS
+    return await asyncio.sleep(max(delta, 0), result)
