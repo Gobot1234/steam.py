@@ -27,12 +27,15 @@ SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional, Union, TYPE_CHECKING
 
 from . import utils
 from .enums import ETradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game
+
+if TYPE_CHECKING:
+    from .market import PriceOverview
 
 
 class Asset:
@@ -78,8 +81,7 @@ class Asset:
         return f"<Asset {' '.join(resolved)}>"
 
     def __eq__(self, other):
-        return isinstance(other, Asset) and \
-               False not in [getattr(self, attr) == getattr(other, attr) for attr in self.__slots__]
+        return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -108,20 +110,8 @@ class Item(Asset):
 
     Attributes
     -------------
-    name: `str`
+    name: :class:`str`
         The name of the item.
-    game: :class:`~steam.Game`
-        The game the item is from.
-    asset_id: :class:`str`
-        The assetid of the item.
-    app_id: :class:`str`
-        The appid of the item.
-    amount: :class:`int`
-        The amount of the item the inventory contains.
-    instance_id: :class:`str`
-        The instanceid of the item.
-    class_id: :class:`str`
-        The classid of the item.
     colour: Optional[:class:`int`]
         The colour of the item.
     market_name: Optional[:class:`str`]
@@ -133,22 +123,23 @@ class Item(Asset):
     tags: Optional[:class:`str`]
         The tags of the item.
     icon_url: Optional[:class:`str`]
-        The icon_url of the item.
-    icon_url_large: Optional[:class:`str`]
-        The icon_url_large of the item.
+        The icon_url of the item. Uses the large (184x184 px) image url.
     """
 
     __slots__ = ('name', 'type', 'tags', 'colour', 'missing',
                  'icon_url', 'market_name', 'descriptions',
-                 'icon_url_large', '_is_tradable', '_is_marketable') + Asset.__slots__
+                 '_is_tradable', '_is_marketable') + Asset.__slots__
 
-    def __init__(self, data, missing: bool = False):
+    def __init__(self, state, data, missing: bool = False):
         super().__init__(data)
+        self._state = state
         self.missing = missing
         self._from_data(data)
 
     def __repr__(self):
-        attrs = ('name',) + Asset.__slots__
+        attrs = (
+                    'name',
+                ) + Asset.__slots__
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Item {' '.join(resolved)}>"
 
@@ -159,12 +150,42 @@ class Item(Asset):
         self.descriptions = data.get('descriptions')
         self.type = data.get('type')
         self.tags = data.get('tags')
-        self.icon_url = f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url"]}' \
-            if 'icon_url' in data else None
-        self.icon_url_large = f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url_large"]}' \
+        self.icon_url = f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url_large"]}' \
             if 'icon_url_large' in data else None
         self._is_tradable = bool(data.get('tradable', False))
         self._is_marketable = bool(data.get('marketable', False))
+
+    async def list(self, price) -> None:
+        """|coro|
+        Creates a market listing for an item.
+
+        .. note::
+            This could result in an account termination,
+            this is just added for completeness sake.
+
+        Parameters
+        ----------
+        price: Union[:class:`int`, :class:`float`]
+            The price user pays for the item as a float.
+            eg. $1 = 1.00 or £2.50 = 2.50 etc.
+        """
+        resp = await self._state.market.sell_item(self.asset_id, price)
+        if resp.get('needs_mobile_confirmation', False):
+            if self._state.client.identity_secret:
+                confirmation = await self._state.confirmation_manager.get_confirmation(self.asset_id)
+                if confirmation is not None:
+                    await confirmation.confirm()
+
+    async def fetch_price(self) -> 'PriceOverview':
+        """|coro|
+        Fetches the price and volume sales of an item.
+
+        Returns
+        -------
+        :class:`PriceOverview`
+            The item's price overview.
+        """
+        return await self._state.client.fetch_price(self.name, self.game)
 
     def is_tradable(self) -> bool:
         """:class:`bool`: Whether the item is tradable."""
@@ -176,7 +197,7 @@ class Item(Asset):
 
     def is_asset(self) -> bool:
         """:class:`bool`: Whether the item is an :class:`Asset` just wrapped in an :class:`Item`."""
-        return self.name is None
+        return self.missing
 
 
 class Inventory:
@@ -218,19 +239,18 @@ class Inventory:
 
     def _update(self, data):
         try:
-            self.game = Game(app_id=int(data['assets'][0]['appid']), is_steam_game=True)
+            self.game = Game(app_id=int(data['assets'][0]['appid']))
         except KeyError:  # they don't have an inventory for this game
             self.game = None
             self.items = []
             self._total_inventory_count = 0
-            return
         else:
             for asset in data['assets']:
                 for item in data['descriptions']:
                     if item['instanceid'] == asset['instanceid'] and item['classid'] == asset['classid']:
                         item.update(asset)
-                        self.items.append(Item(data=item))
-                self.items.append(Item(data=asset, missing=True))
+                        self.items.append(Item(state=self._state, data=item))
+                self.items.append(Item(state=self._state, data=asset, missing=True))
             self._total_inventory_count = data['total_inventory_count']
 
     async def update(self) -> Inventory:
@@ -337,8 +357,8 @@ class TradeOffer:
         self.expires = datetime.utcfromtimestamp(data['expiration_time'])
         self.escrow = datetime.utcfromtimestamp(data['escrow_end_date']) if data['escrow_end_date'] != 0 else None
         self.state = ETradeOfferState(data.get('trade_offer_state', 1))
-        self.items_to_send = [Item(data=item) for item in data.get('items_to_give', [])]
-        self.items_to_receive = [Item(data=item) for item in data.get('items_to_receive', [])]
+        self.items_to_send = [Item(state=self._state, data=item) for item in data.get('items_to_give', [])]
+        self.items_to_receive = [Item(state=self._state, data=item) for item in data.get('items_to_receive', [])]
         self._is_our_offer = data['is_our_offer']
         self._id_other = data['accountid_other']
 
@@ -361,7 +381,7 @@ class TradeOffer:
             return
         if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade cannot be confirmed')
-        confirmation = await self._state.client._confirmation_manager.get_confirmation(self.id)
+        confirmation = await self._state.confirmation_manager.get_confirmation(self.id)
         if confirmation is not None:
             await confirmation.confirm()
         else:
