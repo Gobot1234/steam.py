@@ -29,23 +29,26 @@ https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 
 import asyncio
 import logging
+import math
 import signal
 import sys
 import traceback
+from datetime import datetime
 from typing import Union, List, Optional, Any, Callable, Mapping
 
 import aiohttp
 import websockets
 
-from . import errors
+from . import errors, utils
 from .enums import ECurrencyCode
 from .game import Game
 from .gateway import SteamWebSocket, ResumeSocket
 from .group import Group
 from .guard import generate_one_time_code, ConfirmationManager
 from .http import HTTPClient
-from .market import fix_name, convert_items, Market, PriceOverview, FakeItem
-from .state import State
+from .iterators import MarketListingsIterator
+from .market import *
+from .state import ConnectionState
 from .trade import TradeOffer
 from .user import make_steam64, User, ClientUser
 
@@ -132,9 +135,9 @@ class Client:
         self._session = aiohttp.ClientSession(loop=self.loop)
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
-        self._connection = State(loop=self.loop, client=self, http=self.http)
-        self._market = Market(http=self.http, currency=options.get('currency', ECurrencyCode.USD))
-
+        self._connection = ConnectionState(loop=self.loop, client=self, http=self.http)
+        self._market = MarketClient(loop=self.loop, session=self._session, client=self,
+                                    currency=options.get('currency', ECurrencyCode.USD))
         self.username = None
         self.api_key = None
         self.password = None
@@ -152,7 +155,7 @@ class Client:
     def user(self) -> Optional[ClientUser]:
         """Optional[:class:`~steam.ClientUser`]: Represents the connected client.
         ``None`` if not logged in."""
-        return self._user
+        return self.http.user
 
     @property
     def users(self) -> List[User]:
@@ -163,6 +166,11 @@ class Client:
     def trades(self) -> List[TradeOffer]:
         """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the user has seen."""
         return self._connection.trades
+
+    @property
+    def listings(self) -> List[Listing]:
+        """List[:class:`~steam.Listing`]: Returns a list of all the listings the ClientUser has."""
+        return self._connection.listings
 
     @property
     def code(self) -> Optional[str]:
@@ -189,7 +197,7 @@ class Client:
         Raises
         --------
         TypeError
-            The coroutine passed is not a coroutine.
+            The function passed is not a coroutine.
         """
         if not asyncio.iscoroutinefunction(coro):
             raise TypeError('Event registered must be a coroutine function')
@@ -289,7 +297,7 @@ class Client:
         try:
             loop.run_forever()
         except KeyboardInterrupt:
-            log.info('Received signal to terminate bot and event loop.')
+            log.info('Received signal to terminate the client and event loop.')
         finally:
             task.remove_done_callback(stop_loop_on_completion)
             log.info('Cleaning up tasks.')
@@ -309,8 +317,7 @@ class Client:
         print(f'Ignoring exception in {event_method}', file=sys.stderr)
         traceback.print_exc()
 
-    async def login(self, username: str, password: str, api_key: str,
-                    shared_secret: str = None, identity_secret: str = None) -> None:
+    async def login(self, username: str, password: str, api_key: str, shared_secret: str = None) -> None:
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
 
@@ -326,9 +333,6 @@ class Client:
         shared_secret: Optional[:class:`str`]
             The shared_secret of the desired Steam account,
             used to generate the 2FA code for login.
-        identity_secret: Optional[:class:`str`]
-            The identity_secret of the desired Steam account,
-            used to generate trade confirmations.
 
         Raises
         ------
@@ -336,21 +340,16 @@ class Client:
             The wrong credentials are passed.
         :exc:`.HTTPException`
             An unknown HTTP related error occurred.
+        :exc:`.NoCMFound`
+            No community managers could be found to connect to.
         """
         log.info(f'Logging in as {username}')
         self.api_key = api_key
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
-        self.identity_secret = identity_secret
 
-        if identity_secret is None:
-            log.info('Trades will not be automatically accepted when sent as no identity_secret was passed')
-
-        await self.http.login(username=username, password=password, api_key=api_key,
-                              shared_secret=shared_secret, identity_secret=identity_secret)
-        self._user = self.http.user
-        self._closed = False
+        await self.http.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
 
     async def close(self) -> None:
         """|coro|
@@ -395,17 +394,27 @@ class Client:
         password = kwargs.pop('password', None)
         shared_secret = kwargs.pop('shared_secret', None)
         identity_secret = kwargs.pop('identity_secret', None)
+        self.api_key = api_key
+        self.username = username
+        self.password = password
+        self.shared_secret = shared_secret
+        self.identity_secret = identity_secret
+
+        if identity_secret is None:
+            log.info('Trades will not be automatically accepted when sent as no identity_secret was passed')
         if kwargs:
             raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
         if not (username or password):
             raise errors.LoginError("One or more required login detail is missing")
 
-        await self.login(username=username, password=password, api_key=api_key,
-                         shared_secret=shared_secret, identity_secret=identity_secret)
-        await self._connection.poll_trades()
-        await self._connection.poll_notifications()
+        await self.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
+        await self._market.__ainit__()
+        await self._connection.__ainit__()
+        self._closed = False
+
         if self.identity_secret:
             self._confirmation_manager = ConfirmationManager(state=self._connection)
+        self.dispatch('ready')
         # await self.connect()
         while 1:
             await asyncio.sleep(5)
@@ -413,7 +422,7 @@ class Client:
     async def _connect(self):
         self.ws = SteamWebSocket()
         coro = self.ws.from_client(self)
-        await asyncio.wait_for(coro, timeout=180.0)
+        await asyncio.wait_for(coro, timeout=60)
         while 1:
             try:
                 await self.ws.poll_event()
@@ -421,7 +430,7 @@ class Client:
                 log.info('Got a request to RESUME the websocket.')
                 self.dispatch('disconnect')
                 coro = self.ws.from_client(self)
-                await asyncio.wait_for(coro, timeout=180.0)
+                await asyncio.wait_for(coro, timeout=60)
 
     async def connect(self) -> None:
         while not self.is_closed():
@@ -434,24 +443,23 @@ class Client:
                     websockets.InvalidHandshake,
                     websockets.WebSocketProtocolError):
                 self.dispatch('disconnect')
-                if self.is_closed():
-                    break
 
-    def get_user(self, user_id: int) -> Optional[User]:
+    def get_user(self, *args, **kwargs) -> Optional[User]:
         """Returns a user with the given ID.
 
         Parameters
         ----------
-        user_id: Union[:class:`int`, :class:`str`]
-            The ID to search for. For accepted IDs see
-            :meth:`~steam.make_steam64`
+        *args: Union[:class:`int`, :class:`str`]
+            The arguments to pass to :meth:`~steam.make_steam64`.
+        **kwargs: Union[:class:`int`, :class:`str`]
+            The arguments to pass to :meth:`~steam.make_steam64`.
 
         Returns
         -------
         Optional[:class:`~steam.User`]
-            The user or ``None`` if not found.
+            The user or ``None`` if the user was not found.
         """
-        id64 = make_steam64(user_id)
+        id64 = make_steam64(*args, **kwargs)
         return self._connection.get_user(id64)
 
     async def fetch_user(self, *args, **kwargs) -> Optional[User]:
@@ -468,7 +476,7 @@ class Client:
         Returns
         -------
         Optional[:class:`~steam.User`]
-            The user or ``None`` if not found.
+            The user or ``None`` if the user was not found.
         """
         id64 = make_steam64(*args, **kwargs)
         return await self._connection.fetch_user(id64)
@@ -484,7 +492,7 @@ class Client:
         Returns
         -------
         Optional[:class:`~steam.TradeOffer`]
-            The trade offer or ``None`` if not found.
+            The trade offer or ``None`` if the trade was not found.
         """
         return self._connection.get_trade(id)
 
@@ -495,12 +503,12 @@ class Client:
         Parameters
         ----------
         id: :class:`int`
-            The id of the trade to search for from the API.
+            The ID of the trade to search for from the API.
 
         Returns
         -------
         Optional[:class:`~steam.TradeOffer`]
-            The trade offer or ``None`` if not found.
+            The trade offer or ``None`` if the trade was not found.
         """
         return await self._connection.fetch_trade(id)
 
@@ -518,19 +526,35 @@ class Client:
         Returns
         -------
         Optional[:class:`~steam.Group`]
-            The group or ``None`` if not found.
+            The group or ``None`` if the group was not found.
         """
         id = make_steam64(*args, **kwargs) & 0xFFffFFff
         group = Group(state=self._connection, id=id)
         await group.__ainit__()
         return group if group.name else None
 
-    async def fetch_price(self, item_name: str, game: Game) -> Optional[PriceOverview]:
-        """Gets the price(s) and volume sales of an item.
+    def get_listing(self, id) -> Optional[Listing]:
+        """Gets a listing from cache.
 
         Parameters
         ----------
-        item_name: str
+        id: :class:`int`
+            The ID of the listing to get.
+
+        Returns
+        -------
+        Optional[:class:`Listing`]
+            The listing or ``None`` if the listing was not found.
+        """
+        return self._connection.get_listing(id)
+
+    async def fetch_price(self, item_name: str, game: Game) -> PriceOverview:
+        """|coro|
+        Fetches the price and volume sales of an item.
+
+        Parameters
+        ----------
+        item_name: :class:`str`
             The name of the item to fetch the price of.
         game: :class:`~steam.Game`
             The game the item is from.
@@ -538,14 +562,14 @@ class Client:
         Returns
         -------
         :class:`PriceOverview`
-            A class to represent the data from these transactions.
+            The item's price overview.
         """
         item = FakeItem(fix_name(item_name), game)
         return await self._market.fetch_price(item)
 
     async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]) -> Mapping[str, PriceOverview]:
         """|coro|
-        Get the price(s) and volume of each item in the list.
+        Fetches the price(s) and volume of each item in the list.
 
         Parameters
         ----------
@@ -562,7 +586,7 @@ class Client:
         items = convert_items(item_names, games)
         return await self._market.fetch_prices(items)
 
-    async def create_listing(self, item_name: str, game: Game, *, price: float):
+    async def create_sell_listing(self, item_name: str, game: Game, *, price: float) -> Listing:
         """|coro|
         Creates a market listing for an item.
 
@@ -577,14 +601,21 @@ class Client:
         game: :class:`~steam.Game`
             The game the item is from.
         price: Union[:class:`int`, :class:`float`]
-            The price to pay for the item in decimal form.
+            The price user pays for the item as a float.
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
+        current_listings = await self.fetch_listings()
         item = FakeItem(fix_name(item_name), game)
-        await self._market.create_listing(item, price=price)
+        await self._market.create_sell_listing(item, price=price)
+        new_listing = utils.find(lambda l: l not in current_listings, await self.fetch_listings())
+        try:
+            await new_listing.confirm()
+        except errors.ConfirmationError:
+            pass
+        return new_listing
 
-    async def create_listings(self, item_names: List[str], games: Union[List[Game], Game],
-                              prices: Union[List[Union[int, float]], Union[int, float]]):
+    async def create_sell_listings(self, item_names: List[str], games: Union[List[Game], Game],
+                                   prices: Union[List[Union[int, float]], Union[int, float]]) -> List[Listing]:
         """|coro|
         Creates market listing for items.
 
@@ -599,19 +630,79 @@ class Client:
         games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
             The game the item(s) is/are from.
         prices: Union[List[Union[:class:`int`, :class:`float`]], Union[:class:`int`, :class:`float`]]
-            The price to pay for each item in decimal form.
+            The price user pays for the item as a float.
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
+        current_listings = await self.fetch_listings()
         to_list = []
         items = convert_items(item_names, games, prices)
         for (item, price) in items:
             final_price = price * items.count((item, price))
+            to_list.append((item, final_price, items.count((item, price))))
             for (_, __) in items:
                 items.remove((item, price))
-            to_list.append((item, final_price))
-        for (item, price) in items:
-            to_list.append((item, price))
-        await self._market.create_listings(to_list)
+        for (item, price) in items:  # idek wtf this is
+            to_list.append((item, price, items.count((item, price))))
+        await self._market.create_sell_listings(to_list)
+        new_listings = [listing for listing in await self.fetch_listings() if listing not in current_listings]
+        for listing in new_listings:
+            try:
+                await listing.confirm()
+            except errors.ConfirmationError:
+                pass
+        return new_listings
+
+    async def fetch_listings(self) -> List[Listing]:
+        """|coro|
+        Fetches a your market sell listings.
+
+        Returns
+        -------
+        List[:class:`Listing`]
+            A list of your listings.
+        """
+        resp = await self._market.fetch_pages()
+        if not resp['total_count']:  # they have no listings just return
+            return []
+
+        total = math.ceil(resp['total_count'] / 100)
+        listings = await self._market.fetch_listings(total)
+        return [Listing(state=self._connection, data=listing) for listing in listings]
+
+    def listing_history(self, limit=None, before: datetime = None, after: datetime = None) -> MarketListingsIterator:
+        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.Listing` objects.
+
+        Examples
+        -----------
+
+        Usage: ::
+
+         async for listing in client.listing_history(limit=10):
+            print('Sold listing:', listing.id)
+            print('For:', listing.user_pays)
+
+        Flattening into a list: ::
+
+            listings = await client.listing_history(limit=50).flatten()
+            # listings is now a list of Listing
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit: Optional[:class:`int`]
+            The maximum number of listings to search through.
+            Default is ``None`` which will fetch all the user's comments.
+        before: Optional[:class:`datetime.datetime`]
+            A time to search for trades before.
+        after: Optional[:class:`datetime.datetime`]
+            A time to search for trades after.
+
+        Yields
+        ---------
+        :class:`~steam.Listing`
+        """
+        return MarketListingsIterator(state=self._connection, limit=limit, before=before, after=after)
 
     async def wait_until_ready(self) -> None:
         """|coro|
@@ -658,7 +749,6 @@ class Client:
             arguments that mirrors the parameters passed in the
             `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
         """
-
         future = self.loop.create_future()
         if check is None:
             def _check(*args):
