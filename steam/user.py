@@ -653,8 +653,8 @@ class ClientUser(_BaseUser):
     __slots__ = ('friends', 'groups') + _BaseUser.__slots__
 
     def __init__(self, state, data):
-        self.friends = []
         super().__init__(state, data)
+        self.friends = []
 
     def __repr__(self):
         attrs = (
@@ -672,7 +672,7 @@ class ClientUser(_BaseUser):
 
     async def fetch_wallet_balance(self) -> Optional[float]:
         """|coro|
-        Fetches the :class:ClientUser`'s current wallet balance.
+        Fetches the :class:`ClientUser`'s current wallet balance.
 
         Returns
         -------
@@ -680,13 +680,11 @@ class ClientUser(_BaseUser):
             The current wallet balance.
         """
         resp = await self._state.request('GET', f'{URL.STORE}/steamaccount/addfunds')
-        search = re.search(r'Wallet <b>\(.(\d*)(?:[.,](\d*)|)\)</b>', resp, re.UNICODE)
+        search = re.search(r'Wallet <b>\([^\d]*(\d*)(?:[.,](\d*)|)[^\d]*\)</b>', resp, re.UNICODE)
         if search is None:
             return None
-        if search.group(2):
-            return float(f'{search.group(1)}.{search.group(2)}')
-        else:
-            return float(search.group())
+
+        return float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
 
     def trades(self, limit=None, before: datetime = None, after: datetime = None,
                active_only: bool = True, include_sent: bool = True,
@@ -713,7 +711,7 @@ class ClientUser(_BaseUser):
         Parameters
         ----------
         limit: Optional[:class:`int`]
-            The maximum comments to search through.
+            The maximum number of trades to search through.
             Default is ``None`` which will fetch all the user's comments.
         before: Optional[:class:`datetime.datetime`]
             A time to search for trades before.
@@ -772,7 +770,7 @@ def make_steam64(id=0, *args, **kwargs) -> int:
 
             # 32 bit account id
             if 0 < value < 2 ** 32:
-                account_id = value
+                id = value
                 etype = EType.Individual
                 universe = EUniverse.Public
             # 64 bit
@@ -785,13 +783,13 @@ def make_steam64(id=0, *args, **kwargs) -> int:
 
             if result:
                 (
-                    account_id,
+                    id,
                     etype,
                     universe,
                     instance,
                 ) = result
             else:
-                account_id = 0
+                id = 0
 
     elif len(args) > 0:
         length = len(args)
@@ -868,11 +866,11 @@ def steam3_to_tuple(value: str):
     """
     match = re.match(
         r"^\["
-        r"(?P<type>[i%s]):"  # type char
+        rf"(?P<type>[i{ETypeChars}]):"  # type char
         r"(?P<universe>[0-4]):"  # universe
         r"(?P<id>\d{1,10})"  # accountid
         r"(:(?P<instance>\d+))?"  # instance
-        r"\]$" % ETypeChars,
+        r"\]$",
         value
     )
     if not match:
@@ -902,7 +900,7 @@ def steam3_to_tuple(value: str):
     return steam32, etype, universe, instance
 
 
-async def steam64_from_url(url: str, timeout=30):
+async def steam64_from_url(url: str, timeout=30) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or None
 
     .. note::
@@ -936,7 +934,7 @@ async def steam64_from_url(url: str, timeout=30):
     """
 
     match = re.match(r'^(?P<clean_url>https?://steamcommunity.com/'
-                     r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?$', url)
+                     r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?$', str(url))
 
     if match is None:
         return None
@@ -959,7 +957,7 @@ async def steam64_from_url(url: str, timeout=30):
             async with session.get(match.group('clean_url'), timeout=timeout) as r:
                 text = await r.text()
                 await session.close()
-            data_match = re.search(r"'steam://friends/joinchat/(?P<steamid>\d+)'", text)
+            data_match = re.search(r"OpenGroupChat\( *'(?P<steamid>\d+)'", text)
 
             if data_match:
                 return int(data_match.group('steamid'))
@@ -967,7 +965,7 @@ async def steam64_from_url(url: str, timeout=30):
         return None
 
 
-async def from_url(url, timeout=30):
+async def from_url(url, timeout=30) -> Optional[SteamID]:
     """Takes Steam community url and returns a SteamID instance or ``None``.
     See :func:`steam64_from_url` for details.
 
