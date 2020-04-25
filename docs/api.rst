@@ -189,6 +189,40 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     :param comment: The invite received.
     :type comment: :class:`~steam.Invite`
 
+.. function:: on_listing_create(listing)
+
+    Called when a new listing is created on the community market.
+
+    :param listing: The listing that was created.
+    :type listing: :class:`~steam.Listing`
+
+.. function:: on_listing_buy(listing)
+
+    Called when an item/listing is bought on the community market.
+    These aren't fully tested.
+
+    :param listing: The listing that was bought.
+    :type listing: :class:`~steam.Listing`
+
+
+.. function:: on_listing_sell(listing)
+
+    Called when an item/listing is sold on the community market.
+    These aren't fully tested.
+
+    :param listing: The listing that sold.
+    :type listing: :class:`~steam.Listing`
+
+
+.. function:: on_listing_cancel(listing)
+
+    Called when an item/listing is cancelled on the community market.
+    These aren't fully tested.
+
+    :param listing: The listing that sold.
+    :type listing: :class:`~steam.Listing`
+
+
 Utilities
 ----------
 
@@ -236,6 +270,14 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: EMarketListingState
+    :members:
+    :undoc-members:
+
+.. autoclass:: EPersonaStateFlag
+    :members:
+    :undoc-members:
+
 .. TODO make these individually
 
 Guard
@@ -247,11 +289,6 @@ Guard
 
 .. autofunction:: steam.guard.generate_device_id
 
-Market
----------------
-
-.. autoclass:: PriceOverview()
-    :members:
 
 Abstract Base Classes
 -----------------------
@@ -328,6 +365,16 @@ Invites
 .. autoclass:: Invite()
     :members:
 
+Market
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Listing()
+    :members:
+    :inherited-members:
+
+.. autoclass:: PriceOverview()
+    :members:
+
 Message
 ~~~~~~~~~~~~~~~
 
@@ -347,6 +394,7 @@ Trading
 
 .. autoclass:: Item()
     :members:
+    :inherited-members:
 
 .. autoclass:: Asset()
     :members:
@@ -388,6 +436,8 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: InvalidCredentials
 
+.. autoexception:: NoCMsFound
+
 .. autoexception:: AuthenticatorError
 
 .. autoexception:: ConfirmationError
@@ -411,6 +461,7 @@ Exception Hierarchy
                     - :exc:`ConfirmationError`
                 - :exc:`LoginError`
                     - :exc:`InvalidCredentials`
+                    - :exc:`NoCMsFound`
             - :exc:`HTTPException`
                 - :exc:`Forbidden`
                 - :exc:`NotFound`
