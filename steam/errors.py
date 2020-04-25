@@ -140,3 +140,10 @@ class ConfirmationError(AuthenticatorError):
     Subclass of :exc:`AuthenticatorError`
     """
     pass
+
+
+class NoCMsFound(LoginError):
+    """Exception that's thrown when no CMs can be found to connect to.
+    Subclass of :exc:`LoginError`
+    """
+    pass
