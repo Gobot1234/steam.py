@@ -26,7 +26,7 @@ SOFTWARE.
 
 import re
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from .game import Game
 
@@ -34,7 +34,13 @@ if TYPE_CHECKING:
     from .user import User
     from .group import Group
 
-__all__ = ('Comment', 'Invite', 'Ban', 'Badge', 'UserBadges')
+__all__ = (
+    'Ban',
+    'Badge',
+    'Invite',
+    'Comment',
+    'UserBadges',
+)
 
 
 class URL:
@@ -56,21 +62,22 @@ class Comment:
         The author of the comment.
     created_at: :class:`datetime.datetime`
         The time the comment was posted at.
-    owner: :class:`~steam.User`
-        The comment sections owner.
+    owner: Union[:class:`~steam.Group`, :class:`~steam.User`]
+        The comment sections owner. If the comment section is group
+        related this will be the group otherwise it is a user.
     """
 
     __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_comment_type', '_state')
 
     def __init__(self, state, comment_type, comment_id: int, content: str, timestamp: datetime,
-                 author: 'User', owner: 'User'):
+                 author: 'User', owner: Union['Group', 'User']):
         self._state = state
         self._comment_type = comment_type
         self.content = content
         self.id = comment_id
         self.created_at = timestamp
         self.author: User = author
-        self.owner: User = owner
+        self.owner: Union[Group, User] = owner
 
     def __repr__(self):
         attrs = (
