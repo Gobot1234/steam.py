@@ -20,7 +20,7 @@ username = ''
 password = ''
 shared_secret = ''
 
-URL_REGEX = re.compile(r'http[s]?://(?:\w|\d|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+URL_REGEX = re.compile(r'http[s]?://(?:\w|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 # this regex matches any valid website url
 
 
@@ -30,7 +30,7 @@ async def on_login():
         if comment.author in client.user.friends:  # ignore messages from friends
             return
 
-        if re.search(URL_REGEX, comment.content):  # there is a url in the comment's content
+        if URL_REGEX.search(comment.content) is not None:  # there is a url in the comment's content
             await comment.delete()  # delete the comment
             await comment.author.comment("Please don't post urls on my profile again.")
             # finally warn them about posting urls in your comments
@@ -39,7 +39,7 @@ async def on_login():
 
 @client.event
 async def on_comment(comment: steam.Comment):
-    print(f'Received comment #{comment.id}, from {comment.author.name}')
+    print(f'Received comment #{comment.id}, from', comment.author.name)
     if comment.owner != client.user:  # if we don't own the section, don't watch the comments
         print("We don't monitor comments here")
         return
@@ -48,7 +48,7 @@ async def on_comment(comment: steam.Comment):
         print('Ignoring as they are a friend')
         return
 
-    if re.search(URL_REGEX, comment.content):  # there is a url in the comment's content
+    if URL_REGEX.search(comment.content) is not None:  # there is a url in the comment's content
         await comment.delete()  # delete the comment
         await comment.author.comment("Please don't post urls on my profile again.")
         print('Deleted a suspicious comment containing a url from', comment.author.name)
