@@ -33,7 +33,8 @@ from sys import version_info
 from time import time
 
 import aiohttp
-import rsa
+from Cryptodome.Cipher import PKCS1_v1_5
+from Cryptodome.PublicKey.RSA import construct
 
 from . import __version__, errors
 from .guard import generate_one_time_code
@@ -65,8 +66,6 @@ class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
     SUCCESS_LOG = '{method} {url} has received {text}'
     REQUEST_LOG = '{method} {url} with {data}{params}has returned {status}'
-    DATA_REQUEST = '\nDATA: {}\n'
-    PARAMS_REQUEST = '\nPARAMS: {}\n'
 
     def __init__(self, loop, session, client):
         self._loop = loop
@@ -79,14 +78,12 @@ class HTTPClient:
         self.password = None
         self.api_key = None
         self.shared_secret = None
-        self.identity_secret = None
         self._one_time_code = None
 
         self.session_id = None
         self.user = None
         self.logged_in = False
         self._steam_id = None
-        self._confirmation_manager = None
         self.user_agent = f'steam.py/{__version__} client (https://github.com/Gobot1234/steam.py), ' \
                           f'Python/{version_info[0]}.{version_info[1]}, aiohttp/{aiohttp.__version__}'
 
@@ -102,7 +99,7 @@ class HTTPClient:
 
     async def request(self, method, url, **kwargs):  # adapted from d.py
         headers = {
-            'User-Agent': self.user_agent,
+            "User-Agent": self.user_agent,
         }
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
@@ -115,9 +112,9 @@ class HTTPClient:
                     log.debug(self.REQUEST_LOG.format(
                         method=method,
                         url=url,
-                        connective="with" if data or params else '',
-                        data=self.DATA_REQUEST.format(data) if data else '',
-                        params=self.PARAMS_REQUEST.format(params) if params else '',
+                        connective='with' if data is not None or params is not None else '',
+                        data=f'\nDATA: {data}\n' if data else '',
+                        params=f'\nPARAMS: {params}\n' if params else '',
                         status=r.status)
                     )
 
@@ -131,15 +128,15 @@ class HTTPClient:
 
                     # we are being rate limited
                     if r.status == 429:
-                        # I haven't been able to get a 429 from the API but we should probably still handle it
+                        # I haven't been able to get any X-Retry-After headers
+                        # from the API but we should probably still handle it
                         try:
                             await asyncio.sleep(float(r.headers['X-Retry-After']))
                         except KeyError:  # steam being un-helpful as usual
                             await asyncio.sleep(2 ** tries)
-
                         continue
 
-                    # we've received a 500 or 502, unconditional retry
+                    # we've received a 500 or 502, an unconditional retry
                     if r.status in {500, 502}:
                         await asyncio.sleep(1 + tries * 3)
                         continue
@@ -163,11 +160,10 @@ class HTTPClient:
             # we've run out of retries, raise
             raise errors.HTTPException(r, data)
 
-    async def login(self, username: str, password: str, api_key: str, shared_secret: str, identity_secret: str = None):
+    async def login(self, username: str, password: str, api_key: str, shared_secret: str = None):
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
-        self.identity_secret = identity_secret
 
         login_response = await self._send_login_request()
 
@@ -179,25 +175,26 @@ class HTTPClient:
             await self._client.close()
             raise errors.InvalidCredentials(login_response['message'])
 
-        parameters = login_response.get('transfer_parameters')
-        if parameters is None:
+        data = login_response.get('transfer_parameters')
+        if data is None:
+            await self._client.close()
             raise errors.LoginError('Cannot perform redirects after login, no parameters fetched. '
                                     'The Steam API likely is down, please try again later.')
 
         for url in login_response['transfer_urls']:
-            await self.request('POST', url=url, data=parameters)
+            await self.request('POST', url=url, data=data)
+        self.logged_in = True
 
         if api_key is None:
             self._client.api_key = await self.fetch_api_key()
         else:
             self._client.api_key = api_key
-            resp = await self.request('GET', f'{URL.COMMUNITY}/home')
+            resp = await self.request('GET', f'{URL.COMMUNITY}/account/history')
             search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', resp)
             self.session_id = search.group('sessionID')
         self.api_key = self._client.api_key
         self._state = self._client._connection
 
-        self.logged_in = True
         id64 = login_response['transfer_parameters']['steamid']
         resp = await self.fetch_profile(id64)
         data = resp['response']['players'][0]
@@ -226,7 +223,7 @@ class HTTPClient:
             rsa_mod = int(key_response['publickey_mod'], 16)
             rsa_exp = int(key_response['publickey_exp'], 16)
             rsa_timestamp = key_response['timestamp']
-            return rsa.PublicKey(rsa_mod, rsa_exp), rsa_timestamp
+            return construct((rsa_mod, rsa_exp)), rsa_timestamp
         except KeyError:
             if current_repetitions < maximum_repetitions:
                 return await self._fetch_rsa_params(current_repetitions + 1)
@@ -235,7 +232,8 @@ class HTTPClient:
 
     async def _send_login_request(self):
         rsa_key, rsa_timestamp = await self._fetch_rsa_params()
-        encrypted_password = b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_key)).decode()
+
+        encrypted_password = b64encode(PKCS1_v1_5.new(rsa_key).encrypt(self.password.encode('ascii'))).decode()
         data = {
             'username': self.username,
             'password': encrypted_password,
@@ -565,3 +563,9 @@ class HTTPClient:
             "steamid": user_id64
         }
         return self.request('GET', url=Route('IPlayerService', 'GetBadges'), params=params)
+
+    def remove_market_listing(self, listing_id):
+        data = {
+            'sessionid': self.session_id
+        }
+        return self.request('POST', f'{URL.COMMUNITY}/market/removelisting/{listing_id}', data=data)
