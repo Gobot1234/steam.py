@@ -36,15 +36,16 @@ __all__ = (
     'IntEnum',
     'EType',
     'EResult',
-    'EUniverse',
     'ETypeChar',
-    'EInstanceFlag',
+    'EUniverse',
     'ECurrencyCode',
+    'EInstanceFlag',
     'EPersonaState',
     'EChatEntryType',
-    'ETradeOfferState',
     'EPersonaStateFlag',
+    'ETradeOfferState',
     'EFriendRelationship',
+    'EMarketListingState',
     'EChatRoomEnterResponse',
     'ECommunityVisibilityState',
 
@@ -411,8 +412,6 @@ class ECurrencyCode(IntEnum):
     PHP = 12
     SGD = 13
     THB = 14
-    VND = 15
-    KRW = 16
     TRY = 17
     UAH = 18
     MXN = 19
@@ -421,9 +420,7 @@ class ECurrencyCode(IntEnum):
     NZD = 22
     CNY = 23
     INR = 24
-    CLP = 25
     PEN = 26
-    COP = 27
     ZAR = 28
     HKD = 29
     TWD = 30
@@ -436,7 +433,6 @@ class ECurrencyCode(IntEnum):
     KZT = 37
     KWD = 38
     QAR = 39
-    CRC = 40
     UYU = 41
     Max = 42
 
@@ -468,3 +464,10 @@ class EChatEntryType(IntEnum):
     Disconnected = 10  #: user disconnected
     HistoricalChat = 11  #: a chat message from user's chat history or offline message
     LinkBlocked = 14  #: a link was removed by the chat filter.
+
+
+class EMarketListingState(IntEnum):  # TODO figure out what the rest of these are
+    ConfirmationNeeded = 0
+    Active = 2
+    Bought = 4
+    Cancelled = 8
