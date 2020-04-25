@@ -32,19 +32,19 @@ import aiohttp
 from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
-from .enums import EChatEntryType, ETradeOfferState
+from .enums import EChatEntryType, ETradeOfferState, EType, EMarketListingState
 from .errors import HTTPException
 from .http import HTTPClient
 from .models import URL, Invite
 from .protobufs import get_um, MsgProto, EMsg
 from .trade import TradeOffer
-from .user import User, steam64_from_url
-from .utils import proto_fill_from_dict
+from .user import User, from_url
+from .utils import proto_fill_from_dict, find
 
 log = logging.getLogger(__name__)
 
 
-class State:
+class ConnectionState:
 
     def __init__(self, loop, client, http: HTTPClient):
         self.loop = loop
@@ -54,11 +54,20 @@ class State:
         self.dispatch = client.dispatch
         self.started_trade_poll = False
         self.started_notification_poll = False
+        self.started_listings_poll = False
+        self._last = [None, 0]
 
         self._trades = dict()  # TODO add weakref
         self._users = dict()
 
         self._current_job_id = 0
+
+    async def __ainit__(self):
+        self.market = self.client._market
+        self.confirmation_manager = self.client._confirmation_manager
+        self.loop.create_task(self._poll_trades())
+        self.loop.create_task(self._poll_sell_listings())
+        self.loop.create_task(self._poll_notifications())
 
     def _handle_ready(self):
         self.client._ready.set()
@@ -91,7 +100,7 @@ class State:
             {
                 'steamid': user_id64,
                 'message': content,
-                'chat_entry_type': EChatEntryType.ChatMsg,
+                'chat_entry_type': EChatEntryType.ChatMsg.value,
             }
         )
 
@@ -113,15 +122,19 @@ class State:
     def trades(self):
         return list(self._trades.values())
 
-    async def fetch_user(self, id64):
-        resp = await self.http.fetch_profile(id64)
+    @property
+    def listings(self):
+        return list(self._listings_cache.values())
+
+    async def fetch_user(self, user_id64):
+        resp = await self.http.fetch_profile(user_id64)
         data = resp['response']['players'][0] if resp['response']['players'] else None
         if data:
             return self._store_user(data)
         return None
 
-    def get_user(self, id64):
-        return self._users.get(id64)
+    def get_user(self, user_id64):
+        return self._users.get(user_id64)
 
     def _store_user(self, data):
         try:
@@ -130,6 +143,9 @@ class State:
             user = User(state=self, data=data)
             self._users[user.id64] = user
         return user
+
+    def get_listing(self, listing_id):
+        return find(lambda l: l.id == listing_id, self._listings_cache)
 
     def get_trade(self, trade_id):
         return self._trades.get(trade_id)
@@ -191,12 +207,6 @@ class State:
 
     # this will be going when I get cms working
 
-    async def poll_trades(self):
-        if self.started_trade_poll:
-            return
-        else:
-            self.loop.create_task(self._poll_trades())
-
     async def _process_trades(self, trades, descriptions):
         ret = []
         for trade in trades:
@@ -244,12 +254,6 @@ class State:
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
-    async def poll_notifications(self):
-        if self.started_notification_poll:
-            return
-        else:
-            self.loop.create_task(self._poll_notifications())
-
     async def _poll_notifications(self):
         notification_mapping = {
             "4": ('comment', self._parse_comment),
@@ -276,7 +280,7 @@ class State:
                                 except KeyError:
                                     break
                                 else:
-                                    log.debug(f'Received raw event {event_name} from the notifications')
+                                    log.debug(f'Received {event_name} notification')
                                     parsed_notification = await event_parser(i)
                                     self.dispatch(event_name, parsed_notification)
 
@@ -287,20 +291,31 @@ class State:
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
-    async def _parse_comment(self, l):  # this isn't very efficient not sure if it can be done better
+    async def _parse_comment(self, _):  # this isn't very efficient not sure if it can be done better
         resp = await self.request('GET', f'{self.client.user.community_url}/commentnotifications')
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         group = search.group(1)
-        user_id64 = await steam64_from_url(group.replace(f'?{_URL(group).query_string}', ''))
-        user = await self.client.fetch_user(user_id64)
-        return (await user.comments(limit=1).flatten())[0]
+        steam_id = await from_url(group.replace(f'?{_URL(group).query_string}', ''))
+        if steam_id.type == EType.Clan:
+            obj = await self.client.fetch_group(steam_id.id64)
+        else:
+            obj = await self.client.fetch_user(steam_id.id64)
+        if self._last[0] == obj:
+            self._last[1] += 1
+        else:
+            self._last.pop(1)
+            self._last.append(0)
+        return (await obj.comments(limit=20).flatten())[self._last[1]]
 
     async def _parse_invite(self, loop):
-        resp = await self.request('GET', f'{self.client.user.community_url}/friends/pending?ajax=1')
+        params = {
+            "ajax": 1
+        }
+        resp = await self.request('GET', f'{self.client.user.community_url}/friends/pending', params=params)
         soup = BeautifulSoup(resp, 'html.parser')
         invites = soup.find_all('div', attrs={"class": 'invite_row'})
         if not invites:
-            resp = await self.request('GET', f'{self.client.user.community_url}/groups/pending?ajax=1')
+            resp = await self.request('GET', f'{self.client.user.community_url}/groups/pending', params=params)
             soup = BeautifulSoup(resp, 'html.parser')
             invites = soup.find_all('div', attrs={"class": 'invite_row'})
             data = invites[loop]
@@ -309,3 +324,35 @@ class State:
         invite = Invite(state=self, data=data)
         await invite.__ainit__()
         return invite
+
+    async def _poll_sell_listings(self):
+        self._listings_cache = await self.client.fetch_listings()
+        try:
+            while 1:
+                await asyncio.sleep(300)  # we really don't want to spam these
+                listings = await self.client.fetch_listings()
+                new_listings = [listing for listing in listings if listing not in self._listings_cache]
+                removed_listings = [listing for listing in listings
+                                    if listing in self._listings_cache and listing not in listings]
+
+                for listing in new_listings:
+                    self.dispatch('listing_create', listing)
+                if removed_listings:
+                    all_previous_listings = await self.client.previous_listings().flatten()
+
+                for listing in removed_listings:
+                    listing = find(lambda l: l.id == listing.id, all_previous_listings)
+                    if listing.state == EMarketListingState.Bought:
+                        if listing in self.client.user.fetch_inventory(listing.app_id):
+                            self.dispatch('listing_buy', listing)
+                        else:
+                            self.dispatch('listing_sell', listing)
+                    elif listing.state == EMarketListingState.Cancelled:
+                        self.dispatch('listing_cancel', listing)
+                self._listings_cache = listings
+
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            self.loop.create_task(self._poll_sell_listings())
+        except HTTPException:
+            await asyncio.sleep(60)
+            self.loop.create_task(self._poll_sell_listings())
