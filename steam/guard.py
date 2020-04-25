@@ -44,6 +44,13 @@ from . import utils
 from .errors import InvalidCredentials, AuthenticatorError
 from .models import URL
 
+__all__ = (
+    'generate_one_time_code',
+    'generate_confirmation_code',
+    'generate_device_id',
+    'Confirmation',
+)
+
 log = logging.getLogger(__name__)
 
 
@@ -107,7 +114,7 @@ def generate_device_id(id64: str) -> str:
     :class:`str`
         The device id
     """
-    # It works, however it's different that one generated from mobile app
+    # it works, however it's different that one generated from mobile app
 
     hexed_steam_id = sha1(id64.encode('ascii')).hexdigest()
     partial_id = [
@@ -131,13 +138,13 @@ class Confirmation:
         self.creator = creator
 
     def __repr__(self):
-        return f"<Confirmation id={self.id}>"
+        return f"<Confirmation id={self.id} creator={self.creator}>"
 
     def _confirm_params(self, tag):
         timestamp = int(time())
         return {
             'p': self.manager.device_id,
-            'a': str(self.manager.id64),
+            'a': self.manager.id64,
             'k': self.manager.generate_confirmation(tag, timestamp),
             't': timestamp,
             'm': 'android',
@@ -163,7 +170,7 @@ class Confirmation:
         return self.state.request('GET', f'{self.manager.BASE}/details/{self.id}', params=params)
 
 
-class ConfirmationManager:
+class ConfirmationManager:  # TODO move to state
     BASE = f'{URL.COMMUNITY}/mobileconf'
 
     def __init__(self, state):
@@ -205,8 +212,9 @@ class ConfirmationManager:
         return self.confirmations
 
     async def get_confirmation(self, id):
-        if id in [int(confirmation.creator) for confirmation in self.confirmations]:
-            return utils.find(lambda c: int(c.creator) == id, self.confirmations)
+        confirmation = utils.find(lambda c: int(c.creator) == id, self.confirmations)
+        if confirmation is not None:
+            return confirmation
         await self.get_confirmations()
         if id in [int(confirmation.creator) for confirmation in self.confirmations]:
             return utils.find(lambda c: int(c.creator) == id, self.confirmations)
