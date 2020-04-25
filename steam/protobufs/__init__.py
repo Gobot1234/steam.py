@@ -28,11 +28,13 @@ This is a copy of https://github.com/ValvePython/steam/blob/master/steam/enums/e
 
 import fnmatch
 
-from . import steammessages_base_pb2 as message_base
-from . import steammessages_clientserver_2_pb2 as client_server_2
-from . import steammessages_clientserver_friends_pb2 as client_server_friends
-from . import steammessages_clientserver_login_pb2 as client_server_login
-from . import steammessages_clientserver_pb2 as client_server
+from . import (
+    steammessages_base_pb2 as message_base,
+    steammessages_clientserver_2_pb2 as client_server_2,
+    steammessages_clientserver_friends_pb2 as client_server_friends,
+    steammessages_clientserver_login_pb2 as client_server_login,
+    steammessages_clientserver_pb2 as client_server
+)
 from .emsg import EMsg
 from .headers import MsgHdr, ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdr, GCMsgHdrProto
 from .structs import get_struct

@@ -35,7 +35,8 @@ class ExtendedMsgHdr:
     sessionID = -1
 
     def __init__(self, data=None):
-        if data: self.load(data)
+        if data:
+            self.load(data)
 
     def serialize(self):
         return struct.pack("<IBHqqBqi", self.msg, self.headerSize, self.headerVersion, self.targetJobID,
