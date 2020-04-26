@@ -48,9 +48,14 @@ from .guard import generate_one_time_code, ConfirmationManager
 from .http import HTTPClient
 from .iterators import MarketListingsIterator
 from .market import *
+from .models import Comment, Invite
 from .state import ConnectionState
 from .trade import TradeOffer
 from .user import make_steam64, User, ClientUser
+
+__all__ = (
+    'Client',
+)
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +99,7 @@ def _cleanup_loop(loop):
         loop.close()
 
 
-class _ClientEventTask(asyncio.Task):
+class ClientEventTask(asyncio.Task):
     def __init__(self, original_coro, event_name, coro, *, loop):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
@@ -220,7 +225,7 @@ class Client:
     def _schedule_event(self, coro, event_name, *args, **kwargs):
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
-        return _ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
+        return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
 
     def dispatch(self, event, *args, **kwargs):
         log.debug(f'Dispatching event {event}')
@@ -309,13 +314,6 @@ class Client:
     def is_closed(self) -> bool:
         """Indicates if the API connection is closed."""
         return self._closed
-
-    async def on_error(self, event_method, *args, **kwargs) -> None:
-        """|coro|
-        The default error handler provided by the client.
-        """
-        print(f'Ignoring exception in {event_method}', file=sys.stderr)
-        traceback.print_exc()
 
     async def login(self, username: str, password: str, api_key: str, shared_secret: str = None) -> None:
         """|coro|
@@ -444,6 +442,8 @@ class Client:
                     websockets.WebSocketProtocolError):
                 self.dispatch('disconnect')
 
+    # state stuff
+
     def get_user(self, *args, **kwargs) -> Optional[User]:
         """Returns a user with the given ID.
 
@@ -547,6 +547,60 @@ class Client:
             The listing or ``None`` if the listing was not found.
         """
         return self._connection.get_listing(id)
+
+    async def fetch_listings(self) -> List[Listing]:
+        """|coro|
+        Fetches a your market sell listings.
+
+        Returns
+        -------
+        List[:class:`Listing`]
+            A list of your listings.
+        """
+        resp = await self._market.fetch_pages()
+        if not resp['total_count']:  # they have no listings just return
+            return []
+
+        total = math.ceil(resp['total_count'] / 100)
+        listings = await self._market.fetch_listings(total)
+        return [Listing(state=self._connection, data=listing) for listing in listings]
+
+    def listing_history(self, limit=None, before: datetime = None, after: datetime = None) -> MarketListingsIterator:
+        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.Listing` objects.
+
+        Examples
+        -----------
+
+        Usage: ::
+
+         async for listing in client.listing_history(limit=10):
+            print('Sold listing:', listing.id)
+            print('For:', listing.user_pays)
+
+        Flattening into a list: ::
+
+            listings = await client.listing_history(limit=50).flatten()
+            # listings is now a list of Listing
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit: Optional[:class:`int`]
+            The maximum number of listings to search through.
+            Default is ``None`` which will fetch all the user's comments.
+        before: Optional[:class:`datetime.datetime`]
+            A time to search for trades before.
+        after: Optional[:class:`datetime.datetime`]
+            A time to search for trades after.
+
+        Yields
+        ---------
+        :class:`~steam.Listing`
+        """
+        return MarketListingsIterator(state=self._connection, limit=limit, before=before, after=after)
+
+    # market stuff
 
     async def fetch_price(self, item_name: str, game: Game) -> PriceOverview:
         """|coro|
@@ -652,57 +706,7 @@ class Client:
                 pass
         return new_listings
 
-    async def fetch_listings(self) -> List[Listing]:
-        """|coro|
-        Fetches a your market sell listings.
-
-        Returns
-        -------
-        List[:class:`Listing`]
-            A list of your listings.
-        """
-        resp = await self._market.fetch_pages()
-        if not resp['total_count']:  # they have no listings just return
-            return []
-
-        total = math.ceil(resp['total_count'] / 100)
-        listings = await self._market.fetch_listings(total)
-        return [Listing(state=self._connection, data=listing) for listing in listings]
-
-    def listing_history(self, limit=None, before: datetime = None, after: datetime = None) -> MarketListingsIterator:
-        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.Listing` objects.
-
-        Examples
-        -----------
-
-        Usage: ::
-
-         async for listing in client.listing_history(limit=10):
-            print('Sold listing:', listing.id)
-            print('For:', listing.user_pays)
-
-        Flattening into a list: ::
-
-            listings = await client.listing_history(limit=50).flatten()
-            # listings is now a list of Listing
-
-        All parameters are optional.
-
-        Parameters
-        ----------
-        limit: Optional[:class:`int`]
-            The maximum number of listings to search through.
-            Default is ``None`` which will fetch all the user's comments.
-        before: Optional[:class:`datetime.datetime`]
-            A time to search for trades before.
-        after: Optional[:class:`datetime.datetime`]
-            A time to search for trades after.
-
-        Yields
-        ---------
-        :class:`~steam.Listing`
-        """
-        return MarketListingsIterator(state=self._connection, limit=limit, before=before, after=after)
+    # misc
 
     async def wait_until_ready(self) -> None:
         """|coro|
@@ -765,3 +769,230 @@ class Client:
 
         listeners.append((future, check))
         return asyncio.wait_for(future, timeout)
+
+    # events to be subclassed
+
+    async def on_connect(self) -> None:
+        """|coro|
+        Called when the client has successfully connected to Steam. This is not
+        the same as the client being fully prepared, see :func:`on_ready` for that.
+
+        The warnings on :func:`on_ready` also apply.
+        """
+        pass
+
+    async def on_disconnect(self) -> None:
+        """|coro|
+        Called when the client has disconnected from Steam. This could happen either through
+        the internet disconnecting, an explicit call to logout, or Steam terminating the connection.
+
+        This function can be called multiple times.
+        """
+        pass
+
+    async def on_ready(self) -> None:
+        """|coro|
+        Called after a successful login and the client has handled setting up trade and notification polling,
+        along with setup the confirmation manager.
+
+        .. note::
+            In future this will be called when the client is done preparing the data received from Steam.
+            Usually after login to a CM is successful.
+
+        .. warning::
+
+            This function is not guaranteed to be the first event called.
+            Likewise, this function is **not** guaranteed to only be called
+            once. This library implements reconnection logic and will therefore
+            end up calling this event whenever a RESUME request fails.
+        """
+        pass
+
+    async def on_login(self) -> None:
+        """|coro|
+        Called when the client has logged into https://steamcommunity.com and
+        the :class:`~steam.ClientUser` is setup along with its friends list.
+        """
+        pass
+
+    async def on_error(self, event_method: str, *args, **kwargs) -> None:
+        """|coro|
+        The default error handler provided by the client.
+
+        Usually when an event raises an uncaught exception, a traceback is
+        printed to stderr and the exception is ignored. If you want to
+        change this behaviour and handle the exception for whatever reason
+        yourself, this event can be overridden. Which, when done, will
+        suppress the default action of printing the traceback.
+
+        The information of the exception raised and the exception itself can
+        be retrieved with a standard call to :func:`sys.exc_info`.
+
+        If you want exception to propagate out of the :class:`Client` class
+        you can define an ``on_error`` handler consisting of a single empty
+        :ref:`py:raise`.  Exceptions raised by ``on_error`` will not be
+        handled in any way by :class:`Client`.
+        """
+        print(f'Ignoring exception in {event_method}', file=sys.stderr)
+        traceback.print_exc()
+
+    async def on_trade_receive(self, trade: TradeOffer) -> None:
+        """|coro|
+        Called when the client receives a trade offer from a user.
+
+        Parameters
+        ----------
+        trade: :class:`~steam.TradeOffer`
+            The trade offer that was received.
+        """
+        pass
+
+    async def on_trade_send(self, trade: TradeOffer) -> None:
+        """|coro|
+        Called when the client or a user sends a trade offer.
+
+        Parameters
+        ----------
+        trade: :class:`~steam.TradeOffer`
+            The trade offer that was sent.
+        """
+        pass
+
+    async def on_trade_accept(self, trade: TradeOffer) -> None:
+        """|coro|
+        Called when the client or the trade partner accepts a trade offer.
+
+        Parameters
+        ----------
+        trade: :class:`~steam.TradeOffer`
+            The trade offer that was accepted.
+        """
+        pass
+
+    async def on_trade_decline(self, trade: TradeOffer) -> None:
+        """|coro|
+        Called when the client or the trade partner declines a trade offer.
+
+        Parameters
+        ----------
+        trade: :class:`~steam.TradeOffer`
+            The trade offer that was declined.
+        """
+        pass
+
+    async def on_trade_cancel(self, trade: TradeOffer) -> None:
+        """|coro|
+        Called when the client or the trade partner cancels a trade offer.
+
+        .. note::
+            This is called when the trade state becomes
+            :attr:`~steam.ETradeOfferState.Canceled` and
+            :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`.
+
+        Parameters
+        ----------
+        trade: :class:`~steam.TradeOffer`
+            The trade offer that was cancelled.
+        """
+        pass
+
+    async def on_trade_expire(self, trade: TradeOffer) -> None:
+        """|coro|
+        Called when a trade offer expires due to being active for too long.
+
+        Parameters
+        ----------
+        trade: :class:`~steam.TradeOffer`
+            The trade offer that expired.
+        """
+        pass
+
+    async def on_trade_counter(self, before: TradeOffer, after: TradeOffer) -> None:
+        """|coro|
+        Called when the client or the trade partner counters a trade offer.
+        The trade in the after parameter will also be heard by either
+        :func:`~steam.on_trade_receive()` or :func:`~steam.on_trade_send()`.
+
+        Parameters
+        ----------
+        before: :class:`~steam.TradeOffer`
+            The trade offer before it was countered.
+        after: :class:`~steam.TradeOffer`
+            The trade offer after it was countered.
+        """
+        pass
+
+    async def on_comment(self, comment: Comment) -> None:
+        """|coro|
+        Called when the client receives a comment notification.
+
+        Parameters
+        ----------
+        comment: :class:`~steam.Comment`
+            The comment received.
+        """
+        pass
+
+    async def on_invite(self, invite: Invite) -> None:
+        """|coro|
+        Called when the client receives an invite notification.
+
+        Parameters
+        ----------
+        invite: :class:`~steam.Invite`
+            The invite received.
+        """
+        pass
+
+    async def on_listing_create(self, listing: Listing) -> None:
+        """|coro|
+        Called when a new listing is created on the community market.
+
+        Parameters
+        ----------
+        listing: :class:`~steam.Listing`
+            The listing that was created.
+        """
+        pass
+
+    async def on_listing_buy(self, listing: Listing) -> None:
+        """|coro|
+        Called when an item/listing is bought on the community market.
+
+        .. warning::
+            This event isn't fully tested.
+
+        Parameters
+        ----------
+        listing: :class:`~steam.Listing`
+            The listing that was bought.
+        """
+        pass
+
+    async def on_listing_sell(self, listing: Listing) -> None:
+        """|coro|
+        Called when an item/listing is sold on the community market.
+
+        .. warning::
+            This event isn't fully tested.
+
+        Parameters
+        ----------
+        listing: :class:`~steam.Listing`
+            The listing that was sold.
+        """
+        pass
+
+    async def on_listing_cancel(self, listing: Listing):
+        """|coro|
+        Called when an item/listing is cancelled on the community market.
+
+        .. warning::
+            This event isn't fully tested.
+
+        Parameters
+        ----------
+        listing: :class:`~steam.Listing`
+            The listing that was cancelled.
+        """
+        pass
