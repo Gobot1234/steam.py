@@ -18,12 +18,13 @@ shared_secret = ''
 
 class MyClient(steam.Client):
 
-    async def on_login(self):  # on_events in a subclassed client don't need the @client.event decorator
+    async def on_ready(self):  # on_events in a subclassed client don't need the @client.event decorator
+        print('------------')
         print('Logged in as')
         print('Username:', self.user.name)
         print('ID:', self.user.id64)
         print('Friends:', len(self.user.friends))
-        print('------')
+        print('------------')
 
     async def on_logout(self):
         print('Logged out from:', self.user.name)
