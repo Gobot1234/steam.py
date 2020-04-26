@@ -23,6 +23,28 @@ Client
 
 .. autoclass:: Client
     :members:
+    :exclude-members: wait_for
+    :exclude-members: on_connect
+    :exclude-members: on_disconnect
+    :exclude-members: on_ready
+    :exclude-members: on_login
+    :exclude-members: on_error
+    :exclude-members: on_trade_receive
+    :exclude-members: on_trade_send
+    :exclude-members: on_trade_accept
+    :exclude-members: on_trade_decline
+    :exclude-members: on_trade_cancel
+    :exclude-members: on_trade_expire
+    :exclude-members: on_trade_counter
+    :exclude-members: on_comment
+    :exclude-members: on_invite
+    :exclude-members: on_listing_create
+    :exclude-members: on_listing_buy
+    :exclude-members: on_listing_sell
+    :exclude-members: on_listing_cancel
+
+    .. automethod:: wait_for
+        :async:
 
 Event Reference
 ---------------
@@ -61,177 +83,8 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     errors. In order to turn a function into a coroutine they must be ``async def``
     functions.
 
-.. function:: on_connect()
-
-    Called when the client has successfully connected to Steam. This is not
-    the same as the client being fully prepared, see :func:`on_ready` for that.
-
-    The warnings on :func:`on_ready` also apply.
-
-.. function:: on_disconnect()
-
-    Called when the client has disconnected from Steam. This could happen either through
-    the internet disconnecting, an explicit call to logout, or Steam terminating the connection.
-
-    This function can be called multiple times.
-
-.. function:: on_ready()
-
-    Called after a successful login and the client has handled setting up trade and notification polling,
-    along with setup the confirmation manager.
-
-    .. note::
-        In future this will be called when the client is done preparing the data received from Steam.
-        Usually after login to a CM is successful.
-
-    .. warning::
-
-        This function is not guaranteed to be the first event called.
-        Likewise, this function is **not** guaranteed to only be called
-        once. This library implements reconnection logic and will therefore
-        end up calling this event whenever a RESUME request fails.
-
-.. function:: on_login()
-
-    Called when the client has logged into https://steamcommunity.com and
-    the :class:`~steam.ClientUser` is setup along with its friends list.
-
-.. function:: on_error(event, \*args, \*\*kwargs)
-
-    Usually when an event raises an uncaught exception, a traceback is
-    printed to stderr and the exception is ignored. If you want to
-    change this behaviour and handle the exception for whatever reason
-    yourself, this event can be overridden. Which, when done, will
-    suppress the default action of printing the traceback.
-
-    The information of the exception raised and the exception itself can
-    be retrieved with a standard call to :func:`sys.exc_info`.
-
-    If you want exception to propagate out of the :class:`Client` class
-    you can define an ``on_error`` handler consisting of a single empty
-    :ref:`py:raise`.  Exceptions raised by ``on_error`` will not be
-    handled in any way by :class:`Client`.
-
-    :param event: The name of the event that raised the exception.
-    :type event: :class:`str`
-
-    :param args: The positional arguments for the event that raised the
-        exception.
-    :param kwargs: The keyword arguments for the event that raised the
-        exception.
-
-.. function:: on_trade_receive(trade)
-
-    Called when the client receives a trade offer from a user.
-    
-    :param trade: The trade offer that was received.
-    :type trade: :class:`~steam.TradeOffer`
-
-.. function:: on_trade_send(trade)
-
-    Called when the client or a user sends a trade offer.
-    
-    :param trade: The trade offer that was sent.
-    :type trade: :class:`~steam.TradeOffer`
-
-.. function:: on_trade_accept(trade)
-
-    Called when the client or the trade partner accepts a trade offer.
-    
-    :param trade: The trade offer that was accepted.
-    :type trade: :class:`~steam.TradeOffer`
-
-.. function:: on_trade_decline(trade)
-
-    Called when the client or the trade partner declines a trade offer.
-    
-    :param trade: The trade offer that was declined.
-    :type trade: :class:`~steam.TradeOffer`
-
-.. function:: on_trade_cancel(trade)
-
-    Called when the client or the trade partner cancels a trade offer.
-
-    .. note::
-        This is called when the trade state becomes
-        :attr:`~steam.ETradeOfferState.Canceled` and
-        :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`.
-    
-    :param trade: The trade offer that was canceled.
-    :type trade: :class:`~steam.TradeOffer`
-
-.. function:: on_trade_expire(trade)
-
-    Called when a trade offer expires due to being active for too long.
-
-    :param trade: The trade offer that expired.
-    :type trade: :class:`~steam.TradeOffer`
-
-
-.. function:: on_trade_counter(before, after)
-
-    Called when the client or the trade partner counters a trade offer.
-    The trade in the after parameter will also be heard by either
-    :func:`~steam.on_trade_receive()` or :func:`~steam.on_trade_send()`.
-
-    :param before: The trade offer before it was countered.
-    :type before: :class:`~steam.TradeOffer`
-    :param after: The trade offer after it was countered.
-    :type after: :class:`~steam.TradeOffer`
-
-.. function:: on_comment(comment)
-
-    Called when the client receives a comment notification.
-
-    :param comment: The comment received.
-    :type comment: :class:`~steam.Comment`
-
-.. function:: on_invite(invite)
-
-    Called when the client receives an invite notification.
-
-    :param invite: The invite received.
-    :type invite: :class:`~steam.Invite`
-
-.. function:: on_listing_create(listing)
-
-    Called when a new listing is created on the community market.
-
-    :param listing: The listing that was created.
-    :type listing: :class:`~steam.Listing`
-
-.. function:: on_listing_buy(listing)
-
-    Called when an item/listing is bought on the community market.
-
-    .. warning::
-        This event isn't fully tested.
-
-    :param listing: The listing that was bought.
-    :type listing: :class:`~steam.Listing`
-
-
-.. function:: on_listing_sell(listing)
-
-    Called when an item/listing is sold on the community market.
-
-    .. warning::
-        This event isn't fully tested.
-
-    :param listing: The listing that sold.
-    :type listing: :class:`~steam.Listing`
-
-
-.. function:: on_listing_cancel(listing)
-
-    Called when an item/listing is cancelled on the community market.
-
-    .. warning::
-        This event isn't fully tested.
-
-    :param listing: The listing that sold.
-    :type listing: :class:`~steam.Listing`
-
+.. automethod:: Client.wait_for
+    :async:
 
 Utilities
 ----------
