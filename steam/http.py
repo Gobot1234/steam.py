@@ -458,11 +458,12 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/comment/{comment_type}/post/{id64}', data=data)
 
-    def delete_comment(self, id, comment_type, user_id64):
-        params = {
+    def delete_comment(self, id, comment_type, id64):
+        data = {
+            "sessionid": self.session_id,
             "gidcomment": id,
         }
-        return self.request('POST', f'{URL.COMMUNITY}/comment/{comment_type}/delete/{user_id64}', params=params)
+        return self.request('POST', f'{URL.COMMUNITY}/comment/{comment_type}/delete/{id64}', data=data)
 
     def report_comment(self, id, comment_type, user_id64):
         params = {
