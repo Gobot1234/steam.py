@@ -128,7 +128,7 @@ class Item(Asset):
 
     __slots__ = ('name', 'type', 'tags', 'colour', 'missing',
                  'icon_url', 'market_name', 'descriptions',
-                 '_is_tradable', '_is_marketable') + Asset.__slots__
+                 '_state', '_is_tradable', '_is_marketable') + Asset.__slots__
 
     def __init__(self, state, data, missing: bool = False):
         super().__init__(data)
@@ -480,7 +480,7 @@ class TradeOffer:
 
     def is_gift(self) -> bool:
         """:class:`bool`: Checks if an offer is a gift to the ClientUser"""
-        return True if not self.items_to_receive and self.items_to_send else False
+        return True if self.items_to_receive and not self.items_to_send else False
 
     def is_one_sided(self) -> bool:
         """:class:`bool`: Checks if an offer is one-sided."""
