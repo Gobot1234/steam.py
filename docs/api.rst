@@ -77,8 +77,12 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. function:: on_ready()
 
-    Called when the client is done preparing the data received from Steam.
-    Usually after login to a CM is successful.
+    Called after a successful login and the client has handled setting up trade and notification polling,
+    along with setup the confirmation manager.
+
+    .. note::
+        In future this will be called when the client is done preparing the data received from Steam.
+        Usually after login to a CM is successful.
 
     .. warning::
 
@@ -186,8 +190,8 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
     Called when the client receives an invite notification.
 
-    :param comment: The invite received.
-    :type comment: :class:`~steam.Invite`
+    :param invite: The invite received.
+    :type invite: :class:`~steam.Invite`
 
 .. function:: on_listing_create(listing)
 
@@ -199,7 +203,9 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 .. function:: on_listing_buy(listing)
 
     Called when an item/listing is bought on the community market.
-    These aren't fully tested.
+
+    .. warning::
+        This event isn't fully tested.
 
     :param listing: The listing that was bought.
     :type listing: :class:`~steam.Listing`
@@ -208,7 +214,9 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 .. function:: on_listing_sell(listing)
 
     Called when an item/listing is sold on the community market.
-    These aren't fully tested.
+
+    .. warning::
+        This event isn't fully tested.
 
     :param listing: The listing that sold.
     :type listing: :class:`~steam.Listing`
@@ -217,7 +225,9 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 .. function:: on_listing_cancel(listing)
 
     Called when an item/listing is cancelled on the community market.
-    These aren't fully tested.
+
+    .. warning::
+        This event isn't fully tested.
 
     :param listing: The listing that sold.
     :type listing: :class:`~steam.Listing`
