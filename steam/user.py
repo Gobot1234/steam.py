@@ -289,9 +289,9 @@ class _BaseUser(BaseUser):
         Parameters
         -----------
         content: :class:`str`
-            The comment to add the :class:`User`'s profile.
+            The comment to add the user's profile.
         """
-        await self._state.http.post_comment(self.id64, content)
+        await self._state.http.post_comment(self.id64, 'Profile', content)
 
     async def fetch_inventory(self, game: Game) -> Inventory:
         """|coro|
