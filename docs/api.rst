@@ -23,15 +23,13 @@ Client
 
 .. autoclass:: Client
     :members:
-    :exclude-members: wait_for, on_connect, on_disconnect, on_ready, on_login, \
-                      on_error, on_trade_receive, on_trade_send, on_trade_accept, \
-                      on_trade_decline, on_trade_cancel, on_trade_expire, on_trade_counter, \
-                      on_comment, on_invite, on_listing_create, on_listing_buy, \
+    :exclude-members: wait_for, on_connect, on_disconnect, on_ready, on_login,
+                      on_error, on_trade_receive, on_trade_send, on_trade_accept,
+                      on_trade_decline, on_trade_cancel, on_trade_expire, on_trade_counter,
+                      on_comment, on_invite, on_listing_create, on_listing_buy,
                       on_listing_sell, on_listing_cancel
-
     .. automethod:: wait_for
         :async:
-
 
 Event Reference
 ---------------
@@ -39,7 +37,7 @@ Event Reference
 This page outlines the different types of events listened for by the :class:`Client`.
 
 There are two ways to register an event, the first way is through the use of
-:deco:`Client.event`. The second way is through subclassing :class:`Client` and
+:meth:`Client.event`. The second way is through subclassing :class:`Client` and
 overriding the specific events. For example: ::
 
     import steam
