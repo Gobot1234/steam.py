@@ -34,7 +34,7 @@ Event Reference
 This page outlines the different types of events listened for by the :class:`Client`.
 
 There are two ways to register an event, the first way is through the use of
-:meth:`Client.event`. The second way is through subclassing :class:`Client` and
+:decoratormethod:`Client.event`. The second way is through subclassing :class:`Client` and
 overriding the specific events. For example: ::
 
     import steam
