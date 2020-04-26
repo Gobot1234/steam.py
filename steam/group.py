@@ -179,6 +179,17 @@ class Group:
         """
         await self._state.http.invite_user_to_group(user_id64=user.id64, group_id=self.id64)
 
+    async def comment(self, content: str) -> None:
+        """|coro|
+        Post a comment to an :class:`Group`'s comment section.
+
+        Parameters
+        -----------
+        content: :class:`str`
+            The comment to add the group's profile.
+        """
+        await self._state.http.post_comment(self.id64, 'Clan', content)
+
     def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
         """An iterator for accessing a :class:`~steam.Group`'s :class:`~steam.Comment` objects.
 
