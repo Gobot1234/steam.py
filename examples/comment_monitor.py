@@ -25,7 +25,8 @@ URL_REGEX = re.compile(r'http[s]?://(?:\w|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a
 
 
 @client.event
-async def on_login():
+async def on_ready():
+    print('Ready')
     async for comment in client.user.comments():  # check our comments since we last logged in
         if comment.author in client.user.friends:  # ignore messages from friends
             return
