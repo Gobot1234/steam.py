@@ -49,7 +49,7 @@ Client
 Event Reference
 ---------------
 
-This page outlines the different types of events listened by :class:`Client`.
+This page outlines the different types of events listened for by the :class:`Client`.
 
 There are two ways to register an event, the first way is through the use of
 :meth:`Client.event`. The second way is through subclassing :class:`Client` and
@@ -83,8 +83,6 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     errors. In order to turn a function into a coroutine they must be ``async def``
     functions.
 
-.. automethod:: Client.wait_for
-    :async:
 
 Utilities
 ----------
