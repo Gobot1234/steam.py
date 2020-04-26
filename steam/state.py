@@ -55,7 +55,8 @@ class ConnectionState:
         self.started_trade_poll = False
         self.started_notification_poll = False
         self.started_listings_poll = False
-        self._last = [None, 0]
+        self._obj = None
+        self._previous_iteration = 0
 
         self._trades = dict()  # TODO add weakref
         self._users = dict()
@@ -283,7 +284,7 @@ class ConnectionState:
                                     log.debug(f'Received {event_name} notification')
                                     parsed_notification = await event_parser(i)
                                     self.dispatch(event_name, parsed_notification)
-
+                            self._obj = None
                     self._cached_notifications = notifications
         except (asyncio.TimeoutError, aiohttp.ClientError):
             self.loop.create_task(self._poll_trades())
@@ -300,12 +301,13 @@ class ConnectionState:
             obj = await self.client.fetch_group(steam_id.id64)
         else:
             obj = await self.client.fetch_user(steam_id.id64)
-        if self._last[0] == obj:
-            self._last[1] += 1
+
+        if self._obj == obj:
+            self._previous_iteration += 1
         else:
-            self._last.pop(1)
-            self._last.append(0)
-        return (await obj.comments(limit=20).flatten())[self._last[1]]
+            self._obj = obj
+            self._previous_iteration = 0
+        return (await obj.comments(limit=self._previous_iteration + 1).flatten())[self._previous_iteration]
 
     async def _parse_invite(self, loop):
         params = {
