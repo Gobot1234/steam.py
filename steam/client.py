@@ -634,8 +634,8 @@ class Client:
 
         Returns
         -------
-        Mapping[item_name, :class:`PriceOverview`]
-            A mapping of the prices.
+        Mapping[:class:`str`, :class:`PriceOverview`]
+            A mapping of the prices of item names to price overviews.
         """
         items = convert_items(item_names, games)
         return await self._market.fetch_prices(items)
@@ -726,7 +726,9 @@ class Client:
         arguments is returned instead. Please check the
         `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_
         for a list of events and their parameters.
-        This function returns the **first event that meets the requirements**.
+
+        .. note::
+            This function returns the **first event that meets the requirements**.
 
         Parameters
         ------------
