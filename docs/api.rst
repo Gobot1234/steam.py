@@ -23,25 +23,11 @@ Client
 
 .. autoclass:: Client
     :members:
-    :exclude-members: wait_for
-    :exclude-members: on_connect
-    :exclude-members: on_disconnect
-    :exclude-members: on_ready
-    :exclude-members: on_login
-    :exclude-members: on_error
-    :exclude-members: on_trade_receive
-    :exclude-members: on_trade_send
-    :exclude-members: on_trade_accept
-    :exclude-members: on_trade_decline
-    :exclude-members: on_trade_cancel
-    :exclude-members: on_trade_expire
-    :exclude-members: on_trade_counter
-    :exclude-members: on_comment
-    :exclude-members: on_invite
-    :exclude-members: on_listing_create
-    :exclude-members: on_listing_buy
-    :exclude-members: on_listing_sell
-    :exclude-members: on_listing_cancel
+    :exclude-members: wait_for, on_connect, on_disconnect, on_ready, on_login, \
+                      on_error, on_trade_receive, on_trade_send, on_trade_accept, \
+                      on_trade_decline, on_trade_cancel, on_trade_expire, on_trade_counter, \
+                      on_comment, on_invite, on_listing_create, on_listing_buy, \
+                      on_listing_sell, on_listing_cancel
 
     .. automethod:: wait_for
         :async:
