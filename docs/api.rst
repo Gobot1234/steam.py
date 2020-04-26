@@ -23,28 +23,7 @@ Client
 
 .. autoclass:: Client
     :members:
-    :exclude-members: wait_for
-    :exclude-members: on_connect
-    :exclude-members: on_disconnect
-    :exclude-members: on_ready
-    :exclude-members: on_login
-    :exclude-members: on_error
-    :exclude-members: on_trade_receive
-    :exclude-members: on_trade_send
-    :exclude-members: on_trade_accept
-    :exclude-members: on_trade_decline
-    :exclude-members: on_trade_cancel
-    :exclude-members: on_trade_expire
-    :exclude-members: on_trade_counter
-    :exclude-members: on_comment
-    :exclude-members: on_invite
-    :exclude-members: on_listing_create
-    :exclude-members: on_listing_buy
-    :exclude-members: on_listing_sell
-    :exclude-members: on_listing_cancel
 
-    .. automethod:: wait_for
-        :async:
 
 Event Reference
 ---------------
@@ -82,6 +61,9 @@ to handle it, which defaults to print a traceback and ignoring the exception.
     All the events must be a |coroutine_link|_. If they aren't, then you might get unexpected
     errors. In order to turn a function into a coroutine they must be ``async def``
     functions.
+
+.. automethod:: Client.on_listing_sell
+    :async:
 
 
 Utilities
