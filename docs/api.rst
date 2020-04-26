@@ -23,13 +23,10 @@ Client
 
 .. autoclass:: Client
     :members:
-    :exclude-members: wait_for, on_connect, on_disconnect, on_ready, on_login,
-                      on_error, on_trade_receive, on_trade_send, on_trade_accept,
-                      on_trade_decline, on_trade_cancel, on_trade_expire, on_trade_counter,
-                      on_comment, on_invite, on_listing_create, on_listing_buy,
-                      on_listing_sell, on_listing_cancel
-    .. automethod:: wait_for
-        :async:
+    :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_error,
+                      on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline,
+                      on_trade_cancel, on_trade_expire, on_trade_counter, on_comment,
+                      on_invite, on_listing_create, on_listing_buy, on_listing_sell, on_listing_cancel
 
 Event Reference
 ---------------
