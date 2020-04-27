@@ -12,7 +12,7 @@ A basic wrapper for the Steam API and its Community Managers.
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.15a'
+__version__ = '0.0.16a'
 
 import logging
 
@@ -21,9 +21,9 @@ from .client import *
 from .enums import *
 from .errors import *
 from .game import *
-from .group import Group
-from .market import PriceOverview, Listing
-from .message import Message
+from .group import *
+from .market import *
+from .message import *
 from .models import *
 from .trade import *
 from .user import *
