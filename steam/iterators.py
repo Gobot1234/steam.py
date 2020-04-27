@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2020 James
 
@@ -186,26 +186,37 @@ class MarketListingsIterator(AsyncIterator):
             # we need the listing id and the asset id(???)
             prices = []
             soup = BeautifulSoup(resp['results_html'], 'html.parser')
-            for listing in soup.find_all('div', attrs={"class": 'market_listing_row'}):
-                listing_ids = re.findall(r'history_row_\d+_(\d+)_\w+', str(listing))
-                findall = re.findall(r'[^\d]*(\d+)(?:[.,])(\d+)', listing.text, re.UNICODE)
+            compiled = re.compile(r'market_listing[\s\w]*')
+            div = soup.find_all('div', attrs={"class": compiled})
+            span = soup.find_all('span', attrs={"class": compiled})
+            div.extend(span)
+            for listing in div:
+                listing_id = re.findall(r'history_row_\d+_(\d+)_\w+', str(listing))
+                price = re.findall(r'[^\d]*(\d+)(?:[.,])(\d+)', listing.text, re.UNICODE)
                 try:
-                    price = float(f'{findall[0][0]}.{findall[0][1]}')
+                    price = float(f'{price[0][0]}.{price[0][1]}')
                 except IndexError:
                     price = None
-                prices.append((listing_ids, price))
+                prices.append((listing_id, price))
 
-            for context_id in resp['assets'].values():  # TODO fix this only returning some
+            for context_id in resp['assets'].values():
                 for listings in context_id.values():
                     for listing in listings.values():
                         listing['assetid'] = listing['id']  # we need to swap the ids around
                         try:
-                            listing['id'] = int(utils.find(lambda m: m[1] == listing['id'], matches)[0])
-                            _, listing['price'] = utils.find(lambda p: int(p[0][0]) == listing['id'], prices)
-                        except (TypeError, IndexError):
+                            listing['id'] = int(utils.find(lambda m: m[1] == listing['assetid'], matches)[0])
+                            price = [price for price in prices
+                                     if price and price[0] and price[0][0] and
+                                     price[0][0] == listing['id']]
+                            if price:
+                                listing['price'] = price[0][1]
+                        except TypeError:
+                            # the listing couldn't be found I need to do more
+                            # handling for this to make sure it doesn't happen
+                            # but for now this will do. coming soon:tm:
                             pass
                         else:
-                            listing = Listing(state=self._state, data=listing)
-                            self.queue.put_nowait(listing)
-                        if self.limit is not None and self.queue.qsize == self.limit:
-                            return
+                            self.queue.put_nowait(Listing(state=self._state, data=listing))
+                        finally:
+                            if self.limit is not None and self.queue.qsize == self.limit:
+                                return
