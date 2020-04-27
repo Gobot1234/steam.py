@@ -285,11 +285,12 @@ Steam IDs
 .. autoclass:: SteamID
     :members:
     :exclude-members: EType, EUniverse, EInstanceFlag
-    :attribute:: EType
+
+    .. attribute:: EType
         The EType of the SteamID
-    :attribute:: EUniverse
+    .. attribute:: EUniverse
         The EUniverse of the SteamID
-    :attribute:: EInstanceFlag
+    .. attribute:: EInstanceFlag
         The EInstanceFlag of the SteamID
 
 Users
