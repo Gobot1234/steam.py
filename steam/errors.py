@@ -30,6 +30,19 @@ from bs4 import BeautifulSoup
 
 from .enums import EResult
 
+__all__ = (
+    'SteamException',
+    'ClientException',
+    'HTTPException',
+    'Forbidden',
+    'NotFound',
+    'LoginError',
+    'InvalidCredentials',
+    'AuthenticatorError',
+    'ConfirmationError',
+    'NoCMsFound',
+)
+
 
 class SteamException(Exception):
     """Base exception class for steam.py"""

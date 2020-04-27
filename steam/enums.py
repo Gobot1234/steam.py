@@ -48,7 +48,6 @@ __all__ = (
     'EMarketListingState',
     'EChatRoomEnterResponse',
     'ECommunityVisibilityState',
-
 )
 
 

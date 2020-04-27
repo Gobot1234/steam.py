@@ -35,6 +35,13 @@ from .game import Game
 if TYPE_CHECKING:
     from .market import PriceOverview
 
+__all__ = (
+    'Item',
+    'Asset',
+    'Inventory',
+    'TradeOffer',
+)
+
 
 class Asset:
     """A striped down version of an item.
