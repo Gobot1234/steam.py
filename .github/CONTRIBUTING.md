@@ -4,9 +4,9 @@
 This file should outline how to contribute to steam.py.  
 There are a couple of aspects when it comes to contributing to the library which are as follows:  
   
-- [Bug reporting](`Bug reports`)  
-- [Feature requests](`Feature requests`)  
-- [Creating a PR (Pull Request)](`Pull requests`)  
+- [Bug reporting](#bug-reports)
+- [Feature requests](#feature-requests)
+- [Creating a PR (Pull Request)](#pull-requests)
   
   
 ## Bug reports  
