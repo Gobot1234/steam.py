@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2020 James
 
@@ -67,7 +67,7 @@ class ConnectionState:
         self.market = self.client._market
         self.confirmation_manager = self.client._confirmation_manager
         self.loop.create_task(self._poll_trades())
-        self.loop.create_task(self._poll_sell_listings())
+        self.loop.create_task(self._poll_listings())
         self.loop.create_task(self._poll_notifications())
 
     def _handle_ready(self):
@@ -327,7 +327,7 @@ class ConnectionState:
         await invite.__ainit__()
         return invite
 
-    async def _poll_sell_listings(self):
+    async def _poll_listings(self):
         self._listings_cache = await self.client.fetch_listings()
         try:
             while 1:
@@ -340,7 +340,7 @@ class ConnectionState:
                 for listing in new_listings:
                     self.dispatch('listing_create', listing)
                 if removed_listings:
-                    all_previous_listings = await self.client.previous_listings().flatten()
+                    all_previous_listings = await self.client.listing_history().flatten()
 
                 for listing in removed_listings:
                     listing = find(lambda l: l.id == listing.id, all_previous_listings)
@@ -354,7 +354,7 @@ class ConnectionState:
                 self._listings_cache = listings
 
         except (asyncio.TimeoutError, aiohttp.ClientError):
-            self.loop.create_task(self._poll_sell_listings())
+            self.loop.create_task(self._poll_listings())
         except HTTPException:
             await asyncio.sleep(60)
-            self.loop.create_task(self._poll_sell_listings())
+            self.loop.create_task(self._poll_listings())
