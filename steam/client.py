@@ -47,7 +47,7 @@ from .group import Group
 from .guard import generate_one_time_code, ConfirmationManager
 from .http import HTTPClient
 from .iterators import MarketListingsIterator
-from .market import *
+from .market import convert_items, Listing, FakeItem, MarketClient, PriceOverview
 from .models import Comment, Invite
 from .state import ConnectionState
 from .trade import TradeOffer
@@ -618,7 +618,7 @@ class Client:
         :class:`PriceOverview`
             The item's price overview.
         """
-        item = FakeItem(fix_name(item_name), game)
+        item = FakeItem(item_name, game)
         return await self._market.fetch_price(item)
 
     async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]) -> Mapping[str, PriceOverview]:
@@ -659,7 +659,7 @@ class Client:
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
         current_listings = await self.fetch_listings()
-        item = FakeItem(fix_name(item_name), game)
+        item = FakeItem(item_name, game)
         await self._market.create_sell_listing(item, price=price)
         new_listing = utils.find(lambda l: l not in current_listings, await self.fetch_listings())
         try:
