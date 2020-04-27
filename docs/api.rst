@@ -284,6 +284,13 @@ Steam IDs
 
 .. autoclass:: SteamID
     :members:
+    :exclude-members: EType, EUniverse, EInstanceFlag
+    :attribute:: EType
+        The EType of the SteamID
+    :attribute:: EUniverse
+        The EUniverse of the SteamID
+    :attribute:: EInstanceFlag
+        The EInstanceFlag of the SteamID
 
 Users
 ~~~~~~~~~~~~~~~
