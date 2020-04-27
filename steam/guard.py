@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2016 Michał Bukowski gigibukson@gmail.com
 Copyright (c) 2017 Nate the great

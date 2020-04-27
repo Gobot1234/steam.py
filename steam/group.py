@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2020 James
 
@@ -36,6 +36,10 @@ from .models import URL
 
 if TYPE_CHECKING:
     from .user import SteamID, User
+
+__all__ = (
+    'Group',
+)
 
 
 class Group:

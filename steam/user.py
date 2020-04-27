@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
@@ -27,8 +27,6 @@ SOFTWARE.
 This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
-
-from __future__ import annotations
 
 import json
 import re
@@ -315,7 +313,7 @@ class _BaseUser(BaseUser):
         resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
-    async def fetch_friends(self) -> List[User]:
+    async def fetch_friends(self) -> List['User']:
         """|coro|
         Fetch the list of :class:`~steam.User`'s friends from the API.
 

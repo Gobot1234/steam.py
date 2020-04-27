@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2020 James
 
@@ -25,6 +25,10 @@ SOFTWARE.
 """
 
 from .abc import Messageable
+
+__all__ = (
+    'Message',
+)
 
 
 class Message(Messageable):

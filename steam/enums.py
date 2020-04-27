@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2015-2020 Rapptz
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>

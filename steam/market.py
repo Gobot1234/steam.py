@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2020 offish
 Copyright (c) 2020 Gobot1234
@@ -44,21 +44,11 @@ from .models import URL
 from .trade import Asset
 
 __all__ = (
-    'fix_name',
-    'convert_items',
-    'FakeItem',
-    'PriceOverview',
     'Listing',
-    'MarketClient'
+    'PriceOverview',
 )
 
 log = logging.getLogger(__name__)
-
-
-def fix_name(name: str):
-    if isinstance(name, str):
-        return name.replace('/', '-')
-    raise TypeError('name is not a string')
 
 
 def convert_items(item_names, games, prices=None):
@@ -91,7 +81,7 @@ class FakeItem:
     __slots__ = ('name', 'game', 'app_id')
 
     def __init__(self, name: str, game: Game):
-        self.name = name
+        self.name = name.replace('/', '-')
         self.game = game
         self.app_id = game.app_id
 
@@ -182,8 +172,8 @@ class Listing(Asset):
 
     def __repr__(self):
         attrs = (
-                    'name', 'id'
-                ) + Asset.__slots__
+            'name', 'id'
+        ) + Asset.__slots__
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Listing {' '.join(resolved)}>"
 

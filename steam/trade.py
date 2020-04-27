@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2020 James
 
@@ -23,8 +23,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
-from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional, Union, TYPE_CHECKING
@@ -253,7 +251,7 @@ class Inventory:
                 self.items.append(Item(state=self._state, data=asset, missing=True))
             self._total_inventory_count = data['total_inventory_count']
 
-    async def update(self) -> Inventory:
+    async def update(self) -> 'Inventory':
         """|coro|
         Re-fetches the :class:`~steam.User`'s inventory.
 
