@@ -271,7 +271,7 @@ class _BaseUser(BaseUser):
         self.community_url = data['profileurl'][:-1]
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
-        self.primary_group = int(data.get('primaryclanid'))
+        self.primary_group = int(data['primaryclanid']) if 'primaryclanid' in data else None
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
         # steam is dumb I have no clue why this sometimes isn't given sometimes
