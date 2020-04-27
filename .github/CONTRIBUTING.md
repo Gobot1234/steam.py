@@ -1,4 +1,3 @@
-
 # How to contribute to steam.py  
   
 This file should outline how to contribute to steam.py.  

@@ -62,10 +62,6 @@ class SteamID(int):
     is called on this class's initialization.
     """
 
-    EType = EType
-    EUniverse = EUniverse
-    EInstanceFlag = EInstanceFlag
-
     def __new__(cls, *args, **kwargs):
         user_id64 = make_steam64(*args, **kwargs)
         return super().__new__(cls, user_id64)
@@ -80,7 +76,8 @@ class SteamID(int):
     @property
     def id(self) -> int:
         """:class:`int`: Represents the account id.
-        This is also known as the 32 bit id"""
+        This is also known as the 32 bit id.
+        """
         return int(self) & 0xFFffFFff
 
     @property
@@ -101,7 +98,7 @@ class SteamID(int):
     @property
     def as_32(self) -> int:
         """:class:`int`: The account's id.
-        An alias to :attr:`SteamID.id`
+        An alias to :attr:`SteamID.id`.
         """
         return self.id
 
@@ -115,7 +112,7 @@ class SteamID(int):
     @property
     def as_64(self) -> int:
         """:class:`int`: The steam 64 bit id of the account.
-        An alias to :attr:`SteamID.id64`
+        An alias to :attr:`SteamID.id64`.
         """
         return self.id64
 
@@ -127,7 +124,7 @@ class SteamID(int):
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`
+            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`.
         """
         return f'STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}'
 
@@ -139,9 +136,9 @@ class SteamID(int):
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`
+            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`.
 
-        An alias to :attr:`SteamID.id2`
+        An alias to :attr:`SteamID.id2`.
         """
         return self.id2
 
@@ -188,7 +185,7 @@ class SteamID(int):
     @property
     def as_steam3(self) -> str:
         """:class:`str`: The Steam3 id of the account.
-        An alias to :attr:`SteamID.id3`
+        An alias to :attr:`SteamID.id3`.
         """
         return self.id3
 
@@ -208,7 +205,8 @@ class SteamID(int):
 
     def is_valid(self) -> bool:
         """:class:`bool`: Check whether this SteamID is valid.
-        This doesn't however mean that a matching profile can be found"""
+        This doesn't however mean that a matching profile can be found.
+        """
         if self.type == EType.Invalid or self.type >= EType.Max:
             return False
 
@@ -237,7 +235,8 @@ class SteamID(int):
 class _BaseUser(BaseUser):
     __slots__ = ('id', 'id2', 'id3', 'name', 'game', 'id64', 'state', 'flags',
                  'country', 'steam_id', 'trade_url', 'real_name', 'avatar_url',
-                 'created_at', 'last_logoff', 'community_url', '_state', '_data')
+                 'created_at', 'last_logoff', 'community_url', 'primary_group',
+                 '_state', '_data')
 
     def __init__(self, state, data):
         self._state = state
@@ -272,6 +271,7 @@ class _BaseUser(BaseUser):
         self.community_url = data['profileurl'][:-1]
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
+        self.primary_group = int(data.get('primaryclanid'))
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
         # steam is dumb I have no clue why this sometimes isn't given sometimes
@@ -474,18 +474,20 @@ class User(Messageable, _BaseUser):
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
-        The Game instance attached to the user. Is None if the user
+        The Game instance attached to the user. Is ``None`` if the user
         isn't in a game or one that is recognised by the api.
     avatar_url: :class:`str`
         The avatar url of the user. Uses the large (184x184 px) image url.
     real_name: Optional[:class:`str`]
-        The user's real name defined by them. Could be None.
+        The user's real name defined by them. Could be ``None``.
+    primary_group: Optional[:class:`int`]
+        The user's primary group.
     created_at: Optional[:class:`datetime.datetime`]
-        The time at which the user's account was created. Could be None.
+        The time at which the user's account was created. Could be ``None``.
     last_logoff: Optional[:class:`datetime.datetime`]
-        The last time the user logged into steam. Could be None (e.g. if they are currently online).
+        The last time the user logged into steam. Could be ``None`` (e.g. if they are currently online).
     country: Optional[:class:`str`]
-        The country code of the account. Could be None.
+        The country code of the account. Could be ``None``.
     flags: :class:`~steam.EPersonaStateFlag`
         The persona state flags of the account.
     id64: :class:`int`
@@ -523,8 +525,8 @@ class User(Messageable, _BaseUser):
         """
         await self._state.http.block_user(self.id64)
 
-    async def send_trade(self, items_to_send: Union[List[Item], List[Asset]] = None,
-                         items_to_receive: Union[List[Item], List[Asset]] = None, *,
+    async def send_trade(self, *, items_to_send: Union[List[Item], List[Asset]] = None,
+                         items_to_receive: Union[List[Item], List[Asset]] = None,
                          token: str = None, message: str = None) -> None:
         """|coro|
         Sends a trade offer to an :class:`User`.
@@ -578,7 +580,7 @@ class User(Messageable, _BaseUser):
         Returns
         ---------
         :class:`~steam.Message`
-            The send message
+            The send message.
         """
         return await self._state.send_message(user_id64=self.id64, content=str(content))
 
@@ -626,18 +628,20 @@ class ClientUser(_BaseUser):
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
-        The Game instance attached to the user. Is None if the user
+        The Game instance attached to the user. Is ``None`` if the user
         isn't in a game or one that is recognised by the api.
     avatar_url: :class:`str`
         The avatar url of the user. Uses the large (184x184 px) image url.
     real_name: Optional[:class:`str`]
-        The user's real name defined by them. Could be None.
+        The user's real name defined by them. Could be ``None``.
+    primary_group: Optional[:class:`int`]
+        The user's primary group. Could be ``None``
     created_at: Optional[:class:`datetime.datetime`]
-        The time at which the user's account was created. Could be None.
+        The time at which the user's account was created. Could be ``None``.
     last_logoff: Optional[:class:`datetime.datetime`]
-        The last time the user logged into steam. Could be None (e.g. if they are currently online).
+        The last time the user logged into steam. Could be ``None`` (e.g. if they are currently online).
     country: Optional[:class:`str`]
-        The country code of the account. Could be None.
+        The country code of the account. Could be ``None``.
     flags: :class:`~steam.EPersonaStateFlag`
         The persona state flags of the account.
     id64: :class:`int`

@@ -449,8 +449,8 @@ class TradeOffer:
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
 
-    async def counter(self, items_to_send: Union[List[Item], List[Asset]] = None,
-                      items_to_receive: Union[List[Item], List[Asset]] = None, *,
+    async def counter(self, *, items_to_send: Union[List[Item], List[Asset]] = None,
+                      items_to_receive: Union[List[Item], List[Asset]] = None,
                       token: str = None, message: str = None) -> None:
         """|coro|
         Counters a trade offer from an :class:`User`.
