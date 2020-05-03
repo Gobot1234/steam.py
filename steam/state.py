@@ -32,21 +32,19 @@ import aiohttp
 from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
-from .enums import EChatEntryType, ETradeOfferState, EType, EMarketListingState
+from .enums import ETradeOfferState, EType, EMarketListingState, EChatEntryType
 from .errors import HTTPException
-from .http import HTTPClient
 from .models import URL, Invite
-from .protobufs import get_um, MsgProto, EMsg
 from .trade import TradeOffer
-from .user import User, from_url
-from .utils import proto_fill_from_dict, find
+from .user import User, SteamID
+from .utils import find
 
 log = logging.getLogger(__name__)
 
 
 class ConnectionState:
 
-    def __init__(self, loop, client, http: HTTPClient):
+    def __init__(self, loop, client, http):
         self.loop = loop
         self.http = http
         self.request = http.request
@@ -73,30 +71,8 @@ class ConnectionState:
     def _handle_ready(self):
         self.client._ready.set()
 
-    async def send_um(self, name, params=None):
-        proto = get_um(name)
-
-        if proto is None:
-            raise ValueError(f'Failed to find method named: {name}')
-
-        message = MsgProto(EMsg.ServiceMethodCallFromClient)
-        message.header.target_job_name = name
-        message.body = proto()
-
-        if params:
-            proto_fill_from_dict(message.body, params)
-
-        job_id = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
-
-        if message.proto:
-            message.header.jobid_source = job_id
-        else:
-            message.header.sourceJobID = job_id
-
-        await self.client.ws.send(message)
-
     async def send_message(self, user_id64, content):
-        await self.send_um(
+        await self.client.ws(
             "FriendMessages.SendMessage#1",
             {
                 'steamid': user_id64,
@@ -104,16 +80,6 @@ class ConnectionState:
                 'chat_entry_type': EChatEntryType.ChatMsg.value,
             }
         )
-
-    async def send_job(self, message, body_params=None):
-        job_id = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
-
-        if message.proto:
-            message.header.jobid_source = job_id
-        else:
-            message.header.sourceJobID = job_id
-
-        await self.client.ws.send(message, body_params)
 
     @property
     def users(self):
@@ -154,7 +120,7 @@ class ConnectionState:
     async def fetch_trade(self, trade_id):
         resp = await self.http.fetch_trade(trade_id)
         if resp.get('response'):
-            trade = resp['response']['offer']
+            trade = [resp['response']['offer']]
             descriptions = resp['response']['descriptions']
             return (await self._process_trades(trade, descriptions))[0]
         return None
@@ -251,7 +217,8 @@ class ConnectionState:
                 self._descriptions_cache = descriptions
         except (asyncio.TimeoutError, aiohttp.ClientError):
             self.loop.create_task(self._poll_trades())
-        except HTTPException:
+        except HTTPException as e:
+            print(repr(e.message))
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
@@ -292,11 +259,11 @@ class ConnectionState:
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
-    async def _parse_comment(self, _):  # this isn't very efficient not sure if it can be done better
+    async def _parse_comment(self, _):  # this isn't very efficient but I'm not sure if it can be done better
         resp = await self.request('GET', f'{self.client.user.community_url}/commentnotifications')
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         group = search.group(1)
-        steam_id = await from_url(group.replace(f'?{_URL(group).query_string}', ''))
+        steam_id = await SteamID.from_url(group.strip(f'?{_URL(group).query_string}'))
         if steam_id.type == EType.Clan:
             obj = await self.client.fetch_group(steam_id.id64)
         else:
@@ -307,7 +274,8 @@ class ConnectionState:
         else:
             self._obj = obj
             self._previous_iteration = 0
-        return (await obj.comments(limit=self._previous_iteration + 1).flatten())[self._previous_iteration]
+        comments = await obj.comments(limit=self._previous_iteration + 1).flatten()
+        return comments[self._previous_iteration]
 
     async def _parse_invite(self, loop):
         params = {
