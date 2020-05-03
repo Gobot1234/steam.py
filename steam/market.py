@@ -231,18 +231,13 @@ class MarketClient(HTTPClient):
         publisher_fee = float(wallet_info['wallet_publisher_fee_percent_default'])
         self.fee = valve_fee + publisher_fee
 
-    async def request(self, method, url, is_price_overview=False, **kwargs):  # adapted from d.py
-        if is_price_overview:  # do rate-limit handling for price-overviews
+    async def request(self, method, url, **kwargs):  # adapted from d.py
+        if kwargs.get('is_price_overview'):  # do rate-limit handling for price-overviews
             now = datetime.utcnow()
             if len(self.times) <= 20:
                 self.times.append(now)
             else:
                 await asyncio.sleep((timedelta(minutes=1) - (now - self.times[0])).total_seconds())
-        headers = {
-            "User-Agent": self.user_agent
-        }
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
 
         async with self._lock:
             for tries in range(5):
@@ -275,7 +270,7 @@ class MarketClient(HTTPClient):
                         continue
 
                     # this endpoints equivalent of a 404
-                    if r.status == 500 and is_price_overview:
+                    if r.status == 500 and kwargs.get('is_price_overview'):
                         raise errors.NotFound(r, data)
                     # we've received a 500 or 502, an unconditional retry
                     if r.status in {500, 502}:
@@ -295,10 +290,10 @@ class MarketClient(HTTPClient):
 
     async def _remover(self):
         while 1:
-            a_minute_ago = datetime.utcnow() - timedelta(minutes=1)
+            one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
             await asyncio.sleep(5)
             for time in self.times:
-                if time > a_minute_ago:
+                if time > one_minute_ago:
                     continue
                 self.times.remove(time)
 
