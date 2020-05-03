@@ -32,15 +32,15 @@ from .enums import EResult
 
 __all__ = (
     'SteamException',
-    'ClientException',
-    'HTTPException',
-    'Forbidden',
     'NotFound',
+    'Forbidden',
     'LoginError',
-    'InvalidCredentials',
-    'AuthenticatorError',
-    'ConfirmationError',
     'NoCMsFound',
+    'HTTPException',
+    'ClientException',
+    'ConfirmationError',
+    'AuthenticatorError',
+    'InvalidCredentials',
 )
 
 
@@ -70,7 +70,7 @@ class HTTPException(SteamException):
         Could be an empty string if the message is html.
     status: :class:`int`
         The status code of the HTTP request.
-    EResult: :class:`~steam.EResult`
+    result: :class:`~steam.EResult`
         The associated EResult for the HTTP request.
         This is likely to be :attr:`~steam.EResult.Invalid`
     code: :class:`int`
@@ -80,16 +80,16 @@ class HTTPException(SteamException):
     def __init__(self, response, data):
         self.response = response
         self.status = response.status
-        self.EResult = EResult(int(response.headers.get('X-eresult', 0)))
+        self.result = EResult(int(response.headers.get('X-eresult', 0)))
 
         if isinstance(data, dict):
             if data:
-                name, message = list(data.values())
-                code_regex = re.compile(r'[^\s]([0-9]+)')
-                code = re.findall(code_regex, message)
+                message = list(data.values())[0]
+                code_regex = re.compile(r'[^\s]([0-9]+)[^\s]')
+                code = code_regex.findall(message)
                 if code:
                     self.code = int(code[0])  # would like to EResult however steam trades don't use the same system
-                    self.message = re.sub(code_regex, '', message)
+                    self.message = code_regex.sub('', message)
                 else:
                     self.code = 0
                     self.message = message
@@ -109,8 +109,8 @@ class HTTPException(SteamException):
                 self.code = 0
 
         self.message = self.message.replace('  ', ' ')
-        super().__init__(f'{response.status} {response.reason} (error code: {self.code} EResult: {self.EResult})'
-                         f'{f": {self.message}" if self.message else ""}')
+        super().__init__(f'{response.status} {response.reason} (error code: {self.code} result: {self.result})'
+                         f'{ f"Message: {self.message}" if self.message else ""}')
 
 
 class Forbidden(HTTPException):
