@@ -32,6 +32,8 @@ __all__ = (
     'STEAM',
 )
 
+APP_ID_MAX = 2 ** 32
+
 
 class Game:
     """Represents a Steam game.
@@ -87,6 +89,11 @@ class Game:
             }
 
             if app_id is not None and title is None:
+                if not str(app_id).isdigit():
+                    raise ValueError(f'app_id expected to be type int not {repr(type(app_id).__name__)}')
+                if app_id < 0:
+                    raise ValueError('app_id cannot be negative')
+                app_id = int(app_id)
                 mapping = mapping.get(app_id)
                 if mapping is not None:
                     self.title = mapping[0]
@@ -133,6 +140,20 @@ class Game:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def to_dict(self):
+        if not self.is_steam_game():
+            return {
+                "game_id": str(self.app_id),
+                "game_extra_info": game.name
+            }
+        else:
+            return {
+                "game_id": str(self.app_id)
+            }
+
+    def is_steam_game(self):
+        return self.app_id < APP_ID_MAX
 
 
 TF2 = Game(title='Team Fortress 2', app_id=440)
