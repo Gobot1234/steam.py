@@ -31,22 +31,23 @@ https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 import json
 import re
 from datetime import timedelta, datetime
-from typing import List, Optional, Union
+from typing import List, Optional, Union, TYPE_CHECKING
 
 import aiohttp
 
 from .abc import BaseUser, Messageable
 from .enums import *
 from .game import Game
-from .group import Group
 from .iterators import CommentsIterator, TradesIterator
 from .models import URL, Ban, UserBadges
-from .trade import Item, Inventory, Asset
+from .trade import Item, Asset, Inventory
+
+if TYPE_CHECKING:
+    from .group import Group
 
 __all__ = (
     'User',
     'SteamID',
-    'from_url',
     'ClientUser',
     'make_steam64',
     'steam64_from_url'
@@ -231,6 +232,30 @@ class SteamID(int):
 
         return True
 
+    @classmethod
+    async def from_url(cls, url, timeout=30) -> Optional['SteamID']:
+        """Takes Steam community url and returns a SteamID instance or ``None``.
+        See :func:`steam64_from_url` for details.
+
+        Parameters
+        ----------
+        url: :class:`str`
+            The Steam community url.
+        timeout: :class:`int`
+            How long to wait for the http request before turning ``None``.
+
+        Returns
+        -------
+        SteamID: Optional[:class:`SteamID`]
+            `SteamID` instance or ``None``.
+        """
+
+        steam64 = await steam64_from_url(url, timeout)
+
+        if steam64:
+            return cls(steam64)
+        return None
+
 
 class _BaseUser(BaseUser):
     __slots__ = ('id', 'id2', 'id3', 'name', 'game', 'id64', 'state', 'flags',
@@ -338,7 +363,7 @@ class _BaseUser(BaseUser):
         games = data['response'].get('games', [])
         return [Game(0, _data=game) for game in games]
 
-    async def fetch_groups(self) -> List[Group]:
+    async def fetch_groups(self) -> List['Group']:
         """|coro|
         Fetches a list of the :class:`User`'s :class:`~steam.Group` objects.
 
@@ -540,7 +565,7 @@ class User(Messageable, _BaseUser):
         token: Optional[:class:`str`]
             The the trade token used to send trades to users who aren't
             on the ClientUser's friend's list.
-        message: :class:`str`
+        message: Optional[:class:`str`]
              The offer message to send with the trade.
 
         Raises
@@ -568,8 +593,8 @@ class User(Messageable, _BaseUser):
             ``None`` if the :class:`User` has no escrow.
         """
         resp = await self._state.http.fetch_user_escrow(self.id)
-        days = int(re.search(r'var g_daysTheirEscrow = (\d+);', resp).group(1))
-        return timedelta(days=days) if days else None
+        seconds = resp['their_escrow']['escrow_end_duration_seconds']
+        return timedelta(seconds=seconds) if seconds else None
 
     async def send(self, content: str = None):
         """Send a message to the user
@@ -584,7 +609,7 @@ class User(Messageable, _BaseUser):
         """
         return await self._state.send_message(user_id64=self.id64, content=str(content))
 
-    async def invite_to_group(self, group: Group):
+    async def invite_to_group(self, group: 'Group'):
         """|coro|
         Invites a :class:`~steam.User` to a :class:`Group`.
 
@@ -596,7 +621,7 @@ class User(Messageable, _BaseUser):
         await self._state.http.invite_user_to_group(self.id64, group.id64)
 
     def is_friend(self) -> bool:
-        """:class:`bool`: Species if the user is in the ClientUser's friends."""
+        """:class:`bool`: Species if the user is in the :class:`ClientUser`'s friends."""
         return self in self._state.client.user.friends
 
 
@@ -965,31 +990,3 @@ async def steam64_from_url(url: str, timeout=30) -> Optional[int]:
                 return int(data_match.group('steamid'))
     except aiohttp.InvalidURL:
         return None
-
-
-async def from_url(url, timeout=30) -> Optional[SteamID]:
-    """Takes Steam community url and returns a SteamID instance or ``None``.
-    See :func:`steam64_from_url` for details.
-
-    Parameters
-    ----------
-    url: :class:`str`
-        The Steam community url.
-    timeout: :class:`int`
-        How long to wait for the http request before turning ``None``.
-
-    Returns
-    -------
-    SteamID: Optional[:class:`SteamID`]
-        `SteamID` instance or ``None``.
-    """
-
-    steam64 = await steam64_from_url(url, timeout)
-
-    if steam64:
-        return SteamID(steam64)
-
-    return None
-
-
-SteamID.from_url = classmethod(from_url)
