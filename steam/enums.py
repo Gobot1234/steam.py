@@ -361,13 +361,15 @@ class EPersonaStateFlag(IntEnum):
     NONE = 0
     HasRichPresence = 1
     InJoinableGame = 2
-    HasGoldenProfile = 4
+    Golden = 4
+    RemotePlayTogether = 8
     ClientTypeWeb = 256
     ClientTypeMobile = 512
     ClientTypeTenfoot = 1024
-    NoClue = 3072  # TODO figure out what this is
     ClientTypeVR = 2048
+    NoClue = 3072  # TODO figure out what this is
     LaunchTypeGamepad = 4096
+    LaunchTypeCompatTool = 8192
 
     def __str__(self):
         return self.name
