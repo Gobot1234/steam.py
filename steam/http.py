@@ -202,11 +202,11 @@ class HTTPClient:
         await self.user.__ainit__()
         self._client.dispatch('login')
 
-    def logout(self):
+    async def logout(self):
         log.debug('Logging out of session')
         self.logged_in = False
+        await self.request('GET', url=f'{URL.COMMUNITY}/login/logout/')
         self._client.dispatch('logout')
-        return self.request('GET', url=f'{URL.COMMUNITY}/login/logout/')
 
     async def _fetch_rsa_params(self, current_repetitions: int = 0):
         maximum_repetitions = 5
@@ -343,13 +343,12 @@ class HTTPClient:
         }
         return self.request('GET', url=f'{URL.COMMUNITY}/inventory/{user_id64}/{app_id}/{context_id}', params=params)
 
-    def fetch_user_escrow(self, user_id):
-        trade_offer_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}'
-        headers = {
-            'Referer': trade_offer_url,
-            'Origin': URL.COMMUNITY
+    def fetch_user_escrow(self, user_id64):
+        params = {
+            "key": self.api_key,
+            "steamid_target": user_id64
         }
-        return self.request('GET', url=trade_offer_url, headers=headers)
+        return self.request('GET', url=Route('IEconService', 'GetTradeHoldDurations'), params=params)
 
     async def fetch_friends(self, user_id64):
         params = {
@@ -387,20 +386,21 @@ class HTTPClient:
             'captcha': ''
         }
         headers = {'Referer': f'{URL.COMMUNITY}/tradeoffer/{trade_id}'}
-
         return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/accept', data=data, headers=headers)
 
     def decline_user_trade(self, trade_id):
         data = {
-            "sessionid": self.session_id
+            "key": self.api_key,
+            "tradeofferid": trade_id
         }
-        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/decline', data=data)
+        return self.request('POST', url=Route('IEconService', 'CancelTradeOffer'), data=data)
 
     def cancel_user_trade(self, trade_id):
         data = {
-            "sessionid": self.session_id
+            "key": self.api_key,
+            "tradeofferid": trade_id
         }
-        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/cancel', data=data)
+        return self.request('POST', url=Route('IEconService', 'DeclineTradeOffer'), data=data)
 
     def send_trade_offer(self, user_id64, user_id, to_send, to_receive, token, offer_message, **kwargs):
         data = {
@@ -466,11 +466,11 @@ class HTTPClient:
         return self.request('POST', f'{URL.COMMUNITY}/comment/{comment_type}/delete/{id64}', data=data)
 
     def report_comment(self, id, comment_type, user_id64):
-        params = {
+        data = {
             "gidcomment": id,
             "hide": 1
         }
-        return self.request('POST', f'{URL.COMMUNITY}/comment/{comment_type}/hideandreport/{user_id64}', params=params)
+        return self.request('POST', f'{URL.COMMUNITY}/comment/{comment_type}/hideandreport/{user_id64}', data=data)
 
     async def fetch_api_key(self):
         resp = await self.request('GET', url=f'{URL.COMMUNITY}/dev/apikey')
