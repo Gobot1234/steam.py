@@ -34,24 +34,28 @@ import signal
 import sys
 import traceback
 from datetime import datetime
-from typing import Union, List, Optional, Any, Callable, Mapping
+from typing import Union, List, Optional, Any, Callable, Mapping, TYPE_CHECKING
 
 import aiohttp
-import websockets
 
 from . import errors, utils
 from .enums import ECurrencyCode
-from .game import Game
-from .gateway import SteamWebSocket, ResumeSocket
+from .gateway import *
 from .group import Group
 from .guard import generate_one_time_code, ConfirmationManager
 from .http import HTTPClient
 from .iterators import MarketListingsIterator
 from .market import convert_items, Listing, FakeItem, MarketClient, PriceOverview
-from .models import Comment, Invite
 from .state import ConnectionState
-from .trade import TradeOffer
-from .user import make_steam64, User, ClientUser
+from .user import make_steam64
+
+if TYPE_CHECKING:
+    from .game import Game
+    from .models import Comment, Invite
+    from .trade import TradeOffer
+    from .user import ClientUser, User
+
+    import steam
 
 __all__ = (
     'Client',
@@ -118,7 +122,7 @@ class ClientEventTask(asyncio.Task):
 
 class Client:
     """Represents a client connection that connects to Steam.
-    This class is used to interact with the Steam API.
+    This class is used to interact with the Steam API and CMs.
 
     Parameters
     ----------
@@ -152,23 +156,24 @@ class Client:
 
         self._user = None
         self._closed = True
+        self._cm_list = None
         self._confirmation_manager = None
         self._listeners = {}
         self._ready = asyncio.Event()
 
     @property
-    def user(self) -> Optional[ClientUser]:
+    def user(self) -> Optional['ClientUser']:
         """Optional[:class:`~steam.ClientUser`]: Represents the connected client.
         ``None`` if not logged in."""
         return self.http.user
 
     @property
-    def users(self) -> List[User]:
+    def users(self) -> List['User']:
         """List[:class:`~steam.User`]: Returns a list of all the users the account can see."""
         return self._connection.users
 
     @property
-    def trades(self) -> List[TradeOffer]:
+    def trades(self) -> List['TradeOffer']:
         """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the user has seen."""
         return self._connection.trades
 
@@ -180,8 +185,16 @@ class Client:
     @property
     def code(self) -> Optional[str]:
         """Optional[:class:`str`]: The current steam guard code.
-        ``None`` if no shared_secret is passed to :meth:`run` or :meth:`start`."""
-        return generate_one_time_code(self.shared_secret) if self.shared_secret else None
+
+        .. warning::
+            Will wait for a Steam guard code using :func``input`
+            if no shared_secret is passed to :meth:`run` or :meth:`start`.
+            **This could be blocking.**
+        """
+        if self.shared_secret:
+            return generate_one_time_code(self.shared_secret)
+        else:
+            return input('Please enter a Steam guard code\n>>> ')
 
     @property
     def latency(self) -> float:
@@ -294,7 +307,7 @@ class Client:
             finally:
                 await self.close()
 
-        def stop_loop_on_completion(f):
+        def stop_loop_on_completion(_):
             loop.stop()
 
         task = loop.create_task(runner())
@@ -406,21 +419,19 @@ class Client:
             raise errors.LoginError("One or more required login detail is missing")
 
         await self.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
+        if self.identity_secret:
+            self._confirmation_manager = ConfirmationManager(state=self._connection)
         await self._market.__ainit__()
         await self._connection.__ainit__()
         self._closed = False
-
-        if self.identity_secret:
-            self._confirmation_manager = ConfirmationManager(state=self._connection)
         self.dispatch('ready')
         # await self.connect()
         while 1:
             await asyncio.sleep(5)
 
     async def _connect(self):
-        self.ws = SteamWebSocket()
-        coro = self.ws.from_client(self)
-        await asyncio.wait_for(coro, timeout=60)
+        coro = SteamWebSocket.from_client(self, cms=self._cm_list)
+        self.ws = await asyncio.wait_for(coro, timeout=60)
         while 1:
             try:
                 await self.ws.poll_event()
@@ -444,7 +455,7 @@ class Client:
 
     # state stuff
 
-    def get_user(self, *args, **kwargs) -> Optional[User]:
+    def get_user(self, *args, **kwargs) -> Optional['User']:
         """Returns a user with the given ID.
 
         Parameters
@@ -462,7 +473,7 @@ class Client:
         id64 = make_steam64(*args, **kwargs)
         return self._connection.get_user(id64)
 
-    async def fetch_user(self, *args, **kwargs) -> Optional[User]:
+    async def fetch_user(self, *args, **kwargs) -> Optional['User']:
         """|coro|
         Fetches a user from the API with the given ID.
 
@@ -481,7 +492,7 @@ class Client:
         id64 = make_steam64(*args, **kwargs)
         return await self._connection.fetch_user(id64)
 
-    def get_trade(self, id) -> Optional[TradeOffer]:
+    def get_trade(self, id) -> Optional['TradeOffer']:
         """Get a trade from cache.
 
         Parameters
@@ -496,7 +507,7 @@ class Client:
         """
         return self._connection.get_trade(id)
 
-    async def fetch_trade(self, id: int) -> Optional[TradeOffer]:
+    async def fetch_trade(self, id: int) -> Optional['TradeOffer']:
         """|coro|
         Fetches a trade from the API with the given ID.
 
@@ -602,7 +613,7 @@ class Client:
 
     # market stuff
 
-    async def fetch_price(self, item_name: str, game: Game) -> PriceOverview:
+    async def fetch_price(self, item_name: str, game: 'Game') -> PriceOverview:
         """|coro|
         Fetches the price and volume sales of an item.
 
@@ -621,7 +632,8 @@ class Client:
         item = FakeItem(item_name, game)
         return await self._market.fetch_price(item)
 
-    async def fetch_prices(self, item_names: List[str], games: Union[List[Game], Game]) -> Mapping[str, PriceOverview]:
+    async def fetch_prices(self, item_names: List[str],
+                           games: Union[List['Game'], 'Game']) -> Mapping[str, PriceOverview]:
         """|coro|
         Fetches the price(s) and volume of each item in the list.
 
@@ -640,7 +652,7 @@ class Client:
         items = convert_items(item_names, games)
         return await self._market.fetch_prices(items)
 
-    async def create_sell_listing(self, item_name: str, game: Game, *, price: float) -> Listing:
+    async def create_sell_listing(self, item_name: str, game: 'Game', *, price: float) -> Listing:
         """|coro|
         Creates a market listing for an item.
 
@@ -668,7 +680,7 @@ class Client:
             pass
         return new_listing
 
-    async def create_sell_listings(self, item_names: List[str], games: Union[List[Game], Game],
+    async def create_sell_listings(self, item_names: List[str], games: Union[List['Game'], 'Game'],
                                    prices: Union[List[Union[int, float]], Union[int, float]]) -> List[Listing]:
         """|coro|
         Creates market listing for items.
@@ -774,7 +786,7 @@ class Client:
 
     # events to be subclassed
 
-    async def on_connect(self) -> None:
+    async def on_connect(self):
         """|coro|
         Called when the client has successfully connected to Steam. This is not
         the same as the client being fully prepared, see :func:`on_ready` for that.
@@ -783,7 +795,7 @@ class Client:
         """
         pass
 
-    async def on_disconnect(self) -> None:
+    async def on_disconnect(self):
         """|coro|
         Called when the client has disconnected from Steam. This could happen either through
         the internet disconnecting, an explicit call to logout, or Steam terminating the connection.
@@ -792,7 +804,7 @@ class Client:
         """
         pass
 
-    async def on_ready(self) -> None:
+    async def on_ready(self):
         """|coro|
         Called after a successful login and the client has handled setting up trade and notification polling,
         along with setup the confirmation manager.
@@ -810,14 +822,14 @@ class Client:
         """
         pass
 
-    async def on_login(self) -> None:
+    async def on_login(self):
         """|coro|
         Called when the client has logged into https://steamcommunity.com and
         the :class:`~steam.ClientUser` is setup along with its friends list.
         """
         pass
 
-    async def on_error(self, event_method: str, *args, **kwargs) -> None:
+    async def on_error(self, event_method: str, *args, **kwargs):
         """|coro|
         The default error handler provided by the client.
 
@@ -838,7 +850,7 @@ class Client:
         print(f'Ignoring exception in {event_method}', file=sys.stderr)
         traceback.print_exc()
 
-    async def on_trade_receive(self, trade: TradeOffer) -> None:
+    async def on_trade_receive(self, trade: 'steam.TradeOffer'):
         """|coro|
         Called when the client receives a trade offer from a user.
 
@@ -849,7 +861,7 @@ class Client:
         """
         pass
 
-    async def on_trade_send(self, trade: TradeOffer) -> None:
+    async def on_trade_send(self, trade: 'steam.TradeOffer'):
         """|coro|
         Called when the client or a user sends a trade offer.
 
@@ -860,7 +872,7 @@ class Client:
         """
         pass
 
-    async def on_trade_accept(self, trade: TradeOffer) -> None:
+    async def on_trade_accept(self, trade: 'steam.TradeOffer'):
         """|coro|
         Called when the client or the trade partner accepts a trade offer.
 
@@ -871,7 +883,7 @@ class Client:
         """
         pass
 
-    async def on_trade_decline(self, trade: TradeOffer) -> None:
+    async def on_trade_decline(self, trade: 'steam.TradeOffer'):
         """|coro|
         Called when the client or the trade partner declines a trade offer.
 
@@ -882,7 +894,7 @@ class Client:
         """
         pass
 
-    async def on_trade_cancel(self, trade: TradeOffer) -> None:
+    async def on_trade_cancel(self, trade: 'steam.TradeOffer'):
         """|coro|
         Called when the client or the trade partner cancels a trade offer.
 
@@ -898,7 +910,7 @@ class Client:
         """
         pass
 
-    async def on_trade_expire(self, trade: TradeOffer) -> None:
+    async def on_trade_expire(self, trade: 'steam.TradeOffer'):
         """|coro|
         Called when a trade offer expires due to being active for too long.
 
@@ -909,7 +921,7 @@ class Client:
         """
         pass
 
-    async def on_trade_counter(self, before: TradeOffer, after: TradeOffer) -> None:
+    async def on_trade_counter(self, before: 'steam.TradeOffer', after: 'steam.TradeOffer'):
         """|coro|
         Called when the client or the trade partner counters a trade offer.
         The trade in the after parameter will also be heard by either
@@ -924,7 +936,7 @@ class Client:
         """
         pass
 
-    async def on_comment(self, comment: Comment) -> None:
+    async def on_comment(self, comment: 'steam.Comment'):
         """|coro|
         Called when the client receives a comment notification.
 
@@ -935,7 +947,7 @@ class Client:
         """
         pass
 
-    async def on_invite(self, invite: Invite) -> None:
+    async def on_invite(self, invite: 'steam.Invite'):
         """|coro|
         Called when the client receives an invite notification.
 
@@ -946,7 +958,7 @@ class Client:
         """
         pass
 
-    async def on_listing_create(self, listing: Listing) -> None:
+    async def on_listing_create(self, listing: 'steam.Listing'):
         """|coro|
         Called when a new listing is created on the community market.
 
@@ -957,7 +969,7 @@ class Client:
         """
         pass
 
-    async def on_listing_buy(self, listing: Listing) -> None:
+    async def on_listing_buy(self, listing: 'steam.Listing'):
         """|coro|
         Called when an item/listing is bought on the community market.
 
@@ -971,7 +983,7 @@ class Client:
         """
         pass
 
-    async def on_listing_sell(self, listing: Listing) -> None:
+    async def on_listing_sell(self, listing: 'steam.Listing'):
         """|coro|
         Called when an item/listing is sold on the community market.
 
@@ -985,7 +997,7 @@ class Client:
         """
         pass
 
-    async def on_listing_cancel(self, listing: Listing):
+    async def on_listing_cancel(self, listing: 'steam.Listing'):
         """|coro|
         Called when an item/listing is cancelled on the community market.
 

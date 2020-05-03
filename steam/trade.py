@@ -115,12 +115,13 @@ class Item(Asset):
 
     Attributes
     -------------
-    name: :class:`str`
-        The name of the item.
+    name: Optional[:class:`str`]
+        The market_name of the item.
+    display_name: Optional[:class:`str`]
+        The displayed name of the item. This could be different to
+        :attr:`Item.name` if the item is user re-nameable.
     colour: Optional[:class:`int`]
         The colour of the item.
-    market_name: Optional[:class:`str`]
-        The market_name of the item.
     descriptions: Optional[:class:`str`]
         The descriptions of the item.
     type: Optional[:class:`str`]
@@ -132,7 +133,7 @@ class Item(Asset):
     """
 
     __slots__ = ('name', 'type', 'tags', 'colour', 'missing',
-                 'icon_url', 'market_name', 'descriptions',
+                 'icon_url', 'display_name', 'descriptions',
                  '_state', '_is_tradable', '_is_marketable') + Asset.__slots__
 
     def __init__(self, state, data, missing: bool = False):
@@ -142,16 +143,14 @@ class Item(Asset):
         self._from_data(data)
 
     def __repr__(self):
-        attrs = (
-                    'name',
-                ) + Asset.__slots__
+        attrs = ('name',) + Asset.__slots__
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Item {' '.join(resolved)}>"
 
     def _from_data(self, data):
-        self.name = data.get('name')
+        self.name = data.get('market_name')
+        self.display_name = data.get('name')
         self.colour = int(data['name_color'], 16) if 'name_color' in data else None
-        self.market_name = data.get('market_name')
         self.descriptions = data.get('descriptions')
         self.type = data.get('type')
         self.tags = data.get('tags')
@@ -160,7 +159,7 @@ class Item(Asset):
         self._is_tradable = bool(data.get('tradable', False))
         self._is_marketable = bool(data.get('marketable', False))
 
-    async def list(self, price) -> None:
+    async def list(self, price: Union[int, float]) -> None:
         """|coro|
         Creates a market listing for an item.
 
@@ -214,6 +213,10 @@ class Inventory:
 
             Returns how many items are in the inventory.
 
+        .. describe:: iter(x)
+
+            Iterates over the inventory's items.
+
     Attributes
     -------------
     items: List[:class:`Item`]
@@ -241,6 +244,10 @@ class Inventory:
 
     def __len__(self):
         return self._total_inventory_count
+
+    def __iter__(self):
+        for item in self.items:
+            yield item
 
     def _update(self, data):
         try:
@@ -283,9 +290,9 @@ class Inventory:
 
         Returns
         ---------
-        Optional[List[:class:`Item`]]
+        List[:class:`Item`]
             List of :class:`Item`.
-            Can be an empty list if no matching items are found.
+            Could be an empty if no matching items are found.
             This also removes the item from the inventory, if possible.
         """
         items = list(filter(lambda i: i.name == item_name, self.items))
@@ -309,7 +316,7 @@ class Inventory:
             Can be ``None`` if no matching item is found.
             This also removes the item from the inventory, if possible.
         """
-        item = utils.find(lambda i: i.name == item_name, self.items)
+        item = utils.get(self.items, name=item_name)
         if item:
             self.items.remove(item)
             return item
@@ -404,7 +411,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already accepted or not from the ClientUser.
         """
-        if self.state != ETradeOfferState.Active:
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade is not active')
         if self.state == ETradeOfferState.Accepted:
             raise ClientException('This trade has already been accepted')
@@ -424,7 +431,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already declined or not from the ClientUser.
         """
-        if self.state not in (ETradeOfferState.Active or ETradeOfferState.ConfirmationNeed):
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade is not active')
         if self.state == ETradeOfferState.Declined:
             raise ClientException('This trade has already been declined')
@@ -441,7 +448,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already cancelled or is from the ClientUser.
         """
-        if self.state not in (ETradeOfferState.Active or ETradeOfferState.ConfirmationNeed):
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade is not active')
         if self.state == ETradeOfferState.Canceled:
             raise ClientException('This trade has already been cancelled')
@@ -464,7 +471,7 @@ class TradeOffer:
         token: Optional[:class:`str`]
             The the trade token used to send trades to users who aren't
             on the ClientUser's friend's list.
-        message: :class:`str`
+        message: Optional[:class:`str`]
              The offer message to send with the trade.
 
         Raises
@@ -489,11 +496,8 @@ class TradeOffer:
 
     def is_one_sided(self) -> bool:
         """:class:`bool`: Checks if an offer is one-sided."""
-        if not self.items_to_receive and self.items_to_send:
-            return True
-        if self.items_to_receive and not self.items_to_send:
-            return True
-        return False
+        return True if not self.items_to_receive and self.items_to_send \
+                       or self.items_to_receive and not self.items_to_send else False
 
     def is_our_offer(self) -> bool:
         """:class:`bool`: Whether the offer was created by the ClientUser."""
