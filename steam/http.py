@@ -37,18 +37,14 @@ from Cryptodome.Cipher import PKCS1_v1_5
 from Cryptodome.PublicKey.RSA import construct
 
 from . import __version__, errors
-from .guard import generate_one_time_code
 from .models import URL
 from .user import ClientUser
 
 log = logging.getLogger(__name__)
 
 
-async def json_or_text(response):
-    try:
-        text = await response.text(encoding='utf-8')
-    except UnicodeDecodeError:
-        return await response.text(encoding='ascii')
+async def json_or_text(response: aiohttp.ClientResponse):
+    text = await response.text(encoding=response.get_encoding())
     try:
         if 'application/json' in response.headers['content-type']:  # thanks steam very cool
             return json.loads(text)
@@ -90,12 +86,6 @@ class HTTPClient:
     def recreate(self):
         if self._session.closed:
             self._session = aiohttp.ClientSession(loop=self._loop)
-
-    def code(self):
-        if self.shared_secret:
-            return generate_one_time_code(self.shared_secret)
-        else:
-            return input('Please enter a Steam guard code\n>>> ')
 
     async def request(self, method, url, **kwargs):  # adapted from d.py
         headers = {
@@ -160,6 +150,12 @@ class HTTPClient:
             # we've run out of retries, raise
             raise errors.HTTPException(r, data)
 
+    def connect_to_cm(self, cm):
+        headers = {
+            "User-Agent": self.user_agent
+        }
+        return self._session.ws_connect(cm, timeout=60, autoclose=False, max_msg_size=0, headers=headers)
+
     async def login(self, username: str, password: str, api_key: str, shared_secret: str = None):
         self.username = username
         self.password = password
@@ -205,7 +201,7 @@ class HTTPClient:
     async def logout(self):
         log.debug('Logging out of session')
         self.logged_in = False
-        await self.request('GET', url=f'{URL.COMMUNITY}/login/logout/')
+        await self.request('GET', url=f'{URL.COMMUNITY}/login/logout')
         self._client.dispatch('logout')
 
     async def _fetch_rsa_params(self, current_repetitions: int = 0):
@@ -250,7 +246,7 @@ class HTTPClient:
         try:
             login_response = await self.request('POST', url=f'{URL.COMMUNITY}/login/dologin', data=data)
             if login_response['requires_twofactor']:
-                self._one_time_code = self.code()
+                self._one_time_code = self._client.code
                 return await self._send_login_request()
             return login_response
         except Exception as e:
@@ -368,6 +364,16 @@ class HTTPClient:
             "get_received_offers": int(received)
         }
         return self.request('GET', url=Route('IEconService', 'GetTradeOffers'), params=params)
+
+    def fetch_trade_history(self, limit, previous_time):
+        params = {
+            "key": self.api_key,
+            "max_trades": limit,
+            "get_descriptions": 1,
+            "include_total": 1,
+            "start_after_time": previous_time or 0
+        }
+        return self.request('GET', url=Route('IEconService', 'GetTradeHistory'), params=params)
 
     def fetch_trade(self, trade_id):
         params = {
@@ -501,7 +507,7 @@ class HTTPClient:
             "action": 'group_accept',
             "steamids[]": group_id
         }
-        return self.request('POST', url=f'{self.user.community_url}/friends/action', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/me/friends/action', data=data)
 
     def decline_group_invite(self, group_id):
         data = {
@@ -511,7 +517,7 @@ class HTTPClient:
             "action": 'group_ignore',
             "steamids[]": group_id
         }
-        return self.request('POST', url=f'{self.user.community_url}/friends/action', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/me/friends/action', data=data)
 
     def join_group(self, group_id):
         data = {
@@ -526,7 +532,7 @@ class HTTPClient:
             "action": 'leaveGroup',
             "groupId": group_id
         }
-        return self.request('POST', url=f'{self.user.community_url}/home_process', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/me/home_process', data=data)
 
     def invite_user_to_group(self, user_id64, group_id):
         data = {
@@ -569,4 +575,25 @@ class HTTPClient:
         data = {
             'sessionid': self.session_id
         }
-        return self.request('POST', f'{URL.COMMUNITY}/market/removelisting/{listing_id}', data=data)
+        return self.request('POST', url=f'{URL.COMMUNITY}/market/removelisting/{listing_id}', data=data)
+
+    def clear_nickname_history(self):
+        data = {
+            "sessionid": self.session_id
+        }
+        return self.request('POST', url=f'{URL.COMMUNITY}/me/ajaxclearaliashistory', data=data)
+
+    def edit_profile(self, nick, real_name, country, state, city, url, summary, group_id):
+        data = {
+            "sessionID": self.session_id,
+            "type": 'profileSave',
+            "personaName": nick,
+            "real_name": real_name,
+            "country": country,
+            "state": state,
+            "city": city,
+            "customURL": url,
+            "summary": summary,
+            "primary_group_steamid": group_id
+        }
+        return self.request('POST', url=f'{URL.COMMUNITY}/me/edit', data=data)
