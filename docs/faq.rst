@@ -165,12 +165,16 @@ method on the User that you want to send the offer to.
 
 .. code-block:: python3
 
+    # we need to chose a game to fetch the inventory for
+    game = steam.TF2
     # we need to get the inventories to get items
-    my_inventory = await client.user.fetch_inventory()
-    their_inventory = await user.fetch_inventory()
+    my_inventory = await client.user.fetch_inventory(game)
+    their_inventory = await user.fetch_inventory(game)
+
     # we need to get the items to be included in the trade
     keys = my_inventory.filter_items('Mann Co. Supply Crate Key', limit=5)
     earbuds = their_inventory.get_item('Earbuds')
+
     # finally construct the trade
     await user.send_trade(items_to_send=keys, items_to_receive=earbuds, message='This trade was made using steam.py')
     # you don't need to confirm the trade manually, the client will handle that for you
