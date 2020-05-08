@@ -203,7 +203,7 @@ class MarketClient(HTTPClient):
     ----------
     currency: Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]
         Sets the currency for requests. :attr:`~steam.ECurrencyCode.USD` / United State Dollars is default.
-        Pass this as a ``kwarg`` to the :class:`~steam.Client` initialization.
+        Pass this as a ``keyword-argument`` to the :class:`~steam.Client` initialization.
     """
 
     BASE = f'{URL.COMMUNITY}/market'
