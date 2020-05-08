@@ -27,8 +27,7 @@ DEALINGS IN THE SOFTWARE.
 
 This is a modified version of
 https://github.com/Rapptz/discord.py/blob/master/discord/gateway.py
-and
-https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
+and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 """
 
 import asyncio
@@ -36,41 +35,183 @@ import binascii
 import concurrent.futures
 import logging
 import random
-import socket
 import struct
+import sys
 import threading
 import time
+import traceback
 from gzip import GzipFile
 from io import BytesIO
 
-import websockets
+import aiohttp
 
 from . import utils
 from .enums import EResult, EUniverse
-from .errors import SteamException
-from .models import URL
-from .protobufs import Msg, MsgProto, EMsg
+from .errors import NoCMsFound
+from .protobufs import Msg, MsgProto, EMsg, get_um
 from .user import SteamID
+
+__all__ = (
+    'SteamWebSocket',
+    'ConnectionClosed',
+    'WebSocketClosure',
+    'ReconnectWebSocket',
+)
 
 log = logging.getLogger(__name__)
 
 
-class ResumeSocket(SteamException):
-    def __init__(self, server):
-        self.server = server
+class ReconnectWebSocket(Exception):
+    """Signals to safely reconnect the websocket."""
+
+    def __init__(self, cm, *, resume=True):
+        self.cm = cm
+        self.resume = resume
+
+
+class WebSocketClosure(Exception):
+    """An exception to make up for the fact that aiohttp doesn't signal closure."""
+    pass
+
+
+class ConnectionClosed(Exception):
+    def __init__(self, socket, cm, cms):
+        self.code = socket.close_code
+        # aiohttp doesn't seem to consistently provide close reason
+        self.reason = ''
+        self.cm = cm
+        self.cm_list = cms
+        super().__init__(f'CM {self.cm} WebSocket, closed with {self.code}')
+
+
+class CMServerList:
+    """A class to represent the severs the user can connect to."""
+    GOOD = 1
+    BAD = 2
+
+    def __init__(self, state, first_cm_to_try):
+        self.state = state
+        self.dict = dict()
+        self.last_updated = 0
+        self.cell_id = 0
+        self._current_iteration = 0
+        self.queue = asyncio.Queue()
+        if first_cm_to_try is not None:
+            self.queue.put_nowait(first_cm_to_try)
+
+    def __len__(self):
+        return len(self.dict)
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self.queue.qsize() in (0, 1):
+            self._current_iteration += 1
+            if self._current_iteration == 2:
+                raise StopAsyncIteration
+            await self.fill()
+        return self.queue.get_nowait()
+
+    async def fill(self):
+        if not await self.fetch_servers_from_api():  # TODO bootstrap from internal list?
+            raise NoCMsFound('No Community Managers could be found to connect to')
+
+        good_servers = list(filter(lambda x: x[1]['quality'] == self.GOOD, self.dict.items()))
+
+        if len(good_servers) == 0:
+            log.debug('No good servers left. Resetting...')
+            self.reset_all()
+            return
+
+        ordered = sorted(good_servers, key=lambda x: x[1]['score'])
+        if ordered[0][1]['score'] == 0:
+            random.shuffle(ordered)
+        for server_address, _ in ordered:
+            self.queue.put_nowait(server_address)
+
+    def clear(self):
+        if len(self.dict):
+            log.debug('List cleared.')
+        self.dict.clear()
+
+    async def fetch_servers_from_api(self, cell_id=0):
+        log.debug("Attempting to fetch servers from the WebAPI")
+        self.cell_id = cell_id
+        try:
+            resp = await self.state.http.fetch_cm_list(cell_id)
+        except Exception as e:
+            log.error(f'WebAPI fetch request failed with result: {repr(e)}')
+            return False
+        if resp['response']['result'] != 1:
+            log.error(f'Fetching the CMList failed with '
+                      f'Result: {EResult(resp["response"]["result"])} '
+                      f'Message: {repr(resp["message"])}')
+            return False
+
+        websockets_list = resp['response']['serverlist_websockets']
+        log.debug(f'Received {len(websockets_list)} servers from WebAPI')
+
+        self.clear()
+        self.cell_id = cell_id
+        self.merge_list(websockets_list)
+
+        # this way we can have the benefits of not connecting
+        # to borked cms whilst maintaining initial speed
+        self.state.loop.create_task(self.ping_cms())
+
+        return True
+
+    def reset_all(self):
+        log.debug('Marking all CM servers as Good.')
+        for server in self.dict:
+            self.mark_good(server)
+
+    def mark_good(self, server, score=0):
+        self.dict[server] = {"quality": self.GOOD, "timestamp": time.time(), "score": score}
+
+    def mark_bad(self, server):
+        self.dict[server] = {"quality": self.BAD, "timestamp": time.time(), "score": 0}
+
+    def merge_list(self, hosts):
+        total = len(self.dict)
+        for host in hosts:
+            if host not in self.dict:
+                self.mark_good(f'wss://{host}/cmsocket/')
+        if len(self.dict) > total:
+            log.debug(f'Added {len(self.dict) - total} new CM server addresses.')
+        self.last_updated = int(time.time())
+
+    async def ping_cms(self):
+        log.debug(f'Pinging {len(self.dict)} CMs')
+        for host in self.dict:
+            start = time.perf_counter()
+            try:
+                resp = await self.state.client._session.get(f'https://{host[6:-10]}/cmping', timeout=5)
+                if resp.status != 200:
+                    self.mark_bad(host)
+                load = resp.headers['X-Steam-CMLoad']
+            except (KeyError, asyncio.TimeoutError):
+                self.mark_bad(host)
+            else:
+                latency = time.perf_counter() - start
+                score = (int(load) * 2) + latency
+                self.mark_good(host, score)
+
+        log.debug('Finished pinging CMs')
 
 
 class KeepAliveHandler(threading.Thread):  # Ping commands are cool
     def __init__(self, *args, **kwargs):
+        ws = kwargs.pop('ws')
+        interval = kwargs.pop('interval')
 
-        ws = kwargs.get('ws')
-        interval = kwargs.get('interval')
-
-        threading.Thread.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.ws = ws
+        self._main_thread_id = ws.thread_id
         self.interval = interval
-        self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
+        self.heartbeat = MsgProto(EMsg.ClientHeartBeat.value)
         self.heartbeat_timeout = 60
         self.msg = "Keeping websocket alive with sequence {}."
         self.block_msg = "Heartbeat blocked for more than {} seconds."
@@ -83,7 +224,7 @@ class KeepAliveHandler(threading.Thread):  # Ping commands are cool
     def run(self):
         while not self._stop_ev.wait(self.interval):
             if self._last_ack + self.heartbeat_timeout < time.perf_counter():
-                log.warning(f"Server {self.ws.server} has stopped responding to the gateway. Closing and restarting.")
+                log.warning(f"Server {self.ws.cm} has stopped responding to the gateway. Closing and restarting.")
                 coro = self.ws.close(4000)
                 f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
 
@@ -103,11 +244,18 @@ class KeepAliveHandler(threading.Thread):  # Ping commands are cool
                 total = 0
                 while 1:
                     try:
-                        f.result(5)
+                        f.result(10)
                         break
                     except concurrent.futures.TimeoutError:
-                        total += 5
-                        log.warning(self.block_msg.format(total))
+                        total += 10
+                        try:
+                            frame = sys._current_frames()[self._main_thread_id]
+                        except KeyError:
+                            msg = self.block_msg
+                        else:
+                            stack = traceback.format_stack(frame)
+                            msg = f'{self.block_msg}\nLoop thread traceback (most recent call last):\n{"".join(stack)}'
+                        log.warning(msg, total)
 
             except Exception:
                 self.stop()
@@ -116,6 +264,8 @@ class KeepAliveHandler(threading.Thread):  # Ping commands are cool
 
             if self._last_send - time.perf_counter() > self.interval:
                 self.ack()
+                coro = self.ws.send_proto(self.heartbeat)
+                asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
 
     def stop(self):
         self._stop_ev.set()
@@ -128,217 +278,141 @@ class KeepAliveHandler(threading.Thread):  # Ping commands are cool
             log.warning(self.behind_msg.format(self.latency))
 
 
-class CMServerList:
-    """A class to represent the severs the user can connect to."""
-    GOOD = 1
-    BAD = 2
-
-    def __init__(self, state):
-        self.state = state
-        self.dict = dict()
-        self.last_updated = 0
-        self.cell_id = 0
-
-    def __len__(self):
-        return len(self.dict)
-
-    def __iter__(self):
-        if not self.dict:
-            return log.error("Server list is empty.")
-
-        good_servers = list(filter(lambda x: x[1]['quality'] == self.GOOD, self.dict.items()))
-
-        if len(good_servers) == 0:
-            log.debug("No good servers left. Resetting...")
-            return self.reset_all()
-
-        random.shuffle(good_servers)
-        for server_address, _ in good_servers:
-            yield server_address
-
-    def clear(self):
-        if len(self.dict):
-            log.debug("List cleared.")
-        self.dict.clear()
-
-    def bootstrap_from_dns(self):
-        log.debug("Attempting bootstrap via DNS")
-
-        try:
-            answer = socket.getaddrinfo("cm0.steampowered.com", 27017, socket.AF_INET, proto=socket.IPPROTO_TCP)
-        except Exception as e:
-            log.error(f"DNS boot-strap failed: {e}")
-            return False
-
-        servers = list(map(lambda addr: addr[4], answer))
-
-        if servers:
-            self.clear()
-            self.merge_list(servers)
-            return True
-        else:
-            log.error("DNS boot-strap cm0.steampowered.com no records resolved")
-            return False
-
-    async def fetch_servers_from_api(self, cell_id=0):
-        log.debug("Attempting to fetch servers from the WebAPI")
-        self.cell_id = cell_id
-
-        try:
-            resp = await self.state.http.fetch_cm_list(cell_id)
-        except Exception as e:
-            log.error(f'WebAPI fetch request failed with result: {repr(e)}')
-            return False
-
-        if resp['response']['result'] != 1:
-            log.error(f'Fetching the CMList failed with '
-                      f'Result: {resp["response"]["result"]} '
-                      f'Message: {repr(resp["message"])}')
-            return False
-
-        websockets_list = resp['response']['serverlist_websockets']
-        log.debug(f'Received {len(websockets_list)} servers from WebAPI')
-
-        self.clear()
-        self.cell_id = cell_id
-        self.merge_list(websockets_list)
-
-        return True
-
-    def reset_all(self):
-        log.debug('Marking all CM servers as Good.')
-        for server in self.dict:
-            self.mark_good(server)
-
-    def mark_good(self, server):
-        self.dict[server] = {'quality': self.GOOD, 'timestamp': time.time()}
-
-    def mark_bad(self, server):
-        log.debug(f'Marking {repr(server)} as bad.')
-        self.dict[server] = {'quality': self.BAD, 'timestamp': time.time()}
-
-    def merge_list(self, hosts):
-        total = len(self.dict)
-
-        for host in hosts:
-            if host not in self.dict:
-                self.mark_good(f'wss://{host}/cmsocket/')
-
-        if len(self.dict) > total:
-            log.debug(f'Added {len(self.dict) - total} new CM server addresses.')
-        self.last_updated = int(time.time())
+OLD_CLOSE = aiohttp.ClientWebSocketResponse.close
 
 
-class SteamWebSocket:
+# monkey patch certain things from the aiohttp websocket code.
+async def _new_ws_close(self, *, code: int = 4000, message: bytes = b'') -> bool:
+    return await OLD_CLOSE(self, code=code, message=message)
 
-    def __init__(self):
-        self.loop = None
-        self._state = None
-        self._dispatch = None
-        self.servers = None
-        self.client = None
+aiohttp.ClientWebSocketResponse.close = _new_ws_close
 
-        self.ws = None
-        self.server = None
+
+class SteamWebSocket:  # socket.get_extra_info
+
+    def __init__(self, socket, *, loop):
+        self.socket = socket
+        self.loop = loop
+        self._dispatch = lambda *args: None
+        self.payload = None
+        self.cm = None
+        self.cm_list = None
         self.connected = False
-
         self.channel_key = None
         self.channel_hmac = None
         self.session_id = None
+        self.steam_id = None
         self.cell_id = 0
+        self._current_job_id = 0
         self._keep_alive = None
-        self._recv_loop = None
+        self.thread_id = threading.get_ident()
 
         self.handlers = {
-            EMsg.ChannelEncryptRequest: self.handle_encrypt_request,
-            EMsg.ClientLogOnResponse: self.handle_logon,
+            EMsg.Multi: self.handle_multi,
             EMsg.ClientCMList: self.handle_cm_list,
-            EMsg.Multi: self.handle_multi
+            EMsg.ClientLogOnResponse: self.handle_logon,
+            EMsg.ChannelEncryptRequest: self.handle_encrypt_request,
         }
 
     def handle_cm_list(self, msg):
         log.debug("Updating CM list")
-
         new_servers = zip(map(utils.ip_from_int, msg.body.cm_addresses), msg.body.cm_ports)
-        self.servers.clear()
-        self.servers.merge_list(new_servers)
-        self.servers.cell_id = self.cell_id
+        self.cm_list.clear()
+        self.cm_list.merge_list(new_servers)
+        self.cm_list.cell_id = self.cell_id
 
-    @staticmethod
-    def can_handle_close(code):
-        return code not in {1000, 4004, 4010, 4011}
+    def handle_close(self):
+        if self.socket.close_code not in {1000, 4004, 4010, 4011}:
+            log.info(f'Websocket closed with {self.socket.close_code}, attempting a reconnect.')
+            raise ReconnectWebSocket(self.cm)
+        else:
+            log.info(f'Websocket closed with {self.socket.close_code}, cannot reconnect.')
+            raise ConnectionClosed(self.socket, self.cm, self.cm_list)
 
     @property
     def latency(self):
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
-        heartbeat = self._keep_alive
-        return float('inf') if heartbeat is None else heartbeat.latency
+        return self._keep_alive.latency
 
-    async def from_client(self, client):
-        self.client = client
-        self._state = client._connection
-        self._dispatch = client.dispatch
-        self.loop = client.loop
-        self.servers = CMServerList(self._state)
+    @property
+    def open(self):
+        return not self.socket.closed
 
-        if not await self.servers.fetch_servers_from_api():
-            self.servers.bootstrap_from_dns()
-        for server in self.servers:
-            start = time.time()
-            log.info(f'Creating a websocket connection to: {server}')
-            try:
-                self.ws = await websockets.connect(server, loop=self.loop)
-            except websockets.WebSocketException:
-                diff = time.time() - start
-                log.debug("Failed to connect. Trying another CM")
-                self.servers.mark_bad(server)
-                if diff < 5:
-                    await asyncio.sleep(5 - diff)
-            else:
-                log.debug(f'Connected to {server}')
-                resp = await self._state.http.request('GET', f'{URL.COMMUNITY}/chat/clientjstoken')
-                ping = f'.........:.A.........8.................{client.username}.....{resp["token"]}'
-                try:
-                    await self.send(ping)
-                except websockets.ConnectionClosed:
-                    log.info(f'Websocket connection to {server} failed, retrying.')
-                    return await self.from_client(client)
+    @classmethod
+    async def from_client(cls, client, cm=None, cms=None):
+        connection = client._connection
+        cms = cms or CMServerList(connection, cm)
+        async for cm in cms:
+            log.info(f'Creating a websocket connection to: {cm}')
+            socket = await client.http.connect_to_cm(cm)
+            log.debug(f'Connected to {cm}')
+            payload = MsgProto(EMsg.ClientLogon, account_name=client.username,
+                               web_logon_nonce=client.token, client_os_type=4294966596,
+                               protocol_version=65580, chat_mode=2, ui_mode=4)
+
+            ws = cls(socket, loop=client.loop)
+            # dynamically add attributes needed
+            ws._connection = connection
+            # ws._parsers = connection.parsers
+            ws._dispatch = client.dispatch
+            ws.cm = cm
+            ws.cm_list = cms
+            ws.connected = True
+            await cls.send_as_proto(ws, payload)  # send the identification message straight away
+            ws._dispatch('connect')
+            return ws
+
+    async def poll_event(self):
+        try:
+            message = await self.socket.receive()
+            if message.type is aiohttp.WSMsgType.ERROR:
+                log.debug(f'Received {message}')
+                raise message.data
+            elif message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE):
+                log.debug(f'Received {message}')
+                raise WebSocketClosure
+
+            message = message.data
+            if self.channel_key:
+                if self.channel_hmac:
+                    try:
+                        message = utils.symmetric_decrypt_HMAC(message.data, self.channel_key, self.channel_hmac)
+                    except RuntimeError as e:
+                        log.exception(e)
                 else:
-                    self._dispatch('connect')
-                    self.server = server
-                    self.connected = True
-                    return
+                    message = utils.symmetric_decrypt(message.data, self.channel_key)
+            await self.receive(message)
+        except WebSocketClosure:
+            self.handle_close()
 
     async def receive(self, message):
         self._dispatch('socket_raw_receive', message)
 
-        emsg_id, = struct.unpack_from("<I", message)
-        emsg = EMsg(utils.clear_proto_bit(emsg_id))
+        emsg_value, = struct.unpack_from("<I", message)
+        emsg = EMsg(utils.clear_proto_bit(emsg_value))
+        if not self.connected:
+            return log.debug(f"Dropped unexpected message: {repr(emsg)} (is_proto: {utils.is_proto(emsg_value)})")
+
         if emsg in self.handlers:
             return await self.handlers[emsg](emsg, message)
-
-        if not self.connected and emsg != EMsg.ClientLogOnResponse:
-            return log.debug(f"Dropped unexpected message: {repr(emsg)} (is_proto: {utils.is_proto(emsg_id)})")
-
         if emsg in (EMsg.ChannelEncryptRequest, EMsg.ChannelEncryptResponse):
             msg = Msg(emsg, message, parse=False)
         else:
             try:
-                if utils.is_proto(emsg_id):
+                if utils.is_proto(emsg_value):
                     msg = MsgProto(emsg, message, parse=False)
                 else:
                     msg = Msg(emsg, message, extended=True, parse=False)
             except Exception as e:
-                log.fatal(f"Failed to deserialize message: {repr(emsg)} (is_proto: {utils.is_proto(emsg_id)})")
+                log.fatal(f"Failed to deserialize message: {repr(emsg)} (is_proto: {utils.is_proto(emsg_value)})")
                 return log.exception(e)
 
         log.debug(f'Socket has received {repr(msg)} from the websocket.')
-        self._dispatch('socket_response', msg)
-        return emsg, msg
+        self._dispatch('socket_receive', msg)
 
     async def send(self, data):
         self._dispatch('socket_raw_send', data)
-        await self.ws.send(data)
+        await self.socket.send_bytes(data=data)
 
     async def send_as_proto(self, message):
         try:
@@ -347,8 +421,7 @@ class SteamWebSocket:
             if self.session_id:
                 message.sessionID = self.session_id
 
-            log.debug(f'Outgoing: {repr(message)}')
-
+            self._dispatch('socket_send', message)
             data = message.serialize()
 
             if self.channel_key:
@@ -357,64 +430,38 @@ class SteamWebSocket:
                 else:
                     data = utils.symmetric_encrypt(data, self.channel_key)
             await self.send(data)
-        except websockets.exceptions.ConnectionClosed as exc:
-            if not self.can_handle_close(exc.code):
-                raise
+        except RuntimeError:
+            self.handle_close()
 
-    async def close(self, code=1000, reason=''):
+    async def close(self, code=4000):
         if self._keep_alive:
             self._keep_alive.stop()
-            self._recv_loop.cancel()
-
-        await self.ws.close(code, reason)
-
-    async def close_connection(self):
-        await self.close()
-        await self.ws.close_connection()
+        if self.connected:
+            await self.send_as_proto(EMsg.ClientLogOff)
+        await self.socket.close(code=code)
 
     async def handle_logon(self, emsg, message):
         msg = Msg(emsg.value, message, parse=True, extended=True)
         result = msg.body.eresult
 
         if result in (EResult.TryAnotherCM, EResult.ServiceUnavailable):
-            raise ResumeSocket(self.server)
+            raise ConnectionClosed(self.socket, self.cm, self.cm_list)
         elif result == EResult.OK:
-            log.debug("Logon completed")
+            log.debug('Logon completed')
 
             self.steam_id = SteamID(msg.header.steamid)
             self.session_id = msg.header.client_sessionid
             self.cell_id = msg.body.cell_id
-
-            log.debug("Heartbeat started.")
+            self.cm_list.cell_id = self.cell_id
 
             interval = msg.body.out_of_game_heartbeat_seconds
             self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
             self._keep_alive.start()
+            log.debug('Heartbeat started.')
+
             self._dispatch('ready')
         else:
-            raise ResumeSocket(self.server)
-
-    async def poll_event(self):
-        try:
-            await self.ws.ensure_open()
-            async for message in self.ws:
-                if self.channel_key:
-                    if self.channel_hmac:
-                        try:
-                            message = utils.symmetric_decrypt_HMAC(message, self.channel_key, self.channel_hmac)
-                        except RuntimeError as e:
-                            log.exception(e)
-                            continue
-                    else:
-                        message = utils.symmetric_decrypt(message, self.channel_key)
-                await self.receive(message)
-        except websockets.exceptions.ConnectionClosed as exc:
-            if self.can_handle_close(exc.code):
-                log.info(f'Websocket closed with {exc.code} ({exc.reason}), attempting a reconnect.')
-                raise ResumeSocket(self.server) from exc
-            else:
-                log.info(f'Websocket closed with {exc.code} ({exc.reason}), cannot reconnect.')
-                raise
+            raise ConnectionClosed(self.socket, self.cm, self.cm_list)
 
     async def handle_encrypt_request(self, req):
         log.debug("Securing channel")
@@ -426,8 +473,7 @@ class SteamWebSocket:
                 raise RuntimeError('Unsupported universe')
         except RuntimeError as e:
             log.exception(e)
-            await self.from_client(self.client)
-            return
+            raise
 
         resp = Msg(EMsg.ChannelEncryptResponse)
 
@@ -437,7 +483,7 @@ class SteamWebSocket:
 
         await self.send_as_proto(resp)
         self.channel_key = key
-        log.debug("Channel secured")
+        log.debug('Channel secured')
         self.channel_hmac = key[:16]
 
     async def handle_multi(self, msg):
@@ -458,3 +504,43 @@ class SteamWebSocket:
             size, = struct.unpack_from("<I", data)
             await self.receive(data[4:4 + size])
             data = data[4 + size:]
+
+    async def send_um(self, name, params=None):
+        proto = get_um(name)
+        if proto is None:
+            raise ValueError(f'Failed to find method named: {name}')
+        message = MsgProto(EMsg.ServiceMethodCallFromClient)
+        message.header.target_job_name = name
+        message.body = proto()
+
+        if params:
+            utils.proto_fill_from_dict(message.body, params)
+        job_id = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
+        if message.proto:
+            message.header.jobid_source = job_id
+        else:
+            message.header.sourceJobID = job_id
+
+        await self.send(message)
+
+    async def send_job(self, message, body_params=None):
+        job_id = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
+
+        if message.proto:
+            message.header.jobid_source = job_id
+            if body_params is not None:
+                utils.proto_fill_from_dict(message.body, body_params)
+        else:
+            message.header.sourceJobID = job_id
+
+        await self.send_as_proto(message)
+
+    async def change_presence(self, *, games=None, status=None):
+        games = [game.to_dict() for game in games]  # TODO these should already be to_dict'ed
+        activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
+        # status = MsgProto(EMsg.ClientPersonaState, status_flags=status.value)
+        log.debug(f'Sending {activity} to change activity')
+        await self.send_as_proto(activity)
+        # log.debug(f'Sending {status} to change activity')
+        # await self.send_as_proto(staus)
+        # ui_mode = MsgProto(EMsg.ClientCurrentUIMode), {'uimode': uimode})
