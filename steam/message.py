@@ -37,7 +37,8 @@ class Message(Messageable):
         pass
 
     def __init__(self, data):
-        pass
+        self.author = None
+        self.content = None
 
     def __repr__(self):
         pass
