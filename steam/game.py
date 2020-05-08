@@ -50,6 +50,8 @@ class Game:
         The game's title.
     app_id: Optional[:class:`int`]
         The game's app_id.
+    context_id: Optional[:class:`int`]
+        The games's context ID by default 2.
 
     Attributes
     -----------
@@ -64,69 +66,66 @@ class Game:
         Only applies to a :class:`~steam.User`'s games.
     icon_url: Optional[:class:`str`]
         The icon url of the game.
-        Only applies to a :class:`~steam.User`'s games.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
     logo_url: Optional[:class:`str`]
         The logo url of the game.
-        Only applies to a :class:`~steam.User`'s games.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
     stats_visible: Optional[:class:`bool`]
         Whether the game has publicly visible stats.
-        Only applies to a :class:`~steam.User`'s games.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
     """
 
-    def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2, _data=None):
-        # user defined stuff
-        if _data is None:
-            mapping = {
-                'Team Fortress 2': [440, 2],
-                'DOTA 2': [570, 2],
-                'Counter Strike Global-Offensive': [730, 2],
-                'Steam': [753, 6],
+    def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2):
+        mapping = {
+            'Team Fortress 2': [440, 2],
+            'DOTA 2': [570, 2],
+            'Counter Strike Global-Offensive': [730, 2],
+            'Steam': [753, 6],
 
-                440: ['Team Fortress 2', 2],
-                570: ['DOTA 2', 2],
-                730: ['Counter Strike Global-Offensive', 2],
-                753: ['Steam', 6]
-            }
+            440: ['Team Fortress 2', 2],
+            570: ['DOTA 2', 2],
+            730: ['Counter Strike Global-Offensive', 2],
+            753: ['Steam', 6]
+        }
 
-            if app_id is not None and title is None:
-                if not str(app_id).isdigit():
-                    raise ValueError(f'app_id expected to be type int not {repr(type(app_id).__name__)}')
-                if app_id < 0:
-                    raise ValueError('app_id cannot be negative')
-                app_id = int(app_id)
-                mapping = mapping.get(app_id)
-                if mapping is not None:
-                    self.title = mapping[0]
-                    self.context_id = mapping[1]
-                else:
-                    self.title = None
-                    self.context_id = 2
-                self.app_id = app_id
-
-            elif app_id is None and title is not None:
-                mapping = mapping.get(title)
-                if mapping is not None:
-                    self.app_id = mapping[0]
-                    self.context_id = mapping[1]
-                else:
-                    self.app_id = None
-                    self.context_id = 2
-                self.title = title
-
+        if app_id is not None and title is None:
+            if not str(app_id).isdigit():
+                raise ValueError(f'app_id expected to be type int not {repr(type(app_id).__name__)}')
+            if app_id < 0:
+                raise ValueError('app_id cannot be negative')
+            app_id = int(app_id)
+            mapping = mapping.get(app_id)
+            if mapping is not None:
+                self.title = mapping[0]
+                self.context_id = mapping[1]
             else:
-                self.title = title
-                self.app_id = app_id
-                self.context_id = context_id
+                self.title = None
+                self.context_id = 2
+            self.app_id = app_id
 
-        # api stuff
+        elif app_id is None and title is not None:
+            mapping = mapping.get(title)
+            if mapping is not None:
+                self.app_id = mapping[0]
+                self.context_id = mapping[1]
+            else:
+                self.app_id = None
+                self.context_id = 2
+            self.title = title
+
         else:
-            self.title = _data.get('name')
-            self.app_id = _data.get('appid')
-            self.context_id = 2
-            self.total_play_time = _data.get('playtime_forever', 0)
-            self.icon_url = _data.get('img_icon_url')
-            self.logo_url = _data.get('img_logo_url')
-            self.stats_visible = _data.get('has_community_visible_stats', False)
+            self.title = title
+            self.app_id = app_id
+            self.context_id = context_id
+
+    @classmethod
+    def _from_api(cls, data):
+        game = cls(app_id=data.get('appid'), title=data.get('name'))
+        game.total_play_time = data.get('playtime_forever', 0)
+        game.icon_url = data.get('img_icon_url')
+        game.logo_url = data.get('img_logo_url')
+        game.stats_visible = data.get('has_community_visible_stats', False)
+        return game
 
     def __repr__(self):
         attrs = (
