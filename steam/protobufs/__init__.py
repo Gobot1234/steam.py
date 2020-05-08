@@ -23,10 +23,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This is a copy of https://github.com/ValvePython/steam/blob/master/steam/enums/emsg.py
+This is a copy of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
-
-import fnmatch
 
 from . import (
     steammessages_base_pb2 as message_base,
@@ -37,49 +35,17 @@ from . import (
 )
 from .emsg import EMsg
 from .headers import MsgHdr, ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdr, GCMsgHdrProto
+from .protobufs import protobufs
 from .structs import get_struct
 from .unified import get_um
-
-cmsg_lookup_predefined = {
-    EMsg.Multi: message_base.CMsgMulti,
-    EMsg.ClientToGC: client_server_2.CMsgGCClient,
-    EMsg.ClientFromGC: client_server_2.CMsgGCClient,
-    EMsg.ClientServiceMethod: client_server_2.CMsgClientServiceMethodLegacy,
-    EMsg.ClientServiceMethodResponse: client_server_2.CMsgClientServiceMethodLegacyResponse,
-    EMsg.ClientGetNumberOfCurrentPlayersDP: client_server_2.CMsgDPGetNumberOfCurrentPlayers,
-    EMsg.ClientGetNumberOfCurrentPlayersDPResponse: client_server_2.CMsgDPGetNumberOfCurrentPlayersResponse,
-    EMsg.ClientLogonGameServer: client_server_login.CMsgClientLogon,
-    EMsg.ClientCurrentUIMode: client_server_2.CMsgClientUIMode,
-    EMsg.ClientChatOfflineMessageNotification: client_server_2.CMsgClientOfflineMessageNotification,
-}
-
-cmsg_lookup = dict()
-
-for proto_module in [client_server, client_server_2, client_server_friends, client_server_login]:
-    cmsg_list = proto_module.__dict__
-    cmsg_list = fnmatch.filter(cmsg_list, 'CMsg*')
-    cmsg_lookup.update(dict(zip(map(lambda cmsg_name: cmsg_name.lower(), cmsg_list),
-                                map(lambda cmsg_name: getattr(proto_module, cmsg_name), cmsg_list))))
+from ..utils import proto_fill_from_dict
 
 
 def get_cmsg(emsg):
-    """Get protobuf for a given EMsg
-    :param emsg: EMsg
-    :type  emsg: :class:`steam.enums.emsg.EMsg`, :class:`int`
-    :return: protobuf message
-    """
     if not isinstance(emsg, EMsg):
         emsg = EMsg(emsg)
 
-    if emsg in cmsg_lookup_predefined:
-        return cmsg_lookup_predefined[emsg]
-    else:
-        enum_name = emsg.name.lower()
-        if enum_name.startswith("econ"):  # special case for 'EconTrading_'
-            enum_name = enum_name[4:]
-        cmsg_name = "cmsg" + enum_name
-
-    return cmsg_lookup.get(cmsg_name, None)
+    return protobufs.get(emsg, None)
 
 
 class Msg:
@@ -97,6 +63,13 @@ class Msg:
 
         if parse:
             self.parse()
+
+    def __repr__(self):
+        attrs = (
+            'header', 'body', 'msg'
+        )
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        return f"<Msg {' '.join(resolved)}>"
 
     def parse(self):
         """Parses :attr:`payload` into :attr:`body` instance"""
@@ -140,20 +113,31 @@ class Msg:
 
 
 class MsgProto:
-    proto = True
-    body = None  #: protobuf message instance
-    payload = None  #: Will contain body payload, if we fail to find correct proto message
 
-    def __init__(self, msg, data=None, parse=True):
+    def __init__(self, msg, data=None, parse=True, **kwargs):
         self._header = MsgHdrProtoBuf(data)
         self.header = self._header.proto
-        self.msg = msg
+        self.msg = msg or self._header.msg
+        self.proto = True
+        self.body = None  #: protobuf message instance
+        self.payload = None  #: Will contain body payload, if we fail to find correct proto message
 
         if data:
             self.payload = data[self._header._fullsize:]
 
         if parse:
             self.parse()
+
+        if kwargs:
+            proto_fill_from_dict(self.body, kwargs, False)
+
+    def __repr__(self):
+        attrs = (
+            'msg', 'proto'
+        )
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved.extend([f'{proto.name}={repr(value)}' for proto, value in self.body.ListFields()])
+        return f"<MsgProto {' '.join(resolved)}>"
 
     def parse(self):
         """Parses :attr:`payload` into :attr:`body` instance"""
@@ -171,14 +155,6 @@ class MsgProto:
                     self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'
-
-    @property
-    def msg(self):
-        return self._header.msg
-
-    @msg.setter
-    def msg(self, value):
-        self._header.msg = EMsg(value)
 
     @property
     def steam_id(self):
