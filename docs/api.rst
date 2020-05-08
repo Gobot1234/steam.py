@@ -208,7 +208,7 @@ Comments
 Game
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: Game(app_id, title=None, *, is_steam_game=True, context_id=2)
+.. autoclass:: Game
     :members:
 
 There are some predefined games which are:
@@ -232,6 +232,7 @@ Games can be manually constructed using there app id eg:
     my_rust_instance = steam.Game(252490, 'Rust')
     # this can then be used for trading
     # a game title is not required for this
+    # but it is for setting in game statuses
 
 Groups
 ~~~~~~~~~~~~~~~
