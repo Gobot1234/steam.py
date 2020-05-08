@@ -186,13 +186,15 @@ class Client:
         return self._connection.listings
 
     @property
-    def code(self) -> Optional[str]:
-        """Optional[:class:`str`]: The current steam guard code.
+    def code(self) -> str:
+        """:class:`str`: The current steam guard code.
 
         .. warning::
-            Will wait for a Steam guard code using :func:``input``
-            if no shared_secret is passed to :meth:`run` or :meth:`start`.
             **This could be blocking.**
+
+            Will wait for a Steam guard code using :func:`input`
+            if no shared_secret is passed to :meth:`run` or :meth:`start`.
+
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)
