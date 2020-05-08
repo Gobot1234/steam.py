@@ -173,12 +173,10 @@ class Item(Asset):
             The price user pays for the item as a float.
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
-        resp = await self._state.market.sell_item(self.asset_id, price)
+        state = self._state
+        resp = await state.market.sell_item(self.asset_id, price)
         if resp.get('needs_mobile_confirmation', False):
-            if self._state.client.identity_secret:
-                confirmation = await self._state.confirmation_manager.get_confirmation(self.asset_id)
-                if confirmation is not None:
-                    await confirmation.confirm()
+            await self._state.get_and_confirm_confirmation(self.asset_id)
 
     async def fetch_price(self) -> 'PriceOverview':
         """|coro|
@@ -388,16 +386,13 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is not active.
         :exc:`~steam.ConfirmationError`
-            A matching confirmation could not be found.
+            No matching confirmation could not be found.
         """
         if self.is_gift():  # no point trying to confirm it
             return
         if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade cannot be confirmed')
-        confirmation = await self._state.confirmation_manager.get_confirmation(self.id)
-        if confirmation is not None:
-            await confirmation.confirm()
-        else:
+        if not await self._state.get_and_confirm_confirmation(self.id):
             raise ConfirmationError('No matching confirmation could be found for this trade')
 
     async def accept(self) -> None:
@@ -411,6 +406,8 @@ class TradeOffer:
         ------
         :exc:`~steam.ClientException`
             The trade is either not active, already accepted or not from the ClientUser.
+        :exc:`~steam.ConfirmationError`
+            No matching confirmation could not be found.
         """
         if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade is not active')
@@ -420,8 +417,7 @@ class TradeOffer:
             raise ClientException('You cannot accept an offer the ClientUser has made')
         resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
         if resp.get('needs_mobile_confirmation', False):
-            if self._state.client.identity_secret:
-                await self.confirm()
+            await self.confirm()
 
     async def decline(self) -> None:
         """|coro|
@@ -488,8 +484,7 @@ class TradeOffer:
         resp = await self._state.http.send_counter_trade_offer(self.id, self.partner.id64, self.partner.id,
                                                                items_to_send, items_to_receive, token, message)
         if resp.get('needs_mobile_confirmation', False):
-            confirmation = await self._state.confirmation_manager.get_trade_confirmation(int(resp['tradeofferid']))
-            await confirmation.confirm()
+            await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
 
     def is_gift(self) -> bool:
         """:class:`bool`: Checks if an offer is a gift to the ClientUser"""
