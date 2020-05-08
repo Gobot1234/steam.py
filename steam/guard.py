@@ -38,10 +38,6 @@ import struct
 from hashlib import sha1
 from time import time
 
-from bs4 import BeautifulSoup
-
-from . import utils
-from .errors import InvalidCredentials, AuthenticatorError
 from .models import URL
 
 __all__ = (
@@ -128,13 +124,12 @@ def generate_device_id(id64: str) -> str:
 
 
 class Confirmation:
-    def __init__(self, state, id, data_confid, data_key, manager, creator):
+    def __init__(self, state, id, data_confid, data_key, creator):
         self.state = state
         self.id = id.split('conf')[1]
         self.data_confid = data_confid
         self.data_key = data_key
         self.tag = f'details{self.id}'
-        self.manager = manager
         self.creator = creator
 
     def __repr__(self):
@@ -143,9 +138,9 @@ class Confirmation:
     def _confirm_params(self, tag):
         timestamp = int(time())
         return {
-            'p': self.manager.device_id,
-            'a': self.manager.id64,
-            'k': self.manager.generate_confirmation(tag, timestamp),
+            'p': self.state._device_id,
+            'a': self.state._id64,
+            'k': self.state._generate_confirmation(tag, timestamp),
             't': timestamp,
             'm': 'android',
             'tag': tag
@@ -156,73 +151,15 @@ class Confirmation:
         params['op'] = 'allow'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
-        return self.state.request('GET', f'{self.manager.BASE}/ajaxop', params=params)
+        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf//ajaxop', params=params)
 
     def cancel(self):
         params = self._confirm_params('cancel')
         params['op'] = 'cancel'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
-        return self.state.request('GET', f'{self.manager.BASE}/ajaxop', params=params)
+        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
 
     def details(self):  # need to do ['html'] for the good stuff
         params = self._confirm_params(self.tag)
-        return self.state.request('GET', f'{self.manager.BASE}/details/{self.id}', params=params)
-
-
-class ConfirmationManager:  # TODO move to state
-    BASE = f'{URL.COMMUNITY}/mobileconf'
-
-    def __init__(self, state):
-        self.state = state
-        self.identity_secret = state.client.identity_secret
-        self.id64 = state.client.user.id64
-        self.confirmations = []
-
-    def create_confirmation_params(self, tag):
-        timestamp = int(time())
-        return {
-            'p': self.device_id,
-            'a': self.id64,
-            'k': self.generate_confirmation(tag, timestamp),
-            't': timestamp,
-            'm': 'android',
-            'tag': tag
-        }
-
-    async def get_confirmations(self):
-        params = self.create_confirmation_params('conf')
-        headers = {'X-Requested-With': 'com.valvesoftware.android.steam.community'}
-        confs = await self.state.request('GET', f'{self.BASE}/conf', params=params, headers=headers)
-
-        if 'incorrect Steam Guard codes.' in confs:
-            raise InvalidCredentials('identity secret is incorrect, or time is de-synced')
-        elif 'Oh nooooooes!' in confs:
-            raise AuthenticatorError
-
-        soup = BeautifulSoup(confs, 'html.parser')
-        if soup.select('#mobileconf_empty'):
-            return []
-        for confirmation in soup.select('#mobileconf_list .mobileconf_list_entry'):
-            id = confirmation['id']
-            confid = confirmation['data-confid']
-            key = confirmation['data-key']
-            creator = confirmation.get('data-creator')
-            self.confirmations.append(Confirmation(self.state, id, confid, key, self, creator))
-        return self.confirmations
-
-    async def get_confirmation(self, id):
-        confirmation = utils.find(lambda c: int(c.creator) == id, self.confirmations)
-        if confirmation is not None:
-            return confirmation
-        await self.get_confirmations()
-        if id in [int(confirmation.creator) for confirmation in self.confirmations]:
-            return utils.find(lambda c: int(c.creator) == id, self.confirmations)
-        return None
-
-    @property
-    def device_id(self):
-        return generate_device_id(str(self.id64))
-
-    def generate_confirmation(self, tag, timestamp):
-        return generate_confirmation_code(self.identity_secret, tag, timestamp)
+        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/details/{self.id}', params=params)
