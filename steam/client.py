@@ -23,7 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
-This is a slightly modified version of
+This is a slightly modified version of discord's client
 https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 """
 
@@ -38,16 +38,18 @@ from typing import Union, List, Optional, Any, Callable, Mapping, TYPE_CHECKING
 
 import aiohttp
 
-from . import errors, utils
+from . import errors
 from .enums import ECurrencyCode
 from .gateway import *
 from .group import Group
-from .guard import generate_one_time_code, ConfirmationManager
+from .guard import generate_one_time_code
 from .http import HTTPClient
-from .iterators import MarketListingsIterator
+from .iterators import MarketListingsIterator, TradesIterator
 from .market import convert_items, Listing, FakeItem, MarketClient, PriceOverview
+from .models import URL
 from .state import ConnectionState
 from .user import make_steam64
+from .utils import find
 
 if TYPE_CHECKING:
     from .game import Game
@@ -153,6 +155,7 @@ class Client:
         self.shared_secret = None
         self.identity_secret = None
         self.shared_secret = None
+        self.token = None
 
         self._user = None
         self._closed = True
@@ -229,9 +232,9 @@ class Client:
             await coro(*args, **kwargs)
         except asyncio.CancelledError:
             pass
-        except Exception:
+        except Exception as exc:
             try:
-                await self.on_error(event_name, *args, **kwargs)
+                await self.on_error(event_name, exc, *args, **kwargs)
             except asyncio.CancelledError:
                 pass
 
@@ -240,7 +243,7 @@ class Client:
         # schedules the task
         return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
 
-    def dispatch(self, event, *args, **kwargs):
+    def dispatch(self, event: str, *args, **kwargs) -> None:
         log.debug(f'Dispatching event {event}')
         method = f'on_{event}'
 
@@ -419,27 +422,28 @@ class Client:
             raise errors.LoginError("One or more required login detail is missing")
 
         await self.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
-        if self.identity_secret:
-            self._confirmation_manager = ConfirmationManager(state=self._connection)
         await self._market.__ainit__()
         await self._connection.__ainit__()
+        resp = await self.http.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
+        self.token = resp['token']
         self._closed = False
         self.dispatch('ready')
+
         # await self.connect()
         while 1:
             await asyncio.sleep(5)
 
     async def _connect(self):
-        coro = SteamWebSocket.from_client(self, cms=self._cm_list)
+        coro = SteamWebSocket.from_client(self)
         self.ws = await asyncio.wait_for(coro, timeout=60)
         while 1:
             try:
                 await self.ws.poll_event()
-            except ResumeSocket:
+            except ReconnectWebSocket as exc:
                 log.info('Got a request to RESUME the websocket.')
                 self.dispatch('disconnect')
-                coro = self.ws.from_client(self)
-                await asyncio.wait_for(coro, timeout=60)
+                coro = SteamWebSocket.from_client(self, cm=exc.cm, cms=self._cm_list)
+                self.ws = await asyncio.wait_for(coro, timeout=60)
 
     async def connect(self) -> None:
         while not self.is_closed():
@@ -448,10 +452,16 @@ class Client:
             except (OSError,
                     aiohttp.ClientError,
                     asyncio.TimeoutError,
-                    errors.HTTPException,
-                    websockets.InvalidHandshake,
-                    websockets.WebSocketProtocolError):
+                    errors.HTTPException):
                 self.dispatch('disconnect')
+            except ConnectionClosed as exc:
+                self._cm_list = exc.cm_list
+            finally:
+                if self._closed:
+                    return
+
+                log.exception(f'Attempting a reconnect')
+                # TODO add backoff
 
     # state stuff
 
@@ -611,6 +621,47 @@ class Client:
         """
         return MarketListingsIterator(state=self._connection, limit=limit, before=before, after=after)
 
+    def trade_history(self, limit=100, before: datetime = None, after: datetime = None,
+                      active_only: bool = False) -> TradesIterator:
+        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
+
+        Examples
+        -----------
+
+        Usage: ::
+
+            async for trade in client.trade_history(limit=10):
+                print('Partner:', trade.partner, 'Sent:')
+                print(', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
+                      if trade.items_to_receive else 'Nothing')
+
+        Flattening into a list: ::
+
+            trades = await client.trade_history(limit=50).flatten()
+            # trades is now a list of TradeOffer
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit: Optional[:class:`int`]
+            The maximum number of trades to search through.
+            Default is 100 which will fetch the first 100 trades.
+            Setting this to ``None`` will fetch all of the user's trades,
+            but this will be a very slow operation.
+        before: Optional[:class:`datetime.datetime`]
+            A time to search for trades before.
+        after: Optional[:class:`datetime.datetime`]
+            A time to search for trades after.
+        active_only: Optional[:class:`bool`]
+            Whether or not to fetch only active trades defaults to ``True``.
+
+        Yields
+        ---------
+        :class:`~steam.TradeOffer`
+        """
+        return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only)
+
     # market stuff
 
     async def fetch_price(self, item_name: str, game: 'Game') -> PriceOverview:
@@ -673,7 +724,7 @@ class Client:
         current_listings = await self.fetch_listings()
         item = FakeItem(item_name, game)
         await self._market.create_sell_listing(item, price=price)
-        new_listing = utils.find(lambda l: l not in current_listings, await self.fetch_listings())
+        new_listing = find(lambda l: l not in current_listings, await self.fetch_listings())
         try:
             await new_listing.confirm()
         except errors.ConfirmationError:
@@ -806,8 +857,8 @@ class Client:
 
     async def on_ready(self):
         """|coro|
-        Called after a successful login and the client has handled setting up trade and notification polling,
-        along with setup the confirmation manager.
+        Called after a successful login and the client has handled setting up
+        trade and notification polling, along with setup the confirmation manager.
 
         .. note::
             In future this will be called when the client is done preparing the data received from Steam.
@@ -829,7 +880,7 @@ class Client:
         """
         pass
 
-    async def on_error(self, event_method: str, *args, **kwargs):
+    async def on_error(self, event_method: str, error: Exception, *args, **kwargs):
         """|coro|
         The default error handler provided by the client.
 
@@ -844,11 +895,11 @@ class Client:
 
         If you want exception to propagate out of the :class:`Client` class
         you can define an ``on_error`` handler consisting of a single empty
-        :ref:`py:raise`.  Exceptions raised by ``on_error`` will not be
+        :ref:`py:raise`. Exceptions raised by ``on_error`` will not be
         handled in any way by :class:`Client`.
         """
         print(f'Ignoring exception in {event_method}', file=sys.stderr)
-        traceback.print_exc()
+        traceback.print_exception(type(error), error, error.__traceback__)
 
     async def on_trade_receive(self, trade: 'steam.TradeOffer'):
         """|coro|
