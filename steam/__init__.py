@@ -5,14 +5,14 @@ steam.py
 ~~~~~~~~~~~~~
 A basic wrapper for the Steam API and its Community Managers.
 
-:copyright: (c) 2020 Gobot1234
+:copyright: (c) 2020 Gobot1234.
 :license: MIT, see LICENSE for more details.
 """
 
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.16a'
+__version__ = '0.0.17a'
 
 import logging
 
