@@ -27,17 +27,21 @@ SOFTWARE.
 import asyncio
 import logging
 import re
+from time import time
 
 import aiohttp
 from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
 from .enums import ETradeOfferState, EType, EMarketListingState, EChatEntryType
-from .errors import HTTPException
+from .errors import HTTPException, AuthenticatorError, InvalidCredentials
+from .game import Game
+from .guard import generate_device_id, generate_confirmation_code, Confirmation
 from .models import URL, Invite
+from .protobufs import MsgProto, EMsg
 from .trade import TradeOffer
 from .user import User, SteamID
-from .utils import find
+from .utils import get
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +54,7 @@ class ConnectionState:
         self.request = http.request
         self.client = client
         self.dispatch = client.dispatch
+
         self.started_trade_poll = False
         self.started_notification_poll = False
         self.started_listings_poll = False
@@ -58,12 +63,13 @@ class ConnectionState:
 
         self._trades = dict()  # TODO add weakref
         self._users = dict()
+        self._confirmations = dict()
 
         self._current_job_id = 0
 
     async def __ainit__(self):
         self.market = self.client._market
-        self.confirmation_manager = self.client._confirmation_manager
+        self._id64 = self.client.user.id64
         self.loop.create_task(self._poll_trades())
         self.loop.create_task(self._poll_listings())
         self.loop.create_task(self._poll_notifications())
@@ -72,14 +78,13 @@ class ConnectionState:
         self.client._ready.set()
 
     async def send_message(self, user_id64, content):
-        await self.client.ws(
-            "FriendMessages.SendMessage#1",
-            {
-                'steamid': user_id64,
-                'message': content,
-                'chat_entry_type': EChatEntryType.ChatMsg.value,
-            }
+        proto = MsgProto(
+            EMsg.ClientFriendMsg,
+            steamid=user_id64,
+            message=content,
+            chat_entry_type=EChatEntryType.ChatMsg.value
         )
+        await self.client.ws.send_as_proto(proto)
 
     @property
     def users(self):
@@ -92,6 +97,10 @@ class ConnectionState:
     @property
     def listings(self):
         return list(self._listings_cache.values())
+
+    @property
+    def confirmations(self):
+        return list(self._confirmations.values())
 
     async def fetch_user(self, user_id64):
         resp = await self.http.fetch_profile(user_id64)
@@ -112,7 +121,14 @@ class ConnectionState:
         return user
 
     def get_listing(self, listing_id):
-        return find(lambda l: l.id == listing_id, self._listings_cache)
+        return get(self._listings_cache, id=listing_id)
+
+    def get_confirmation(self, id):
+        return self._confirmations.get(id)
+
+    async def fetch_confirmation(self, id):
+        confirmations = await self._fetch_confirmations()
+        return get(confirmations, creator=str(id))
 
     def get_trade(self, trade_id):
         return self._trades.get(trade_id)
@@ -147,7 +163,7 @@ class ConnectionState:
                     done, pending = await asyncio.wait([
                         self.client.wait_for('trade_send', check=lambda t: t.partner == trade.partner),
                         self.client.wait_for('trade_receive', check=lambda t: t.partner == trade.partner)
-                    ], return_when=asyncio.FIRST_COMPLETED, timeout=7.5)
+                    ], return_when=asyncio.FIRST_COMPLETED, timeout=3)
                     if done:
                         after = done.pop().result()
                         before = trade
@@ -311,9 +327,9 @@ class ConnectionState:
                     all_previous_listings = await self.client.listing_history().flatten()
 
                 for listing in removed_listings:
-                    listing = find(lambda l: l.id == listing.id, all_previous_listings)
+                    listing = get(all_previous_listings, id=listing.id)
                     if listing.state == EMarketListingState.Bought:
-                        if listing in self.client.user.fetch_inventory(listing.app_id):
+                        if listing in self.client.user.fetch_inventory(Game(listing.app_id)):
                             self.dispatch('listing_buy', listing)
                         else:
                             self.dispatch('listing_sell', listing)
@@ -326,3 +342,44 @@ class ConnectionState:
         except HTTPException:
             await asyncio.sleep(60)
             self.loop.create_task(self._poll_listings())
+
+    # confirmations
+
+    def _create_confirmation_params(self, tag):
+        timestamp = int(time())
+        return {
+            'p': self._device_id,
+            'a': self.id64,
+            'k': self._generate_confirmation(tag, timestamp),
+            't': timestamp,
+            'm': 'android',
+            'tag': tag
+        }
+
+    async def _fetch_confirmations(self):
+        params = self._create_confirmation_params('conf')
+        headers = {'X-Requested-With': 'com.valvesoftware.android.steam.community'}
+        resp = await self.request('GET', f'{URL.COMMUNITY}/mobileconf/conf', params=params, headers=headers)
+
+        if 'incorrect Steam Guard codes.' in resp:
+            raise InvalidCredentials('identity secret is incorrect, or time is de-synced')
+        elif 'Oh nooooooes!' in resp:
+            raise AuthenticatorError
+
+        soup = BeautifulSoup(resp, 'html.parser')
+        if soup.select('#mobileconf_empty'):
+            return []
+        for confirmation in soup.select('#mobileconf_list .mobileconf_list_entry'):
+            id = confirmation['id']
+            confid = confirmation['data-confid']
+            key = confirmation['data-key']
+            creator = confirmation.get('data-creator')
+            self._confirmations[int(creator)] = Confirmation(self, id, confid, key, creator)
+        return self._confirmations
+
+    @property
+    def _device_id(self):
+        return generate_device_id(str(self.id64))
+
+    def _generate_confirmation(self, tag, timestamp):
+        return generate_confirmation_code(self.client.identity_secret, tag, timestamp)
