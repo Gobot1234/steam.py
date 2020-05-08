@@ -364,14 +364,15 @@ class TradeOffer:
         return f"<TradeOffer {' '.join(resolved)}>"
 
     def _update(self, data):
-        self.message = data['message'] or None
+        self.message = data.get('message') or None
         self.id = int(data['tradeofferid'])
-        self.expires = datetime.utcfromtimestamp(data['expiration_time'])
-        self.escrow = datetime.utcfromtimestamp(data['escrow_end_date']) if data['escrow_end_date'] != 0 else None
+        self.expires = datetime.utcfromtimestamp(data['expiration_time']) if 'expiration_time' in data else None
+        self.escrow = datetime.utcfromtimestamp(data['escrow_end_date']) \
+            if 'escrow_end_date' in data and data['escrow_end_date'] != 0 else None
         self.state = ETradeOfferState(data.get('trade_offer_state', 1))
         self.items_to_send = [Item(state=self._state, data=item) for item in data.get('items_to_give', [])]
         self.items_to_receive = [Item(state=self._state, data=item) for item in data.get('items_to_receive', [])]
-        self._is_our_offer = data['is_our_offer']
+        self._is_our_offer = data.get('is_our_offer', False)
         self._id_other = data['accountid_other']
 
     async def __ainit__(self) -> None:
