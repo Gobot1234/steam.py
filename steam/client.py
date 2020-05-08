@@ -190,7 +190,7 @@ class Client:
         """Optional[:class:`str`]: The current steam guard code.
 
         .. warning::
-            Will wait for a Steam guard code using :func``input``
+            Will wait for a Steam guard code using :func:``input``
             if no shared_secret is passed to :meth:`run` or :meth:`start`.
             **This could be blocking.**
         """
