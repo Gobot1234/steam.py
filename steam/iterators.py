@@ -27,11 +27,17 @@ SOFTWARE.
 import asyncio
 import re
 from datetime import datetime
+from typing import List, TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 
 from . import utils
+from .enums import ETradeOfferState
 from .models import Comment, URL
+
+if TYPE_CHECKING:
+    from .market import Listing
+    from .trade import TradeOffer
 
 
 class AsyncIterator:
@@ -61,15 +67,16 @@ class AsyncIterator:
     async def __anext__(self):
         return await self.next()
 
-    async def fill(self):
-        self._current_iteration += 1
-        if self._current_iteration == 2:
-            raise StopAsyncIteration
-
     async def next(self):
         if self.queue.empty():
+            self._current_iteration += 1
+            if self._current_iteration == 2:
+                raise StopAsyncIteration
             await self.fill()
         return self.queue.get_nowait()
+
+    async def fill(self):
+        pass
 
 
 class CommentsIterator(AsyncIterator):
@@ -82,7 +89,6 @@ class CommentsIterator(AsyncIterator):
         self.owner = None
 
     async def fill(self):
-        await super().fill()
         from .user import make_steam64, User
 
         data = await self._state.http.fetch_comments(id64=self._id, limit=self.limit, comment_type=self._comment_type)
@@ -113,53 +119,83 @@ class CommentsIterator(AsyncIterator):
                 if comment.author == author.id:
                     comment.author = author
 
+    async def flatten(self) -> List['Comment']:
+        return await super().flatten()
+
 
 class TradesIterator(AsyncIterator):
-    __slots__ = ('_active_only', '_sent', '_received') + AsyncIterator.__slots__
+    __slots__ = ('_active_only',) + AsyncIterator.__slots__
 
-    def __init__(self, state, limit, before, after, active_only, sent, received):
+    def __init__(self, state, limit, before, after, active_only):
         super().__init__(state, limit, before, after)
         self._active_only = active_only
-        self._sent = sent
-        self._received = received
 
-    async def fill(self):
-        await super().fill()
+    async def _process_trade(self, data, descriptions):
         from .trade import TradeOffer
 
-        resp = await self._state.http.fetch_trade_offers(self._active_only, self._sent, self._received)
-        data = resp['response']
-        for trade in data['trade_offers_sent']:
-            if self.after.timestamp() < trade['time_created'] < self.before.timestamp():
-                for item in data['descriptions']:
-                    for asset in trade.get('items_to_receive', []):
-                        if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
-                            asset.update(item)
-                    for asset in trade.get('items_to_give', []):
-                        if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
-                            asset.update(item)
+        if self.after.timestamp() < data['time_init'] < self.before.timestamp():
+            for item in descriptions:
+                for asset in data.get('assets_received', []):
+                    if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                        asset.update(item)
+                for asset in data.get('assets_given', []):
+                    if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                        asset.update(item)
 
-                trade = TradeOffer(state=self._state, data=trade)
-                await trade.__ainit__()
+            # duck type the attributes
+            data['tradeofferid'] = data['tradeid']
+            data['accountid_other'] = data['steamid_other']
+            data['trade_offer_state'] = data['status']
+            data['items_to_give'] = data.get('assets_given', [])
+            data['items_to_receive'] = data.get('assets_received', [])
+
+            trade = TradeOffer(state=self._state, data=data)
+            await trade.__ainit__()
+
+            if self._active_only and trade.state in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
                 self.queue.put_nowait(trade)
-            if self.limit is not None and self.queue.qsize == self.limit:
+            if self.queue.qsize == self.limit:
+                raise StopIteration  # I think this is somewhat appropriate
+
+    async def fill(self):
+        resp = await self._state.http.fetch_trade_history(100, None)
+        print(resp)
+        resp = resp['response']
+        total = resp.get('total_trades', 0)
+        print(total)
+        if not total:
+            return
+
+        descriptions = resp.get('descriptions')
+        for trade in resp.get('trades'):
+            try:
+                await self._process_trade(trade, descriptions)
+            except StopIteration:
                 return
-        for trade in data['trade_offers_received']:
-            if self.after.timestamp() < trade['time_created'] < self.before.timestamp():
-                for item in data['descriptions']:
-                    for asset in trade.get('items_to_receive', []):
-                        if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
-                            asset.update(item)
-                    for asset in trade.get('items_to_give', []):
-                        if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
-                            asset.update(item)
 
-                trade = TradeOffer(state=self._state, data=trade)
-                await trade.__ainit__()
-                self.queue.put_nowait(trade)
-            if self.limit is not None:
-                if self.queue.qsize == self.limit:
+        previous_time = trade['time_init']
+        if total > 100:
+            for page in range(0, total, 100):
+                if page in (0, 100):
+                    continue
+                resp = await self._state.http.fetch_trade_history(page, previous_time)
+                resp = resp['response']
+                for trade in resp.get('trades'):
+                    try:
+                        await self._process_trade(trade, descriptions)
+                    except StopIteration:
+                        return
+                previous_time = trade['time_init']
+            resp = await self._state.http.fetch_trade_history(page + 100, previous_time)
+            resp = resp['response']
+            for trade in resp.get('trades'):
+                try:
+                    await self._process_trade(trade, descriptions)
+                except StopIteration:
                     return
+
+    async def flatten(self) -> List['TradeOffer']:
+        return await super().flatten()
 
 
 class MarketListingsIterator(AsyncIterator):
@@ -168,7 +204,6 @@ class MarketListingsIterator(AsyncIterator):
         super().__init__(state, limit, before, after)
 
     async def fill(self):
-        await super().fill()
         from .market import Listing
 
         resp = await self._state.market.fetch_pages()
@@ -210,7 +245,7 @@ class MarketListingsIterator(AsyncIterator):
                                      price[0][0] == listing['id']]
                             if price:
                                 listing['price'] = price[0][1]
-                        except TypeError:
+                        except TypeError:  # TODO
                             # the listing couldn't be found I need to do more
                             # handling for this to make sure it doesn't happen
                             # but for now this will do. coming soon:tm:
@@ -220,3 +255,6 @@ class MarketListingsIterator(AsyncIterator):
                         finally:
                             if self.limit is not None and self.queue.qsize == self.limit:
                                 return
+
+    async def flatten(self) -> List['Listing']:
+        return await super().flatten()
