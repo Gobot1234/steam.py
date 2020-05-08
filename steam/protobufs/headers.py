@@ -64,7 +64,7 @@ class MsgHdrProtoBuf:
 
     def serialize(self):
         proto_data = self.proto.SerializeToString()
-        return struct.pack("<II", set_proto_bit(self.msg), len(proto_data)) + proto_data
+        return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
 
     def load(self, data):
         msg, proto_length = struct.unpack_from("<II", data)
