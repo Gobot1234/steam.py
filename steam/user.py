@@ -38,7 +38,7 @@ import aiohttp
 from .abc import BaseUser, Messageable
 from .enums import *
 from .game import Game
-from .iterators import CommentsIterator, TradesIterator
+from .iterators import CommentsIterator
 from .models import URL, Ban, UserBadges
 from .trade import Item, Asset, Inventory
 
@@ -54,6 +54,12 @@ __all__ = (
 )
 
 ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
+
+_ICODE_HEX = "0123456789abcdef"
+_ICODE_CUSTOM = "bcdfghjkmnpqrtvw"
+_ICODE_VALID = f'{_ICODE_HEX}{_ICODE_CUSTOM}'
+_ICODE_MAPPING = dict(zip(_ICODE_HEX, _ICODE_CUSTOM))
+_ICODE_INVERSE_MAPPING = dict(zip(_ICODE_CUSTOM, _ICODE_HEX))
 
 
 class SteamID(int):
@@ -191,6 +197,32 @@ class SteamID(int):
         return self.id3
 
     @property
+    def as_invite_code(self):
+        """:class:`str`: s.team invite code format
+            e.g. ``cv-dgb``
+        """
+        if self.type == EType.Individual and self.is_valid():
+            def repl_mapper(x):
+                return _ICODE_MAPPING[x.group()]
+
+            invite_code = re.sub(f"[{_ICODE_HEX}]", repl_mapper, f"{self.id:x}")
+            split_idx = len(invite_code) // 2
+
+            if split_idx:
+                invite_code = f'{invite_code[:split_idx]}-{invite_code[split_idx:]}'
+
+            return invite_code
+
+    @property
+    def invite_url(self):
+        """:class:`str`: The user's full invite code URL.
+            e.g ``https://s.team/p/cv-dgb``
+        """
+        code = self.as_invite_code
+        if code:
+            return f'https://s.team/p/{code}'
+
+    @property
     def community_url(self) -> Optional[str]:
         """Optional[:class:`str`]: The community url of the account
             e.g https://steamcommunity.com/profiles/123456789.
@@ -264,6 +296,7 @@ class _BaseUser(BaseUser):
                  '_state', '_data')
 
     def __init__(self, state, data):
+        SteamID.__init__(data['steamid'])
         self._state = state
         self._update(data)
 
@@ -285,11 +318,6 @@ class _BaseUser(BaseUser):
 
     def _update(self, data):
         self._data = data
-        self.steam_id = SteamID(data['steamid'])
-        self.id = self.steam_id.id
-        self.id64 = self.steam_id.id64
-        self.id2 = self.steam_id.id2
-        self.id3 = self.steam_id.id3
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
@@ -361,7 +389,7 @@ class _BaseUser(BaseUser):
         """
         data = await self._state.http.fetch_user_games(self.id64)
         games = data['response'].get('games', [])
-        return [Game(0, _data=game) for game in games]
+        return [Game._from_api(game) for game in games]
 
     async def fetch_groups(self) -> List['Group']:
         """|coro|
@@ -713,50 +741,20 @@ class ClientUser(_BaseUser):
 
         return float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
 
-    def trades(self, limit=None, before: datetime = None, after: datetime = None,
-               active_only: bool = True, include_sent: bool = True,
-               include_received: bool = True) -> TradesIterator:
-        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
+    async def clear_nicks(self):
+        await self._state.http.clear_nickname_history()
 
-        Examples
-        -----------
+    async def edit(self, *, nick: str = None, real_name: str = None, country: str = None,
+                   state: str = None, city: str = None, url: str = None, summary: str = None,
+                   group: 'Group' = None):  # TODO check works
+        self.name = nick if nick is not None else self.name
+        self.real_name = real_name if real_name is not None else self.real_name if self.real_name else ''
+        self.country = country if country is not None else self.country if self.country else ''
+        self.city = city if city is not None else self.city if self.city else ''
+        self.community_url = url if community_url is not None else self.name
+        self.primary_group = group.id64 if group is not None else self.primary_group if self.primary_group else 0
 
-        Usage: ::
-
-            async for trade in client.user.trades(limit=10):
-                print('Partner:', trade.partner, 'Sent:')
-                print(', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
-                      if trade.items_to_receive else 'Nothing')
-
-        Flattening into a list: ::
-
-            trades = await client.user.trades(limit=50).flatten()
-            # trades is now a list of TradeOffer
-
-        All parameters are optional.
-
-        Parameters
-        ----------
-        limit: Optional[:class:`int`]
-            The maximum number of trades to search through.
-            Default is ``None`` which will fetch all the user's comments.
-        before: Optional[:class:`datetime.datetime`]
-            A time to search for trades before.
-        after: Optional[:class:`datetime.datetime`]
-            A time to search for trades after.
-        active_only: Optional[:class:`bool`]
-            The option passed when fetching trades defaults to ``True``.
-        include_sent: Optional[:class:`bool`]
-            The option passed when fetching trades defaults to ``True``.
-        include_received: Optional[:class:`bool`]
-            The option passed when fetching trades defaults to ``True``.
-
-        Yields
-        ---------
-        :class:`~steam.TradeOffer`
-        """
-        return TradesIterator(state=self._state, limit=limit, before=before, after=after,
-                              active_only=active_only, sent=include_sent, received=include_received)
+        await self._state.http.edit_profile(self.name, real_name, country, state, city, url, summary, group)
 
 
 def make_steam64(id=0, *args, **kwargs) -> int:
@@ -772,6 +770,7 @@ def make_steam64(id=0, *args, **kwargs) -> int:
         make_steam64('103582791429521412')
         make_steam64('STEAM_1:0:2')  # steam2
         make_steam64('[g:1:4]')  # steam3
+        make_steam64('cv-dgb')  # invite code
 
     Raises
     ------
@@ -806,15 +805,10 @@ def make_steam64(id=0, *args, **kwargs) -> int:
 
         # textual input e.g. [g:1:4]
         else:
-            result = steam2_to_tuple(value) or steam3_to_tuple(value)
+            result = steam2_to_tuple(value) or steam3_to_tuple(value) or invite_code_to_tuple(value)
 
             if result:
-                (
-                    id,
-                    etype,
-                    universe,
-                    instance,
-                ) = result
+                id, etype, universe, instance = result
             else:
                 id = 0
 
@@ -869,14 +863,14 @@ def steam2_to_tuple(value: str):
     if not match:
         return None
 
-    steam32 = (int(match.group('id')) << 1) | int(match.group('reminder'))
+    steam_32 = (int(match.group('id')) << 1) | int(match.group('reminder'))
     universe = int(match.group('universe'))
 
     # Games before orange box used to incorrectly display universe as 0, we support that
     if universe == 0:
         universe = 1
 
-    return steam32, EType(1), EUniverse(universe), 1
+    return steam_32, EType(1), EUniverse(universe), 1
 
 
 def steam3_to_tuple(value: str):
@@ -903,7 +897,7 @@ def steam3_to_tuple(value: str):
     if not match:
         return None
 
-    steam32 = int(match.group('id'))
+    steam_32 = int(match.group('id'))
     universe = EUniverse(int(match.group('universe')))
     typechar = match.group('type').replace('i', 'I')
     etype = EType(ETypeChar[typechar])
@@ -924,7 +918,25 @@ def steam3_to_tuple(value: str):
 
     instance = int(instance)
 
-    return steam32, etype, universe, instance
+    return steam_32, etype, universe, instance
+
+
+def invite_code_to_tuple(code, universe=EUniverse.Public):
+
+    match = re.match(rf'(https?://s\.team/p/(?P<code1>[\-{_ICODE_VALID}]+))'
+                 rf'|(?P<code2>[\-{_ICODE_VALID}]+$)', code)
+    if not match:
+        return None
+
+    code = (match.group('code1') or match.group('code2')).replace('-', '')
+
+    def repl_mapper(x):
+        return _ICODE_INVERSE_MAPPING[x.group()]
+
+    steam_32 = int(re.sub(f"[{_ICODE_CUSTOM}]", repl_mapper, code), 16)
+
+    if 0 < steam_32 < 2 ** 32:
+        return steam_32, EType(1), EUniverse(universe) if isinstance(universe, int) else EUniverse(universe.value), 1
 
 
 async def steam64_from_url(url: str, timeout=30) -> Optional[int]:
