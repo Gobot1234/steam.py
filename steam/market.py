@@ -126,9 +126,9 @@ class Listing(Asset):
     ----------
     name: :class:`str`
         The name of the listing's item.
-    user_pays: :class:`float`
+    user_pays: Optional[:class:`float`]
         The amount the user would pay for the item.
-    we_receive: :class:`float`
+    we_receive: Optional[:class:`float`]
         The amount the ClientUser would receive for a sale of the item.
     id: :class:`int`
         The listing's ID.
@@ -180,10 +180,7 @@ class Listing(Asset):
     async def confirm(self) -> None:
         if self.state != EMarketListingState.ConfirmationNeeded:
             return
-        confirmation = await self._state.confirmation_manager.get_confirmation(self.id)
-        if confirmation is not None:
-            await confirmation.confirm()
-        else:
+        if not await self._state.get_and_confirm_confirmation(self.id):
             raise errors.ConfirmationError('No matching confirmation could be found for this trade')
 
     async def cancel(self) -> None:
@@ -291,7 +288,7 @@ class MarketClient(HTTPClient):
     async def _remover(self):
         while 1:
             one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
-            await asyncio.sleep(5)
+            await asyncio.sleep(2)
             for time in self.times:
                 if time > one_minute_ago:
                     continue
