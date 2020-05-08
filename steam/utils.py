@@ -346,7 +346,7 @@ def parse_trade_url_token(url: str):
     Optional[:class:`str`]
         The found token. ``None`` if the URL doesn't match the regex.
     """
-    search = re.search(r"(?:https://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d{7,}"
+    search = re.search(r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d{7,}"
                        r"(?:&|&amp;)token=(?P<token>[\w-]{7,})", url)
     if search:
         return search.group('token')
