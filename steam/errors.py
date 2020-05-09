@@ -81,6 +81,8 @@ class HTTPException(SteamException):
         self.response = response
         self.status = response.status
         self.result = EResult(int(response.headers.get('X-eresult', 0)))
+        self.code = 0
+        self.message = ''
 
         if isinstance(data, dict):
             if data:
@@ -90,27 +92,15 @@ class HTTPException(SteamException):
                 if code:
                     self.code = int(code[0])  # would like to EResult however steam trades don't use the same system
                     self.message = code_regex.sub('', message)
-                else:
-                    self.code = 0
-                    self.message = message
-            else:  # they returned an empty dict???
-                self.code = 0
-                self.message = ''
         else:
-            try:
+            if data:
                 text = BeautifulSoup(data, 'html.parser').get_text('\n')
                 if bool(text):
                     self.message = text
-                else:
-                    self.message = data
-                    self.code = 0
-            except TypeError:  # data is None
-                self.message = ''
-                self.code = 0
 
         self.message = self.message.replace('  ', ' ')
         super().__init__(f'{response.status} {response.reason} (error code: {self.code} result: {self.result})'
-                         f'{ f"Message: {self.message}" if self.message else ""}')
+                         f'{f" Message: {self.message}" if self.message else ""}')
 
 
 class Forbidden(HTTPException):
