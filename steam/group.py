@@ -30,19 +30,20 @@ from xml.etree import ElementTree
 
 from bs4 import BeautifulSoup
 
+from .abc import SteamID
 from .errors import HTTPException
 from .iterators import CommentsIterator
 from .models import URL
 
 if TYPE_CHECKING:
-    from .user import SteamID, User
+    from .user import User
 
 __all__ = (
     'Group',
 )
 
 
-class Group:
+class Group(SteamID):
     """Represents a Steam group.
 
     .. container:: operations
@@ -55,12 +56,8 @@ class Group:
     ------------
     name: :class:`str`
         The name of the group.
-    id64: :class:`int`
-        The 64-bit ID of the group.
     url: :class:`str`
         The url of the group.
-    steam_id: :class:`~steam.SteamID`
-        The SteamID instance attached to the group.
     icon_url: :class:`str`
         The icon url of the group. Uses the large (184x184 px) image url.
     description: :class:`str`
@@ -76,9 +73,6 @@ class Group:
     in_game_count: :class:`int`
         The amount of user's currently in game.
     """
-    __slots__ = ('id64', 'url', 'name', 'count', 'steam_id', 'icon_url',
-                 'headline', 'description', 'online_count', 'in_chat_count',
-                 'in_game_count', '_pages', '_state')
 
     def __init__(self, state, id):
         self.url = f'{URL.COMMUNITY}/gid/{id}'
@@ -94,10 +88,7 @@ class Group:
             if elem.tag == 'totalPages':
                 self._pages = int(elem.text)
             elif elem.tag == 'groupID64':
-                from .user import SteamID
-
-                self.id64 = int(elem.text)
-                self.steam_id = SteamID(self.id64)
+                SteamID.__init__(elem.text)
             elif elem.tag == 'groupDetails':
                 for sub in elem:
                     if sub.tag == 'groupName':
@@ -142,7 +133,7 @@ class Group:
             This will only contain the first ~1500 members of the group.
             The rate-limits on this prevent getting more.
         """
-        from .user import SteamID
+        from .abc import SteamID
 
         ret = []
         for i in range(self._pages):
@@ -157,7 +148,6 @@ class Group:
                         for sub in elem:
                             if sub.tag == 'steamID64':
                                 ret.append(SteamID(sub.text))
-        ret: List[SteamID]  # circular imports suck
         return ret
 
     async def join(self) -> None:
