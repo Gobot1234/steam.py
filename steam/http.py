@@ -592,7 +592,6 @@ class HTTPClient:
             "country": country,
             "state": state,
             "city": city,
-            "customURL": url,
             "summary": summary,
             "primary_group_steamid": group_id
         }

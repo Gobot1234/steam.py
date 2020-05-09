@@ -46,10 +46,10 @@ from io import BytesIO
 import aiohttp
 
 from . import utils
+from .abc import SteamID
 from .enums import EResult, EUniverse
 from .errors import NoCMsFound
 from .protobufs import Msg, MsgProto, EMsg, get_um
-from .user import SteamID
 
 __all__ = (
     'SteamWebSocket',
@@ -542,5 +542,5 @@ class SteamWebSocket:  # socket.get_extra_info
         log.debug(f'Sending {activity} to change activity')
         await self.send_as_proto(activity)
         # log.debug(f'Sending {status} to change activity')
-        # await self.send_as_proto(staus)
+        # await self.send_as_proto(status)
         # ui_mode = MsgProto(EMsg.ClientCurrentUIMode), {'uimode': uimode})

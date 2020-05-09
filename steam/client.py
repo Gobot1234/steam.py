@@ -39,6 +39,7 @@ from typing import Union, List, Optional, Any, Callable, Mapping, TYPE_CHECKING
 import aiohttp
 
 from . import errors
+from .abc import make_steam64
 from .enums import ECurrencyCode
 from .gateway import *
 from .group import Group
@@ -48,7 +49,6 @@ from .iterators import MarketListingsIterator, TradesIterator
 from .market import convert_items, Listing, FakeItem, MarketClient, PriceOverview
 from .models import URL
 from .state import ConnectionState
-from .user import make_steam64
 from .utils import find
 
 if TYPE_CHECKING:

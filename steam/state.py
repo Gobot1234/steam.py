@@ -33,6 +33,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
+from .abc import SteamID
 from .enums import ETradeOfferState, EType, EMarketListingState, EChatEntryType
 from .errors import HTTPException, AuthenticatorError, InvalidCredentials
 from .game import Game
@@ -40,7 +41,7 @@ from .guard import generate_device_id, generate_confirmation_code, Confirmation
 from .models import URL, Invite
 from .protobufs import MsgProto, EMsg
 from .trade import TradeOffer
-from .user import User, SteamID
+from .user import User
 from .utils import get
 
 log = logging.getLogger(__name__)
