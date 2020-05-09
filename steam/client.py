@@ -52,12 +52,13 @@ from .state import ConnectionState
 from .utils import find, ainput
 
 if TYPE_CHECKING:
+    import steam
+
     from .game import Game
     from .models import Comment, Invite
     from .trade import TradeOffer
     from .user import ClientUser, User
 
-    import steam
 
 __all__ = (
     'Client',

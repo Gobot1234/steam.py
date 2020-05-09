@@ -285,7 +285,6 @@ Steam IDs
 
 .. autoclass:: SteamID
     :members:
-    :exclude-members: EType, EUniverse, EInstanceFlag
 
 Users
 ~~~~~~~~~~~~~~~
@@ -295,10 +294,14 @@ Users
 .. autoclass:: ClientUser()
     :members:
     :inherited-members:
+    :exclude-members: bit_length, conjugate, denominator,
+                      from_bytes, imag, numerator, real, to_bytes
 
 .. autoclass:: User()
     :members:
     :inherited-members:
+    :exclude-members: bit_length, conjugate, denominator,
+                      from_bytes, imag, numerator, real, to_bytes
 
 .. autoclass:: UserBadges()
     :members:

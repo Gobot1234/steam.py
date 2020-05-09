@@ -498,12 +498,13 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         return bool(self._data.get('profilestate'))
 
     async def is_banned(self) -> bool:
-        """:class:`bool`: Specifies if the user is banned from any part of Steam.
+        """|coro|
+        :class:`bool`: Specifies if the user is banned from any part of Steam.
 
         This is equivalent to::
 
             bans = await user.fetch_bans()
-            return bans.is_banned()
+            bans.is_banned()
         """
         bans = await self.fetch_bans()
         return bans.is_banned()

@@ -110,9 +110,10 @@ class Group(SteamID):
 
     def __repr__(self):
         attrs = (
-            'name', 'steam_id'
+            'name',
         )
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved.append(super().__repr__())
         return f"<Group {' '.join(resolved)}>"
 
     def __len__(self):

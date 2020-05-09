@@ -284,7 +284,7 @@ class ClientUser(BaseUser):
 
     async def clear_nicks(self):
         """|coro|
-        Clears the `ClientUser`'s nickname/alias history.
+        Clears the :class:`ClientUser`'s nickname/alias history.
         """
         await self._state.http.clear_nickname_history()
 
