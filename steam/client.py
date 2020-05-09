@@ -49,7 +49,7 @@ from .iterators import MarketListingsIterator, TradesIterator
 from .market import convert_items, Listing, FakeItem, MarketClient, PriceOverview
 from .models import URL
 from .state import ConnectionState
-from .utils import find
+from .utils import find, ainput
 
 if TYPE_CHECKING:
     from .game import Game
@@ -185,21 +185,19 @@ class Client:
         """List[:class:`~steam.Listing`]: Returns a list of all the listings the ClientUser has."""
         return self._connection.listings
 
-    @property
-    def code(self) -> str:
-        """:class:`str`: The current steam guard code.
+    async def code(self) -> str:
+        """|coro|
+        :class:`str`: The current steam guard code.
 
         .. warning::
-            **This could be blocking.**
-
-            Will wait for a Steam guard code using :func:`input`
-            if no shared_secret is passed to :meth:`run` or :meth:`start`.
+            Will wait for a Steam guard code using :func:`input` in an
+            executor if no shared_secret is passed to :meth:`run` or :meth:`start`.
 
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)
         else:
-            return input('Please enter a Steam guard code\n>>> ')
+            return await ainput('Please enter a Steam guard code\n>>> ', self.loop)
 
     @property
     def latency(self) -> float:

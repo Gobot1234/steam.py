@@ -353,6 +353,11 @@ def parse_trade_url_token(url: str):
     return None
 
 
+def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None):
+    loop = loop or asyncio.get_event_loop()
+    return loop.run_in_executor(None, input, prompt)
+
+
 # everything below here is directly from discord.py's utils
 # https://github.com/rapptz/discord.py/blob/master/discord/utils.py
 

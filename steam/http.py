@@ -246,7 +246,7 @@ class HTTPClient:
         try:
             login_response = await self.request('POST', url=f'{URL.COMMUNITY}/login/dologin', data=data)
             if login_response['requires_twofactor']:
-                self._one_time_code = self._client.code
+                self._one_time_code = await self._client.code()
                 return await self._send_login_request()
             return login_response
         except Exception as e:

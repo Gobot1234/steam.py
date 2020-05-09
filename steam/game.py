@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+# TODO rename to activity for UI mode and Persona States
+
 __all__ = (
     'TF2',
     'Game',
