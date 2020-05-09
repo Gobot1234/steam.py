@@ -109,7 +109,7 @@ class CommentsIterator(AsyncIterator):
                 self.queue.put_nowait(Comment(state=self._state, comment_type=self._comment_type,
                                               comment_id=comment_id, timestamp=timestamp,
                                               content=content, author=author_id, owner=self.owner))
-                if self.limit is not None and self.queue.qsize == self.limit:
+                if self.queue.qsize == self.limit:
                     return
         users = await self._state.http.fetch_profiles(to_fetch)
         for user in users:
@@ -150,11 +150,13 @@ class TradesIterator(AsyncIterator):
 
             trade = TradeOffer(state=self._state, data=data)
             await trade.__ainit__()
-
-            if self._active_only and trade.state in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+            if not self._active_only:
                 self.queue.put_nowait(trade)
-            if self.queue.qsize == self.limit:
-                raise StopIteration  # I think this is somewhat appropriate
+            elif self._active_only and trade.state in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+                self.queue.put_nowait(trade)
+
+            if self.queue.qsize() == self.limit:
+                raise StopAsyncIteration  # I think this is somewhat appropriate
 
     async def fill(self):
         resp = await self._state.http.fetch_trade_history(100, None)
@@ -164,32 +166,26 @@ class TradesIterator(AsyncIterator):
             return
 
         descriptions = resp.get('descriptions', [])
-        for trade in resp.get('trades', []):
-            try:
+        try:
+            for trade in resp.get('trades', []):
                 await self._process_trade(trade, descriptions)
-            except StopIteration:
-                return
 
-        previous_time = trade['time_init']
-        if total > 100:
-            for page in range(0, total, 100):
-                if page in (0, 100):
-                    continue
-                resp = await self._state.http.fetch_trade_history(page, previous_time)
+            previous_time = trade['time_init']
+            if total > 100:
+                for page in range(0, total, 100):
+                    if page in (0, 100):
+                        continue
+                    resp = await self._state.http.fetch_trade_history(page, previous_time)
+                    resp = resp['response']
+                    for trade in resp.get('trades', []):
+                        await self._process_trade(trade, descriptions)
+                    previous_time = trade['time_init']
+                resp = await self._state.http.fetch_trade_history(page + 100, previous_time)
                 resp = resp['response']
                 for trade in resp.get('trades', []):
-                    try:
-                        await self._process_trade(trade, descriptions)
-                    except StopIteration:
-                        return
-                previous_time = trade['time_init']
-            resp = await self._state.http.fetch_trade_history(page + 100, previous_time)
-            resp = resp['response']
-            for trade in resp.get('trades', []):
-                try:
                     await self._process_trade(trade, descriptions)
-                except StopIteration:
-                    return
+        except StopAsyncIteration:
+            return
 
     async def flatten(self) -> List['TradeOffer']:
         return await super().flatten()
@@ -243,14 +239,14 @@ class MarketListingsIterator(AsyncIterator):
                             if price:
                                 listing['price'] = price[0][1]
                         except TypeError:  # TODO
-                            # the listing couldn't be found I need to do more
-                            # handling for this to make sure it doesn't happen
-                            # but for now this will do. coming soon:tm:
+                            # this isn't very common, the listing couldn't be
+                            # found I need to do more handling for this to make
+                            # sure it doesn't happen but for now this will do.
                             pass
                         else:
                             self.queue.put_nowait(Listing(state=self._state, data=listing))
                         finally:
-                            if self.limit is not None and self.queue.qsize == self.limit:
+                            if self.queue.qsize == self.limit:
                                 return
 
     async def flatten(self) -> List['Listing']:
