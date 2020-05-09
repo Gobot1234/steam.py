@@ -89,7 +89,8 @@ class CommentsIterator(AsyncIterator):
         self.owner = None
 
     async def fill(self):
-        from .user import make_steam64, User
+        from .user import User
+        from .abc import make_steam64
 
         data = await self._state.http.fetch_comments(id64=self._id, limit=self.limit, comment_type=self._comment_type)
         self.owner = await self._state.fetch_user(self._id) if self._comment_type == 'Profile' else \
@@ -99,13 +100,11 @@ class CommentsIterator(AsyncIterator):
         to_fetch = []
 
         for comment in comments:
-            comment = str(comment)
-            timestamp = datetime.utcfromtimestamp(int(re.findall(r'data-timestamp="([0-9]*)"', comment)[0]))
-            if self.after < timestamp < self.before:
-                comment_id = int(re.findall(r'comment_([0-9]*)', comment)[0])
-                author_id = int(re.findall(r'data-miniprofile="([0-9]*)"', comment)[0])
-                html_content = re.findall(rf'id="comment_content_{comment_id}">\s*(.*?)\s*</div>', comment)[0]
-                content = BeautifulSoup(html_content, 'html.parser').get_text('\n')
+            if self.after < comment['data-timestamp'] < self.before:
+                timestamp = datetime.utcfromtimestamp(int(comment['data-timestamp']))
+                author_id = int(comment['data-miniprofile'])
+                comment_id = int(re.findall(r'comment_([0-9]*)', str(comment))[0])
+                content = comment.find('div', attrs={"class": 'commentthread_comment_text'}).text.strip()
                 to_fetch.append(make_steam64(author_id))
                 self.queue.put_nowait(Comment(state=self._state, comment_type=self._comment_type,
                                               comment_id=comment_id, timestamp=timestamp,
@@ -159,15 +158,13 @@ class TradesIterator(AsyncIterator):
 
     async def fill(self):
         resp = await self._state.http.fetch_trade_history(100, None)
-        print(resp)
         resp = resp['response']
         total = resp.get('total_trades', 0)
-        print(total)
         if not total:
             return
 
-        descriptions = resp.get('descriptions')
-        for trade in resp.get('trades'):
+        descriptions = resp.get('descriptions', [])
+        for trade in resp.get('trades', []):
             try:
                 await self._process_trade(trade, descriptions)
             except StopIteration:
@@ -180,7 +177,7 @@ class TradesIterator(AsyncIterator):
                     continue
                 resp = await self._state.http.fetch_trade_history(page, previous_time)
                 resp = resp['response']
-                for trade in resp.get('trades'):
+                for trade in resp.get('trades', []):
                     try:
                         await self._process_trade(trade, descriptions)
                     except StopIteration:
@@ -188,7 +185,7 @@ class TradesIterator(AsyncIterator):
                 previous_time = trade['time_init']
             resp = await self._state.http.fetch_trade_history(page + 100, previous_time)
             resp = resp['response']
-            for trade in resp.get('trades'):
+            for trade in resp.get('trades', []):
                 try:
                     await self._process_trade(trade, descriptions)
                 except StopIteration:
