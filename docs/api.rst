@@ -158,7 +158,6 @@ Enumerations
     :members:
     :undoc-members:
 
-.. TODO make these individually
 
 Guard
 ---------------
@@ -240,6 +239,12 @@ Groups
 .. autoclass:: Group()
     :members:
 
+Image
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Image
+    :members:
+
 Invites
 ~~~~~~~~~~~~~~~
 
@@ -294,14 +299,10 @@ Users
 .. autoclass:: ClientUser()
     :members:
     :inherited-members:
-    :exclude-members: bit_length, conjugate, denominator,
-                      from_bytes, imag, numerator, real, to_bytes
 
 .. autoclass:: User()
     :members:
     :inherited-members:
-    :exclude-members: bit_length, conjugate, denominator,
-                      from_bytes, imag, numerator, real, to_bytes
 
 .. autoclass:: UserBadges()
     :members:
