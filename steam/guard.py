@@ -37,8 +37,12 @@ import logging
 import struct
 from hashlib import sha1
 from time import time
+from typing import Awaitable, TYPE_CHECKING
 
 from .models import URL
+
+if TYPE_CHECKING:
+    from .state import ConnectionState
 
 __all__ = (
     'generate_one_time_code',
@@ -124,7 +128,7 @@ def generate_device_id(id64: str) -> str:
 
 
 class Confirmation:
-    def __init__(self, state, id, data_confid, data_key, creator):
+    def __init__(self, state: 'ConnectionState', id: str, data_confid: int, data_key: str, creator: int):
         self.state = state
         self.id = id.split('conf')[1]
         self.data_confid = data_confid
@@ -135,7 +139,7 @@ class Confirmation:
     def __repr__(self):
         return f"<Confirmation id={self.id} creator={self.creator}>"
 
-    def _confirm_params(self, tag):
+    def _confirm_params(self, tag) -> dict:
         timestamp = int(time())
         return {
             'p': self.state._device_id,
@@ -146,20 +150,20 @@ class Confirmation:
             'tag': tag
         }
 
-    def confirm(self):
+    def confirm(self) -> Awaitable:
         params = self._confirm_params('allow')
         params['op'] = 'allow'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
         return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf//ajaxop', params=params)
 
-    def cancel(self):
+    def cancel(self) -> Awaitable:
         params = self._confirm_params('cancel')
         params['op'] = 'cancel'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
         return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
 
-    def details(self):  # need to do ['html'] for the good stuff
+    def details(self) -> Awaitable:  # need to do ['html'] for the good stuff
         params = self._confirm_params(self.tag)
         return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/details/{self.id}', params=params)

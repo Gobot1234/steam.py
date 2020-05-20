@@ -27,6 +27,7 @@ DEALINGS IN THE SOFTWARE.
 
 import asyncio
 import datetime
+import json
 import re
 import socket
 import struct
@@ -34,21 +35,33 @@ from base64 import b64decode
 from operator import attrgetter
 from os import urandom as random_bytes
 from types import GeneratorType as _GeneratorType
-from typing import Iterable, Callable
+from typing import Iterable, Callable, Any, Optional, Awaitable, Tuple
 
+import aiohttp
 from Cryptodome.Cipher import AES as AES, PKCS1_OAEP
 from Cryptodome.Hash import SHA1, HMAC
 from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
-from google.protobuf.message import Message as _ProtoMessageType
+
+from .enums import *
 
 __all__ = (
     'get',
     'find',
+    'make_steam64',
     'sleep_until',
     'parse_trade_url_token',
 )
 
+BS = 16
+PROTOBUF_MASK = 0x80000000
 MAX_ASYNCIO_SECONDS = 3456000
+_INVITE_HEX = "0123456789abcdef"
+_INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
+_INVITE_VALID = f'{_INVITE_HEX}{_INVITE_CUSTOM}'
+_INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
+_INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
+
+ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
 
 
 class UniverseKey:
@@ -58,9 +71,6 @@ MIGdMA0GCSqGSIb3DQEBAQUAA4GLADCBhwKBgQDf7BrWLBBmLBc1OhSwfFkRf53T
 gdTckPv+T1JzZsuVcNfFjrocejN1oWI0Rrtgt4Bo+hOneoo3S57G9F1fOpn5nsQ6
 6WOiu4gZKODnFMBCiQIBEQ==
 """))
-
-
-BS = 16
 
 
 def pad(s):
@@ -129,92 +139,30 @@ def hmac_sha1(secret, data):
     return HMAC.new(secret, data, SHA1).digest()
 
 
-def ip_from_int(ip):
+def ip_from_int(ip) -> str:
     return socket.inet_ntoa(struct.pack(">L", ip))
 
 
-def ip_to_int(ip):
+def ip_to_int(ip) -> int:
     return struct.unpack(">L", socket.inet_aton(ip))[0]
 
 
-protobuf_mask = 0x80000000
+def is_proto(emsg) -> bool:
+    return (int(emsg) & PROTOBUF_MASK) > 0
 
 
-def is_proto(emsg):
-    return (int(emsg) & protobuf_mask) > 0
+def set_proto_bit(emsg) -> int:
+    return int(emsg) | PROTOBUF_MASK
 
 
-def set_proto_bit(emsg):
-    return int(emsg) | protobuf_mask
-
-
-def clear_proto_bit(emsg):
-    return int(emsg) & ~protobuf_mask
-
-
-def proto_to_dict(message):
-    if not isinstance(message, _ProtoMessageType):
-        raise TypeError("Expected `message` to be a instance of protobuf message")
-
-    data = {}
-
-    for desc, field in message.ListFields():
-        if desc.type == desc.TYPE_MESSAGE:
-            if desc.label == desc.LABEL_REPEATED:
-                data[desc.name] = list(map(proto_to_dict, field))
-            else:
-                data[desc.name] = proto_to_dict(field)
-        else:
-            data[desc.name] = list(field) if desc.label == desc.LABEL_REPEATED else field
-
-    return data
+def clear_proto_bit(emsg) -> int:
+    return int(emsg) & ~PROTOBUF_MASK
 
 
 _list_types = (list, range, _GeneratorType)
 
 
-def proto_fill_from_dict(message, data, clear=True):
-    if clear:
-        message.Clear()
-    field_descs = message.DESCRIPTOR.fields_by_name
-
-    for key, val in data.items():
-        desc = field_descs[key]
-
-        if desc.type == desc.TYPE_MESSAGE:
-            if desc.label == desc.LABEL_REPEATED:
-                if not isinstance(val, _list_types):
-                    raise TypeError("Expected %s to be of type list, got %s" % (repr(key), type(val)))
-
-                list_ref = getattr(message, key)
-
-                # Takes care of overwriting list fields when merging partial data (clear=False)
-                if not clear:
-                    del list_ref[:]  # clears the list
-
-                for item in val:
-                    item_message = getattr(message, key).add()
-                    proto_fill_from_dict(item_message, item)
-            else:
-                if not isinstance(val, dict):
-                    raise TypeError("Expected %s to be of type dict, got %s" % (repr(key), type(dict)))
-
-                proto_fill_from_dict(getattr(message, key), val)
-        else:
-            if isinstance(val, _list_types):
-                list_ref = getattr(message, key)
-                if not clear:
-                    del list_ref[:]  # clears the list
-                list_ref.extend(val)
-            else:
-                setattr(message, key, val)
-
-    return message
-
-
 # from the VDF module
-
-
 class UINT_64(int):
     pass
 
@@ -244,7 +192,7 @@ BIN_INT64 = b'\x0A'
 BIN_END_ALT = b'\x0B'
 
 
-def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
+def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False) -> dict:
     if not isinstance(s, bytes):
         raise TypeError("Expected s to be bytes, got %s" % type(s))
     if not issubclass(mapper, dict):
@@ -333,7 +281,264 @@ def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
     return stack.pop()
 
 
-def parse_trade_url_token(url: str):
+def make_steam64(id: int = 0, *args, **kwargs) -> int:
+    """Returns a Steam 64-bit ID from various other representations.
+
+    .. code:: python
+
+        make_steam64()  # invalid steam_id
+        make_steam64(12345)  # account_id
+        make_steam64('12345')
+        make_steam64(id=12345, type='Invalid', universe='Invalid', instance=0)
+        make_steam64(103582791429521412)  # steam64
+        make_steam64('103582791429521412')
+        make_steam64('STEAM_1:0:2')  # steam2
+        make_steam64('[g:1:4]')  # steam3
+        make_steam64('cv-dgb')  # invite code
+
+    Raises
+    ------
+    :exc:`TypeError`
+        Too many arguments have been given.
+
+    Returns
+    -------
+    :class:`int`
+        The 64-bit Steam ID.
+    """
+
+    etype = EType.Invalid
+    universe = EUniverse.Invalid
+    instance = None
+
+    if len(args) == 0 and len(kwargs) == 0:
+        value = str(id)
+
+        # numeric input
+        if value.isdigit():
+            value = int(value)
+
+            # 32 bit account id
+            if 0 < value < 2 ** 32:
+                id = value
+                etype = EType.Individual
+                universe = EUniverse.Public
+            # 64 bit
+            elif value < 2 ** 64:
+                return value
+
+        # textual input e.g. [g:1:4]
+        else:
+            result = steam2_to_tuple(value) or steam3_to_tuple(value) or invite_code_to_tuple(value)
+
+            if result:
+                id, etype, universe, instance = result
+            else:
+                id = 0
+
+    elif len(args) > 0:
+        length = len(args)
+        if length == 1:
+            etype, = args
+        elif length == 2:
+            etype, universe = args
+        elif length == 3:
+            etype, universe, instance = args
+        else:
+            raise TypeError(f"Takes at most 4 arguments ({length} given)")
+
+    if len(kwargs) > 0:
+        etype = kwargs.get('type', etype)
+        universe = kwargs.get('universe', universe)
+        instance = kwargs.get('instance', instance)
+
+    etype = (EType(etype.value if isinstance(etype, EType) else etype)
+             if isinstance(etype, (int, EType)) else EType[etype])
+    universe = (EUniverse(universe.value if isinstance(universe, EUniverse) else etype)
+                if isinstance(universe, (int, EUniverse)) else EUniverse[universe])
+
+    if instance is None:
+        instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
+
+    return (universe.value << 56) | (etype.value << 52) | (instance << 32) | id
+
+
+def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+    """
+    Parameters
+    ----------
+    value: :class:`str`
+        steam2 e.g. ``STEAM_1:0:1234``.
+
+    Returns
+    -------
+    Optional[:class:`tuple`]
+        e.g. (account_id, type, universe, instance) or ``None``.
+
+    .. note::
+        The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
+    """
+    match = re.match(
+        r"^STEAM_(?P<universe>\d+)"
+        r":(?P<reminder>[0-1])"
+        r":(?P<id>\d+)$", value
+    )
+
+    if not match:
+        return None
+
+    steam_32 = (int(match.group('id')) << 1) | int(match.group('reminder'))
+    universe = int(match.group('universe'))
+
+    # Games before orange box used to incorrectly display universe as 0, we support that
+    if universe == 0:
+        universe = 1
+
+    return steam_32, EType(1), EUniverse(universe), 1
+
+
+def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+    """
+    Parameters
+    ----------
+    value: :class:`str`
+        steam3 e.g. ``[U:1:1234]``.
+
+    Returns
+    -------
+    Optional[:class:`tuple`]
+        e.g. (account_id, type, universe, instance) or ``None``.
+    """
+    match = re.match(
+        r"^\["
+        rf"(?P<type>[i{ETypeChars}]):"  # type char
+        r"(?P<universe>[0-4]):"  # universe
+        r"(?P<id>\d{1,10})"  # accountid
+        r"(:(?P<instance>\d+))?"  # instance
+        r"\]$",
+        value
+    )
+    if not match:
+        return None
+
+    steam_32 = int(match.group('id'))
+    universe = EUniverse(int(match.group('universe')))
+    typechar = match.group('type').replace('i', 'I')
+    etype = EType(ETypeChar[typechar])
+    instance = match.group('instance')
+
+    if typechar in 'gT':
+        instance = 0
+    elif instance is not None:
+        instance = int(instance)
+    elif typechar == 'L':
+        instance = EInstanceFlag.Lobby
+    elif typechar == 'c':
+        instance = EInstanceFlag.Clan
+    elif etype in (EType.Individual, EType.GameServer):
+        instance = 1
+    else:
+        instance = 0
+
+    instance = int(instance)
+
+    return steam_32, etype, universe, instance
+
+
+def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+    """
+    Parameters
+    ----------
+    code: :class:`str`
+        The invite code e.g. ``cv-dgb``
+
+    Returns
+    -------
+    Optional[:class:`tuple`]
+        e.g. (account_id, type, universe, instance) or ``None``.
+    """
+    match = re.match(rf'(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))'
+                     rf'|(?P<code2>[\-{_INVITE_VALID}]+$)', code)
+    if not match:
+        return None
+
+    code = (match.group('code1') or match.group('code2')).replace('-', '')
+
+    def repl_mapper(x):
+        return _INVITE_INVERSE_MAPPING[x.group()]
+
+    steam_32 = int(re.sub(f"[{_INVITE_CUSTOM}]", repl_mapper, code), 16)
+
+    if 0 < steam_32 < 2 ** 32:
+        return steam_32, EType(1), EUniverse.Public, 1
+
+
+async def steam64_from_url(url: str, timeout=30) -> Optional[int]:
+    """Takes a Steam Community url and returns steam64 or None
+
+    .. note::
+        Each call makes a http request to steamcommunity.com
+
+    .. note::
+        Example URLs
+            https://steamcommunity.com/gid/[g:1:4]
+
+            https://steamcommunity.com/gid/103582791429521412
+
+            https://steamcommunity.com/groups/Valve
+
+            https://steamcommunity.com/profiles/[U:1:12]
+
+            https://steamcommunity.com/profiles/76561197960265740
+
+            https://steamcommunity.com/id/johnc
+
+    Parameters
+    ----------
+    url: :class:`str`
+        The Steam community url.
+    timeout: :class:`int`
+        How long to wait on http request before turning ``None``.
+
+    Returns
+    -------
+    steam64: Optional[:class:`int`]
+        If ``steamcommunity.com`` is down or no matching account is found returns ``None``
+    """
+
+    match = re.match(r'^(?P<clean_url>https?://steamcommunity.com/'
+                     r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?$', str(url))
+
+    if match is None:
+        return None
+
+    session = aiohttp.ClientSession()
+
+    try:
+        # user profiles
+        if match.group('type') in ('id', 'profiles'):
+            async with session.get(match.group('clean_url'), timeout=timeout) as r:
+                text = await r.text()
+                await session.close()
+            data_match = re.search("g_rgProfileData = (?P<json>{.*?});\s*", text)
+
+            if data_match:
+                data = json.loads(data_match.group('json'))
+                return int(data['steamid'])
+        # group profiles
+        else:
+            async with session.get(match.group('clean_url'), timeout=timeout) as r:
+                text = await r.text()
+                await session.close()
+            data_match = re.search(r"OpenGroupChat\( *'(?P<steamid>\d+)'", text)
+
+            if data_match:
+                return int(data_match.group('steamid'))
+    except aiohttp.InvalidURL:
+        return None
+
+
+def parse_trade_url_token(url: str) -> Optional[str]:
     """Parses a trade URL for an user's token.
 
     Parameters
@@ -353,7 +558,7 @@ def parse_trade_url_token(url: str):
     return None
 
 
-def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None):
+def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Awaitable:
     loop = loop or asyncio.get_event_loop()
     return loop.run_in_executor(None, input, prompt)
 
@@ -362,7 +567,7 @@ def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None):
 # https://github.com/rapptz/discord.py/blob/master/discord/utils.py
 
 
-def find(predicate: Callable[..., bool], seq: Iterable):
+def find(predicate: Callable[..., bool], seq: Iterable) -> Optional[Any]:
     """A helper to return the first element found in the sequence.
 
     Parameters
@@ -379,7 +584,7 @@ def find(predicate: Callable[..., bool], seq: Iterable):
     return None
 
 
-def get(iterable: Iterable, **attrs):
+def get(iterable: Iterable, **attrs) -> Optional[Any]:
     r"""A helper that returns the first element in the iterable that meets
     all the traits passed in ``attrs``. This is an alternative for
     :func:`utils.find`.
@@ -416,7 +621,7 @@ def get(iterable: Iterable, **attrs):
     return None
 
 
-async def sleep_until(when, result=None):
+async def sleep_until(when: datetime.datetime, result: Any = None) -> Awaitable:
     """|coro|
     Sleep until a specified time.
     If the time supplied is in the past this function will yield instantly.

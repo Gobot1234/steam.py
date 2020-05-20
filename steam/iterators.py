@@ -27,7 +27,7 @@ SOFTWARE.
 import asyncio
 import re
 from datetime import datetime
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
 
@@ -38,12 +38,13 @@ from .models import Comment, URL
 if TYPE_CHECKING:
     from .market import Listing
     from .trade import TradeOffer
+    from .state import ConnectionState
 
 
 class AsyncIterator:
     __slots__ = ('before', 'after', 'limit', 'queue', '_current_iteration', '_state')
 
-    def __init__(self, state, limit, before, after):
+    def __init__(self, state: 'ConnectionState', limit: int, before: datetime, after: datetime):
         self._state = state
         self.limit = limit
         self.before = before or datetime.utcnow()
@@ -51,7 +52,7 @@ class AsyncIterator:
         self._current_iteration = 0
         self.queue = asyncio.Queue()
 
-    async def flatten(self):
+    async def flatten(self) -> List[Any]:
         ret = []
         while 1:
             try:
@@ -64,10 +65,10 @@ class AsyncIterator:
     def __aiter__(self):
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> Any:
         return await self.next()
 
-    async def next(self):
+    async def next(self) -> Any:
         if self.queue.empty():
             self._current_iteration += 1
             if self._current_iteration == 2:
@@ -75,22 +76,22 @@ class AsyncIterator:
             await self.fill()
         return self.queue.get_nowait()
 
-    async def fill(self):
+    async def fill(self) -> None:
         pass
 
 
 class CommentsIterator(AsyncIterator):
-    __slots__ = ('owner', '_id', '_comment_type') + AsyncIterator.__slots__
+    __slots__ = ('owner', '_id', '_comment_type')
 
-    def __init__(self, state, id, before, after, limit, comment_type):
+    def __init__(self, state: 'ConnectionState', id: int, before: datetime,
+                 after: datetime, limit: int, comment_type: str):
         super().__init__(state, limit, before, after)
         self._id = id
         self._comment_type = comment_type
         self.owner = None
 
-    async def fill(self):
+    async def fill(self) -> None:
         from .user import User
-        from .abc import make_steam64
 
         data = await self._state.http.fetch_comments(id64=self._id, limit=self.limit, comment_type=self._comment_type)
         self.owner = await self._state.fetch_user(self._id) if self._comment_type == 'Profile' else \
@@ -105,7 +106,7 @@ class CommentsIterator(AsyncIterator):
                 author_id = int(comment['data-miniprofile'])
                 comment_id = int(re.findall(r'comment_([0-9]*)', str(comment))[0])
                 content = comment.find('div', attrs={"class": 'commentthread_comment_text'}).text.strip()
-                to_fetch.append(make_steam64(author_id))
+                to_fetch.append(utils.make_steam64(author_id))
                 self.queue.put_nowait(Comment(state=self._state, comment_type=self._comment_type,
                                               comment_id=comment_id, timestamp=timestamp,
                                               content=content, author=author_id, owner=self.owner))
@@ -123,13 +124,14 @@ class CommentsIterator(AsyncIterator):
 
 
 class TradesIterator(AsyncIterator):
-    __slots__ = ('_active_only',) + AsyncIterator.__slots__
+    __slots__ = ('_active_only',)
 
-    def __init__(self, state, limit, before, after, active_only):
+    def __init__(self, state: 'ConnectionState', limit: int, before: datetime,
+                 after: datetime, active_only: bool):
         super().__init__(state, limit, before, after)
         self._active_only = active_only
 
-    async def _process_trade(self, data, descriptions):
+    async def _process_trade(self, data: dict, descriptions: dict) -> None:
         from .trade import TradeOffer
 
         if self.after.timestamp() < data['time_init'] < self.before.timestamp():
@@ -158,7 +160,7 @@ class TradesIterator(AsyncIterator):
             if self.queue.qsize() == self.limit:
                 raise StopAsyncIteration  # I think this is somewhat appropriate
 
-    async def fill(self):
+    async def fill(self) -> None:
         resp = await self._state.http.fetch_trade_history(100, None)
         resp = resp['response']
         total = resp.get('total_trades', 0)
@@ -193,10 +195,7 @@ class TradesIterator(AsyncIterator):
 
 class MarketListingsIterator(AsyncIterator):
 
-    def __init__(self, state, limit, before, after):
-        super().__init__(state, limit, before, after)
-
-    async def fill(self):
+    async def fill(self) -> None:
         from .market import Listing
 
         resp = await self._state.market.fetch_pages()
@@ -232,7 +231,7 @@ class MarketListingsIterator(AsyncIterator):
                     for listing in listings.values():
                         listing['assetid'] = listing['id']  # we need to swap the ids around
                         try:
-                            listing['id'] = int(utils.find(lambda m: m[1] == listing['assetid'], matches)[0])
+                            listing['id'] = int([m for m in matches if m[1] == listing['assetid']][0])
                             price = [price for price in prices
                                      if price and price[0] and price[0][0] and
                                      price[0][0] == listing['id']]
@@ -245,9 +244,8 @@ class MarketListingsIterator(AsyncIterator):
                             pass
                         else:
                             self.queue.put_nowait(Listing(state=self._state, data=listing))
-                        finally:
-                            if self.queue.qsize == self.limit:
-                                return
+                        if self.queue.qsize == self.limit:
+                            return
 
     async def flatten(self) -> List['Listing']:
         return await super().flatten()

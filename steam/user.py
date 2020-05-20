@@ -3,7 +3,6 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -23,9 +22,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-This contains a copy of
-https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
 
 import re
@@ -39,6 +35,7 @@ from .trade import Item, Asset
 
 if TYPE_CHECKING:
     from .group import Group
+    from .state import ConnectionState
 
 __all__ = (
     'User',
@@ -116,17 +113,17 @@ class User(Messageable, BaseUser):
         """
         await self._state.http.remove_user(self.id64)
 
-    async def unblock(self) -> None:
-        """|coro|
-        Unblocks the :class:`User`.
-        """
-        await self._state.http.unblock_user(self.id64)
-
     async def block(self) -> None:
         """|coro|
         Blocks the :class:`User`.
         """
         await self._state.http.block_user(self.id64)
+
+    async def unblock(self) -> None:
+        """|coro|
+        Unblocks the :class:`User`.
+        """
+        await self._state.http.unblock_user(self.id64)
 
     async def send_trade(self, *, items_to_send: Union[List[Item], List[Asset]] = None,
                          items_to_receive: Union[List[Item], List[Asset]] = None,
@@ -152,15 +149,15 @@ class User(Messageable, BaseUser):
             The offer failed to send. Likely due to
             too many offers being sent to this user.
         """
-        items_to_send = [] if items_to_send is None else items_to_send
-        items_to_receive = [] if items_to_receive is None else items_to_receive
+        items_to_send = [] if items_to_send is None else [item.to_dict() for item in items_to_send]
+        items_to_receive = [] if items_to_receive is None else [item.to_dict() for item in items_to_receive]
         message = message if message is not None else ''
         resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
                                                        items_to_receive, token, message)
         if resp.get('needs_mobile_confirmation', False):
             await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
 
-    async def fetch_escrow(self) -> Optional[timedelta]:
+    async def escrow(self) -> Optional[timedelta]:
         """|coro|
         Check how long a :class:`User`'s escrow is.
 
@@ -247,7 +244,9 @@ class ClientUser(BaseUser):
         The persona state flags of the account.
     """
 
-    def __init__(self, state, data):
+    __slots__ = ('friends',)
+
+    def __init__(self, state: 'ConnectionState', data: dict):
         super().__init__(state, data)
         self.friends = []
 
@@ -266,7 +265,7 @@ class ClientUser(BaseUser):
         self.friends = await super().fetch_friends()
         return self.friends
 
-    async def fetch_wallet_balance(self) -> Optional[float]:
+    async def wallet_balance(self) -> Optional[float]:
         """|coro|
         Fetches the :class:`ClientUser`'s current wallet balance.
 
@@ -282,19 +281,17 @@ class ClientUser(BaseUser):
 
         return float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
 
-    async def clear_nicks(self):
+    async def clear_nicks(self) -> None:
         """|coro|
         Clears the :class:`ClientUser`'s nickname/alias history.
         """
         await self._state.http.clear_nickname_history()
 
     async def edit(self, *, nick: str = None, real_name: str = None, country: str = None,
-                   state: str = None, city: str = None, summary: str = None,
-                   group: 'Group' = None):  # TODO check works
+                   summary: str = None, group: 'Group' = None):  # TODO check works
         self.name = nick if nick is not None else self.name
         self.real_name = real_name if real_name is not None else self.real_name if self.real_name else ''
         self.country = country if country is not None else self.country if self.country else ''
-        self.city = city if city is not None else self.city if self.city else ''
         self.primary_group = group.id64 if group is not None else self.primary_group if self.primary_group else 0
 
-        await self._state.http.edit_profile(self.name, real_name, country, state, city, summary, group)
+        await self._state.http.edit_profile(self.name, self.real_name, self.country, summary, self.primary_group)

@@ -33,6 +33,7 @@ import json
 import logging
 import re
 from datetime import datetime, timedelta
+from typing import List, Awaitable, Union, Mapping
 
 from bs4 import BeautifulSoup
 
@@ -51,7 +52,7 @@ __all__ = (
 log = logging.getLogger(__name__)
 
 
-def convert_items(item_names, games, prices=None):
+def convert_items(item_names: List[str], games: List[Game], prices=None):
     items = []
     if isinstance(games, Game):  # this is for the same game items
         if prices is None:
@@ -86,7 +87,7 @@ class FakeItem:
         self.app_id = game.app_id
 
     def __repr__(self):
-        return f"FakeItem name={self.name} app_id={self.app_id}"
+        return f"FakeItem name={self.name!r} app_id={self.app_id}"
 
 
 class PriceOverview:
@@ -139,7 +140,7 @@ class Listing(Asset):
     market_name: Optional[:class:`str`]
         The market_name of the listing's item.
     descriptions: Optional[:class:`str`]
-        The descriptions of the listing's item.
+        The listing's item's description.
     type: Optional[:class:`str`]
         The type of the listing's item.
     tags: Optional[:class:`str`]
@@ -177,16 +178,6 @@ class Listing(Asset):
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Listing {' '.join(resolved)}>"
 
-    async def confirm(self) -> None:
-        if self.state != EMarketListingState.ConfirmationNeeded:
-            return
-        if not await self._state.get_and_confirm_confirmation(self.id):
-            raise errors.ConfirmationError('No matching confirmation could be found for this trade')
-
-    async def cancel(self) -> None:
-        if self.state in (EMarketListingState.ConfirmationNeeded, EMarketListingState.Active):
-            await self._state.http.remove_market_listing(self.id)
-
     def is_tradable(self) -> bool:
         """:class:`bool`: Whether the listing's item is tradable."""
         return self._is_tradable
@@ -200,7 +191,7 @@ class MarketClient(HTTPClient):
     ----------
     currency: Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]
         Sets the currency for requests. :attr:`~steam.ECurrencyCode.USD` / United State Dollars is default.
-        Pass this as a ``keyword-argument`` to the :class:`~steam.Client` initialization.
+        Pass this as a ``keyword argument`` to the :class:`~steam.Client` initialization.
     """
 
     BASE = f'{URL.COMMUNITY}/market'
@@ -228,8 +219,9 @@ class MarketClient(HTTPClient):
         publisher_fee = float(wallet_info['wallet_publisher_fee_percent_default'])
         self.fee = valve_fee + publisher_fee
 
-    async def request(self, method, url, **kwargs):  # adapted from d.py
-        if kwargs.get('is_price_overview'):  # do rate-limit handling for price-overviews
+    async def request(self, method: str, url: str, **kwargs) -> Union[dict, str]:  # adapted from d.py
+        is_price_overview = kwargs.pop('is_price_overview', False)
+        if is_price_overview:  # do rate-limit handling for price-overviews
             now = datetime.utcnow()
             if len(self.times) <= 20:
                 self.times.append(now)
@@ -239,13 +231,13 @@ class MarketClient(HTTPClient):
         async with self._lock:
             for tries in range(5):
                 async with self._session.request(method, url, **kwargs) as r:
-                    data = kwargs.get('data')
+                    payload = kwargs.get('payload')
                     params = kwargs.get('params')
                     log.debug(self.REQUEST_LOG.format(
                         method=method,
                         url=url,
-                        connective='with' if data is not None or params is not None else '',
-                        data=f'\nDATA: {data}\n' if data else '',
+                        connective='with' if payload is not None or params is not None else '',
+                        payload=f'\nPAYLOAD: {payload}\n' if payload else '',
                         params=f'\nPARAMS: {params}\n' if params else '',
                         status=r.status)
                     )
@@ -267,7 +259,7 @@ class MarketClient(HTTPClient):
                         continue
 
                     # this endpoints equivalent of a 404
-                    if r.status == 500 and kwargs.get('is_price_overview'):
+                    if r.status == 500 and is_price_overview:
                         raise errors.NotFound(r, data)
                     # we've received a 500 or 502, an unconditional retry
                     if r.status in {500, 502}:
@@ -285,7 +277,7 @@ class MarketClient(HTTPClient):
             # we've run out of retries, raise
             raise errors.HTTPException(r, data)
 
-    async def _remover(self):
+    async def _remover(self) -> None:
         while 1:
             one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
             await asyncio.sleep(2)
@@ -294,7 +286,7 @@ class MarketClient(HTTPClient):
                     continue
                 self.times.remove(time)
 
-    async def fetch_price(self, item):
+    async def get_price(self, item: FakeItem) -> PriceOverview:
         params = {
             'appid': item.app_id,
             'market_hash_name': item.name,
@@ -303,48 +295,10 @@ class MarketClient(HTTPClient):
         return PriceOverview(await self.request('GET', url=f'{self.BASE}/priceoverview',
                                                 is_price_overview=True, params=params))
 
-    async def fetch_prices(self, items):
-        return {item.name: await self.fetch_price(item) for item in items}
+    async def get_prices(self, items) -> Mapping[str, PriceOverview]:
+        return {item.name: await self.get_price(item) for item in items}
 
-    def create_sell_listing(self, item, price):
-        data = {
-            "sessionid": self.session_id,
-            "currency": self.currency,
-            "appid": item.app_id,
-            "market_hash_name": item.name,
-            "price_total": price * 100,
-            "quantity": 1
-        }
-        headers = {"Referer": f'{self.BASE}/listings/{game.app_id}/{item.name}'}
-        return self.request('POST', f'{self.BASE}/createbuyorder', data=data, headers=headers)
-        # {"success":1,"buy_orderid":"3300749164"}
-
-    async def create_sell_listings(self, to_list):
-        for (item, price, amount) in to_list:
-            data = {
-                "sessionid": self.session_id,
-                "currency": self.currency,
-                "appid": item.app_id,
-                "market_hash_name": item.name,
-                "price_total": price * 100,
-                "quantity": amount
-            }
-            headers = {"Referer": f'{self.BASE}/listings/{item.app_id}/{item.name}'}
-            await self.request('POST', f'{self.BASE}/createbuyorder', data=data, headers=headers)
-
-    def sell_item(self, asset_id, price):
-        data = {
-            "assetid": asset_id,
-            "sessionid": self.session_id,
-            "contextid": game.context_id,
-            "appid": game.app_id,
-            "amount": 1,
-            "price": price
-        }
-        headers = {"Referer": f"{URL.COMMUNITY}/profiles/{self._client.user.id64}/inventory"}
-        return self.request('POST', f'{self.BASE}/sellitem', data=data, headers=headers)
-
-    async def fetch_listings(self, pages):
+    async def get_listings(self, pages: int) -> List[dict]:
         ret = []
         for start in range(0, pages, 100):
             params = {
@@ -374,7 +328,7 @@ class MarketClient(HTTPClient):
                         ret.append(listing)
         return ret
 
-    def fetch_pages(self):
+    def get_pages(self) -> Awaitable:
         params = {
             "start": 0,
             "count": 1

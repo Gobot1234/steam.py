@@ -31,8 +31,9 @@ from typing import TYPE_CHECKING, Union
 from .game import Game
 
 if TYPE_CHECKING:
-    from .user import User
     from .group import Group
+    from .state import ConnectionState
+    from .user import User
 
 __all__ = (
     'Ban',
@@ -69,15 +70,16 @@ class Comment:
 
     __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_comment_type', '_state')
 
-    def __init__(self, state, comment_type, comment_id: int, content: str, timestamp: datetime,
+    def __init__(self, state: 'ConnectionState', comment_type: str,
+                 comment_id: int, content: str, timestamp: datetime,
                  author: 'User', owner: Union['Group', 'User']):
         self._state = state
         self._comment_type = comment_type
         self.content = content
         self.id = comment_id
         self.created_at = timestamp
-        self.author: User = author
-        self.owner: Union[Group, User] = owner
+        self.author: 'User' = author
+        self.owner: Union['Group', 'User'] = owner
 
     def __repr__(self):
         attrs = (
@@ -90,13 +92,13 @@ class Comment:
         """|coro|
         Reports the :class:`Comment`.
         """
-        await self._state.http.report_comment(self.id, self._comment_type, self.owner.id64)
+        await self._state.http.report_comment(self.owner.id64, self._comment_type, self.id)
 
     async def delete(self) -> None:
         """|coro|
         Deletes the :class:`Comment`.
         """
-        await self._state.http.delete_comment(self.id, self._comment_type, self.owner.id64)
+        await self._state.http.delete_comment(self.owner.id64, self._comment_type, self.id)
 
 
 class Invite:
@@ -105,30 +107,30 @@ class Invite:
     Attributes
     -----------
     type: :class:`str`
-        The type of invite either 'Friend'
-        or 'Group'.
+        The type of invite either 'FRIEND'
+        or 'GROUP'.
     invitee: :class:`~steam.User`
         The user who sent the invite. For type
-        'Friend', this is the user you would end up adding.
+        'FRIEND', this is the user you would end up adding.
     group: Optional[:class:`~steam.Group`]
         The group the invite pertains to,
-        only relevant if type is 'Group'.
+        only relevant if type is 'GROUP'.
     """
 
     __slots__ = ('type', 'group', 'invitee', '_data', '_state')
 
-    def __init__(self, state, data):
+    def __init__(self, state: 'ConnectionState', data: dict):
         self._state = state
         self._data = str(data)
 
-    async def __ainit__(self):
+    async def __ainit__(self) -> None:
         search = re.search(r"href=\"javascript:OpenGroupChat\( '(\d+)' \)\"", self._data)
         invitee_id = re.search(r'data-miniprofile="(\d+)"', self._data)
         client = self._state.client
 
-        self.type = 'Group' if search is not None else 'Friend'
-        self.invitee: User = await client.fetch_user(invitee_id.group(1))
-        self.group: Group = await client.fetch_group(search.group(1)) if self.type == 'Group' else None
+        self.type = 'GROUP' if search is not None else 'FRIEND'
+        self.invitee = await client.fetch_user(invitee_id.group(1))
+        self.group = await client.fetch_group(search.group(1)) if self.type == 'Group' else None
 
     def __repr__(self):
         attrs = (
@@ -141,7 +143,7 @@ class Invite:
         """|coro|
         Accepts the invite request.
         """
-        if self.type == 'Friend':
+        if self.type == 'FRIEND':
             await self._state.http.accept_user_invite(self.invitee.id64)
         else:
             await self._state.http.accept_group_invite(self.group.id64)
@@ -150,7 +152,7 @@ class Invite:
         """|coro|
         Declines the invite request.
         """
-        if self.type == 'Friend':
+        if self.type == 'FRIEND':
             await self._state.http.decline_user_invite(self.invitee.id64)
         else:
             await self._state.http.decline_group_invite(self.group.id64)
@@ -169,7 +171,7 @@ class Ban:
 
     __slots__ = ('since_last_ban', 'number_of_game_bans', '_vac_banned', '_community_banned', '_market_banned')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self._vac_banned = data['VACBanned']
         self._community_banned = data['CommunityBanned']
         self._market_banned = data['EconomyBan']
@@ -214,7 +216,7 @@ class Badge:
 
     __slots__ = ('id', 'xp', 'game', 'level', 'scarcity', 'completion_time')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self.id = data['badgeid']
         self.level = data['level']
         self.xp = data['xp']
@@ -243,7 +245,7 @@ class UserBadges:
 
     __slots__ = ('xp', 'level', 'badges', 'xp_needed_to_level_up', 'xp_needed_for_current_level')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self.level = data['player_level']
         self.xp = data['player_xp']
         self.xp_needed_to_level_up = data['player_xp_needed_to_level_up']

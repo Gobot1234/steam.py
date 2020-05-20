@@ -37,6 +37,7 @@ from .models import URL
 
 if TYPE_CHECKING:
     from .user import User
+    from .state import ConnectionState
 
 __all__ = (
     'Group',
@@ -74,7 +75,7 @@ class Group(SteamID):
         The amount of user's currently in game.
     """
 
-    def __init__(self, state, id):
+    def __init__(self, state: 'ConnectionState', id: int):
         self.url = f'{URL.COMMUNITY}/gid/{id}'
         self._state = state
 
@@ -88,7 +89,7 @@ class Group(SteamID):
             if elem.tag == 'totalPages':
                 self._pages = int(elem.text)
             elif elem.tag == 'groupID64':
-                SteamID.__init__(elem.text)
+                SteamID.__init__(self, elem.text)
             elif elem.tag == 'groupDetails':
                 for sub in elem:
                     if sub.tag == 'groupName':

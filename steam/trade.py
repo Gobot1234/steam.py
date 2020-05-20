@@ -34,6 +34,8 @@ from .game import Game
 
 if TYPE_CHECKING:
     from .market import PriceOverview
+    from .state import ConnectionState
+    from .abc import BaseUser
 
 __all__ = (
     'Item',
@@ -73,7 +75,7 @@ class Asset:
     """
     __slots__ = ('game', 'amount', 'app_id', 'class_id', 'asset_id', 'instance_id')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self.asset_id = int(data['assetid'])
         self.game = Game(app_id=data['appid'])
         self.app_id = int(data['appid'])
@@ -88,10 +90,7 @@ class Asset:
     def __eq__(self, other):
         return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "assetid": str(self.asset_id),
             "amount": self.amount,
@@ -134,9 +133,9 @@ class Item(Asset):
 
     __slots__ = ('name', 'type', 'tags', 'colour', 'missing',
                  'icon_url', 'display_name', 'descriptions',
-                 '_state', '_is_tradable', '_is_marketable') + Asset.__slots__
+                 '_state', '_is_tradable', '_is_marketable')
 
-    def __init__(self, state, data, missing: bool = False):
+    def __init__(self, state: 'ConnectionState', data: dict, missing: bool = False):
         super().__init__(data)
         self._state = state
         self.missing = missing
@@ -147,7 +146,7 @@ class Item(Asset):
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Item {' '.join(resolved)}>"
 
-    def _from_data(self, data):
+    def _from_data(self, data) -> None:
         self.name = data.get('market_name')
         self.display_name = data.get('name')
         self.colour = int(data['name_color'], 16) if 'name_color' in data else None
@@ -173,6 +172,8 @@ class Item(Asset):
             The price user pays for the item as a float.
             eg. $1 = 1.00 or £2.50 = 2.50 etc.
         """
+        if not isinstance(price, (int, float)):
+            raise TypeError(f'price should be of type int or float not {price.__class__.__name__!r}')
         state = self._state
         resp = await state.market.sell_item(self.asset_id, price)
         if resp.get('needs_mobile_confirmation', False):
@@ -227,7 +228,7 @@ class Inventory:
 
     __slots__ = ('game', 'items', 'owner', '_state', '_total_inventory_count')
 
-    def __init__(self, state, data, owner):
+    def __init__(self, state: 'ConnectionState', data: dict, owner: 'BaseUser'):
         self._state = state
         self.owner = owner
         self.items = []
@@ -247,7 +248,7 @@ class Inventory:
         for item in self.items:
             yield item
 
-    def _update(self, data):
+    def _update(self, data) -> None:
         try:
             self.game = Game(app_id=int(data['assets'][0]['appid']))
         except KeyError:  # they don't have an inventory for this game
@@ -293,7 +294,7 @@ class Inventory:
             Could be an empty if no matching items are found.
             This also removes the item from the inventory, if possible.
         """
-        items = list(filter(lambda i: i.name == item_name, self.items))
+        items = [item for item in self if item.name == item_name]
         items = items[:len(items) - 1 if limit is None else limit]
         for item in items:
             self.items.remove(item)
@@ -350,7 +351,7 @@ class TradeOffer:
                  'expires', 'items_to_send', 'items_to_receive',
                  '_id_other', '_state', '_is_our_offer', '__weakref__')
 
-    def __init__(self, state, data):
+    def __init__(self, state: 'ConnectionState', data: dict):
         self._state = state
         self._update(data)
 
@@ -361,7 +362,7 @@ class TradeOffer:
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
-    def _update(self, data):
+    def _update(self, data) -> None:
         self.message = data.get('message') or None
         self.id = int(data['tradeofferid'])
         self.expires = datetime.utcfromtimestamp(data['expiration_time']) if 'expiration_time' in data else None
@@ -388,8 +389,8 @@ class TradeOffer:
         :exc:`~steam.ConfirmationError`
             No matching confirmation could not be found.
         """
-        if self.is_gift():  # no point trying to confirm it
-            return
+        if self.is_gift():
+            return  # no point trying to confirm it
         if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
             raise ClientException('This trade cannot be confirmed')
         if not await self._state.get_and_confirm_confirmation(self.id):
@@ -453,8 +454,8 @@ class TradeOffer:
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
 
-    async def counter(self, *, items_to_send: Union[List[Item], List[Asset]] = None,
-                      items_to_receive: Union[List[Item], List[Asset]] = None,
+    async def counter(self, *, items_to_send: List[Item] = None,
+                      items_to_receive: List[Item] = None,
                       token: str = None, message: str = None) -> None:
         """|coro|
         Counters a trade offer from an :class:`User`.
