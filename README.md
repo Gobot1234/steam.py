@@ -9,12 +9,13 @@ Key Features
 --------------
 
 - Modern Pythonic API using `async`/`await` syntax
+- Proper rate limit handling.
 - Easy to use with an object oriented design
 
 Installation
 --------------
 
-**Python 3.6 or higher is required**
+**Python 3.7 or higher is required**
 
 To install the library just run either of the following commands:
 
@@ -37,10 +38,10 @@ class MyClient(steam.Client):
         print(f'Received trade: #{trade.id}')
         print('Trade partner is:', trade.partner.name)
         print('We are going to send:')
-        print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send])
+        print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send)
               if trade.items_to_send else 'Nothing')
         print('We are going to receive:')
-        print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
+        print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive)
               if trade.items_to_receive else 'Nothing')
 
         if trade.is_gift():
