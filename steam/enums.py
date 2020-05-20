@@ -30,7 +30,7 @@ Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 
 import types
 from collections import namedtuple
-from typing import Any
+from typing import Any, Union
 
 __all__ = (
     'Enum',
@@ -126,22 +126,22 @@ class EnumMeta(type):
         return f'<enum {repr(cls.__name__)}>'
 
     @property
-    def __members__(cls):
+    def __members__(cls) -> types.MappingProxyType:
         return types.MappingProxyType(cls._enum_member_map_)
 
-    def __call__(cls, value):
+    def __call__(cls, value) -> 'Enum':
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
             raise ValueError(f"{repr(value)} is not a valid {cls.__name__}")
 
-    def __getitem__(cls, key):
+    def __getitem__(cls, key) -> 'Enum':
         return cls._enum_member_map_[key]
 
-    def __setattr__(cls, name, value):
+    def __setattr__(cls, name, value) -> None:
         raise TypeError('Enums are immutable.')
 
-    def __delattr__(cls, attr):
+    def __delattr__(cls, attr) -> None:
         raise TypeError('Enums are immutable')
 
     def __instancecheck__(self, instance):
@@ -158,7 +158,7 @@ class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates enum.Enum"""
 
     @classmethod
-    def try_value(cls, value):
+    def try_value(cls, value: Any) -> Union['Enum', Any]:
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
