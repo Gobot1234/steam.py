@@ -27,7 +27,9 @@ SOFTWARE.
 import asyncio
 import logging
 import re
+import weakref
 from time import time
+from typing import TYPE_CHECKING, List, Optional
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -44,12 +46,18 @@ from .trade import TradeOffer
 from .user import User
 from .utils import get
 
+if TYPE_CHECKING:
+    from .client import Client
+    from .http import HTTPClient
+    from .market import Listing
+    from .models import Comment
+
 log = logging.getLogger(__name__)
 
 
 class ConnectionState:
 
-    def __init__(self, loop, client, http):
+    def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
         self.http = http
         self.request = http.request
@@ -62,58 +70,58 @@ class ConnectionState:
         self._obj = None
         self._previous_iteration = 0
 
-        self._trades = dict()  # TODO add weakref
-        self._users = dict()
-        self._confirmations = dict()
+        self._trades = weakref.WeakValueDictionary()
+        self._users = weakref.WeakValueDictionary()
+        self._confirmations = weakref.WeakValueDictionary()
 
         self._current_job_id = 0
 
-    async def __ainit__(self):
+    async def __ainit__(self) -> None:
         self.market = self.client._market
         self._id64 = self.client.user.id64
         self.loop.create_task(self._poll_trades())
         self.loop.create_task(self._poll_listings())
         self.loop.create_task(self._poll_notifications())
 
-    def _handle_ready(self):
+    def _handle_ready(self) -> None:
         self.client._ready.set()
+        self.dispatch('ready')
 
-    async def send_message(self, user_id64, content):
+    async def send_message(self, id64: int, content: str) -> None:
         proto = MsgProto(
             EMsg.ClientFriendMsg,
-            steamid=user_id64,
+            steamid=id64,
             message=content,
             chat_entry_type=EChatEntryType.ChatMsg.value
         )
         await self.client.ws.send_as_proto(proto)
 
     @property
-    def users(self):
+    def users(self) -> List[User]:
         return list(self._users.values())
 
     @property
-    def trades(self):
+    def trades(self) -> List[TradeOffer]:
         return list(self._trades.values())
 
     @property
-    def listings(self):
-        return list(self._listings_cache.values())
+    def listings(self) -> List['Listing']:
+        return list(self._listings.values())
 
     @property
-    def confirmations(self):
+    def confirmations(self) -> List[Confirmation]:
         return list(self._confirmations.values())
 
-    async def fetch_user(self, user_id64):
-        resp = await self.http.fetch_profile(user_id64)
+    async def fetch_user(self, id64: int) -> Optional[User]:
+        resp = await self.http.fetch_profile(id64)
         data = resp['response']['players'][0] if resp['response']['players'] else None
-        if data:
-            return self._store_user(data)
-        return None
 
-    def get_user(self, user_id64):
-        return self._users.get(user_id64)
+        return self._store_user(data) if data else None
 
-    def _store_user(self, data):
+    def get_user(self, id64: int) -> Optional[User]:
+        return self._users.get(id64)
+
+    def _store_user(self, data: dict) -> User:
         try:
             user = self._users[int(data['steamid'])]
         except KeyError:
@@ -121,28 +129,29 @@ class ConnectionState:
             self._users[user.id64] = user
         return user
 
-    def get_listing(self, listing_id):
-        return get(self._listings_cache, id=listing_id)
+    def get_listing(self, id: int) -> Optional['Listing']:
+        return self._listings.get(id)
 
-    def get_confirmation(self, id):
+    def get_confirmation(self, id: int) -> Optional[Confirmation]:
         return self._confirmations.get(id)
 
-    async def fetch_confirmation(self, id):
+    async def fetch_confirmation(self, id: int) -> Optional[Confirmation]:
         confirmations = await self._fetch_confirmations()
-        return get(confirmations, creator=str(id))
+        return get(confirmations, creator=id)
 
-    def get_trade(self, trade_id):
-        return self._trades.get(trade_id)
+    def get_trade(self, id: int) -> Optional[TradeOffer]:
+        return self._trades.get(id)
 
-    async def fetch_trade(self, trade_id):
-        resp = await self.http.fetch_trade(trade_id)
+    async def fetch_trade(self, id: int) -> Optional[TradeOffer]:
+        resp = await self.http.fetch_trade(id)
         if resp.get('response'):
             trade = [resp['response']['offer']]
             descriptions = resp['response']['descriptions']
-            return (await self._process_trades(trade, descriptions))[0]
+            trade = await self._process_trades(trade, descriptions)
+            return trade[0]
         return None
 
-    async def _store_trade(self, data):
+    async def _store_trade(self, data: dict) -> TradeOffer:
         try:
             trade = self._trades[int(data['tradeofferid'])]
         except KeyError:
@@ -191,7 +200,7 @@ class ConnectionState:
 
     # this will be going when I get cms working
 
-    async def _process_trades(self, trades, descriptions):
+    async def _process_trades(self, trades: List[dict], descriptions: List[dict]) -> List[TradeOffer]:
         ret = []
         for trade in trades:
             for item in descriptions:
@@ -204,7 +213,7 @@ class ConnectionState:
             ret.append(await self._store_trade(trade))
         return ret
 
-    async def _poll_trades(self):
+    async def _poll_trades(self) -> None:
         create_task = self.loop.create_task
         resp = await self.http.fetch_trade_offers()
         trades = resp['response']
@@ -234,12 +243,11 @@ class ConnectionState:
                 self._descriptions_cache = descriptions
         except (asyncio.TimeoutError, aiohttp.ClientError):
             self.loop.create_task(self._poll_trades())
-        except HTTPException as e:
-            print(repr(e.message))
+        except HTTPException:
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
-    async def _poll_notifications(self):
+    async def _poll_notifications(self) -> None:
         notification_mapping = {
             "4": ('comment', self._parse_comment),
             "6": ('invite', self._parse_invite)
@@ -276,8 +284,9 @@ class ConnectionState:
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
-    async def _parse_comment(self, _):  # this isn't very efficient but I'm not sure if it can be done better
-        resp = await self.request('GET', f'{self.client.user.community_url}/commentnotifications')
+    async def _parse_comment(self, _) -> 'Comment':
+        # this isn't very efficient but I'm not sure if it can be done better
+        resp = await self.request('GET', f'{URL.COMMUNITY}/me/commentnotifications')
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         group = search.group(1)
         steam_id = await SteamID.from_url(group.strip(f'?{_URL(group).query_string}'))
@@ -294,7 +303,7 @@ class ConnectionState:
         comments = await obj.comments(limit=self._previous_iteration + 1).flatten()
         return comments[self._previous_iteration]
 
-    async def _parse_invite(self, loop):
+    async def _parse_invite(self, loop: int) -> Invite:
         params = {
             "ajax": 1
         }
@@ -312,20 +321,21 @@ class ConnectionState:
         await invite.__ainit__()
         return invite
 
-    async def _poll_listings(self):
-        self._listings_cache = await self.client.fetch_listings()
+    async def _poll_listings(self) -> None:
+        self._listings = {listing.id: listing for listing in await self.client.fetch_listings()}
         try:
             while 1:
                 await asyncio.sleep(300)  # we really don't want to spam these
-                listings = await self.client.fetch_listings()
-                new_listings = [listing for listing in listings if listing not in self._listings_cache]
-                removed_listings = [listing for listing in listings
-                                    if listing in self._listings_cache and listing not in listings]
+                listings = {listing.id: listing for listing in await self.client.fetch_listings()}
+                new_listings = [listing for listing in listings.values()
+                                if listing not in self._listings.values()]
+                removed_listings = [listing for listing in listings.values()
+                                    if listing in self._listings.values() and listing not in listings]
 
                 for listing in new_listings:
                     self.dispatch('listing_create', listing)
                 if removed_listings:
-                    all_previous_listings = await self.client.listing_history().flatten()
+                    all_previous_listings = await self.client.listing_history(limit=None).flatten()
 
                 for listing in removed_listings:
                     listing = get(all_previous_listings, id=listing.id)
@@ -336,7 +346,7 @@ class ConnectionState:
                             self.dispatch('listing_sell', listing)
                     elif listing.state == EMarketListingState.Cancelled:
                         self.dispatch('listing_cancel', listing)
-                self._listings_cache = listings
+                self._listings = listings
 
         except (asyncio.TimeoutError, aiohttp.ClientError):
             self.loop.create_task(self._poll_listings())
@@ -346,24 +356,24 @@ class ConnectionState:
 
     # confirmations
 
-    def _create_confirmation_params(self, tag):
+    def _create_confirmation_params(self, tag: str) -> dict:
         timestamp = int(time())
         return {
             'p': self._device_id,
-            'a': self.id64,
+            'a': self._id64,
             'k': self._generate_confirmation(tag, timestamp),
             't': timestamp,
             'm': 'android',
             'tag': tag
         }
 
-    async def _fetch_confirmations(self):
+    async def _fetch_confirmations(self) -> weakref.WeakValueDictionary:
         params = self._create_confirmation_params('conf')
         headers = {'X-Requested-With': 'com.valvesoftware.android.steam.community'}
         resp = await self.request('GET', f'{URL.COMMUNITY}/mobileconf/conf', params=params, headers=headers)
 
         if 'incorrect Steam Guard codes.' in resp:
-            raise InvalidCredentials('identity secret is incorrect, or time is de-synced')
+            raise InvalidCredentials('identity_secret is incorrect, or time is de-synced, most likely the former')
         elif 'Oh nooooooes!' in resp:
             raise AuthenticatorError
 
@@ -374,18 +384,18 @@ class ConnectionState:
             id = confirmation['id']
             confid = confirmation['data-confid']
             key = confirmation['data-key']
-            creator = confirmation.get('data-creator')
-            self._confirmations[int(creator)] = Confirmation(self, id, confid, key, creator)
+            creator = int(confirmation.get('data-creator'))
+            self._confirmations[creator] = Confirmation(self, id, confid, key, creator)
         return self._confirmations
 
     @property
-    def _device_id(self):
+    def _device_id(self) -> str:
         return generate_device_id(str(self.id64))
 
-    def _generate_confirmation(self, tag, timestamp):
+    def _generate_confirmation(self, tag: str, timestamp: int) -> str:
         return generate_confirmation_code(self.client.identity_secret, tag, timestamp)
 
-    async def get_and_confirm_confirmation(self, id):
+    async def get_and_confirm_confirmation(self, id: int) -> bool:
         if state.client.identity_secret:
             confirmation = self.get_confirmation(id) or await self.fetch_confirmation(id)
             if confirmation is not None:
