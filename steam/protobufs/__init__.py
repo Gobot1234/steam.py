@@ -26,7 +26,10 @@ SOFTWARE.
 This is a copy of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
-from typing import Union, TYPE_CHECKING, Optional
+from typing import Union, Optional
+
+import betterproto
+import stringcase
 
 from . import (
     steammessages_base,
@@ -40,16 +43,38 @@ from .headers import MsgHdr, ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdr, GCMsgHdrP
 from .protobufs import protobufs
 from .structs import get_struct, StructMessage
 from .unified import get_um
-
-if TYPE_CHECKING:
-    from betterproto import Message
+from ..enums import Enum, IntEnum
 
 
-def get_cmsg(emsg: Union[EMsg, int]) -> Optional['Message']:
+def get_cmsg(emsg: Union[EMsg, int]) -> Optional['betterproto.Message']:
     if isinstance(emsg, int):
         emsg = EMsg(emsg)
 
     return protobufs.get(emsg, None)
+
+
+class _Casing(Enum):
+    """Casing constants for serialization."""
+
+    CAMEL = stringcase.camelcase
+    SNAKE = stringcase.snakecase
+
+
+class _Enum(IntEnum):
+    """Protocol buffers enumeration base class. Acts like `enum.IntEnum`."""
+
+    @classmethod
+    def from_string(cls, name: str) -> int:
+        """Return the value which corresponds to the string name."""
+        try:
+            return cls.__members__[name]
+        except KeyError as e:
+            raise ValueError(f"Unknown value {name} for enum {cls.__name__}") from e
+
+
+# add in our speeder enum
+betterproto.Casing = _Casing
+betterproto.Enum = _Enum
 
 
 class Msg:
@@ -60,7 +85,7 @@ class Msg:
 
         self.proto = False
         self.body: Optional[StructMessage] = None  #: message instance
-        self.payload: Optional['Message'] = None  #: Will contain body payload, if we fail to find correct message class
+        self.payload: Optional['betterproto.Message'] = None  #: Will contain body payload, if we fail to find correct message class
 
         if data:
             self.payload = data[self.header._size:]
@@ -123,7 +148,7 @@ class MsgProto:
         self.header = self._header.proto
         self.msg = msg or self._header.msg
         self.proto = True
-        self.body: Optional['Message'] = None  #: protobuf message instance
+        self.body: Optional['betterproto.Message'] = None  #: protobuf message instance
         self.payload = None  #: Will contain body payload, if we fail to find correct proto message
 
         if data:
