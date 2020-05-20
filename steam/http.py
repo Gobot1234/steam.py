@@ -608,13 +608,10 @@ class HTTPClient:
         resp = await self.request('POST', f'{URL.COMMUNITY}/chat/beginfileupload', headers=referer, data=data)
 
         result = resp['result']
-        print(result)
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
         headers = {}
         for header in result['request_headers']:
             headers[header['name']] = header['value']
-        print(url)
-        print(headers)
 
         data = aiohttp.FormData()
         image.fp.seek(0)
