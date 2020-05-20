@@ -241,6 +241,12 @@ Groups
 .. autoclass:: Group()
     :members:
 
+Image
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Image
+    :members:
+
 Invites
 ~~~~~~~~~~~~~~~
 

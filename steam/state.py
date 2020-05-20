@@ -156,7 +156,7 @@ class ConnectionState:
             trade = self._trades[int(data['tradeofferid'])]
         except KeyError:
             log.info(f'Received trade #{data["tradeofferid"]}')
-            trade = TradeOffer(state=self, data=data)
+            trade = TradeOffer._from_api(state=self, data=data)
             await trade.__ainit__()
             self._trades[trade.id] = trade
             if trade.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
@@ -275,7 +275,8 @@ class ConnectionState:
                                 else:
                                     log.debug(f'Received {event_name} notification')
                                     parsed_notification = await event_parser(i)
-                                    self.dispatch(event_name, parsed_notification)
+                                    if parsed_notification:
+                                        self.dispatch(event_name, parsed_notification)
                             self._obj = None
                     self._cached_notifications = notifications
         except (asyncio.TimeoutError, aiohttp.ClientError):
@@ -288,8 +289,7 @@ class ConnectionState:
         # this isn't very efficient but I'm not sure if it can be done better
         resp = await self.request('GET', f'{URL.COMMUNITY}/me/commentnotifications')
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
-        group = search.group(1)
-        steam_id = await SteamID.from_url(group.strip(f'?{_URL(group).query_string}'))
+        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}{_URL(search.group(1)).path}')
         if steam_id.type == EType.Clan:
             obj = await self.client.fetch_group(steam_id.id64)
         else:
@@ -389,14 +389,14 @@ class ConnectionState:
         return self._confirmations
 
     @property
-    def _device_id(self) -> str:
-        return generate_device_id(str(self.id64))
+    def _device_id(self):
+        return generate_device_id(str(self._id64))
 
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:
         return generate_confirmation_code(self.client.identity_secret, tag, timestamp)
 
     async def get_and_confirm_confirmation(self, id: int) -> bool:
-        if state.client.identity_secret:
+        if self.client.identity_secret:
             confirmation = self.get_confirmation(id) or await self.fetch_confirmation(id)
             if confirmation is not None:
                 await confirmation.confirm()

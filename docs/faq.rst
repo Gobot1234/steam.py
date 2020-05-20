@@ -160,7 +160,8 @@ How do I send a trade?
 Sending a trade should be pretty simple.
 You need to first get the inventories of the User's involved.
 Then you need to find the items to trade for.
-Finally use the `send_trade <https://steampy.rtfd.io/en/latest/api.html#steam.User.send_trade>`_
+Construct the TradeOffer from its items.
+Finally use the `send <https://steampy.rtfd.io/en/latest/api.html#steam.User.send>`_
 method on the User that you want to send the offer to.
 
 .. code-block:: python3
@@ -172,11 +173,12 @@ method on the User that you want to send the offer to.
     their_inventory = await user.inventory(game)
 
     # we need to get the items to be included in the trade
-    keys = my_inventory.filter_items('Mann Co. Supply Crate Key', limit=5)
+    keys = my_inventory.filter_items('Mann Co. Supply Crate Key', limit=3)
     earbuds = their_inventory.get_item('Earbuds')
 
     # finally construct the trade
-    await user.send_trade(items_to_send=keys, items_to_receive=earbuds, message='This trade was made using steam.py')
+    trade = TradeOffer(items_to_send=keys, items_to_receive=earbuds, message='This trade was made using steam.py')
+    await user.send(trade=trade)
     # you don't need to confirm the trade manually, the client will handle that for you
 
 

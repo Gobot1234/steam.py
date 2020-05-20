@@ -47,6 +47,8 @@ __all__ = (
     'InvalidCredentials',
 )
 
+CODE_FINDER = re.compile(r'[^\s]([0-9]+)[^\s]')
+
 
 class SteamException(Exception):
     """Base exception class for steam.py"""
@@ -74,36 +76,31 @@ class HTTPException(SteamException):
         Could be an empty string if the message is html.
     status: :class:`int`
         The status code of the HTTP request.
-    result: :class:`~steam.EResult`
-        The associated EResult for the HTTP request.
-        This is likely to be :attr:`~steam.EResult.Invalid`
-    code: :class:`int`
+    code: Union[:class:`~steam.EResult`, :class:`int`]
         The Steam specific error code for the failure.
+        It will attempt to find a matching a :class:`~steam.EResult` for the value.
     """
 
     def __init__(self, response: 'ClientResponse', data: Optional[Union[dict, str]]):
         self.response = response
         self.status = response.status
-        self.result = EResult(int(response.headers.get('X-eresult', 0)))
         self.code = 0
         self.message = ''
+
         if data:
             if isinstance(data, dict):
-                if data:
-                    if data.get('success', True):  # ignore {'success': False} as the message
-                        message = list(data.values())[0]
-                        code_regex = re.compile(r'[^\s]([0-9]+)[^\s]')
-                        code = code_regex.findall(message)
-                        if code:
-                            self.code = int(code[0])
-                            self.message = code_regex.sub('', message)
+                if len(data) != 1 and data.get('success', False):  # ignore {'success': False} as the message
+                    message = data.get('message') or str(list(data.values())[0])
+                    code = data.get('result') or CODE_FINDER.findall(message)
+                    if code:
+                        self.code = EResult.try_value(int(code[0]))
+                    self.message = CODE_FINDER.sub('', message)
             else:
-                text = BeautifulSoup(data, 'html.parser').get_text('\n')
-                if bool(text):
-                    self.message = text
+                text = BeautifulSoup(data, 'html.parser').get_text()
+                self.message = text if text else ''
 
         self.message = self.message.replace('  ', ' ')
-        super().__init__(f'{response.status} {response.reason} (error code: {self.code} result: {self.result})'
+        super().__init__(f'{response.status} {response.reason} (error code: {self.code})'
                          f'{f" Message: {self.message}" if self.message else ""}')
 
 

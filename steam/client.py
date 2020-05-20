@@ -776,7 +776,7 @@ class Client:
         """
         future = self.loop.create_future()
         if check is None:
-            def _check(*args):
+            def _check(*_):
                 return True
 
             check = _check

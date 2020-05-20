@@ -25,11 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 EnumMeta and Enum from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
-Taken from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
+Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
 import types
 from collections import namedtuple
+from typing import Any
 
 __all__ = (
     'Enum',
@@ -51,19 +52,25 @@ __all__ = (
 )
 
 
-def _create_value_cls(name):
+def _create_value_cls(name) -> namedtuple:
     cls = namedtuple(f'_EnumValue_{name}', 'name value')
     cls.__repr__ = lambda self: f'<{name}.{self.name}: {repr(self.value)}>'
     cls.__str__ = lambda self: f'{name}.{self.name}'
     return cls
 
 
-def _is_descriptor(obj):
+def _is_descriptor(obj) -> bool:
     return hasattr(obj, '__get__') or hasattr(obj, '__set__') or hasattr(obj, '__delete__')
 
 
+def _IntEnum__eq__(self, other) -> bool:
+    if type(other) is int:
+        return self.value == other
+    return Enum.__eq__(self, other)
+
+
 class EnumMeta(type):
-    def __new__(cls, name, bases, attrs):
+    def __new__(mcs, name, bases, attrs):
         value_mapping = {}
         member_mapping = {}
         member_names = []
@@ -74,7 +81,7 @@ class EnumMeta(type):
             if key[0] == '_' and not is_descriptor:
                 continue
 
-            # Special case classmethod to just pass through
+            # special case classmethod to just pass through
             if isinstance(value, classmethod):
                 continue
 
@@ -96,9 +103,15 @@ class EnumMeta(type):
         attrs['_enum_value_map_'] = value_mapping
         attrs['_enum_member_map_'] = member_mapping
         attrs['_enum_member_names_'] = member_names
-        actual_cls = super().__new__(cls, name, bases, attrs)
-        value_cls._actual_enum_cls_ = actual_cls
-        return actual_cls
+        attrs.pop('__qualname__')
+        value_cls._actual_enum_cls_ = super().__new__(mcs, name, bases, attrs)
+        try:
+            if IntEnum in bases:
+                value_cls.__eq__ = _IntEnum__eq__  # monkey patch the __eq__ in
+                value_cls.__int__ = lambda self: self.value
+        except NameError:
+            pass
+        return value_cls._actual_enum_cls_
 
     def __iter__(cls):
         return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
@@ -135,12 +148,15 @@ class EnumMeta(type):
         # isinstance(x, Y)
         # -> __instancecheck__(Y, x)
         try:
-            return instance._actual_enum_cls_ is self
+            cls = instance._actual_enum_cls_
+            return cls is self or issubclass(cls, self)
         except AttributeError:
             return False
 
 
 class Enum(metaclass=EnumMeta):
+    """A general enumeration, emulates enum.Enum"""
+
     @classmethod
     def try_value(cls, value):
         try:
@@ -148,20 +164,20 @@ class Enum(metaclass=EnumMeta):
         except (KeyError, TypeError):
             return value
 
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.value == other.value
+    # linting helpers
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
+    @property
+    def name(self) -> str:
+        return self.name
+
+    @property
+    def value(self) -> Any:
+        return self.value
 
 
 class IntEnum(int, Enum):
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.value == other.value
-        elif isinstance(other, int):
-            return self.value == other
-        return False
+    """An enumeration where all the values are integers, emulates enum.IntEnum"""
+    pass
 
 
 class EResult(IntEnum):
@@ -284,9 +300,6 @@ class EUniverse(IntEnum):
 
     def __str__(self):
         return self.name
-
-    def __int__(self):
-        return self.value
 
 
 class EType(IntEnum):

@@ -158,27 +158,6 @@ class Item(Asset):
         self._is_tradable = bool(data.get('tradable', False))
         self._is_marketable = bool(data.get('marketable', False))
 
-    async def list(self, price: Union[int, float]) -> None:
-        """|coro|
-        Creates a market listing for an item.
-
-        .. note::
-            This could result in an account termination,
-            this is just added for completeness sake.
-
-        Parameters
-        ----------
-        price: Union[:class:`int`, :class:`float`]
-            The price user pays for the item as a float.
-            eg. $1 = 1.00 or £2.50 = 2.50 etc.
-        """
-        if not isinstance(price, (int, float)):
-            raise TypeError(f'price should be of type int or float not {price.__class__.__name__!r}')
-        state = self._state
-        resp = await state.market.sell_item(self.asset_id, price)
-        if resp.get('needs_mobile_confirmation', False):
-            await self._state.get_and_confirm_confirmation(self.asset_id)
-
     async def fetch_price(self) -> 'PriceOverview':
         """|coro|
         Fetches the price and volume sales of an item.
@@ -245,8 +224,7 @@ class Inventory:
         return self._total_inventory_count
 
     def __iter__(self):
-        for item in self.items:
-            yield item
+        return (item for item in self.items)
 
     def _update(self, data) -> None:
         try:
@@ -257,11 +235,14 @@ class Inventory:
             self._total_inventory_count = 0
         else:
             for asset in data['assets']:
+                found = False
                 for item in data['descriptions']:
                     if item['instanceid'] == asset['instanceid'] and item['classid'] == asset['classid']:
                         item.update(asset)
                         self.items.append(Item(state=self._state, data=item))
-                self.items.append(Item(state=self._state, data=asset, missing=True))
+                        found = True
+                if not found:
+                    self.items.append(Item(state=self._state, data=asset, missing=True))
             self._total_inventory_count = data['total_inventory_count']
 
     async def update(self) -> 'Inventory':
@@ -277,13 +258,13 @@ class Inventory:
         self._update(data)
         return self
 
-    def filter_items(self, item_name: str, *, limit: int = None) -> Optional[List[Item]]:
+    def filter_items(self, item_name: str, *, limit: int = None) -> List[Item]:
         """Filters items by name into a list of one type of item.
 
         Parameters
         ------------
         item_name: :class:`str`
-            The item to filter.
+            The item's name to filter for.
         limit: Optional[:class:`int`]
             The maximum amount of items to filter.
 
@@ -294,8 +275,8 @@ class Inventory:
             Could be an empty if no matching items are found.
             This also removes the item from the inventory, if possible.
         """
-        items = [item for item in self if item.name == item_name]
         items = items[:len(items) - 1 if limit is None else limit]
+        items = items if limit is None else items[:limit]
         for item in items:
             self.items.remove(item)
         return items
@@ -305,7 +286,7 @@ class Inventory:
 
         Parameters
         ----------
-        item_name: `str`
+        item_name: :class:`str`
             The item to get from the inventory.
 
         Returns
@@ -318,12 +299,24 @@ class Inventory:
         item = utils.get(self.items, name=item_name)
         if item:
             self.items.remove(item)
-            return item
-        return None
+        return item
 
 
 class TradeOffer:
-    """Represents a Trade offer from a User.
+    """Represents a trade offer from/to send to a User.
+    This can also be used in :meth:`steam.User.send`.
+
+    Parameters
+    ----------
+        items_to_send: Optional[List[:class:`steam.Item`]]
+            The items you are sending to the other user.
+        items_to_receive: Optional[List[:class:`steam.Item`]]
+            The items you are sending to the other user.
+        token: Optional[:class:`str`]
+            The the trade token used to send trades to users who aren't
+            on the ClientUser's friend's list.
+        message: Optional[:class:`str`]
+             The offer message to send with the trade.
 
     Attributes
     -------------
@@ -347,19 +340,43 @@ class TradeOffer:
         if there is no escrow on the trade.
     """
 
-    __slots__ = ('id', 'state', 'escrow', 'partner', 'message',
+    __slots__ = ('id', 'state', 'escrow', 'partner', 'message', 'token',
                  'expires', 'items_to_send', 'items_to_receive',
-                 '_id_other', '_state', '_is_our_offer', '__weakref__')
+                 '_has_been_sent', '_id_other', '_state', '_is_our_offer', '__weakref__')
+
+    def __init__(self, *, message: str = None, token: str = None,
+                 items_to_send: List[Item] = None, items_to_receive: List[Item] = None):
+        if type(items_to_receive) is Item:
+            self.items_to_receive = [items_to_receive]
+        elif type(items_to_receive) is list:
+            self.items_to_receive = items_to_receive
+        else:
+            self.items_to_receive = []
 
     def __init__(self, state: 'ConnectionState', data: dict):
+        if type(items_to_send) is Item:
+            self.items_to_send = [items_to_send]
+        elif type(items_to_send) is list:
+            self.items_to_send = items_to_send
+        else:
+            self.items_to_send = []
+        self.message = message if message is not None else ''
+        self.token = token
+        self._has_been_sent = False
+
+    @classmethod
+    def _from_api(cls, state, data):
+        self = cls(items_to_send=None, items_to_receive=None)
+        self._has_been_sent = True
         self._state = state
         self._update(data)
+        return self
 
     def __repr__(self):
         attrs = (
             'id', 'state', 'partner'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={repr(getattr(self, attr, None))}' for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
     def _update(self, data) -> None:
@@ -391,7 +408,7 @@ class TradeOffer:
         """
         if self.is_gift():
             return  # no point trying to confirm it
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException('This trade cannot be confirmed')
         if not await self._state.get_and_confirm_confirmation(self.id):
             raise ConfirmationError('No matching confirmation could be found for this trade')
@@ -410,7 +427,7 @@ class TradeOffer:
         :exc:`~steam.ConfirmationError`
             No matching confirmation could not be found.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException('This trade is not active')
         if self.state == ETradeOfferState.Accepted:
             raise ClientException('This trade has already been accepted')
@@ -429,7 +446,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already declined or not from the ClientUser.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException('This trade is not active')
         if self.state == ETradeOfferState.Declined:
             raise ClientException('This trade has already been declined')
@@ -446,7 +463,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already cancelled or is from the ClientUser.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException('This trade is not active')
         if self.state == ETradeOfferState.Canceled:
             raise ClientException('This trade has already been cancelled')
@@ -475,8 +492,10 @@ class TradeOffer:
         Raises
         ------
         :exc:`~steam.ClientException`
-            The trade from the ClientUser.
+            The trade from the ClientUser or it isn't active.
         """
+        if not self._has_been_sent:
+            raise ClientException("This trade isn't active")
         if self.is_our_offer():
             raise ClientException('You cannot counter an offer the ClientUser has made')
         items_to_send = [] if items_to_send is None else items_to_send

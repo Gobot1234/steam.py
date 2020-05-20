@@ -155,7 +155,7 @@ class Confirmation:
         params['op'] = 'allow'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
-        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf//ajaxop', params=params)
+        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
 
     def cancel(self) -> Awaitable:
         params = self._confirm_params('cancel')

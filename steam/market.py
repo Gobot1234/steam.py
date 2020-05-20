@@ -299,6 +299,9 @@ class MarketClient(HTTPClient):
         return {item.name: await self.get_price(item) for item in items}
 
     async def get_listings(self, pages: int) -> List[dict]:
+        return {item.name: await self.fetch_price(item) for item in items}
+
+    async def fetch_listings(self, pages: int) -> List[dict]:
         ret = []
         for start in range(0, pages, 100):
             params = {

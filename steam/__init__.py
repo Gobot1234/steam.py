@@ -14,6 +14,7 @@ __author__ = 'Gobot1234'
 __license__ = 'MIT'
 __version__ = '0.0.19rc2'
 
+
 import logging
 
 from . import guard, utils
@@ -21,6 +22,7 @@ from .abc import *
 from .client import *
 from .enums import *
 from .errors import *
+from .image import *
 from .game import *
 from .group import *
 from .market import *
