@@ -398,14 +398,14 @@ class HTTPClient:
             "key": self.api_key,
             "tradeofferid": trade_id
         }
-        return self.request('POST', url=Route('IEconService', 'CancelTradeOffer'), data=data)
+        return self.request('POST', url=Route('IEconService', 'DeclineTradeOffer'), data=data)
 
     def cancel_user_trade(self, trade_id):
         data = {
             "key": self.api_key,
             "tradeofferid": trade_id
         }
-        return self.request('POST', url=Route('IEconService', 'DeclineTradeOffer'), data=data)
+        return self.request('POST', url=Route('IEconService', 'CancelTradeOffer'), data=data)
 
     def send_trade_offer(self, user_id64, user_id, to_send, to_receive, token, offer_message, **kwargs):
         data = {
