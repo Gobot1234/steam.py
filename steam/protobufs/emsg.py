@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from enum import IntEnum
+from ..enums import IntEnum
 
 
 class EMsg(IntEnum):
