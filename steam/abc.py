@@ -3,6 +3,7 @@
 """
 The MIT License (MIT)
 
+Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,16 +23,17 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+This contains a copy of
+https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
 
 import abc
-import json
 import re
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-import aiohttp
-
+from . import utils
 from .enums import *
 from .errors import HTTPException
 from .game import Game
@@ -42,13 +44,11 @@ from .trade import Inventory
 if TYPE_CHECKING:
     from .user import User
     from .group import Group
+    from .state import ConnectionState
 
 __all__ = (
     'SteamID',
-    'make_steam64'
 )
-
-ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
 
 _ICODE_HEX = "0123456789abcdef"
 _ICODE_CUSTOM = "bcdfghjkmnpqrtvw"
@@ -57,12 +57,13 @@ _ICODE_MAPPING = dict(zip(_ICODE_HEX, _ICODE_CUSTOM))
 _ICODE_INVERSE_MAPPING = dict(zip(_ICODE_CUSTOM, _ICODE_HEX))
 
 
-class SteamID(int, metaclass=abc.ABCMeta):
+class SteamID(metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations."""
 
-    def __new__(cls, *args, **kwargs):
-        user_id64 = make_steam64(*args, **kwargs)
-        return super().__new__(cls, user_id64)
+    __slots__ = ('_BASE', '__weakref__')
+
+    def __init__(self, *args, **kwargs):
+        self._BASE = utils.make_steam64(*args, **kwargs)
 
     def __repr__(self):
         attrs = (
@@ -70,6 +71,15 @@ class SteamID(int, metaclass=abc.ABCMeta):
         )
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<SteamID {' '.join(resolved)}>"
+
+    def __int__(self):
+        # the reason I moved away from a direct implementation of this
+        # is due to not being able to use __slots__ for an int subclass
+        # this is currently the best implementation I can think of
+        return self._BASE
+
+    def __str__(self):
+        return str(self._BASE)
 
     @property
     def id(self) -> int:
@@ -273,7 +283,7 @@ class SteamID(int, metaclass=abc.ABCMeta):
             `SteamID` instance or ``None``.
         """
 
-        steam64 = await steam64_from_url(url, timeout)
+        steam64 = await utils.steam64_from_url(url, timeout)
 
         if steam64:
             return cls(steam64)
@@ -310,6 +320,8 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
     game: Optional[:class:`~steam.Game`]
         The Game instance attached to the user. Is None if the user
         isn't in a game or one that is recognised by the api.
+    primary_group: Optional[:class:`SteamID`]
+        The primary group the User displays on their profile.
     avatar_url: :class:`str`
         The avatar url of the user. Uses the large (184x184 px) image url.
     community_url: :class:`str`
@@ -326,13 +338,12 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         The persona state flags of the account.
     """
 
-    def __new__(cls, *args, **kwargs):
-        data = kwargs.pop('data')
-        user_id64 = make_steam64(data['steamid'])
-        return super().__new__(cls, user_id64)
+    __slots__ = ('name', 'game', 'state', 'flags', 'country', 'primary_group',
+                 'trade_url', 'real_name', 'avatar_url',
+                 'created_at', 'last_logoff', '_state', '_data')
 
-    def __init__(self, state, data):
-        SteamID.__init__(data['steamid'])
+    def __init__(self, state: 'ConnectionState', data: dict):
+        SteamID.__init__(self, data['steamid'])
         self._state = state
         self._update(data)
 
@@ -350,17 +361,14 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.id == other.id
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def _update(self, data):
+    def _update(self, data) -> None:
         self._data = data
         self.name = data['personaname']
         self.real_name = data.get('realname')
         self.avatar_url = data.get('avatarfull')
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
-        self.primary_group = int(data['primaryclanid']) if 'primaryclanid' in data else None
+        self.primary_group = SteamID(data['primaryclanid']) if 'primaryclanid' in data else None
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
         # steam is dumb I have no clue why this sometimes isn't given sometimes
@@ -380,7 +388,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         """
         await self._state.http.post_comment(self.id64, 'Profile', content)
 
-    async def fetch_inventory(self, game: Game) -> Inventory:
+    async def inventory(self, game: Game) -> Inventory:
         """|coro|
         Fetch an :class:`User`'s :class:`~steam.Inventory` for trading.
 
@@ -409,25 +417,25 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         Returns
         -------
         List[:class:`~steam.User`]
-            The list of :class:`~steam.User`'s friends from the API.
+            The list of user's friends from the API.
         """
         friends = await self._state.http.fetch_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
-    async def fetch_games(self) -> List[Game]:
+    async def games(self) -> List[Game]:
         """|coro|
         Fetches the list of :class:`~steam.Game` objects from the API.
 
         Returns
         -------
         List[:class:`~steam.Game`]
-            The list of :class:`~steam.Game` objects from the API.
+            The list of game objects from the API.
         """
         data = await self._state.http.fetch_user_games(self.id64)
         games = data['response'].get('games', [])
         return [Game._from_api(game) for game in games]
 
-    async def fetch_groups(self) -> List['Group']:
+    async def groups(self) -> List['Group']:
         """|coro|
         Fetches a list of the :class:`User`'s :class:`~steam.Group` objects.
 
@@ -447,7 +455,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
                 groups.append(group)
         return groups
 
-    async def fetch_bans(self) -> Ban:
+    async def bans(self) -> Ban:
         """|coro|
         Fetches the :class:`User`'s :class:`~steam.Ban` objects.
 
@@ -460,7 +468,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         resp['EconomyBan'] = False if resp['EconomyBan'] == 'none' else resp['EconomyBan']
         return Ban(data=resp)
 
-    async def fetch_badges(self) -> UserBadges:
+    async def badges(self) -> UserBadges:
         """|coro|
         Fetches the :class:`User`'s :class:`~steam.UserBadges` objects.
 
@@ -472,7 +480,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         resp = await self._state.http.fetch_user_badges(self.id64)
         return UserBadges(data=resp['response'])
 
-    async def fetch_level(self) -> int:
+    async def level(self) -> int:
         """|coro|
         Fetches the :class:`User`'s level.
 
@@ -499,17 +507,23 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
 
     async def is_banned(self) -> bool:
         """|coro|
-        :class:`bool`: Specifies if the user is banned from any part of Steam.
+        Specifies if the user is banned from any part of Steam.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether or not the user is banned.
 
         This is equivalent to::
 
-            bans = await user.fetch_bans()
+            bans = await user.bans()
             bans.is_banned()
         """
-        bans = await self.fetch_bans()
+        bans = await self.bans()
         return bans.is_banned()
 
-    def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
+    def comments(self, limit: Optional[int] = None,
+                 before: datetime = None, after: datetime = None) -> CommentsIterator:
         """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment` objects.
 
         Examples
@@ -546,6 +560,10 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
                                 comment_type='Profile')
 
 
+class BaseChannel(metaclass=abc.ABCMeta):
+    pass
+
+
 class Messageable(metaclass=abc.ABCMeta):
     """An ABC that details the common operations on a Steam message.
     The following classes implement this ABC:
@@ -580,249 +598,3 @@ class Messageable(metaclass=abc.ABCMeta):
         # ret = state.create_message(channel=channel, data=data)
         # return ret
         pass
-
-
-def make_steam64(id=0, *args, **kwargs) -> int:
-    """Returns a Steam 64-bit ID from various other representations.
-
-    .. code:: python
-
-        make_steam64()  # invalid steam_id
-        make_steam64(12345)  # account_id
-        make_steam64('12345')
-        make_steam64(id=12345, type='Invalid', universe='Invalid', instance=0)
-        make_steam64(103582791429521412)  # steam64
-        make_steam64('103582791429521412')
-        make_steam64('STEAM_1:0:2')  # steam2
-        make_steam64('[g:1:4]')  # steam3
-        make_steam64('cv-dgb')  # invite code
-
-    Raises
-    ------
-    :exc:`TypeError`
-        Too many arguments have been given.
-
-    Returns
-    -------
-    :class:`int`
-        The 64-bit Steam ID.
-    """
-
-    etype = EType.Invalid
-    universe = EUniverse.Invalid
-    instance = None
-
-    if len(args) == 0 and len(kwargs) == 0:
-        value = str(id)
-
-        # numeric input
-        if value.isdigit():
-            value = int(value)
-
-            # 32 bit account id
-            if 0 < value < 2 ** 32:
-                id = value
-                etype = EType.Individual
-                universe = EUniverse.Public
-            # 64 bit
-            elif value < 2 ** 64:
-                return value
-
-        # textual input e.g. [g:1:4]
-        else:
-            result = steam2_to_tuple(value) or steam3_to_tuple(value) or invite_code_to_tuple(value)
-
-            if result:
-                id, etype, universe, instance = result
-            else:
-                id = 0
-
-    elif len(args) > 0:
-        length = len(args)
-        if length == 1:
-            etype, = args
-        elif length == 2:
-            etype, universe = args
-        elif length == 3:
-            etype, universe, instance = args
-        else:
-            raise TypeError(f"Takes at most 4 arguments ({length} given)")
-
-    if len(kwargs) > 0:
-        etype = kwargs.get('type', etype)
-        universe = kwargs.get('universe', universe)
-        instance = kwargs.get('instance', instance)
-
-    etype = (EType(etype.value if isinstance(etype, EType) else etype)
-             if isinstance(etype, (int, EType)) else EType[etype])
-    universe = (EUniverse(universe.value if isinstance(universe, EUniverse) else etype)
-                if isinstance(universe, (int, EUniverse)) else EUniverse[universe])
-
-    if instance is None:
-        instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
-
-    return (universe.value << 56) | (etype.value << 52) | (instance << 32) | id
-
-
-def steam2_to_tuple(value: str):
-    """
-    Parameters
-    ----------
-    value: :class:`str`
-        steam2 e.g. ``STEAM_1:0:1234``.
-
-    Returns
-    -------
-    Optional[:class:`tuple`]
-        e.g. (account_id, type, universe, instance) or ``None``.
-
-    .. note::
-        The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
-    """
-    match = re.match(
-        r"^STEAM_(?P<universe>\d+)"
-        r":(?P<reminder>[0-1])"
-        r":(?P<id>\d+)$", value
-    )
-
-    if not match:
-        return None
-
-    steam_32 = (int(match.group('id')) << 1) | int(match.group('reminder'))
-    universe = int(match.group('universe'))
-
-    # Games before orange box used to incorrectly display universe as 0, we support that
-    if universe == 0:
-        universe = 1
-
-    return steam_32, EType(1), EUniverse(universe), 1
-
-
-def steam3_to_tuple(value: str):
-    """
-    Parameters
-    ----------
-    value: :class:`str`
-        steam3 e.g. ``[U:1:1234]``.
-
-    Returns
-    -------
-    Optional[:class:`tuple`]
-        e.g. (account_id, type, universe, instance) or ``None``.
-    """
-    match = re.match(
-        r"^\["
-        rf"(?P<type>[i{ETypeChars}]):"  # type char
-        r"(?P<universe>[0-4]):"  # universe
-        r"(?P<id>\d{1,10})"  # accountid
-        r"(:(?P<instance>\d+))?"  # instance
-        r"\]$",
-        value
-    )
-    if not match:
-        return None
-
-    steam_32 = int(match.group('id'))
-    universe = EUniverse(int(match.group('universe')))
-    typechar = match.group('type').replace('i', 'I')
-    etype = EType(ETypeChar[typechar])
-    instance = match.group('instance')
-
-    if typechar in 'gT':
-        instance = 0
-    elif instance is not None:
-        instance = int(instance)
-    elif typechar == 'L':
-        instance = EInstanceFlag.Lobby
-    elif typechar == 'c':
-        instance = EInstanceFlag.Clan
-    elif etype in (EType.Individual, EType.GameServer):
-        instance = 1
-    else:
-        instance = 0
-
-    instance = int(instance)
-
-    return steam_32, etype, universe, instance
-
-
-def invite_code_to_tuple(code, universe=EUniverse.Public):
-    match = re.match(rf'(https?://s\.team/p/(?P<code1>[\-{_ICODE_VALID}]+))'
-                     rf'|(?P<code2>[\-{_ICODE_VALID}]+$)', code)
-    if not match:
-        return None
-
-    code = (match.group('code1') or match.group('code2')).replace('-', '')
-
-    def repl_mapper(x):
-        return _ICODE_INVERSE_MAPPING[x.group()]
-
-    steam_32 = int(re.sub(f"[{_ICODE_CUSTOM}]", repl_mapper, code), 16)
-
-    if 0 < steam_32 < 2 ** 32:
-        return steam_32, EType(1), EUniverse(universe) if isinstance(universe, int) else EUniverse(universe.value), 1
-
-
-async def steam64_from_url(url: str, timeout=30) -> Optional[int]:
-    """Takes a Steam Community url and returns steam64 or None
-
-    .. note::
-        Each call makes a http request to steamcommunity.com
-
-    .. note::
-        Example URLs
-            https://steamcommunity.com/gid/[g:1:4]
-
-            https://steamcommunity.com/gid/103582791429521412
-
-            https://steamcommunity.com/groups/Valve
-
-            https://steamcommunity.com/profiles/[U:1:12]
-
-            https://steamcommunity.com/profiles/76561197960265740
-
-            https://steamcommunity.com/id/johnc
-
-    Parameters
-    ----------
-    url: :class:`str`
-        The Steam community url.
-    timeout: :class:`int`
-        How long to wait on http request before turning ``None``.
-
-    Returns
-    -------
-    steam64: Optional[:class:`int`]
-        If ``steamcommunity.com`` is down or no matching account is found returns ``None``
-    """
-
-    match = re.match(r'^(?P<clean_url>https?://steamcommunity.com/'
-                     r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?$', str(url))
-
-    if match is None:
-        return None
-
-    session = aiohttp.ClientSession()
-
-    try:
-        # user profiles
-        if match.group('type') in ('id', 'profiles'):
-            async with session.get(match.group('clean_url'), timeout=timeout) as r:
-                text = await r.text()
-                await session.close()
-            data_match = re.search("g_rgProfileData = (?P<json>{.*?});\s*", text)
-
-            if data_match:
-                data = json.loads(data_match.group('json'))
-                return int(data['steamid'])
-        # group profiles
-        else:
-            async with session.get(match.group('clean_url'), timeout=timeout) as r:
-                text = await r.text()
-                await session.close()
-            data_match = re.search(r"OpenGroupChat\( *'(?P<steamid>\d+)'", text)
-
-            if data_match:
-                return int(data_match.group('steamid'))
-    except aiohttp.InvalidURL:
-        return None
