@@ -25,10 +25,14 @@ SOFTWARE.
 """
 
 import re
+from typing import Optional, Union, TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 
 from .enums import EResult
+
+if TYPE_CHECKING:
+    from aiohttp import ClientResponse
 
 __all__ = (
     'SteamException',
@@ -77,23 +81,23 @@ class HTTPException(SteamException):
         The Steam specific error code for the failure.
     """
 
-    def __init__(self, response, data):
+    def __init__(self, response: 'ClientResponse', data: Optional[Union[dict, str]]):
         self.response = response
         self.status = response.status
         self.result = EResult(int(response.headers.get('X-eresult', 0)))
         self.code = 0
         self.message = ''
-
-        if isinstance(data, dict):
-            if data:
-                message = list(data.values())[0]
-                code_regex = re.compile(r'[^\s]([0-9]+)[^\s]')
-                code = code_regex.findall(message)
-                if code:
-                    self.code = int(code[0])  # would like to EResult however steam trades don't use the same system
-                    self.message = code_regex.sub('', message)
-        else:
-            if data:
+        if data:
+            if isinstance(data, dict):
+                if data:
+                    if data.get('success', True):  # ignore {'success': False} as the message
+                        message = list(data.values())[0]
+                        code_regex = re.compile(r'[^\s]([0-9]+)[^\s]')
+                        code = code_regex.findall(message)
+                        if code:
+                            self.code = int(code[0])
+                            self.message = code_regex.sub('', message)
+            else:
                 text = BeautifulSoup(data, 'html.parser').get_text('\n')
                 if bool(text):
                     self.message = text
