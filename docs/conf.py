@@ -21,14 +21,13 @@ sys.path.append(os.path.abspath('extensions'))
 # ones.
 
 extensions = [
-    'builder',
     'sphinx.ext.autodoc',
     'sphinx.ext.extlinks',
     'sphinx.ext.intersphinx',
     'sphinx.ext.napoleon',
     'sphinxcontrib_trio',
-    'details',
-    'exception_hierarchy'
+    'exception_hierarchy',
+    'enums'
 ]
 
 autodoc_member_order = 'bysource'
