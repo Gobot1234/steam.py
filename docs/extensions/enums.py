@@ -3,7 +3,7 @@ from typing import Any
 
 import sphinx.util.inspect as _inspect
 
-from ...steam import Enum
+from steam import Enum
 
 
 # we can monkey patch in the enum checks to get them to doc properly
