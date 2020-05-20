@@ -42,6 +42,7 @@ from .trade import Inventory
 if TYPE_CHECKING:
     from .user import User
     from .group import Group
+    from .image import Image
 
 __all__ = (
     'SteamID',
@@ -312,8 +313,6 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         isn't in a game or one that is recognised by the api.
     avatar_url: :class:`str`
         The avatar url of the user. Uses the large (184x184 px) image url.
-    community_url: :class:`str`
-        The user's community url.
     real_name: Optional[:class:`str`]
         The user's real name defined by them. Could be None.
     created_at: Optional[:class:`datetime.datetime`]
@@ -556,14 +555,16 @@ class Messageable(metaclass=abc.ABCMeta):
 
     __slots__ = ()
 
-    async def send(self, content: str):
+    async def send(self, content: str = None, image: 'Image' = None):
         """|coro|
         Send a message to a certain destination.
 
         Parameters
         ----------
-        content: :class:`str`
+        content: Optional[:class:`str`]
             The content of the message to send.
+        image: Optional[:class:`.Image`]
+            The image to send to the user. This doesn't fully work yet.
 
         Raises
         ------
