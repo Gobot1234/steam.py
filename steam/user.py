@@ -137,7 +137,7 @@ class User(Messageable, BaseUser):
             The time at which any items sent/received would arrive
             ``None`` if the :class:`User` has no escrow.
         """
-        resp = await self._state.http.fetch_user_escrow(self.id)
+        resp = await self._state.http.get_user_escrow(self.id)
         seconds = resp['their_escrow']['escrow_end_duration_seconds']
         return timedelta(seconds=seconds) if seconds else None
 

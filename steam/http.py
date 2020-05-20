@@ -141,7 +141,7 @@ class HTTPClient:
                             raise errors.HTTPException(r, data)
                         if 'Access is denied. Retrying will not help. Please verify your <pre>key=</pre>' in data:
                             # time to fetch a new key
-                            self.api_key = await self.fetch_api_key()
+                            self.api_key = await self.get_api_key()
                             kwargs['key'] = self.api_key
                             continue  # retry with our new key
 
@@ -185,7 +185,7 @@ class HTTPClient:
         self.logged_in = True
 
         if api_key is None:
-            self._client.api_key = await self.fetch_api_key()
+            self._client.api_key = await self.get_api_key()
         else:
             self._client.api_key = api_key
             resp = await self.request('GET', f'{URL.COMMUNITY}/account/history')
@@ -195,7 +195,7 @@ class HTTPClient:
         self._state = self._client._connection
 
         id64 = login_response['transfer_parameters']['steamid']
-        resp = await self.fetch_profile(id64)
+        resp = await self.get_profile(id64)
         data = resp['response']['players'][0]
         self.user = ClientUser(state=self._state, data=data)
         await self.user.__ainit__()
@@ -207,7 +207,7 @@ class HTTPClient:
         await self.request('GET', url=f'{URL.COMMUNITY}/login/logout')
         self._client.dispatch('logout')
 
-    async def _fetch_rsa_params(self, current_repetitions: int = 0) -> Tuple['RsaKey', int]:
+    async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple['RsaKey', int]:
         maximum_repetitions = 5
         payload = {
             'username': self.username,
@@ -225,12 +225,12 @@ class HTTPClient:
             return construct((rsa_mod, rsa_exp)), rsa_timestamp
         except KeyError:
             if current_repetitions < maximum_repetitions:
-                return await self._fetch_rsa_params(current_repetitions + 1)
+                return await self._get_rsa_params(current_repetitions + 1)
             else:
                 raise ValueError('Could not obtain rsa-key')
 
     async def _send_login_request(self) -> dict:
-        rsa_key, rsa_timestamp = await self._fetch_rsa_params()
+        rsa_key, rsa_timestamp = await self._get_rsa_params()
 
         encrypted_password = b64encode(PKCS1_v1_5.new(rsa_key).encrypt(self.password.encode('ascii'))).decode()
         payload = {
@@ -255,14 +255,14 @@ class HTTPClient:
         except Exception as e:
             raise errors.HTTPException from e
 
-    def fetch_profile(self, user_id64: int) -> Awaitable:
+    def get_profile(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamids": user_id64
         }
         return self.request('GET', url=Route('ISteamUser', 'GetPlayerSummaries', 'v2'), params=params)
 
-    async def fetch_profiles(self, user_id64s: List[int]) -> List[dict]:
+    async def get_profiles(self, user_id64s: List[int]) -> List[dict]:
         ret = []
 
         def chunk():  # chunk the list into 100 element sublists for the requests
@@ -327,7 +327,7 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/actions/IgnoreFriendInviteAjax', json=payload)
 
-    def fetch_user_games(self, user_id64: int) -> Awaitable:
+    def get_user_games(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamid": user_id64,
@@ -336,29 +336,29 @@ class HTTPClient:
         }
         return self.request('GET', url=Route('IPlayerService', 'GetOwnedGames'), params=params)
 
-    def fetch_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> Awaitable:
+    def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> Awaitable:
         params = {
             "count": 5000,
         }
         return self.request('GET', url=f'{URL.COMMUNITY}/inventory/{user_id64}/{app_id}/{context_id}', params=params)
 
-    def fetch_user_escrow(self, user_id64: int) -> Awaitable:
+    def get_user_escrow(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamid_target": user_id64
         }
         return self.request('GET', url=Route('IEconService', 'GetTradeHoldDurations'), params=params)
 
-    async def fetch_friends(self, user_id64: int) -> List[dict]:
+    async def get_friends(self, user_id64: int) -> List[dict]:
         params = {
             "key": self.api_key,
             "steamid": user_id64,
             "relationship": 'friend'
         }
         friends = await self.request('GET', url=Route('ISteamUser', 'GetFriendList'), params=params)
-        return await self.fetch_profiles([friend['steamid'] for friend in friends['friendslist']['friends']])
+        return await self.get_profiles([friend['steamid'] for friend in friends['friendslist']['friends']])
 
-    def fetch_trade_offers(self, active_only: bool = True,
+    def get_trade_offers(self, active_only: bool = True,
                            sent: bool = True, received: bool = True) -> Awaitable:
         params = {
             "key": self.api_key,
@@ -369,7 +369,7 @@ class HTTPClient:
         }
         return self.request('GET', url=Route('IEconService', 'GetTradeOffers'), params=params)
 
-    def fetch_trade_history(self, limit: int, previous_time: int) -> Awaitable:
+    def get_trade_history(self, limit: int, previous_time: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "max_trades": limit,
@@ -379,7 +379,7 @@ class HTTPClient:
         }
         return self.request('GET', url=Route('IEconService', 'GetTradeHistory'), params=params)
 
-    def fetch_trade(self, trade_id: int) -> Awaitable:
+    def get_trade(self, trade_id: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "tradeofferid": trade_id,
@@ -404,7 +404,6 @@ class HTTPClient:
             "tradeofferid": trade_id
         }
         return self.request('POST', url=Route('IEconService', 'DeclineTradeOffer'), json=payload)
-
 
     def cancel_user_trade(self, trade_id: int) -> Awaitable:
         payload = {
@@ -450,13 +449,13 @@ class HTTPClient:
                                  token: Optional[str], offer_message: str) -> Awaitable:
         return self.send_trade_offer(user_id64, user_id, to_send, to_receive, token, offer_message, trade_id=trade_id)
 
-    def fetch_cm_list(self, cell_id: int) -> Awaitable:
+    def get_cm_list(self, cell_id: int) -> Awaitable:
         params = {
             "cellid": cell_id
         }
         return self.request('GET', url=Route('ISteamDirectory', 'GetCMList'), params=params)
 
-    def fetch_comments(self, id64: int, comment_type: str, limit: int = None) -> Awaitable:
+    def get_comments(self, id64: int, comment_type: str, limit: int = None) -> Awaitable:
         params = {
             "start": 0,
             "totalcount": 9999999999
@@ -488,7 +487,7 @@ class HTTPClient:
         }
         return self.request('POST', f'{URL.COMMUNITY}/comment/{comment_type}/hideandreport/{id64}', json=payload)
 
-    async def fetch_api_key(self) -> str:
+    async def get_api_key(self) -> str:
         resp = await self.request('GET', url=f'{URL.COMMUNITY}/dev/apikey')
         error = 'You must have a validated email address to create a Steam Web API key'
         if error in resp:
@@ -507,7 +506,7 @@ class HTTPClient:
                 "Submit": 'Register'
             }
             await self.request('POST', url=f'{URL.COMMUNITY}/dev/registerkey', json=payload)
-            return await self.fetch_api_key()
+            return await self.get_api_key()
 
     def accept_group_invite(self, group_id: int) -> Awaitable:
         payload = {
@@ -553,28 +552,28 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/actions/GroupInvite', json=payload)
 
-    def fetch_user_groups(self, user_id64: int) -> Awaitable:
+    def get_user_groups(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamid": user_id64
         }
         return self.request('GET', url=Route('ISteamUser', 'GetUserGroupList'), params=params)
 
-    def fetch_user_bans(self, user_id64: int) -> Awaitable:
+    def get_user_bans(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamid": user_id64
         }
         return self.request('GET', url=Route('ISteamUser', 'GetPlayerBans'), params=params)
 
-    def fetch_user_level(self, user_id64: int) -> Awaitable:
+    def get_user_level(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamid": user_id64
         }
         return self.request('GET', url=Route('IPlayerService', 'GetSteamLevel'), params=params)
 
-    def fetch_user_badges(self, user_id64: int) -> Awaitable:
+    def get_user_badges(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamid": user_id64
@@ -643,4 +642,3 @@ class HTTPClient:
         data.add_field(name='friend_steamid', value=str(user_id64))
         data.add_field(name='spoiler', value=str(int(image.spoiler)))
         await self.request('POST', url=f'{URL.COMMUNITY}/chat/commitfileupload', data=data)
-

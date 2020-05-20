@@ -144,7 +144,7 @@ class CMServerList:
         log.debug("Attempting to fetch servers from the WebAPI")
         self.cell_id = cell_id
         try:
-            resp = await self.state.http.fetch_cm_list(cell_id)
+            resp = await self.state.http.get_cm_list(cell_id)
         except Exception as e:
             log.error(f'WebAPI fetch request failed with result: {repr(e)}')
             return False

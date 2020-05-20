@@ -109,7 +109,7 @@ class ConnectionState:
         return list(self._confirmations.values())
 
     async def fetch_user(self, id64: int) -> Optional[User]:
-        resp = await self.http.fetch_profile(id64)
+        resp = await self.http.get_profile(id64)
         data = resp['response']['players'][0] if resp['response']['players'] else None
 
         return self._store_user(data) if data else None
@@ -139,7 +139,7 @@ class ConnectionState:
         return self._trades.get(id)
 
     async def fetch_trade(self, id: int) -> Optional[TradeOffer]:
-        resp = await self.http.fetch_trade(id)
+        resp = await self.http.get_trade(id)
         if resp.get('response'):
             trade = [resp['response']['offer']]
             descriptions = resp['response']['descriptions']
@@ -211,7 +211,7 @@ class ConnectionState:
 
     async def _poll_trades(self) -> None:
         create_task = self.loop.create_task
-        resp = await self.http.fetch_trade_offers()
+        resp = await self.http.get_trade_offers()
         trades = resp['response']
         self._trades_received_cache = trades.get('trade_offers_received', [])
         self._trades_sent_cache = trades.get('trade_offers_sent', [])
@@ -222,7 +222,7 @@ class ConnectionState:
         try:
             while 1:
                 await asyncio.sleep(5)
-                resp = await self.http.fetch_trade_offers()
+                resp = await self.http.get_trade_offers()
                 trades = resp['response']
                 descriptions = trades.get('descriptions', [])
                 trades_received = trades.get('trade_offers_received', [])
@@ -303,7 +303,7 @@ class ConnectionState:
         params = {
             "ajax": 1
         }
-        resp = await self.request('GET', f'{self.client.user.community_url}/friends/pending', params=params)
+        resp = await self.request('GET', f'{URL.COMMUNITY}/me/friends/pending', params=params)
         soup = BeautifulSoup(resp, 'html.parser')
         invites = soup.find_all('div', attrs={"class": 'invite_row'})
         if not invites:
@@ -363,7 +363,7 @@ class ConnectionState:
             'tag': tag
         }
 
-    async def _fetch_confirmations(self) -> weakref.WeakValueDictionary:
+    async def _fetch_confirmations(self) -> Optional[weakref.WeakValueDictionary]:
         params = self._create_confirmation_params('conf')
         headers = {'X-Requested-With': 'com.valvesoftware.android.steam.community'}
         resp = await self.request('GET', f'{URL.COMMUNITY}/mobileconf/conf', params=params, headers=headers)
@@ -375,7 +375,7 @@ class ConnectionState:
 
         soup = BeautifulSoup(resp, 'html.parser')
         if soup.select('#mobileconf_empty'):
-            return []
+            return None
         for confirmation in soup.select('#mobileconf_list .mobileconf_list_entry'):
             id = confirmation['id']
             confid = confirmation['data-confid']
@@ -385,7 +385,7 @@ class ConnectionState:
         return self._confirmations
 
     @property
-    def _device_id(self):
+    def _device_id(self) -> str:
         return generate_device_id(str(self._id64))
 
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:

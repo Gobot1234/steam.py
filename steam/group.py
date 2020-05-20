@@ -97,7 +97,7 @@ class Group(SteamID):
                     elif sub.tag == 'headline':
                         self.headline = sub.text
                     elif sub.tag == 'summary':
-                        self.description = BeautifulSoup(sub.text, 'html.parser').get_text('\n')
+                        self.description = BeautifulSoup(sub.text, 'html.parser').get_text()
                     elif sub.tag == 'avatarFull':
                         self.icon_url = sub.text
                     elif sub.tag == 'memberCount':

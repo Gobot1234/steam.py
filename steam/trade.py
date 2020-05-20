@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from datetime import datetime
-from typing import List, Optional, Union, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, Iterable
 
 from . import utils
 from .enums import ETradeOfferState
@@ -223,7 +223,7 @@ class Inventory:
     def __len__(self):
         return self._total_inventory_count
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[Item]:
         return (item for item in self.items)
 
     def _update(self, data) -> None:
@@ -254,7 +254,7 @@ class Inventory:
         :class:`~steam.Inventory`
             The refreshed inventory.
         """
-        data = await self._state.http.fetch_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
+        data = await self._state.http.get_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
         self._update(data)
         return self
 
@@ -275,7 +275,7 @@ class Inventory:
             Could be an empty if no matching items are found.
             This also removes the item from the inventory, if possible.
         """
-        items = items[:len(items) - 1 if limit is None else limit]
+        items = [item for item in self if item.name == item_name]
         items = items if limit is None else items[:limit]
         for item in items:
             self.items.remove(item)

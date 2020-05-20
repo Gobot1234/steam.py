@@ -93,7 +93,7 @@ class CommentsIterator(AsyncIterator):
     async def fill(self) -> None:
         from .user import User
 
-        data = await self._state.http.fetch_comments(id64=self._id, limit=self.limit, comment_type=self._comment_type)
+        data = await self._state.http.get_comments(id64=self._id, limit=self.limit, comment_type=self._comment_type)
         self.owner = await self._state.fetch_user(self._id) if self._comment_type == 'Profile' else \
             await self._state.client.fetch_group(self._id)
         soup = BeautifulSoup(data['comments_html'], 'html.parser')
@@ -112,7 +112,7 @@ class CommentsIterator(AsyncIterator):
                                               content=content, author=author_id, owner=self.owner))
                 if self.queue.qsize == self.limit:
                     return
-        users = await self._state.http.fetch_profiles(to_fetch)
+        users = await self._state.http.get_profiles(to_fetch)
         for user in users:
             author = User(state=self._state, data=user)
             for comment in self.queue._queue:
@@ -161,7 +161,7 @@ class TradesIterator(AsyncIterator):
                 raise StopAsyncIteration  # I think this is somewhat appropriate
 
     async def fill(self) -> None:
-        resp = await self._state.http.fetch_trade_history(100, None)
+        resp = await self._state.http.get_trade_history(100, None)
         resp = resp['response']
         total = resp.get('total_trades', 0)
         if not total:
@@ -177,12 +177,12 @@ class TradesIterator(AsyncIterator):
                 for page in range(0, total, 100):
                     if page in (0, 100):
                         continue
-                    resp = await self._state.http.fetch_trade_history(page, previous_time)
+                    resp = await self._state.http.get_trade_history(page, previous_time)
                     resp = resp['response']
                     for trade in resp.get('trades', []):
                         await self._process_trade(trade, descriptions)
                     previous_time = trade['time_init']
-                resp = await self._state.http.fetch_trade_history(page + 100, previous_time)
+                resp = await self._state.http.get_trade_history(page + 100, previous_time)
                 resp = resp['response']
                 for trade in resp.get('trades', []):
                     await self._process_trade(trade, descriptions)
