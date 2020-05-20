@@ -26,37 +26,41 @@ SOFTWARE.
 This is a copy of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
+from typing import Union, TYPE_CHECKING, Optional
+
 from . import (
-    steammessages_base_pb2 as message_base,
-    steammessages_clientserver_2_pb2 as client_server_2,
-    steammessages_clientserver_friends_pb2 as client_server_friends,
-    steammessages_clientserver_login_pb2 as client_server_login,
-    steammessages_clientserver_pb2 as client_server
+    steammessages_base,
+    steammessages_clientserver_2,
+    steammessages_clientserver_friends,
+    steammessages_clientserver_login,
+    steammessages_clientserver
 )
 from .emsg import EMsg
 from .headers import MsgHdr, ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdr, GCMsgHdrProto
 from .protobufs import protobufs
-from .structs import get_struct
+from .structs import get_struct, StructMessage
 from .unified import get_um
-from ..utils import proto_fill_from_dict
+
+if TYPE_CHECKING:
+    from betterproto import Message
 
 
-def get_cmsg(emsg):
-    if not isinstance(emsg, EMsg):
+def get_cmsg(emsg: Union[EMsg, int]) -> Optional['Message']:
+    if isinstance(emsg, int):
         emsg = EMsg(emsg)
 
     return protobufs.get(emsg, None)
 
 
 class Msg:
-    proto = False
-    body = None  #: message instance
-    payload = None  #: Will contain body payload, if we fail to find correct message class
-
-    def __init__(self, msg, data=None, extended=False, parse=True):
+    def __init__(self, msg, data: bytes = None, extended: bool = False, parse: bool = True):
         self.extended = extended
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.msg = msg
+
+        self.proto = False
+        self.body: Optional[StructMessage] = None  #: message instance
+        self.payload: Optional['Message'] = None  #: Will contain body payload, if we fail to find correct message class
 
         if data:
             self.payload = data[self.header._size:]
@@ -114,12 +118,12 @@ class Msg:
 
 class MsgProto:
 
-    def __init__(self, msg, data=None, parse=True, **kwargs):
+    def __init__(self, msg: EMsg, data: bytes = None, parse: bool = True, **kwargs):
         self._header = MsgHdrProtoBuf(data)
         self.header = self._header.proto
         self.msg = msg or self._header.msg
         self.proto = True
-        self.body = None  #: protobuf message instance
+        self.body: Optional['Message'] = None  #: protobuf message instance
         self.payload = None  #: Will contain body payload, if we fail to find correct proto message
 
         if data:
@@ -129,14 +133,14 @@ class MsgProto:
             self.parse()
 
         if kwargs:
-            proto_fill_from_dict(self.body, kwargs, False)
+            self.body.from_dict(kwargs)
 
     def __repr__(self):
         attrs = (
             'msg', 'proto'
         )
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
-        resolved.extend([f'{proto.name}={repr(value)}' for proto, value in self.body.ListFields()])
+        resolved.extend([f'{key}={repr(value)}' for key, value in self.body.to_dict().items()])
         return f"<MsgProto {' '.join(resolved)}>"
 
     def parse(self):
@@ -151,7 +155,7 @@ class MsgProto:
             if proto:
                 self.body = proto()
                 if self.payload:
-                    self.body.ParseFromString(self.payload)
+                    self.body.FromString(self.payload)
                     self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'

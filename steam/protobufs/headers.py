@@ -1,6 +1,6 @@
 import struct
 
-from . import steammessages_base_pb2, gc_pb2
+from . import steammessages_base, foobar
 from .emsg import EMsg
 from ..utils import set_proto_bit, clear_proto_bit
 
@@ -38,6 +38,9 @@ class ExtendedMsgHdr:
         if data:
             self.load(data)
 
+    def __repr__(self):
+        return f'<ExtendedMsgHdr msg={self.msg}>'
+
     def serialize(self):
         return struct.pack("<IBHqqBqi", self.msg, self.headerSize, self.headerVersion, self.targetJobID,
                            self.sourceJobID, self.headerCanary, self.steamID, self.sessionID)
@@ -57,7 +60,7 @@ class MsgHdrProtoBuf:
     msg = EMsg.Invalid
 
     def __init__(self, data=None):
-        self.proto = steammessages_base_pb2.CMsgProtoBufHeader()
+        self.proto = steammessages_base.CMsgProtoBufHeader()
 
         if data:
             self.load(data)
@@ -72,7 +75,7 @@ class MsgHdrProtoBuf:
         self.msg = EMsg(clear_proto_bit(msg))
         size = MsgHdrProtoBuf._size
         self._fullsize = size + proto_length
-        self.proto.ParseFromString(data[size:self._fullsize])
+        self.proto.FromString(data[size:self._fullsize])
 
 
 class GCMsgHdr:
@@ -100,7 +103,7 @@ class GCMsgHdrProto:
     headerLength = 0
 
     def __init__(self, msg, data=None):
-        self.proto = gc_pb2.CMsgProtoBufHeader()
+        self.proto = foobar.CMsgProtoBufHeader()
         self.msg = clear_proto_bit(msg)
 
         if data:
@@ -119,4 +122,4 @@ class GCMsgHdrProto:
 
         if self.headerLength:
             x = GCMsgHdrProto._size
-            self.proto.ParseFromString(data[x:x + self.headerLength])
+            self.proto.FromString(data[x:x + self.headerLength])

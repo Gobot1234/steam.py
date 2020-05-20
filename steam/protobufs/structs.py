@@ -1,4 +1,5 @@
 """Classes to (de)serialize various struct messages"""
+
 import struct
 
 from .emsg import EMsg
@@ -78,7 +79,7 @@ class StructMessageMeta(type):
     """Automatically adds subclasses of :class:`StructMessage` to the ``EMsg`` map"""
 
     def __new__(mcs, name, bases, class_dict):
-        cls = type.__new__(mcs, name, bases, class_dict)
+        cls = super().__new__(mcs, name, bases, class_dict)
 
         if name != 'StructMessage':
             try:
@@ -170,22 +171,23 @@ class ClientLogOnResponse(StructMessage):
 
 
 class ClientVACBanStatus(StructMessage):
-    class VACBanRange(object):
+    class VACBanRange:
         start = 0
         end = 0
 
         def __str__(self):
-            return '\n'.join(["{",
-                              "start: %s" % self.start,
-                              "end: %d" % self.end,
-                              "}",
-                              ])
+            return """
+            {
+            start: {}
+            end: {}
+            }
+            """.format(self.start, self.end)
 
     @property
     def numBans(self):
         return len(self.ranges)
 
-    def __init__(self, data):
+    def __init__(self, _):
         super().__init__(self)
         self.ranges = list()
 
@@ -277,15 +279,15 @@ class ClientChatMemberInfo(StructMessage):
 
 
 class ClientMarketingMessageUpdate2(StructMessage):
-    class MarketingMessage(object):
+    class MarketingMessage:
         id = 0
         url = ''
         flags = 0
 
     def __init__(self, data):
+        super().__init__(data)
         self.time = 0
         self.messages = list()
-        StructMessage.__init__(self, data)
 
     def load(self, data):
         buf = StructReader(data)
