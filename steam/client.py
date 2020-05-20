@@ -283,9 +283,17 @@ class Client:
         else:
             self._schedule_event(coro, method, *args, **kwargs)
 
+    def _handle_ready(self) -> None:
+        self.client._ready.set()
+        self.dispatch('ready')
+
     def is_ready(self) -> bool:
         """Specifies if the client's internal cache is ready for use."""
         return self._ready.is_set()
+
+    def is_closed(self) -> bool:
+        """Indicates if connection is closed to the API or CMs."""
+        return self._closed
 
     def run(self, *args, **kwargs) -> None:
         """
@@ -326,10 +334,6 @@ class Client:
 
         if not task.cancelled():
             return task.result()
-
-    def is_closed(self) -> bool:
-        """Indicates if the API connection is closed."""
-        return self._closed
 
     async def login(self, username: str, password: str,
                     api_key: str = None, shared_secret: str = None) -> None:
@@ -428,7 +432,7 @@ class Client:
         resp = await self.http.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
         self.token = resp['token']
         self._closed = False
-        self._connection._handle_ready()
+        self._handle_ready()
 
         await self.connect()
         while 1:

@@ -83,10 +83,6 @@ class ConnectionState:
         self.loop.create_task(self._poll_listings())
         self.loop.create_task(self._poll_notifications())
 
-    def _handle_ready(self) -> None:
-        self.client._ready.set()
-        self.dispatch('ready')
-
     async def send_message(self, id64: int, content: str) -> None:
         proto = MsgProto(
             EMsg.ClientFriendMsg,
