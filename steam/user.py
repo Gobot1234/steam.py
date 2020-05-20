@@ -30,15 +30,16 @@ https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 
 import re
 from datetime import timedelta
-from typing import List, Optional, Union, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 
 from .abc import BaseUser, Messageable
 from .enums import *
 from .models import URL
-from .trade import Item, Asset
 
 if TYPE_CHECKING:
     from .group import Group
+    from .image import Image
+    from .trade import TradeOffer
 
 __all__ = (
     'User',
@@ -128,38 +129,6 @@ class User(Messageable, BaseUser):
         """
         await self._state.http.block_user(self.id64)
 
-    async def send_trade(self, *, items_to_send: Union[List[Item], List[Asset]] = None,
-                         items_to_receive: Union[List[Item], List[Asset]] = None,
-                         token: str = None, message: str = None) -> None:
-        """|coro|
-        Sends a trade offer to an :class:`User`.
-
-        Parameters
-        -----------
-        items_to_send: Optional[List[:class:`steam.Item`]]
-            The items you are sending to the other user.
-        items_to_receive: Optional[List[:class:`steam.Item`]]
-            The items you are sending to the other user.
-        token: Optional[:class:`str`]
-            The the trade token used to send trades to users who aren't
-            on the ClientUser's friend's list.
-        message: Optional[:class:`str`]
-             The offer message to send with the trade.
-
-        Raises
-        ------
-        :exc:`.Forbidden`
-            The offer failed to send. Likely due to
-            too many offers being sent to this user.
-        """
-        items_to_send = [] if items_to_send is None else items_to_send
-        items_to_receive = [] if items_to_receive is None else items_to_receive
-        message = message if message is not None else ''
-        resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
-                                                       items_to_receive, token, message)
-        if resp.get('needs_mobile_confirmation', False):
-            await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
-
     async def fetch_escrow(self) -> Optional[timedelta]:
         """|coro|
         Check how long a :class:`User`'s escrow is.
@@ -174,18 +143,40 @@ class User(Messageable, BaseUser):
         seconds = resp['their_escrow']['escrow_end_duration_seconds']
         return timedelta(seconds=seconds) if seconds else None
 
-    async def send(self, content: str = None):
-        """Send a message to the user
+    async def send(self, content: str = None, *, trade: 'TradeOffer' = None, image: 'Image' = None):
+        """|coro|
+        Send a message, trade or image to an :class:`User`.
 
-        .. note::
-            This does not currently function.
+        Parameters
+        ----------
+        content: Optional[:class:`str`]
+            The message to send.
 
-        Returns
-        ---------
-        :class:`~steam.Message`
-            The send message.
+            .. note::
+                This argument is not currently used does **NOT** currently function.
+
+        trade: Optional[:class:`.TradeOffer`]
+            The trade offer to send.
+        image: Optional[:class:`.Image`]
+            The image to send to the user. This doesn't fully work yet.
+
+        Raises
+        ------
+        :exc:`.Forbidden`
+            The something failed to send.
         """
-        return await self._state.send_message(user_id64=self.id64, content=str(content))
+        # Returns
+        # ---------
+        # :class:`~steam.Message`
+        #    The send message.
+        if image is not None:
+            await self._state.http.send_image(self.id64, image)
+        if trade is not None:
+            resp = await self._state.http.send_trade_offer(self.id64, self.id, trade.items_to_send,
+                                                           trade.items_to_receive, trade.token, trade.message)
+            if resp.get('needs_mobile_confirmation', False):
+                await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
+        # return await self._state.send_message(user_id64=self.id64, content=str(content))
 
     async def invite_to_group(self, group: 'Group'):
         """|coro|
