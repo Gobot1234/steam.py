@@ -177,16 +177,6 @@ class Listing(Asset):
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Listing {' '.join(resolved)}>"
 
-    async def confirm(self) -> None:
-        if self.state != EMarketListingState.ConfirmationNeeded:
-            return
-        if not await self._state.get_and_confirm_confirmation(self.id):
-            raise errors.ConfirmationError('No matching confirmation could be found for this trade')
-
-    async def cancel(self) -> None:
-        if self.state in (EMarketListingState.ConfirmationNeeded, EMarketListingState.Active):
-            await self._state.http.remove_market_listing(self.id)
-
     def is_tradable(self) -> bool:
         """:class:`bool`: Whether the listing's item is tradable."""
         return self._is_tradable
