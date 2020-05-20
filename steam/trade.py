@@ -352,8 +352,6 @@ class TradeOffer:
             self.items_to_receive = items_to_receive
         else:
             self.items_to_receive = []
-
-    def __init__(self, state: 'ConnectionState', data: dict):
         if type(items_to_send) is Item:
             self.items_to_send = [items_to_send]
         elif type(items_to_send) is list:
@@ -365,11 +363,12 @@ class TradeOffer:
         self._has_been_sent = False
 
     @classmethod
-    def _from_api(cls, state, data):
+    async def _from_api(cls, state: 'ConnectionState', data: dict) -> 'TradeOffer':
         self = cls(items_to_send=None, items_to_receive=None)
         self._has_been_sent = True
         self._state = state
         self._update(data)
+        self.partner = await self._state.client.fetch_user(self._id_other)
         return self
 
     def __repr__(self):
@@ -390,9 +389,6 @@ class TradeOffer:
         self.items_to_receive = [Item(state=self._state, data=item) for item in data.get('items_to_receive', [])]
         self._is_our_offer = data.get('is_our_offer', False)
         self._id_other = data['accountid_other']
-
-    async def __ainit__(self) -> None:
-        self.partner = await self._state.client.fetch_user(self._id_other)
 
     async def confirm(self) -> None:
         """|coro|
@@ -498,8 +494,18 @@ class TradeOffer:
             raise ClientException("This trade isn't active")
         if self.is_our_offer():
             raise ClientException('You cannot counter an offer the ClientUser has made')
-        items_to_send = [] if items_to_send is None else items_to_send
-        items_to_receive = [] if items_to_receive is None else items_to_receive
+        if type(items_to_receive) is Item:
+            items_to_receive = [items_to_receive]
+        elif type(items_to_receive) is list:
+            items_to_receive = items_to_receive
+        else:
+            items_to_receive = []
+        if type(items_to_send) is Item:
+            items_to_send = [items_to_send]
+        elif type(items_to_send) is list:
+            items_to_send = items_to_send
+        else:
+            items_to_send = []
         message = message if message is not None else ''
         resp = await self._state.http.send_counter_trade_offer(self.id, self.partner.id64, self.partner.id,
                                                                items_to_send, items_to_receive, token, message)

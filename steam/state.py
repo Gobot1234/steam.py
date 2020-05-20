@@ -152,8 +152,7 @@ class ConnectionState:
             trade = self._trades[int(data['tradeofferid'])]
         except KeyError:
             log.info(f'Received trade #{data["tradeofferid"]}')
-            trade = TradeOffer._from_api(state=self, data=data)
-            await trade.__ainit__()
+            trade = await TradeOffer._from_api(state=self, data=data)
             self._trades[trade.id] = trade
             if trade.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
                 return trade
