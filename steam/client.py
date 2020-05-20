@@ -704,72 +704,6 @@ class Client:
         items = convert_items(item_names, games)
         return await self._market.fetch_prices(items)
 
-    async def create_sell_listing(self, item_name: str, game: 'Game', *, price: float) -> Listing:
-        """|coro|
-        Creates a market listing for an item.
-
-        .. note::
-            This could result in an account termination,
-            this is just added for completeness sake.
-
-        Parameters
-        ----------
-        item_name: :class:`str`
-            The name of the item to order.
-        game: :class:`~steam.Game`
-            The game the item is from.
-        price: Union[:class:`int`, :class:`float`]
-            The price user pays for the item as a float.
-            eg. $1 = 1.00 or £2.50 = 2.50 etc.
-        """
-        current_listings = await self.fetch_listings()
-        item = FakeItem(item_name, game)
-        await self._market.create_sell_listing(item, price=price)
-        new_listing = find(lambda l: l not in current_listings, await self.fetch_listings())
-        try:
-            await new_listing.confirm()
-        except errors.ConfirmationError:
-            pass
-        return new_listing
-
-    async def create_sell_listings(self, item_names: List[str], games: Union[List['Game'], 'Game'],
-                                   prices: Union[List[Union[int, float]], Union[int, float]]) -> List[Listing]:
-        """|coro|
-        Creates market listing for items.
-
-        .. note::
-            This could result in an account termination,
-            this is just added for completeness sake.
-
-        Parameters
-        ----------
-        item_names: List[:class:`str`]
-            A list of item names to order.
-        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
-            The game the item(s) is/are from.
-        prices: Union[List[Union[:class:`int`, :class:`float`]], Union[:class:`int`, :class:`float`]]
-            The price user pays for the item as a float.
-            eg. $1 = 1.00 or £2.50 = 2.50 etc.
-        """
-        current_listings = await self.fetch_listings()
-        to_list = []
-        items = convert_items(item_names, games, prices)
-        for (item, price) in items:
-            final_price = price * items.count((item, price))
-            to_list.append((item, final_price, items.count((item, price))))
-            for (_, __) in items:
-                items.remove((item, price))
-        for (item, price) in items:  # idek wtf this is
-            to_list.append((item, price, items.count((item, price))))
-        await self._market.create_sell_listings(to_list)
-        new_listings = [listing for listing in await self.fetch_listings() if listing not in current_listings]
-        for listing in new_listings:
-            try:
-                await listing.confirm()
-            except errors.ConfirmationError:
-                pass
-        return new_listings
-
     # misc
 
     async def wait_until_ready(self) -> None:
@@ -821,7 +755,7 @@ class Client:
         """
         future = self.loop.create_future()
         if check is None:
-            def _check(*args):
+            def _check(*_):
                 return True
 
             check = _check

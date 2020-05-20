@@ -306,44 +306,6 @@ class MarketClient(HTTPClient):
     async def fetch_prices(self, items):
         return {item.name: await self.fetch_price(item) for item in items}
 
-    def create_sell_listing(self, item, price):
-        data = {
-            "sessionid": self.session_id,
-            "currency": self.currency,
-            "appid": item.app_id,
-            "market_hash_name": item.name,
-            "price_total": price * 100,
-            "quantity": 1
-        }
-        headers = {"Referer": f'{self.BASE}/listings/{game.app_id}/{item.name}'}
-        return self.request('POST', f'{self.BASE}/createbuyorder', data=data, headers=headers)
-        # {"success":1,"buy_orderid":"3300749164"}
-
-    async def create_sell_listings(self, to_list):
-        for (item, price, amount) in to_list:
-            data = {
-                "sessionid": self.session_id,
-                "currency": self.currency,
-                "appid": item.app_id,
-                "market_hash_name": item.name,
-                "price_total": price * 100,
-                "quantity": amount
-            }
-            headers = {"Referer": f'{self.BASE}/listings/{item.app_id}/{item.name}'}
-            await self.request('POST', f'{self.BASE}/createbuyorder', data=data, headers=headers)
-
-    def sell_item(self, asset_id, price):
-        data = {
-            "assetid": asset_id,
-            "sessionid": self.session_id,
-            "contextid": game.context_id,
-            "appid": game.app_id,
-            "amount": 1,
-            "price": price
-        }
-        headers = {"Referer": f"{URL.COMMUNITY}/profiles/{self._client.user.id64}/inventory"}
-        return self.request('POST', f'{self.BASE}/sellitem', data=data, headers=headers)
-
     async def fetch_listings(self, pages):
         ret = []
         for start in range(0, pages, 100):
