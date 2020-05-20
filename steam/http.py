@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 async def json_or_text(response: aiohttp.ClientResponse):
-    text = await response.text(encoding=response.get_encoding())
+    text = await response.text()
     try:
         if 'application/json' in response.headers['content-type']:  # thanks steam very cool
             return json.loads(text)
@@ -133,6 +133,8 @@ class HTTPClient:
 
                     if r.status == 401:
                         # api key either got revoked or it was never valid
+                        if not data:
+                            raise errors.HTTPException(r, data)
                         if 'Access is denied. Retrying will not help. Please verify your <pre>key=</pre>' in data:
                             # time to fetch a new key
                             self.api_key = await self.fetch_api_key()
@@ -164,16 +166,13 @@ class HTTPClient:
         login_response = await self._send_login_request()
 
         if 'captcha_needed' in login_response:
-            await self._client.close()
             raise errors.LoginError('A captcha code is required, please try again later')
 
         if not login_response['success']:
-            await self._client.close()
             raise errors.InvalidCredentials(login_response['message'])
 
         data = login_response.get('transfer_parameters')
         if data is None:
-            await self._client.close()
             raise errors.LoginError('Cannot perform redirects after login, no parameters fetched. '
                                     'The Steam API likely is down, please try again later.')
 
@@ -491,7 +490,7 @@ class HTTPClient:
             return match[0]
         else:
             data = {
-                "domain": URL.COMMUNITY,
+                "domain": 'steam.py',
                 "agreeToTerms": 'agreed',
                 "sessionid": self.session_id,
                 "Submit": 'Register'
@@ -571,12 +570,6 @@ class HTTPClient:
         }
         return self.request('GET', url=Route('IPlayerService', 'GetBadges'), params=params)
 
-    def remove_market_listing(self, listing_id):
-        data = {
-            'sessionid': self.session_id
-        }
-        return self.request('POST', url=f'{URL.COMMUNITY}/market/removelisting/{listing_id}', data=data)
-
     def clear_nickname_history(self):
         data = {
             "sessionid": self.session_id
@@ -596,3 +589,51 @@ class HTTPClient:
             "primary_group_steamid": group_id
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/me/edit', data=data)
+
+    async def send_image(self, user_id64, image):
+        data = aiohttp.FormData()
+        filename = f'{time()}_image.{image.file_type}'
+        referer = {
+            "referer": f'{URL.COMMUNITY}/chat'
+        }
+
+        data.add_field(name='sessionid', value=self.session_id)
+        data.add_field(name='l', value='english')
+        data.add_field(name='file_size', value=str(len(image)))
+        data.add_field(name='file_type', value=f'image/{image.file_type}')
+        data.add_field(name='file_name', value=filename)
+        data.add_field(name='file_sha', value=image.hash)
+        data.add_field(name='file_image_width', value=str(image.width))
+        data.add_field(name='file_image_height', value=str(image.height))
+        resp = await self.request('POST', f'{URL.COMMUNITY}/chat/beginfileupload', headers=referer, data=data)
+
+        result = resp['result']
+        print(result)
+        url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        headers = {}
+        for header in result['request_headers']:
+            headers[header['name']] = header['value']
+        print(url)
+        print(headers)
+
+        data = aiohttp.FormData()
+        image.fp.seek(0)
+        data.add_field(name='file', value=image.fp.read())
+        await self.request('PUT', url=url, headers=headers, data=data)
+
+        data = aiohttp.FormData()
+
+        data.add_field(name='sessionid', value=self.session_id)
+        data.add_field(name='l', value='english')
+        data.add_field(name='file_type', value=f'image/{image.file_type}')
+        data.add_field(name='file_name', value=filename)
+        data.add_field(name='file_sha', value=image.hash)
+        data.add_field(name='file_image_width', value=str(image.width))
+        data.add_field(name='file_image_height', value=str(image.height))
+        data.add_field(name='success', value='1')
+        data.add_field(name='ugcid', value=result['ugcid'])
+        data.add_field(name='timestamp', value=resp['timestamp'])
+        data.add_field(name='hmac', value=resp['hmac'])
+        data.add_field(name='friend_steamid', value=str(user_id64))
+        data.add_field(name='spoiler', value=str(int(image.spoiler)))
+        await self.request('POST', url=f'{URL.COMMUNITY}/chat/commitfileupload', data=data)
