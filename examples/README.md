@@ -6,7 +6,7 @@ can be found in [the documentation](https://steampy.rtfd.io/en/latest).
 
 More examples should be coming soon.
 
-<!-- - For a basic bot using ext.commands, see [basic.py](basic_bot.py). (spooky, this one isn't done yet) -->
+<!-- - For a basic bot using ext.commands, see [basic_bot.py](basic_bot.py). (spooky, this one isn't done yet) -->
 - For a basic trade framework that prints trades to stdout and auto-accepts gifts see [`trade.py`](trade.py). 
 - For an automatic suspicious comment deleter see [`comment_monitor.py`](comment_monitor.py)
 
