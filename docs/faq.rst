@@ -130,9 +130,9 @@ How can I wait for an event?
             except asyncio.TimeoutError:  # they took too long to send the trade
                 await message.send('You took too long to send the offer')
             else:
-                to_send = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send]) \
+                to_send = ', '.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send) \
                     if trade.items_to_send else 'Nothing'
-                to_receive = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive]) \
+                to_receive = ', '.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive) \
                     if trade.items_to_receive else 'Nothing'
                 await message.send(f'You were going to send:\n{to_receive}\nYou were going to receive:\n{to_send}')
                 await trade.decline()  # we don't want to clog up trade offers
@@ -168,8 +168,8 @@ method on the User that you want to send the offer to.
     # we need to chose a game to fetch the inventory for
     game = steam.TF2
     # we need to get the inventories to get items
-    my_inventory = await client.user.fetch_inventory(game)
-    their_inventory = await user.fetch_inventory(game)
+    my_inventory = await client.user.inventory(game)
+    their_inventory = await user.inventory(game)
 
     # we need to get the items to be included in the trade
     keys = my_inventory.filter_items('Mann Co. Supply Crate Key', limit=5)

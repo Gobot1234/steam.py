@@ -108,6 +108,8 @@ Utilities
 
 steam.py provides some utility functions for Steam related problems.
 
+.. autofunction:: steam.utils.make_steam64
+
 .. autofunction:: steam.utils.parse_trade_url_token
 
 Then some functions from discord.py
@@ -158,7 +160,6 @@ Enumerations
     :members:
     :undoc-members:
 
-.. TODO make these individually
 
 Guard
 ---------------
@@ -289,19 +290,13 @@ Steam IDs
 Users
 ~~~~~~~~~~~~~~~
 
-.. autofunction:: make_steam64
-
 .. autoclass:: ClientUser()
     :members:
     :inherited-members:
-    :exclude-members: bit_length, conjugate, denominator,
-                      from_bytes, imag, numerator, real, to_bytes
 
 .. autoclass:: User()
     :members:
     :inherited-members:
-    :exclude-members: bit_length, conjugate, denominator,
-                      from_bytes, imag, numerator, real, to_bytes
 
 .. autoclass:: UserBadges()
     :members:
