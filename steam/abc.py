@@ -33,13 +33,20 @@ import re
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-from . import utils
-from .enums import *
+from .enums import (
+    EType,
+    EUniverse,
+    ETypeChar,
+    EPersonaState,
+    EInstanceFlag,
+    EPersonaStateFlag
+)
 from .errors import HTTPException
 from .game import Game
 from .iterators import CommentsIterator
 from .models import URL, Ban, UserBadges
 from .trade import Inventory
+from .utils import make_steam64, steam64_from_url
 
 if TYPE_CHECKING:
     from .user import User
@@ -65,7 +72,7 @@ class SteamID(metaclass=abc.ABCMeta):
     __slots__ = ('_BASE', '__weakref__')
 
     def __init__(self, *args, **kwargs):
-        self._BASE = utils.make_steam64(*args, **kwargs)
+        self._BASE = make_steam64(*args, **kwargs)
 
     def __repr__(self):
         attrs = (
@@ -82,6 +89,9 @@ class SteamID(metaclass=abc.ABCMeta):
 
     def __str__(self):
         return str(self._BASE)
+
+    def __eq__(self, other):
+        return isinstance(other, SteamID) and self.id64 == other.id64
 
     @property
     def id(self) -> int:
@@ -200,8 +210,8 @@ class SteamID(metaclass=abc.ABCMeta):
         return self.id3
 
     @property
-    def as_invite_code(self):
-        """:class:`str`: s.team invite code format
+    def invite_code(self) -> Optional[str]:
+        """Optional[:class:`str`]: s.team invite code format
             e.g. ``cv-dgb``
         """
         if self.type == EType.Individual and self.is_valid():
@@ -217,11 +227,11 @@ class SteamID(metaclass=abc.ABCMeta):
             return invite_code
 
     @property
-    def invite_url(self):
-        """:class:`str`: The user's full invite code URL.
+    def invite_url(self) -> Optional[str]:
+        """Optional[:class:`str`]: The user's full invite code URL.
             e.g ``https://s.team/p/cv-dgb``
         """
-        code = self.as_invite_code
+        code = self.invite_code
         if code:
             return f'https://s.team/p/{code}'
 
@@ -235,7 +245,7 @@ class SteamID(metaclass=abc.ABCMeta):
             EType.Clan: 'gid',
         }
         if self.type in suffix:
-            return f'https://steamcommunity.com/{suffix[self.type]}/{self.as_64}'
+            return f'https://steamcommunity.com/{suffix[self.type]}/{self.id64}'
 
         return None
 
@@ -285,7 +295,7 @@ class SteamID(metaclass=abc.ABCMeta):
             `SteamID` instance or ``None``.
         """
 
-        steam64 = await utils.steam64_from_url(url, timeout)
+        steam64 = await steam64_from_url(url, timeout)
 
         if steam64:
             return cls(steam64)
@@ -357,9 +367,6 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
 
     def __str__(self):
         return self.name
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.id == other.id
 
     def _update(self, data) -> None:
         self._data = data
