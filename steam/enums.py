@@ -30,7 +30,7 @@ Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 
 import types
 from collections import namedtuple
-from typing import Any, Union
+from typing import Any, Union, Iterable
 
 __all__ = (
     'Enum',
@@ -69,6 +69,34 @@ def _IntEnum__eq__(self, other) -> bool:
     return Enum.__eq__(self, other)
 
 
+def _IntEnum__lt__(self, x) -> bool:
+    if isinstance(x, self.__class__):
+        return self.value < x.value
+    if type(x) is int:
+        return self.value < x
+    return False
+
+
+def _IntEnum__le__(self, x) -> bool:
+    return self < x or self == x
+
+
+def _IntEnum__gt__(self, x) -> bool:
+    if isinstance(x, self.__class__):
+        return self.value > x.value
+    if type(x) is int:
+        return self.value > x
+    return False
+
+
+def _IntEnum__ge__(self, x) -> bool:
+    return self > x or self == x
+
+
+def _IntEnum__int__(self) -> int:
+    return self.value
+
+
 class EnumMeta(type):
     def __new__(mcs, name, bases, attrs):
         value_mapping = {}
@@ -81,7 +109,7 @@ class EnumMeta(type):
             if key[0] == '_' and not is_descriptor:
                 continue
 
-            # special case classmethod to just pass through
+            # special case for classmethods to pass through
             if isinstance(value, classmethod):
                 continue
 
@@ -103,20 +131,25 @@ class EnumMeta(type):
         attrs['_enum_value_map_'] = value_mapping
         attrs['_enum_member_map_'] = member_mapping
         attrs['_enum_member_names_'] = member_names
-        attrs.pop('__qualname__')
+        del attrs['__qualname__']
         value_cls._actual_enum_cls_ = super().__new__(mcs, name, bases, attrs)
         try:
             if IntEnum in bases:
-                value_cls.__eq__ = _IntEnum__eq__  # monkey patch the __eq__ in
-                value_cls.__int__ = lambda self: self.value
+                # monkey patch the operators in
+                value_cls.__eq__ = _IntEnum__eq__
+                value_cls.__lt__ = _IntEnum__lt__
+                value_cls.__le__ = _IntEnum__le__
+                value_cls.__gt__ = _IntEnum__gt__
+                value_cls.__ge__ = _IntEnum__ge__
+                value_cls.__int__ = _IntEnum__int__
         except NameError:
             pass
         return value_cls._actual_enum_cls_
 
-    def __iter__(cls):
+    def __iter__(cls) -> Iterable['Enum']:
         return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
 
-    def __reversed__(cls):
+    def __reversed__(cls) -> Iterable['Enum']:
         return (cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_))
 
     def __len__(cls):
@@ -129,13 +162,13 @@ class EnumMeta(type):
     def __members__(cls) -> types.MappingProxyType:
         return types.MappingProxyType(cls._enum_member_map_)
 
-    def __call__(cls, value) -> 'Enum':
+    def __call__(cls, value: Any) -> 'Enum':
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
             raise ValueError(f"{repr(value)} is not a valid {cls.__name__}")
 
-    def __getitem__(cls, key) -> 'Enum':
+    def __getitem__(cls, key: Any) -> 'Enum':
         return cls._enum_member_map_[key]
 
     def __setattr__(cls, name, value) -> None:
@@ -144,7 +177,7 @@ class EnumMeta(type):
     def __delattr__(cls, attr) -> None:
         raise TypeError('Enums are immutable')
 
-    def __instancecheck__(self, instance):
+    def __instancecheck__(self, instance: Any):
         # isinstance(x, Y)
         # -> __instancecheck__(Y, x)
         try:
