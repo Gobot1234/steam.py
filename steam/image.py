@@ -61,10 +61,6 @@ class Image:
 
     __slots__ = ('fp', 'spoiler', 'width', 'height', 'file_type', 'hash')
 
-    def __len__(self):
-        self.fp.seek(0)
-        return len(bytes(self.fp.read()))
-
     def __init__(self, fp: Union[io.IOBase, aiohttp.StreamReader, str], *, spoiler: bool = False):
         self.fp = fp
         self.spoiler = spoiler
@@ -120,6 +116,10 @@ class Image:
             raise TypeError('unsupported file type passed')
         self.width = width
         self.height = height
+
+    def __len__(self):
+        self.fp.seek(0)
+        return len(bytes(self.fp.read()))
 
 
 def test_jpeg(h, _):  # adds support for more header types
