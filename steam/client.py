@@ -355,11 +355,13 @@ class Client:
 
         Raises
         ------
+        TypeError
+            Unexpected keyword arguments were received.
         :exc:`.InvalidCredentials`
             The wrong credentials are passed.
         :exc:`.HTTPException`
             An unknown HTTP related error occurred.
-        :exc:`.NoCMFound`
+        :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """
         log.info(f'Logging in as {username}')
@@ -407,24 +409,21 @@ class Client:
             The wrong credentials are passed.
         :exc:`.HTTPException`
             An unknown HTTP related error occurred.
+        :exc:`.NoCMsFound`
+            No community managers could be found to connect to.
         """
-        api_key = kwargs.pop('api_key', None)
-        username = kwargs.pop('username', None)
-        password = kwargs.pop('password', None)
-        shared_secret = kwargs.pop('shared_secret', None)
-        identity_secret = kwargs.pop('identity_secret', None)
-        self.api_key = api_key
-        self.username = username
-        self.password = password
-        self.shared_secret = shared_secret
-        self.identity_secret = identity_secret
+        self.api_key = api_key = kwargs.pop('api_key', None)
+        self.username = username = kwargs.pop('username', None)
+        self.password = password = kwargs.pop('password', None)
+        self.shared_secret = shared_secret = kwargs.pop('shared_secret', None)
+        self.identity_secret = identity_secret = kwargs.pop('identity_secret', None)
 
         if identity_secret is None:
             log.info('Trades will not be automatically accepted when sent as no identity_secret was passed')
-        if kwargs:
-            raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
         if not (username or password):
             raise errors.LoginError("One or more required login detail is missing")
+        if kwargs:
+            raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
 
         await self.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
         await self._market.__ainit__()
@@ -434,7 +433,7 @@ class Client:
         self._closed = False
         self._handle_ready()
 
-        await self.connect()
+        # await self.connect()
         while 1:
             await asyncio.sleep(5)
 
@@ -451,7 +450,10 @@ class Client:
                 self.ws = await asyncio.wait_for(coro, timeout=60)
 
     async def connect(self) -> None:
-        while not self.is_closed():
+        """|coro|
+        Initialize a connection to a Steam CM.
+        """
+        while not self._closed:
             try:
                 await self._connect()
             except (OSError,
