@@ -22,13 +22,14 @@ from .abc import *
 from .client import *
 from .enums import *
 from .errors import *
-from .image import *
 from .game import *
 from .group import *
+from .image import *
 from .market import *
 from .message import *
 from .models import *
 from .trade import *
 from .user import *
+from .utils import make_steam64
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
