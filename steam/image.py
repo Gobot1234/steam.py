@@ -49,6 +49,7 @@ class Image:
     spoiler: :class:`bool`
         Whether or not to mark the image as a spoiler.
 
+
     .. note::
         Currently supported image types include:
             - PNG
