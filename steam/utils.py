@@ -61,7 +61,7 @@ _INVITE_VALID = f'{_INVITE_HEX}{_INVITE_CUSTOM}'
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 
-ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
+ETypeChars = ''.join(type_char.name for type_char in ETypeChar)
 
 
 class UniverseKey:
@@ -139,23 +139,23 @@ def hmac_sha1(secret, data):
     return HMAC.new(secret, data, SHA1).digest()
 
 
-def ip_from_int(ip) -> str:
+def ip_from_int(ip: int) -> Tuple[str, str]:
     return socket.inet_ntoa(struct.pack(">L", ip))
 
 
-def ip_to_int(ip) -> int:
+def ip_to_int(ip: Tuple[str, str]) -> int:
     return struct.unpack(">L", socket.inet_aton(ip))[0]
 
 
-def is_proto(emsg) -> bool:
+def is_proto(emsg: bytes) -> bool:
     return (int(emsg) & PROTOBUF_MASK) > 0
 
 
-def set_proto_bit(emsg) -> int:
+def set_proto_bit(emsg: bytes) -> int:
     return int(emsg) | PROTOBUF_MASK
 
 
-def clear_proto_bit(emsg) -> int:
+def clear_proto_bit(emsg: bytes) -> int:
     return int(emsg) & ~PROTOBUF_MASK
 
 
@@ -326,6 +326,8 @@ def make_steam64(id: int = 0, *args, **kwargs) -> int:
             # 64 bit
             elif value < 2 ** 64:
                 return value
+            else:
+                id = 0
 
         # textual input e.g. [g:1:4]
         else:
@@ -352,10 +354,8 @@ def make_steam64(id: int = 0, *args, **kwargs) -> int:
         universe = kwargs.get('universe', universe)
         instance = kwargs.get('instance', instance)
 
-    etype = (EType(etype.value if isinstance(etype, EType) else etype)
-             if isinstance(etype, (int, EType)) else EType[etype])
-    universe = (EUniverse(universe.value if isinstance(universe, EUniverse) else etype)
-                if isinstance(universe, (int, EUniverse)) else EUniverse[universe])
+    etype = (EType(int(etype)) if isinstance(etype, (int, EType)) else EType[etype])
+    universe = (EUniverse(int(universe)) if isinstance(universe, (int, EUniverse)) else EUniverse[universe])
 
     if instance is None:
         instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
@@ -410,12 +410,10 @@ def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
         e.g. (account_id, type, universe, instance) or ``None``.
     """
     match = re.match(
-        r"^\["
-        rf"(?P<type>[i{ETypeChars}]):"  # type char
+        rf"^\[(?P<type>[i{ETypeChars}]):"  # type char
         r"(?P<universe>[0-4]):"  # universe
         r"(?P<id>\d{1,10})"  # accountid
-        r"(:(?P<instance>\d+))?"  # instance
-        r"\]$",
+        r"(:(?P<instance>\d+))?\]$",  # instance
         value
     )
     if not match:
