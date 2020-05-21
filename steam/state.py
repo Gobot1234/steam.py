@@ -380,13 +380,13 @@ class ConnectionState:
 
     @property
     def _device_id(self):
-        return generate_device_id(str(self.id64))
+        return generate_device_id(str(self._id64))
 
     def _generate_confirmation(self, tag, timestamp):
         return generate_confirmation_code(self.client.identity_secret, tag, timestamp)
 
     async def get_and_confirm_confirmation(self, id):
-        if state.client.identity_secret:
+        if self.client.identity_secret:
             confirmation = self.get_confirmation(id) or await self.fetch_confirmation(id)
             if confirmation is not None:
                 await confirmation.confirm()
