@@ -350,7 +350,7 @@ class ConnectionState:
         timestamp = int(time())
         return {
             'p': self._device_id,
-            'a': self.id64,
+            'a': self._id64,
             'k': self._generate_confirmation(tag, timestamp),
             't': timestamp,
             'm': 'android',
