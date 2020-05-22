@@ -198,7 +198,7 @@ class MarketListingsIterator(AsyncIterator):
     async def fill(self) -> None:
         from .market import Listing
 
-        resp = await self._state.market.fetch_pages()
+        resp = await self._state.market.get_pages()
         pages = resp['total_count']
         if not pages:  # they have no listings just return
             return
