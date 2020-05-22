@@ -26,13 +26,12 @@ SOFTWARE.
 
 from typing import TYPE_CHECKING
 
-from .abc import Messageable
 from .enums import EChatEntryType
 
 if TYPE_CHECKING:
     from .user import User
     from .protobufs.steammessages_friendmessages import (
-        CFriendMessages_IncomingMessage_Notification as MessageNotification
+        CFriendMessages_IncomingMessage_Notification as ProtoMessage
     )
 
 __all__ = (
@@ -40,19 +39,13 @@ __all__ = (
 )
 
 
-class Message(Messageable):
+class Message:
 
-    async def _get_channel(self):
-        pass
-
-    def __init__(self, proto: 'MessageNotification', author: 'User'):
+    def __init__(self, proto: 'ProtoMessage', author: 'User'):
         self.author = author
         self.content = proto.message
         self.created_at = proto.rtime32_server_timestamp
         self.type = EChatEntryType(proto.chat_entry_type)
 
     def __repr__(self):
-        pass
-
-    async def send(self, content: str):
         pass
