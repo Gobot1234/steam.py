@@ -178,6 +178,9 @@ class Listing(Asset):
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         return f"<Listing {' '.join(resolved)}>"
 
+    def __hash__(self):
+        return hash(self.id)
+
     def is_tradable(self) -> bool:
         """:class:`bool`: Whether the listing's item is tradable."""
         return self._is_tradable
