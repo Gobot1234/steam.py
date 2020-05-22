@@ -414,7 +414,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         :class:`Inventory`
             The user's inventory.
         """
-        resp = await self._state.http.fetch_user_inventory(self.id64, game.app_id, game.context_id)
+        resp = await self._state.http.get_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
     async def fetch_friends(self) -> List['User']:
@@ -426,7 +426,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         List[:class:`~steam.User`]
             The list of user's friends from the API.
         """
-        friends = await self._state.http.fetch_friends(self.id64)
+        friends = await self._state.http.get_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
     async def games(self) -> List[Game]:
@@ -438,7 +438,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         List[:class:`~steam.Game`]
             The list of game objects from the API.
         """
-        data = await self._state.http.fetch_user_games(self.id64)
+        data = await self._state.http.get_user_games(self.id64)
         games = data['response'].get('games', [])
         return [Game._from_api(game) for game in games]
 
@@ -451,7 +451,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         List[:class:`~steam.Group`]
             The user's groups.
         """
-        resp = await self._state.http.fetch_user_groups(self.id64)
+        resp = await self._state.http.get_user_groups(self.id64)
         groups = []
         for group in resp['response']['groups']:
             try:
@@ -471,7 +471,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         :class:`~steam.Ban`
             The user's bans.
         """
-        resp = await self._state.http.fetch_user_bans(self.id64)
+        resp = await self._state.http.get_user_bans(self.id64)
         resp['EconomyBan'] = False if resp['EconomyBan'] == 'none' else resp['EconomyBan']
         return Ban(data=resp)
 
@@ -484,7 +484,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         :class:`~steam.UserBadges`
             The user's badges.
         """
-        resp = await self._state.http.fetch_user_badges(self.id64)
+        resp = await self._state.http.get_user_badges(self.id64)
         return UserBadges(data=resp['response'])
 
     async def level(self) -> int:
@@ -496,7 +496,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         :class:`int`
             The user's level.
         """
-        resp = await self._state.http.fetch_user_level(self.id64)
+        resp = await self._state.http.get_user_level(self.id64)
         return resp['response']['player_level']
 
     def is_commentable(self) -> bool:
