@@ -31,7 +31,7 @@ import re
 from base64 import b64encode
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Union, Awaitable, Tuple, List, Optional
+from typing import TYPE_CHECKING, Union, Awaitable, Tuple, List, Optional, Any
 
 import aiohttp
 from Cryptodome.Cipher import PKCS1_v1_5
@@ -92,7 +92,7 @@ class HTTPClient:
         if self._session.closed:
             self._session = aiohttp.ClientSession(loop=self._loop)
 
-    async def request(self, method: str, url: str, **kwargs) -> Union[dict, str]:  # adapted from d.py
+    async def request(self, method: str, url: str, **kwargs) -> Any:  # adapted from d.py
         kwargs['headers'] = {
             "User-Agent": self.user_agent,
             **kwargs.get('headers', {})
@@ -359,7 +359,7 @@ class HTTPClient:
         return await self.get_profiles([friend['steamid'] for friend in friends['friendslist']['friends']])
 
     def get_trade_offers(self, active_only: bool = True,
-                           sent: bool = True, received: bool = True) -> Awaitable:
+                         sent: bool = True, received: bool = True) -> Awaitable:
         params = {
             "key": self.api_key,
             "active_only": int(active_only),
@@ -619,15 +619,14 @@ class HTTPClient:
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
         headers = {}
         for header in result['request_headers']:
-            headers[header['name']] = header['value']
+            headers[header['name'].lower()] = header['value']
 
         data = aiohttp.FormData()
         image.fp.seek(0)
-        data.add_field(name='file', value=image.fp.read())
+        data.add_field(name='body', value=image.fp.read())  # FIXME figure out field name
         await self.request('PUT', url=url, headers=headers, data=data)
 
         data = aiohttp.FormData()
-
         data.add_field(name='sessionid', value=self.session_id)
         data.add_field(name='l', value='english')
         data.add_field(name='file_type', value=f'image/{image.file_type}')
