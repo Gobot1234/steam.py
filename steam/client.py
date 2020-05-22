@@ -34,7 +34,7 @@ import signal
 import sys
 import traceback
 from datetime import datetime
-from typing import TYPE_CHECKING, Union, List, Any, Optional, Callable, Mapping, Awaitable, Coroutine
+from typing import TYPE_CHECKING, Union, List, Any, Optional, Callable, Mapping, Awaitable
 
 import aiohttp
 
@@ -238,7 +238,7 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: Coroutine, event_name: str, *args, **kwargs) -> ClientEventTask:
+    def _schedule_event(self, coro: Callable, event_name: str, *args, **kwargs) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
         return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
@@ -284,7 +284,7 @@ class Client:
             self._schedule_event(coro, method, *args, **kwargs)
 
     def _handle_ready(self) -> None:
-        self.client._ready.set()
+        self._ready.set()
         self.dispatch('ready')
 
     def is_ready(self) -> bool:

@@ -42,7 +42,12 @@ from Cryptodome.Cipher import AES as AES, PKCS1_OAEP
 from Cryptodome.Hash import SHA1, HMAC
 from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
 
-from .enums import *
+from .enums import (
+    EType,
+    EUniverse,
+    ETypeChar,
+    EInstanceFlag,
+)
 
 __all__ = (
     'get',

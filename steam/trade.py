@@ -346,15 +346,15 @@ class TradeOffer:
 
     def __init__(self, *, message: str = None, token: str = None,
                  items_to_send: List[Item] = None, items_to_receive: List[Item] = None):
-        if type(items_to_receive) is Item:
+        if isinstance(items_to_receive, Item):
             self.items_to_receive = [items_to_receive]
-        elif type(items_to_receive) is list:
+        elif isinstance(items_to_receive, list):
             self.items_to_receive = items_to_receive
         else:
             self.items_to_receive = []
-        if type(items_to_send) is Item:
+        if isinstance(items_to_send, Item):
             self.items_to_send = [items_to_send]
-        elif type(items_to_send) is list:
+        elif isinstance(items_to_send, list):
             self.items_to_send = items_to_send
         else:
             self.items_to_send = []

@@ -188,7 +188,7 @@ class EnumMeta(type):
 
 
 class Enum(metaclass=EnumMeta):
-    """A general enumeration, emulates enum.Enum"""
+    """A general enumeration, emulates enum.Enum."""
 
     @classmethod
     def try_value(cls, value: Any) -> Union['Enum', Any]:
@@ -209,7 +209,7 @@ class Enum(metaclass=EnumMeta):
 
 
 class IntEnum(int, Enum):
-    """An enumeration where all the values are integers, emulates enum.IntEnum"""
+    """An enumeration where all the values are integers, emulates enum.IntEnum."""
     pass
 
 

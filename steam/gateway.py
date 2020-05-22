@@ -172,7 +172,7 @@ class CMServerList:
         for server in self.dict:
             self.mark_good(server)
 
-    def mark_good(self, server: str, score: int = 0) -> None:
+    def mark_good(self, server: str, score: float = 0) -> None:
         self.dict[server] = {"quality": self.GOOD, "timestamp": time.time(), "score": score}
 
     def mark_bad(self, server: str) -> None:
