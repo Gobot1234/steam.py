@@ -322,10 +322,11 @@ class ConnectionState:
             while 1:
                 await asyncio.sleep(300)  # we really don't want to spam these
                 listings = {listing.id: listing for listing in await self.client.fetch_listings()}
-                new_listings = [listing for listing in listings.values()
-                                if listing not in self._listings.values()]
-                removed_listings = [listing for listing in listings.values()
-                                    if listing in self._listings.values() and listing not in listings]
+
+                polled_values = listings.values()
+                cached_values = self._listings.values()
+                new_listings = [listing for listing in polled_values if listing not in cached_values]
+                removed_listings = [listing for listing in cached_values if listing not in listings]
 
                 for listing in new_listings:
                     self.dispatch('listing_create', listing)
