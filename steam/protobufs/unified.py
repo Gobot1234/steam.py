@@ -1,5 +1,5 @@
 import re
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Type
 
 from . import (
     steammessages_econ,
@@ -7,7 +7,6 @@ from . import (
     steammessages_cloud,
     steammessages_video,
     steammessages_player,
-    steammessages_secrets,
     steammessages_parental,
     steammessages_broadcast,
     steammessages_inventory,
@@ -22,6 +21,9 @@ from . import (
 
 if TYPE_CHECKING:
     from betterproto import Message
+
+METHOD_MATCH = re.compile(r'^([a-z]+)\.([a-z]+)?$', re.I)
+
 
 service_lookup = {
     'Broadcast': steammessages_broadcast,
@@ -45,7 +47,6 @@ service_lookup = {
     'Parental': steammessages_parental,
     'Player': steammessages_player,
     'PlayerClient': steammessages_player,
-    'Secrets': steammessages_secrets,
     'TwoFactor': steammessages_twofactor,
     'AccountLinking': steammessages_useraccount,
     'EmbeddedClient': steammessages_useraccount,
@@ -65,32 +66,15 @@ service_lookup = {
     'WebRTCClientNotifications': steammessages_webui_friends,
 }
 
-method_lookup = {}
 
+def get_um(method_name: str) -> Optional[Type['Message']]:
+    findall = METHOD_MATCH.findall(method_name)
+    if not findall:
+        return None
 
-def get_um(method_name: str, response: bool = False) -> Optional['Message']:
-    key = (method_name, response)
+    interface, method = findall[0]
 
-    if key not in method_lookup:
-        match = re.findall(r'^([a-z]+)\.([a-z]+)#(\d)?$', method_name, re.I)
-        if not match:
-            return None
+    if interface not in service_lookup:
+        return None
 
-        interface, method, version = match[0]
-
-        if interface not in service_lookup:
-            return None
-
-        package = service_lookup[interface]
-
-        service = getattr(package, interface, None)
-        if service is None:
-            return None
-
-        for method_desc in service.GetDescriptor().methods:
-            name = f"{interface}.{method_desc.name}#1"
-
-            method_lookup[(name, False)] = getattr(package, method_desc.input_type.full_name, None)
-            method_lookup[(name, True)] = getattr(package, method_desc.output_type.full_name, None)
-
-    return method_lookup[key]
+    return getattr(service_lookup[interface], method)

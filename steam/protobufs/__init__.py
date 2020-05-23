@@ -26,7 +26,7 @@ SOFTWARE.
 This is a copy of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
-from typing import Union, Optional
+from typing import Union, Optional, Type
 
 import betterproto
 import stringcase
@@ -46,7 +46,7 @@ from .unified import get_um
 from ..enums import Enum, IntEnum
 
 
-def get_cmsg(emsg: Union[EMsg, int]) -> Optional['betterproto.Message']:
+def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
     if isinstance(emsg, int):
         emsg = EMsg(emsg)
 
@@ -85,7 +85,7 @@ class Msg:
 
         self.proto = False
         self.body: Optional[StructMessage] = None  #: message instance
-        self.payload: Optional['betterproto.Message'] = None  #: Will contain body payload, if we fail to find correct message class
+        self.payload: Optional[betterproto.Message] = None  # body payload, if we fail to find matching message class
 
         if data:
             self.payload = data[self.header._size:]
@@ -148,7 +148,7 @@ class MsgProto:
         self.header = self._header.proto
         self.msg = msg or self._header.msg
         self.proto = True
-        self.body: Optional['betterproto.Message'] = None  #: protobuf message instance
+        self.body: Optional[betterproto.Message] = None  #: protobuf message instance
         self.payload = None  #: Will contain body payload, if we fail to find correct proto message
 
         if data:

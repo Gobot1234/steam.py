@@ -9,16 +9,12 @@ from ..utils import binary_loads
 _emsg_map = dict()
 
 
-def get_struct(emsg):
-    return _emsg_map.get(emsg, None)
+def get_struct(emsg: EMsg) -> 'StructMessage':
+    return _emsg_map.get(emsg)
 
 
 class StructReader:
     def __init__(self, data):
-        """Simplifies parsing of struct data from bytes
-        :param data: data bytes
-        :type  data: :class:`bytes`
-        """
         if not isinstance(data, bytes):
             raise ValueError("Only works with bytes")
         self.data = data
@@ -28,27 +24,13 @@ class StructReader:
         return len(self.data)
 
     def rlen(self):
-        """Number of remaining bytes that can be read
-        :return: number of remaining bytes
-        :rtype: :class:`int`
-        """
         return max(0, len(self) - self.offset)
 
     def read(self, n=1):
-        """Return n bytes
-        :param n: number of bytes to return
-        :type  n: :class:`int`
-        :return: bytes
-        :rtype: :class:`bytes`
-        """
         self.offset += n
         return self.data[self.offset - n:self.offset]
 
     def read_cstring(self, terminator=b'\x00'):
-        """Reads a single null termianted string
-        :return: string without bytes
-        :rtype: :class:`bytes`
-        """
         null_index = self.data.find(terminator, self.offset)
         if null_index == -1:
             raise RuntimeError("Reached end of buffer")
@@ -57,30 +39,19 @@ class StructReader:
         return result
 
     def unpack(self, format_text):
-        """Unpack bytes using struct modules format
-        :param format_text: struct's module format
-        :type  format_text: :class:`str`
-        :return data: result from :func:`struct.unpack_from`
-        :rtype: :class:`tuple`
-        """
         data = struct.unpack_from(format_text, self.data, self.offset)
         self.offset += struct.calcsize(format_text)
         return data
 
     def skip(self, n):
-        """Skips the next ``n`` bytes
-        :param n: number of bytes to skip
-        :type  n: :class:`int`
-        """
         self.offset += n
 
 
 class StructMessageMeta(type):
     """Automatically adds subclasses of :class:`StructMessage` to the ``EMsg`` map"""
 
-    def __new__(mcs, name, bases, class_dict):
-        cls = super().__new__(mcs, name, bases, class_dict)
-
+    def __new__(mcs, name, bases, attrs):
+        cls = super().__new__(mcs, name, bases, attrs)
         if name != 'StructMessage':
             try:
                 _emsg_map[EMsg[name]] = cls
@@ -111,18 +82,17 @@ class ChannelEncryptRequest(StructMessage):
         return struct.pack("<II", self.protocolVersion, self.universe) + self.challenge
 
     def load(self, data):
-        (self.protocolVersion, universe) = struct.unpack_from("<II", data)
-
+        self.protocolVersion, universe = struct.unpack_from("<II", data)
         self.universe = EUniverse(universe)
-
         if len(data) > 8:
             self.challenge = data[8:]
 
     def __str__(self):
-        return '\n'.join(["protocolVersion: %s" % self.protocolVersion,
-                          "universe: %s" % repr(self.universe),
-                          "challenge: %s" % repr(self.challenge),
-                          ])
+        return f"""
+        protocolVersion {self.protocolVersion}
+        universe: {self.universe!r}
+        challenge: {self.challenge!r}
+        """
 
 
 class ChannelEncryptResponse(StructMessage):
@@ -135,14 +105,15 @@ class ChannelEncryptResponse(StructMessage):
         return struct.pack("<II128sII", self.protocolVersion, self.keySize, self.key, self.crc, 0)
 
     def load(self, data):
-        (self.protocolVersion, self.keySize, self.key, self.crc, _) = struct.unpack_from("<II128sII", data)
+        self.protocolVersion, self.keySize, self.key, self.crc, _ = struct.unpack_from("<II128sII", data)
 
     def __str__(self):
-        return '\n'.join(["protocolVersion: %s" % self.protocolVersion,
-                          "keySize: %s" % self.keySize,
-                          "key: %s" % repr(self.key),
-                          "crc: %s" % self.crc,
-                          ])
+        return f"""
+        protocolVersion: {self.protocolVersion}
+        keySize: {self.keySize}
+        key: {self.key!r}
+        crc: {self.crc}
+        """
 
 
 class ChannelEncryptResult(StructMessage):
@@ -152,11 +123,11 @@ class ChannelEncryptResult(StructMessage):
         return struct.pack("<I", self.eresult)
 
     def load(self, data):
-        (result,) = struct.unpack_from("<I", data)
+        result = struct.unpack_from("<I", data)[0]
         self.eresult = EResult(result)
 
     def __str__(self):
-        return "eresult: %s" % repr(self.eresult)
+        return f"eresult: {self.eresult!r}"
 
 
 class ClientLogOnResponse(StructMessage):
@@ -166,7 +137,7 @@ class ClientLogOnResponse(StructMessage):
         return struct.pack("<I", self.eresult)
 
     def load(self, data):
-        (result,) = struct.unpack_from("<I", data)
+        result = struct.unpack_from("<I", data)[0]
         self.eresult = EResult(result)
 
 
@@ -176,12 +147,10 @@ class ClientVACBanStatus(StructMessage):
         end = 0
 
         def __str__(self):
-            return """
-            {
-            start: {}
-            end: {}
-            }
-            """.format(self.start, self.end)
+            return f"""
+            start: {self.start}
+            end: {self.end}
+            """
 
     @property
     def numBans(self):
@@ -205,10 +174,11 @@ class ClientVACBanStatus(StructMessage):
                 m.start, m.end = m.end, m.start
 
     def __str__(self):
-        text = ["numBans: %d" % self.numBans]
+        text = [f"numBans: {self.numBans}"]
 
         for m in self.ranges:  # emulate Protobuf text format
-            text.append("ranges " + str(m).replace("\n", "\n    ", 2))
+            m = str(m).replace("\n", "\n    ", 2)
+            text.append(f'ranges {m}')
 
         return '\n'.join(text)
 
@@ -221,9 +191,7 @@ class ClientChatMsg(StructMessage):
 
     def serialize(self):
         rbytes = struct.pack("<QQI", self.steamIdChatter, self.steamIdChatRoom, self.ChatMsgType)
-        # utf-8 encode only when unicode in py2 and str in py3
-        rbytes += (self.text.encode('utf-8') if isinstance(self.text, str) else self.text) + b'\x00'
-
+        rbytes += self.text.encode('utf-8') + b'\x00'
         return rbytes
 
     def load(self, data):
@@ -232,11 +200,12 @@ class ClientChatMsg(StructMessage):
         self.text = buf.read_cstring().decode('utf-8')
 
     def __str__(self):
-        return '\n'.join(["steamIdChatter: %d" % self.steamIdChatter,
-                          "steamIdChatRoom: %d" % self.steamIdChatRoom,
-                          "ChatMsgType: %d" % self.ChatMsgType,
-                          "text: %s" % repr(self.text),
-                          ])
+        return f"""
+        steamIdChatter: {self.steamIdChatter}
+        steamIdChatRoom: {self.steamIdChatRoom}
+        ChatMsgType: {self.ChatMsgType}
+        text: {self.text!r}
+        """
 
 
 class ClientJoinChat(StructMessage):
@@ -270,50 +239,13 @@ class ClientChatMemberInfo(StructMessage):
          ) = struct.unpack_from("<QIQIQ", data)
 
     def __str__(self):
-        return '\n'.join(["steamIdChat: %d" % self.steamIdChat,
-                          "type: %r" % self.type,
-                          "steamIdUserActedOn: %d" % self.steamIdUserActedOn,
-                          "chatAction: %d" % self.chatAction,
-                          "steamIdUserActedBy: %d" % self.steamIdUserActedBy
-                          ])
-
-
-class ClientMarketingMessageUpdate2(StructMessage):
-    class MarketingMessage:
-        id = 0
-        url = ''
-        flags = 0
-
-    def __init__(self, data):
-        super().__init__(data)
-        self.time = 0
-        self.messages = list()
-
-    def load(self, data):
-        buf = StructReader(data)
-        self.time, count = buf.unpack("<II")
-
-        for _ in range(count):
-            m = self.MarketingMessage()
-            self.messages.append(m)
-
-            length, m.id = buf.unpack("<IQ")
-            m.url = buf.read_cstring().decode('utf-8')
-            m.flags = buf.unpack("<I")
-
-    def __str__(self):
-        text = ["time: %s" % self.time,
-                "count: %d" % self.count,
-                ]
-
-        for m in self.messages:  # emulate Protobuf text format
-            text.append("messages " + str(m).replace("\n", "\n    ", 3))
-
-        return '\n'.join(text)
-
-    @property
-    def count(self):
-        return len(self.messages)
+        return f"""
+        steamIdChat: {self.steamIdChat}
+        type: {self.type}
+        steamIdUserActedOn: {self.steamIdUserActedOn}
+        chatAction: {self.chatAction}
+        steamIdUserActedBy: {self.steamIdUserActedBy}
+        """
 
 
 class ClientChatEnter(StructMessage):
@@ -336,9 +268,15 @@ class ClientChatEnter(StructMessage):
     def load(self, data):
         buf, self.memberList = StructReader(data), list()
 
-        (self.steamIdChat, self.steamIdFriend, self.chatRoomType, self.steamIdOwner,
-         self.steamIdClan, self.chatFlags, self.enterResponse, self.numMembers
-         ) = buf.unpack("<QQIQQ?II")
+        (self.steamIdChat,
+         self.steamIdFriend,
+         self.chatRoomType,
+         self.steamIdOwner,
+         self.steamIdClan,
+         self.chatFlags,
+         self.enterResponse,
+         self.numMembers) = buf.unpack("<QQIQQ?II")
+        
         self.chatRoomName = buf.read_cstring().decode('utf-8')
 
         for _ in range(self.numMembers):
@@ -347,13 +285,16 @@ class ClientChatEnter(StructMessage):
         self.UNKNOWN1, = buf.unpack("<I")
 
     def __str__(self):
-        return '\n'.join(["steamIdChat: %d" % self.steamIdChat,
-                          "steamIdFriend: %d" % self.steamIdFriend,
-                          "chatRoomType: %r" % self.chatRoomType,
-                          "steamIdOwner: %d" % self.steamIdOwner,
-                          "steamIdClan: %d" % self.steamIdClan,
-                          "chatFlags: %r" % self.chatFlags,
-                          "enterResponse: %r" % self.enterResponse,
-                          "numMembers: %r" % self.numMembers,
-                          "chatRoomName: %s" % repr(self.chatRoomName),
-                          ] + map(lambda x: "memberList: %s" % x, self.memberList))
+        members_list = '\n'.join([f"memberList: {m}" for m in self.memberList])
+        return f"""
+        steamIdChat: {self.steamIdChat}
+        steamIdFriend: {self.steamIdFriend}
+        chatRoomType: {self.chatRoomType!r}
+        steamIdOwner: {self.steamIdOwner}
+        steamIdClan: {self.steamIdClan}
+        chatFlags: {self.chatFlags!r}
+        enterResponse: {self.enterResponse!r}
+        numMembers: {self.numMembers!r}
+        chatRoomName: {self.chatRoomName!r}
+        {members_list}
+        """
