@@ -413,7 +413,6 @@ class EPersonaStateFlag(IntEnum):
     ClientTypeMobile = 512
     ClientTypeTenfoot = 1024
     ClientTypeVR = 2048
-    NoClue = 3072  # TODO figure out what this is
     LaunchTypeGamepad = 4096
     LaunchTypeCompatTool = 8192
 
@@ -513,7 +512,7 @@ class EChatEntryType(IntEnum):
     LinkBlocked = 14  #: a link was removed by the chat filter.
 
 
-class EMarketListingState(IntEnum):  # TODO figure out what the rest of these are
+class EMarketListingState(IntEnum):
     ConfirmationNeeded = 0
     Active = 2
     Bought = 4
