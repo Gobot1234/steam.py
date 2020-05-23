@@ -380,8 +380,8 @@ class ConnectionState:
             id = confirmation['id']
             confid = confirmation['data-confid']
             key = confirmation['data-key']
-            creator = int(confirmation.get('data-creator'))
-            self._confirmations[creator] = Confirmation(self, id, confid, key, creator)
+            trade_id = int(confirmation.get('data-creator'))
+            self._confirmations[trade_id] = Confirmation(self, id, confid, key, trade_id)
         return self._confirmations
 
     @property
