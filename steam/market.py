@@ -215,6 +215,11 @@ class MarketClient(HTTPClient):
         self._loop.create_task(self._remover())
 
     async def request(self, method: str, url: str, **kwargs) -> Any:  # adapted from d.py
+        kwargs['headers'] = {
+            "User-Agent": self.user_agent,
+            **kwargs.get('headers', {})
+        }
+
         is_price_overview = kwargs.pop('is_price_overview', False)
         if is_price_overview:  # do rate-limit handling for price-overviews
             now = datetime.utcnow()
