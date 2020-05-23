@@ -54,7 +54,7 @@ __all__ = (
 log = logging.getLogger(__name__)
 
 
-def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> str:
+def generate_one_time_code(shared_secret: str, timestamp: int = None) -> str:
     """Generate a Steam Guard code for signing in.
 
     Parameters
@@ -69,6 +69,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
     :class:`str`
         The desired 2FA code for the timestamp.
     """
+    timestamp = timestamp or int(time())
     time_buffer = struct.pack('>Q', timestamp // 30)  # pack as Big endian, uint64
     time_hmac = hmac.new(base64.b64decode(shared_secret), time_buffer, digestmod=sha1).digest()
     begin = ord(time_hmac[19:20]) & 0xf
@@ -81,7 +82,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
     return ''.join(code)  # faster than string concatenation
 
 
-def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = int(time())) -> str:
+def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = None) -> str:
     """Generate a trade confirmation code.
 
     Parameters
@@ -98,25 +99,26 @@ def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = 
     :class:`str`
         Confirmation code for the set timestamp.
     """
+    timestamp = timestamp or int(time())
     buffer = struct.pack('>Q', timestamp) + tag.encode('ascii')
     return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
 
 
-def generate_device_id(id64: str) -> str:
+def generate_device_id(user_id64: str) -> str:
     """
     Parameters
     -----------
-    id64: :class:`str`
+    user_id64: :class:`str`
         The 64 bit steam id to generate the device id for.
 
     Returns
     --------
     :class:`str`
-        The device id
+        The device id.
     """
     # it works, however it's different that one generated from mobile app
 
-    hexed_steam_id = sha1(id64.encode('ascii')).hexdigest()
+    hexed_steam_id = sha1(user_id64.encode('ascii')).hexdigest()
     partial_id = [
         hexed_steam_id[:8],
         hexed_steam_id[8:12],
@@ -128,16 +130,16 @@ def generate_device_id(id64: str) -> str:
 
 
 class Confirmation:
-    def __init__(self, state: 'ConnectionState', id: str, data_confid: int, data_key: str, creator: int):
+    def __init__(self, state: 'ConnectionState', id: str, data_confid: int, data_key: str, trade_id: int):
         self.state = state
         self.id = id.split('conf')[1]
         self.data_confid = data_confid
         self.data_key = data_key
         self.tag = f'details{self.id}'
-        self.creator = creator
+        self.trade_id = trade_id
 
     def __repr__(self):
-        return f"<Confirmation id={self.id} creator={self.creator}>"
+        return f"<Confirmation id={self.id} trade_id={self.trade_id}>"
 
     def _confirm_params(self, tag) -> dict:
         timestamp = int(time())
