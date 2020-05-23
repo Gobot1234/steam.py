@@ -34,7 +34,7 @@ import signal
 import sys
 import traceback
 from datetime import datetime
-from typing import TYPE_CHECKING, Union, List, Any, Optional, Callable, Mapping, Awaitable
+from typing import TYPE_CHECKING, Union, List, Any, Optional, Callable, Mapping, Coroutine
 
 import aiohttp
 
@@ -67,13 +67,7 @@ log = logging.getLogger(__name__)
 
 
 def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
-    try:
-        task_retriever = asyncio.Task.all_tasks
-    except AttributeError:
-        # future proofing for 3.9 I guess
-        task_retriever = asyncio.all_tasks
-
-    tasks = {t for t in task_retriever(loop=loop) if not t.done()}
+    tasks = asyncio.all_tasks(loop=loop)
 
     if not tasks:
         return
@@ -107,7 +101,7 @@ def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 class ClientEventTask(asyncio.Task):
     def __init__(self, original_coro: Callable, event_name: str,
-                 coro: Awaitable, *, loop: asyncio.AbstractEventLoop):
+                 coro: Coroutine, *, loop: asyncio.AbstractEventLoop):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
         self.__original_coro = original_coro
@@ -344,15 +338,17 @@ class Client:
         Parameters
         ----------
         username: :class:`str`
-            The username of the desired Steam account.
+            The username of the user's account.
         password: :class:`str`
-            The password of the desired Steam account.
+            The password of the user's account.
         api_key: Optional[:class:`str`]
             The accounts api key for fetching info about the account.
             This can be left and the library will fetch it for you.
+            If ``None`` is passed, one will be generated.
         shared_secret: Optional[:class:`str`]
             The shared_secret of the desired Steam account,
-            used to generate the 2FA code for login.
+            used to generate the 2FA code for login. If ``None`` is passed,
+            the code will need to be inputted by the user.
 
         Raises
         ------
@@ -427,10 +423,7 @@ class Client:
             raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
 
         await self.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
-        await self._market.__ainit__()
         await self._connection.__ainit__()
-        resp = await self.http.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
-        self.token = resp['token']
         self._closed = False
         self._handle_ready()
 
@@ -439,6 +432,8 @@ class Client:
             await asyncio.sleep(5)
 
     async def _connect(self) -> None:
+        resp = await self.http.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
+        self.token = resp['token']
         coro = SteamWebSocket.from_client(self)
         self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
         while 1:
@@ -489,8 +484,6 @@ class Client:
             The user or ``None`` if the user was not found.
         """
         steam_id = SteamID(*args, **kwargs)
-        if not steam_id.is_valid():
-            return None
         return self._connection.get_user(steam_id.id64)
 
     async def fetch_user(self, *args, **kwargs) -> Optional['User']:
