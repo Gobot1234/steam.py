@@ -579,7 +579,6 @@ class Messageable(metaclass=abc.ABCMeta):
     The following classes implement this ABC:
 
         - :class:`~steam.User`
-        - :class:`~steam.Message`
     """
 
     __slots__ = ()
