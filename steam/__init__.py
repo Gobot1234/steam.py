@@ -12,7 +12,7 @@ A basic wrapper for the Steam API and its Community Managers.
 __title__ = 'steam'
 __author__ = 'Gobot1234'
 __license__ = 'MIT'
-__version__ = '0.0.19rc2'
+__version__ = '0.0.19rc3'
 
 
 import logging
@@ -30,6 +30,5 @@ from .message import *
 from .models import *
 from .trade import *
 from .user import *
-from .utils import make_steam64
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
