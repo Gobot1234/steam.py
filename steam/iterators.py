@@ -143,15 +143,14 @@ class TradesIterator(AsyncIterator):
                     if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
                         asset.update(item)
 
-            # duck type the attributes
+            # patch in the attributes
             data['tradeofferid'] = data['tradeid']
             data['accountid_other'] = data['steamid_other']
             data['trade_offer_state'] = data['status']
             data['items_to_give'] = data.get('assets_given', [])
             data['items_to_receive'] = data.get('assets_received', [])
 
-            trade = TradeOffer(state=self._state, data=data)
-            await trade.__ainit__()
+            trade = await TradeOffer._from_api(state=self._state, data=data)
             if not self._active_only:
                 self.queue.put_nowait(trade)
             elif self._active_only and trade.state in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
