@@ -79,7 +79,7 @@ class Group(SteamID):
         self.url = f'{URL.COMMUNITY}/gid/{id}'
         self._state = state
 
-    async def __ainit__(self):
+    async def __ainit__(self) -> None:
         data = await self._state.request('GET', f'{self.url}/memberslistxml')
         try:
             tree = ElementTree.fromstring(data)
@@ -89,7 +89,7 @@ class Group(SteamID):
             if elem.tag == 'totalPages':
                 self._pages = int(elem.text)
             elif elem.tag == 'groupID64':
-                SteamID.__init__(self, elem.text)
+                super().__init__(elem.text)
             elif elem.tag == 'groupDetails':
                 for sub in elem:
                     if sub.tag == 'groupName':
@@ -117,6 +117,9 @@ class Group(SteamID):
         resolved.append(super().__repr__())
         return f"<Group {' '.join(resolved)}>"
 
+    def __str__(self):
+        return self.name
+
     def __len__(self):
         return self.count
 
@@ -135,7 +138,6 @@ class Group(SteamID):
             This will only contain the first ~1500 members of the group.
             The rate-limits on this prevent getting more.
         """
-        from .abc import SteamID
 
         ret = []
         for i in range(self._pages):
