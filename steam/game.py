@@ -65,16 +65,16 @@ class Game:
         The context id of the game normally 2.
     total_play_time: Optional[:class:`int`]
         The total time the game has been played for.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     icon_url: Optional[:class:`str`]
         The icon url of the game.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     logo_url: Optional[:class:`str`]
         The logo url of the game.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     stats_visible: Optional[:class:`bool`]
         Whether the game has publicly visible stats.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     """
 
     def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2):
@@ -143,7 +143,7 @@ class Game:
         if not self.is_steam_game():
             return {
                 "game_id": str(self.app_id),
-                "game_extra_info": game.name
+                "game_extra_info": self.title
             }
         else:
             return {
