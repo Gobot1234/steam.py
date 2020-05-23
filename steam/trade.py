@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING, Iterable
+from typing import List, Optional, TYPE_CHECKING, Iterable, Union
 
 from . import utils
 from .enums import ETradeOfferState
@@ -308,15 +308,15 @@ class TradeOffer:
 
     Parameters
     ----------
-        items_to_send: Optional[List[:class:`steam.Item`]]
-            The items you are sending to the other user.
-        items_to_receive: Optional[List[:class:`steam.Item`]]
-            The items you are sending to the other user.
-        token: Optional[:class:`str`]
-            The the trade token used to send trades to users who aren't
-            on the ClientUser's friend's list.
-        message: Optional[:class:`str`]
-             The offer message to send with the trade.
+    items_to_send: Optional[List[:class:`steam.Item`]]
+        The items you are sending to the other user.
+    items_to_receive: Optional[List[:class:`steam.Item`]]
+        The items you are sending to the other user.
+    token: Optional[:class:`str`]
+        The the trade token used to send trades to users who aren't
+        on the ClientUser's friend's list.
+    message: Optional[:class:`str`]
+         The offer message to send with the trade.
 
     Attributes
     -------------
@@ -345,7 +345,8 @@ class TradeOffer:
                  '_has_been_sent', '_id_other', '_state', '_is_our_offer', '__weakref__')
 
     def __init__(self, *, message: str = None, token: str = None,
-                 items_to_send: List[Item] = None, items_to_receive: List[Item] = None):
+                 items_to_send: Union[List[Item], Item] = None,
+                 items_to_receive: Union[List[Item], Item] = None):
         if isinstance(items_to_receive, Item):
             self.items_to_receive = [items_to_receive]
         elif isinstance(items_to_receive, list):
