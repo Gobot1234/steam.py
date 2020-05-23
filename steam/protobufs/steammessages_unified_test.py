@@ -6,8 +6,6 @@ from dataclasses import dataclass
 
 import betterproto
 
-from .steammessages_unified_base import NoResponse
-
 
 @dataclass
 class CMsgTest_MessageToClient_Request(betterproto.Message):
@@ -37,47 +35,3 @@ class CMsgTest_MessageToServer_Response(betterproto.Message):
 @dataclass
 class CMsgTest_NotifyServer_Notification(betterproto.Message):
     some_text: str = betterproto.string_field(1)
-
-
-class TestSteamClientStub(betterproto.ServiceStub):
-    async def message_to_client(
-        self, *, some_text: str = ""
-    ) -> CMsgTest_MessageToClient_Response:
-        request = CMsgTest_MessageToClient_Request()
-        request.some_text = some_text
-
-        return await self._unary_unary(
-            "/.TestSteamClient/MessageToClient",
-            request,
-            CMsgTest_MessageToClient_Response,
-        )
-
-    async def notify_client(self, *, some_text: str = "") -> NoResponse:
-        request = CMsgTest_NotifyClient_Notification()
-        request.some_text = some_text
-
-        return await self._unary_unary(
-            "/.TestSteamClient/NotifyClient", request, NoResponse,
-        )
-
-
-class TestServerFromClientStub(betterproto.ServiceStub):
-    async def message_to_server(
-        self, *, some_text: str = ""
-    ) -> CMsgTest_MessageToServer_Response:
-        request = CMsgTest_MessageToServer_Request()
-        request.some_text = some_text
-
-        return await self._unary_unary(
-            "/.TestServerFromClient/MessageToServer",
-            request,
-            CMsgTest_MessageToServer_Response,
-        )
-
-    async def notify_server(self, *, some_text: str = "") -> NoResponse:
-        request = CMsgTest_NotifyServer_Notification()
-        request.some_text = some_text
-
-        return await self._unary_unary(
-            "/.TestServerFromClient/NotifyServer", request, NoResponse,
-        )

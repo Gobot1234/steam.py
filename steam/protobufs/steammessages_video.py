@@ -7,8 +7,6 @@ from typing import List
 
 import betterproto
 
-from .steammessages_unified_base import NoResponse
-
 
 @dataclass
 class CVideo_ClientGetVideoURL_Request(betterproto.Message):
@@ -65,61 +63,3 @@ class CFovasVideo_ClientGetOPFSettings_Request(betterproto.Message):
 class CFovasVideo_ClientGetOPFSettings_Response(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     opf_settings: str = betterproto.string_field(2)
-
-
-class VideoStub(betterproto.ServiceStub):
-    async def client_get_video_url(
-        self, *, video_id: int = 0, client_cellid: int = 0
-    ) -> CVideo_ClientGetVideoURL_Response:
-        request = CVideo_ClientGetVideoURL_Request()
-        request.video_id = video_id
-        request.client_cellid = client_cellid
-
-        return await self._unary_unary(
-            "/.Video/ClientGetVideoURL", request, CVideo_ClientGetVideoURL_Response,
-        )
-
-    async def set_video_bookmark(
-        self, *, bookmarks: List["VideoBookmark"] = []
-    ) -> NoResponse:
-        request = CVideo_SetVideoBookmark_Notification()
-        if bookmarks is not None:
-            request.bookmarks = bookmarks
-
-        return await self._unary_unary("/.Video/SetVideoBookmark", request, NoResponse,)
-
-    async def get_video_bookmarks(
-        self, *, appids: List[int] = [], updated_since: int = 0
-    ) -> CVideo_GetVideoBookmarks_Response:
-        request = CVideo_GetVideoBookmarks_Request()
-        request.appids = appids
-        request.updated_since = updated_since
-
-        return await self._unary_unary(
-            "/.Video/GetVideoBookmarks", request, CVideo_GetVideoBookmarks_Response,
-        )
-
-
-class VideoClientStub(betterproto.ServiceStub):
-    async def notify_unlocked_h264(self, *, encryption_key: bytes = b"") -> NoResponse:
-        request = CVideo_UnlockedH264_Notification()
-        request.encryption_key = encryption_key
-
-        return await self._unary_unary(
-            "/.VideoClient/NotifyUnlockedH264", request, NoResponse,
-        )
-
-
-class FovasVideoStub(betterproto.ServiceStub):
-    async def client_get_opf_settings(
-        self, *, app_id: int = 0, client_cellid: int = 0
-    ) -> CFovasVideo_ClientGetOPFSettings_Response:
-        request = CFovasVideo_ClientGetOPFSettings_Request()
-        request.app_id = app_id
-        request.client_cellid = client_cellid
-
-        return await self._unary_unary(
-            "/.FovasVideo/ClientGetOPFSettings",
-            request,
-            CFovasVideo_ClientGetOPFSettings_Response,
-        )

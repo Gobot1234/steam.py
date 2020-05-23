@@ -67,9 +67,7 @@ class CEconItem_Description(betterproto.Message):
     descriptions: List["CEconItem_DescriptionLine"] = betterproto.message_field(8)
     tradable: bool = betterproto.bool_field(9)
     actions: List["CEconItem_Action"] = betterproto.message_field(10)
-    owner_descriptions: List["CEconItem_DescriptionLine"] = betterproto.message_field(
-        11
-    )
+    owner_descriptions: List["CEconItem_DescriptionLine"] = betterproto.message_field(11)
     owner_actions: List["CEconItem_Action"] = betterproto.message_field(12)
     fraudwarnings: List[str] = betterproto.string_field(13)
     name: str = betterproto.string_field(14)
@@ -104,46 +102,3 @@ class CEconItem_Tag(betterproto.Message):
 @dataclass
 class CEcon_GetAssetClassInfo_Response(betterproto.Message):
     descriptions: List["CEconItem_Description"] = betterproto.message_field(1)
-
-
-class EconStub(betterproto.ServiceStub):
-    async def get_trade_offer_access_token(
-        self, *, generate_new_token: bool = False
-    ) -> CEcon_GetTradeOfferAccessToken_Response:
-        request = CEcon_GetTradeOfferAccessToken_Request()
-        request.generate_new_token = generate_new_token
-
-        return await self._unary_unary(
-            "/.Econ/GetTradeOfferAccessToken",
-            request,
-            CEcon_GetTradeOfferAccessToken_Response,
-        )
-
-    async def client_get_item_shop_overlay_auth_url(
-        self, *, return_url: str = ""
-    ) -> CEcon_ClientGetItemShopOverlayAuthURL_Response:
-        request = CEcon_ClientGetItemShopOverlayAuthURL_Request()
-        request.return_url = return_url
-
-        return await self._unary_unary(
-            "/.Econ/ClientGetItemShopOverlayAuthURL",
-            request,
-            CEcon_ClientGetItemShopOverlayAuthURL_Response,
-        )
-
-    async def get_asset_class_info(
-        self,
-        *,
-        language: str = "",
-        appid: int = 0,
-        classes: List["CEcon_GetAssetClassInfo_RequestClass"] = [],
-    ) -> CEcon_GetAssetClassInfo_Response:
-        request = CEcon_GetAssetClassInfo_Request()
-        request.language = language
-        request.appid = appid
-        if classes is not None:
-            request.classes = classes
-
-        return await self._unary_unary(
-            "/.Econ/GetAssetClassInfo", request, CEcon_GetAssetClassInfo_Response,
-        )
