@@ -127,7 +127,7 @@ Then some functions from discord.py
 .. code-block:: python3
 
     active = steam.utils.find(lambda trade: trade.state == ETradeOfferState.Active, client.trades)
-    # how to get an object using condition
+    # how to get an object using a conditional
 
 Enumerations
 -------------
@@ -234,6 +234,7 @@ Games can be manually constructed using there app id eg:
     # this can then be used for trading
     # a game title is not required for this
     # but it is for setting in game statuses
+    # if the game isn't a Steam game.
 
 Groups
 ~~~~~~~~~~~~~~~
