@@ -217,10 +217,13 @@ class MarketClient(HTTPClient):
         self._loop.create_task(self._remover())
         market = await self.request('GET', self.BASE)
         search = re.search(r'var g_rgWalletInfo = (?P<json>(.*?));', market)
-        wallet_info = json.loads(search.group('json'))
-        valve_fee = float(wallet_info['wallet_fee_percent'])
-        publisher_fee = float(wallet_info['wallet_publisher_fee_percent_default'])
-        self.fee = valve_fee + publisher_fee
+        try:
+            wallet_info = json.loads(search.group('json'))
+            valve_fee = float(wallet_info['wallet_fee_percent'])
+            publisher_fee = float(wallet_info['wallet_publisher_fee_percent_default'])
+            self.fee = valve_fee + publisher_fee
+        except AttributeError:
+            self.fee = 0.15
 
     async def request(self, method: str, url: str, **kwargs) -> Union[dict, str]:  # adapted from d.py
         is_price_overview = kwargs.pop('is_price_overview', False)
@@ -261,8 +264,7 @@ class MarketClient(HTTPClient):
                             await asyncio.sleep(2 ** tries)
                         continue
 
-                    # this endpoints equivalent of a 404
-                    if r.status == 500 and is_price_overview:
+                    if r.status == 500 and is_price_overview:  # this endpoints equivalent of a 404
                         raise errors.NotFound(r, data)
                     # we've received a 500 or 502, an unconditional retry
                     if r.status in {500, 502}:
