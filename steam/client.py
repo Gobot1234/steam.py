@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, Union, List, Any, Optional, Callable, Mapping,
 import aiohttp
 
 from . import errors
+from .abc import SteamID
 from .enums import ECurrencyCode
 from .gateway import *
 from .group import Group
@@ -48,7 +49,7 @@ from .iterators import MarketListingsIterator, TradesIterator
 from .market import convert_items, Listing, FakeItem, MarketClient, PriceOverview
 from .models import URL
 from .state import ConnectionState
-from .utils import ainput, get, make_steam64
+from .utils import ainput, get
 
 if TYPE_CHECKING:
     import steam
@@ -89,7 +90,7 @@ def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
             continue
         if task.exception() is not None:
             loop.call_exception_handler({
-                'message': 'Unhandled exception during Client.run shutdown.',
+                'message': 'unhandled exception during Client.run shutdown.',
                 'exception': task.exception(),
                 'task': task
             })
@@ -182,7 +183,7 @@ class Client:
 
     @property
     def listings(self) -> List[Listing]:
-        """List[:class:`~steam.Listing`]: Returns a list of all the listings the ClientUser has."""
+        """List[:class:`~steam.Listing`]: Returns a list of all the listings the ClientUser has made."""
         return self._connection.listings
 
     async def code(self) -> str:
@@ -439,7 +440,7 @@ class Client:
 
     async def _connect(self) -> None:
         coro = SteamWebSocket.from_client(self)
-        self.ws = await asyncio.wait_for(coro, timeout=60)
+        self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
         while 1:
             try:
                 await self.ws.poll_event()
@@ -447,7 +448,7 @@ class Client:
                 log.info('Got a request to RESUME the websocket.')
                 self.dispatch('disconnect')
                 coro = SteamWebSocket.from_client(self, cm=exc.cm, cms=self._cm_list)
-                self.ws = await asyncio.wait_for(coro, timeout=60)
+                self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
 
     async def connect(self) -> None:
         """|coro|
@@ -467,50 +468,73 @@ class Client:
                 if self._closed:
                     return
 
-                log.exception('Attempting a reconnect to')
+                log.exception(f'Attempting to reconnect to {self.ws.cm}')
                 # TODO add backoff
 
     # state stuff
 
     def get_user(self, *args, **kwargs) -> Optional['User']:
-        """Returns a user with the given ID.
+        """Returns a user from cache with a matching ID.
 
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.make_steam64`.
+            The arguments to pass to :meth:`~steam.utils.make_steam64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.make_steam64`.
+            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
         -------
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        id64 = make_steam64(*args, **kwargs)
-        return self._connection.get_user(id64)
+        steam_id = SteamID(*args, **kwargs)
+        if not steam_id.is_valid():
+            return None
+        return self._connection.get_user(steam_id.id64)
 
     async def fetch_user(self, *args, **kwargs) -> Optional['User']:
         """|coro|
-        Fetches a user from the API with the given ID.
+        Fetches a user from the API with a matching ID.
 
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.make_steam64`.
+            The arguments to pass to :meth:`~steam.utils.make_steam64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.make_steam64`.
+            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
         -------
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        id64 = make_steam64(*args, **kwargs)
-        return await self._connection.fetch_user(id64)
+        steam_id = SteamID(*args, **kwargs)
+        if not steam_id.is_valid():
+            return None
+        return await self._connection.fetch_user(steam_id.id64)
+
+    async def fetch_user_named(self, name: str) -> Optional['User']:
+        """|coro|
+        Fetches a user from https://steamcommunity.com with a matching name.
+
+        Parameters
+        ----------
+        name: :class:`str`
+            The name of the Steam user.
+
+        Returns
+        -------
+        Optional[:class:`~steam.User`]
+            The user or ``None`` if the user was not found.
+        """
+        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/id/{name}')
+        if not steam_id:
+            return None
+        return await self.fetch_user(id=steam_id.id64)
 
     def get_trade(self, id: int) -> Optional['TradeOffer']:
-        """Get a trade from cache.
+        """Get a trade from cache with a matching ID.
 
         Parameters
         ----------
@@ -526,7 +550,7 @@ class Client:
 
     async def fetch_trade(self, id: int) -> Optional['TradeOffer']:
         """|coro|
-        Fetches a trade from the API with the given ID.
+        Fetches a trade from the API with a matching ID.
 
         Parameters
         ----------
@@ -542,27 +566,48 @@ class Client:
 
     async def fetch_group(self, *args, **kwargs) -> Optional[Group]:
         """|coro|
-        Fetches a group from https://steamcommunity.com with the given ID.
+        Fetches a group from https://steamcommunity.com with a matching ID.
 
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.make_steam64`.
+            The arguments to pass to :meth:`~steam.utils.make_steam64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.make_steam64`.
+            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
         -------
         Optional[:class:`~steam.Group`]
             The group or ``None`` if the group was not found.
         """
-        id = make_steam64(*args, **kwargs) & 0xFFffFFff
-        group = Group(state=self._connection, id=id)
+        steam_id = SteamID(*args, **kwargs)
+        if not steam_id.is_valid():
+            return None
+        group = Group(state=self._connection, id=steam_id.id)
         await group.__ainit__()
         return group if group.name else None
 
+    async def fetch_group_named(self, name: str) -> Optional['Group']:
+        """|coro|
+        Fetches a group from https://steamcommunity.com with a matching name.
+
+        Parameters
+        ----------
+        name: :class:`str`
+            The name of the Steam group.
+
+        Returns
+        -------
+        Optional[:class:`~steam.Group`]
+            The group or ``None`` if the group was not found.
+        """
+        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/groups/{name}')
+        if not steam_id:
+            return None
+        return await self.fetch_group(id=steam_id.id)
+
     def get_listing(self, id: int) -> Optional[Listing]:
-        """Gets a listing from cache.
+        """Gets a listing from cache with a matching ID.
 
         Parameters
         ----------
@@ -578,7 +623,7 @@ class Client:
 
     async def fetch_listing(self, id: int) -> Optional[Listing]:
         """|coro|
-        Gets a listing from from https://steamcommunity.com.
+        Gets a listing from from https://steamcommunity.com with a matching ID.
 
         Parameters
         ----------
@@ -595,7 +640,7 @@ class Client:
 
     async def fetch_listings(self) -> List[Listing]:
         """|coro|
-        Fetches all your market sell listing from https://steamcommunity.com.
+        Fetches all of your current market sell listing from https://steamcommunity.com.
 
         Returns
         -------
