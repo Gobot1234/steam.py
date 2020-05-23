@@ -87,6 +87,9 @@ class SteamID(metaclass=abc.ABCMeta):
         # this is currently the best implementation I can think of
         return self._BASE
 
+    def __bool__(self):
+        return bool(self._BASE)
+
     def __str__(self):
         return str(self._BASE)
 
@@ -353,7 +356,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
                  'created_at', 'last_logoff', '_state', '_data')
 
     def __init__(self, state: 'ConnectionState', data: dict):
-        SteamID.__init__(self, data['steamid'])
+        super().__init__(data['steamid'])
         self._state = state
         self._update(data)
 
