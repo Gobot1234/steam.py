@@ -42,7 +42,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import aiohttp
 
@@ -69,7 +69,7 @@ log = logging.getLogger(__name__)
 class ReconnectWebSocket(Exception):
     """Signals to safely reconnect the websocket."""
 
-    def __init__(self, cm: str, *, resume=True):
+    def __init__(self, cm: str, *, resume: bool = True):
         self.cm = cm
         self.resume = resume
 
@@ -81,7 +81,7 @@ class ConnectionClosed(Exception):
         self.reason = ''
         self.cm = cm
         self.cm_list = cms
-        super().__init__(f'CM {self.cm} WebSocket, closed with {self.code}')
+        super().__init__(f'Connection to {self.cm}, has closed with code: {self.code}')
 
 
 class WebSocketClosure(Exception):
@@ -130,7 +130,7 @@ class CMServerList:
             return
 
         ordered = sorted(good_servers, key=lambda x: x[1]['score'])
-        if ordered[0][1]['score'] == 0:
+        if ordered[0][1]['score'] == 0:  # check if CMs have been pinged yet
             random.shuffle(ordered)
         for server_address, _ in ordered:
             self.queue.put_nowait(server_address)
@@ -206,16 +206,12 @@ class CMServerList:
         log.debug('Finished pinging CMs')
 
 
-class KeepAliveHandler(threading.Thread):  # Ping commands are cool
+class KeepAliveHandler(threading.Thread):  # ping commands are cool
     def __init__(self, *args, **kwargs):
-        ws = kwargs.pop('ws')
-        interval = kwargs.pop('interval')
-
+        self.ws = kwargs.pop('ws')
+        self.interval = kwargs.pop('interval')
         super().__init__(*args, **kwargs)
-
-        self.ws = ws
-        self._main_thread_id = ws.thread_id
-        self.interval = interval
+        self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto(EMsg.ClientHeartBeat.value)
         self.heartbeat_timeout = 60
         self.msg = "Keeping websocket alive with sequence {}."
@@ -259,7 +255,9 @@ class KeepAliveHandler(threading.Thread):  # Ping commands are cool
                             msg = self.block_msg
                         else:
                             stack = traceback.format_stack(frame)
-                            msg = f'{self.block_msg}\nLoop thread traceback (most recent call last):\n{"".join(stack)}'
+                            msg = f'{self.block_msg}\n' \
+                                  f'Loop thread traceback (most recent call last):\n' \
+                                  f'{"".join(stack)}'
                         log.warning(msg, total)
 
             except Exception:
@@ -408,7 +406,7 @@ class SteamWebSocket:
         self._dispatch('socket_raw_send', data)
         await self.socket.send_bytes(data=data)
 
-    async def send_as_proto(self, message: MsgProto) -> None:
+    async def send_as_proto(self, message: Union[MsgProto, Msg]) -> None:
         try:
             if self.steam_id:
                 message.steamID = self.steam_id
@@ -489,7 +487,7 @@ class SteamWebSocket:
             data = await self.loop.run_in_executor(None, GzipFile(fileobj=BytesIO(msg.body.message_body)).read)
 
             if len(data) != msg.body.size_unzipped:
-                log.fatal('Unzipped size mismatch')
+                log.warning(f'Unzipped size mismatch for multi payload {msg}, discarding')
                 return
         else:
             data = msg.body.message_body
@@ -529,12 +527,14 @@ class SteamWebSocket:
 
         await self.send_as_proto(message)
 
-    async def change_presence(self, *, games=None, status=None) -> None:
+    async def change_presence(self, *, games=None, status=None, ui_mode=None) -> None:
         games = [game.to_dict() for game in games]  # TODO these should already be to_dict'ed
         activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
-        # status = MsgProto(EMsg.ClientPersonaState, status_flags=status.value)
+        status = MsgProto(EMsg.ClientPersonaState, status_flags=status.value)
+        ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
         log.debug(f'Sending {activity} to change activity')
         await self.send_as_proto(activity)
-        # log.debug(f'Sending {status} to change activity')
-        # await self.send_as_proto(status)
-        # ui_mode = MsgProto(EMsg.ClientCurrentUIMode), {'uimode': uimode})
+        log.debug(f'Sending {status} to change status')
+        await self.send_as_proto(status)
+        log.debug(f'Sending {ui_mode} to change UI mode')
+        await self.send_as_proto(ui_mode)
