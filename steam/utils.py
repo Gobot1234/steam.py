@@ -42,18 +42,13 @@ from Cryptodome.Cipher import AES as AES, PKCS1_OAEP
 from Cryptodome.Hash import SHA1, HMAC
 from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
 
-from .enums import (
-    EType,
-    EUniverse,
-    ETypeChar,
-    EInstanceFlag,
-)
+from .enums import EType, EUniverse, ETypeChar, EInstanceFlag
 
 __all__ = (
     'get',
     'find',
-    'make_steam64',
     'sleep_until',
+    'make_steam64',
     'parse_trade_url_token',
 )
 
@@ -144,11 +139,11 @@ def hmac_sha1(secret, data):
     return HMAC.new(secret, data, SHA1).digest()
 
 
-def ip_from_int(ip: int) -> Tuple[str, str]:
+def ip_from_int(ip: int) -> str:
     return socket.inet_ntoa(struct.pack(">L", ip))
 
 
-def ip_to_int(ip: Tuple[str, str]) -> int:
+def ip_to_int(ip: str) -> int:
     return struct.unpack(">L", socket.inet_aton(ip))[0]
 
 
@@ -359,8 +354,8 @@ def make_steam64(id: int = 0, *args, **kwargs) -> int:
         universe = kwargs.get('universe', universe)
         instance = kwargs.get('instance', instance)
 
-    etype = (EType(int(etype)) if isinstance(etype, (int, EType)) else EType[etype])
-    universe = (EUniverse(int(universe)) if isinstance(universe, (int, EUniverse)) else EUniverse[universe])
+    etype = EType.try_value(etype)
+    universe = EUniverse.try_value(universe)
 
     if instance is None:
         instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
@@ -395,7 +390,7 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     steam_32 = (int(match.group('id')) << 1) | int(match.group('reminder'))
     universe = int(match.group('universe'))
 
-    # Games before orange box used to incorrectly display universe as 0, we support that
+    # games before orange box used to incorrectly display universe as 0, we support that
     if universe == 0:
         universe = 1
 
