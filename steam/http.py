@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Union, Awaitable, Tuple, List, Optional, Any
 import aiohttp
 from Cryptodome.Cipher import PKCS1_v1_5
 from Cryptodome.PublicKey.RSA import construct
+from yarl import URL as _URL
 
 from . import __version__, errors
 from .models import URL
@@ -43,12 +44,14 @@ from .user import ClientUser
 
 if TYPE_CHECKING:
     from Cryptodome.PublicKey.RSA import RsaKey
+
     from .client import Client
+    from .image import Image
 
 log = logging.getLogger(__name__)
 
 
-async def json_or_text(r: aiohttp.ClientResponse) -> Union[dict, str]:
+async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Union[dict, str]]:
     text = await r.text()
     try:
         if 'application/json' in r.headers['content-type']:  # thanks steam very cool
@@ -58,17 +61,26 @@ async def json_or_text(r: aiohttp.ClientResponse) -> Union[dict, str]:
     return text
 
 
-def Route(api: str, call: str, version: str = 'v1') -> str:
+class Route:
     """Used for formatting API request URLs"""
-    return f'{URL.API}/{api}/{call}/{version}'
+
+    def __init__(self, api: str, call: str, version: str = 'v1'):
+        self.url = _URL(f'{URL.API}/{api}/{call}/{version}')
+
+    def __str__(self):
+        return str(self.url)
 
 
 class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
+
     SUCCESS_LOG = '{method} {url} has received {text}'
     REQUEST_LOG = '{method} {url} with {payload}{params}has returned {status}'
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, session: aiohttp.ClientSession, client: 'Client'):
+    def __init__(self,
+                 loop: asyncio.AbstractEventLoop,
+                 session: aiohttp.ClientSession,
+                 client: 'Client'):
         self._loop = loop
         self._session = session
         self._client = client
@@ -92,7 +104,8 @@ class HTTPClient:
         if self._session.closed:
             self._session = aiohttp.ClientSession(loop=self._loop)
 
-    async def request(self, method: str, url: str, **kwargs) -> Any:  # adapted from d.py
+    async def request(self, method: str, url: Union[Route, str],
+                      **kwargs) -> Optional[Any]:  # adapted from d.py
         kwargs['headers'] = {
             "User-Agent": self.user_agent,
             **kwargs.get('headers', {})
@@ -100,7 +113,7 @@ class HTTPClient:
 
         async with self._lock:
             for tries in range(5):
-                async with self._session.request(method, url, **kwargs) as r:
+                async with self._session.request(method, str(url), **kwargs) as r:
                     payload = kwargs.get('json')
                     params = kwargs.get('params')
                     log.debug(self.REQUEST_LOG.format(
@@ -117,6 +130,9 @@ class HTTPClient:
 
                     # the request was successful so just return the text/json
                     if 300 > r.status >= 200:
+                        if method == 'PUT':
+                            print(method, r.status)
+                            print(r.request_info)
                         log.debug(f'{method} {url} has received {data}')
                         return data
 
@@ -171,7 +187,6 @@ class HTTPClient:
 
         if 'captcha_needed' in login_response:
             raise errors.LoginError('A captcha code is required, please try again later')
-
         if not login_response['success']:
             raise errors.InvalidCredentials(login_response['message'])
 
@@ -203,20 +218,22 @@ class HTTPClient:
 
     async def logout(self) -> None:
         log.debug('Logging out of session')
+        payload = {
+            "sessionid": self.session_id
+        }
+        await self.request('POST', url=f'{URL.COMMUNITY}/login/logout', data=payload)
         self.logged_in = False
-        await self.request('GET', url=f'{URL.COMMUNITY}/login/logout')
         self._client.dispatch('logout')
 
     async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple['RsaKey', int]:
         maximum_repetitions = 5
         payload = {
-            'username': self.username,
-            'donotcache': int(time() * 1000)
+            "username": self.username,
+            "donotcache": int(time() * 1000)
         }
         try:
             key_response = await self.request('POST', url=f'{URL.COMMUNITY}/login/getrsakey', data=payload)
         except Exception as e:
-            await self._session.close()
             raise errors.LoginError from e
         try:
             rsa_mod = int(key_response['publickey_mod'], 16)
@@ -231,11 +248,10 @@ class HTTPClient:
 
     async def _send_login_request(self) -> dict:
         rsa_key, rsa_timestamp = await self._get_rsa_params()
-
         encrypted_password = b64encode(PKCS1_v1_5.new(rsa_key).encrypt(self.password.encode('ascii'))).decode()
         payload = {
-            'username': self.username,
-            'password': encrypted_password,
+            "username": self.username,
+            "password": encrypted_password,
             "emailauth": '',
             "emailsteamid": '',
             "twofactorcode": self._one_time_code or '',
@@ -265,7 +281,7 @@ class HTTPClient:
     async def get_profiles(self, user_id64s: List[int]) -> List[dict]:
         ret = []
 
-        def chunk():  # chunk the list into 100 element sublists for the requests
+        def chunk():  # chunk the list into 100 element sub-lists for the requests
             for i in range(0, len(user_id64s), 100):
                 yield user_id64s[i:i + 100]
 
@@ -273,7 +289,7 @@ class HTTPClient:
             for _ in sublist:
                 params = {
                     "key": self.api_key,
-                    "steamids": ','.join([str(user_id) for user_id in sublist])
+                    "steamids": ','.join(map(str, sublist))
                 }
 
             full_resp = await self.request('GET', Route('ISteamUser', 'GetPlayerSummaries', 'v2'), params=params)
@@ -548,7 +564,8 @@ class HTTPClient:
             "sessionID": self.session_id,
             "group": group_id,
             "invitee": user_id64,
-            "type": 'groupInvite'
+            "type": 'groupInvite',
+            "json": 1,
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/actions/GroupInvite', json=payload)
 
@@ -562,7 +579,7 @@ class HTTPClient:
     def get_user_bans(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
-            "steamid": user_id64
+            "steamids": user_id64
         }
         return self.request('GET', url=Route('ISteamUser', 'GetPlayerBans'), params=params)
 
@@ -598,46 +615,35 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/me/edit', json=payload)
 
-    async def send_image(self, user_id64, image):
-        data = aiohttp.FormData()
-        filename = f'{time()}_image.{image.file_type}'
+    async def send_image(self, user_id64: int, image: 'Image') -> None:
         referer = {
-            "referer": f'{URL.COMMUNITY}/chat'
+            "Referer": f'{URL.COMMUNITY}/chat',
         }
 
-        data.add_field(name='sessionid', value=self.session_id)
-        data.add_field(name='l', value='english')
-        data.add_field(name='file_size', value=str(len(image)))
-        data.add_field(name='file_type', value=f'image/{image.file_type}')
-        data.add_field(name='file_name', value=filename)
-        data.add_field(name='file_sha', value=image.hash)
-        data.add_field(name='file_image_width', value=str(image.width))
-        data.add_field(name='file_image_height', value=str(image.height))
-        resp = await self.request('POST', f'{URL.COMMUNITY}/chat/beginfileupload', headers=referer, data=data)
+        data = aiohttp.FormData()
+        data.add_field('sessionid', self.session_id)
+        data.add_field('l', 'english')
+        data.add_field('file_size', len(image))
+        data.add_field('file_name', image.name)
+        data.add_field('file_sha', image.hash)
+        data.add_field('file_image_width', image.width)
+        data.add_field('file_image_height', image.height)
+        data.add_field('file_type', f'image/{image.type}')
+        resp = await self.request('POST', f'{URL.COMMUNITY}/chat/beginfileupload?l=english', headers=referer, data=data)
 
         result = resp['result']
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
-        headers = {}
-        for header in result['request_headers']:
-            headers[header['name'].lower()] = header['value']
+        headers = {header['name'].lower(): header['value'] for header in result['request_headers']}
 
-        data = aiohttp.FormData()
-        image.fp.seek(0)
-        data.add_field(name='body', value=image.fp.read())  # FIXME figure out field name
-        await self.request('PUT', url=url, headers=headers, data=data)
+        file_data = aiohttp.FormData()
+        file_data.add_field('body', image.fp.read(), filename=image.name)
+        await self.request('PUT', url=url, headers=headers, data=file_data)
 
-        data = aiohttp.FormData()
-        data.add_field(name='sessionid', value=self.session_id)
-        data.add_field(name='l', value='english')
-        data.add_field(name='file_type', value=f'image/{image.file_type}')
-        data.add_field(name='file_name', value=filename)
-        data.add_field(name='file_sha', value=image.hash)
-        data.add_field(name='file_image_width', value=str(image.width))
-        data.add_field(name='file_image_height', value=str(image.height))
-        data.add_field(name='success', value='1')
-        data.add_field(name='ugcid', value=result['ugcid'])
-        data.add_field(name='timestamp', value=resp['timestamp'])
-        data.add_field(name='hmac', value=resp['hmac'])
-        data.add_field(name='friend_steamid', value=str(user_id64))
-        data.add_field(name='spoiler', value=str(int(image.spoiler)))
-        await self.request('POST', url=f'{URL.COMMUNITY}/chat/commitfileupload', data=data)
+        data._fields.pop(2)
+        data.add_field('success', '1')
+        data.add_field('ugcid', result['ugcid'])
+        data.add_field('timestamp', resp['timestamp'])
+        data.add_field('hmac', resp['hmac'])
+        data.add_field('friend_steamid', user_id64)
+        data.add_field('spoiler', int(image.spoiler))
+        await self.request('POST', url=f'{URL.COMMUNITY}/chat/commitfileupload', data=data, headers=referer)
