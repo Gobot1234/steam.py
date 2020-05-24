@@ -30,6 +30,7 @@ import hashlib
 import imghdr
 import io
 import struct
+from time import time
 from typing import Union
 
 import aiohttp
@@ -59,7 +60,7 @@ class Image:
 
     # TODO add support for "webm", "mpg", "mp4", "mpeg", "ogv"
 
-    __slots__ = ('fp', 'spoiler', 'width', 'height', 'type', 'hash')
+    __slots__ = ('fp', 'spoiler', 'name', 'width', 'height', 'type', 'hash')
 
     def __init__(self, fp: Union[io.IOBase, aiohttp.StreamReader, str], *, spoiler: bool = False):
         self.fp = fp
@@ -79,11 +80,7 @@ class Image:
         if len(self) > 10485760:
             raise ValueError('file is too large to upload')
 
-        self.fp.seek(0)
-        self.hash = hashlib.sha1(self.fp.read()).hexdigest()
-
         # from https://stackoverflow.com/questions/8032642
-        self.fp.seek(0)
         head = self.fp.read(24)
         if len(head) != 24:
             raise ValueError('opened file has no headers')
@@ -116,6 +113,10 @@ class Image:
             raise TypeError('unsupported file type passed')
         self.width = width
         self.height = height
+        self.fp.seek(0)
+        self.hash = hashlib.sha1(self.fp.read()).hexdigest()
+        name = getattr(self.fp, "name", "image").rsplit('.', 1)[0]
+        self.name = f'{time()}_{name}.{self.type}'
 
     def __len__(self):
         self.fp.seek(0)

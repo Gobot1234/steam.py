@@ -1,7 +1,7 @@
-import inspect
+import inspect as _inspect
 from typing import Any
 
-import sphinx.util.inspect as _inspect
+import sphinx.util.inspect as inspect
 
 from steam import Enum
 
@@ -11,7 +11,7 @@ from steam import Enum
 
 def _isenumclass(x: Any) -> bool:
     """Check if the object is subclass of enum."""
-    return inspect.isclass(x) and issubclass(x, Enum)
+    return _inspect.isclass(x) and issubclass(x, Enum)
 
 
 def _isenumattribute(x: Any) -> bool:
@@ -19,5 +19,5 @@ def _isenumattribute(x: Any) -> bool:
     return isinstance(x, Enum)
 
 
-_inspect.isenumclass = _isenumclass
-_inspect.isenumattribute = _isenumattribute
+inspect.isenumclass = _isenumclass
+inspect.isenumattribute = _isenumattribute

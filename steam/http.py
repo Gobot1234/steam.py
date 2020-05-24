@@ -130,9 +130,6 @@ class HTTPClient:
 
                     # the request was successful so just return the text/json
                     if 300 > r.status >= 200:
-                        if method == 'PUT':
-                            print(method, r.status)
-                            print(r.request_info)
                         log.debug(f'{method} {url} has received {data}')
                         return data
 
