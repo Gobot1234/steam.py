@@ -191,9 +191,12 @@ class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates enum.Enum."""
 
     @classmethod
-    def try_value(cls, value: Any) -> Union['Enum', Any]:
+    def try_value(cls, value: Union[int, str]) -> Union['Enum', int, str]:
         try:
-            return cls._enum_value_map_[value]
+            if isinstance(value, str):
+                return cls._enum_member_map_[value]
+            else:
+                return cls._enum_value_map_[value]
         except (KeyError, TypeError):
             return value
 
@@ -204,7 +207,7 @@ class Enum(metaclass=EnumMeta):
         return self.name
 
     @property
-    def value(self) -> Any:
+    def value(self) -> Union[int, str]:
         return self.value
 
 
@@ -413,6 +416,7 @@ class EPersonaStateFlag(IntEnum):
     ClientTypeMobile = 512
     ClientTypeTenfoot = 1024
     ClientTypeVR = 2048
+    ClientTypeInVR = 3072  # not too sure about this
     LaunchTypeGamepad = 4096
     LaunchTypeCompatTool = 8192
 

@@ -29,6 +29,7 @@ https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
 
 import abc
+import asyncio
 import re
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
@@ -93,8 +94,11 @@ class SteamID(metaclass=abc.ABCMeta):
     def __str__(self):
         return str(self._BASE)
 
+    def __hash__(self):
+        return hash(self._BASE)
+
     def __eq__(self, other):
-        return isinstance(other, SteamID) and self.id64 == other.id64
+        return self._BASE == other
 
     @property
     def id(self) -> int:
@@ -434,7 +438,8 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
 
     async def games(self) -> List[Game]:
         """|coro|
-        Fetches the list of :class:`~steam.Game` objects from the API.
+        Fetches the list of :class:`~steam.Game`
+        objects the :class:`User` owns from the API.
 
         Returns
         -------
@@ -447,22 +452,27 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
 
     async def groups(self) -> List['Group']:
         """|coro|
-        Fetches a list of the :class:`User`'s :class:`~steam.Group` objects.
+        Fetches a list of the :class:`User`'s :class:`~steam.Group`
+        objects the :class:`User` is in from the API.
 
         Returns
         -------
         List[:class:`~steam.Group`]
             The user's groups.
         """
-        resp = await self._state.http.get_user_groups(self.id64)
         groups = []
-        for group in resp['response']['groups']:
+
+        async def getter(gid):
             try:
-                group = await self._state.client.fetch_group(group['gid'])
+                group = await self._state.client.fetch_group(gid)
             except HTTPException:
-                break
+                await asyncio.sleep(20)
+                await getter(gid)
             else:
                 groups.append(group)
+        resp = await self._state.http.get_user_groups(self.id64)
+        for group in resp['response']['groups']:
+            await getter(group['gid'])
         return groups
 
     async def bans(self) -> Ban:
@@ -475,7 +485,8 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
             The user's bans.
         """
         resp = await self._state.http.get_user_bans(self.id64)
-        resp['EconomyBan'] = False if resp['EconomyBan'] == 'none' else resp['EconomyBan']
+        resp = resp['players'][0]
+        resp['EconomyBan'] = False if resp['EconomyBan'] == 'none' else True
         return Ban(data=resp)
 
     async def badges(self) -> UserBadges:

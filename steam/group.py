@@ -24,6 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import asyncio
 from datetime import datetime
 from typing import List, TYPE_CHECKING
 from xml.etree import ElementTree
@@ -74,6 +75,7 @@ class Group(SteamID):
     in_game_count: :class:`int`
         The amount of user's currently in game.
     """
+    # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
 
     def __init__(self, state: 'ConnectionState', id: int):
         self.url = f'{URL.COMMUNITY}/gid/{id}'
@@ -88,7 +90,7 @@ class Group(SteamID):
         for elem in tree:
             if elem.tag == 'totalPages':
                 self._pages = int(elem.text)
-            elif elem.tag == 'groupID64':
+            elif elem.tag == 'groupID64':  # we need to use the proper id64 as it doesn't convert well
                 super().__init__(elem.text)
             elif elem.tag == 'groupDetails':
                 for sub in elem:
@@ -127,24 +129,21 @@ class Group(SteamID):
         """|coro|
         Fetches a groups member list.
 
-        .. note::
-            This one of the things that can return a 429 status code.
-            This function will return as much of the list as it can. (~1500 or so).
-
         Returns
         --------
         List[:class:`~steam.SteamID`]
             A basic list of the groups members.
-            This will only contain the first ~1500 members of the group.
-            The rate-limits on this prevent getting more.
+            This can be a very slow operation due to
+            the rate limits on this endpoint.
         """
-
         ret = []
-        for i in range(self._pages):
+
+        async def getter(i):
             try:
                 data = await self._state.request('GET', f'{self.url}/memberslistxml?p={i + 1}')
-            except HTTPException:  # we got 429'ed no point waiting, the wait times are ridiculously long
-                return ret  # return as much as we can
+            except HTTPException:
+                await asyncio.sleep(20)
+                await getter(i)
             else:
                 tree = ElementTree.fromstring(data)
                 for elem in tree:
@@ -152,6 +151,10 @@ class Group(SteamID):
                         for sub in elem:
                             if sub.tag == 'steamID64':
                                 ret.append(SteamID(sub.text))
+
+        for i in range(self._pages):
+            await getter(i)
+
         return ret
 
     async def join(self) -> None:
