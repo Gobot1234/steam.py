@@ -178,6 +178,14 @@ class Ban:
         self.since_last_ban = timedelta(days=data['DaysSinceLastBan'])
         self.number_of_game_bans = data['NumberOfGameBans']
 
+    def __repr__(self):
+        attrs = [
+            ('is_banned', self.is_banned()),
+            ('is_vac_banned', self.is_vac_banned())
+        ]
+        resolved = [f'{method}={value!r}' for method, value in attrs]
+        return f'<Ban {" ".join(resolved)}>'
+
     def is_banned(self) -> bool:
         """:class:`bool`: Species if the user is banned from any part of Steam."""
         return False not in [getattr(self, attr) for attr in self.__slots__]
@@ -224,6 +232,13 @@ class Badge:
         self.scarcity = data['scarcity']
         self.game = Game(data['appid']) if 'appid' in data else None
 
+    def __repr__(self):
+        attrs = (
+            'id', 'level', 'xp', 'game'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f'<Badge {" ".join(resolved)}>'
+
 
 class UserBadges:
     """Represents a Steam :class:`~steam.User`'s badges/level.
@@ -251,3 +266,10 @@ class UserBadges:
         self.xp_needed_to_level_up = data['player_xp_needed_to_level_up']
         self.xp_needed_for_current_level = data['player_xp_needed_current_level']
         self.badges = [Badge(data) for data in data['badges']]
+
+    def __repr__(self):
+        attrs = (
+            'level', 'xp'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f'<UserBadges {" ".join(resolved)}>'
