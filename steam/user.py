@@ -137,8 +137,11 @@ class User(Messageable, BaseUser):
             The time at which any items sent/received would arrive
             ``None`` if the :class:`User` has no escrow.
         """
-        resp = await self._state.http.get_user_escrow(self.id)
-        seconds = resp['their_escrow']['escrow_end_duration_seconds']
+        resp = await self._state.http.get_user_escrow(self.id64)
+        their_escrow = resp['response'].get('their_escrow')
+        if their_escrow is None:  # private
+            return None
+        seconds = their_escrow['escrow_end_duration_seconds']
         return timedelta(seconds=seconds) if seconds else None
 
     async def send(self, content: str = None, *, trade: 'TradeOffer' = None, image: 'Image' = None):
@@ -235,6 +238,7 @@ class ClientUser(BaseUser):
     flags: :class:`~steam.EPersonaStateFlag`
         The persona state flags of the account.
     """
+    # TODO more stuff to add https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/profile.js
 
     __slots__ = ('friends',)
 
@@ -279,11 +283,10 @@ class ClientUser(BaseUser):
         """
         await self._state.http.clear_nickname_history()
 
-    async def edit(self, *, nick: str = None, real_name: str = None, country: str = None,
+    async def edit(self, *, nickname: str = None, real_name: str = None, country: str = None,
                    summary: str = None, group: 'Group' = None):  # TODO check works
-        self.name = nick if nick is not None else self.name
+        self.name = nickname if nickname is not None else self.name
         self.real_name = real_name if real_name is not None else self.real_name if self.real_name else ''
         self.country = country if country is not None else self.country if self.country else ''
-        self.primary_group = group.id64 if group is not None else self.primary_group if self.primary_group else 0
-
-        await self._state.http.edit_profile(self.name, self.real_name, self.country, summary, self.primary_group)
+        self.primary_group = group.id64 if group is not None else self.primary_group.id64 if self.primary_group else 0
+        print(await self._state.http.edit_profile(self.name, self.real_name, self.country, summary, self.primary_group))
