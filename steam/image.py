@@ -59,7 +59,7 @@ class Image:
 
     # TODO add support for "webm", "mpg", "mp4", "mpeg", "ogv"
 
-    __slots__ = ('fp', 'spoiler', 'width', 'height', 'file_type', 'hash')
+    __slots__ = ('fp', 'spoiler', 'width', 'height', 'type', 'hash')
 
     def __init__(self, fp: Union[io.IOBase, aiohttp.StreamReader, str], *, spoiler: bool = False):
         self.fp = fp
@@ -87,15 +87,15 @@ class Image:
         head = self.fp.read(24)
         if len(head) != 24:
             raise ValueError('opened file has no headers')
-        self.file_type = imghdr.what(None, head)
-        if self.file_type == 'png':
+        self.type = imghdr.what(None, head)
+        if self.type == 'png':
             check = struct.unpack('>i', head[4:8])[0]
             if check != 0x0d0a1a0a:
                 raise ValueError("opened file's headers do not match a standard PNG's headers")
             width, height = struct.unpack('>ii', head[16:24])
-        elif self.file_type == 'gif':
+        elif self.type == 'gif':
             width, height = struct.unpack('<HH', head[6:10])
-        elif self.file_type == 'jpeg':
+        elif self.type == 'jpeg':
             try:
                 self.fp.seek(0)  # read 0xff next
                 size = 2
@@ -119,7 +119,9 @@ class Image:
 
     def __len__(self):
         self.fp.seek(0)
-        return len(bytes(self.fp.read()))
+        size = len(bytes(self.fp.read()))
+        self.fp.seek(0)
+        return size
 
 
 def test_jpeg(h, _):  # adds support for more header types
