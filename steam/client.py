@@ -191,8 +191,7 @@ class Client:
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)
-        else:
-            return await ainput('Please enter a Steam guard code\n>>> ', self.loop)
+        return await ainput('Please enter a Steam guard code\n>>> ', self.loop)
 
     @property
     def latency(self) -> float:
@@ -212,7 +211,7 @@ class Client:
 
         Raises
         --------
-        TypeError
+        :exc:`TypeError`
             The function passed is not a coroutine.
         """
         if not asyncio.iscoroutinefunction(coro):
@@ -239,8 +238,17 @@ class Client:
         return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
 
     def dispatch(self, event: str, *args, **kwargs) -> None:
-        log.debug(f'Dispatching event {event}')
         method = f'on_{event}'
+
+        try:
+            coro = getattr(self, method)
+        except AttributeError:
+            return
+        else:
+            if event != 'error' and coro.__code__.co_filename == __file__:  # ignore events in this file
+                return
+
+        log.debug(f'Dispatching event {event}')
 
         listeners = self._listeners.get(event)
         if listeners:
@@ -271,12 +279,7 @@ class Client:
                 for idx in reversed(removed):
                     del listeners[idx]
 
-        try:
-            coro = getattr(self, method)
-        except AttributeError:
-            pass
-        else:
-            self._schedule_event(coro, method, *args, **kwargs)
+        self._schedule_event(coro, method, *args, **kwargs)
 
     def _handle_ready(self) -> None:
         self._ready.set()
@@ -302,8 +305,8 @@ class Client:
         loop = self.loop
 
         try:
-            loop.add_signal_handler(signal.SIGINT, lambda: loop.stop())
-            loop.add_signal_handler(signal.SIGTERM, lambda: loop.stop())
+            loop.add_signal_handler(signal.SIGINT, loop.stop)
+            loop.add_signal_handler(signal.SIGTERM, loop.stop)
         except NotImplementedError:
             pass
 
@@ -348,11 +351,11 @@ class Client:
         shared_secret: Optional[:class:`str`]
             The shared_secret of the desired Steam account,
             used to generate the 2FA code for login. If ``None`` is passed,
-            the code will need to be inputted by the user.
+            the code will need to be inputted by the user via :meth:`code`.
 
         Raises
         ------
-        TypeError
+        :exc:`TypeError`
             Unexpected keyword arguments were received.
         :exc:`.InvalidCredentials`
             The wrong credentials are passed.
@@ -434,7 +437,7 @@ class Client:
     async def _connect(self) -> None:
         resp = await self.http.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
         self.token = resp['token']
-        coro = SteamWebSocket.from_client(self)
+        coro = SteamWebSocket.from_client(self, cms=self._cm_list)
         self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
         while 1:
             try:
@@ -469,13 +472,13 @@ class Client:
     # state stuff
 
     def get_user(self, *args, **kwargs) -> Optional['User']:
-        """Returns a user from cache with a matching ID.
+        r"""Returns a user from cache with a matching ID.
 
         Parameters
         ----------
-        *args
+        \*args
             The arguments to pass to :meth:`~steam.utils.make_steam64`.
-        **kwargs
+        \*\*kwargs
             The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
@@ -487,14 +490,14 @@ class Client:
         return self._connection.get_user(steam_id.id64)
 
     async def fetch_user(self, *args, **kwargs) -> Optional['User']:
-        """|coro|
+        r"""|coro|
         Fetches a user from the API with a matching ID.
 
         Parameters
         ----------
-        *args
+        \*args
             The arguments to pass to :meth:`~steam.utils.make_steam64`.
-        **kwargs
+        \*\*kwargs
             The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
@@ -503,9 +506,26 @@ class Client:
             The user or ``None`` if the user was not found.
         """
         steam_id = SteamID(*args, **kwargs)
-        if not steam_id.is_valid():
-            return None
         return await self._connection.fetch_user(steam_id.id64)
+
+    async def fetch_users(self, *ids: List[int]) -> List[Optional['User']]:
+        r"""|coro|
+        Fetches a list of :class:`~steam.User` from their IDs
+        from the API with a matching ID. The :class:`~steam.User` objects returned
+        are unlikely to retain the order they were originally in.
+
+        Parameters
+        ----------
+        \*ids:
+            The user's IDs.
+
+        Returns
+        -------
+        List[Optional[:class:`~steam.User`]]
+            A list of the users or ``None`` if the user was not found.
+        """
+        steam_ids = [SteamID(id).id64 for id in ids]
+        return await self._connection.fetch_users(steam_ids)
 
     async def fetch_user_named(self, name: str) -> Optional['User']:
         """|coro|
@@ -558,14 +578,14 @@ class Client:
         return await self._connection.fetch_trade(id)
 
     async def fetch_group(self, *args, **kwargs) -> Optional[Group]:
-        """|coro|
+        r"""|coro|
         Fetches a group from https://steamcommunity.com with a matching ID.
 
         Parameters
         ----------
-        *args
+        \*args
             The arguments to pass to :meth:`~steam.utils.make_steam64`.
-        **kwargs
+        \*\*kwargs
             The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
@@ -574,8 +594,6 @@ class Client:
             The group or ``None`` if the group was not found.
         """
         steam_id = SteamID(*args, **kwargs)
-        if not steam_id.is_valid():
-            return None
         group = Group(state=self._connection, id=steam_id.id)
         await group.__ainit__()
         return group if group.name else None
@@ -626,7 +644,8 @@ class Client:
         Returns
         -------
         Optional[:class:`Listing`]
-            The listing or ``None`` if the listing was not found.
+            The listing or ``None`` if a listing with a
+            matching ID was not found.
         """
         listings = await self.fetch_listings()
         return get(listings, id=id)
@@ -650,16 +669,17 @@ class Client:
 
     def listing_history(self, limit: Optional[int] = 100, before: datetime = None,
                         after: datetime = None) -> MarketListingsIterator:
-        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.Listing` objects.
+        """An iterator for accessing a :class:`ClientUser`'s previous :class:`~steam.Listing` objects.
 
         Examples
-        -----------
+        --------
 
         Usage: ::
 
-         async for listing in client.listing_history(limit=10):
-            print('Sold listing:', listing.id)
-            print('For:', listing.user_pays)
+         async for listing in client.listing_history():
+            if listing.state == EMarketListingState.Bought:
+                print('Sold listing:', listing.id)
+                print('For:', listing.price)
 
         Flattening into a list: ::
 
@@ -673,7 +693,7 @@ class Client:
         limit: Optional[:class:`int`]
             The maximum number of listings to search through.
             Default is 100 which will fetch the first 100 listings.
-            Setting this to ``None`` will fetch all of the user's listings,
+            Setting this to ``None`` will fetch all of the client user's listings,
             but this will be a very slow operation.
         before: Optional[:class:`datetime.datetime`]
             A time to search for trades before.
@@ -697,7 +717,7 @@ class Client:
 
             async for trade in client.trade_history(limit=10):
                 print('Partner:', trade.partner, 'Sent:')
-                print(', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
+                print(', '.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive)
                       if trade.items_to_receive else 'Nothing')
 
         Flattening into a list: ::
@@ -820,10 +840,7 @@ class Client:
         """
         future = self.loop.create_future()
         if check is None:
-            def _check(*_):
-                return True
-
-            check = _check
+            check = lambda *_: True
 
         ev = event.lower()
         try:
@@ -842,9 +859,8 @@ class Client:
         Called when the client has successfully connected to Steam. This is not
         the same as the client being fully prepared, see :func:`on_ready` for that.
 
-        The warnings on :func:`on_ready` also apply.
+        The warnings on :meth:`on_ready` also apply.
         """
-        pass
 
     async def on_disconnect(self):
         """|coro|
@@ -853,7 +869,6 @@ class Client:
 
         This function can be called multiple times.
         """
-        pass
 
     async def on_ready(self):
         """|coro|
@@ -871,17 +886,15 @@ class Client:
             once. This library implements reconnection logic and will therefore
             end up calling this event whenever a RESUME request fails.
         """
-        pass
 
     async def on_login(self):
         """|coro|
         Called when the client has logged into https://steamcommunity.com and
         the :class:`~steam.ClientUser` is setup along with its friends list.
         """
-        pass
 
-    async def on_error(self, event_method: str, error: Exception, *args, **kwargs):
-        """|coro|
+    async def on_error(self, event: str, error: Exception, *args, **kwargs):
+        r"""|coro|
         The default error handler provided by the client.
 
         Usually when an event raises an uncaught exception, a traceback is
@@ -890,15 +903,23 @@ class Client:
         yourself, this event can be overridden. Which, when done, will
         suppress the default action of printing the traceback.
 
-        The information of the exception raised and the exception itself can
-        be retrieved with a standard call to :func:`sys.exc_info`.
-
         If you want exception to propagate out of the :class:`Client` class
         you can define an ``on_error`` handler consisting of a single empty
         :ref:`py:raise`. Exceptions raised by ``on_error`` will not be
         handled in any way by :class:`Client`.
+
+        Parameters
+        ----------
+        event: :class:`str`
+            The name of the event that errored.
+        error: :exc:`Exception`
+            The error that was raised.
+        \*args:
+            The positional arguments associated with the event.
+        \*\*kwargs:
+            The key-word arguments associated with the event.
         """
-        print(f'Ignoring exception in {event_method}', file=sys.stderr)
+        print(f'Ignoring exception in {event}', file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__)
 
     async def on_trade_receive(self, trade: 'steam.TradeOffer'):
@@ -910,7 +931,6 @@ class Client:
         trade: :class:`~steam.TradeOffer`
             The trade offer that was received.
         """
-        pass
 
     async def on_trade_send(self, trade: 'steam.TradeOffer'):
         """|coro|
@@ -921,7 +941,6 @@ class Client:
         trade: :class:`~steam.TradeOffer`
             The trade offer that was sent.
         """
-        pass
 
     async def on_trade_accept(self, trade: 'steam.TradeOffer'):
         """|coro|
@@ -932,7 +951,6 @@ class Client:
         trade: :class:`~steam.TradeOffer`
             The trade offer that was accepted.
         """
-        pass
 
     async def on_trade_decline(self, trade: 'steam.TradeOffer'):
         """|coro|
@@ -943,7 +961,6 @@ class Client:
         trade: :class:`~steam.TradeOffer`
             The trade offer that was declined.
         """
-        pass
 
     async def on_trade_cancel(self, trade: 'steam.TradeOffer'):
         """|coro|
@@ -959,7 +976,6 @@ class Client:
         trade: :class:`~steam.TradeOffer`
             The trade offer that was cancelled.
         """
-        pass
 
     async def on_trade_expire(self, trade: 'steam.TradeOffer'):
         """|coro|
@@ -970,7 +986,6 @@ class Client:
         trade: :class:`~steam.TradeOffer`
             The trade offer that expired.
         """
-        pass
 
     async def on_trade_counter(self, before: 'steam.TradeOffer', after: 'steam.TradeOffer'):
         """|coro|
@@ -985,7 +1000,6 @@ class Client:
         after: :class:`~steam.TradeOffer`
             The trade offer after it was countered.
         """
-        pass
 
     async def on_comment(self, comment: 'steam.Comment'):
         """|coro|
@@ -996,7 +1010,6 @@ class Client:
         comment: :class:`~steam.Comment`
             The comment received.
         """
-        pass
 
     async def on_invite(self, invite: 'steam.Invite'):
         """|coro|
@@ -1007,7 +1020,6 @@ class Client:
         invite: :class:`~steam.Invite`
             The invite received.
         """
-        pass
 
     async def on_listing_create(self, listing: 'steam.Listing'):
         """|coro|
@@ -1018,7 +1030,6 @@ class Client:
         listing: :class:`~steam.Listing`
             The listing that was created.
         """
-        pass
 
     async def on_listing_buy(self, listing: 'steam.Listing'):
         """|coro|
@@ -1032,7 +1043,6 @@ class Client:
         listing: :class:`~steam.Listing`
             The listing that was bought.
         """
-        pass
 
     async def on_listing_sell(self, listing: 'steam.Listing'):
         """|coro|
@@ -1046,7 +1056,6 @@ class Client:
         listing: :class:`~steam.Listing`
             The listing that was sold.
         """
-        pass
 
     async def on_listing_cancel(self, listing: 'steam.Listing'):
         """|coro|
@@ -1060,4 +1069,3 @@ class Client:
         listing: :class:`~steam.Listing`
             The listing that was cancelled.
         """
-        pass
