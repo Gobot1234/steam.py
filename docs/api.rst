@@ -45,10 +45,10 @@ overriding the specific events. For example: ::
             print(f'Received trade: #{trade.id}')
             print('Trade partner is:', trade.partner.name)
             print('We are going to send:')
-            print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send])
+            print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send)
                   if trade.items_to_send else 'Nothing')
             print('We are going to receive:')
-            print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
+            print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive)
                   if trade.items_to_receive else 'Nothing')
 
             if trade.is_gift():
@@ -61,46 +61,45 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. warning::
 
-    All the events must be a |coroutine_link|_. If they aren't, then you might get unexpected
-    errors. In order to turn a function into a coroutine they must be ``async def``
-    functions.
+    All the events must be a |coroutine_link|_. If they aren't, a TypeError will be raised.
+    In order to turn a function into a coroutine they must be ``async def`` functions.
 
 .. automethod:: Client.on_connect
-    :async:
+
 .. automethod:: Client.on_disconnect
-    :async:
+
 .. automethod:: Client.on_ready
-    :async:
+
 .. automethod:: Client.on_login
-    :async:
+
 .. automethod:: Client.on_error
-    :async:
+
 .. automethod:: Client.on_trade_receive
-    :async:
+
 .. automethod:: Client.on_trade_send
-    :async:
+
 .. automethod:: Client.on_trade_accept
-    :async:
+
 .. automethod:: Client.on_trade_decline
-    :async:
+
 .. automethod:: Client.on_trade_cancel
-    :async:
+
 .. automethod:: Client.on_trade_expire
-    :async:
+
 .. automethod:: Client.on_trade_counter
-    :async:
+
 .. automethod:: Client.on_comment
-    :async:
+
 .. automethod:: Client.on_invite
-    :async:
+
 .. automethod:: Client.on_listing_create
-    :async:
+
 .. automethod:: Client.on_listing_buy
-    :async:
+
 .. automethod:: Client.on_listing_sell
-    :async:
+
 .. automethod:: Client.on_listing_cancel
-    :async:
+
 
 
 Utilities
@@ -126,7 +125,7 @@ Then some functions from discord.py
 
 .. code-block:: python3
 
-    active = steam.utils.find(lambda trade: trade.state == ETradeOfferState.Active, client.trades)
+    first_active_offer = steam.utils.find(lambda trade: trade.state == ETradeOfferState.Active, client.trades)
     # how to get an object using a conditional
 
 Enumerations
@@ -187,11 +186,15 @@ Steam Models
 ---------------
 
 steam.py provides wrappers around common Steam API objects.
+These are not meant to be constructed by the user instead you receive them from methods/events.
 
 Badges
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: Badge()
+    :members:
+
+.. autoclass:: UserBadges()
     :members:
 
 Bans
@@ -205,6 +208,68 @@ Comments
 
 .. autoclass:: Comment()
     :members:
+
+Groups
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Group()
+    :members:
+    :inherited-members:
+
+Invites
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Invite()
+    :members:
+
+Market
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Listing()
+    :members:
+    :inherited-members:
+
+.. autoclass:: PriceOverview()
+    :members:
+
+Message
+~~~~~~~~~~~~~~~
+
+This is currently under development and does **not** currently function.
+
+.. autoclass:: Message()
+    :members:
+
+Trading
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Inventory()
+    :members:
+
+.. autoclass:: Item()
+    :members:
+    :inherited-members:
+
+.. autoclass:: Asset()
+    :members:
+
+
+Users
+~~~~~~~~~~~~~~~
+
+.. autoclass:: ClientUser()
+    :members:
+    :inherited-members:
+
+.. autoclass:: User()
+    :members:
+    :inherited-members:
+
+
+Data-Classes
+---------------
+
+There are a few classes that can be constructed by the user, these include
 
 Game
 ~~~~~~~~~~~~~~~
@@ -236,76 +301,23 @@ Games can be manually constructed using there app id eg:
     # but it is for setting in game statuses
     # if the game isn't a Steam game.
 
-Groups
-~~~~~~~~~~~~~~~
-
-.. autoclass:: Group()
-    :members:
-
-Image
-~~~~~~~~~~~~~~~
-
-.. autoclass:: Image
-    :members:
-
-Invites
-~~~~~~~~~~~~~~~
-
-.. autoclass:: Invite()
-    :members:
-
-Market
-~~~~~~~~~~~~~~~
-
-.. autoclass:: Listing()
-    :members:
-    :inherited-members:
-
-.. autoclass:: PriceOverview()
-    :members:
-
-Message
-~~~~~~~~~~~~~~~
-
-This is currently under development and does **not** currently function.
-
-.. autoclass:: Message()
-    :members:
-
-Trading
-~~~~~~~~~~~~~~~
-
-.. autoclass:: TradeOffer()
-    :members:
-
-.. autoclass:: Inventory()
-    :members:
-
-.. autoclass:: Item()
-    :members:
-    :inherited-members:
-
-.. autoclass:: Asset()
-    :members:
-
 Steam IDs
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: SteamID
     :members:
 
-Users
+TradeOffers
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: ClientUser()
+.. autoclass:: TradeOffer
     :members:
-    :inherited-members:
 
-.. autoclass:: User()
-    :members:
-    :inherited-members:
 
-.. autoclass:: UserBadges()
+Images
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Image
     :members:
 
 Exceptions
