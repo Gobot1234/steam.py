@@ -161,7 +161,7 @@ class HTTPClient:
                     # the usual error cases
                     if r.status == 403:
                         raise errors.Forbidden(r, data)
-                    elif r.status == 404:
+                    if r.status == 404:
                         raise errors.NotFound(r, data)
                     else:
                         raise errors.HTTPException(r, data)
@@ -223,7 +223,6 @@ class HTTPClient:
         self._client.dispatch('logout')
 
     async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple['RsaKey', int]:
-        maximum_repetitions = 5
         payload = {
             "username": self.username,
             "donotcache": int(time() * 1000)
@@ -238,10 +237,9 @@ class HTTPClient:
             rsa_timestamp = key_response['timestamp']
             return construct((rsa_mod, rsa_exp)), rsa_timestamp
         except KeyError:
-            if current_repetitions < maximum_repetitions:
+            if current_repetitions < 5:
                 return await self._get_rsa_params(current_repetitions + 1)
-            else:
-                raise ValueError('Could not obtain rsa-key')
+            raise ValueError('Could not obtain rsa-key')
 
     async def _send_login_request(self) -> dict:
         rsa_key, rsa_timestamp = await self._get_rsa_params()
@@ -290,7 +288,7 @@ class HTTPClient:
                 }
 
             full_resp = await self.request('GET', Route('ISteamUser', 'GetPlayerSummaries', 'v2'), params=params)
-            ret.extend([user for user in full_resp['response']['players']])
+            ret.extend(full_resp['response']['players'])
         return ret
 
     def add_user(self, user_id64: int) -> Awaitable:
@@ -511,15 +509,14 @@ class HTTPClient:
             search = re.search(r'g_sessionID = "(?P<sessionID>.*?)";', resp)
             self.session_id = search.group('sessionID')
             return match[0]
-        else:
-            payload = {
-                "domain": 'steam.py',
-                "agreeToTerms": 'agreed',
-                "sessionid": self.session_id,
-                "Submit": 'Register'
-            }
-            await self.request('POST', url=f'{URL.COMMUNITY}/dev/registerkey', json=payload)
-            return await self.get_api_key()
+        payload = {
+            "domain": 'steam.py',
+            "agreeToTerms": 'agreed',
+            "sessionid": self.session_id,
+            "Submit": 'Register'
+        }
+        await self.request('POST', url=f'{URL.COMMUNITY}/dev/registerkey', json=payload)
+        return await self.get_api_key()
 
     def accept_group_invite(self, group_id: int) -> Awaitable:
         payload = {
@@ -631,13 +628,12 @@ class HTTPClient:
         result = resp['result']
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
         headers = {header['name'].lower(): header['value'] for header in result['request_headers']}
-
         file_data = aiohttp.FormData()
-        file_data.add_field('body', image.fp.read(), filename=image.name)
+        file_data.add_field('body', image.fp.read())
         await self.request('PUT', url=url, headers=headers, data=file_data)
 
         data._fields.pop(2)
-        data.add_field('success', '1')
+        data.add_field('success', 1)
         data.add_field('ugcid', result['ugcid'])
         data.add_field('timestamp', resp['timestamp'])
         data.add_field('hmac', resp['hmac'])

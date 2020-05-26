@@ -145,10 +145,9 @@ class Game:
                 "game_id": str(self.app_id),
                 "game_extra_info": self.title
             }
-        else:
-            return {
-                "game_id": str(self.app_id)
-            }
+        return {
+            "game_id": str(self.app_id)
+        }
 
     def is_steam_game(self) -> bool:
         return self.app_id < APP_ID_MAX
