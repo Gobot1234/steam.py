@@ -27,7 +27,6 @@ SOFTWARE.
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING, Iterable, Union
 
-from . import utils
 from .enums import ETradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game
@@ -226,10 +225,18 @@ class Inventory:
     def __iter__(self) -> Iterable[Item]:
         return (item for item in self.items)
 
+    def __contains__(self, item):
+        if isinstance(item, Asset):
+            item = [i for i in self
+                    if i.instance_id == item.instance_id
+                    and i.class_id == item.class_id]
+            return True if item else False
+        return False
+
     def _update(self, data) -> None:
         try:
             self.game = Game(app_id=int(data['assets'][0]['appid']))
-        except KeyError:  # they don't have an inventory for this game
+        except KeyError:  # they don't have an inventory in this game
             self.game = None
             self.items = []
             self._total_inventory_count = 0
@@ -296,10 +303,12 @@ class Inventory:
             Can be ``None`` if no matching item is found.
             This also removes the item from the inventory, if possible.
         """
-        item = utils.get(self.items, name=item_name)
+        item = [item for item in self
+                if item.name == item_name]
         if item:
-            self.items.remove(item)
-        return item
+            self.items.remove(item[0])
+            return item[0]
+        return None
 
 
 class TradeOffer:
@@ -495,15 +504,15 @@ class TradeOffer:
             raise ClientException("This trade isn't active")
         if self.is_our_offer():
             raise ClientException('You cannot counter an offer the ClientUser has made')
-        if type(items_to_receive) is Item:
+        if isinstance(items_to_receive, Item):
             items_to_receive = [items_to_receive]
-        elif type(items_to_receive) is list:
+        elif isinstance(items_to_receive, list):
             items_to_receive = items_to_receive
         else:
             items_to_receive = []
-        if type(items_to_send) is Item:
+        if isinstance(items_to_send, Item):
             items_to_send = [items_to_send]
-        elif type(items_to_send) is list:
+        elif isinstance(items_to_send, list):
             items_to_send = items_to_send
         else:
             items_to_send = []

@@ -74,6 +74,7 @@ class Image:
             exc = fp.exception()
             if exc is not None:
                 raise ValueError('aiohttp.StreamReader cannot be read due to an exception') from exc
+            self.fp = fp
         else:
             self.fp = open(fp, 'rb')
 
@@ -116,7 +117,7 @@ class Image:
         self.fp.seek(0)
         self.hash = hashlib.sha1(self.fp.read()).hexdigest()
         name = getattr(self.fp, "name", "image").rsplit('.', 1)[0]
-        self.name = f'{time()}_{name}.{self.type}'
+        self.name = f'{int(time())}_{name}.{self.type}'
 
     def __len__(self):
         self.fp.seek(0)

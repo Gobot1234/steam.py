@@ -32,7 +32,7 @@ import asyncio
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import List, Awaitable, Mapping, Any
+from typing import List, Awaitable, Mapping, Any, Union
 
 from bs4 import BeautifulSoup
 
@@ -51,7 +51,9 @@ __all__ = (
 log = logging.getLogger(__name__)
 
 
-def convert_items(item_names: List[str], games: List[Game], prices=None):
+def convert_items(item_names: Union[List[str], str],
+                  games: Union[List[Game], Game],
+                  prices: List[float] = None):
     items = []
     if isinstance(games, Game):  # this is for the same game items
         if prices is None:
@@ -104,18 +106,17 @@ class PriceOverview:
 
     __slots__ = ('volume', 'lowest_price', 'median_price')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self.volume = int(data['volume'].replace(',', ''))
         search = re.search(r'[^\d]*(\d*)[.,](\d*)', data['lowest_price'])
-        self.lowest_price = float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
+        self.lowest_price = float(f'{search.group(1)}.{search.group(2)}') \
+            if search.group(2) else float(search.group(1))
         search = re.search(r'[^\d]*(\d*)[.,](\d*)', data['median_price'])
-        self.median_price = float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
+        self.median_price = float(f'{search.group(1)}.{search.group(2)}') \
+            if search.group(2) else float(search.group(1))
 
     def __repr__(self):
-        attrs = (
-            'volume', 'lowest_price', 'median_price'
-        )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in self.__slots__]
         return f"<PriceOverview {' '.join(resolved)}>"
 
 
@@ -130,6 +131,9 @@ class Listing(Asset):
         The amount the user would pay for the item.
     we_receive: Optional[:class:`float`]
         The amount the ClientUser would receive for a sale of the item.
+    price: Optional[:class:`float`]
+        The amount the amount the item was bought or sold for, this only applies
+        to listings from :meth:`~steam.Client.listing_history`.
     id: :class:`int`
         The listing's ID.
     state: :class:`~steam.EMarketListingState`
@@ -268,7 +272,7 @@ class MarketClient(HTTPClient):
                     # the usual error cases
                     if r.status == 403:
                         raise errors.Forbidden(r, data)
-                    elif r.status == 404:
+                    if r.status == 404:
                         raise errors.NotFound(r, data)
                     else:
                         raise errors.HTTPException(r, data)

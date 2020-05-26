@@ -225,9 +225,9 @@ class MarketListingsIterator(AsyncIterator):
                     price = None
                 prices.append((listing_id, price))
 
-            for context_id in resp['assets'].values():
-                for listings in context_id.values():
-                    for listing in listings.values():
+            for game_context_id in resp['assets'].values():
+                for games_listings in game_context_id.values():
+                    for listing in games_listings.values():
                         listing['assetid'] = listing['id']  # we need to swap the ids around
                         try:
                             listing['id'] = int([m for m in matches if m[1] == listing['assetid']][0])

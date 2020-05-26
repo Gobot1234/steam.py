@@ -26,7 +26,6 @@ DEALINGS IN THE SOFTWARE.
 """
 
 import asyncio
-import datetime
 import json
 import re
 import socket
@@ -34,7 +33,6 @@ import struct
 from base64 import b64decode
 from operator import attrgetter
 from os import urandom as random_bytes
-from types import GeneratorType as _GeneratorType
 from typing import Iterable, Callable, Any, Optional, Awaitable, Tuple
 
 import aiohttp
@@ -60,6 +58,37 @@ _INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
 _INVITE_VALID = f'{_INVITE_HEX}{_INVITE_CUSTOM}'
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
+
+
+# from the VDF module
+class UINT_64(int):
+    pass
+
+
+class INT_64(int):
+    pass
+
+
+class POINTER(int):
+    pass
+
+
+class COLOR(int):
+    pass
+
+
+BIN_NONE = b'\x00'
+BIN_STRING = b'\x01'
+BIN_INT32 = b'\x02'
+BIN_FLOAT32 = b'\x03'
+BIN_POINTER = b'\x04'
+BIN_WIDESTRING = b'\x05'
+BIN_COLOR = b'\x06'
+BIN_UINT64 = b'\x07'
+BIN_END = b'\x08'
+BIN_INT64 = b'\x0A'
+BIN_END_ALT = b'\x0B'
+
 
 ETypeChars = ''.join(type_char.name for type_char in ETypeChar)
 
@@ -151,45 +180,12 @@ def is_proto(emsg: bytes) -> bool:
     return (int(emsg) & PROTOBUF_MASK) > 0
 
 
-def set_proto_bit(emsg: bytes) -> int:
+def set_proto_bit(emsg: int) -> int:
     return int(emsg) | PROTOBUF_MASK
 
 
 def clear_proto_bit(emsg: bytes) -> int:
     return int(emsg) & ~PROTOBUF_MASK
-
-
-_list_types = (list, range, _GeneratorType)
-
-
-# from the VDF module
-class UINT_64(int):
-    pass
-
-
-class INT_64(int):
-    pass
-
-
-class POINTER(int):
-    pass
-
-
-class COLOR(int):
-    pass
-
-
-BIN_NONE = b'\x00'
-BIN_STRING = b'\x01'
-BIN_INT32 = b'\x02'
-BIN_FLOAT32 = b'\x03'
-BIN_POINTER = b'\x04'
-BIN_WIDESTRING = b'\x05'
-BIN_COLOR = b'\x06'
-BIN_UINT64 = b'\x07'
-BIN_END = b'\x08'
-BIN_INT64 = b'\x0A'
-BIN_END_ALT = b'\x0B'
 
 
 def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False) -> dict:
@@ -571,7 +567,7 @@ def find(predicate: Callable[..., bool], seq: Iterable) -> Optional[Any]:
     Parameters
     -----------
     predicate: Callable[..., bool]
-        A function that returns a boolean-like result.
+        A function that returns a boolean.
     seq: Iterable
         The iterable to search through.
     """
@@ -617,25 +613,3 @@ def get(iterable: Iterable, **attrs) -> Optional[Any]:
         if _all(pred(elem) == value for pred, value in converted):
             return elem
     return None
-
-
-async def sleep_until(when: datetime.datetime, result: Any = None) -> Awaitable:
-    """|coro|
-    Sleep until a specified time.
-    If the time supplied is in the past this function will yield instantly.
-
-    Parameters
-    -----------
-    when: :class:`datetime.datetime`
-        The timestamp in which to sleep until.
-    result: Any
-        If provided is returned to the caller when the coroutine completes.
-    """
-    if when.tzinfo is None:
-        when = when.replace(tzinfo=datetime.timezone.utc)
-    now = datetime.datetime.now(datetime.timezone.utc)
-    delta = (when - now).total_seconds()
-    while delta > MAX_ASYNCIO_SECONDS:
-        await asyncio.sleep(MAX_ASYNCIO_SECONDS)
-        delta -= MAX_ASYNCIO_SECONDS
-    return await asyncio.sleep(max(delta, 0), result)

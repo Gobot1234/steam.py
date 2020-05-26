@@ -136,7 +136,7 @@ class CMServerList:
             self.queue.put_nowait(server_address)
 
     def clear(self) -> None:
-        if len(self.dict):
+        if self.dict:
             log.debug('List cleared.')
         self.dict.clear()
 
@@ -192,7 +192,7 @@ class CMServerList:
         for host in self.dict:
             start = time.perf_counter()
             try:
-                resp = await self.state.client._session.get(f'https://{host[6:-10]}/cmping', timeout=5)
+                resp = await self.state.http._session.get(f'https://{host[6:-10]}/cmping', timeout=5)
                 if resp.status != 200:
                     self.mark_bad(host)
                 load = resp.headers['X-Steam-CMLoad']
@@ -314,9 +314,8 @@ class SteamWebSocket:
         if self.socket.close_code not in {1000, 4004, 4010, 4011}:
             log.info(f'Websocket closed with {self.socket.close_code}, attempting a reconnect.')
             raise ReconnectWebSocket(self.cm)
-        else:
-            log.info(f'Websocket closed with {self.socket.close_code}, cannot reconnect.')
-            raise ConnectionClosed(self.socket, self.cm, self.cm_list)
+        log.info(f'Websocket closed with {self.socket.close_code}, cannot reconnect.')
+        raise ConnectionClosed(self.socket, self.cm, self.cm_list)
 
     @property
     def latency(self) -> float:
@@ -339,8 +338,9 @@ class SteamWebSocket:
             payload = MsgProto(
                 EMsg.ClientLogon, account_name=client.username,
                 web_logon_nonce=client.token, client_os_type=4294966596,
-                protocol_version=65580, chat_mode=2, ui_mode=4
+                protocol_version=65580, chat_mode=2, ui_mode=4, qos_level=2
             )
+            payload.header.steam_id = client.user.id64
 
             ws = cls(socket, loop=client.loop)
             # dynamically add attributes needed
@@ -350,7 +350,7 @@ class SteamWebSocket:
             ws.cm = cm
             ws.cm_list = cms
             ws.connected = True
-            await cls.send_as_proto(ws, payload)  # send the identification message straight away
+            await ws.send_as_proto(payload)  # send the identification message straight away
             ws._dispatch('connect')
             return ws
 
@@ -360,7 +360,7 @@ class SteamWebSocket:
             if message.type is aiohttp.WSMsgType.ERROR:
                 log.debug(f'Received {message}')
                 raise message.data
-            elif message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE):
+            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE):
                 log.debug(f'Received {message}')
                 raise WebSocketClosure
 
@@ -407,23 +407,20 @@ class SteamWebSocket:
         await self.socket.send_bytes(data=data)
 
     async def send_as_proto(self, message: Union[MsgProto, Msg]) -> None:
-        try:
-            if self.steam_id:
-                message.steamID = self.steam_id
-            if self.session_id:
-                message.sessionID = self.session_id
+        if self.steam_id:
+            message.steam_id = self.steam_id
+        if self.session_id:
+            message.session_id = self.session_id
 
-            self._dispatch('socket_send', message)
-            data = message.serialize()
+        self._dispatch('socket_send', message)
+        data = message.serialize()
 
-            if self.channel_key:
-                if self.channel_hmac:
-                    data = utils.symmetric_encrypt_HMAC(data, self.channel_key, self.channel_hmac)
-                else:
-                    data = utils.symmetric_encrypt(data, self.channel_key)
-            await self.send(data)
-        except RuntimeError:
-            self.handle_close()
+        if self.channel_key:
+            if self.channel_hmac:
+                data = utils.symmetric_encrypt_HMAC(data, self.channel_key, self.channel_hmac)
+            else:
+                data = utils.symmetric_encrypt(data, self.channel_key)
+        await self.send(data)
 
     async def close(self, code: int = 4000) -> None:
         if self._keep_alive:
@@ -433,12 +430,12 @@ class SteamWebSocket:
         await self.socket.close(code=code)
 
     async def handle_logon(self, emsg: EMsg, message: bytes) -> None:
-        msg = Msg(emsg.value, message, parse=True, extended=True)
+        msg = Msg(emsg, message, parse=True, extended=True)
         result = msg.body.eresult
 
         if result in (EResult.TryAnotherCM, EResult.ServiceUnavailable):
             raise ConnectionClosed(self.socket, self.cm, self.cm_list)
-        elif result == EResult.OK:
+        if result == EResult.OK:
             log.debug('Logon completed')
 
             self.steam_id = SteamID(msg.header.steamid)
