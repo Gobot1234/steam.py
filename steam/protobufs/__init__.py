@@ -81,7 +81,7 @@ class Msg:
     def __init__(self, msg, data: bytes = None, extended: bool = False, parse: bool = True):
         self.extended = extended
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
-        self.msg = msg
+        self.msg = EMsg.try_value(msg)
 
         self.proto = False
         self.body: Optional[StructMessage] = None  #: message instance
@@ -120,22 +120,22 @@ class Msg:
         self.header.msg = EMsg(value)
 
     @property
-    def steamID(self):
-        return self.header.steamID if isinstance(self.header, ExtendedMsgHdr) else None
+    def steam_id(self):
+        return self.header.steam_id if isinstance(self.header, ExtendedMsgHdr) else None
 
-    @steamID.setter
-    def steamID(self, value):
+    @steam_id.setter
+    def steam_id(self, value):
         if isinstance(self.header, ExtendedMsgHdr):
-            self.header.steamID = value
+            self.header.steam_id = value
 
     @property
-    def sessionID(self):
-        return self.header.sessionID if isinstance(self.header, ExtendedMsgHdr) else None
+    def session_id(self):
+        return self.header.session_id if isinstance(self.header, ExtendedMsgHdr) else None
 
-    @sessionID.setter
-    def sessionID(self, value):
+    @session_id.setter
+    def session_id(self, value):
         if isinstance(self.header, ExtendedMsgHdr):
-            self.header.sessionID = value
+            self.header.session_id = value
 
     def serialize(self):
         return self.header.serialize() + self.body.serialize()
@@ -146,7 +146,7 @@ class MsgProto:
     def __init__(self, msg: EMsg, data: bytes = None, parse: bool = True, **kwargs):
         self._header = MsgHdrProtoBuf(data)
         self.header = self._header.proto
-        self.msg = msg or self._header.msg
+        self.msg = msg
         self.proto = True
         self.body: Optional[betterproto.Message] = None  #: protobuf message instance
         self.payload = None  #: Will contain body payload, if we fail to find correct proto message
@@ -172,8 +172,7 @@ class MsgProto:
         """Parses :attr:`payload` into :attr:`body` instance"""
         if self.body is None:
             if self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodResponse, EMsg.ServiceMethodSendToClient):
-                is_resp = False if self.msg == EMsg.ServiceMethod else True
-                proto = get_um(self.header.target_job_name, response=is_resp)
+                proto = get_um(self.header.target_job_name)
             else:
                 proto = get_cmsg(self.msg)
 
@@ -184,6 +183,14 @@ class MsgProto:
                     self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'
+
+    @property
+    def msg(self):
+        return self._header.msg
+
+    @msg.setter
+    def msg(self, value):
+        self._header.msg = EMsg.try_value(value)
 
     @property
     def steam_id(self):

@@ -39,7 +39,7 @@ class ExtendedMsgHdr:
             self.load(data)
 
     def __repr__(self):
-        return f'<ExtendedMsgHdr msg={self.msg}>'
+        return f'<ExtendedMsgHdr msg={self.msg!r}>'
 
     def serialize(self):
         return struct.pack("<IBHqqBqi", self.msg, self.headerSize, self.headerVersion, self.targetJobID,
@@ -47,7 +47,7 @@ class ExtendedMsgHdr:
 
     def load(self, data):
         (msg, self.headerSize, self.headerVersion, self.targetJobID, self.sourceJobID,
-         self.headerCanary, self.steamID, self.sessionID) = struct.unpack_from("<IBHqqBqi", data)
+         self.headerCanary, self.steam_id, self.session_id) = struct.unpack_from("<IBHqqBqi", data)
 
         self.msg = EMsg(msg)
 
