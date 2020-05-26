@@ -64,15 +64,21 @@ def _is_descriptor(obj) -> bool:
 
 
 def _IntEnum__eq__(self, other) -> bool:
-    if type(other) is int:
+    if isinstance(other, int):
         return self.value == other
     return Enum.__eq__(self, other)
+
+
+def _IntEnum__ne__(self, other) -> bool:
+    if isinstance(other, int):
+        return self.value != other
+    return Enum.__ne__(self, other)
 
 
 def _IntEnum__lt__(self, x) -> bool:
     if isinstance(x, self.__class__):
         return self.value < x.value
-    if type(x) is int:
+    if isinstance(x, int):
         return self.value < x
     return False
 
@@ -84,7 +90,7 @@ def _IntEnum__le__(self, x) -> bool:
 def _IntEnum__gt__(self, x) -> bool:
     if isinstance(x, self.__class__):
         return self.value > x.value
-    if type(x) is int:
+    if isinstance(x, int):
         return self.value > x
     return False
 
@@ -137,6 +143,7 @@ class EnumMeta(type):
             if IntEnum in bases:
                 # monkey patch the operators in
                 value_cls.__eq__ = _IntEnum__eq__
+                value_cls.__ne__ = _IntEnum__ne__
                 value_cls.__lt__ = _IntEnum__lt__
                 value_cls.__le__ = _IntEnum__le__
                 value_cls.__gt__ = _IntEnum__gt__
@@ -191,12 +198,11 @@ class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates enum.Enum."""
 
     @classmethod
-    def try_value(cls, value: Union[int, str]) -> Union['Enum', int, str]:
+    def try_value(cls, value: Union['Enum', int, str]) -> Union['Enum', int, str]:
         try:
             if isinstance(value, str):
                 return cls._enum_member_map_[value]
-            else:
-                return cls._enum_value_map_[value]
+            return cls._enum_value_map_[value]
         except (KeyError, TypeError):
             return value
 
