@@ -108,14 +108,18 @@ class ConnectionState:
     def confirmations(self) -> List[Confirmation]:
         return list(self._confirmations.values())
 
-    async def fetch_user(self, id64: int) -> Optional[User]:
-        resp = await self.http.get_profile(id64)
-        data = resp['response']['players'][0] if resp['response']['players'] else None
-
-        return self._store_user(data) if data else None
-
     def get_user(self, id64: int) -> Optional[User]:
         return self._users.get(id64)
+
+    async def fetch_user(self, id64: int) -> Optional[User]:
+        resp = await self.http.get_profile(id64)
+        user = resp['response']['players'][0] if resp['response']['players'] else None
+
+        return self._store_user(user) if user else None
+
+    async def fetch_users(self, user_id64s: List[int]) -> List[Optional[User]]:
+        resp = await self.http.get_profiles(user_id64s)
+        return [self._store_user(user) for user in resp]
 
     def _store_user(self, data: dict) -> User:
         try:
@@ -330,11 +334,8 @@ class ConnectionState:
 
                 for listing in new_listings:
                     self.dispatch('listing_create', listing)
-                if removed_listings:
-                    all_previous_listings = await self.client.listing_history(limit=None).flatten()
 
                 for listing in removed_listings:
-                    listing = get(all_previous_listings, id=listing.id)
                     if listing.state == EMarketListingState.Bought:
                         if listing in self.client.user.fetch_inventory(Game(listing.app_id)):
                             self.dispatch('listing_buy', listing)
@@ -370,7 +371,7 @@ class ConnectionState:
 
         if 'incorrect Steam Guard codes.' in resp:
             raise InvalidCredentials('identity_secret is incorrect, or time is de-synced, most likely the former')
-        elif 'Oh nooooooes!' in resp:
+        if 'Oh nooooooes!' in resp:
             raise AuthenticatorError
 
         soup = BeautifulSoup(resp, 'html.parser')
