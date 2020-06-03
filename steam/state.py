@@ -36,12 +36,12 @@ from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
 from .abc import SteamID
-from .enums import ETradeOfferState, EType, EMarketListingState, EChatEntryType
-from .errors import HTTPException, AuthenticatorError, InvalidCredentials
+from .enums import EChatEntryType, EMarketListingState, ETradeOfferState, EType
+from .errors import AuthenticatorError, HTTPException, InvalidCredentials
 from .game import Game
-from .guard import generate_device_id, generate_confirmation_code, Confirmation
+from .guard import Confirmation, generate_confirmation_code, generate_device_id
 from .models import URL, Invite
-from .protobufs import MsgProto, EMsg
+from .protobufs import EMsg, MsgProto
 from .trade import TradeOffer
 from .user import User
 from .utils import get
@@ -161,29 +161,16 @@ class ConnectionState:
             if trade.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
                 return trade
             if trade.is_our_offer():
-                self.client.dispatch('trade_send', trade)
+                self.dispatch('trade_send', trade)
             else:
-                self.client.dispatch('trade_receive', trade)
+                self.dispatch('trade_receive', trade)
         else:
             if data['trade_offer_state'] != trade.state:
                 trade.state = ETradeOfferState(data['trade_offer_state'])
                 log.info(f'Trade #{trade.id} has updated its trade state to {trade.state}')
-                if trade.state == ETradeOfferState.Countered:
-                    done, pending = await asyncio.wait([
-                        self.client.wait_for('trade_send', check=lambda t: t.partner == trade.partner),
-                        self.client.wait_for('trade_receive', check=lambda t: t.partner == trade.partner)
-                    ], return_when=asyncio.FIRST_COMPLETED, timeout=3)
-                    if done:
-                        after = done.pop().result()
-                        before = trade
-                        self.dispatch('trade_counter', before, after)
-                    for future in pending:
-                        future.cancel()
-                    if not done:
-                        return trade
-
                 states = {
                     ETradeOfferState.Accepted: 'accept',
+                    ETradeOfferState.Countered: 'countered',
                     ETradeOfferState.Expired: 'expire',
                     ETradeOfferState.Canceled: 'cancel',
                     ETradeOfferState.Declined: 'decline',
@@ -196,8 +183,6 @@ class ConnectionState:
                 else:
                     self.dispatch(f'trade_{event_name}', trade)
         return trade
-
-    # this will be going when I get cms working
 
     async def _process_trades(self, trades: List[dict], descriptions: List[dict]) -> List[TradeOffer]:
         ret = []
@@ -213,29 +198,31 @@ class ConnectionState:
         return ret
 
     async def _poll_trades(self) -> None:
-        create_task = self.loop.create_task
         resp = await self.http.get_trade_offers()
         trades = resp['response']
         self._trades_received_cache = trades.get('trade_offers_received', [])
         self._trades_sent_cache = trades.get('trade_offers_sent', [])
         self._descriptions_cache = trades.get('descriptions', [])
-        create_task(self._process_trades(self._trades_received_cache, self._descriptions_cache))
-        create_task(self._process_trades(self._trades_sent_cache, self._descriptions_cache))
+        await self._process_trades(self._trades_received_cache, self._descriptions_cache)
+        await self._process_trades(self._trades_sent_cache, self._descriptions_cache)
 
         try:
             while 1:
-                await asyncio.sleep(5)
+                await asyncio.sleep(1)
                 resp = await self.http.get_trade_offers()
                 trades = resp['response']
                 descriptions = trades.get('descriptions', [])
                 trades_received = trades.get('trade_offers_received', [])
                 trades_sent = trades.get('trade_offers_sent', [])
 
-                new_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
-                new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
-                new_descriptions = [item for item in descriptions if item not in self._descriptions_cache]
-                create_task(self._process_trades(new_received_trades, new_descriptions))
-                create_task(self._process_trades(new_sent_trades, new_descriptions))
+                new_received_trades = [trade for trade in trades_received
+                                       if trade not in self._trades_received_cache]
+                new_sent_trades = [trade for trade in trades_sent
+                                   if trade not in self._trades_sent_cache]
+                new_descriptions = [item for item in descriptions
+                                    if item not in self._descriptions_cache]
+                await self._process_trades(new_received_trades, new_descriptions)
+                await self._process_trades(new_sent_trades, new_descriptions)
 
                 self._trades_received_cache = trades_received
                 self._trades_sent_cache = trades_sent
@@ -245,6 +232,8 @@ class ConnectionState:
         except HTTPException:
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
+
+    # this will be going when I get cms working
 
     async def _poll_notifications(self) -> None:
         notification_mapping = {
