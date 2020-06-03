@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from .trade import TradeOffer
     from .state import ConnectionState
 
-maybe_coro_predicate = Union[Callable[..., bool], Callable[..., Awaitable[bool]]]
+maybe_coro_predicate = Callable[..., Union[bool, Awaitable[bool]]]
 
 
 class AsyncIterator(_AsyncIterator):
@@ -147,7 +147,7 @@ class AsyncIterator(_AsyncIterator):
 
         Parameters
         ----------
-        predicate: Union[Callable[..., bool], Callable[..., Awaitable[bool]]]
+        predicate: Callable[..., Union[bool, Awaitable[bool]]]
             A callable/coroutine that returns a boolean.
 
         Returns
