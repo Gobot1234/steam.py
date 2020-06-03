@@ -125,6 +125,12 @@ class Image:
         self.fp.seek(0)
         return size
 
+    def read(self) -> bytes:
+        self.fp.seek(0)
+        read = self.fp.read()
+        self.fp.seek(0)
+        return read
+
 
 def test_jpeg(h, _):  # adds support for more header types
     # SOI APP2 + ICC_PROFILE
