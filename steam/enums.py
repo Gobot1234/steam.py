@@ -163,7 +163,7 @@ class EnumMeta(type):
         return len(cls._enum_member_names_)
 
     def __repr__(cls):
-        return f'<enum {repr(cls.__name__)}>'
+        return f'<enum {cls.__name__!r}>'
 
     @property
     def __members__(cls) -> types.MappingProxyType:
@@ -200,8 +200,6 @@ class Enum(metaclass=EnumMeta):
     @classmethod
     def try_value(cls, value: Union['Enum', int, str]) -> Union['Enum', int, str]:
         try:
-            if isinstance(value, str):
-                return cls._enum_member_map_[value]
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
             return value
@@ -213,7 +211,7 @@ class Enum(metaclass=EnumMeta):
         return self.name
 
     @property
-    def value(self) -> Union[int, str]:
+    def value(self) -> Any:
         return self.value
 
 

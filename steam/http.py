@@ -29,13 +29,22 @@ import json
 import logging
 import re
 from base64 import b64encode
-from sys import version_info
+from platform import python_version
 from time import time
-from typing import TYPE_CHECKING, Union, Awaitable, Tuple, List, Optional, Any
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    List,
+    Optional,
+    Tuple,
+    Union
+)
 
 import aiohttp
 from Cryptodome.Cipher import PKCS1_v1_5
 from Cryptodome.PublicKey.RSA import construct
+from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
 from . import __version__, errors
@@ -98,7 +107,7 @@ class HTTPClient:
         self.logged_in = False
         self._steam_id = None
         self.user_agent = f'steam.py/{__version__} client (https://github.com/Gobot1234/steam.py), ' \
-                          f'Python/{version_info[0]}.{version_info[1]}, aiohttp/{aiohttp.__version__}'
+                          f'Python/{python_version()}, aiohttp/{aiohttp.__version__}'
 
     def recreate(self) -> None:
         if self._session.closed:
@@ -154,9 +163,9 @@ class HTTPClient:
                             raise errors.HTTPException(r, data)
                         if 'Access is denied. Retrying will not help. Please verify your <pre>key=</pre>' in data:
                             # time to fetch a new key
-                            self.api_key = await self.get_api_key()
-                            kwargs['key'] = self.api_key
-                            continue  # retry with our new key
+                            self.api_key = kwargs['key'] = await self.get_api_key()
+                            continue
+                            # retry with our new key
 
                     # the usual error cases
                     if r.status == 403:
@@ -235,11 +244,12 @@ class HTTPClient:
             rsa_mod = int(key_response['publickey_mod'], 16)
             rsa_exp = int(key_response['publickey_exp'], 16)
             rsa_timestamp = key_response['timestamp']
-            return construct((rsa_mod, rsa_exp)), rsa_timestamp
         except KeyError:
             if current_repetitions < 5:
                 return await self._get_rsa_params(current_repetitions + 1)
-            raise ValueError('Could not obtain rsa-key')
+            raise ValueError('could not obtain rsa-key')
+        else:
+            return construct((rsa_mod, rsa_exp)), rsa_timestamp
 
     async def _send_login_request(self) -> dict:
         rsa_key, rsa_timestamp = await self._get_rsa_params()
@@ -559,7 +569,6 @@ class HTTPClient:
             "group": group_id,
             "invitee": user_id64,
             "type": 'groupInvite',
-            "json": 1,
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/actions/GroupInvite', json=payload)
 
@@ -597,7 +606,14 @@ class HTTPClient:
         }
         return self.request('POST', url=f'{URL.COMMUNITY}/me/ajaxclearaliashistory', json=payload)
 
-    def edit_profile(self, nick: str, real_name: str, country: str, summary: str, group_id: int) -> Awaitable:
+    async def edit_profile(self, nick: str, real_name: str, country: str,
+                           summary: str, group_id: int, avatar: 'Image') -> None:
+        resp = await self.request('GET', f'{URL.COMMUNITY}/me/edit')
+        soup = BeautifulSoup(resp, 'html.parser')
+        current_values = soup.find_all('input')
+        # TODO find stuff that returns all the values
+        # [i['name'] for i in soup.find_all('input') if i['type'] == 'text']
+        # update payload from current
         payload = {
             "sessionID": self.session_id,
             "type": 'profileSave',
@@ -607,11 +623,31 @@ class HTTPClient:
             "summary": summary,
             "primary_group_steamid": group_id
         }
-        return self.request('POST', url=f'{URL.COMMUNITY}/me/edit', json=payload)
+
+        await self.request('POST', url=f'{URL.COMMUNITY}/me/edit', json=payload)
+        if avatar is not None:
+            payload = {
+                "MAX_FILE_SIZE": len(avatar),
+                "type": 'player_avatar_image',
+                "sId": self.user.id64,
+                "sessionid": self.session_id,
+                "doSub": 1,
+                "avatar": {
+                    "value": avatar.read(),
+                    "options": {
+                        "filename": avatar.name,
+                        "contentType": f'image/{avatar.type}'
+                    }
+                }
+            }
+            await self.request('POST', url=f'{URL.COMMUNITY}/actions/FileUploader', json=payload)
 
     async def send_image(self, user_id64: int, image: 'Image') -> None:
         referer = {
             "Referer": f'{URL.COMMUNITY}/chat',
+        }
+        params = {
+            "l": 'english'
         }
 
         data = aiohttp.FormData()
@@ -623,14 +659,15 @@ class HTTPClient:
         data.add_field('file_image_width', image.width)
         data.add_field('file_image_height', image.height)
         data.add_field('file_type', f'image/{image.type}')
-        resp = await self.request('POST', f'{URL.COMMUNITY}/chat/beginfileupload?l=english', headers=referer, data=data)
+        resp = await self.request('POST', f'{URL.COMMUNITY}/chat/beginfileupload',
+                                  headers=referer, data=data, params=params)
 
         result = resp['result']
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
-        headers = {header['name'].lower(): header['value'] for header in result['request_headers']}
-        file_data = aiohttp.FormData()
-        file_data.add_field('body', image.fp.read())
-        await self.request('PUT', url=url, headers=headers, data=file_data)
+        headers = {header['name']: header['value'] for header in result['request_headers']}
+        file = aiohttp.FormData()
+        file.add_field('body', image.read())
+        await self.request('PUT', url=url, headers=headers, data=file)
 
         data._fields.pop(2)
         data.add_field('success', 1)
