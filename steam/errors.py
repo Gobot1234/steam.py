@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 import re
-from typing import Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from bs4 import BeautifulSoup
 

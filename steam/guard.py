@@ -37,12 +37,13 @@ import logging
 import struct
 from hashlib import sha1
 from time import time
-from typing import Awaitable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Awaitable
 
 from .models import URL
 
 if TYPE_CHECKING:
     from .state import ConnectionState
+
 
 __all__ = (
     'generate_one_time_code',

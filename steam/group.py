@@ -25,8 +25,9 @@ SOFTWARE.
 """
 
 import asyncio
+import re
 from datetime import datetime
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 from xml.etree import ElementTree
 
 from bs4 import BeautifulSoup
@@ -34,11 +35,12 @@ from bs4 import BeautifulSoup
 from .abc import SteamID
 from .errors import HTTPException
 from .iterators import CommentsIterator
-from .models import URL
+from .models import URL, Comment
 
 if TYPE_CHECKING:
     from .user import User
     from .state import ConnectionState
+
 
 __all__ = (
     'Group',
@@ -50,9 +52,22 @@ class Group(SteamID):
 
     .. container:: operations
 
+        .. describe:: x == y
+
+            Checks if two groups are equal.
+
+        .. describe:: x != y
+
+            Checks if two groups are not equal.
+
+        .. describe:: str(x)
+
+            Returns the group's name.
+
         .. describe:: len(x)
 
-            Returns the amount of members in the group.
+            Returns the number of members in the group.
+
 
     Attributes
     ------------
@@ -75,6 +90,7 @@ class Group(SteamID):
     in_game_count: :class:`int`
         The amount of user's currently in game.
     """
+
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
 
     def __init__(self, state: 'ConnectionState', id: int):
@@ -115,7 +131,7 @@ class Group(SteamID):
         attrs = (
             'name',
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         resolved.append(super().__repr__())
         return f"<Group {' '.join(resolved)}>"
 
@@ -180,29 +196,42 @@ class Group(SteamID):
         """
         await self._state.http.invite_user_to_group(user_id64=user.id64, group_id=self.id64)
 
-    async def comment(self, content: str) -> None:
+    async def comment(self, content: str) -> Comment:
         """|coro|
         Post a comment to an :class:`Group`'s comment section.
 
         Parameters
         -----------
         content: :class:`str`
-            The comment to add the group's profile.
+            The message to add to the group's profile.
+
+        Returns
+        -------
+        :class:`~steam.Comment`
+            The created comment.
         """
-        await self._state.http.post_comment(self.id64, 'Clan', content)
+        resp = await self._state.http.post_comment(self.id64, 'Clan', content)
+        id = int(re.findall(r'id="comment_(\d+)"', resp['comments_html'])[0])
+        timestamp = datetime.utcfromtimestamp(resp['timelastpost'])
+        return Comment(
+            state=self._state, id=id, owner=self,
+            timestamp=timestamp, content=content,
+            author=self._state.client.user
+        )
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
-        """An iterator for accessing a :class:`~steam.Group`'s :class:`~steam.Comment` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a
+        :class:`~steam.Group`'s :class:`~steam.Comment` objects.
 
         Examples
         -----------
 
-        Usage::
+        Usage: ::
 
             async for comment in group.comments(limit=10):
                 print('Author:', comment.author, 'Said:', comment.content)
 
-        Flattening into a list::
+        Flattening into a list: ::
 
             comments = await group.comments(limit=50).flatten()
             # comments is now a list of Comment
@@ -224,5 +253,4 @@ class Group(SteamID):
         :class:`~steam.Comment`
             The comment with the comment information parsed.
         """
-        return CommentsIterator(state=self._state, id=self.id64, limit=limit, before=before, after=after,
-                                comment_type='Clan')
+        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)

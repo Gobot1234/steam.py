@@ -32,11 +32,11 @@ import asyncio
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import List, Awaitable, Mapping, Any, Union
+from typing import Any, Awaitable, List, Mapping, Union
 
 from bs4 import BeautifulSoup
 
-from . import utils, errors
+from . import errors, utils
 from .enums import ECurrencyCode, EMarketListingState
 from .game import Game
 from .http import HTTPClient, json_or_text
@@ -116,7 +116,7 @@ class PriceOverview:
             if search.group(2) else float(search.group(1))
 
     def __repr__(self):
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in self.__slots__]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
         return f"<PriceOverview {' '.join(resolved)}>"
 
 
@@ -178,7 +178,7 @@ class Listing(Asset):
         attrs = (
             'name', 'id'
         ) + Asset.__slots__
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Listing {' '.join(resolved)}>"
 
     def __hash__(self):
@@ -187,6 +187,17 @@ class Listing(Asset):
     def is_tradable(self) -> bool:
         """:class:`bool`: Whether the listing's item is tradable."""
         return self._is_tradable
+
+    async def price(self) -> 'PriceOverview':
+        """|coro|
+        Fetches the price and volume sales of an item.
+
+        Returns
+        -------
+        :class:`PriceOverview`
+            The item's price overview.
+        """
+        return await self._state.client.fetch_price(self.name, self.game)
 
 
 class MarketClient(HTTPClient):
