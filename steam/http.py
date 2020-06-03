@@ -417,7 +417,7 @@ class HTTPClient:
             'captcha': ''
         }
         headers = {'Referer': f'{URL.COMMUNITY}/tradeoffer/{trade_id}'}
-        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/accept', json=payload, headers=headers)
+        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/{trade_id}/accept', data=payload, headers=headers)
 
     def decline_user_trade(self, trade_id: int) -> Awaitable:
         payload = {
@@ -463,7 +463,7 @@ class HTTPClient:
         }
         payload.update(**kwargs)
         headers = {'Referer': f'{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}'}
-        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', json=payload, headers=headers)
+        return self.request('POST', url=f'{URL.COMMUNITY}/tradeoffer/new/send', data=payload, headers=headers)
 
     def send_counter_trade_offer(self, trade_id: int, user_id64: int, user_id: int,
                                  to_send: List[dict], to_receive: List[dict],

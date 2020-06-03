@@ -27,15 +27,15 @@ SOFTWARE.
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, List, Optional, Union
 
+from .abc import SteamID
 from .enums import ETradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game
 
 if TYPE_CHECKING:
+    from .abc import BaseUser
     from .market import PriceOverview
     from .state import ConnectionState
-    from .abc import BaseUser
-
 
 __all__ = (
     'Item',
@@ -85,7 +85,8 @@ class Asset:
         self.class_id = int(data['classid'])
 
     def __repr__(self):
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__
+                    if attr[0] != '_']
         return f"<Asset {' '.join(resolved)}>"
 
     def __eq__(self, other):
@@ -396,7 +397,8 @@ class TradeOffer:
         trade._has_been_sent = True
         trade._state = state
         trade._update(data)
-        trade.partner = await state.client.fetch_user(data['accountid_other'])
+        trade.partner = await state.client.fetch_user(data['accountid_other']) or \
+                            SteamID(data['accountid_other'])  # the account is private :(
         return trade
 
     def __repr__(self):
