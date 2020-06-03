@@ -174,7 +174,7 @@ class AsyncIterator(_AsyncIterator):
 
         This is roughly equivalent to: ::
 
-            elements = [async for element in AsyncIterator]
+            elements = [element async for element in AsyncIterator]
 
         Returns
         -------
