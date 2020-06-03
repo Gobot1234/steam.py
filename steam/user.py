@@ -26,7 +26,7 @@ SOFTWARE.
 
 import re
 from datetime import timedelta
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from .abc import BaseUser, Messageable
 from .enums import *
@@ -164,12 +164,9 @@ class User(Messageable, BaseUser):
         Raises
         ------
         :exc:`.Forbidden`
-            The something failed to send.
+            Something failed to send.
         """
-        # Returns
-        # ---------
-        # :class:`~steam.Message`
-        #    The send message.
+
         if image is not None:
             await self._state.http.send_image(self.id64, image)
         if trade is not None:
@@ -270,12 +267,21 @@ class ClientUser(BaseUser):
         Optional[:class:`float`]
             The current wallet balance.
         """
-        resp = await self._state.request('GET', f'{URL.STORE}/steamaccount/addfunds')
+        resp = await self._state.request('GET', url=f'{URL.STORE}/steamaccount/addfunds')
         search = re.search(r'Wallet <b>\([^\d]*(\d*)(?:[.,](\d*)|)[^\d]*\)</b>', resp, re.UNICODE)
         if search is None:
             return None
 
         return float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
+
+    async def setup_profile(self) -> None:
+        if self.has_setup_profile():
+            return
+
+        params = {
+            "welcomed": 1
+        }
+        await self._state.request('GET', url=f'{URL.COMMUNITY}/me/edit', params=params)
 
     async def clear_nicks(self) -> None:
         """|coro|
