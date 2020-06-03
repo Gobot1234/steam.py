@@ -9,9 +9,9 @@ import betterproto
 
 
 class ENotificationSetting(betterproto.Enum):
-    k_ENotificationSettingNotifyUseDefault = 0
-    k_ENotificationSettingAlways = 1
-    k_ENotificationSettingNever = 2
+    NotifyUseDefault = 0
+    Always = 1
+    Never = 2
 
 
 @dataclass

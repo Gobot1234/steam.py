@@ -9,55 +9,55 @@ import betterproto
 
 
 class EChatRoomJoinState(betterproto.Enum):
-    k_EChatRoomJoinState_Default = 0
-    k_EChatRoomJoinState_None = 1
-    k_EChatRoomJoinState_Joined = 2
-    k_EChatRoomJoinState_TestInvalid = 99
+    Default = 0
+    NONE = 1
+    Joined = 2
+    TestInvalid = 99
 
 
 class EChatRoomGroupRank(betterproto.Enum):
-    k_EChatRoomGroupRank_Default = 0
-    k_EChatRoomGroupRank_Viewer = 10
-    k_EChatRoomGroupRank_Guest = 15
-    k_EChatRoomGroupRank_Member = 20
-    k_EChatRoomGroupRank_Moderator = 30
-    k_EChatRoomGroupRank_Officer = 40
-    k_EChatRoomGroupRank_Owner = 50
-    k_EChatRoomGroupRank_TestInvalid = 99
+    Default = 0
+    Viewer = 10
+    Guest = 15
+    Member = 20
+    Moderator = 30
+    Officer = 40
+    Owner = 50
+    TestInvalid = 99
 
 
 class EChatRoomNotificationLevel(betterproto.Enum):
-    k_EChatroomNotificationLevel_Invalid = 0
-    k_EChatroomNotificationLevel_None = 1
-    k_EChatroomNotificationLevel_MentionMe = 2
-    k_EChatroomNotificationLevel_MentionAll = 3
-    k_EChatroomNotificationLevel_AllMessages = 4
+    Invalid = 0
+    NONE = 1
+    MentionMe = 2
+    MentionAll = 3
+    AllMessages = 4
 
 
 class EChatRoomServerMessage(betterproto.Enum):
-    k_EChatRoomServerMsg_Invalid = 0
-    k_EChatRoomServerMsg_RenameChatRoom = 1
-    k_EChatRoomServerMsg_Joined = 2
-    k_EChatRoomServerMsg_Parted = 3
-    k_EChatRoomServerMsg_Kicked = 4
-    k_EChatRoomServerMsg_Invited = 5
-    k_EChatRoomServerMsg_InviteDismissed = 8
-    k_EChatRoomServerMsg_ChatRoomTaglineChanged = 9
-    k_EChatRoomServerMsg_ChatRoomAvatarChanged = 10
-    k_EChatRoomServerMsg_AppCustom = 11
+    Invalid = 0
+    RenameChatRoom = 1
+    Joined = 2
+    Parted = 3
+    Kicked = 4
+    Invited = 5
+    InviteDismissed = 8
+    ChatRoomTaglineChanged = 9
+    ChatRoomAvatarChanged = 10
+    AppCustom = 11
 
 
 class EChatRoomMemberStateChange(betterproto.Enum):
-    k_EChatRoomMemberStateChange_Invalid = 0
-    k_EChatRoomMemberStateChange_Joined = 1
-    k_EChatRoomMemberStateChange_Parted = 2
-    k_EChatRoomMemberStateChange_Kicked = 3
-    k_EChatRoomMemberStateChange_Invited = 4
-    k_EChatRoomMemberStateChange_RankChanged = 7
-    k_EChatRoomMemberStateChange_InviteDismissed = 8
-    k_EChatRoomMemberStateChange_Muted = 9
-    k_EChatRoomMemberStateChange_Banned = 10
-    k_EChatRoomMemberStateChange_RolesChanged = 12
+    Invalid = 0
+    Joined = 1
+    Parted = 2
+    Kicked = 3
+    Invited = 4
+    RankChanged = 7
+    InviteDismissed = 8
+    Muted = 9
+    Banned = 10
+    RolesChanged = 12
 
 
 @dataclass

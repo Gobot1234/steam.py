@@ -9,21 +9,21 @@ import betterproto
 
 
 class EInternalAccountType(betterproto.Enum):
-    k_EInternalSteamAccountType = 1
-    k_EInternalClanType = 2
-    k_EInternalAppType = 3
-    k_EInternalBroadcastChannelType = 4
+    SteamAccountType = 1
+    ClanType = 2
+    AppType = 3
+    BroadcastChannelType = 4
 
 
 class EExternalAccountType(betterproto.Enum):
-    k_EExternalNone = 0
-    k_EExternalSteamAccount = 1
-    k_EExternalGoogleAccount = 2
-    k_EExternalFacebookAccount = 3
-    k_EExternalTwitterAccount = 4
-    k_EExternalTwitchAccount = 5
-    k_EExternalYouTubeChannelAccount = 6
-    k_EExternalFacebookPage = 7
+    NONE = 0
+    SteamAccount = 1
+    GoogleAccount = 2
+    FacebookAccount = 3
+    TwitterAccount = 4
+    TwitchAccount = 5
+    YouTubeChannelAccount = 6
+    FacebookPage = 7
 
 
 @dataclass

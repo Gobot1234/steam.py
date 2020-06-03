@@ -12,10 +12,10 @@ if TYPE_CHECKING:
 
 
 class EMMSLobbyStatus(betterproto.Enum):
-    k_EMMSLobbyStatusInvalid = 0
-    k_EMMSLobbyStatusExists = 1
-    k_EMMSLobbyStatusDoesNotExist = 2
-    k_EMMSLobbyStatusNotAMember = 3
+    Invalid = 0
+    Exists = 1
+    DoesNotExist = 2
+    NotAMember = 3
 
 
 @dataclass

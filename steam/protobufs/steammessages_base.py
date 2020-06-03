@@ -9,48 +9,48 @@ import betterproto
 
 
 class EProtoClanEventType(betterproto.Enum):
-    k_EClanOtherEvent = 1
-    k_EClanGameEvent = 2
-    k_EClanPartyEvent = 3
-    k_EClanMeetingEvent = 4
-    k_EClanSpecialCauseEvent = 5
-    k_EClanMusicAndArtsEvent = 6
-    k_EClanSportsEvent = 7
-    k_EClanTripEvent = 8
-    k_EClanChatEvent = 9
-    k_EClanGameReleaseEvent = 10
-    k_EClanBroadcastEvent = 11
-    k_EClanSmallUpdateEvent = 12
-    k_EClanPreAnnounceMajorUpdateEvent = 13
-    k_EClanMajorUpdateEvent = 14
-    k_EClanDLCReleaseEvent = 15
-    k_EClanFutureReleaseEvent = 16
-    k_EClanESportTournamentStreamEvent = 17
-    k_EClanDevStreamEvent = 18
-    k_EClanFamousStreamEvent = 19
-    k_EClanGameSalesEvent = 20
-    k_EClanGameItemSalesEvent = 21
-    k_EClanInGameBonusXPEvent = 22
-    k_EClanInGameLootEvent = 23
-    k_EClanInGamePerksEvent = 24
-    k_EClanInGameChallengeEvent = 25
-    k_EClanInGameContestEvent = 26
-    k_EClanIRLEvent = 27
-    k_EClanNewsEvent = 28
-    k_EClanBetaReleaseEvent = 29
-    k_EClanInGameContentReleaseEvent = 30
-    k_EClanFreeTrial = 31
-    k_EClanSeasonRelease = 32
-    k_EClanSeasonUpdate = 33
-    k_EClanCrosspostEvent = 34
-    k_EClanInGameEventGeneral = 35
+    OtherEvent = 1
+    GameEvent = 2
+    PartyEvent = 3
+    MeetingEvent = 4
+    SpecialCauseEvent = 5
+    MusicAndArtsEvent = 6
+    SportsEvent = 7
+    TripEvent = 8
+    ChatEvent = 9
+    GameReleaseEvent = 10
+    BroadcastEvent = 11
+    SmallUpdateEvent = 12
+    PreAnnounceMajorUpdateEvent = 13
+    MajorUpdateEvent = 14
+    DLCReleaseEvent = 15
+    FutureReleaseEvent = 16
+    ESportTournamentStreamEvent = 17
+    DevStreamEvent = 18
+    FamousStreamEvent = 19
+    GameSalesEvent = 20
+    GameItemSalesEvent = 21
+    InGameBonusXPEvent = 22
+    InGameLootEvent = 23
+    InGamePerksEvent = 24
+    InGameChallengeEvent = 25
+    InGameContestEvent = 26
+    IRLEvent = 27
+    NewsEvent = 28
+    BetaReleaseEvent = 29
+    InGameContentReleaseEvent = 30
+    FreeTrial = 31
+    SeasonRelease = 32
+    SeasonUpdate = 33
+    CrosspostEvent = 34
+    InGameEventGeneral = 35
 
 
 class PartnerEventNotificationType(betterproto.Enum):
-    k_EEventStart = 0
-    k_EEventBroadcastStart = 1
-    k_EEventMatchStart = 2
-    k_EEventPartnerMaxType = 3
+    Start = 0
+    BroadcastStart = 1
+    MatchStart = 2
+    PartnerMaxType = 3
 
 
 @dataclass

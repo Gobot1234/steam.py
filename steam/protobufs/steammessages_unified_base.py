@@ -8,8 +8,8 @@ import betterproto
 
 
 class EProtoExecutionSite(betterproto.Enum):
-    k_EProtoExecutionSiteUnknown = 0
-    k_EProtoExecutionSiteSteamClient = 2
+    Unknown = 0
+    SteamClient = 2
 
 
 @dataclass

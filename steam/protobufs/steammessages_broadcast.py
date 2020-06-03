@@ -9,46 +9,46 @@ import betterproto
 
 
 class EBroadcastWatchLocation(betterproto.Enum):
-    k_EBroadcastWatchLocation_Invalid = 0
-    k_EBroadcastWatchLocation_SteamTV_Tab = 1
-    k_EBroadcastWatchLocation_SteamTV_WatchParty = 2
-    k_EBroadcastWatchLocation_Chat_Tab = 3
-    k_EBroadcastWatchLocation_Chat_WatchParty = 4
-    k_EBroadcastWatchLocation_CommunityPage = 5
-    k_EBroadcastWatchLocation_StoreAppPage = 6
-    k_EBroadcastWatchLocation_InGame = 7
-    k_EBroadcastWatchLocation_BigPicture = 8
-    k_EBroadcastWatchLocation_SalesPage = 9
-    k_EBroadcastWatchLocation_CuratorPage = 10
-    k_EBroadcastWatchLocation_DeveloperPage = 11
-    k_EBroadcastWatchLocation_Chat_Friends = 12
-    k_EBroadcastWatchLocation_SteamTV_Web = 13
+    Invalid = 0
+    SteamTV_Tab = 1
+    SteamTV_WatchParty = 2
+    Chat_Tab = 3
+    Chat_WatchParty = 4
+    CommunityPage = 5
+    StoreAppPage = 6
+    InGame = 7
+    BigPicture = 8
+    SalesPage = 9
+    CuratorPage = 10
+    DeveloperPage = 11
+    Chat_Friends = 12
+    SteamTV_Web = 13
 
 
 class EBroadcastChatPermission(betterproto.Enum):
-    k_EBroadcastChatPermissionPublic = 0
-    k_EBroadcastChatPermissionOwnsApp = 1
+    Public = 0
+    OwnsApp = 1
 
 
 class CBroadcast_WatchBroadcast_ResponseEWatchResponse(betterproto.Enum):
-    k_EWatchResponseReady = 1
-    k_EWatchResponseNotAvailable = 2
-    k_EWatchResponseWaitingForApproval = 3
-    k_EWatchResponseWaitingForStart = 4
-    k_EWatchResponseInvalidSession = 5
-    k_EWatchResponseTooManyBroadcasts = 6
-    k_EWatchResponseWaitingForReconnect = 7
-    k_EWatchResponseSystemNotSupported = 8
-    k_EWatchResponseUserRestricted = 9
-    k_EWatchResponseClientOutOfDate = 10
-    k_EWatchResponsePoorUploadQuality = 11
-    k_EWatchResponseMissingSubscription = 12
+    Ready = 1
+    NotAvailable = 2
+    WaitingForApproval = 3
+    WaitingForStart = 4
+    InvalidSession = 5
+    TooManyBroadcasts = 6
+    WaitingForReconnect = 7
+    SystemNotSupported = 8
+    UserRestricted = 9
+    ClientOutOfDate = 10
+    PoorUploadQuality = 11
+    MissingSubscription = 12
 
 
 class CBroadcast_BroadcastViewerState_NotificationEViewerState(betterproto.Enum):
-    k_EViewerNeedsApproval = 1
-    k_EViewerWatching = 2
-    k_EViewerLeft = 3
+    rNeedsApproval = 1
+    rWatching = 2
+    rLeft = 3
 
 
 @dataclass
