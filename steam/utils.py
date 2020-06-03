@@ -33,19 +33,27 @@ import struct
 from base64 import b64decode
 from operator import attrgetter
 from os import urandom as random_bytes
-from typing import Iterable, Callable, Any, Optional, Awaitable, Tuple
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Iterable,
+    Optional,
+    Tuple,
+    Union
+)
 
 import aiohttp
 from Cryptodome.Cipher import AES as AES, PKCS1_OAEP
-from Cryptodome.Hash import SHA1, HMAC
+from Cryptodome.Hash import HMAC, SHA1
 from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
 
-from .enums import EType, EUniverse, ETypeChar, EInstanceFlag
+from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 
 __all__ = (
     'get',
     'find',
-    'sleep_until',
     'make_steam64',
     'parse_trade_url_token',
 )
@@ -53,8 +61,8 @@ __all__ = (
 BS = 16
 PROTOBUF_MASK = 0x80000000
 MAX_ASYNCIO_SECONDS = 3456000
-_INVITE_HEX = "0123456789abcdef"
-_INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
+_INVITE_HEX = '0123456789abcdef'
+_INVITE_CUSTOM = 'bcdfghjkmnpqrtvw'
 _INVITE_VALID = f'{_INVITE_HEX}{_INVITE_CUSTOM}'
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
@@ -89,6 +97,7 @@ BIN_END = b'\x08'
 BIN_INT64 = b'\x0A'
 BIN_END_ALT = b'\x0B'
 
+# from ValvePython/steam
 
 ETypeChars = ''.join(type_char.name for type_char in ETypeChar)
 
@@ -337,7 +346,7 @@ def make_steam64(id: int = 0, *args, **kwargs) -> int:
     elif len(args) > 0:
         length = len(args)
         if length == 1:
-            etype, = args
+            etype = args
         elif length == 2:
             etype, universe = args
         elif length == 3:
@@ -500,36 +509,35 @@ async def steam64_from_url(url: str, timeout=30) -> Optional[int]:
         If ``steamcommunity.com`` is down or no matching account is found returns ``None``
     """
 
-    match = re.match(r'^(?P<clean_url>https?://steamcommunity.com/'
-                     r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?$', str(url))
+    search = re.search(r'^(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/'
+                       r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?$',
+                       str(url), flags=re.M)
 
-    if match is None:
+    if search is None:
         return None
 
     session = aiohttp.ClientSession()
 
+    # user profiles
     try:
-        # user profiles
-        if match.group('type') in ('id', 'profiles'):
-            async with session.get(match.group('clean_url'), timeout=timeout) as r:
-                text = await r.text()
-                await session.close()
-            data_match = re.search("g_rgProfileData = (?P<json>{.*?});\s*", text)
+        if search.group('type') in ('id', 'profiles'):
+            r = await session.get(search.group('clean_url'), timeout=timeout)
+            text = await r.text()
+            data_match = re.search("g_rgProfileData\s*=\s*(?P<json>{.*?});\s*", text)
 
             if data_match:
                 data = json.loads(data_match.group('json'))
                 return int(data['steamid'])
         # group profiles
         else:
-            async with session.get(match.group('clean_url'), timeout=timeout) as r:
-                text = await r.text()
-                await session.close()
-            data_match = re.search(r"OpenGroupChat\( *'(?P<steamid>\d+)'", text)
+            r = await session.get(search.group('clean_url'), timeout=timeout)
+            text = await r.text()
+            data_match = re.search(r"OpenGroupChat\(\s*'(?P<steam_id>\d+)'", text)
 
             if data_match:
-                return int(data_match.group('steamid'))
-    except aiohttp.InvalidURL:
-        return None
+                return int(data_match.group('steam_id'))
+    finally:
+        await session.close()
 
 
 def parse_trade_url_token(url: str) -> Optional[str]:
@@ -543,7 +551,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     Returns
     -------
     Optional[:class:`str`]
-        The found token. ``None`` if the URL doesn't match the regex.
+        The found token or ``None`` if the URL doesn't match the regex.
     """
     search = re.search(r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d{7,}"
                        r"(?:&|&amp;)token=(?P<token>[\w-]{7,})", url)
@@ -553,7 +561,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
 
 
 def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Awaitable:
-    loop = loop or asyncio.get_event_loop()
+    loop = loop or asyncio.get_running_loop()
     return loop.run_in_executor(None, input, prompt)
 
 
@@ -561,18 +569,25 @@ def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Awaitabl
 # https://github.com/rapptz/discord.py/blob/master/discord/utils.py
 
 
-def find(predicate: Callable[..., bool], seq: Iterable) -> Optional[Any]:
+def find(predicate: Callable[..., bool], iterable: Iterable) -> Optional[Any]:
     """A helper to return the first element found in the sequence.
 
     Parameters
     -----------
     predicate: Callable[..., bool]
         A function that returns a boolean.
-    seq: Iterable
+    iterable: Iterable
         The iterable to search through.
+
+    Returns
+    -------
+    Optional[Any]
+        The first element from the ``iterable``
+        for which the ``predicate`` returns ``True``
+        or ``None`` if no matching element was found.
     """
 
-    for element in seq:
+    for element in iterable:
         if predicate(element):
             return element
     return None
@@ -588,7 +603,14 @@ def get(iterable: Iterable, **attrs) -> Optional[Any]:
     iterable: Iterable
         An iterable to search through.
     \*\*attrs
-        Keyword arguments that denote attributes to search with.
+        Keyword arguments that denote attributes to match.
+
+    Returns
+    -------
+    Optional[Any]
+        The first element from the ``iterable``
+        which matches all the traits passed in ``attrs``
+        or ``None`` if no matching element was found.
     """
 
     # global -> local
@@ -613,3 +635,10 @@ def get(iterable: Iterable, **attrs) -> Optional[Any]:
         if _all(pred(elem) == value for pred, value in converted):
             return elem
     return None
+
+
+async def maybe_coroutine(func: Union[Callable, Coroutine], *args, **kwargs) -> Any:
+    func = func(*args, **kwargs)
+    if asyncio.iscoroutinefunction(func):
+        return await func
+    return func
