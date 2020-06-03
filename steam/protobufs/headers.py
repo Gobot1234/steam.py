@@ -6,76 +6,82 @@ from ..utils import set_proto_bit, clear_proto_bit
 
 
 class MsgHdr:
-    _size = struct.calcsize("<Iqq")
-    msg = EMsg.Invalid
-    targetJobID = -1
-    sourceJobID = -1
+    SIZE = struct.calcsize("<Iqq")
 
-    def __init__(self, data=None):
-        if data:
-            self.load(data)
-
-    def serialize(self):
-        return struct.pack("<Iqq", self.msg, self.targetJobID, self.sourceJobID)
-
-    def load(self, data):
-        (msg, self.targetJobID, self.sourceJobID) = struct.unpack_from("<Iqq", data)
-        self.msg = EMsg(msg)
-
-
-class ExtendedMsgHdr:
-    _size = struct.calcsize("<IBHqqBqi")
-    msg = EMsg.Invalid
-    headerSize = 36
-    headerVersion = 2
-    targetJobID = -1
-    sourceJobID = -1
-    headerCanary = 239
-    steamID = -1
-    sessionID = -1
-
-    def __init__(self, data=None):
+    def __init__(self, data: bytes = None):
+        self.msg = EMsg.Invalid
+        self.target_job_id = -1
+        self.source_job_id = -1
         if data:
             self.load(data)
 
     def __repr__(self):
-        return f'<ExtendedMsgHdr msg={self.msg!r}>'
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in dir(self)
+                    if attr[0] != '_']
+        return f'<MsgHdr {" ".join(resolved)}>'
 
     def serialize(self):
-        return struct.pack("<IBHqqBqi", self.msg, self.headerSize, self.headerVersion, self.targetJobID,
-                           self.sourceJobID, self.headerCanary, self.steamID, self.sessionID)
+        return struct.pack("<Iqq", self.msg, self.target_job_id, self.source_job_id)
 
     def load(self, data):
-        (msg, self.headerSize, self.headerVersion, self.targetJobID, self.sourceJobID,
-         self.headerCanary, self.steam_id, self.session_id) = struct.unpack_from("<IBHqqBqi", data)
+        (msg, self.target_job_id, self.source_job_id) = struct.unpack_from("<Iqq", data)
+        self.msg = EMsg(msg)
+
+
+class ExtendedMsgHdr:
+    SIZE = struct.calcsize("<IBHqqBqi")
+
+    def __init__(self, data: bytes = None):
+        self.msg = EMsg.Invalid
+        self.header_size = 36
+        self.header_version = 2
+        self.target_job_id = -1
+        self.source_job_id = -1
+        self.header_canary = 239
+        self.steam_id = -1
+        self.session_id = -1
+        if data:
+            self.load(data)
+
+    def __repr__(self):
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in dir(self)
+                    if attr[0] != '_']
+        return f'<ExtendedMsgHdr {" ".join(resolved)}>'
+
+    def serialize(self):
+        return struct.pack("<IBHqqBqi", self.msg, self.header_size, self.header_version, self.target_job_id,
+                           self.source_job_id, self.header_canary, self.steam_id, self.session_id)
+
+    def load(self, data: bytes):
+        (msg, self.header_size, self.header_version, self.target_job_id, self.source_job_id,
+         self.header_canary, self.steam_id, self.session_id) = struct.unpack_from("<IBHqqBqi", data)
 
         self.msg = EMsg(msg)
 
-        if self.headerSize != 36 or self.headerVersion != 2:
+        if self.header_size != 36 or self.header_version != 2:
             raise RuntimeError("Failed to parse header")
 
 
 class MsgHdrProtoBuf:
-    _size = _fullsize = struct.calcsize("<II")
-    msg = EMsg.Invalid
+    SIZE = _fullsize = struct.calcsize("<II")
 
-    def __init__(self, data=None):
+    def __init__(self, data: bytes = None):
         self.proto = steammessages_base.CMsgProtoBufHeader()
+        self.msg = EMsg.Invalid
 
         if data:
             self.load(data)
 
-    def serialize(self):
+    def serialize(self) -> bytes:
         proto_data = self.proto.SerializeToString()
         return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
 
-    def load(self, data):
+    def load(self, data: bytes) -> None:
         msg, proto_length = struct.unpack_from("<II", data)
 
         self.msg = EMsg(clear_proto_bit(msg))
-        size = MsgHdrProtoBuf._size
-        self._fullsize = size + proto_length
-        self.proto.FromString(data[size:self._fullsize])
+        self._fullsize = self.SIZE + proto_length
+        self.proto.FromString(data[self.SIZE:self._fullsize])
 
 
 class GCMsgHdr:
