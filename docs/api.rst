@@ -170,6 +170,21 @@ Guard
 .. autofunction:: steam.guard.generate_device_id
 
 
+Async Iterators
+-----------------
+
+An async iterator is a class that is capable of being used with the syntax :ref:`async for <py:async for>`.
+
+They can be used as follows: ::
+
+    async for elem in client.trade_history():
+        # do stuff with elem here
+
+
+.. autoclass:: steam.iterators.AsyncIterator
+    :members:
+
+
 Abstract Base Classes
 -----------------------
 
