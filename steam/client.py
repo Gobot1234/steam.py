@@ -34,7 +34,16 @@ import signal
 import sys
 import traceback
 from datetime import datetime
-from typing import TYPE_CHECKING, Union, List, Any, Optional, Callable, Mapping, Coroutine
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    List,
+    Mapping,
+    Optional,
+    Union,
+)
 
 import aiohttp
 
@@ -46,7 +55,13 @@ from .group import Group
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import MarketListingsIterator, TradesIterator
-from .market import convert_items, Listing, FakeItem, MarketClient, PriceOverview
+from .market import (
+    FakeItem,
+    Listing,
+    MarketClient,
+    PriceOverview,
+    convert_items
+)
 from .models import URL
 from .state import ConnectionState
 from .utils import ainput, get
@@ -191,14 +206,14 @@ class Client:
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)
-        return await ainput('Please enter a Steam guard code\n>>> ', self.loop)
+        return (await ainput('Please enter a Steam guard code\n>>> ', self.loop)).strip()
 
     @property
     def latency(self) -> float:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return float('nan') if self.ws is None else self.ws.latency
 
-    def event(self, coro: Callable) -> Callable:
+    def event(self, coro: Callable[..., None]) -> Callable[..., None]:
         """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
@@ -304,11 +319,8 @@ class Client:
         """
         loop = self.loop
 
-        try:
-            loop.add_signal_handler(signal.SIGINT, loop.stop)
-            loop.add_signal_handler(signal.SIGTERM, loop.stop)
-        except NotImplementedError:
-            pass
+        loop.add_signal_handler(signal.SIGINT, loop.stop)
+        loop.add_signal_handler(signal.SIGTERM, loop.stop)
 
         async def runner():
             try:
@@ -412,9 +424,9 @@ class Client:
         :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """
+        self.username = username = kwargs.pop('username', None) or args[0]
+        self.password = password = kwargs.pop('password', None) or args[1]
         self.api_key = api_key = kwargs.pop('api_key', None)
-        self.username = username = kwargs.pop('username', None)
-        self.password = password = kwargs.pop('password', None)
         self.shared_secret = shared_secret = kwargs.pop('shared_secret', None)
         self.identity_secret = identity_secret = kwargs.pop('identity_secret', None)
 
@@ -669,7 +681,8 @@ class Client:
 
     def listing_history(self, limit: Optional[int] = 100, before: datetime = None,
                         after: datetime = None) -> MarketListingsIterator:
-        """An iterator for accessing a :class:`ClientUser`'s previous :class:`~steam.Listing` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a
+        :class:`ClientUser`'s previous :class:`~steam.Listing` objects.
 
         Examples
         --------
@@ -708,7 +721,8 @@ class Client:
 
     def trade_history(self, limit: Optional[int] = 100, before: datetime = None,
                       after: datetime = None, active_only: bool = False) -> TradesIterator:
-        """An iterator for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a
+        :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
 
         Examples
         -----------
@@ -987,18 +1001,14 @@ class Client:
             The trade offer that expired.
         """
 
-    async def on_trade_counter(self, before: 'steam.TradeOffer', after: 'steam.TradeOffer'):
+    async def on_trade_counter(self, trade: 'steam.TradeOffer'):
         """|coro|
         Called when the client or the trade partner counters a trade offer.
-        The trade in the after parameter will also be heard by either
-        :func:`~steam.on_trade_receive()` or :func:`~steam.on_trade_send()`.
 
         Parameters
         ----------
-        before: :class:`~steam.TradeOffer`
-            The trade offer before it was countered.
-        after: :class:`~steam.TradeOffer`
-            The trade offer after it was countered.
+        trade: :class:`~steam.TradeOffer`
+            The trade offer that was countered.
         """
 
     async def on_comment(self, comment: 'steam.Comment'):
