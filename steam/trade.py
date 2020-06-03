@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING, Iterable, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Union
 
 from .enums import ETradeOfferState
 from .errors import ClientException, ConfirmationError
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from .market import PriceOverview
     from .state import ConnectionState
     from .abc import BaseUser
+
 
 __all__ = (
     'Item',
@@ -83,7 +84,7 @@ class Asset:
         self.class_id = int(data['classid'])
 
     def __repr__(self):
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in self.__slots__]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
         return f"<Asset {' '.join(resolved)}>"
 
     def __eq__(self, other):
@@ -142,7 +143,7 @@ class Item(Asset):
 
     def __repr__(self):
         attrs = ('name',) + Asset.__slots__
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Item {' '.join(resolved)}>"
 
     def _from_data(self, data) -> None:
@@ -157,7 +158,7 @@ class Item(Asset):
         self._is_tradable = bool(data.get('tradable', False))
         self._is_marketable = bool(data.get('marketable', False))
 
-    async def fetch_price(self) -> 'PriceOverview':
+    async def price(self) -> 'PriceOverview':
         """|coro|
         Fetches the price and volume sales of an item.
 
@@ -194,6 +195,12 @@ class Inventory:
 
             Iterates over the inventory's items.
 
+        .. describe:: y in x
+
+            Determines if an item is in the inventory based off of
+            its class_id and instance_id
+
+
     Attributes
     -------------
     items: List[:class:`Item`]
@@ -216,7 +223,7 @@ class Inventory:
         attrs = (
             'owner', 'game'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Inventory {' '.join(resolved)}>"
 
     def __len__(self):
@@ -317,9 +324,9 @@ class TradeOffer:
 
     Parameters
     ----------
-    items_to_send: Optional[List[:class:`steam.Item`]]
+    items_to_send: Union[Optional[List[:class:`steam.Item`]], :class:`steam.Item`]]
         The items you are sending to the other user.
-    items_to_receive: Optional[List[:class:`steam.Item`]]
+    items_to_receive: Union[Optional[List[:class:`steam.Item`]], :class:`steam.Item`]]
         The items you are sending to the other user.
     token: Optional[:class:`str`]
         The the trade token used to send trades to users who aren't
@@ -331,9 +338,9 @@ class TradeOffer:
     -------------
     partner: :class:`~steam.User`
         The trade offer partner.
-    items_to_send: List[:class:`Item`]
+    items_to_send: Union[List[:class:`Item`], List[:class:`Asset`]]
         A list of items to send to the partner.
-    items_to_receive: List[:class:`Item`]
+    items_to_receive: Union[List[:class:`Item`], List[:class:`Asset`]]
         A list of items to receive from the partner.
     state: :class:`~steam.ETradeOfferState`
         The offer state of the trade for the possible types see
@@ -351,7 +358,7 @@ class TradeOffer:
 
     __slots__ = ('id', 'state', 'escrow', 'partner', 'message', 'token',
                  'expires', 'items_to_send', 'items_to_receive',
-                 '_has_been_sent', '_id_other', '_state', '_is_our_offer', '__weakref__')
+                 '_has_been_sent', '_state', '_is_our_offer', '__weakref__')
 
     def __init__(self, *, message: str = None, token: str = None,
                  items_to_send: Union[List[Item], Item] = None,
@@ -374,18 +381,18 @@ class TradeOffer:
 
     @classmethod
     async def _from_api(cls, state: 'ConnectionState', data: dict) -> 'TradeOffer':
-        self = cls(items_to_send=None, items_to_receive=None)
-        self._has_been_sent = True
-        self._state = state
-        self._update(data)
-        self.partner = await self._state.client.fetch_user(self._id_other)
-        return self
+        trade = cls(items_to_send=None, items_to_receive=None)
+        trade._has_been_sent = True
+        trade._state = state
+        trade._update(data)
+        trade.partner = await state.client.fetch_user(data['accountid_other'])
+        return trade
 
     def __repr__(self):
         attrs = (
             'id', 'state', 'partner'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr, None))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr, None)!r}' for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
     def _update(self, data) -> None:
@@ -398,7 +405,6 @@ class TradeOffer:
         self.items_to_send = [Item(state=self._state, data=item) for item in data.get('items_to_give', [])]
         self.items_to_receive = [Item(state=self._state, data=item) for item in data.get('items_to_receive', [])]
         self._is_our_offer = data.get('is_our_offer', False)
-        self._id_other = data['accountid_other']
 
     async def confirm(self) -> None:
         """|coro|
@@ -412,10 +418,9 @@ class TradeOffer:
         :exc:`~steam.ConfirmationError`
             No matching confirmation could not be found.
         """
+        self._check_active()
         if self.is_gift():
             return  # no point trying to confirm it
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
-            raise ClientException('This trade cannot be confirmed')
         if not await self._state.get_and_confirm_confirmation(self.id):
             raise ConfirmationError('No matching confirmation could be found for this trade')
 
@@ -433,8 +438,7 @@ class TradeOffer:
         :exc:`~steam.ConfirmationError`
             No matching confirmation could not be found.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
-            raise ClientException('This trade is not active')
+        self._check_active()
         if self.state == ETradeOfferState.Accepted:
             raise ClientException('This trade has already been accepted')
         if self.is_our_offer():
@@ -452,8 +456,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already declined or not from the ClientUser.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
-            raise ClientException('This trade is not active')
+        self._check_active()
         if self.state == ETradeOfferState.Declined:
             raise ClientException('This trade has already been declined')
         if self.is_our_offer():
@@ -469,8 +472,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already cancelled or is from the ClientUser.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
-            raise ClientException('This trade is not active')
+        self._check_active()
         if self.state == ETradeOfferState.Canceled:
             raise ClientException('This trade has already been cancelled')
         if not self.is_gift():
@@ -524,13 +526,17 @@ class TradeOffer:
 
     def is_gift(self) -> bool:
         """:class:`bool`: Checks if an offer is a gift to the ClientUser"""
-        return True if self.items_to_receive and not self.items_to_send else False
+        return self.items_to_receive and not self.items_to_send
 
     def is_one_sided(self) -> bool:
         """:class:`bool`: Checks if an offer is one-sided."""
-        return True if not self.items_to_receive and self.items_to_send \
-                       or self.items_to_receive and not self.items_to_send else False
+        return not self.items_to_receive and self.items_to_send \
+            or self.items_to_receive and not self.items_to_send
 
     def is_our_offer(self) -> bool:
         """:class:`bool`: Whether the offer was created by the ClientUser."""
         return self._is_our_offer
+
+    def _check_active(self):
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
+            raise ClientException('This trade is not active')
