@@ -32,20 +32,20 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from .enums import (
-    EType,
-    EUniverse,
-    ETypeChar,
-    EPersonaState,
     EInstanceFlag,
-    EPersonaStateFlag
+    EPersonaState,
+    EPersonaStateFlag,
+    EType,
+    ETypeChar,
+    EUniverse
 )
 from .errors import HTTPException
 from .game import Game
 from .iterators import CommentsIterator
-from .models import URL, Ban, UserBadges
+from .models import URL, Ban, Comment, UserBadges
 from .trade import Inventory
 from .utils import make_steam64, steam64_from_url
 
@@ -391,16 +391,32 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         self.flags = EPersonaStateFlag(data.get('personastateflags', 0))
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid'])) if 'gameextrainfo' in data else None
 
-    async def comment(self, content: str) -> None:
+    async def update(self) -> None:
+        data = self._state.http.fetch_user(self.id64)
+        self._update(data)
+
+    async def comment(self, content: str) -> Comment:
         """|coro|
         Post a comment to an :class:`User`'s profile.
 
         Parameters
         -----------
         content: :class:`str`
-            The comment to add the user's profile.
+            The message to add to the user's profile.
+
+        Returns
+        -------
+        :class:`~steam.Comment`
+            The created comment.
         """
-        await self._state.http.post_comment(self.id64, 'Profile', content)
+        resp = await self._state.http.post_comment(self.id64, 'Profile', content)
+        id = int(re.findall(r'id="comment_(\d+)"', resp['comments_html'])[0])
+        timestamp = datetime.utcfromtimestamp(resp['timelastpost'])
+        return Comment(
+            state=self._state, id=id, owner=self,
+            timestamp=timestamp, content=content,
+            author=self._state.client.user
+        )
 
     async def inventory(self, game: Game) -> Inventory:
         """|coro|
@@ -545,17 +561,18 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
 
     def comments(self, limit: Optional[int] = None,
                  before: datetime = None, after: datetime = None) -> CommentsIterator:
-        """An iterator for accessing a :class:`~steam.User`'s :class:`~steam.Comment` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a
+        :class:`~steam.User`'s :class:`~steam.Comment` objects.
 
         Examples
         -----------
 
-        Usage::
+        Usage: ::
 
             async for comment in user.comments(limit=10):
                 print('Author:', comment.author, 'Said:', comment.content)
 
-        Flattening into a list::
+        Flattening into a list: ::
 
             comments = await user.comments(limit=50).flatten()
             # comments is now a list of Comment
@@ -577,8 +594,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         :class:`~steam.Comment`
             The comment with the comment information parsed.
         """
-        return CommentsIterator(state=self._state, id=self.id64, limit=limit, before=before, after=after,
-                                comment_type='Profile')
+        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
 class BaseChannel(metaclass=abc.ABCMeta):
