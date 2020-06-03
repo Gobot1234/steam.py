@@ -26,38 +26,36 @@ SOFTWARE.
 This is a copy of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
-from typing import Union, Optional, Type
+from typing import Optional, Type, Union
 
 import betterproto
-import stringcase
 
 from . import (
     steammessages_base,
+    steammessages_clientserver,
     steammessages_clientserver_2,
     steammessages_clientserver_friends,
     steammessages_clientserver_login,
-    steammessages_clientserver
 )
 from .emsg import EMsg
-from .headers import MsgHdr, ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdr, GCMsgHdrProto
-from .protobufs import protobufs
-from .structs import get_struct, StructMessage
-from .unified import get_um
-from ..enums import Enum, IntEnum
+from .headers import (
+    ExtendedMsgHdr,
+    GCMsgHdr,
+    GCMsgHdrProto,
+    MsgHdr,
+    MsgHdrProtoBuf,
+)
+from .protobufs import PROTOBUFS
+from .unified import UMS
+from ..enums import IntEnum
 
 
 def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
-    if isinstance(emsg, int):
-        emsg = EMsg(emsg)
-
-    return protobufs.get(emsg, None)
+    return PROTOBUFS.get(EMsg.try_value(emsg), None)
 
 
-class _Casing(Enum):
-    """Casing constants for serialization."""
-
-    CAMEL = stringcase.camelcase
-    SNAKE = stringcase.snakecase
+def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
+    return UMS.get(method_name, None)
 
 
 class _Enum(IntEnum):
@@ -73,40 +71,45 @@ class _Enum(IntEnum):
 
 
 # add in our speeder enum
-betterproto.Casing = _Casing
 betterproto.Enum = _Enum
 
 
 class Msg:
-    def __init__(self, msg, data: bytes = None, extended: bool = False, parse: bool = True):
+    def __init__(self, msg: EMsg,
+                 data: bytes = None,
+                 extended: bool = False,
+                 parse: bool = True,
+                 **kwargs):
         self.extended = extended
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.msg = EMsg.try_value(msg)
 
         self.proto = False
-        self.body: Optional[StructMessage] = None  #: message instance
-        self.payload: Optional[betterproto.Message] = None  # body payload, if we fail to find matching message class
+        self.body: Optional[betterproto.Message] = None  # protobuf
+        self.payload: Optional[bytes] = None  # the raw bytes for the protobuf
 
         if data:
-            self.payload = data[self.header._size:]
-
+            self.payload = data[self.header.SIZE:]
         if parse:
             self.parse()
+        if kwargs:
+
+            self.body.from_dict(kwargs)
 
     def __repr__(self):
         attrs = (
-            'header', 'body', 'msg'
+            'msg', 'header', 'body',
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Msg {' '.join(resolved)}>"
 
     def parse(self):
         """Parses :attr:`payload` into :attr:`body` instance"""
         if self.body is None:
-            deserializer = get_struct(self.msg)
+            proto = get_cmsg(self.msg)
 
-            if deserializer:
-                self.body = deserializer(self.payload)
+            if proto:
+                self.body = proto.FromString(self.payload)
                 self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'
@@ -117,7 +120,7 @@ class Msg:
 
     @msg.setter
     def msg(self, value):
-        self.header.msg = EMsg(value)
+        self.header.msg = EMsg.try_value(value)
 
     @property
     def steam_id(self):
@@ -138,7 +141,7 @@ class Msg:
             self.header.session_id = value
 
     def serialize(self):
-        return self.header.serialize() + self.body.serialize()
+        return self.header.serialize() + self.body.SerializeToString()
 
 
 class MsgProto:
@@ -146,26 +149,24 @@ class MsgProto:
     def __init__(self, msg: EMsg, data: bytes = None, parse: bool = True, **kwargs):
         self._header = MsgHdrProtoBuf(data)
         self.header = self._header.proto
-        self.msg = msg
+        self.msg = EMsg.try_value(msg)
         self.proto = True
-        self.body: Optional[betterproto.Message] = None  #: protobuf message instance
-        self.payload = None  #: Will contain body payload, if we fail to find correct proto message
+        self.body: Optional[betterproto.Message] = None  # protobuf message instance
+        self.payload: Optional[bytes] = None  # will contain the protobuf's raw bytes
 
         if data:
             self.payload = data[self._header._fullsize:]
-
         if parse:
             self.parse()
-
         if kwargs:
             self.body.from_dict(kwargs)
 
     def __repr__(self):
         attrs = (
-            'msg', 'proto'
+            'msg', 'header', 'body'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
-        resolved.extend([f'{key}={repr(value)}' for key, value in self.body.to_dict().items()])
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
         return f"<MsgProto {' '.join(resolved)}>"
 
     def parse(self):
