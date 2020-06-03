@@ -181,7 +181,7 @@ They can be used as follows: ::
         # do stuff with elem here
 
 
-.. autoclass:: steam.iterators.AsyncIterator
+.. autoclass:: steam.iterators.AsyncIterator()
     :members:
 
 

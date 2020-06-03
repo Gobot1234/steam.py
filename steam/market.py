@@ -188,17 +188,6 @@ class Listing(Asset):
         """:class:`bool`: Whether the listing's item is tradable."""
         return self._is_tradable
 
-    async def price(self) -> 'PriceOverview':
-        """|coro|
-        Fetches the price and volume sales of an item.
-
-        Returns
-        -------
-        :class:`PriceOverview`
-            The item's price overview.
-        """
-        return await self._state.client.fetch_price(self.name, self.game)
-
 
 class MarketClient(HTTPClient):
     """Represents a client connection that interacts with the Steam Market.

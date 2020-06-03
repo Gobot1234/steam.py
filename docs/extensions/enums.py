@@ -21,3 +21,6 @@ def _isenumattribute(x: Any) -> bool:
 
 inspect.isenumclass = _isenumclass
 inspect.isenumattribute = _isenumattribute
+
+def setup(_):
+    pass

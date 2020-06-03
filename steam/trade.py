@@ -73,9 +73,10 @@ class Asset:
     class_id: :class:`str`
         The classid of the item.
     """
-    __slots__ = ('game', 'amount', 'app_id', 'class_id', 'asset_id', 'instance_id')
+    __slots__ = ('game', 'amount', 'app_id', 'class_id', 'asset_id', 'instance_id', '_state')
 
-    def __init__(self, data: dict):
+    def __init__(self, state: 'ConnectionState', data: dict):
+        self._state = state
         self.asset_id = int(data['assetid'])
         self.game = Game(app_id=data['appid'])
         self.app_id = int(data['appid'])
@@ -97,6 +98,17 @@ class Asset:
             "appid": str(self.app_id),
             "contextid": str(self.game.context_id)
         }
+
+    async def fetch_price(self) -> 'PriceOverview':
+        """|coro|
+        Fetches the price and volume sales of an item.
+
+        Returns
+        -------
+        :class:`PriceOverview`
+            The item's price overview.
+        """
+        return await self._state.client.fetch_price(self.name, self.game)
 
 
 class Item(Asset):
@@ -136,8 +148,7 @@ class Item(Asset):
                  '_state', '_is_tradable', '_is_marketable')
 
     def __init__(self, state: 'ConnectionState', data: dict, missing: bool = False):
-        super().__init__(data)
-        self._state = state
+        super().__init__(state, data)
         self.missing = missing
         self._from_data(data)
 

@@ -86,13 +86,12 @@ class AsyncIterator(_AsyncIterator):
 
     def get(self, **attrs) -> Optional[Any]:
         r"""A helper function which is similar to :func:`~steam.utils.get`
-        except it runs over the :class:`AsyncIterator.
+        except it runs over the :class:`AsyncIterator`.
 
         This is roughly equipment to: ::
 
             elements = await AsyncIterator.flatten()
             element = steam.utils.get(name='Item', elements)
-
 
         Example
         -------
@@ -129,7 +128,7 @@ class AsyncIterator(_AsyncIterator):
     async def find(self, predicate: maybe_coro_predicate) -> Optional[Any]:
         """|coro|
         A helper function which is similar to :func:`~steam.utils.find`
-        except it runs over the :class:`AsyncIterator. However unlike
+        except it runs over the :class:`AsyncIterator`. However unlike
          :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
 
         This is roughly equivalent to: ::
@@ -179,7 +178,7 @@ class AsyncIterator(_AsyncIterator):
 
         Returns
         -------
-        List[Any]:
+        List[Any]
             A list of every element in the iterator.
         """
         ret = []

@@ -173,4 +173,4 @@ texinfo_documents = [
 
 
 def setup(app):
-    app.add_javascript('custom.js')
+    app.add_js_file('custom.js')
