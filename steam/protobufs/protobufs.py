@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from . import (
     steammessages_base,
     steammessages_clientserver_2,
@@ -8,7 +10,7 @@ from . import (
 from .emsg import EMsg
 
 
-protobufs = {
+PROTOBUFS = {
     EMsg.Multi: steammessages_base.CMsgMulti,
     EMsg.ClientHeartBeat: steammessages_clientserver_login.CMsgClientHeartBeat,
     EMsg.ClientLogon: steammessages_clientserver_login.CMsgClientLogon,
