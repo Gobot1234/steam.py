@@ -127,17 +127,22 @@ class User(Messageable, BaseUser):
         """
         await self._state.http.unblock_user(self.id64)
 
-    async def escrow(self) -> Optional[timedelta]:
+    async def escrow(self, token: str = None) -> Optional[timedelta]:
         """|coro|
         Check how long a :class:`User`'s escrow is.
+
+        Parameters
+        ----------
+        token: Optional[:class:`str`]
+            The user's trade offer token.
 
         Returns
         --------
         Optional[:class:`datetime.timedelta`]
             The time at which any items sent/received would arrive
-            ``None`` if the :class:`User` has no escrow.
+            ``None`` if the :class:`User` has no escrow or has a private inventory.
         """
-        resp = await self._state.http.get_user_escrow(self.id64)
+        resp = await self._state.http.get_user_escrow(self.id64, token)
         their_escrow = resp['response'].get('their_escrow')
         if their_escrow is None:  # private
             return None
@@ -163,15 +168,17 @@ class User(Messageable, BaseUser):
 
         Raises
         ------
-        :exc:`.Forbidden`
+        :exc:`~steam.HTTPException`
             Something failed to send.
         """
 
         if image is not None:
             await self._state.http.send_image(self.id64, image)
         if trade is not None:
-            resp = await self._state.http.send_trade_offer(self.id64, self.id, trade.items_to_send,
-                                                           trade.items_to_receive, trade.token, trade.message)
+            to_send = [item.to_dict() for item in trade.items_to_send]
+            to_receive = [item.to_dict() for item in trade.items_to_receive]
+            resp = await self._state.http.send_trade_offer(self.id64, self.id, to_send,
+                                                           to_receive, trade.token, trade.message)
             if resp.get('needs_mobile_confirmation', False):
                 await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
         # return await self._state.send_message(user_id64=self.id64, content=str(content))
@@ -288,11 +295,3 @@ class ClientUser(BaseUser):
         Clears the :class:`ClientUser`'s nickname/alias history.
         """
         await self._state.http.clear_nickname_history()
-
-    async def edit(self, *, nickname: str = None, real_name: str = None, country: str = None,
-                   summary: str = None, group: 'Group' = None):  # TODO check works
-        self.name = nickname if nickname is not None else self.name
-        self.real_name = real_name if real_name is not None else self.real_name if self.real_name else ''
-        self.country = country if country is not None else self.country if self.country else ''
-        self.primary_group = group.id64 if group is not None else self.primary_group.id64 if self.primary_group else 0
-        print(await self._state.http.edit_profile(self.name, self.real_name, self.country, summary, self.primary_group))
