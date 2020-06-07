@@ -115,13 +115,10 @@ class Image:
         self.width = width
         self.height = height
         self.hash = hashlib.sha1(self.read()).hexdigest()
-        self.name = f'{int(time())}_image.{self.type}'
+        self.name = f'{int(time())}_{getattr(self.fp, "name", f"image.{self.type}")}'
 
     def __len__(self):
-        self.fp.seek(0)
-        size = len(bytes(self.fp.read()))
-        self.fp.seek(0)
-        return size
+        return len(self.read())
 
     def read(self) -> bytes:
         self.fp.seek(0)
