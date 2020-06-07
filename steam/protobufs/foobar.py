@@ -8,11 +8,11 @@ import betterproto
 
 
 class GCProtoBufMsgSrc(betterproto.Enum):
-    GCProtoBufMsgSrc_Unspecified = 0
-    GCProtoBufMsgSrc_FromSystem = 1
-    GCProtoBufMsgSrc_FromSteamID = 2
-    GCProtoBufMsgSrc_FromGC = 3
-    GCProtoBufMsgSrc_ReplySystem = 4
+    Unspecified = 0
+    FromSystem = 1
+    FromSteamID = 2
+    FromGC = 3
+    ReplySystem = 4
 
 
 @dataclass
