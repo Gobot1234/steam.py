@@ -32,7 +32,7 @@ import asyncio
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, List, Mapping, Union
+from typing import Any, Awaitable, List, Mapping, Union, Optional
 
 from bs4 import BeautifulSoup
 
@@ -52,29 +52,17 @@ log = logging.getLogger(__name__)
 
 
 def convert_items(item_names: Union[List[str], str],
-                  games: Union[List[Game], Game],
-                  prices: List[float] = None):
+                  games: Union[List[Game], Game]) -> List['FakeItem']:
     items = []
     if isinstance(games, Game):  # this is for the same game items
-        if prices is None:
-            for name in item_names:
-                items.append(FakeItem(name, games))
-        else:
-            for name, price in zip(item_names, prices):
-                items.append((FakeItem(name, games), price))
+        for name in item_names:
+            items.append(FakeItem(name, games))
     elif isinstance(games, list):
-        if prices is None:
-            if len(item_names) == len(games):  # this is for funky lists
-                for name, game in zip(item_names, games):
-                    items.append(FakeItem(name, game))
-            else:
-                raise IndexError('item_names and games need to have the same length')
+        if len(item_names) == len(games):  # this is for funky lists
+            for name, game in zip(item_names, games):
+                items.append(FakeItem(name, game))
         else:
-            if len(item_names) == len(games) == len(prices):
-                for name, game, price in zip(item_names, games, prices):
-                    items.append((FakeItem(name, game), price))
-            else:
-                raise IndexError('item_names and games need to have the same length')
+            raise IndexError('item_names and games need to have the same length')
 
     return items
 
@@ -176,8 +164,8 @@ class Listing(Asset):
 
     def __repr__(self):
         attrs = (
-            'name', 'id'
-        ) + Asset.__slots__
+                    'name', 'id'
+                ) + Asset.__slots__
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Listing {' '.join(resolved)}>"
 
@@ -187,6 +175,17 @@ class Listing(Asset):
     def is_tradable(self) -> bool:
         """:class:`bool`: Whether the listing's item is tradable."""
         return self._is_tradable
+
+    async def fetch_price(self) -> 'PriceOverview':
+        """|coro|
+        Fetches the price and volume sales of an item.
+
+        Returns
+        -------
+        :class:`PriceOverview`
+            The item's price overview.
+        """
+        return await self._state.client.fetch_price(self.name, self.game)
 
 
 class MarketClient(HTTPClient):
@@ -216,9 +215,7 @@ class MarketClient(HTTPClient):
             self.currency = 1
         log.info(f'Currency is set to {self.currency}')
 
-        self._loop.create_task(self._remover())
-
-    async def request(self, method: str, url: str, **kwargs) -> Any:  # adapted from d.py
+    async def request(self, method: str, url: str, **kwargs) -> Optional[Any]:  # adapted from d.py
         kwargs['headers'] = {
             "User-Agent": self.user_agent,
             **kwargs.get('headers', {})
@@ -227,6 +224,11 @@ class MarketClient(HTTPClient):
         is_price_overview = kwargs.pop('is_price_overview', False)
         if is_price_overview:  # do rate-limit handling for price-overviews
             now = datetime.utcnow()
+            one_minute_ago = now - timedelta(minutes=1)
+            for time in self.times:
+                if time > one_minute_ago:
+                    continue
+                self.times.remove(time)
             if len(self.times) <= 20:
                 self.times.append(now)
             else:
@@ -279,15 +281,6 @@ class MarketClient(HTTPClient):
 
             # we've run out of retries, raise
             raise errors.HTTPException(r, data)
-
-    async def _remover(self) -> None:
-        while 1:
-            one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
-            await asyncio.sleep(2)
-            for time in self.times:
-                if time > one_minute_ago:
-                    continue
-                self.times.remove(time)
 
     async def get_price(self, item: FakeItem) -> PriceOverview:
         params = {
