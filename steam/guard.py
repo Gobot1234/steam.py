@@ -132,7 +132,7 @@ def generate_device_id(user_id64: str) -> str:
 
 class Confirmation:
     def __init__(self, state: 'ConnectionState', id: str, data_confid: int, data_key: str, trade_id: int):
-        self.state = state
+        self._state = state
         self.id = id.split('conf')[1]
         self.data_confid = data_confid
         self.data_key = data_key
@@ -145,9 +145,9 @@ class Confirmation:
     def _confirm_params(self, tag) -> dict:
         timestamp = int(time())
         return {
-            'p': self.state._device_id,
-            'a': self.state._id64,
-            'k': self.state._generate_confirmation(tag, timestamp),
+            'p': self._state._device_id,
+            'a': self._state._id64,
+            'k': self._state._generate_confirmation(tag, timestamp),
             't': timestamp,
             'm': 'android',
             'tag': tag
@@ -158,15 +158,15 @@ class Confirmation:
         params['op'] = 'allow'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
-        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
+        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
 
     def cancel(self) -> Awaitable:
         params = self._confirm_params('cancel')
         params['op'] = 'cancel'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
-        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
+        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
 
     def details(self) -> Awaitable:  # need to do ['html'] for the good stuff
         params = self._confirm_params(self.tag)
-        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/details/{self.id}', params=params)
+        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/details/{self.id}', params=params)
