@@ -79,7 +79,7 @@ class SteamID(metaclass=abc.ABCMeta):
         attrs = (
             'id', 'type', 'universe', 'instance'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<SteamID {' '.join(resolved)}>"
 
     def __int__(self):
@@ -139,7 +139,7 @@ class SteamID(metaclass=abc.ABCMeta):
     @property
     def as_64(self) -> int:
         """:class:`int`: The steam 64 bit id of the account.
-        An alias to :attr:`SteamID.id64`.
+        An alias to :attr:`id64`.
         """
         return self.id64
 
@@ -165,7 +165,7 @@ class SteamID(metaclass=abc.ABCMeta):
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
             and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`.
 
-        An alias to :attr:`SteamID.id2`.
+        An alias to :attr:`id2`.
         """
         return self.id2
 
@@ -175,7 +175,7 @@ class SteamID(metaclass=abc.ABCMeta):
             e.g ``STEAM_0:0:1234``.
 
         For GoldSrc and Orange Box games.
-        See :attr:`SteamID.as_steam2`.
+        See :attr:`as_steam2`.
         """
         return self.as_steam2.replace('_1', '_0')
 
@@ -212,7 +212,7 @@ class SteamID(metaclass=abc.ABCMeta):
     @property
     def as_steam3(self) -> str:
         """:class:`str`: The Steam3 id of the account.
-        An alias to :attr:`SteamID.id3`.
+        An alias to :attr:`id3`.
         """
         return self.id3
 
@@ -285,7 +285,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(cls, url, timeout=30) -> Optional['SteamID']:
+    async def from_url(cls, url: str, timeout: float = 30) -> Optional['SteamID']:
         """Takes Steam community url and returns a SteamID instance or ``None``.
         See :func:`steam64_from_url` for details.
 
@@ -298,15 +298,11 @@ class SteamID(metaclass=abc.ABCMeta):
 
         Returns
         -------
-        SteamID: Optional[:class:`SteamID`]
+        Optional[:class:`SteamID`]
             `SteamID` instance or ``None``.
         """
-
-        steam64 = await steam64_from_url(url, timeout)
-
-        if steam64:
-            return cls(steam64)
-        return None
+        id64 = await steam64_from_url(url, timeout)
+        return cls(id64) if id64 else None
 
 
 class BaseUser(SteamID, metaclass=abc.ABCMeta):
@@ -385,14 +381,14 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
         self.primary_group = SteamID(data['primaryclanid']) if 'primaryclanid' in data else None
         self.country = data.get('loccountrycode')
         self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
-        # steam is dumb I have no clue why this sometimes isn't given sometimes
         self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data else None
         self.state = EPersonaState(data.get('personastate', 0))
         self.flags = EPersonaStateFlag(data.get('personastateflags', 0))
         self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid'])) if 'gameextrainfo' in data else None
 
     async def update(self) -> None:
-        data = self._state.http.fetch_user(self.id64)
+        data = await self._state.http.get_user(self.id64)
+        data = data['response']['players'][0]
         self._update(data)
 
     async def comment(self, content: str) -> Comment:
@@ -429,7 +425,7 @@ class BaseUser(SteamID, metaclass=abc.ABCMeta):
 
         Raises
         ------
-        :class:`~steam.Forbidden`
+        :exc:`~steam.Forbidden`
             The user's inventory is private.
 
         Returns
@@ -623,9 +619,9 @@ class Messageable(metaclass=abc.ABCMeta):
 
         Raises
         ------
-        ~steam.HTTPException
+        :exc:~steam.HTTPException
             Sending the message failed.
-        ~steam.Forbidden
+        :exc:~steam.Forbidden
             You do not have permission to send the message.
 
         Returns
