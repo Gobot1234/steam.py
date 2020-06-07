@@ -29,9 +29,7 @@ https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 
 import asyncio
 import logging
-import math
 import signal
-import sys
 import traceback
 from datetime import datetime
 from typing import (
@@ -115,7 +113,7 @@ def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 
 class ClientEventTask(asyncio.Task):
-    def __init__(self, original_coro: Callable, event_name: str,
+    def __init__(self, original_coro: Callable[..., Coroutine], event_name: str,
                  coro: Coroutine, *, loop: asyncio.AbstractEventLoop):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
@@ -149,6 +147,8 @@ class Client:
     -----------
     loop: :class:`asyncio.AbstractEventLoop`
         The event loop that the client uses for HTTP requests.
+    ws:
+        The connected websocket, this can be used to directly send messages the connected CM.
     """
 
     def __init__(self, loop: asyncio.AbstractEventLoop = None, **options):
@@ -170,6 +170,7 @@ class Client:
 
         self._user = None
         self._closed = True
+        self.ws = None
         self._cm_list = None
         self._listeners = {}
         self._ready = asyncio.Event()
@@ -197,16 +198,20 @@ class Client:
 
     async def code(self) -> str:
         """|coro|
-        :class:`str`: The current steam guard code.
+
+        Returns
+        -------
+        :class:`str`
+            The current steam guard code.
 
         .. warning::
             Will wait for a Steam guard code using :func:`input` in an
             executor if no shared_secret is passed to :meth:`run` or :meth:`start`.
-
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)
-        return (await ainput('Please enter a Steam guard code\n>>> ', self.loop)).strip()
+        code = await ainput('Please enter a Steam guard code\n>>> ', self.loop)
+        return code.strip()
 
     @property
     def latency(self) -> float:
@@ -236,7 +241,7 @@ class Client:
         log.debug(f'{coro.__name__} has successfully been registered as an event')
         return coro
 
-    async def _run_event(self, coro: Callable, event_name: str, *args, **kwargs) -> None:
+    async def _run_event(self, coro: Callable[..., Coroutine], event_name: str, *args, **kwargs) -> None:
         try:
             await coro(*args, **kwargs)
         except asyncio.CancelledError:
@@ -247,7 +252,7 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: Callable, event_name: str, *args, **kwargs) -> ClientEventTask:
+    def _schedule_event(self, coro: Callable[..., Coroutine], event_name: str, *args, **kwargs) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
         return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
@@ -260,12 +265,14 @@ class Client:
         except AttributeError:
             return
         else:
-            if event != 'error' and coro.__code__.co_filename == __file__:  # ignore events in this file
+            listeners = self._listeners.get(event)
+            if listeners or event == 'error':
+                pass
+            elif coro.__code__.co_filename == __file__:  # ignore events in this file that haven't been subclassed
                 return
 
         log.debug(f'Dispatching event {event}')
 
-        listeners = self._listeners.get(event)
         if listeners:
             removed = []
             for i, (future, condition) in enumerate(listeners):
@@ -390,7 +397,7 @@ class Client:
         """
         if self._closed:
             return
-        if getattr(self, 'ws', None) is not None:
+        if getattr(self, 'ws') is not None:
             await self.ws.close()
         await self.http.logout()
         await self._session.close()
@@ -405,7 +412,6 @@ class Client:
         self._closed = False
         self._ready.clear()
         self.http.recreate()
-        # self.loop.create_task(self.ws.close())
 
     async def start(self, *args, **kwargs) -> None:
         """|coro|
@@ -431,11 +437,11 @@ class Client:
         self.identity_secret = identity_secret = kwargs.pop('identity_secret', None)
 
         if identity_secret is None:
-            log.info('Trades will not be automatically accepted when sent as no identity_secret was passed')
+            log.info('Trades will not be automatically accepted when sent as no identity_secret was passed.')
         if not (username or password):
-            raise errors.LoginError("One or more required login detail is missing")
+            raise errors.LoginError('one or more required login detail is missing')
         if kwargs:
-            raise TypeError(f"Unexpected keyword argument(s) {list(kwargs.keys())}")
+            raise TypeError(f'unexpected keyword argument(s) {list(kwargs.keys())}')
 
         await self.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
         await self._connection.__ainit__()
@@ -528,7 +534,7 @@ class Client:
 
         Parameters
         ----------
-        \*ids:
+        \*ids: List[:class:`int`]
             The user's IDs.
 
         Returns
@@ -674,8 +680,8 @@ class Client:
         resp = await self._market.get_pages()
         if not resp['total_count']:  # they have no listings just return
             return []
-
-        total = math.ceil(resp['total_count'] / 100)
+        floor, mod = divmod(resp['total_count'], 100)
+        total = 1 + floor if mod else floor  # totally not math.ceil
         listings = await self._market.get_listings(total)
         return [Listing(state=self._connection, data=listing) for listing in listings]
 
@@ -815,9 +821,8 @@ class Client:
         Waits for an event to be dispatched.
 
         The ``timeout`` parameter is passed to :func:`asyncio.wait_for`. By default,
-        it does not timeout. Note that this does propagate the
-        :exc:`asyncio.TimeoutError` for you in case of timeout and is provided for
-        ease of use.
+        it does not timeout. Note that this does propagate the :exc:`asyncio.TimeoutError`
+        for you in case of timeout and is provided for ease of use.
         In case the event returns multiple arguments, a :class:`tuple` containing those
         arguments is returned instead. Please check the
         `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_
@@ -835,7 +840,7 @@ class Client:
         check: Optional[Callable[..., :class:`bool`]]
             A predicate to check what to wait for. The arguments must meet the
             parameters of the event being waited for.
-            **The check MUST return a :class:`bool`.**
+            The check **MUST** return a :class:`bool`.
         timeout: Optional[:class:`float`]
             The number of seconds to wait before timing out and raising
             :exc:`asyncio.TimeoutError`.
@@ -853,15 +858,14 @@ class Client:
             `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
         """
         future = self.loop.create_future()
-        if check is None:
-            check = lambda *_: True
+        check = check if check is not None else lambda *_: True
 
-        ev = event.lower()
+        event_lower = event.lower()
         try:
-            listeners = self._listeners[ev]
+            listeners = self._listeners[event_lower]
         except KeyError:
             listeners = []
-            self._listeners[ev] = listeners
+            self._listeners[event_lower] = listeners
 
         listeners.append((future, check))
         return asyncio.wait_for(future, timeout)
@@ -933,7 +937,7 @@ class Client:
         \*\*kwargs:
             The key-word arguments associated with the event.
         """
-        print(f'Ignoring exception in {event}', file=sys.stderr)
+        print(f'Ignoring exception in {event}')
         traceback.print_exception(type(error), error, error.__traceback__)
 
     async def on_trade_receive(self, trade: 'steam.TradeOffer'):
@@ -1045,9 +1049,6 @@ class Client:
         """|coro|
         Called when an item/listing is bought on the community market.
 
-        .. warning::
-            This event isn't fully tested.
-
         Parameters
         ----------
         listing: :class:`~steam.Listing`
@@ -1058,9 +1059,6 @@ class Client:
         """|coro|
         Called when an item/listing is sold on the community market.
 
-        .. warning::
-            This event isn't fully tested.
-
         Parameters
         ----------
         listing: :class:`~steam.Listing`
@@ -1070,9 +1068,6 @@ class Client:
     async def on_listing_cancel(self, listing: 'steam.Listing'):
         """|coro|
         Called when an item/listing is cancelled on the community market.
-
-        .. warning::
-            This event isn't fully tested.
 
         Parameters
         ----------
