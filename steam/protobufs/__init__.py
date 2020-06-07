@@ -38,13 +38,7 @@ from . import (
     steammessages_clientserver_login,
 )
 from .emsg import EMsg
-from .headers import (
-    ExtendedMsgHdr,
-    GCMsgHdr,
-    GCMsgHdrProto,
-    MsgHdr,
-    MsgHdrProtoBuf,
-)
+from .headers import *
 from .protobufs import PROTOBUFS
 from .unified import UMS
 from ..enums import IntEnum
@@ -93,14 +87,14 @@ class Msg:
         if parse:
             self.parse()
         if kwargs:
-
             self.body.from_dict(kwargs)
 
     def __repr__(self):
         attrs = (
-            'msg', 'header', 'body',
+            'msg', 'header',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
         return f"<Msg {' '.join(resolved)}>"
 
     def parse(self):
@@ -145,8 +139,10 @@ class Msg:
 
 
 class MsgProto:
-
-    def __init__(self, msg: EMsg, data: bytes = None, parse: bool = True, **kwargs):
+    def __init__(self, msg: EMsg,
+                 data: bytes = None,
+                 parse: bool = True,
+                 **kwargs):
         self._header = MsgHdrProtoBuf(data)
         self.header = self._header.proto
         self.msg = EMsg.try_value(msg)
@@ -155,7 +151,7 @@ class MsgProto:
         self.payload: Optional[bytes] = None  # will contain the protobuf's raw bytes
 
         if data:
-            self.payload = data[self._header._fullsize:]
+            self.payload = data[self._header._full_size:]
         if parse:
             self.parse()
         if kwargs:
@@ -163,7 +159,7 @@ class MsgProto:
 
     def __repr__(self):
         attrs = (
-            'msg', 'header', 'body'
+            'msg', '_header',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
@@ -195,19 +191,19 @@ class MsgProto:
 
     @property
     def steam_id(self):
-        return self.header.steamid
+        return self.header.client_steam_id
 
     @steam_id.setter
     def steam_id(self, value):
-        self.header.steamid = value
+        self.header.client_steam_id = value
 
     @property
     def session_id(self):
-        return self.header.client_sessionid
+        return self.header.client_session_id
 
     @session_id.setter
     def session_id(self, value):
-        self.header.client_sessionid = value
+        self.header.client_session_id = value
 
     def serialize(self):
         return self._header.serialize() + self.body.SerializeToString()
