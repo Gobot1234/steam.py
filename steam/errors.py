@@ -101,7 +101,7 @@ class HTTPException(SteamException):
 
         self.message = self.message.replace('  ', ' ')
         super().__init__(f'{response.status} {response.reason} (error code: {self.code})'
-                         f'{f" Message: {self.message}" if self.message else ""}')
+                         f'{f": {self.message}" if self.message else ""}')
 
 
 class Forbidden(HTTPException):
