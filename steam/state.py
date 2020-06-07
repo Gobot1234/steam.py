@@ -56,7 +56,6 @@ log = logging.getLogger(__name__)
 
 
 class ConnectionState:
-
     def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
         self.http = http
@@ -70,11 +69,9 @@ class ConnectionState:
         self._obj = None
         self._previous_iteration = 0
 
-        self._trades = weakref.WeakValueDictionary()
+        self._trades = dict()  # ¯\_(ツ)_/¯ I think the values aren't referenced anywhere
         self._users = weakref.WeakValueDictionary()
         self._confirmations = weakref.WeakValueDictionary()
-
-        self._current_job_id = 0
 
     async def __ainit__(self) -> None:
         self.market = self.client._market
@@ -111,14 +108,13 @@ class ConnectionState:
     def get_user(self, id64: int) -> Optional[User]:
         return self._users.get(id64)
 
-    async def fetch_user(self, id64: int) -> Optional[User]:
-        resp = await self.http.get_profile(id64)
+    async def fetch_user(self, user_id64: int) -> Optional[User]:
+        resp = await self.http.get_user(user_id64)
         user = resp['response']['players'][0] if resp['response']['players'] else None
-
         return self._store_user(user) if user else None
 
     async def fetch_users(self, user_id64s: List[int]) -> List[Optional[User]]:
-        resp = await self.http.get_profiles(user_id64s)
+        resp = await self.http.get_users(user_id64s)
         return [self._store_user(user) for user in resp]
 
     def _store_user(self, data: dict) -> User:
@@ -136,8 +132,8 @@ class ConnectionState:
         return self._confirmations.get(id)
 
     async def fetch_confirmation(self, id: int) -> Optional[Confirmation]:
-        confirmations = await self._fetch_confirmations()
-        return get(confirmations, creator=id)
+        await self._fetch_confirmations()
+        return get(self._confirmations, trade_id=id)
 
     def get_trade(self, id: int) -> Optional[TradeOffer]:
         return self._trades.get(id)
@@ -281,7 +277,7 @@ class ConnectionState:
         if steam_id.type == EType.Clan:
             obj = await self.client.fetch_group(steam_id.id64)
         else:
-            obj = await self.client.fetch_user(steam_id.id64)
+            obj = await self.fetch_user(steam_id.id64)
 
         if self._obj == obj:
             self._previous_iteration += 1
@@ -319,7 +315,7 @@ class ConnectionState:
                 polled_values = listings.values()
                 cached_values = self._listings.values()
                 new_listings = [listing for listing in polled_values if listing not in cached_values]
-                removed_listings = [listing for listing in cached_values if listing not in listings]
+                removed_listings = [listing for listing in cached_values if listing not in polled_values]
 
                 for listing in new_listings:
                     self.dispatch('listing_create', listing)
@@ -359,7 +355,7 @@ class ConnectionState:
         resp = await self.request('GET', f'{URL.COMMUNITY}/mobileconf/conf', params=params, headers=headers)
 
         if 'incorrect Steam Guard codes.' in resp:
-            raise InvalidCredentials('identity_secret is incorrect, or time is de-synced, most likely the former')
+            raise InvalidCredentials('identity_secret is incorrect')
         if 'Oh nooooooes!' in resp:
             raise AuthenticatorError
 
@@ -370,7 +366,7 @@ class ConnectionState:
             id = confirmation['id']
             confid = confirmation['data-confid']
             key = confirmation['data-key']
-            trade_id = int(confirmation.get('data-creator'))
+            trade_id = int(confirmation.get('data-creator', 0))
             self._confirmations[trade_id] = Confirmation(self, id, confid, key, trade_id)
         return self._confirmations
 
