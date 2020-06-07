@@ -42,7 +42,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Union
 
 import aiohttp
 
@@ -50,12 +50,12 @@ from . import utils
 from .abc import SteamID
 from .enums import EResult, EUniverse
 from .errors import NoCMsFound
+from .iterators import AsyncIterator
 from .protobufs import EMsg, Msg, MsgProto, get_um
 
 if TYPE_CHECKING:
     from .client import Client
     from .state import ConnectionState
-
 
 __all__ = (
     'SteamWebSocket',
@@ -90,34 +90,20 @@ class WebSocketClosure(Exception):
     pass
 
 
-class CMServerList:
-    """A class to represent the severs the user can connect to."""
+class CMServerList(AsyncIterator):
     GOOD = 1
     BAD = 2
 
     def __init__(self, state: 'ConnectionState', first_cm_to_try: str):
-        self.state = state
+        super().__init__(state, None, None, None)
         self.dict = dict()
         self.last_updated = 0
         self.cell_id = 0
-        self._current_iteration = 0
-        self.queue = asyncio.Queue()
         if first_cm_to_try is not None:
             self.queue.put_nowait(first_cm_to_try)
 
     def __len__(self):
         return len(self.dict)
-
-    def __aiter__(self):
-        return self
-
-    async def __anext__(self) -> str:
-        if self.queue.qsize() in (0, 1):
-            self._current_iteration += 1
-            if self._current_iteration == 2:
-                raise StopAsyncIteration
-            await self.fill()
-        return self.queue.get_nowait()
 
     async def fill(self) -> None:
         if not await self.fetch_servers_from_api():  # TODO bootstrap from internal list?
@@ -145,7 +131,7 @@ class CMServerList:
         log.debug("Attempting to fetch servers from the WebAPI")
         self.cell_id = cell_id
         try:
-            resp = await self.state.http.get_cm_list(cell_id)
+            resp = await self._state.http.get_cm_list(cell_id)
         except Exception as e:
             log.error(f'WebAPI fetch request failed with result: {repr(e)}')
             return False
@@ -164,7 +150,7 @@ class CMServerList:
 
         # this way we can have the benefits of not connecting
         # to borked cms whilst maintaining initial speed
-        self.state.loop.create_task(self.ping_cms())
+        self._state.loop.create_task(self.ping_cms())
 
         return True
 
@@ -183,7 +169,7 @@ class CMServerList:
         total = len(self.dict)
         for host in hosts:
             if host not in self.dict:
-                self.mark_good(f'wss://{host}/cmsocket/')
+                self.mark_good(host)
         if len(self.dict) > total:
             log.debug(f'Added {len(self.dict) - total} new CM server addresses.')
         self.last_updated = int(time.time())
@@ -193,7 +179,7 @@ class CMServerList:
         for host in self.dict:
             start = time.perf_counter()
             try:
-                resp = await self.state.http._session.get(f'https://{host[6:-10]}/cmping', timeout=5)
+                resp = await self._state.http._session.get(f'https://{host}/cmping', timeout=5)
                 if resp.status != 200:
                     self.mark_bad(host)
                 load = resp.headers['X-Steam-CMLoad']
@@ -431,7 +417,7 @@ class SteamWebSocket:
             log.debug('Logon completed')
 
             self.steam_id = SteamID(msg.header.steamid).id64
-            self.session_id = msg.header.client_sessionid
+            self.session_id = msg.header.session_id
             self.cell_id = self.cm_list.cell_id = msg.body.cell_id
 
             interval = msg.body.out_of_game_heartbeat_seconds
@@ -488,7 +474,7 @@ class SteamWebSocket:
         self.cm_list.merge_list(msg.body.cm_websocket_addresses)
         self.cm_list.cell_id = self.cell_id
 
-    async def send_um(self, name: str, params: Optional[dict] = None) -> None:
+    async def send_um(self, name: str, params: dict = None) -> None:
         proto = get_um(name)
         if proto is None:
             raise ValueError(f'Failed to find method named: {name}')
