@@ -76,12 +76,13 @@ class AsyncIterator(_AsyncIterator):
     """
     __slots__ = ('before', 'after', 'limit', 'queue', '_is_filled', '_state')
 
-    def __init__(self, state: 'ConnectionState', limit: int, before: datetime, after: datetime):
+    def __init__(self, state: 'ConnectionState', limit: Optional[int],
+                 before: Optional[datetime], after: Optional[datetime]):
         self._state = state
         self.before = before or datetime.utcnow()
         self.after = after or datetime.utcfromtimestamp(0)
         self._is_filled = False
-        self.queue = asyncio.Queue(maxsize=limit)
+        self.queue = asyncio.Queue(maxsize=limit or 0)
         self.limit = limit
 
     def get(self, **attrs) -> Optional[Any]:
@@ -147,7 +148,7 @@ class AsyncIterator(_AsyncIterator):
 
         Parameters
         ----------
-        predicate: Callable[..., Union[bool, Awaitable[bool]]]
+        predicate: Callable[..., Union[:class:`bool`, Awaitable[:class:`bool`]]]
             A callable/coroutine that returns a boolean.
 
         Returns
@@ -172,7 +173,7 @@ class AsyncIterator(_AsyncIterator):
         A helper function that iterates over the :class:`AsyncIterator`
         returning a list of all the elements in the iterator.
 
-        This is roughly equivalent to: ::
+        This is equivalent to: ::
 
             elements = [element async for element in AsyncIterator]
 
@@ -181,14 +182,7 @@ class AsyncIterator(_AsyncIterator):
         List[Any]
             A list of every element in the iterator.
         """
-        ret = []
-        while 1:
-            try:
-                item = await self.next()
-            except StopAsyncIteration:
-                return ret
-            else:
-                ret.append(item)
+        return [element async for element in self]
 
     async def __anext__(self) -> Any:
         return await self.next()
