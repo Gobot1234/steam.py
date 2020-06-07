@@ -114,10 +114,8 @@ class Image:
             raise TypeError('unsupported file type passed')
         self.width = width
         self.height = height
-        self.fp.seek(0)
-        self.hash = hashlib.sha1(self.fp.read()).hexdigest()
-        name = getattr(self.fp, "name", "image").rsplit('.', 1)[0]
-        self.name = f'{int(time())}_{name}.{self.type}'
+        self.hash = hashlib.sha1(self.read()).hexdigest()
+        self.name = f'{int(time())}_image.{self.type}'
 
     def __len__(self):
         self.fp.seek(0)
