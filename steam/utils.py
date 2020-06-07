@@ -28,7 +28,6 @@ DEALINGS IN THE SOFTWARE.
 import asyncio
 import json
 import re
-import socket
 import struct
 from base64 import b64decode
 from operator import attrgetter
@@ -67,35 +66,6 @@ _INVITE_VALID = f'{_INVITE_HEX}{_INVITE_CUSTOM}'
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 
-
-# from the VDF module
-class UINT_64(int):
-    pass
-
-
-class INT_64(int):
-    pass
-
-
-class POINTER(int):
-    pass
-
-
-class COLOR(int):
-    pass
-
-
-BIN_NONE = b'\x00'
-BIN_STRING = b'\x01'
-BIN_INT32 = b'\x02'
-BIN_FLOAT32 = b'\x03'
-BIN_POINTER = b'\x04'
-BIN_WIDESTRING = b'\x05'
-BIN_COLOR = b'\x06'
-BIN_UINT64 = b'\x07'
-BIN_END = b'\x08'
-BIN_INT64 = b'\x0A'
-BIN_END_ALT = b'\x0B'
 
 # from ValvePython/steam
 
@@ -177,14 +147,6 @@ def hmac_sha1(secret, data):
     return HMAC.new(secret, data, SHA1).digest()
 
 
-def ip_from_int(ip: int) -> str:
-    return socket.inet_ntoa(struct.pack(">L", ip))
-
-
-def ip_to_int(ip: str) -> int:
-    return struct.unpack(">L", socket.inet_aton(ip))[0]
-
-
 def is_proto(emsg: bytes) -> bool:
     return (int(emsg) & PROTOBUF_MASK) > 0
 
@@ -195,95 +157,6 @@ def set_proto_bit(emsg: int) -> int:
 
 def clear_proto_bit(emsg: bytes) -> int:
     return int(emsg) & ~PROTOBUF_MASK
-
-
-def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False) -> dict:
-    if not isinstance(s, bytes):
-        raise TypeError("Expected s to be bytes, got %s" % type(s))
-    if not issubclass(mapper, dict):
-        raise TypeError("Expected mapper to be subclass of dict, got %s" % type(mapper))
-
-    # helpers
-    int32 = struct.Struct('<i')
-    uint64 = struct.Struct('<Q')
-    int64 = struct.Struct('<q')
-    float32 = struct.Struct('<f')
-
-    def read_string(s, idx, wide=False):
-        if wide:
-            end = s.find(b'\x00\x00', idx)
-            if (end - idx) % 2 != 0:
-                end += 1
-        else:
-            end = s.find(b'\x00', idx)
-
-        if end == -1:
-            raise SyntaxError("Unterminated cstring (offset: %d)" % idx)
-        result = s[idx:end]
-        if wide:
-            result = result.decode('utf-16')
-        elif bytes is not str:
-            result = result.decode('utf-8', 'replace')
-        else:
-            try:
-                result.decode('ascii')
-            except UnicodeDecodeError:
-                result = result.decode('utf-8', 'replace')
-        return result, end + (2 if wide else 1)
-
-    stack = [mapper()]
-    idx = 0
-    CURRENT_BIN_END = BIN_END if not alt_format else BIN_END_ALT
-
-    while len(s) > idx:
-        t = s[idx:idx + 1]
-        idx += 1
-
-        if t == CURRENT_BIN_END:
-            if len(stack) > 1:
-                stack.pop()
-                continue
-            break
-
-        key, idx = read_string(s, idx)
-
-        if t == BIN_NONE:
-            if merge_duplicate_keys and key in stack[-1]:
-                _m = stack[-1][key]
-            else:
-                _m = mapper()
-                stack[-1][key] = _m
-            stack.append(_m)
-        elif t == BIN_STRING:
-            stack[-1][key], idx = read_string(s, idx)
-        elif t == BIN_WIDESTRING:
-            stack[-1][key], idx = read_string(s, idx, wide=True)
-        elif t in (BIN_INT32, BIN_POINTER, BIN_COLOR):
-            val = int32.unpack_from(s, idx)[0]
-
-            if t == BIN_POINTER:
-                val = POINTER(val)
-            elif t == BIN_COLOR:
-                val = COLOR(val)
-
-            stack[-1][key] = val
-            idx += int32.size
-        elif t == BIN_UINT64:
-            stack[-1][key] = UINT_64(uint64.unpack_from(s, idx)[0])
-            idx += uint64.size
-        elif t == BIN_INT64:
-            stack[-1][key] = INT_64(int64.unpack_from(s, idx)[0])
-            idx += int64.size
-        elif t == BIN_FLOAT32:
-            stack[-1][key] = float32.unpack_from(s, idx)[0]
-            idx += float32.size
-        else:
-            raise SyntaxError("Unknown data type at offset %d: %s" % (idx - 1, repr(t)))
-
-    if len(s) != idx or len(stack) != 1:
-        raise SyntaxError("Binary VDF ended at offset %d, but length is %d" % (idx, len(s)))
-
-    return stack.pop()
 
 
 def make_steam64(id: int = 0, *args, **kwargs) -> int:
@@ -476,7 +349,7 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
         return steam_32, EType(1), EUniverse.Public, 1
 
 
-async def steam64_from_url(url: str, timeout=30) -> Optional[int]:
+async def steam64_from_url(url: str, timeout: float = 30) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or None
 
     .. note::
