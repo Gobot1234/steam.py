@@ -280,7 +280,7 @@ class HTTPClient:
                 return await self._send_login_request()
             return login_response
         except Exception as e:
-            raise errors.HTTPException from e
+            raise errors.LoginError from e
 
     def get_user(self, user_id64: int) -> Awaitable:
         params = {
@@ -629,9 +629,6 @@ class HTTPClient:
             await self.request('POST', CRoute('/actions/FileUploader'), data=payload)
 
     async def send_image(self, user_id64: int, image: 'Image') -> None:
-        referer = {"Referer": f'{URL.COMMUNITY}/chat'}
-        params = {"l": 'english'}
-
         payload = {
             "sessionid": self.session_id,
             "l": 'english',
@@ -642,17 +639,13 @@ class HTTPClient:
             "file_image_height": image.height,
             "file_type": f'image/{image.type}',
         }
-        resp = await self.request('POST', CRoute('/chat/beginfileupload'), headers=referer, data=payload, params=params)
+        resp = await self.request('POST', CRoute('/chat/beginfileupload'), data=payload)
 
         result = resp['result']
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
-        headers = {header['name'].lower(): header['value'] for header in result['request_headers']}
-        file = aiohttp.FormData({
-            "body": image.read()
-        })
-        await self.request('PUT', url=url, headers=headers, data=file)
+        headers = {header['name']: header['value'] for header in result['request_headers']}
+        await self.request('PUT', url=url, headers=headers, data=image.read())
 
-        del payload['file_size']
         payload.update({
             'success': 1,
             'ugcid': result['ugcid'],
@@ -661,7 +654,7 @@ class HTTPClient:
             'friend_steamid': user_id64,
             'spoiler': int(image.spoiler)
         })
-        await self.request('POST', CRoute('/chat/commitfileupload'), data=payload, headers=referer)
+        await self.request('POST', CRoute('/chat/commitfileupload'), data=payload)
 
     async def get_api_key(self) -> str:
         resp = await self.request('GET', CRoute('/dev/apikey'))
