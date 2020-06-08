@@ -192,7 +192,7 @@ What is the difference between fetch and get?
     lookup.
 
 - **FETCH**
-    This retrieves an object from the API, it is also a |coroutine_link| because of this.
+    This retrieves an object from the API, it is also a |coroutine_link|_ because of this.
     This is good in case something needs to be updated, due to the cache being stale or the object not
     being in cache at all. These, however, should be used less frequently as they are a request to the API
     and are generally slower to return values. Fetched values are however added to cache if they aren't
