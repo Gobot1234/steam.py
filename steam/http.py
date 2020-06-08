@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Union[dict, str]]:
+async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Union[list, dict, str]]:
     text = await r.text()
     try:
         if 'application/json' in r.headers['content-type']:  # thanks steam very cool
@@ -72,22 +72,19 @@ async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Union[dict, str]]:
 
 class Route:
     def __init__(self, path):
-        self.url = _URL(f'{self.BASE}/{path}')
+        self.url = _URL(f'{self.BASE}{path}')
 
     def __str__(self):
         return str(self.url)
 
 
 class APIRoute(Route):
-    """Used for formatting API request URLs"""
     BASE = URL.API
-
     def __init__(self, path):
-        self.url = _URL(f'{self.BASE}/{path}{"/v1" if not path.endswith("v2") else ""}')
+        self.url = _URL(f'{self.BASE}{path}{"/v1" if not path.endswith("v2") else ""}')
 
 
 class CRoute(Route):
-    """Used for formatting community URLs for requests"""
     BASE = URL.COMMUNITY
 
 
