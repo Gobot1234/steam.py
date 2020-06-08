@@ -118,7 +118,7 @@ How can I wait for an event?
     @client.event
     async def on_message(message):
         if message.content.startswith('?trade'):
-            await message.send('Send me a trade and I will read the contents of it')
+            await message.channel.send('Send me a trade and I will read the contents of it')
 
             # the check function must return a boolean.
             def check(trade: steam.TradeOffer) -> bool:
@@ -130,11 +130,11 @@ How can I wait for an event?
             except asyncio.TimeoutError:  # they took too long to send the trade
                 await message.send('You took too long to send the offer')
             else:
-                to_send = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send]) \
+                to_send = ', '.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send) \
                     if trade.items_to_send else 'Nothing'
-                to_receive = ', '.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive]) \
+                to_receive = ', '.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive) \
                     if trade.items_to_receive else 'Nothing'
-                await message.send(f'You were going to send:\n{to_receive}\nYou were going to receive:\n{to_send}')
+                await message.channel.send(f'You were going to send:\n{to_receive}\nYou were going to receive:\n{to_send}')
                 await trade.decline()  # we don't want to clog up trade offers
 
 The final interaction will end up looking something like this:
@@ -160,7 +160,8 @@ How do I send a trade?
 Sending a trade should be pretty simple.
 You need to first get the inventories of the User's involved.
 Then you need to find the items to trade for.
-Finally use the `send_trade <https://steampy.rtfd.io/en/latest/api.html#steam.User.send_trade>`_
+Construct the TradeOffer from its items.
+Finally use the `send <https://steampy.rtfd.io/en/latest/api.html#steam.User.send>`_
 method on the User that you want to send the offer to.
 
 .. code-block:: python3
@@ -168,15 +169,17 @@ method on the User that you want to send the offer to.
     # we need to chose a game to fetch the inventory for
     game = steam.TF2
     # we need to get the inventories to get items
-    my_inventory = await client.user.fetch_inventory(game)
-    their_inventory = await user.fetch_inventory(game)
+    my_inventory = await client.user.inventory(game)
+    their_inventory = await user.inventory(game)
 
     # we need to get the items to be included in the trade
-    keys = my_inventory.filter_items('Mann Co. Supply Crate Key', limit=5)
+    keys = my_inventory.filter_items('Mann Co. Supply Crate Key', limit=3)
     earbuds = their_inventory.get_item('Earbuds')
 
     # finally construct the trade
-    await user.send_trade(items_to_send=keys, items_to_receive=earbuds, message='This trade was made using steam.py')
+    trade = TradeOffer(items_to_send=keys, items_to_receive=earbuds,
+                       message='This trade was made using steam.py')
+    await user.send(trade=trade)
     # you don't need to confirm the trade manually, the client will handle that for you
 
 
@@ -189,7 +192,7 @@ What is the difference between fetch and get?
     lookup.
 
 - **FETCH**
-    This retrieves an object from the API, it is also a coroutine because of this.
+    This retrieves an object from the API, it is also a |coroutine| because of this.
     This is good in case something needs to be updated, due to the cache being stale or the object not
     being in cache at all. These, however, should be used less frequently as they are a request to the API
     and are generally slower to return values. Fetched values are however added to cache if they aren't

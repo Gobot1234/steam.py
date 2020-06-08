@@ -26,58 +26,84 @@ SOFTWARE.
 This is a copy of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
+from typing import Optional, Type, Union
+
+import betterproto
+
 from . import (
-    steammessages_base_pb2 as message_base,
-    steammessages_clientserver_2_pb2 as client_server_2,
-    steammessages_clientserver_friends_pb2 as client_server_friends,
-    steammessages_clientserver_login_pb2 as client_server_login,
-    steammessages_clientserver_pb2 as client_server
+    steammessages_base,
+    steammessages_clientserver,
+    steammessages_clientserver_2,
+    steammessages_clientserver_friends,
+    steammessages_clientserver_login,
 )
 from .emsg import EMsg
-from .headers import MsgHdr, ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdr, GCMsgHdrProto
-from .protobufs import protobufs
-from .structs import get_struct
-from .unified import get_um
-from ..utils import proto_fill_from_dict
+from .headers import *
+from .protobufs import PROTOBUFS
+from .unified import UMS
+from ..enums import IntEnum
 
 
-def get_cmsg(emsg):
-    if not isinstance(emsg, EMsg):
-        emsg = EMsg(emsg)
+def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
+    return PROTOBUFS.get(EMsg.try_value(emsg), None)
 
-    return protobufs.get(emsg, None)
+
+def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
+    return UMS.get(method_name, None)
+
+
+class _Enum(IntEnum):
+    """Protocol buffers enumeration base class. Acts like `enum.IntEnum`."""
+
+    @classmethod
+    def from_string(cls, name: str) -> int:
+        """Return the value which corresponds to the string name."""
+        try:
+            return cls.__members__[name]
+        except KeyError as e:
+            raise ValueError(f"Unknown value {name} for enum {cls.__name__}") from e
+
+
+# add in our speeder enum
+betterproto.Enum = _Enum
 
 
 class Msg:
-    proto = False
-    body = None  #: message instance
-    payload = None  #: Will contain body payload, if we fail to find correct message class
-
-    def __init__(self, msg, data=None, extended=False, parse=True):
+    def __init__(self, msg: EMsg,
+                 data: bytes = None,
+                 extended: bool = False,
+                 parse: bool = True,
+                 **kwargs):
         self.extended = extended
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
-        self.msg = msg
+        self.msg = EMsg.try_value(msg)
+
+        self.proto = False
+        self.body: Optional[betterproto.Message] = None  # protobuf
+        self.payload: Optional[bytes] = None  # the raw bytes for the protobuf
 
         if data:
-            self.payload = data[self.header._size:]
-
+            self.payload = data[self.header.SIZE:]
         if parse:
             self.parse()
+        if kwargs:
+            self.body.from_dict(kwargs)
 
     def __repr__(self):
         attrs = (
-            'header', 'body', 'msg'
+            'msg', 'header',
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
         return f"<Msg {' '.join(resolved)}>"
 
     def parse(self):
         """Parses :attr:`payload` into :attr:`body` instance"""
         if self.body is None:
-            deserializer = get_struct(self.msg)
+            proto = get_cmsg(self.msg)
 
-            if deserializer:
-                self.body = deserializer(self.payload)
+            if proto:
+                self.body = proto.FromString(self.payload)
                 self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'
@@ -88,89 +114,96 @@ class Msg:
 
     @msg.setter
     def msg(self, value):
-        self.header.msg = EMsg(value)
+        self.header.msg = EMsg.try_value(value)
 
     @property
-    def steamID(self):
-        return self.header.steamID if isinstance(self.header, ExtendedMsgHdr) else None
+    def steam_id(self):
+        return self.header.steam_id if isinstance(self.header, ExtendedMsgHdr) else None
 
-    @steamID.setter
-    def steamID(self, value):
+    @steam_id.setter
+    def steam_id(self, value):
         if isinstance(self.header, ExtendedMsgHdr):
-            self.header.steamID = value
+            self.header.steam_id = value
 
     @property
-    def sessionID(self):
-        return self.header.sessionID if isinstance(self.header, ExtendedMsgHdr) else None
+    def session_id(self):
+        return self.header.session_id if isinstance(self.header, ExtendedMsgHdr) else None
 
-    @sessionID.setter
-    def sessionID(self, value):
+    @session_id.setter
+    def session_id(self, value):
         if isinstance(self.header, ExtendedMsgHdr):
-            self.header.sessionID = value
+            self.header.session_id = value
 
     def serialize(self):
-        return self.header.serialize() + self.body.serialize()
+        return self.header.serialize() + self.body.SerializeToString()
 
 
 class MsgProto:
-
-    def __init__(self, msg, data=None, parse=True, **kwargs):
+    def __init__(self, msg: EMsg,
+                 data: bytes = None,
+                 parse: bool = True,
+                 **kwargs):
         self._header = MsgHdrProtoBuf(data)
         self.header = self._header.proto
-        self.msg = msg or self._header.msg
+        self.msg = EMsg.try_value(msg)
         self.proto = True
-        self.body = None  #: protobuf message instance
-        self.payload = None  #: Will contain body payload, if we fail to find correct proto message
+        self.body: Optional[betterproto.Message] = None  # protobuf message instance
+        self.payload: Optional[bytes] = None  # will contain the protobuf's raw bytes
 
         if data:
-            self.payload = data[self._header._fullsize:]
-
+            self.payload = data[self._header._full_size:]
         if parse:
             self.parse()
-
         if kwargs:
-            proto_fill_from_dict(self.body, kwargs, False)
+            self.body.from_dict(kwargs)
 
     def __repr__(self):
         attrs = (
-            'msg', 'proto'
+            'msg', '_header',
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
-        resolved.extend([f'{proto.name}={repr(value)}' for proto, value in self.body.ListFields()])
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
         return f"<MsgProto {' '.join(resolved)}>"
 
     def parse(self):
         """Parses :attr:`payload` into :attr:`body` instance"""
         if self.body is None:
             if self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodResponse, EMsg.ServiceMethodSendToClient):
-                is_resp = False if self.msg == EMsg.ServiceMethod else True
-                proto = get_um(self.header.target_job_name, response=is_resp)
+                proto = get_um(self.header.target_job_name)
             else:
                 proto = get_cmsg(self.msg)
 
             if proto:
                 self.body = proto()
                 if self.payload:
-                    self.body.ParseFromString(self.payload)
+                    self.body.FromString(self.payload)
                     self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'
 
     @property
+    def msg(self):
+        return self._header.msg
+
+    @msg.setter
+    def msg(self, value):
+        self._header.msg = EMsg.try_value(value)
+
+    @property
     def steam_id(self):
-        return self.header.steamid
+        return self.header.client_steam_id
 
     @steam_id.setter
     def steam_id(self, value):
-        self.header.steamid = value
+        self.header.client_steam_id = value
 
     @property
     def session_id(self):
-        return self.header.client_sessionid
+        return self.header.client_session_id
 
     @session_id.setter
     def session_id(self, value):
-        self.header.client_sessionid = value
+        self.header.client_session_id = value
 
     def serialize(self):
         return self._header.serialize() + self.body.SerializeToString()

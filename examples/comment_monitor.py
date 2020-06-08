@@ -39,7 +39,7 @@ async def on_ready():
 
 
 @client.event
-async def on_comment(comment: steam.Comment):
+async def on_comment(comment):
     print(f'Received comment #{comment.id}, from', comment.author.name)
     if comment.owner != client.user:  # if we don't own the section, don't watch the comments
         print("We don't monitor comments here")

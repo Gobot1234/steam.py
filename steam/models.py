@@ -31,8 +31,12 @@ from typing import TYPE_CHECKING, Union
 from .game import Game
 
 if TYPE_CHECKING:
-    from .user import User
+    from bs4 import BeautifulSoup
+
+    from .abc import BaseUser
     from .group import Group
+    from .state import ConnectionState
+
 
 __all__ = (
     'Ban',
@@ -63,40 +67,51 @@ class Comment:
     created_at: :class:`datetime.datetime`
         The time the comment was posted at.
     owner: Union[:class:`~steam.Group`, :class:`~steam.User`]
-        The comment sections owner. If the comment section is group
-        related this will be the group otherwise it is a user.
+        The comment sections owner. If the comment section is for a group
+        it will be a :class:`~steam.Group` instance otherwise it
+        will be an `~steam.User` instance.
     """
 
-    __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_comment_type', '_state')
+    __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_state')
 
-    def __init__(self, state, comment_type, comment_id: int, content: str, timestamp: datetime,
-                 author: 'User', owner: Union['Group', 'User']):
+    def __init__(self, state: 'ConnectionState',
+                 id: int, content: str, timestamp: datetime,
+                 author: 'BaseUser', owner: Union['Group', 'BaseUser']):
         self._state = state
-        self._comment_type = comment_type
         self.content = content
-        self.id = comment_id
+        self.id = id
         self.created_at = timestamp
-        self.author: User = author
-        self.owner: Union[Group, User] = owner
+        self.author = author
+        self.owner = owner
 
     def __repr__(self):
         attrs = (
             'id', 'author'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Comment {' '.join(resolved)}>"
 
     async def report(self) -> None:
         """|coro|
         Reports the :class:`Comment`.
         """
-        await self._state.http.report_comment(self.id, self._comment_type, self.owner.id64)
+        from .user import BaseUser
+
+        await self._state.http.report_comment(
+            id64=self.owner.id64, comment_id=self.id,
+            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan',
+        )
 
     async def delete(self) -> None:
         """|coro|
         Deletes the :class:`Comment`.
         """
-        await self._state.http.delete_comment(self.id, self._comment_type, self.owner.id64)
+        from .abc import BaseUser
+
+        await self._state.http.delete_comment(
+            id64=self.owner.id64, comment_id=self.id,
+            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan',
+        )
 
 
 class Invite:
@@ -105,43 +120,43 @@ class Invite:
     Attributes
     -----------
     type: :class:`str`
-        The type of invite either 'Friend'
-        or 'Group'.
+        The type of invite either 'Profile'
+        or 'Clan'.
     invitee: :class:`~steam.User`
         The user who sent the invite. For type
-        'Friend', this is the user you would end up adding.
+        'Profile', this is the user you would end up adding.
     group: Optional[:class:`~steam.Group`]
         The group the invite pertains to,
-        only relevant if type is 'Group'.
+        only relevant if type is 'Clan'.
     """
 
     __slots__ = ('type', 'group', 'invitee', '_data', '_state')
 
-    def __init__(self, state, data):
+    def __init__(self, state: 'ConnectionState', data: 'BeautifulSoup.Tag'):
         self._state = state
         self._data = str(data)
 
-    async def __ainit__(self):
+    async def __ainit__(self) -> None:
         search = re.search(r"href=\"javascript:OpenGroupChat\( '(\d+)' \)\"", self._data)
         invitee_id = re.search(r'data-miniprofile="(\d+)"', self._data)
         client = self._state.client
 
-        self.type = 'Group' if search is not None else 'Friend'
-        self.invitee: User = await client.fetch_user(invitee_id.group(1))
-        self.group: Group = await client.fetch_group(search.group(1)) if self.type == 'Group' else None
+        self.type = 'Clan' if search is not None else 'Profile'
+        self.invitee = await client.fetch_user(invitee_id.group(1))
+        self.group = await client.fetch_group(search.group(1)) if self.type == 'Clan' else None
 
     def __repr__(self):
         attrs = (
             'type', 'invitee', 'group'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Invite {' '.join(resolved)}>"
 
     async def accept(self) -> None:
         """|coro|
         Accepts the invite request.
         """
-        if self.type == 'Friend':
+        if self.type == 'Profile':
             await self._state.http.accept_user_invite(self.invitee.id64)
         else:
             await self._state.http.accept_group_invite(self.group.id64)
@@ -150,7 +165,7 @@ class Invite:
         """|coro|
         Declines the invite request.
         """
-        if self.type == 'Friend':
+        if self.type == 'Profile':
             await self._state.http.decline_user_invite(self.invitee.id64)
         else:
             await self._state.http.decline_group_invite(self.group.id64)
@@ -169,16 +184,24 @@ class Ban:
 
     __slots__ = ('since_last_ban', 'number_of_game_bans', '_vac_banned', '_community_banned', '_market_banned')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self._vac_banned = data['VACBanned']
         self._community_banned = data['CommunityBanned']
         self._market_banned = data['EconomyBan']
         self.since_last_ban = timedelta(days=data['DaysSinceLastBan'])
         self.number_of_game_bans = data['NumberOfGameBans']
 
+    def __repr__(self):
+        attrs = [
+            ('is_banned', self.is_banned()),
+            ('is_vac_banned', self.is_vac_banned())
+        ]
+        resolved = [f'{method}={value!r}' for method, value in attrs]
+        return f'<Ban {" ".join(resolved)}>'
+
     def is_banned(self) -> bool:
         """:class:`bool`: Species if the user is banned from any part of Steam."""
-        return False not in [getattr(self, attr) for attr in self.__slots__]
+        return True in (self.is_vac_banned(), self.is_community_banned(), self.is_market_banned())
 
     def is_vac_banned(self) -> bool:
         """:class:`bool`: Species if the user is VAC banned."""
@@ -214,13 +237,20 @@ class Badge:
 
     __slots__ = ('id', 'xp', 'game', 'level', 'scarcity', 'completion_time')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self.id = data['badgeid']
         self.level = data['level']
         self.xp = data['xp']
         self.completion_time = datetime.utcfromtimestamp(data['completion_time'])
         self.scarcity = data['scarcity']
         self.game = Game(data['appid']) if 'appid' in data else None
+
+    def __repr__(self):
+        attrs = (
+            'id', 'level', 'xp', 'game'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f'<Badge {" ".join(resolved)}>'
 
 
 class UserBadges:
@@ -243,9 +273,19 @@ class UserBadges:
 
     __slots__ = ('xp', 'level', 'badges', 'xp_needed_to_level_up', 'xp_needed_for_current_level')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self.level = data['player_level']
         self.xp = data['player_xp']
         self.xp_needed_to_level_up = data['player_xp_needed_to_level_up']
         self.xp_needed_for_current_level = data['player_xp_needed_current_level']
         self.badges = [Badge(data) for data in data['badges']]
+
+    def __repr__(self):
+        attrs = (
+            'level', 'xp'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f'<UserBadges {" ".join(resolved)}>'
+
+    def __len__(self):
+        return len(self.badges)

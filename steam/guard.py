@@ -37,8 +37,13 @@ import logging
 import struct
 from hashlib import sha1
 from time import time
+from typing import TYPE_CHECKING, Awaitable
 
 from .models import URL
+
+if TYPE_CHECKING:
+    from .state import ConnectionState
+
 
 __all__ = (
     'generate_one_time_code',
@@ -50,7 +55,7 @@ __all__ = (
 log = logging.getLogger(__name__)
 
 
-def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> str:
+def generate_one_time_code(shared_secret: str, timestamp: int = None) -> str:
     """Generate a Steam Guard code for signing in.
 
     Parameters
@@ -65,6 +70,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
     :class:`str`
         The desired 2FA code for the timestamp.
     """
+    timestamp = timestamp or int(time())
     time_buffer = struct.pack('>Q', timestamp // 30)  # pack as Big endian, uint64
     time_hmac = hmac.new(base64.b64decode(shared_secret), time_buffer, digestmod=sha1).digest()
     begin = ord(time_hmac[19:20]) & 0xf
@@ -77,7 +83,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = int(time())) -> 
     return ''.join(code)  # faster than string concatenation
 
 
-def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = int(time())) -> str:
+def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = None) -> str:
     """Generate a trade confirmation code.
 
     Parameters
@@ -94,25 +100,26 @@ def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = 
     :class:`str`
         Confirmation code for the set timestamp.
     """
+    timestamp = timestamp or int(time())
     buffer = struct.pack('>Q', timestamp) + tag.encode('ascii')
     return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
 
 
-def generate_device_id(id64: str) -> str:
+def generate_device_id(user_id64: str) -> str:
     """
     Parameters
     -----------
-    id64: :class:`str`
+    user_id64: :class:`str`
         The 64 bit steam id to generate the device id for.
 
     Returns
     --------
     :class:`str`
-        The device id
+        The device id.
     """
     # it works, however it's different that one generated from mobile app
 
-    hexed_steam_id = sha1(id64.encode('ascii')).hexdigest()
+    hexed_steam_id = sha1(user_id64.encode('ascii')).hexdigest()
     partial_id = [
         hexed_steam_id[:8],
         hexed_steam_id[8:12],
@@ -124,42 +131,42 @@ def generate_device_id(id64: str) -> str:
 
 
 class Confirmation:
-    def __init__(self, state, id, data_confid, data_key, creator):
-        self.state = state
+    def __init__(self, state: 'ConnectionState', id: str, data_confid: int, data_key: str, trade_id: int):
+        self._state = state
         self.id = id.split('conf')[1]
         self.data_confid = data_confid
         self.data_key = data_key
         self.tag = f'details{self.id}'
-        self.creator = creator
+        self.trade_id = trade_id
 
     def __repr__(self):
-        return f"<Confirmation id={self.id} creator={self.creator}>"
+        return f"<Confirmation id={self.id} trade_id={self.trade_id}>"
 
-    def _confirm_params(self, tag):
+    def _confirm_params(self, tag) -> dict:
         timestamp = int(time())
         return {
-            'p': self.state._device_id,
-            'a': self.state._id64,
-            'k': self.state._generate_confirmation(tag, timestamp),
+            'p': self._state._device_id,
+            'a': self._state._id64,
+            'k': self._state._generate_confirmation(tag, timestamp),
             't': timestamp,
             'm': 'android',
             'tag': tag
         }
 
-    def confirm(self):
+    def confirm(self) -> Awaitable:
         params = self._confirm_params('allow')
         params['op'] = 'allow'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
-        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf//ajaxop', params=params)
+        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
 
-    def cancel(self):
+    def cancel(self) -> Awaitable:
         params = self._confirm_params('cancel')
         params['op'] = 'cancel'
         params['cid'] = self.data_confid
         params['ck'] = self.data_key
-        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
+        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
 
-    def details(self):  # need to do ['html'] for the good stuff
+    def details(self) -> Awaitable:  # need to do ['html'] for the good stuff
         params = self._confirm_params(self.tag)
-        return self.state.request('GET', f'{URL.COMMUNITY}/mobileconf/details/{self.id}', params=params)
+        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/details/{self.id}', params=params)

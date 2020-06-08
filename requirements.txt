@@ -1,4 +1,4 @@
 aiohttp>=3.6.0,<3.7.0
-beautifulsoup4<4.8.2
-pycryptodomex>=3.7.0
-protobuf>=3.0.0
+beautifulsoup>=4.8.0
+pycryptodome>=3.7.0
+betterproto>=1.2.3

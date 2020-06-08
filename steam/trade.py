@@ -24,16 +24,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import asyncio
 from datetime import datetime
-from typing import List, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, List, Optional, Union
 
-from . import utils
 from .enums import ETradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game
 
 if TYPE_CHECKING:
+    from .abc import BaseUser
     from .market import PriceOverview
+    from .state import ConnectionState
 
 __all__ = (
     'Item',
@@ -73,7 +75,7 @@ class Asset:
     """
     __slots__ = ('game', 'amount', 'app_id', 'class_id', 'asset_id', 'instance_id')
 
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self.asset_id = int(data['assetid'])
         self.game = Game(app_id=data['appid'])
         self.app_id = int(data['appid'])
@@ -82,16 +84,14 @@ class Asset:
         self.class_id = int(data['classid'])
 
     def __repr__(self):
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in self.__slots__]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__
+                    if attr[0] != '_']
         return f"<Asset {' '.join(resolved)}>"
 
     def __eq__(self, other):
         return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "assetid": str(self.asset_id),
             "amount": self.amount,
@@ -132,22 +132,21 @@ class Item(Asset):
         The icon_url of the item. Uses the large (184x184 px) image url.
     """
 
-    __slots__ = ('name', 'type', 'tags', 'colour', 'missing',
+    __slots__ = ('name', 'type', 'tags', 'colour',
                  'icon_url', 'display_name', 'descriptions',
-                 '_state', '_is_tradable', '_is_marketable') + Asset.__slots__
+                 '_state', '_is_tradable', '_is_marketable')
 
-    def __init__(self, state, data, missing: bool = False):
+    def __init__(self, state: 'ConnectionState', data: dict):
         super().__init__(data)
         self._state = state
-        self.missing = missing
         self._from_data(data)
 
     def __repr__(self):
         attrs = ('name',) + Asset.__slots__
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Item {' '.join(resolved)}>"
 
-    def _from_data(self, data):
+    def _from_data(self, data) -> None:
         self.name = data.get('market_name')
         self.display_name = data.get('name')
         self.colour = int(data['name_color'], 16) if 'name_color' in data else None
@@ -158,25 +157,6 @@ class Item(Asset):
             if 'icon_url_large' in data else None
         self._is_tradable = bool(data.get('tradable', False))
         self._is_marketable = bool(data.get('marketable', False))
-
-    async def list(self, price: Union[int, float]) -> None:
-        """|coro|
-        Creates a market listing for an item.
-
-        .. note::
-            This could result in an account termination,
-            this is just added for completeness sake.
-
-        Parameters
-        ----------
-        price: Union[:class:`int`, :class:`float`]
-            The price user pays for the item as a float.
-            eg. $1 = 1.00 or £2.50 = 2.50 etc.
-        """
-        state = self._state
-        resp = await state.market.sell_item(self.asset_id, price)
-        if resp.get('needs_mobile_confirmation', False):
-            await self._state.get_and_confirm_confirmation(self.asset_id)
 
     async def fetch_price(self) -> 'PriceOverview':
         """|coro|
@@ -197,10 +177,6 @@ class Item(Asset):
         """:class:`bool`: Whether the item is marketable."""
         return self._is_marketable
 
-    def is_asset(self) -> bool:
-        """:class:`bool`: Whether the item is an :class:`Asset` just wrapped in an :class:`Item`."""
-        return self.missing
-
 
 class Inventory:
     """Represents a User's inventory.
@@ -215,6 +191,12 @@ class Inventory:
 
             Iterates over the inventory's items.
 
+        .. describe:: y in x
+
+            Determines if an item is in the inventory based off of
+            its class_id and instance_id
+
+
     Attributes
     -------------
     items: List[:class:`Item`]
@@ -227,7 +209,7 @@ class Inventory:
 
     __slots__ = ('game', 'items', 'owner', '_state', '_total_inventory_count')
 
-    def __init__(self, state, data, owner):
+    def __init__(self, state: 'ConnectionState', data: dict, owner: 'BaseUser'):
         self._state = state
         self.owner = owner
         self.items = []
@@ -237,30 +219,40 @@ class Inventory:
         attrs = (
             'owner', 'game'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Inventory {' '.join(resolved)}>"
 
     def __len__(self):
         return self._total_inventory_count
 
-    def __iter__(self):
-        for item in self.items:
-            yield item
+    def __iter__(self) -> Iterable[Item]:
+        return (item for item in self.items)
 
-    def _update(self, data):
+    def __contains__(self, item):
+        if isinstance(item, Asset):
+            item = [i for i in self
+                    if i.instance_id == item.instance_id
+                    and i.class_id == item.class_id]
+            return True if item else False
+        return False
+
+    def _update(self, data) -> None:
         try:
             self.game = Game(app_id=int(data['assets'][0]['appid']))
-        except KeyError:  # they don't have an inventory for this game
+        except KeyError:  # they don't have an inventory in this game
             self.game = None
             self.items = []
             self._total_inventory_count = 0
         else:
             for asset in data['assets']:
+                found = False
                 for item in data['descriptions']:
                     if item['instanceid'] == asset['instanceid'] and item['classid'] == asset['classid']:
                         item.update(asset)
                         self.items.append(Item(state=self._state, data=item))
-                self.items.append(Item(state=self._state, data=asset, missing=True))
+                        found = True
+                if not found:
+                    self.items.append(Asset(data=asset))
             self._total_inventory_count = data['total_inventory_count']
 
     async def update(self) -> 'Inventory':
@@ -272,17 +264,17 @@ class Inventory:
         :class:`~steam.Inventory`
             The refreshed inventory.
         """
-        data = await self._state.http.fetch_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
+        data = await self._state.http.get_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
         self._update(data)
         return self
 
-    def filter_items(self, item_name: str, *, limit: int = None) -> Optional[List[Item]]:
+    def filter_items(self, item_name: str, *, limit: int = None) -> List[Item]:
         """Filters items by name into a list of one type of item.
 
         Parameters
         ------------
         item_name: :class:`str`
-            The item to filter.
+            The item's name to filter for.
         limit: Optional[:class:`int`]
             The maximum amount of items to filter.
 
@@ -293,8 +285,8 @@ class Inventory:
             Could be an empty if no matching items are found.
             This also removes the item from the inventory, if possible.
         """
-        items = list(filter(lambda i: i.name == item_name, self.items))
-        items = items[:len(items) - 1 if limit is None else limit]
+        items = [item for item in self if item.name == item_name]
+        items = items if limit is None else items[:limit]
         for item in items:
             self.items.remove(item)
         return items
@@ -304,7 +296,7 @@ class Inventory:
 
         Parameters
         ----------
-        item_name: `str`
+        item_name: :class:`str`
             The item to get from the inventory.
 
         Returns
@@ -314,23 +306,38 @@ class Inventory:
             Can be ``None`` if no matching item is found.
             This also removes the item from the inventory, if possible.
         """
-        item = utils.get(self.items, name=item_name)
+        item = [item for item in self
+                if item.name == item_name]
         if item:
-            self.items.remove(item)
-            return item
+            self.items.remove(item[0])
+            return item[0]
         return None
 
 
 class TradeOffer:
-    """Represents a Trade offer from a User.
+    """Represents a trade offer from/to send to a User.
+    This can also be used in :meth:`steam.User.send`.
+
+    Parameters
+    ----------
+    items_to_send: Optional[List[Union[:class:`steam.Item`, :class:`steam.Asset`]]]
+        The items you are sending to the other user.
+    items_to_receive: Optional[List[Union[:class:`steam.Item`, :class:`steam.Asset`]]]
+        The items you are sending to the other user.
+    token: Optional[:class:`str`]
+        The the trade token used to send trades to users who aren't
+        on the ClientUser's friend's list.
+    message: Optional[:class:`str`]
+         The offer message to send with the trade.
 
     Attributes
     -------------
-    partner: :class:`~steam.User`
-        The trade offer partner.
-    items_to_send: List[:class:`Item`]
+    partner: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
+        The trade offer partner. This should only be a :class:`~steam.SteamID`
+        if the partner's profile is private.
+    items_to_send: Union[List[:class:`Item`], List[:class:`Asset`]]
         A list of items to send to the partner.
-    items_to_receive: List[:class:`Item`]
+    items_to_receive: Union[List[:class:`Item`], List[:class:`Asset`]]
         A list of items to receive from the partner.
     state: :class:`~steam.ETradeOfferState`
         The offer state of the trade for the possible types see
@@ -346,35 +353,49 @@ class TradeOffer:
         if there is no escrow on the trade.
     """
 
-    __slots__ = ('id', 'state', 'escrow', 'partner', 'message',
+    __slots__ = ('id', 'state', 'escrow', 'partner', 'message', 'token',
                  'expires', 'items_to_send', 'items_to_receive',
-                 '_id_other', '_state', '_is_our_offer', '__weakref__')
+                 '_has_been_sent', '_state', '_is_our_offer', '__weakref__')
 
-    def __init__(self, state, data):
-        self._state = state
-        self._update(data)
+    def __init__(self, *, message: str = None, token: str = None,
+                 items_to_send: List[Union[Item, Asset]] = None,
+                 items_to_receive: List[Union[Item, Asset]] = None):
+        self.items_to_receive = items_to_receive if items_to_receive else []
+        self.items_to_send = items_to_send if items_to_send else []
+        self.message = message if message is not None else ''
+        self.token = token
+        self._has_been_sent = False
+
+    @classmethod
+    async def _from_api(cls, state: 'ConnectionState', data: dict) -> 'TradeOffer':
+        from .abc import SteamID
+
+        trade = cls()
+        trade._has_been_sent = True
+        trade._state = state
+        trade._update(data)
+        trade.partner = await state.client.fetch_user(data['accountid_other']) or \
+            SteamID(data['accountid_other'])  # the account is private :(
+        return trade
 
     def __repr__(self):
         attrs = (
             'id', 'state', 'partner'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr, None)!r}' for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
-    def _update(self, data):
+    def _update(self, data) -> None:
         self.message = data.get('message') or None
         self.id = int(data['tradeofferid'])
-        self.expires = datetime.utcfromtimestamp(data['expiration_time']) if 'expiration_time' in data else None
-        self.escrow = datetime.utcfromtimestamp(data['escrow_end_date']) \
-            if 'escrow_end_date' in data and data['escrow_end_date'] != 0 else None
+        expires = data.get('expiration_time')
+        escrow = data.get('escrow_end_date')
+        self.expires = datetime.utcfromtimestamp(expires) if expires else None
+        self.escrow = datetime.utcfromtimestamp(escrow) if escrow else None
         self.state = ETradeOfferState(data.get('trade_offer_state', 1))
         self.items_to_send = [Item(state=self._state, data=item) for item in data.get('items_to_give', [])]
         self.items_to_receive = [Item(state=self._state, data=item) for item in data.get('items_to_receive', [])]
         self._is_our_offer = data.get('is_our_offer', False)
-        self._id_other = data['accountid_other']
-
-    async def __ainit__(self) -> None:
-        self.partner = await self._state.client.fetch_user(self._id_other)
 
     async def confirm(self) -> None:
         """|coro|
@@ -388,10 +409,9 @@ class TradeOffer:
         :exc:`~steam.ConfirmationError`
             No matching confirmation could not be found.
         """
-        if self.is_gift():  # no point trying to confirm it
-            return
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
-            raise ClientException('This trade cannot be confirmed')
+        self._check_active()
+        if self.is_gift():
+            return  # no point trying to confirm it
         if not await self._state.get_and_confirm_confirmation(self.id):
             raise ConfirmationError('No matching confirmation could be found for this trade')
 
@@ -409,15 +429,19 @@ class TradeOffer:
         :exc:`~steam.ConfirmationError`
             No matching confirmation could not be found.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
-            raise ClientException('This trade is not active')
+        self._check_active()
         if self.state == ETradeOfferState.Accepted:
             raise ClientException('This trade has already been accepted')
         if self.is_our_offer():
             raise ClientException('You cannot accept an offer the ClientUser has made')
         resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
         if resp.get('needs_mobile_confirmation', False):
-            await self.confirm()
+            for tries in range(5):
+                try:
+                    await self.confirm()
+                except ConfirmationError:
+                    await asyncio.sleep(tries * 2)
+                    continue
 
     async def decline(self) -> None:
         """|coro|
@@ -428,8 +452,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already declined or not from the ClientUser.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
-            raise ClientException('This trade is not active')
+        self._check_active()
         if self.state == ETradeOfferState.Declined:
             raise ClientException('This trade has already been declined')
         if self.is_our_offer():
@@ -445,16 +468,15 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already cancelled or is from the ClientUser.
         """
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
-            raise ClientException('This trade is not active')
+        self._check_active()
         if self.state == ETradeOfferState.Canceled:
             raise ClientException('This trade has already been cancelled')
         if not self.is_gift():
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
 
-    async def counter(self, *, items_to_send: Union[List[Item], List[Asset]] = None,
-                      items_to_receive: Union[List[Item], List[Asset]] = None,
+    async def counter(self, *, items_to_send: List[Item] = None,
+                      items_to_receive: List[Item] = None,
                       token: str = None, message: str = None) -> None:
         """|coro|
         Counters a trade offer from an :class:`User`.
@@ -474,12 +496,24 @@ class TradeOffer:
         Raises
         ------
         :exc:`~steam.ClientException`
-            The trade from the ClientUser.
+            The trade from the ClientUser or it isn't active.
         """
+        if not self._has_been_sent:
+            raise ClientException("This trade isn't active")
         if self.is_our_offer():
             raise ClientException('You cannot counter an offer the ClientUser has made')
-        items_to_send = [] if items_to_send is None else items_to_send
-        items_to_receive = [] if items_to_receive is None else items_to_receive
+        if isinstance(items_to_receive, Item):
+            items_to_receive = [items_to_receive]
+        elif isinstance(items_to_receive, list):
+            items_to_receive = items_to_receive
+        else:
+            items_to_receive = []
+        if isinstance(items_to_send, Item):
+            items_to_send = [items_to_send]
+        elif isinstance(items_to_send, list):
+            items_to_send = items_to_send
+        else:
+            items_to_send = []
         message = message if message is not None else ''
         resp = await self._state.http.send_counter_trade_offer(self.id, self.partner.id64, self.partner.id,
                                                                items_to_send, items_to_receive, token, message)
@@ -488,13 +522,12 @@ class TradeOffer:
 
     def is_gift(self) -> bool:
         """:class:`bool`: Checks if an offer is a gift to the ClientUser"""
-        return True if self.items_to_receive and not self.items_to_send else False
-
-    def is_one_sided(self) -> bool:
-        """:class:`bool`: Checks if an offer is one-sided."""
-        return True if not self.items_to_receive and self.items_to_send \
-                       or self.items_to_receive and not self.items_to_send else False
+        return self.items_to_receive and not self.items_to_send
 
     def is_our_offer(self) -> bool:
         """:class:`bool`: Whether the offer was created by the ClientUser."""
         return self._is_our_offer
+
+    def _check_active(self) -> None:
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
+            raise ClientException('This trade is not active')

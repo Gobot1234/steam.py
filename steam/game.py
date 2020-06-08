@@ -65,16 +65,16 @@ class Game:
         The context id of the game normally 2.
     total_play_time: Optional[:class:`int`]
         The total time the game has been played for.
-        Only applies to a :class:`~steam.User`'s games.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     icon_url: Optional[:class:`str`]
         The icon url of the game.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     logo_url: Optional[:class:`str`]
         The logo url of the game.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     stats_visible: Optional[:class:`bool`]
         Whether the game has publicly visible stats.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.fetch_games`.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     """
 
     def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2):
@@ -139,21 +139,17 @@ class Game:
     def __eq__(self, other):
         return isinstance(other, Game) and self.app_id == other.app_id
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def to_dict(self):
+    def to_dict(self) -> dict:
         if not self.is_steam_game():
             return {
                 "game_id": str(self.app_id),
-                "game_extra_info": game.name
+                "game_extra_info": self.title
             }
-        else:
-            return {
-                "game_id": str(self.app_id)
-            }
+        return {
+            "game_id": str(self.app_id)
+        }
 
-    def is_steam_game(self):
+    def is_steam_game(self) -> bool:
         return self.app_id < APP_ID_MAX
 
 

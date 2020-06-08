@@ -33,10 +33,10 @@ class MyClient(steam.Client):
         print(f'Received trade: #{trade.id}')
         print('Trade partner is:', trade.partner.name)
         print('We would send:')
-        print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send])
+        print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send)
               if trade.items_to_send else 'Nothing')  # list the items the ClientUser would send
         print('We would receive:')
-        print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
+        print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive)
               if trade.items_to_receive else 'Nothing')  # list the items the ClientUser would receive
 
         if trade.is_gift():  # check if the trade is a gift
@@ -47,10 +47,10 @@ class MyClient(steam.Client):
         print(f'Accepted trade: #{trade.id}')
         print('Trade partner is:', trade.partner.name)
         print('We sent:')
-        print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_send])
+        print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send)
               if trade.items_to_send else 'Nothing')  # list the items the ClientUser has sent
         print('We received:')
-        print('\n'.join([item.name if item.name else str(item.asset_id) for item in trade.items_to_receive])
+        print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive)
               if trade.items_to_receive else 'Nothing')  # list the items the ClientUser has received
 
 

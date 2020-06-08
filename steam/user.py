@@ -3,7 +3,6 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -23,22 +22,22 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-This contains a copy of
-https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
 
 import re
 from datetime import timedelta
-from typing import List, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from .abc import BaseUser, Messageable
 from .enums import *
 from .models import URL
-from .trade import Item, Asset
 
 if TYPE_CHECKING:
     from .group import Group
+    from .state import ConnectionState
+    from .image import Image
+    from .trade import TradeOffer
+
 
 __all__ = (
     'User',
@@ -116,76 +115,73 @@ class User(Messageable, BaseUser):
         """
         await self._state.http.remove_user(self.id64)
 
-    async def unblock(self) -> None:
-        """|coro|
-        Unblocks the :class:`User`.
-        """
-        await self._state.http.unblock_user(self.id64)
-
     async def block(self) -> None:
         """|coro|
         Blocks the :class:`User`.
         """
         await self._state.http.block_user(self.id64)
 
-    async def send_trade(self, *, items_to_send: Union[List[Item], List[Asset]] = None,
-                         items_to_receive: Union[List[Item], List[Asset]] = None,
-                         token: str = None, message: str = None) -> None:
+    async def unblock(self) -> None:
         """|coro|
-        Sends a trade offer to an :class:`User`.
-
-        Parameters
-        -----------
-        items_to_send: Optional[List[:class:`steam.Item`]]
-            The items you are sending to the other user.
-        items_to_receive: Optional[List[:class:`steam.Item`]]
-            The items you are sending to the other user.
-        token: Optional[:class:`str`]
-            The the trade token used to send trades to users who aren't
-            on the ClientUser's friend's list.
-        message: Optional[:class:`str`]
-             The offer message to send with the trade.
-
-        Raises
-        ------
-        :exc:`.Forbidden`
-            The offer failed to send. Likely due to
-            too many offers being sent to this user.
+        Unblocks the :class:`User`.
         """
-        items_to_send = [] if items_to_send is None else items_to_send
-        items_to_receive = [] if items_to_receive is None else items_to_receive
-        message = message if message is not None else ''
-        resp = await self._state.http.send_trade_offer(self.id64, self.id, items_to_send,
-                                                       items_to_receive, token, message)
-        if resp.get('needs_mobile_confirmation', False):
-            await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
+        await self._state.http.unblock_user(self.id64)
 
-    async def fetch_escrow(self) -> Optional[timedelta]:
+    async def escrow(self, token: str = None) -> Optional[timedelta]:
         """|coro|
         Check how long a :class:`User`'s escrow is.
+
+        Parameters
+        ----------
+        token: Optional[:class:`str`]
+            The user's trade offer token.
 
         Returns
         --------
         Optional[:class:`datetime.timedelta`]
             The time at which any items sent/received would arrive
-            ``None`` if the :class:`User` has no escrow.
+            ``None`` if the :class:`User` has no escrow or has a private inventory.
         """
-        resp = await self._state.http.fetch_user_escrow(self.id)
-        seconds = resp['their_escrow']['escrow_end_duration_seconds']
+        resp = await self._state.http.get_user_escrow(self.id64, token)
+        their_escrow = resp['response'].get('their_escrow')
+        if their_escrow is None:  # private
+            return None
+        seconds = their_escrow['escrow_end_duration_seconds']
         return timedelta(seconds=seconds) if seconds else None
 
-    async def send(self, content: str = None):
-        """Send a message to the user
+    async def send(self, content: str = None, *, trade: 'TradeOffer' = None, image: 'Image' = None):
+        """|coro|
+        Send a message, trade or image to an :class:`User`.
 
-        .. note::
-            This does not currently function.
+        Parameters
+        ----------
+        content: Optional[:class:`str`]
+            The message to send.
 
-        Returns
-        ---------
-        :class:`~steam.Message`
-            The send message.
+            .. note::
+                This argument is not currently used does **NOT** currently function.
+
+        trade: Optional[:class:`.TradeOffer`]
+            The trade offer to send.
+        image: Optional[:class:`.Image`]
+            The image to send to the user. This doesn't fully work yet.
+
+        Raises
+        ------
+        :exc:`~steam.HTTPException`
+            Something failed to send.
         """
-        return await self._state.send_message(user_id64=self.id64, content=str(content))
+
+        if image is not None:
+            await self._state.http.send_image(self.id64, image)
+        if trade is not None:
+            to_send = [item.to_dict() for item in trade.items_to_send]
+            to_receive = [item.to_dict() for item in trade.items_to_receive]
+            resp = await self._state.http.send_trade_offer(self.id64, self.id, to_send,
+                                                           to_receive, trade.token, trade.message)
+            if resp.get('needs_mobile_confirmation', False):
+                await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
+        # return await self._state.send_message(user_id64=self.id64, content=str(content))
 
     async def invite_to_group(self, group: 'Group'):
         """|coro|
@@ -246,8 +242,11 @@ class ClientUser(BaseUser):
     flags: :class:`~steam.EPersonaStateFlag`
         The persona state flags of the account.
     """
+    # TODO more stuff to add https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/profile.js
 
-    def __init__(self, state, data):
+    __slots__ = ('friends',)
+
+    def __init__(self, state: 'ConnectionState', data: dict):
         super().__init__(state, data)
         self.friends = []
 
@@ -266,7 +265,7 @@ class ClientUser(BaseUser):
         self.friends = await super().fetch_friends()
         return self.friends
 
-    async def fetch_wallet_balance(self) -> Optional[float]:
+    async def wallet_balance(self) -> Optional[float]:
         """|coro|
         Fetches the :class:`ClientUser`'s current wallet balance.
 
@@ -275,26 +274,24 @@ class ClientUser(BaseUser):
         Optional[:class:`float`]
             The current wallet balance.
         """
-        resp = await self._state.request('GET', f'{URL.STORE}/steamaccount/addfunds')
+        resp = await self._state.request('GET', url=f'{URL.STORE}/steamaccount/addfunds')
         search = re.search(r'Wallet <b>\([^\d]*(\d*)(?:[.,](\d*)|)[^\d]*\)</b>', resp, re.UNICODE)
         if search is None:
             return None
 
         return float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
 
-    async def clear_nicks(self):
+    async def setup_profile(self) -> None:
+        if self.has_setup_profile():
+            return
+
+        params = {
+            "welcomed": 1
+        }
+        await self._state.request('GET', url=f'{URL.COMMUNITY}/me/edit', params=params)
+
+    async def clear_nicks(self) -> None:
         """|coro|
         Clears the :class:`ClientUser`'s nickname/alias history.
         """
         await self._state.http.clear_nickname_history()
-
-    async def edit(self, *, nick: str = None, real_name: str = None, country: str = None,
-                   state: str = None, city: str = None, summary: str = None,
-                   group: 'Group' = None):  # TODO check works
-        self.name = nick if nick is not None else self.name
-        self.real_name = real_name if real_name is not None else self.real_name if self.real_name else ''
-        self.country = country if country is not None else self.country if self.country else ''
-        self.city = city if city is not None else self.city if self.city else ''
-        self.primary_group = group.id64 if group is not None else self.primary_group if self.primary_group else 0
-
-        await self._state.http.edit_profile(self.name, real_name, country, state, city, summary, group)

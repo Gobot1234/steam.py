@@ -21,14 +21,13 @@ sys.path.append(os.path.abspath('extensions'))
 # ones.
 
 extensions = [
-    'builder',
     'sphinx.ext.autodoc',
     'sphinx.ext.extlinks',
     'sphinx.ext.intersphinx',
     'sphinx.ext.napoleon',
     'sphinxcontrib_trio',
-    'details',
-    'exception_hierarchy'
+    'exception_hierarchy',
+    'enums'
 ]
 
 autodoc_member_order = 'bysource'
@@ -41,7 +40,7 @@ extlinks = {
 # Links used for cross-referencing stuff in other documentation
 intersphinx_mapping = {
     'py': ('https://docs.python.org/3', None),
-    'aio': ('https://aiohttp.readthedocs.io/en/stable/', None),
+    'aio': ('https://docs.aiohttp.org/en/stable/', None),
 }
 
 rst_prolog = """
@@ -111,8 +110,6 @@ pygments_style = 'friendly'
 
 # -- Options for HTML output ----------------------------------------------
 
-html_experimental_html5_writer = True
-
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = 'basic'
@@ -176,4 +173,4 @@ texinfo_documents = [
 
 
 def setup(app):
-    app.add_javascript('custom.js')
+    app.add_js_file('custom.js')

@@ -24,8 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import asyncio
+import re
 from datetime import datetime
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 from xml.etree import ElementTree
 
 from bs4 import BeautifulSoup
@@ -33,10 +35,12 @@ from bs4 import BeautifulSoup
 from .abc import SteamID
 from .errors import HTTPException
 from .iterators import CommentsIterator
-from .models import URL
+from .models import URL, Comment
 
 if TYPE_CHECKING:
     from .user import User
+    from .state import ConnectionState
+
 
 __all__ = (
     'Group',
@@ -48,9 +52,22 @@ class Group(SteamID):
 
     .. container:: operations
 
+        .. describe:: x == y
+
+            Checks if two groups are equal.
+
+        .. describe:: x != y
+
+            Checks if two groups are not equal.
+
+        .. describe:: str(x)
+
+            Returns the group's name.
+
         .. describe:: len(x)
 
-            Returns the amount of members in the group.
+            Returns the number of members in the group.
+
 
     Attributes
     ------------
@@ -74,11 +91,13 @@ class Group(SteamID):
         The amount of user's currently in game.
     """
 
-    def __init__(self, state, id):
+    # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
+
+    def __init__(self, state: 'ConnectionState', id: int):
         self.url = f'{URL.COMMUNITY}/gid/{id}'
         self._state = state
 
-    async def __ainit__(self):
+    async def __ainit__(self) -> None:
         data = await self._state.request('GET', f'{self.url}/memberslistxml')
         try:
             tree = ElementTree.fromstring(data)
@@ -87,8 +106,8 @@ class Group(SteamID):
         for elem in tree:
             if elem.tag == 'totalPages':
                 self._pages = int(elem.text)
-            elif elem.tag == 'groupID64':
-                SteamID.__init__(elem.text)
+            elif elem.tag == 'groupID64':  # we need to use the proper id64 as it doesn't convert well
+                super().__init__(elem.text)
             elif elem.tag == 'groupDetails':
                 for sub in elem:
                     if sub.tag == 'groupName':
@@ -96,7 +115,7 @@ class Group(SteamID):
                     elif sub.tag == 'headline':
                         self.headline = sub.text
                     elif sub.tag == 'summary':
-                        self.description = BeautifulSoup(sub.text, 'html.parser').get_text('\n')
+                        self.description = BeautifulSoup(sub.text, 'html.parser').get_text()
                     elif sub.tag == 'avatarFull':
                         self.icon_url = sub.text
                     elif sub.tag == 'memberCount':
@@ -112,9 +131,12 @@ class Group(SteamID):
         attrs = (
             'name',
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         resolved.append(super().__repr__())
         return f"<Group {' '.join(resolved)}>"
+
+    def __str__(self):
+        return self.name
 
     def __len__(self):
         return self.count
@@ -123,25 +145,21 @@ class Group(SteamID):
         """|coro|
         Fetches a groups member list.
 
-        .. note::
-            This one of the things that can return a 429 status code.
-            This function will return as much of the list as it can. (~1500 or so).
-
         Returns
         --------
         List[:class:`~steam.SteamID`]
             A basic list of the groups members.
-            This will only contain the first ~1500 members of the group.
-            The rate-limits on this prevent getting more.
+            This can be a very slow operation due to
+            the rate limits on this endpoint.
         """
-        from .abc import SteamID
-
         ret = []
-        for i in range(self._pages):
+
+        async def getter(i):
             try:
                 data = await self._state.request('GET', f'{self.url}/memberslistxml?p={i + 1}')
-            except HTTPException:  # we got 429'ed no point waiting, the wait times are ridiculously long
-                return ret  # return as much as we can
+            except HTTPException:
+                await asyncio.sleep(20)
+                await getter(i)
             else:
                 tree = ElementTree.fromstring(data)
                 for elem in tree:
@@ -149,6 +167,10 @@ class Group(SteamID):
                         for sub in elem:
                             if sub.tag == 'steamID64':
                                 ret.append(SteamID(sub.text))
+
+        for i in range(self._pages):
+            await getter(i)
+
         return ret
 
     async def join(self) -> None:
@@ -174,29 +196,42 @@ class Group(SteamID):
         """
         await self._state.http.invite_user_to_group(user_id64=user.id64, group_id=self.id64)
 
-    async def comment(self, content: str) -> None:
+    async def comment(self, content: str) -> Comment:
         """|coro|
         Post a comment to an :class:`Group`'s comment section.
 
         Parameters
         -----------
         content: :class:`str`
-            The comment to add the group's profile.
+            The message to add to the group's profile.
+
+        Returns
+        -------
+        :class:`~steam.Comment`
+            The created comment.
         """
-        await self._state.http.post_comment(self.id64, 'Clan', content)
+        resp = await self._state.http.post_comment(self.id64, 'Clan', content)
+        id = int(re.findall(r'id="comment_(\d+)"', resp['comments_html'])[0])
+        timestamp = datetime.utcfromtimestamp(resp['timelastpost'])
+        return Comment(
+            state=self._state, id=id, owner=self,
+            timestamp=timestamp, content=content,
+            author=self._state.client.user
+        )
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
-        """An iterator for accessing a :class:`~steam.Group`'s :class:`~steam.Comment` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a
+        :class:`~steam.Group`'s :class:`~steam.Comment` objects.
 
         Examples
         -----------
 
-        Usage::
+        Usage: ::
 
             async for comment in group.comments(limit=10):
                 print('Author:', comment.author, 'Said:', comment.content)
 
-        Flattening into a list::
+        Flattening into a list: ::
 
             comments = await group.comments(limit=50).flatten()
             # comments is now a list of Comment
@@ -218,5 +253,4 @@ class Group(SteamID):
         :class:`~steam.Comment`
             The comment with the comment information parsed.
         """
-        return CommentsIterator(state=self._state, id=self.id64, limit=limit, before=before, after=after,
-                                comment_type='Clan')
+        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
