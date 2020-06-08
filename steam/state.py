@@ -370,7 +370,7 @@ class ConnectionState:
             self._confirmations[trade_id] = Confirmation(self, id, confid, key, trade_id)
         return self._confirmations
 
-    @property
+
     def _device_id(self) -> str:
         return generate_device_id(str(self._id64))
 
