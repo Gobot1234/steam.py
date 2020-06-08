@@ -47,7 +47,12 @@ from .game import Game
 from .iterators import CommentsIterator
 from .models import URL, Ban, Comment, UserBadges
 from .trade import Inventory
-from .utils import make_steam64, steam64_from_url
+from .utils import (
+    _INVITE_HEX,
+    _INVITE_MAPPING,
+    make_steam64,
+    steam64_from_url,
+)
 
 if TYPE_CHECKING:
     from .user import User
@@ -59,12 +64,6 @@ if TYPE_CHECKING:
 __all__ = (
     'SteamID',
 )
-
-_ICODE_HEX = "0123456789abcdef"
-_ICODE_CUSTOM = "bcdfghjkmnpqrtvw"
-_ICODE_VALID = f'{_ICODE_HEX}{_ICODE_CUSTOM}'
-_ICODE_MAPPING = dict(zip(_ICODE_HEX, _ICODE_CUSTOM))
-_ICODE_INVERSE_MAPPING = dict(zip(_ICODE_CUSTOM, _ICODE_HEX))
 
 
 class SteamID(metaclass=abc.ABCMeta):
@@ -223,9 +222,9 @@ class SteamID(metaclass=abc.ABCMeta):
         """
         if self.type == EType.Individual and self.is_valid():
             def repl_mapper(x):
-                return _ICODE_MAPPING[x.group()]
+                return _INVITE_MAPPING[x.group()]
 
-            invite_code = re.sub(f"[{_ICODE_HEX}]", repl_mapper, f"{self.id:x}")
+            invite_code = re.sub(f"[{_INVITE_HEX}]", repl_mapper, f"{self.id:x}")
             split_idx = len(invite_code) // 2
 
             if split_idx:
@@ -305,7 +304,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return cls(id64) if id64 else None
 
 
-class BaseUser(SteamID, metaclass=abc.ABCMeta):
+class BaseUser(SteamID):
     """An ABC that details the common operations on a Steam user.
     The following classes implement this ABC:
 

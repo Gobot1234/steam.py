@@ -29,7 +29,6 @@ import asyncio
 import json
 import re
 import struct
-from base64 import b64decode
 from operator import attrgetter
 from os import urandom as random_bytes
 from typing import (
@@ -44,9 +43,9 @@ from typing import (
 )
 
 import aiohttp
-from Cryptodome.Cipher import AES as AES, PKCS1_OAEP
+from Cryptodome.Cipher import AES, PKCS1_OAEP
 from Cryptodome.Hash import HMAC, SHA1
-from Cryptodome.PublicKey.RSA import import_key as rsa_import_key
+from Cryptodome.PublicKey.RSA import RsaKey
 
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 
@@ -66,19 +65,19 @@ _INVITE_VALID = f'{_INVITE_HEX}{_INVITE_CUSTOM}'
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 
-
 # from ValvePython/steam
 
 ETypeChars = ''.join(type_char.name for type_char in ETypeChar)
 
 
 class UniverseKey:
-    Public = rsa_import_key(b64decode("""
-MIGdMA0GCSqGSIb3DQEBAQUAA4GLADCBhwKBgQDf7BrWLBBmLBc1OhSwfFkRf53T
-2Ct64+AVzRkeRuh7h3SiGEYxqQMUeYKO6UWiSRKpI2hzic9pobFhRr3Bvr/WARvY
-gdTckPv+T1JzZsuVcNfFjrocejN1oWI0Rrtgt4Bo+hOneoo3S57G9F1fOpn5nsQ6
-6WOiu4gZKODnFMBCiQIBEQ==
-"""))
+    Public = RsaKey(
+        n=int(
+            '1572435756163492767473017547683098671778311221560259237468446760604065883521072242173339019599191749864'
+            '5577395742561473053175122897795413393419038630648254894306773660858554891146738442477393264257606729213'
+            '7056263003121836768211312089498275802694267916711103128551999842076575732754013467986241640244933837449'
+        ), e=17
+    )
 
 
 def pad(s):

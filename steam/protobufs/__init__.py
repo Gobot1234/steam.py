@@ -45,11 +45,11 @@ from ..enums import IntEnum
 
 
 def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
-    return PROTOBUFS.get(EMsg.try_value(emsg), None)
+    return PROTOBUFS.get(EMsg.try_value(emsg))
 
 
 def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
-    return UMS.get(method_name, None)
+    return UMS.get(method_name)
 
 
 class _Enum(IntEnum):

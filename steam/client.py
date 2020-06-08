@@ -47,7 +47,6 @@ import aiohttp
 
 from . import errors
 from .abc import SteamID
-from .enums import ECurrencyCode
 from .gateway import *
 from .group import Group
 from .guard import generate_one_time_code
@@ -155,7 +154,7 @@ class Client:
         self.loop = loop or asyncio.get_event_loop()
         self._session = aiohttp.ClientSession(loop=self.loop)
 
-        currency = options.get('currency', ECurrencyCode.USD)
+        currency = options.get('currency', 1)
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
         self._market = MarketClient(loop=self.loop, session=self._session, client=self, currency=currency)
         self._connection = ConnectionState(loop=self.loop, client=self, http=self.http)
