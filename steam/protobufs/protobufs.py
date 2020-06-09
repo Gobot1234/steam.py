@@ -114,4 +114,6 @@ PROTOBUFS = {
     EMsg.ClientRichPresenceUpload: steammessages_clientserver_2.CMsgClientRichPresenceUpload,
     EMsg.ClientGetEmoticonList: steammessages_clientserver_friends.CMsgClientGetEmoticonList,
     EMsg.ClientEmoticonList: steammessages_clientserver_friends.CMsgClientEmoticonList,
+    EMsg.ClientServersAvailable: steammessages_clientserver.CMsgClientServersAvailable,
+    EMsg.ClientRequestedClientStats: steammessages_clientserver.CMsgClientRequestedClientStats,
 }
