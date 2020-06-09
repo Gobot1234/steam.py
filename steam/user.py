@@ -156,15 +156,11 @@ class User(Messageable, BaseUser):
         Parameters
         ----------
         content: Optional[:class:`str`]
-            The message to send.
-
-            .. note::
-                This argument is not currently used does **NOT** currently function.
-
+            The message to send to the user.
         trade: Optional[:class:`.TradeOffer`]
-            The trade offer to send.
+            The trade offer to send to the user.
         image: Optional[:class:`.Image`]
-            The image to send to the user. This doesn't fully work yet.
+            The image to send to the user.
 
         Raises
         ------
@@ -172,6 +168,8 @@ class User(Messageable, BaseUser):
             Something failed to send.
         """
 
+        if content is not None:
+            await self._state.send_message(self.id64, str(content))
         if image is not None:
             await self._state.http.send_image(self.id64, image)
         if trade is not None:
@@ -181,7 +179,6 @@ class User(Messageable, BaseUser):
                                                            to_receive, trade.token, trade.message)
             if resp.get('needs_mobile_confirmation', False):
                 await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
-        # return await self._state.send_message(user_id64=self.id64, content=str(content))
 
     async def invite_to_group(self, group: 'Group'):
         """|coro|
