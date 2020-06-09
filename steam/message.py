@@ -24,15 +24,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from .enums import EChatEntryType
 
 if TYPE_CHECKING:
-    from .user import User
-    from .protobufs.steammessages_friendmessages import (
-        CFriendMessages_IncomingMessage_Notification as ProtoMessage
-    )
+    from .state import ConnectionState
 
 __all__ = (
     'Message',
@@ -41,11 +39,19 @@ __all__ = (
 
 class Message:
 
-    def __init__(self, proto: 'ProtoMessage', author: 'User'):
-        self.author = author
+    __slots__ = ('type', 'author', 'channel', 'content', 'created_at', '_state')
+
+    def __init__(self, state: 'ConnectionState', proto):
+        self._state = state
+        self.author = state.get_user(proto.steamid_friend)
+        self.channel = self.author  # FIXME will fix later
         self.content = proto.message
-        self.created_at = proto.rtime32_server_timestamp
+        self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
         self.type = EChatEntryType(proto.chat_entry_type)
 
     def __repr__(self):
-        pass
+        attrs = (
+            'author', 'type'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<Message {' '.join(resolved)}>"
