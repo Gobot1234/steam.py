@@ -74,12 +74,11 @@ class Msg:
                  extended: bool = False,
                  parse: bool = True,
                  **kwargs):
-        self.extended = extended
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.msg = EMsg.try_value(msg)
 
         self.proto = False
-        self.body: Optional[betterproto.Message] = None  # protobuf
+        self.body: Optional[betterproto.Message] = None  # protobuf message instance
         self.payload: Optional[bytes] = None  # the raw bytes for the protobuf
 
         if data:
@@ -94,7 +93,10 @@ class Msg:
             'msg', 'header',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
+        if not isinstance(self.body, str):
+            resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
+        else:
+            resolved.append(f'body={self.body!r}')
         return f"<Msg {' '.join(resolved)}>"
 
     def parse(self):
@@ -145,7 +147,7 @@ class MsgProto:
                  **kwargs):
         self._header = MsgHdrProtoBuf(data)
         self.header = self._header.proto
-        self.msg = EMsg.try_value(msg)
+        self.msg = msg
         self.proto = True
         self.body: Optional[betterproto.Message] = None  # protobuf message instance
         self.payload: Optional[bytes] = None  # will contain the protobuf's raw bytes
@@ -162,7 +164,10 @@ class MsgProto:
             'msg', '_header',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
+        if not isinstance(self.body, str):
+            resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
+        else:
+            resolved.append(f'body={self.body!r}')
         return f"<MsgProto {' '.join(resolved)}>"
 
     def parse(self):
@@ -176,7 +181,7 @@ class MsgProto:
             if proto:
                 self.body = proto()
                 if self.payload:
-                    self.body.FromString(self.payload)
+                    self.body = self.body.FromString(self.payload)
                     self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'
@@ -191,19 +196,19 @@ class MsgProto:
 
     @property
     def steam_id(self):
-        return self.header.client_steam_id
+        return self.header.steamid
 
     @steam_id.setter
     def steam_id(self, value):
-        self.header.client_steam_id = value
+        self.header.steamid = value
 
     @property
     def session_id(self):
-        return self.header.client_session_id
+        return self.header.client_sessionid
 
     @session_id.setter
     def session_id(self, value):
-        self.header.client_session_id = value
+        self.header.client_sessionid = value
 
     def serialize(self):
         return self._header.serialize() + self.body.SerializeToString()
