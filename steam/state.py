@@ -29,7 +29,7 @@ import logging
 import re
 import weakref
 from time import time
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -40,8 +40,9 @@ from .enums import EChatEntryType, EMarketListingState, ETradeOfferState, EType
 from .errors import AuthenticatorError, HTTPException, InvalidCredentials
 from .game import Game
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
+from .message import Message
 from .models import URL, Invite
-from .protobufs import EMsg, MsgProto
+from .protobufs import EMsg, MsgProto, steammessages_friendmessages as f_msg
 from .trade import TradeOffer
 from .user import User
 from .utils import get
@@ -55,7 +56,22 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+def register(emsg: EMsg):
+    class wrapper:
+        __slots__ = ('func',)
+
+        def __init__(self, func: Callable):
+            self.func = func
+
+        def __set_name__(self, state: 'ConnectionState', _):
+            state.parsers[emsg] = self.func
+
+    return wrapper
+
+
 class ConnectionState:
+    parsers = {}
+
     def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
         self.http = http
@@ -79,15 +95,6 @@ class ConnectionState:
         self.loop.create_task(self._poll_trades())
         self.loop.create_task(self._poll_listings())
         self.loop.create_task(self._poll_notifications())
-
-    async def send_message(self, id64: int, content: str) -> None:
-        proto = MsgProto(
-            EMsg.ClientFriendMsg,
-            steamid=id64,
-            message=content,
-            chat_entry_type=EChatEntryType.ChatMsg.value
-        )
-        await self.client.ws.send_as_proto(proto)
 
     @property
     def users(self) -> List[User]:
@@ -370,7 +377,6 @@ class ConnectionState:
             self._confirmations[trade_id] = Confirmation(self, id, confid, key, trade_id)
         return self._confirmations
 
-
     def _device_id(self) -> str:
         return generate_device_id(str(self._id64))
 
@@ -385,3 +391,36 @@ class ConnectionState:
                 return True
 
         return False
+
+    # ws stuff
+
+    async def send_message(self, id64: int, content: str) -> None:
+        await self.client.ws.send_um(
+            "FriendMessages.SendMessage#1_Request",
+            steamid=str(id64), message=content,
+            chat_entry_type=EChatEntryType.ChatMsg.value,
+        )
+        proto = f_msg.CFriendMessages_IncomingMessage_Notification(
+            steamid_friend=0.0, chat_entry_type=1,
+            message=content, rtime32_server_timestamp=time()
+        )
+        message = Message(state=self, proto=proto)
+        message.author = self.client.user
+        self.dispatch('message', message)
+
+    # parsers
+
+    @register(EMsg.ServiceMethod)
+    def message_create(self, msg: MsgProto):
+        if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
+            message = Message(state=self, proto=msg.body)
+            self.dispatch('message', message)
+
+    """@register(EMsg.ClientUserNotifications)
+    def parse_notification(self, msg: MsgProto):
+        # print(msg, msg.body)
+        pass"""
+
+    @register(EMsg.ClientFriendsGroupsList)  # this appears to be one the last multis you receive
+    def ready(self, _):
+        self.client._handle_ready()
