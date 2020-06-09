@@ -935,6 +935,16 @@ class Client:
         print(f'Ignoring exception in {event}')
         traceback.print_exception(type(error), error, error.__traceback__)
 
+    async def on_message(self, message: 'steam.Message'):
+        """|coro|
+        Called when the client receives a message from a user.
+
+        Parameters
+        ----------
+        message: :class:`~steam.Message`
+            The message that was received.
+        """
+
     async def on_trade_receive(self, trade: 'steam.TradeOffer'):
         """|coro|
         Called when the client receives a trade offer from a user.
