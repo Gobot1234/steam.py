@@ -445,11 +445,7 @@ class Client:
         await self.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
         await self._connection.__ainit__()
         self._closed = False
-        self._handle_ready()
-
-        # await self.connect()
-        while 1:
-            await asyncio.sleep(5)
+        await self.connect()
 
     async def _connect(self) -> None:
         resp = await self.http.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
