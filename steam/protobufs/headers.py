@@ -61,7 +61,7 @@ class MsgHdr:
         return struct.pack("<Iqq", self.msg, self.target_job_id, self.source_job_id)
 
     def load(self, data):
-        (msg, self.target_job_id, self.source_job_id) = struct.unpack_from("<Iqq", data)
+        msg, self.target_job_id, self.source_job_id = struct.unpack_from("<Iqq", data)
         self.msg = EMsg(msg)
 
 
@@ -133,7 +133,7 @@ class MsgHdrProtoBuf:
 
         self.msg = EMsg(clear_proto_bit(msg))
         self._full_size = self.SIZE + proto_length
-        self.proto.FromString(data[self.SIZE:self._full_size])
+        self.proto = self.proto.FromString(data[self.SIZE:self._full_size])
 
 
 class GCMsgHdr:
@@ -198,4 +198,4 @@ class GCMsgHdrProto:
 
         if self.header_length:
             x = GCMsgHdrProto.SIZE
-            self.proto.FromString(data[x:x + self.header_length])
+            self.proto = self.proto.FromString(data[x:x + self.header_length])
