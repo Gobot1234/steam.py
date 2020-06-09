@@ -42,7 +42,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import aiohttp
 
@@ -76,13 +76,10 @@ class ReconnectWebSocket(Exception):
 
 
 class ConnectionClosed(Exception):
-    def __init__(self, socket: aiohttp.ClientWebSocketResponse, cm: str, cms: 'CMServerList'):
-        self.code = socket.close_code
-        # aiohttp doesn't seem to consistently provide close reason
-        self.reason = ''
+    def __init__(self, cm: str, cms: 'CMServerList'):
         self.cm = cm
         self.cm_list = cms
-        super().__init__(f'Connection to {self.cm}, has closed with code: {self.code}')
+        super().__init__(f'Connection to {self.cm}, has closed.')
 
 
 class WebSocketClosure(Exception):
@@ -148,10 +145,6 @@ class CMServerList(AsyncIterator):
         self.cell_id = cell_id
         self.merge_list(websockets_list)
 
-        # this way we can have the benefits of not connecting
-        # to borked cms whilst maintaining initial speed
-        self._state.loop.create_task(self.ping_cms())
-
         return True
 
     def reset_all(self) -> None:
@@ -173,24 +166,6 @@ class CMServerList(AsyncIterator):
         if len(self.dict) > total:
             log.debug(f'Added {len(self.dict) - total} new CM server addresses.')
         self.last_updated = int(time.time())
-
-    async def ping_cms(self) -> None:
-        log.debug(f'Pinging {len(self.dict)} CMs')
-        for host in self.dict:
-            start = time.perf_counter()
-            try:
-                resp = await self._state.http._session.get(f'https://{host}/cmping', timeout=5)
-                if resp.status != 200:
-                    self.mark_bad(host)
-                load = resp.headers['X-Steam-CMLoad']
-            except (KeyError, asyncio.TimeoutError):
-                self.mark_bad(host)
-            else:
-                latency = time.perf_counter() - start
-                score = (int(load) * 2) + latency
-                self.mark_good(host, score)
-
-        log.debug('Finished pinging CMs')
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool
@@ -249,18 +224,16 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
             except Exception:
                 self.stop()
-            else:
-                self._last_send = time.perf_counter()
 
-            if self._last_send - time.perf_counter() > self.interval:
+            if time.perf_counter() - self._last_send > self.interval:
                 self.ack()
+            self._last_send = time.perf_counter()
 
     def stop(self) -> None:
         self._stop_ev.set()
 
     def ack(self) -> None:
-        ack_time = time.perf_counter()
-        self._last_ack = ack_time
+        self._last_ack = ack_time = time.perf_counter()
         self.latency = ack_time - self._last_send
         if self.latency > 10:
             log.warning(self.behind_msg.format(self.latency))
@@ -270,9 +243,13 @@ class SteamWebSocket:
     def __init__(self, socket: aiohttp.ClientWebSocketResponse, *, loop: asyncio.AbstractEventLoop):
         self.socket = socket
         self.loop = loop
+
+        self._connection: Optional['ConnectionState'] = None
+        self.cm_list: Optional[CMServerList] = None
         self._dispatch = lambda *args: None
+
         self.cm = None
-        self.cm_list = None
+        self._parsers = {}
         self.connected = False
         self.channel_key = None
         self.channel_hmac = None
@@ -295,10 +272,6 @@ class SteamWebSocket:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return self._keep_alive.latency
 
-    @property
-    def open(self) -> bool:
-        return not self.socket.closed
-
     @classmethod
     async def from_client(cls, client: 'Client', cm: str = None,
                           cms: CMServerList = None) -> 'SteamWebSocket':
@@ -313,12 +286,13 @@ class SteamWebSocket:
                 web_logon_nonce=client.token, client_os_type=4294966596,
                 protocol_version=65580, chat_mode=2, ui_mode=4, qos_level=2,
             )
-            payload.header.steam_id = client.user.id64
+            payload.steam_id = client.user.id64
+            payload.session_id = 0
 
             ws = cls(socket, loop=client.loop)
             # dynamically add attributes needed
             ws._connection = connection
-            # ws._parsers = connection.parsers
+            ws._parsers = connection.parsers
             ws._dispatch = client.dispatch
             ws.cm = cm
             ws.cm_list = cm_list
@@ -328,35 +302,37 @@ class SteamWebSocket:
             return ws
 
     async def poll_event(self) -> None:
-        try:
-            message = await self.socket.receive()
-            if message.type is aiohttp.WSMsgType.ERROR:
-                log.debug(f'Received {message}')
-                raise message.data
-            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE):
-                log.debug(f'Received {message}')
-                raise WebSocketClosure
+        async for message in self.socket:
+            try:
+                if message.type is aiohttp.WSMsgType.ERROR:
+                    log.debug(f'Received {message}')
+                    raise message.data
+                if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE):
+                    log.debug(f'Received {message}')
+                    raise WebSocketClosure
 
-            message = message.data
-            if self.channel_key:
-                if self.channel_hmac:
-                    try:
-                        message = utils.symmetric_decrypt_HMAC(message.data, self.channel_key, self.channel_hmac)
-                    except RuntimeError as e:
-                        return log.exception(e)
-                else:
-                    message = utils.symmetric_decrypt(message.data, self.channel_key)
-            await self.receive(message)
-        except WebSocketClosure:
-            self.handle_close()
+                message = message.data
+                if not message:
+                    return
+                if self.channel_key:
+                    if self.channel_hmac:
+                        try:
+                            message = utils.symmetric_decrypt_HMAC(message.data, self.channel_key, self.channel_hmac)
+                        except RuntimeError as e:
+                            return log.exception(e)
+                    else:
+                        message = utils.symmetric_decrypt(message.data, self.channel_key)
+                await self.receive(message)
+            except WebSocketClosure:
+                self.handle_close()
 
     async def receive(self, message: bytes) -> None:
         self._dispatch('socket_raw_receive', message)
 
-        emsg_value, = struct.unpack_from("<I", message)
+        emsg_value = struct.unpack_from("<I", message)[0]
         emsg = EMsg(utils.clear_proto_bit(emsg_value))
         if emsg in self.handlers:
-            return await self.handlers[emsg](emsg, message)
+            return await self.handlers[emsg](message)
 
         if not self.connected:
             return log.debug(f"Dropped unexpected message: {repr(emsg)}")
@@ -374,6 +350,13 @@ class SteamWebSocket:
 
         log.debug(f'Socket has received {repr(msg)} from the websocket.')
         self._dispatch('socket_receive', msg)
+
+        try:
+            func = self._parsers[emsg]
+        except KeyError:
+            log.debug(f"Ignoring event {emsg}")
+        else:
+            func(self._connection, msg)
 
     async def send(self, data: bytes) -> None:
         self._dispatch('socket_raw_send', data)
@@ -403,33 +386,29 @@ class SteamWebSocket:
         await self.socket.close(code=code)
 
     def handle_close(self) -> None:
-        if self.socket.close_code not in {1000, 4004, 4010, 4011}:
-            log.info(f'Websocket closed with {self.socket.close_code}, attempting a reconnect.')
-            raise ReconnectWebSocket(self.cm)
-        log.info(f'Websocket closed with {self.socket.close_code}, cannot reconnect.')
-        raise ConnectionClosed(self.socket, self.cm, self.cm_list)
+        log.info(f'Websocket closed, cannot reconnect.')
+        raise ConnectionClosed(self.cm, self.cm_list)
 
-    async def handle_logon(self, emsg: EMsg, message: bytes) -> None:
-        msg = Msg(emsg, message, extended=True)
+    async def handle_logon(self, message: bytes) -> None:
+        msg = MsgProto(EMsg.ClientLogOnResponse, message)
         result = msg.body.eresult
 
         if result == EResult.OK:
             log.debug('Logon completed')
 
-            self.steam_id = SteamID(msg.header.steamid).id64
-            self.session_id = msg.header.session_id
+            self.steam_id = SteamID(msg.steam_id).id64
+            self.session_id = msg.session_id
             self.cell_id = self.cm_list.cell_id = msg.body.cell_id
 
             interval = msg.body.out_of_game_heartbeat_seconds
             self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
             self._keep_alive.start()
             log.debug('Heartbeat started.')
-
-            self._dispatch('ready')
         else:
-            raise ConnectionClosed(self.socket, self.cm, self.cm_list)
+            raise ConnectionClosed(self.cm, self.cm_list)
 
-    async def handle_encrypt_request(self, msg: MsgProto) -> None:
+    async def handle_encrypt_request(self, message: bytes) -> None:
+        msg = MsgProto(EMsg.ChannelEncryptResponse, message)
         log.debug("Securing channel")
 
         if msg.body.protocolVersion != 1:
@@ -452,12 +431,12 @@ class SteamWebSocket:
         self.channel_hmac = key[:16]
         log.debug('Channel secured')
 
-    async def handle_multi(self, msg: MsgProto) -> None:
-        log.debug('Recieved a multi, unpacking')
-
+    async def handle_multi(self, message: bytes) -> None:
+        msg = MsgProto(EMsg.Multi, message)
+        log.debug('Received a multi, unpacking')
         if msg.body.size_unzipped:
             log.debug(f'Multi: Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})')
-            data = await self.loop.run_in_executor(None, GzipFile(BytesIO(msg.body.message_body)).read)
+            data = await self.loop.run_in_executor(None, GzipFile(fileobj=BytesIO(msg.body.message_body)).read)
             if len(data) != msg.body.size_unzipped:
                 return log.info(f'Unzipped size mismatch for multi payload {msg}, discarding')
         else:
@@ -468,28 +447,21 @@ class SteamWebSocket:
             await self.receive(data[4:4 + size])
             data = data[4 + size:]
 
-    def handle_cm_list(self, msg: MsgProto) -> None:
+    async def handle_cm_list(self, message: bytes) -> None:
+        msg = MsgProto(EMsg.ClientCMList, message)
         log.debug("Updating CM list")
         self.cm_list.clear()
         self.cm_list.merge_list(msg.body.cm_websocket_addresses)
-        self.cm_list.cell_id = self.cell_id
 
-    async def send_um(self, name: str, params: dict = None) -> None:
+    async def send_um(self, name: str, **params) -> None:
         proto = get_um(name)
         if proto is None:
             raise ValueError(f'Failed to find method named: {name}')
 
-        message = MsgProto(EMsg.ServiceMethodCallFromClient, **params)
-        message.header.target_job_name = name
+        message = MsgProto(EMsg.ServiceMethodCallFromClient)
+        message.body = proto().from_dict(params)
+        message.header.target_job_name = name.replace('_Request', '').replace('_Response', '')
         message.header.job_id_source = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
-        await self.send_as_proto(message)
-
-    async def send_job(self, message: MsgProto, body_params: dict = None) -> None:
-        job_id = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
-        message.header.job_id_source = job_id
-        if body_params is not None:
-            message.body.from_dict(body_params)
-
         await self.send_as_proto(message)
 
     async def change_presence(self, *, games=None, status=None, ui_mode=None) -> None:
