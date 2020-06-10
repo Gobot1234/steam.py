@@ -35,8 +35,8 @@ from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
+    Awaitable,
     Callable,
-    Coroutine,
     List,
     Mapping,
     Optional,
@@ -112,8 +112,8 @@ def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 
 class ClientEventTask(asyncio.Task):
-    def __init__(self, original_coro: Callable[..., Coroutine], event_name: str,
-                 coro: Coroutine, *, loop: asyncio.AbstractEventLoop):
+    def __init__(self, original_coro: Callable[..., Awaitable[None]], event_name: str,
+                 coro: Awaitable[None], *, loop: asyncio.AbstractEventLoop):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
         self.__original_coro = original_coro
@@ -217,12 +217,12 @@ class Client:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return float('nan') if self.ws is None else self.ws.latency
 
-    def event(self, coro: Callable[..., None]) -> Callable[..., None]:
+    def event(self, coro: Callable[..., Awaitable[None]]) -> Callable[..., Awaitable[None]]:
         """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
 
-        Usage::
+        Usage: ::
 
             @client.event
             async def on_ready():
@@ -240,7 +240,8 @@ class Client:
         log.debug(f'{coro.__name__} has successfully been registered as an event')
         return coro
 
-    async def _run_event(self, coro: Callable[..., Coroutine], event_name: str, *args, **kwargs) -> None:
+    async def _run_event(self, coro: Callable[..., Awaitable[None]],
+                         event_name: str, *args, **kwargs) -> None:
         try:
             await coro(*args, **kwargs)
         except asyncio.CancelledError:
@@ -251,7 +252,8 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: Callable[..., Coroutine], event_name: str, *args, **kwargs) -> ClientEventTask:
+    def _schedule_event(self, coro: Callable[..., Awaitable[None]],
+                        event_name: str, *args, **kwargs) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
         return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
@@ -811,7 +813,7 @@ class Client:
         """
         await self._ready.wait()
 
-    def wait_for(self, event: str, *, check: Callable[..., bool] = None, timeout: float = None) -> Any:
+    def wait_for(self, event: str, *, check: Callable[..., bool] = None, timeout: float = None) -> Awaitable[Any]:
         """|coro|
         Waits for an event to be dispatched.
 
@@ -1078,4 +1080,25 @@ class Client:
         ----------
         listing: :class:`~steam.Listing`
             The listing that was cancelled.
+        """
+
+    async def on_user_update(self, before: 'steam.User', after: 'steam.User'):
+        """|coro|
+        Called when a user's their state, due to one or more
+        of the following attributes changing:
+
+            - username
+            - persona state
+            - avatar
+            - logon
+            - logout
+            - game
+
+
+        Parameters
+        ----------
+        before: :class:`~steam.User`
+            The user's state state.
+        after: :class:`~steam.User`
+            The user's state now.
         """
