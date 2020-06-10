@@ -93,7 +93,7 @@ class Msg:
             'msg', 'header',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        if not isinstance(self.body, str):
+        if not isinstance(self.body, str) and self.body is not None:
             resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
         else:
             resolved.append(f'body={self.body!r}')
@@ -164,7 +164,7 @@ class MsgProto:
             'msg', '_header',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        if not isinstance(self.body, str):
+        if not isinstance(self.body, str) and self.body is not None:
             resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
         else:
             resolved.append(f'body={self.body!r}')

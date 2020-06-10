@@ -147,8 +147,6 @@ UMS = {
     "FriendMessages.SendMessage#1_Request": steammessages_friendmessages.CFriendMessages_SendMessage_Request,
     "FriendMessages.SendMessage#1_Response": steammessages_friendmessages.CFriendMessages_SendMessage_Response,
     "FriendMessages.AckMessage#1": steammessages_friendmessages.CFriendMessages_AckMessage_Notification,
-    "FriendMessages.IsInFriendsUIBeta#1_Request": steammessages_friendmessages.CFriendMessages_IsInFriendsUIBeta_Request,
-    "FriendMessages.IsInFriendsUIBeta#1_Response": steammessages_friendmessages.CFriendMessages_IsInFriendsUIBeta_Response,
     "FriendMessagesClient.IncomingMessage#1": steammessages_friendmessages.CFriendMessages_IncomingMessage_Notification,
     "FriendMessagesClient.NotifyAckMessageEcho#1": steammessages_friendmessages.CFriendMessages_AckMessage_Notification,
     "UserAccount.CreateFriendInviteToken#1_Request": steammessages_useraccount.CUserAccount_CreateFriendInviteToken_Request,
