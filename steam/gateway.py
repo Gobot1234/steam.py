@@ -31,7 +31,6 @@ and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 """
 
 import asyncio
-import binascii
 import concurrent.futures
 import logging
 import random
@@ -48,7 +47,7 @@ import aiohttp
 
 from . import utils
 from .abc import SteamID
-from .enums import EResult, EUniverse
+from .enums import EResult
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .protobufs import EMsg, Msg, MsgProto, get_um
@@ -106,7 +105,7 @@ class CMServerList(AsyncIterator):
         if not await self.fetch_servers_from_api():  # TODO bootstrap from internal list?
             raise NoCMsFound('No Community Managers could be found to connect to')
 
-        good_servers = list(filter(lambda x: x[1]['quality'] == self.GOOD, self.dict.items()))
+        good_servers = [x for x in self.dict.items() if x[1]['quality'] == self.GOOD]
 
         if len(good_servers) == 0:
             log.debug('No good servers left. Resetting...')
@@ -114,8 +113,7 @@ class CMServerList(AsyncIterator):
             return
 
         ordered = sorted(good_servers, key=lambda x: x[1]['score'])
-        if ordered[0][1]['score'] == 0:  # check if CMs have been pinged yet
-            random.shuffle(ordered)
+        random.shuffle(ordered)
         for server_address, _ in ordered:
             self.queue.put_nowait(server_address)
 
@@ -234,7 +232,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
     def ack(self) -> None:
         self._last_ack = ack_time = time.perf_counter()
-        self.latency = ack_time - self._last_send
+        self.latency = self.interval - (ack_time - self._last_send)  # I think this is correct
         if self.latency > 10:
             log.warning(self.behind_msg.format(self.latency))
 
@@ -262,9 +260,7 @@ class SteamWebSocket:
 
         self.handlers = {
             EMsg.Multi: self.handle_multi,
-            EMsg.ClientCMList: self.handle_cm_list,
             EMsg.ClientLogOnResponse: self.handle_logon,
-            EMsg.ChannelEncryptRequest: self.handle_encrypt_request,
         }
 
     @property
@@ -312,16 +308,8 @@ class SteamWebSocket:
                     raise WebSocketClosure
 
                 message = message.data
-                if not message:
-                    return
-                if self.channel_key:
-                    if self.channel_hmac:
-                        try:
-                            message = utils.symmetric_decrypt_HMAC(message.data, self.channel_key, self.channel_hmac)
-                        except RuntimeError as e:
-                            return log.exception(e)
-                    else:
-                        message = utils.symmetric_decrypt(message.data, self.channel_key)
+                if not message:  # sometimes data can be empty/None
+                    continue
                 await self.receive(message)
             except WebSocketClosure:
                 self.handle_close()
@@ -338,6 +326,14 @@ class SteamWebSocket:
             return log.debug(f"Dropped unexpected message: {repr(emsg)}")
         if emsg in (EMsg.ChannelEncryptRequest, EMsg.ChannelEncryptResponse):
             msg = Msg(emsg, message)
+        elif emsg == EMsg.ServiceMethodResponse:
+            if utils.is_proto(emsg_value):
+                msg = MsgProto(emsg)
+                msg.body = get_um(f'{msg.header.target_job_name}_Response')
+            else:
+                msg = Msg(emsg)
+                msg.body = get_um(f'{msg.header.target_job_name}_Response')
+
         else:
             try:
                 if utils.is_proto(emsg_value):
@@ -370,12 +366,6 @@ class SteamWebSocket:
 
         self._dispatch('socket_send', message)
         data = message.serialize()
-
-        if self.channel_key:
-            if self.channel_hmac:
-                data = utils.symmetric_encrypt_HMAC(data, self.channel_key, self.channel_hmac)
-            else:
-                data = utils.symmetric_encrypt(data, self.channel_key)
         await self.send(data)
 
     async def close(self, code: int = 4000) -> None:
@@ -404,32 +394,11 @@ class SteamWebSocket:
             self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
             self._keep_alive.start()
             log.debug('Heartbeat started.')
+
+            await self.send_as_proto(MsgProto(EMsg.ClientChangeStatus, persona_state=1))
+            # we want to receive persona state updates and other things
         else:
             raise ConnectionClosed(self.cm, self.cm_list)
-
-    async def handle_encrypt_request(self, message: bytes) -> None:
-        msg = MsgProto(EMsg.ChannelEncryptResponse, message)
-        log.debug("Securing channel")
-
-        if msg.body.protocolVersion != 1:
-            msg = 'Unsupported protocol version'
-            log.exception(msg)
-            raise RuntimeError(msg)
-        if msg.body.universe != EUniverse.Public:
-            msg = 'Unsupported universe'
-            log.exception(msg)
-            raise RuntimeError(msg)
-
-        challenge = msg.body.challenge
-        key, body_key = utils.generate_session_key(challenge)
-        resp = Msg(
-            EMsg.ChannelEncryptResponse, key=body_key,
-            crc=binascii.crc32(msg.body.key) & 0xffffffff
-        )
-        await self.send_as_proto(resp)
-        self.channel_key = key
-        self.channel_hmac = key[:16]
-        log.debug('Channel secured')
 
     async def handle_multi(self, message: bytes) -> None:
         msg = MsgProto(EMsg.Multi, message)
@@ -446,12 +415,6 @@ class SteamWebSocket:
             size = struct.unpack_from("<I", data)[0]
             await self.receive(data[4:4 + size])
             data = data[4 + size:]
-
-    async def handle_cm_list(self, message: bytes) -> None:
-        msg = MsgProto(EMsg.ClientCMList, message)
-        log.debug("Updating CM list")
-        self.cm_list.clear()
-        self.cm_list.merge_list(msg.body.cm_websocket_addresses)
 
     async def send_um(self, name: str, **params) -> None:
         proto = get_um(name)
