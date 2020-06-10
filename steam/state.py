@@ -28,21 +28,27 @@ import asyncio
 import logging
 import re
 import weakref
+from datetime import datetime
 from time import time
 from typing import TYPE_CHECKING, Callable, List, Optional
 
 import aiohttp
 from bs4 import BeautifulSoup
+from stringcase import snakecase
 from yarl import URL as _URL
 
 from .abc import SteamID
+from .channel import DMChannel
 from .enums import EChatEntryType, EMarketListingState, ETradeOfferState, EType
 from .errors import AuthenticatorError, HTTPException, InvalidCredentials
 from .game import Game
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
 from .message import Message
 from .models import URL, Invite
-from .protobufs import EMsg, MsgProto, steammessages_friendmessages as f_msg
+from .protobufs import EMsg, MsgProto
+from .protobufs.steammessages_friendmessages import (
+    CFriendMessages_IncomingMessage_Notification as MessageNotification
+)
 from .trade import TradeOffer
 from .user import User
 from .utils import get
@@ -52,6 +58,8 @@ if TYPE_CHECKING:
     from .http import HTTPClient
     from .market import Listing
     from .models import Comment
+
+    from .protobufs.steammessages_clientserver_friends import CMsgClientPersonaState
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +78,7 @@ def register(emsg: EMsg):
 
 
 class ConnectionState:
-    parsers = {}
+    parsers = dict()
 
     def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
@@ -394,17 +402,18 @@ class ConnectionState:
 
     # ws stuff
 
-    async def send_message(self, id64: int, content: str) -> None:
+    async def send_user_message(self, user: 'User', content: str) -> None:
         await self.client.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
-            steamid=str(id64), message=content,
+            steamid=str(user.id64), message=content,
             chat_entry_type=EChatEntryType.ChatMsg.value,
         )
-        proto = f_msg.CFriendMessages_IncomingMessage_Notification(
+        proto = MessageNotification(
             steamid_friend=0.0, chat_entry_type=1,
             message=content, rtime32_server_timestamp=time()
         )
-        message = Message(state=self, proto=proto)
+        channel = DMChannel(state=self, participant=user)
+        message = Message(state=self, proto=proto, channel=channel)
         message.author = self.client.user
         self.dispatch('message', message)
 
@@ -413,14 +422,64 @@ class ConnectionState:
     @register(EMsg.ServiceMethod)
     def message_create(self, msg: MsgProto):
         if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
-            message = Message(state=self, proto=msg.body)
-            self.dispatch('message', message)
+            msg.body: MessageNotification
+            if msg.body.chat_entry_type == 1:  # normal chat message
+                channel = DMChannel(state=self, participant=self.get_user(int(msg.body.steamid_friend)))
+                message = Message(state=self, proto=msg.body, channel=channel)
+                self.dispatch('message', message)
+            if msg.body.chat_entry_type == 2:  # typing notification
+                user = self.get_user(int(msg.body.steamid_friend))
+                when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
+                self.dispatch('typing', user, when)
 
-    """@register(EMsg.ClientUserNotifications)
+    """
+    @register(EMsg.ClientUserNotifications)
     def parse_notification(self, msg: MsgProto):
-        # print(msg, msg.body)
-        pass"""
+        if msg.body:
+            print(msg, msg.body)
+    """
 
-    @register(EMsg.ClientFriendsGroupsList)  # this appears to be one the last multis you receive
+    @register(EMsg.ClientFriendsGroupsList)  # this appears to be one the last multi you receive
     def ready(self, _):
         self.client._handle_ready()
+
+    @register(EMsg.ClientCMList)
+    def handle_cm_list_update(self, msg: MsgProto):
+        log.debug("Updating CM list")
+        self.client.ws.cm_list.clear()
+        self.client.ws.cm_list.merge_list(msg.body.cm_websocket_addresses)
+
+    @register(EMsg.ClientPersonaState)
+    def parse_persona_state_update(self, msg: MsgProto):
+        msg.body: 'CMsgClientPersonaState'
+        for friend in msg.body.friends:
+            data = friend.to_dict(snakecase)
+            user_id64 = int(data['friendid'])
+            if user_id64 == self._id64:
+                continue
+            data = self.patch_user_from_ws(data)
+            before = after = self.get_user(user_id64)
+            after._update(data)
+            old = [getattr(before, attr) for attr in dir(before)]
+            new = [getattr(after, attr) for attr in dir(after)]
+            if old != new:
+                self._store_user(data)
+                self.dispatch('user_update', before, after)
+
+    def patch_user_from_ws(self, data) -> dict:
+        data['personaname'] = data['player_name']
+        data['avatarfull'] = data['avatar_hash']
+
+        """
+        if data['avatar_hash'] != '\x00' * 20:
+            avatar_hash = data['avatar_hash'].encode('utf-8').hex()  # this is wrong
+        else:
+            avatar_hash = 'fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb'
+        data['avatarfull'] = f'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/' \
+                             f'{avatar_hash[:2]}/{avatar_hash}_full.jpg'
+        """
+
+        if 'last_logoff' in data:
+            data['lastlogoff'] = data['last_logoff']
+        data['personstateflags'] = data.get('persona_state_flags', 0)
+        return data
