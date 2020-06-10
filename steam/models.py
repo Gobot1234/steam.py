@@ -158,6 +158,7 @@ class Invite:
         """
         if self.type == 'Profile':
             await self._state.http.accept_user_invite(self.invitee.id64)
+            self._state.client.user.friends.append(self.invitee)
         else:
             await self._state.http.accept_group_invite(self.group.id64)
 
