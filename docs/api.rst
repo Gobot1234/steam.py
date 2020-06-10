@@ -100,6 +100,8 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. automethod:: Client.on_listing_cancel
 
+.. automethod:: Client.on_user_update
+
 
 
 Utilities
