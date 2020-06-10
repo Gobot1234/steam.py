@@ -42,8 +42,7 @@ from typing import (
 )
 
 import aiohttp
-from Cryptodome.Cipher import PKCS1_v1_5
-from Cryptodome.PublicKey.RSA import construct
+import rsa
 from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
@@ -52,8 +51,6 @@ from .models import URL
 from .user import ClientUser
 
 if TYPE_CHECKING:
-    from Cryptodome.PublicKey.RSA import RsaKey
-
     from .client import Client
     from .image import Image
 
@@ -252,11 +249,11 @@ class HTTPClient:
                 return await self._get_rsa_params(current_repetitions + 1)
             raise ValueError('could not obtain rsa-key')
         else:
-            return construct((rsa_mod, rsa_exp)), rsa_timestamp
+            return rsa.PublicKey(rsa_mod, rsa_exp), rsa_timestamp
 
     async def _send_login_request(self) -> dict:
         rsa_key, rsa_timestamp = await self._get_rsa_params()
-        encrypted_password = b64encode(PKCS1_v1_5.new(rsa_key).encrypt(self.password.encode('ascii'))).decode()
+        encrypted_password = b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_key)).decode()
         payload = {
             "username": self.username,
             "password": encrypted_password,
