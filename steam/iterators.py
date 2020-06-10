@@ -208,7 +208,7 @@ class AsyncIterator(_AsyncIterator):
 
 
 class CommentsIterator(AsyncIterator):
-    __slots__ = ('owner', '_id')
+    __slots__ = ('owner',)
 
     def __init__(self, state: 'ConnectionState', before: datetime,
                  after: datetime, limit: int, owner: Union['BaseUser', 'Group']):
@@ -216,20 +216,21 @@ class CommentsIterator(AsyncIterator):
         self.owner = owner
 
     async def fill(self) -> None:
-        from .user import User
+        from .user import User, BaseUser
 
         data = await self._state.http.get_comments(
             id64=self.owner.id64, limit=self.limit,
-            comment_type='Profile' if isinstance(self.owner, User) else 'Clan'
+            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan'
         )
         soup = BeautifulSoup(data['comments_html'], 'html.parser')
         comments = soup.find_all('div', attrs={'class': 'commentthread_comment responsive_body_text'})
         to_fetch = []
 
         for comment in comments:
-            timestamp = datetime.utcfromtimestamp(int(comment['data-timestamp']))
+            timestamp = comment.find('span', attrs={"class": 'commentthread_comment_timestamp'})['data-timestamp']
+            timestamp = datetime.utcfromtimestamp(int(timestamp))
             if self.after < timestamp < self.before:
-                author_id = int(comment['data-miniprofile'])
+                author_id = int(comment.find('a', attrs={"class": 'commentthread_author_link'})['data-miniprofile'])
                 comment_id = int(re.findall(r'comment_([0-9]*)', str(comment))[0])
                 content = comment.find('div', attrs={"class": 'commentthread_comment_text'}).get_text().strip()
                 to_fetch.append(utils.make_steam64(author_id))
@@ -241,7 +242,7 @@ class CommentsIterator(AsyncIterator):
                     self.queue.put_nowait(comment)
                 except asyncio.QueueFull:
                     return
-        users = await self._state.http.get_profiles(to_fetch)
+        users = await self._state.http.get_users(to_fetch)
         for user in users:
             author = User(state=self._state, data=user)
             for comment in self.queue._queue:
@@ -380,7 +381,7 @@ class MarketListingsIterator(AsyncIterator):
                                      price[0][0] == listing['id']]
                             if price:
                                 listing['price'] = price[0][1]
-                        except TypeError:  # TODO
+                        except TypeError:  # FIXME
                             # this isn't very common, the listing couldn't be
                             # found I need to do more handling for this to make
                             # sure it doesn't happen but for now this will do.
