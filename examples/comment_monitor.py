@@ -1,10 +1,3 @@
-"""
-This example shows a simple comment section monitor
-if the comment is in the ClientUser's comments it will
-check if the comment's author is a friend, then if it contains
-a url then if so it will delete it.
-"""
-
 import re
 
 import steam
@@ -56,4 +49,4 @@ async def on_comment(comment):
         # finally warn them about posting urls in your comments
 
 
-client.run(username=username, password=password, shared_secret=shared_secret)
+client.run(username, password, shared_secret=shared_secret)

@@ -1,9 +1,3 @@
-"""
-This example aims to show a very basic trade bot and
-subclassing Client. It will print any trade offers received
-and if the trade offer is a gift it will be automatically accepted
-"""
-
 import steam
 
 # Please make sure that you do NOT ever share these,
@@ -55,4 +49,4 @@ class MyClient(steam.Client):
 
 
 client = MyClient()
-client.run(username=username, password=password, shared_secret=shared_secret)
+client.run(username, password, shared_secret=shared_secret)
