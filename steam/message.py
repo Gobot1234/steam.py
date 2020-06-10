@@ -27,10 +27,10 @@ SOFTWARE.
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from .enums import EChatEntryType
-
 if TYPE_CHECKING:
+    from .channel import DMChannel
     from .state import ConnectionState
+
 
 __all__ = (
     'Message',
@@ -38,20 +38,20 @@ __all__ = (
 
 
 class Message:
+    """Represents a message from a User."""
 
     __slots__ = ('type', 'author', 'channel', 'content', 'created_at', '_state')
 
-    def __init__(self, state: 'ConnectionState', proto):
+    def __init__(self, state: 'ConnectionState', proto, channel: 'DMChannel'):
         self._state = state
-        self.author = state.get_user(proto.steamid_friend)
-        self.channel = self.author  # FIXME will fix later
+        self.author = channel.participant
+        self.channel = channel
         self.content = proto.message
         self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
-        self.type = EChatEntryType(proto.chat_entry_type)
 
     def __repr__(self):
         attrs = (
-            'author', 'type'
+            'author', 'channel'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Message {' '.join(resolved)}>"
