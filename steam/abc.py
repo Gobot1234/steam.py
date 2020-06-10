@@ -351,12 +351,24 @@ class BaseUser(SteamID):
     """
 
     __slots__ = ('name', 'game', 'state', 'flags', 'country', 'primary_group',
-                 'trade_url', 'real_name', 'avatar_url',
-                 'created_at', 'last_logoff', '_state', '_data')
+                 'trade_url', 'real_name', 'avatar_url', 'last_seen_online',
+                 'created_at', 'last_logoff', 'last_logon', '_state', '_data')
 
     def __init__(self, state: 'ConnectionState', data: dict):
         super().__init__(data['steamid'])
         self._state = state
+        self.name = None
+        self.real_name = None
+        self.avatar_url = None
+        self.primary_group = None
+        self.country = None
+        self.created_at = None
+        self.last_logoff = None
+        self.last_logon = None
+        self.last_seen_online = None
+        self.state = None
+        self.flags = None
+        self.game = None
         self._update(data)
 
     def __repr__(self):
@@ -373,17 +385,25 @@ class BaseUser(SteamID):
     def _update(self, data) -> None:
         self._data = data
         self.name = data['personaname']
-        self.real_name = data.get('realname')
-        self.avatar_url = data.get('avatarfull')
+        self.real_name = data.get('realname') or self.real_name
+        self.avatar_url = data.get('avatarfull') or self.avatar_url
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
-        self.primary_group = SteamID(data['primaryclanid']) if 'primaryclanid' in data else None
-        self.country = data.get('loccountrycode')
-        self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
-        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data else None
-        self.state = EPersonaState(data.get('personastate', 0))
-        self.flags = EPersonaStateFlag(data.get('personastateflags', 0))
-        self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid'])) if 'gameextrainfo' in data else None
+        self.primary_group = SteamID(data['primaryclanid']) \
+            if 'primaryclanid' in data else None or self.primary_group
+        self.country = data.get('loccountrycode') or self.country
+        self.created_at = datetime.utcfromtimestamp(data['timecreated']) \
+            if 'timecreated' in data else None or self.created_at
+        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) \
+            if 'lastlogoff' in data else None or self.last_logoff
+        self.last_logon = datetime.utcfromtimestamp(data['last_logon']) \
+            if 'last_logon' in data else None or self.last_logon
+        self.last_seen_online = datetime.utcfromtimestamp(data['last_seen_online']) \
+            if 'last_seen_online' in data else None or self.last_seen_online
+        self.game = Game(title=data.get('gameextrainfo'), app_id=data['gameid']) \
+            if 'gameextrainfo' in data else None or self.game
+        self.state = EPersonaState(data.get('personastate', 0)) or self.state
+        self.flags = EPersonaStateFlag(data.get('personastateflags', 0)) or self.flags
 
     async def update(self) -> None:
         data = await self._state.http.get_user(self.id64)
@@ -435,7 +455,7 @@ class BaseUser(SteamID):
         resp = await self._state.http.get_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
-    async def fetch_friends(self) -> List['User']:
+    async def friends(self) -> List['User']:
         """|coro|
         Fetch the list of :class:`~steam.User`'s friends from the API.
 
@@ -622,12 +642,5 @@ class Messageable(metaclass=abc.ABCMeta):
             Sending the message failed.
         :exc:~steam.Forbidden
             You do not have permission to send the message.
-
-        Returns
-        -------
-        :class:`~steam.Message`
-            The message that was sent.
         """
-        # ret = state.create_message(channel=channel, data=data)
-        # return ret
         pass
