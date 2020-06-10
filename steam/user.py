@@ -29,7 +29,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, List, Optional
 
 from .abc import BaseUser, Messageable
-from .enums import *
 from .models import URL
 
 if TYPE_CHECKING:
@@ -43,14 +42,6 @@ __all__ = (
     'User',
     'ClientUser',
 )
-
-ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
-
-_ICODE_HEX = "0123456789abcdef"
-_ICODE_CUSTOM = "bcdfghjkmnpqrtvw"
-_ICODE_VALID = f'{_ICODE_HEX}{_ICODE_CUSTOM}'
-_ICODE_MAPPING = dict(zip(_ICODE_HEX, _ICODE_CUSTOM))
-_ICODE_INVERSE_MAPPING = dict(zip(_ICODE_CUSTOM, _ICODE_HEX))
 
 
 class User(Messageable, BaseUser):
@@ -114,6 +105,7 @@ class User(Messageable, BaseUser):
         Remove an :class:`User` from your friends list.
         """
         await self._state.http.remove_user(self.id64)
+        self._state.client.user.friends.remove(self)
 
     async def block(self) -> None:
         """|coro|
@@ -149,7 +141,9 @@ class User(Messageable, BaseUser):
         seconds = their_escrow['escrow_end_duration_seconds']
         return timedelta(seconds=seconds) if seconds else None
 
-    async def send(self, content: str = None, *, trade: 'TradeOffer' = None, image: 'Image' = None):
+    async def send(self, content: str = None, *,
+                   trade: 'TradeOffer' = None,
+                   image: 'Image' = None) -> None:
         """|coro|
         Send a message, trade or image to an :class:`User`.
 
@@ -169,7 +163,7 @@ class User(Messageable, BaseUser):
         """
 
         if content is not None:
-            await self._state.send_message(self.id64, str(content))
+            await self._state.send_user_message(self, str(content))
         if image is not None:
             await self._state.http.send_image(self.id64, image)
         if trade is not None:
@@ -248,7 +242,8 @@ class ClientUser(BaseUser):
         self.friends = []
 
     async def __ainit__(self):
-        await self.fetch_friends()
+        friends = await self._state.http.get_friends(self.id64)
+        self.friends = [self._state._store_user(friend) for friend in friends]
 
     def __repr__(self):
         attrs = (
@@ -257,10 +252,6 @@ class ClientUser(BaseUser):
         resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
         resolved.append(super().__repr__())
         return f"<ClientUser {' '.join(resolved)}>"
-
-    async def fetch_friends(self) -> List[User]:
-        self.friends = await super().fetch_friends()
-        return self.friends
 
     async def wallet_balance(self) -> Optional[float]:
         """|coro|
