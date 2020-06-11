@@ -93,9 +93,9 @@ class Game:
         if app_id is not None and title is None:
             if not str(app_id).isdigit():
                 raise ValueError(f'app_id expected to be type int not {repr(type(app_id).__name__)}')
-            if app_id < 0:
+            self.app_id = int(app_id)
+            if self.app_id < 0:
                 raise ValueError('app_id cannot be negative')
-            app_id = int(app_id)
             mapping = mapping.get(app_id)
             if mapping is not None:
                 self.title = mapping[0]
@@ -103,7 +103,6 @@ class Game:
             else:
                 self.title = None
                 self.context_id = 2
-            self.app_id = app_id
 
         elif app_id is None and title is not None:
             mapping = mapping.get(title)
