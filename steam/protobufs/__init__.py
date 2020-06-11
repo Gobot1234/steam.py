@@ -30,13 +30,6 @@ from typing import Optional, Type, Union
 
 import betterproto
 
-from . import (
-    steammessages_base,
-    steammessages_clientserver,
-    steammessages_clientserver_2,
-    steammessages_clientserver_friends,
-    steammessages_clientserver_login,
-)
 from .emsg import EMsg
 from .headers import *
 from .protobufs import PROTOBUFS
@@ -88,6 +81,9 @@ class Msg:
         if parse:
             self.parse()
         if kwargs:
+            for (key, value) in kwargs.items():
+                if isinstance(value, IntEnum):
+                    kwargs[key] = value.value
             self.body.from_dict(kwargs)
 
     def __repr__(self):
