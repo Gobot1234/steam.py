@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 import asyncio
 import json
 import re
+from inspect import isawaitable
 from operator import attrgetter
 from typing import (
     Any,
@@ -427,8 +428,8 @@ def get(iterable: Iterable, **attrs) -> Optional[Any]:
     return None
 
 
-async def maybe_coroutine(func: Union[Callable, Coroutine], *args, **kwargs) -> Any:
-    func = func(*args, **kwargs)
-    if asyncio.iscoroutinefunction(func):
-        return await func
-    return func
+async def maybe_coroutine(func: Callable[..., Union[Any, Coroutine]], *args, **kwargs) -> Any:
+    value = func(*args, **kwargs)
+    if isawaitable(value):
+        return await value
+    return value
