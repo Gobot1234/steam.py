@@ -939,7 +939,7 @@ class Client:
 
     async def on_message(self, message: 'steam.Message'):
         """|coro|
-        Called when the client receives a message from a user.
+        Called when a message is created.
 
         Parameters
         ----------
@@ -947,9 +947,21 @@ class Client:
             The message that was received.
         """
 
+    async def on_typing(self, user: 'steam.User', when: datetime):
+        """|coro|
+        Called when typing is started.
+
+        Parameters
+        ----------
+        user: :class:`~steam.User`
+            The user that started typing.
+        when: :class:`datetime.datetime`
+            The time the user started typing at.
+        """
+
     async def on_trade_receive(self, trade: 'steam.TradeOffer'):
         """|coro|
-        Called when the client receives a trade offer from a user.
+        Called when the client receives a trade offer.
 
         Parameters
         ----------
@@ -959,7 +971,7 @@ class Client:
 
     async def on_trade_send(self, trade: 'steam.TradeOffer'):
         """|coro|
-        Called when the client or a user sends a trade offer.
+        Called when the client sends a trade offer.
 
         Parameters
         ----------
@@ -1032,13 +1044,14 @@ class Client:
             The comment received.
         """
 
-    async def on_invite(self, invite: 'steam.Invite'):
+    async def on_user_invite(self, invite: 'steam.UserInvite'):
         """|coro|
-        Called when the client receives an invite notification.
+        Called when the client receives an invite from a User
+        to become a friend.
 
         Parameters
         ----------
-        invite: :class:`~steam.Invite`
+        invite: :class:`~steam.UserInvite`
             The invite received.
         """
 
