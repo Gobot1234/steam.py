@@ -86,9 +86,9 @@ class PriceOverview:
     -------------
     volume: :class:`int`
         The amount of items are currently on the market.
-    lowest_price: :class:`float`
+    lowest_price: :class:`str`
         The lowest price observed by the market.
-    median_price: :class:`float`
+    median_price: :class:`str`
         The median price observed by the market.
     """
 
@@ -96,12 +96,8 @@ class PriceOverview:
 
     def __init__(self, data: dict):
         self.volume = int(data['volume'].replace(',', ''))
-        search = re.search(r'[^\d]*(\d*)[.,](\d*)', data['lowest_price'])
-        self.lowest_price = float(f'{search.group(1)}.{search.group(2)}') \
-            if search.group(2) else float(search.group(1))
-        search = re.search(r'[^\d]*(\d*)[.,](\d*)', data['median_price'])
-        self.median_price = float(f'{search.group(1)}.{search.group(2)}') \
-            if search.group(2) else float(search.group(1))
+        self.lowest_price = data['lowest_price']
+        self.median_price = data['median_price']
 
     def __repr__(self):
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
@@ -164,8 +160,8 @@ class Listing(Asset):
 
     def __repr__(self):
         attrs = (
-                    'name', 'id'
-                ) + Asset.__slots__
+            'name', 'id'
+        ) + Asset.__slots__
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Listing {' '.join(resolved)}>"
 

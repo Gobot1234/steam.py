@@ -373,10 +373,9 @@ class BaseUser(SteamID):
 
     def __repr__(self):
         attrs = (
-            'name', 'state',
+            'name', 'state', 'id', 'type', 'universe', 'instance'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.append(super().__repr__())
         return f"<User {' '.join(resolved)}>"
 
     def __str__(self):
@@ -643,4 +642,3 @@ class Messageable(metaclass=abc.ABCMeta):
         :exc:~steam.Forbidden
             You do not have permission to send the message.
         """
-        pass

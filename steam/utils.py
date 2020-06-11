@@ -175,9 +175,9 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
         The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
     """
     match = re.match(
-        r"^STEAM_(?P<universe>\d+)"
+        r"STEAM_(?P<universe>\d+)"
         r":(?P<reminder>[0-1])"
-        r":(?P<id>\d+)$", value
+        r":(?P<id>\d+)", value
     )
 
     if not match:
@@ -206,10 +206,10 @@ def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
         e.g. (account_id, type, universe, instance) or ``None``.
     """
     match = re.match(
-        rf"^\[(?P<type>[i{ETypeChars}]):"  # type char
+        rf"\[(?P<type>[i{ETypeChars}]):"  # type char
         r"(?P<universe>[0-4]):"  # universe
         r"(?P<id>\d{1,10})"  # accountid
-        r"(:(?P<instance>\d+))?\]$",  # instance
+        r"(:(?P<instance>\d+))?\]",  # instance
         value
     )
     if not match:
@@ -252,7 +252,7 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
         e.g. (account_id, type, universe, instance) or ``None``.
     """
     match = re.match(rf'(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))'
-                     rf'|(?P<code2>[\-{_INVITE_VALID}]+$)', code)
+                     rf'|(?P<code2>[\-{_INVITE_VALID}]+)', code)
     if not match:
         return None
 
@@ -300,8 +300,8 @@ async def steam64_from_url(url: str, timeout: float = 30) -> Optional[int]:
         If ``steamcommunity.com`` is down or no matching account is found returns ``None``
     """
 
-    search = re.search(r'^(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/'
-                       r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?$',
+    search = re.search(r'(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/'
+                       r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?',
                        str(url), flags=re.M)
 
     if search is None:

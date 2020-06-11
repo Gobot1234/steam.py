@@ -26,7 +26,7 @@ SOFTWARE.
 
 import re
 from datetime import timedelta
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from .abc import BaseUser, Messageable
 from .models import URL
@@ -247,10 +247,9 @@ class ClientUser(BaseUser):
 
     def __repr__(self):
         attrs = (
-            'name', 'state',
+            'name', 'state', 'id', 'type', 'universe', 'instance'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
-        resolved.append(super().__repr__())
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<ClientUser {' '.join(resolved)}>"
 
     async def wallet_balance(self) -> Optional[float]:
