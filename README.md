@@ -56,7 +56,7 @@ client.run('username', 'password')
 Links
 ------
 
-  - [Documentation](https://steampy.readthedocs.io/en/latest/index.html)
+  - [Documentation](https://steampy.rtfd.io/en/latest/index.html)
   - [Official Discord Server](https://discord.gg/MQ68WUS)
 
-##### Please note this repo is still in alpha if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new)
+##### Please note this repo is under going rapid development, if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new)
