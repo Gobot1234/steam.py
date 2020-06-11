@@ -93,7 +93,7 @@ class ConnectionState:
         self.started_listings_poll = False
         self._obj = None
         self._previous_iteration = 0
-        self.user_slots =  set(User.__slots__) - {'_state', '_data'}
+        self.user_slots = set(User.__slots__) - {'_state', '_data'}
 
         self._users = weakref.WeakValueDictionary()
         self._trades = dict()
@@ -245,7 +245,6 @@ class ConnectionState:
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
-
     async def _parse_comment(self) -> 'Comment':
         # this isn't very efficient but I'm not sure if it can be done better
         resp = await self.request('GET', f'{self.client.user.community_url}/commentnotifications')
@@ -392,7 +391,7 @@ class ConnectionState:
     @register(EMsg.ServiceMethod)
     def message_create(self, msg: MsgProto):
         if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
-            msg.body: MessageNotification
+            msg.body: 'MessageNotification'
             user = self.get_user(int(msg.body.steamid_friend))
 
             if msg.body.chat_entry_type == EChatEntryType.ChatMsg:
@@ -434,8 +433,9 @@ class ConnectionState:
             try:
                 data = self.patch_user_from_ws(data)
             except (KeyError, TypeError):
-                await self.process_user_invite(user_id64)
-                return
+                invitee = await self.fetch_user(user_id64)
+                invite = UserInvite(self, invitee)
+                self.dispatch('user_invite', invite)
 
             after._update(data)
             old = [getattr(before, attr) for attr in self.user_slots]
@@ -464,11 +464,6 @@ class ConnectionState:
         data['personstateflags'] = data.get('persona_state_flags', 0)
         return data
 
-    async def process_user_invite(self, user_id64: int) -> None:
-        invitee = await self.fetch_user(user_id64)
-        invite = UserInvite(self, invitee)
-        self.dispatch('user_invite', invite)
-
     """
     @register(EMsg.ClientFriendsList)
     def process_friends(self, msg: MsgProto) -> None:
@@ -482,3 +477,23 @@ class ConnectionState:
             comment = await self._parse_comment()
             self._obj = None
             self.dispatch('comment', comment)
+
+
+# user remove
+# receive in event <MsgProto msg=<EMsg.ClientFriendsList: 767> _
+# header=<MsgHdrProtoBuf msg=<EMsg.ClientFriendsList: 767> steamid='76561198400794682' clientSessionid=-2017801252>
+# bincremental=True friends=[{'ulfriendid': '76561198248053954'}]>
+
+# user add
+# receive in event <MsgProto msg=<EMsg.ClientFriendsList: 767> _
+# header=<MsgHdrProtoBuf msg=<EMsg.ClientFriendsList: 767> steamid='76561198400794682' clientSessionid=-2017801252>
+# bincremental=True friends=[{'ulfriendid': '76561198248053954', 'efriendrelationship': 2}]>
+# <MsgProto msg=<EMsg.ClientPersonaState: 766> _
+# header=<MsgHdrProtoBuf msg=<EMsg.ClientPersonaState: 766> steamid='76561198400794682' clientSessionid=-2017801252>
+# status_flags=2 friends=[{'friendid': '76561198248053954', 'player_name': 'Gobot1234'}]>
+
+
+# on_invite_accept
+# receive in event <MsgProto msg=<EMsg.ClientFriendsList: 767> _
+# header=<MsgHdrProtoBuf msg=<EMsg.ClientFriendsList: 767> steamid='76561198400794682' client_sessionid=-499266638>
+# bincremental=True friends=[{'ulfriendid': '76561198248053954', 'efriendrelationship': 3}]>

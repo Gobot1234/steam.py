@@ -50,7 +50,7 @@ from .abc import SteamID
 from .enums import EResult, EPersonaState
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
-from .protobufs import EMsg, Msg, MsgProto, get_um
+from .protobufs import EMsg, Msg, MsgProto
 
 if TYPE_CHECKING:
     from .client import Client
@@ -61,18 +61,9 @@ __all__ = (
     'SteamWebSocket',
     'ConnectionClosed',
     'WebSocketClosure',
-    'ReconnectWebSocket',
 )
 
 log = logging.getLogger(__name__)
-
-
-class ReconnectWebSocket(Exception):
-    """Signals to safely reconnect the websocket."""
-
-    def __init__(self, cm: str, *, resume: bool = True):
-        self.cm = cm
-        self.resume = resume
 
 
 class ConnectionClosed(Exception):
@@ -324,17 +315,12 @@ class SteamWebSocket:
             return await self.handlers[emsg](message)
 
         if not self.connected:
-            return log.debug(f"Dropped unexpected message: {repr(emsg)}")
-        if emsg in (EMsg.ChannelEncryptRequest, EMsg.ChannelEncryptResponse):
-            msg = Msg(emsg, message)
-        elif emsg == EMsg.ServiceMethodResponse:
+            return log.debug(f'Dropped unexpected message: {repr(emsg)}')
+        if emsg == EMsg.ServiceMethodResponse:
             if utils.is_proto(emsg_value):
-                msg = MsgProto(emsg)
-                msg.body = get_um(f'{msg.header.target_job_name}_Response')
+                msg = MsgProto(emsg, message)
             else:
-                msg = Msg(emsg)
-                msg.body = get_um(f'{msg.header.target_job_name}_Response')
-
+                return log.debug(f'Dropped unexpected message: {repr(emsg)}')
         else:
             try:
                 if utils.is_proto(emsg_value):
@@ -366,8 +352,7 @@ class SteamWebSocket:
             message.session_id = self.session_id
 
         self._dispatch('socket_send', message)
-        data = message.serialize()
-        await self.send(data)
+        await self.send(bytes(message))
 
     async def close(self, code: int = 4000) -> None:
         if self._keep_alive:
@@ -406,7 +391,7 @@ class SteamWebSocket:
         msg = MsgProto(EMsg.Multi, message)
         log.debug('Received a multi, unpacking')
         if msg.body.size_unzipped:
-            log.debug(f'Multi: Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})')
+            log.debug(f'Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})')
             data = await self.loop.run_in_executor(None, GzipFile(fileobj=BytesIO(msg.body.message_body)).read)
             if len(data) != msg.body.size_unzipped:
                 return log.info(f'Unzipped size mismatch for multi payload {msg}, discarding')
@@ -419,18 +404,21 @@ class SteamWebSocket:
             data = data[4 + size:]
 
     async def send_um(self, name: str, **kwargs) -> None:
-        message = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name **kwargs)
+        message = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
         message.header.job_id_source = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
         await self.send_as_proto(message)
 
     async def change_presence(self, *, games=None, status=None, ui_mode=None) -> None:
-        games = [game.to_dict() for game in games]  # TODO these should already be to_dict'ed
-        activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
-        status = MsgProto(EMsg.ClientPersonaState, status_flags=status)
-        ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
-        log.debug(f'Sending {activity} to change activity')
-        await self.send_as_proto(activity)
-        log.debug(f'Sending {status} to change status')
-        await self.send_as_proto(status)
-        log.debug(f'Sending {ui_mode} to change UI mode')
-        await self.send_as_proto(ui_mode)
+        if games:
+            games = [game.to_dict() for game in games]  # TODO these should already be to_dict'ed
+            activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
+            log.debug(f'Sending {activity} to change activity')
+            await self.send_as_proto(activity)
+        if status:
+            status = MsgProto(EMsg.ClientPersonaState, status_flags=status)
+            log.debug(f'Sending {status} to change status')
+            await self.send_as_proto(status)
+        if ui_mode:
+            ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
+            log.debug(f'Sending {ui_mode} to change UI mode')
+            await self.send_as_proto(ui_mode)

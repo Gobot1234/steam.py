@@ -69,6 +69,8 @@ betterproto.Enum = _Enum
 
 
 class Msg:
+    __slots__ = ('header', 'proto', 'body', 'payload')
+
     def __init__(self, msg: EMsg,
                  data: bytes = None,
                  extended: bool = False,
@@ -78,8 +80,8 @@ class Msg:
         self.msg = EMsg.try_value(msg)
 
         self.proto = False
-        self.body: Optional[betterproto.Message] = None  # protobuf message instance
-        self.payload: Optional[bytes] = None  # the raw bytes for the protobuf
+        self.body: Optional[betterproto.Message] = None
+        self.payload: Optional[bytes] = None
 
         if data:
             self.payload = data[self.header.SIZE:]
@@ -100,7 +102,6 @@ class Msg:
         return f"<Msg {' '.join(resolved)}>"
 
     def parse(self):
-        """Parses :attr:`payload` into :attr:`body` instance"""
         if self.body is None:
             proto = get_cmsg(self.msg)
 
@@ -136,11 +137,13 @@ class Msg:
         if isinstance(self.header, ExtendedMsgHdr):
             self.header.session_id = value
 
-    def serialize(self):
+    def __bytes__(self):
         return bytes(self.header) + bytes(self.body)
 
 
-class MsgProto:  # TODO add slots
+class MsgProto:
+    __slots__ = ('header', '_header', 'proto', 'body', 'payload', 'um_name')
+
     def __init__(self, msg: EMsg,
                  data: bytes = None,
                  parse: bool = True,
@@ -151,8 +154,8 @@ class MsgProto:  # TODO add slots
         self.msg = msg
         self.proto = True
         self.um_name = um_name
-        self.body: Optional[betterproto.Message] = None  # protobuf message instance
-        self.payload: Optional[bytes] = None  # will contain the protobuf's raw bytes
+        self.body: Optional[betterproto.Message] = None
+        self.payload: Optional[bytes] = None
 
         if data:
             self.payload = data[self._header._full_size:]
@@ -176,12 +179,15 @@ class MsgProto:  # TODO add slots
         return f"<MsgProto {' '.join(resolved)}>"
 
     def parse(self):
-        """Parses :attr:`payload` into :attr:`body` instance"""
         if self.body is None:
-            if self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodResponse, EMsg.ServiceMethodSendToClient):
+            if self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodResponse,
+                            EMsg.ServiceMethodSendToClient, EMsg.ServiceMethodCallFromClient):
                 name = self.header.target_job_name or self.um_name
                 proto = get_um(name)
-                self.header.target_job_name = name.replace('_Request', '').replace('_Response', '')
+                if not name.endswith('_Response') and proto is None:
+                    proto = get_um(f'{name}_Response')  # assume its a response
+                if name:
+                    self.header.target_job_name = name.replace('_Request', '').replace('_Response', '')
 
             else:
                 proto = get_cmsg(self.msg)
@@ -218,5 +224,5 @@ class MsgProto:  # TODO add slots
     def session_id(self, value):
         self.header.client_sessionid = value
 
-    def serialize(self):
+    def __bytes__(self):
         return bytes(self._header) + bytes(self.body)

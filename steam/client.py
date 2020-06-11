@@ -455,13 +455,7 @@ class Client:
         coro = SteamWebSocket.from_client(self, cms=self._cm_list)
         self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
         while 1:
-            try:
-                await self.ws.poll_event()
-            except ReconnectWebSocket as exc:
-                log.info('Got a request to RESUME the websocket.')
-                self.dispatch('disconnect')
-                coro = SteamWebSocket.from_client(self, cm=exc.cm, cms=self._cm_list)
-                self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
+            await self.ws.poll_event()
 
     async def connect(self) -> None:
         """|coro|
