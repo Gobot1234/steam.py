@@ -24,6 +24,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from .abc import BaseChannel, Messageable
@@ -52,3 +53,44 @@ class DMChannel(BaseChannel, Messageable):
                    trade: 'TradeOffer' = None,
                    image: 'Image' = None) -> None:
         await self.participant.send(content, trade=trade, image=image)
+
+    def typing(self):
+        return TypingContextManager(self.participant)
+
+    async def trigger_typing(self):
+        await self._state.send_typing(self.participant)
+
+
+# this is basically straight from d.py
+
+
+def _typing_done_callback(fut):
+    # just retrieve any exception and call it a day
+    try:
+        fut.exception()
+    except (asyncio.CancelledError, Exception):
+        pass
+
+
+class TypingContextManager:
+    def __init__(self, participant: 'User'):
+        self._state = participant._state
+        self.participant = participant
+
+    async def send_typing(self):
+        while 1:
+            await self._state.send_typing(self.participant)
+            await asyncio.sleep(5)
+
+    def __enter__(self):
+        self._task = self._state.loop.create_task(self.send_typing())
+        self._task.add_done_callback(_typing_done_callback)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._task.cancel()
+
+    async def __aenter__(self):
+        self.__enter__()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        self.__exit__(exc_type, exc_val, exc_tb)
