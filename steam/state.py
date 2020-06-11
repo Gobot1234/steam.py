@@ -44,7 +44,7 @@ from .errors import AuthenticatorError, HTTPException, InvalidCredentials
 from .game import Game
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
 from .message import Message
-from .models import URL, Invite
+from .models import URL, Invite, UserInvite
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_friendmessages import (
     CFriendMessages_IncomingMessage_Notification as MessageNotification
@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     from .models import Comment
 
     from .protobufs.steammessages_clientserver_friends import CMsgClientPersonaState
+    from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications
 
 log = logging.getLogger(__name__)
 
@@ -92,17 +93,17 @@ class ConnectionState:
         self.started_listings_poll = False
         self._obj = None
         self._previous_iteration = 0
+        self.user_slots =  set(User.__slots__) - {'_state', '_data'}
 
-        self._trades = dict()  # ¯\_(ツ)_/¯ I think the values aren't referenced anywhere
         self._users = weakref.WeakValueDictionary()
-        self._confirmations = weakref.WeakValueDictionary()
+        self._trades = dict()
+        self._confirmations = dict()
 
     async def __ainit__(self) -> None:
         self.market = self.client._market
         self._id64 = self.client.user.id64
         self.loop.create_task(self._poll_trades())
         self.loop.create_task(self._poll_listings())
-        self.loop.create_task(self._poll_notifications())
 
     @property
     def users(self) -> List[User]:
@@ -244,49 +245,10 @@ class ConnectionState:
             await asyncio.sleep(10)
             self.loop.create_task(self._poll_trades())
 
-    # this will be going when I get cms working
 
-    async def _poll_notifications(self) -> None:
-        notification_mapping = {
-            "4": ('comment', self._parse_comment),
-            "6": ('invite', self._parse_invite)
-        }
-
-        resp = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
-        self._cached_notifications = resp['notifications']
-        try:
-            while 1:
-                await asyncio.sleep(5)
-                resp = await self.request('GET', url=f'{URL.COMMUNITY}/actions/GetNotificationCounts')
-                notifications = resp['notifications']
-                if notifications != self._cached_notifications:
-                    for notification in notifications:
-                        if self._cached_notifications[notification] != notifications[notification]:
-                            if notifications[notification] == 0:
-                                continue
-                            non_cached_count = notifications[notification]
-                            cached_count = self._cached_notifications[notification]
-                            for i in range(non_cached_count - cached_count):
-                                try:
-                                    event_name, event_parser = notification_mapping[notification]
-                                except KeyError:
-                                    break
-                                else:
-                                    log.debug(f'Received {event_name} notification')
-                                    parsed_notification = await event_parser(i)
-                                    if parsed_notification:
-                                        self.dispatch(event_name, parsed_notification)
-                            self._obj = None
-                    self._cached_notifications = notifications
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            self.loop.create_task(self._poll_trades())
-        except HTTPException:
-            await asyncio.sleep(10)
-            self.loop.create_task(self._poll_trades())
-
-    async def _parse_comment(self, _) -> 'Comment':
+    async def _parse_comment(self) -> 'Comment':
         # this isn't very efficient but I'm not sure if it can be done better
-        resp = await self.request('GET', f'{URL.COMMUNITY}/me/commentnotifications')
+        resp = await self.request('GET', f'{self.client.user.community_url}/commentnotifications')
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         steam_id = await SteamID.from_url(f'{URL.COMMUNITY}{_URL(search.group(1)).path}')
         if steam_id.type == EType.Clan:
@@ -364,9 +326,9 @@ class ConnectionState:
             'tag': tag
         }
 
-    async def _fetch_confirmations(self) -> Optional[weakref.WeakValueDictionary]:
+    async def _fetch_confirmations(self) -> Optional[dict]:
         params = self._create_confirmation_params('conf')
-        headers = {'X-Requested-With': 'com.valvesoftware.android.steam.community'}
+        headers = {"X-Requested-With": 'com.valvesoftware.android.steam.community'}
         resp = await self.request('GET', f'{URL.COMMUNITY}/mobileconf/conf', params=params, headers=headers)
 
         if 'incorrect Steam Guard codes.' in resp:
@@ -391,9 +353,9 @@ class ConnectionState:
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:
         return generate_confirmation_code(self.client.identity_secret, tag, timestamp)
 
-    async def get_and_confirm_confirmation(self, id: int) -> bool:
+    async def get_and_confirm_confirmation(self, trade_id: int) -> bool:
         if self.client.identity_secret:
-            confirmation = self.get_confirmation(id) or await self.fetch_confirmation(id)
+            confirmation = self.get_confirmation(trade_id) or await self.fetch_confirmation(trade_id)
             if confirmation is not None:
                 await confirmation.confirm()
                 return True
@@ -406,7 +368,7 @@ class ConnectionState:
         await self.client.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
             steamid=str(user.id64), message=content,
-            chat_entry_type=EChatEntryType.ChatMsg.value,
+            chat_entry_type=EChatEntryType.ChatMsg,
         )
         proto = MessageNotification(
             steamid_friend=0.0, chat_entry_type=1,
@@ -417,18 +379,28 @@ class ConnectionState:
         message.author = self.client.user
         self.dispatch('message', message)
 
+    async def send_typing(self, user: 'User'):
+        await self.client.ws.send_um(
+            "FriendMessages.SendMessage#1_Request",
+            steamid=str(user.id64),
+            chat_entry_type=EChatEntryType.Typing,
+        )
+        self.dispatch('typing', self.client.user, datetime.utcnow())
+
     # parsers
 
     @register(EMsg.ServiceMethod)
     def message_create(self, msg: MsgProto):
         if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
             msg.body: MessageNotification
-            if msg.body.chat_entry_type == 1:  # normal chat message
-                channel = DMChannel(state=self, participant=self.get_user(int(msg.body.steamid_friend)))
+            user = self.get_user(int(msg.body.steamid_friend))
+
+            if msg.body.chat_entry_type == EChatEntryType.ChatMsg:
+                channel = DMChannel(state=self, participant=user)
                 message = Message(state=self, proto=msg.body, channel=channel)
                 self.dispatch('message', message)
-            if msg.body.chat_entry_type == 2:  # typing notification
-                user = self.get_user(int(msg.body.steamid_friend))
+
+            if msg.body.chat_entry_type == EChatEntryType.Typing:
                 when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
                 self.dispatch('typing', user, when)
 
@@ -440,35 +412,41 @@ class ConnectionState:
     """
 
     @register(EMsg.ClientFriendsGroupsList)  # this appears to be one the last multi you receive
-    def ready(self, _):
+    def ready(self, _) -> None:
         self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
-    def handle_cm_list_update(self, msg: MsgProto):
-        log.debug("Updating CM list")
+    def handle_cm_list_update(self, msg: MsgProto) -> None:
+        log.debug('Updating CM list')
         self.client.ws.cm_list.clear()
         self.client.ws.cm_list.merge_list(msg.body.cm_websocket_addresses)
 
     @register(EMsg.ClientPersonaState)
-    def parse_persona_state_update(self, msg: MsgProto):
+    async def parse_persona_state_update(self, msg: MsgProto) -> None:
         msg.body: 'CMsgClientPersonaState'
         for friend in msg.body.friends:
             data = friend.to_dict(snakecase)
             user_id64 = int(data['friendid'])
             if user_id64 == self._id64:
                 continue
-            data = self.patch_user_from_ws(data)
             before = after = self.get_user(user_id64)
+
+            try:
+                data = self.patch_user_from_ws(data)
+            except (KeyError, TypeError):
+                await self.process_user_invite(user_id64)
+                return
+
             after._update(data)
-            old = [getattr(before, attr) for attr in dir(before)]
-            new = [getattr(after, attr) for attr in dir(after)]
+            old = [getattr(before, attr) for attr in self.user_slots]
+            new = [getattr(after, attr) for attr in self.user_slots]
             if old != new:
-                self._store_user(data)
+                self._users[after.id64] = after
                 self.dispatch('user_update', before, after)
 
     def patch_user_from_ws(self, data) -> dict:
         data['personaname'] = data['player_name']
-        data['avatarfull'] = data['avatar_hash']
+        # data['avatarfull'] = data['avatar_hash']
 
         """
         if data['avatar_hash'] != '\x00' * 20:
@@ -481,5 +459,26 @@ class ConnectionState:
 
         if 'last_logoff' in data:
             data['lastlogoff'] = data['last_logoff']
+        data['gameextrainfo'] = data.get('game_name')
+        data['personastate'] = data.get('persona_state', 0)
         data['personstateflags'] = data.get('persona_state_flags', 0)
         return data
+
+    async def process_user_invite(self, user_id64: int) -> None:
+        invitee = await self.fetch_user(user_id64)
+        invite = UserInvite(self, invitee)
+        self.dispatch('user_invite', invite)
+
+    """
+    @register(EMsg.ClientFriendsList)
+    def process_friends(self, msg: MsgProto) -> None:
+        self._last_friends_list = msg
+    """
+
+    @register(EMsg.ClientCommentNotifications)
+    async def handle_comments(self, msg: MsgProto) -> None:
+        msg.body: 'CMsgClientCommentNotifications'
+        for _ in range(msg.body.count_new_comments):
+            comment = await self._parse_comment()
+            self._obj = None
+            self.dispatch('comment', comment)
