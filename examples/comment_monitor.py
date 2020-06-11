@@ -21,11 +21,9 @@ async def on_ready():
 async def on_comment(comment):
     print(f'Received comment #{comment.id}, from', comment.author)
     if comment.owner != client.user:  # if we don't own the section, don't watch the comments
-        print("We don't monitor comments here")
         return
 
     if comment.author in client.user.friends:  # ignore messages from friends
-        print('Ignoring as they are a friend')
         return
 
     if 'https://' in comment.content:

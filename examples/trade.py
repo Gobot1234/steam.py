@@ -6,7 +6,7 @@ class MyClient(steam.Client):
     async def on_ready(self):  # on_events in a subclassed client don't need the @client.event decorator
         print('------------')
         print('Logged in as')
-        print('Username:', self.user.name)
+        print('Username:', self.user)
         print('ID:', self.user.id64)
         print('Friends:', len(self.user.friends))
         print('------------')
@@ -23,7 +23,7 @@ class MyClient(steam.Client):
 
     async def on_trade_accept(self, trade):  # we accepted a trade
         print(f'Accepted trade: #{trade.id}')
-        print('Trade partner is:', trade.partner)
+        print('Trade partner was:', trade.partner)
         print('We sent:', len(trade.items_to_send), 'items')
         print('We received:', len(trade.items_to_receive), 'items')
 
