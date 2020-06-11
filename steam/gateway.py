@@ -47,7 +47,7 @@ import aiohttp
 
 from . import utils
 from .abc import SteamID
-from .enums import EResult
+from .enums import EResult, EPersonaState
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .protobufs import EMsg, Msg, MsgProto, get_um
@@ -55,6 +55,7 @@ from .protobufs import EMsg, Msg, MsgProto, get_um
 if TYPE_CHECKING:
     from .client import Client
     from .state import ConnectionState
+
 
 __all__ = (
     'SteamWebSocket',
@@ -352,7 +353,7 @@ class SteamWebSocket:
         except KeyError:
             log.debug(f"Ignoring event {emsg}")
         else:
-            func(self._connection, msg)
+            await utils.maybe_coroutine(func, self._connection, msg)
 
     async def send(self, data: bytes) -> None:
         self._dispatch('socket_raw_send', data)
@@ -395,8 +396,9 @@ class SteamWebSocket:
             self._keep_alive.start()
             log.debug('Heartbeat started.')
 
-            await self.send_as_proto(MsgProto(EMsg.ClientChangeStatus, persona_state=1))
+            await self.send_as_proto(MsgProto(EMsg.ClientChangeStatus, persona_state=EPersonaState.Online))
             # we want to receive persona state updates and other things
+            await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
         else:
             raise ConnectionClosed(self.cm, self.cm_list)
 
@@ -416,21 +418,19 @@ class SteamWebSocket:
             await self.receive(data[4:4 + size])
             data = data[4 + size:]
 
-    async def send_um(self, name: str, **params) -> None:
+    async def send_um(self, name: str, **kwargs) -> None:
         proto = get_um(name)
         if proto is None:
             raise ValueError(f'Failed to find method named: {name}')
 
-        message = MsgProto(EMsg.ServiceMethodCallFromClient)
-        message.body = proto().from_dict(params)
-        message.header.target_job_name = name.replace('_Request', '').replace('_Response', '')
+        message = MsgProto(EMsg.ServiceMethodCallFromClient, **kwargs)
         message.header.job_id_source = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
         await self.send_as_proto(message)
 
     async def change_presence(self, *, games=None, status=None, ui_mode=None) -> None:
         games = [game.to_dict() for game in games]  # TODO these should already be to_dict'ed
         activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
-        status = MsgProto(EMsg.ClientPersonaState, status_flags=status.value)
+        status = MsgProto(EMsg.ClientPersonaState, status_flags=status)
         ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
         log.debug(f'Sending {activity} to change activity')
         await self.send_as_proto(activity)
