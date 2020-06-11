@@ -44,6 +44,7 @@ __all__ = (
     'Invite',
     'Comment',
     'UserBadges',
+    'UserInvite',
 )
 
 
@@ -170,6 +171,33 @@ class Invite:
             await self._state.http.decline_user_invite(self.invitee.id64)
         else:
             await self._state.http.decline_group_invite(self.group.id64)
+
+
+class UserInvite:
+
+    def __init__(self, state, invitee):
+        self._state = state
+        self.invitee = invitee
+
+    def __repr__(self):
+        attrs = (
+            'invitee',
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<UserInvite {' '.join(resolved)}>"
+
+    async def accept(self) -> None:
+        """|coro|
+        Accepts the invite request.
+        """
+        await self._state.http.accept_user_invite(self.invitee.id64)
+        self._state.client.user.friends.append(self.invitee)
+
+    async def decline(self) -> None:
+        """|coro|
+        Declines the invite request.
+        """
+        await self._state.http.decline_user_invite(self.invitee.id64)
 
 
 class Ban:
