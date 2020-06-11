@@ -1,9 +1,5 @@
 import steam
 
-username = ''
-password = ''
-shared_secret = ''
-
 
 class MyClient(steam.Client):
     async def on_ready(self):
@@ -24,4 +20,4 @@ class MyClient(steam.Client):
 
 
 client = MyClient()
-client.run(username, password, shared_secret=shared_secret)
+client.run('username', 'password')

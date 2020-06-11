@@ -1,14 +1,5 @@
 import steam
 
-# Please make sure that you do NOT ever share these,
-# you should be responsible for putting your own
-# measures in place to make sure no one apart
-# from you ever has access to these.
-
-username = ''
-password = ''
-shared_secret = ''
-
 
 class MyClient(steam.Client):
 
@@ -49,4 +40,4 @@ class MyClient(steam.Client):
 
 
 client = MyClient()
-client.run(username, password, shared_secret=shared_secret)
+client.run('username', 'password', shared_secret='shared_secret')
