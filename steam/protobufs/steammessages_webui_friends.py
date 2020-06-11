@@ -7,11 +7,10 @@ from typing import List, TYPE_CHECKING
 
 import betterproto
 
-from .steammessages_base import CClanMatchEventByRange
-from .steammessages_clientserver_friends import CMsgClientFriendsList
-
 if TYPE_CHECKING:
     from .steammessages_base import CMsgIPAddress
+    from .steammessages_base import CClanMatchEventByRange
+    from .steammessages_clientserver_friends import CMsgClientFriendsList
 
 
 @dataclass
