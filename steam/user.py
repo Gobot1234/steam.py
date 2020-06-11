@@ -44,7 +44,7 @@ __all__ = (
 )
 
 
-class User(Messageable, BaseUser):
+class User(BaseUser, Messageable):
     """Represents a Steam user's account.
 
     .. container:: operations
