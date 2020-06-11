@@ -200,6 +200,8 @@ class AsyncIterator(_AsyncIterator):
             if self._is_filled:
                 raise StopAsyncIteration
             await self.fill()
+            if self.queue.empty():  # yikes
+                raise StopAsyncIteration
             self._is_filled = True
         return self.queue.get_nowait()
 
@@ -338,7 +340,6 @@ class TradesIterator(AsyncIterator):
 
 
 class MarketListingsIterator(AsyncIterator):
-
     async def fill(self) -> None:
         from .market import Listing
 
