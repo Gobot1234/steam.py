@@ -3,12 +3,10 @@
 # plugin: python-betterproto
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import betterproto
 
-if TYPE_CHECKING:
-    from .steammessages_base import CMsgIPAddress
+from .steammessages_base import CMsgIPAddress
 
 
 @dataclass
