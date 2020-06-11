@@ -375,7 +375,7 @@ class BaseUser(SteamID):
         attrs = (
             'name', 'state',
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         resolved.append(super().__repr__())
         return f"<User {' '.join(resolved)}>"
 
@@ -401,7 +401,7 @@ class BaseUser(SteamID):
         self.last_seen_online = datetime.utcfromtimestamp(data['last_seen_online']) \
             if 'last_seen_online' in data else None or self.last_seen_online
         self.game = Game(title=data.get('gameextrainfo'), app_id=data['gameid']) \
-            if 'gameextrainfo' in data else None or self.game
+            if 'gameid' in data else None or self.game
         self.state = EPersonaState(data.get('personastate', 0)) or self.state
         self.flags = EPersonaStateFlag(data.get('personastateflags', 0)) or self.flags
 
@@ -493,7 +493,7 @@ class BaseUser(SteamID):
         """
         groups = []
 
-        async def getter(gid):
+        async def getter(gid: str):
             try:
                 group = await self._state.client.fetch_group(gid)
             except HTTPException:
