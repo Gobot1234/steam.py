@@ -29,6 +29,8 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 
 import struct
 
+from stringcase import snakecase
+
 from . import steammessages_base, foobar
 from .emsg import EMsg
 from ..utils import set_proto_bit, clear_proto_bit
@@ -51,16 +53,16 @@ class MsgHdr:
         self.target_job_id = -1
         self.source_job_id = -1
         if data:
-            self.load(data)
+            self.parse(data)
 
     def __repr__(self):
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
         return f'<MsgHdr {" ".join(resolved)}>'
 
-    def serialize(self):
+    def __bytes__(self):
         return struct.pack("<Iqq", self.msg, self.target_job_id, self.source_job_id)
 
-    def load(self, data):
+    def parse(self, data):
         msg, self.target_job_id, self.source_job_id = struct.unpack_from("<Iqq", data)
         self.msg = EMsg(msg)
 
@@ -81,7 +83,7 @@ class ExtendedMsgHdr:
         self.steam_id = -1
         self.session_id = -1
         if data:
-            self.load(data)
+            self.parse(data)
 
     def __repr__(self):
         attrs = (
@@ -90,11 +92,11 @@ class ExtendedMsgHdr:
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f'<ExtendedMsgHdr {" ".join(resolved)}>'
 
-    def serialize(self):
+    def __bytes__(self):
         return struct.pack("<IBHqqBqi", self.msg, self.header_size, self.header_version, self.target_job_id,
                            self.source_job_id, self.header_canary, self.steam_id, self.session_id)
 
-    def load(self, data: bytes):
+    def parse(self, data: bytes):
         (msg, self.header_size, self.header_version, self.target_job_id, self.source_job_id,
          self.header_canary, self.steam_id, self.session_id) = struct.unpack_from("<IBHqqBqi", data)
 
@@ -114,26 +116,26 @@ class MsgHdrProtoBuf:
         self._full_size = self.SIZE
 
         if data:
-            self.load(data)
+            self.parse(data)
 
     def __repr__(self):
         attrs = (
             'msg',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict().items()])
+        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict(snakecase).items()])
         return f'<MsgHdrProtoBuf {" ".join(resolved)}>'
 
-    def serialize(self) -> bytes:
-        proto_data = self.proto.SerializeToString()
+    def __bytes__(self):
+        proto_data = bytes(self.proto)
         return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
 
-    def load(self, data: bytes) -> None:
+    def parse(self, data: bytes) -> None:
         msg, proto_length = struct.unpack_from("<II", data)
 
         self.msg = EMsg(clear_proto_bit(msg))
         self._full_size = self.SIZE + proto_length
-        self.proto = self.proto.FromString(data[self.SIZE:self._full_size])
+        self.proto = self.proto.parse(data[self.SIZE:self._full_size])
 
 
 class GCMsgHdr:
@@ -148,20 +150,20 @@ class GCMsgHdr:
         self.source_job_id = -1
 
         if data:
-            self.load(data)
+            self.parse(data)
 
     def __repr__(self):
         attrs = (
             'msg', 'target_job_id', 'source_job_id'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict().items()])
+        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict(snakecase).items()])
         return f'<GCMsgHdr {" ".join(resolved)}>'
 
-    def serialize(self):
+    def __bytes__(self):
         return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
 
-    def load(self, data):
+    def parse(self, data):
         (self.header_version, self.target_job_id, self.source_job_id) = struct.unpack_from("<Hqq", data)
 
 
@@ -175,27 +177,26 @@ class GCMsgHdrProto:
         self.header_length = 0
 
         if data:
-            self.load(data)
+            self.parse(data)
 
     def __repr__(self):
         attrs = (
             'msg',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict().items()])
+        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict(snakecase).items()])
         return f'<GCMsgHdrProto {" ".join(resolved)}>'
 
-    def serialize(self):
-        proto_data = self.proto.SerializeToString()
+    def __bytes__(self):
+        proto_data = bytes(self.proto)
         self.header_length = len(proto_data)
-
         return struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
 
-    def load(self, data):
+    def parse(self, data):
         (msg, self.header_length) = struct.unpack_from("<Ii", data)
 
         self.msg = EMsg(clear_proto_bit(msg))
 
         if self.header_length:
             x = GCMsgHdrProto.SIZE
-            self.proto = self.proto.FromString(data[x:x + self.header_length])
+            self.proto = self.proto.parse(data[x:x + self.header_length])

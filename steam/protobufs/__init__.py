@@ -94,7 +94,7 @@ class Msg:
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         if not isinstance(self.body, str) and self.body is not None:
-            resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
+            resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items()])
         else:
             resolved.append(f'body={self.body!r}')
         return f"<Msg {' '.join(resolved)}>"
@@ -105,7 +105,7 @@ class Msg:
             proto = get_cmsg(self.msg)
 
             if proto:
-                self.body = proto.FromString(self.payload)
+                self.body = proto().parse(self.payload)
                 self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'
@@ -137,7 +137,7 @@ class Msg:
             self.header.session_id = value
 
     def serialize(self):
-        return self.header.serialize() + self.body.SerializeToString()
+        return bytes(self.header) + bytes(self.body)
 
 
 class MsgProto:
@@ -157,6 +157,9 @@ class MsgProto:
         if parse:
             self.parse()
         if kwargs:
+            for (key, value) in kwargs.items():
+                if isinstance(value, IntEnum):
+                    kwargs[key] = value.value
             self.body.from_dict(kwargs)
 
     def __repr__(self):
@@ -165,7 +168,7 @@ class MsgProto:
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         if not isinstance(self.body, str) and self.body is not None:
-            resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict().items()])
+            resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items()])
         else:
             resolved.append(f'body={self.body!r}')
         return f"<MsgProto {' '.join(resolved)}>"
@@ -174,14 +177,17 @@ class MsgProto:
         """Parses :attr:`payload` into :attr:`body` instance"""
         if self.body is None:
             if self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodResponse, EMsg.ServiceMethodSendToClient):
-                proto = get_um(self.header.target_job_name)
+                name = self.header.target_job_name
+                proto = get_um(name)
+                self.header.target_job_name = name.replace('_Request', '').replace('_Response', '')
+
             else:
                 proto = get_cmsg(self.msg)
 
             if proto:
                 self.body = proto()
                 if self.payload:
-                    self.body = self.body.FromString(self.payload)
+                    self.body = self.body.parse(self.payload)
                     self.payload = None
             else:
                 self.body = '!!! Failed to resolve message !!!'
@@ -211,4 +217,4 @@ class MsgProto:
         self.header.client_sessionid = value
 
     def serialize(self):
-        return self._header.serialize() + self.body.SerializeToString()
+        return bytes(self._header) + bytes(self.body)
