@@ -140,15 +140,17 @@ class Msg:
         return bytes(self.header) + bytes(self.body)
 
 
-class MsgProto:
+class MsgProto:  # TODO add slots
     def __init__(self, msg: EMsg,
                  data: bytes = None,
                  parse: bool = True,
+                 um_name: str = None,
                  **kwargs):
         self._header = MsgHdrProtoBuf(data)
         self.header = self._header.proto
         self.msg = msg
         self.proto = True
+        self.um_name = um_name
         self.body: Optional[betterproto.Message] = None  # protobuf message instance
         self.payload: Optional[bytes] = None  # will contain the protobuf's raw bytes
 
@@ -177,7 +179,7 @@ class MsgProto:
         """Parses :attr:`payload` into :attr:`body` instance"""
         if self.body is None:
             if self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodResponse, EMsg.ServiceMethodSendToClient):
-                name = self.header.target_job_name
+                name = self.header.target_job_name or self.um_name
                 proto = get_um(name)
                 self.header.target_job_name = name.replace('_Request', '').replace('_Response', '')
 

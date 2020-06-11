@@ -419,11 +419,7 @@ class SteamWebSocket:
             data = data[4 + size:]
 
     async def send_um(self, name: str, **kwargs) -> None:
-        proto = get_um(name)
-        if proto is None:
-            raise ValueError(f'Failed to find method named: {name}')
-
-        message = MsgProto(EMsg.ServiceMethodCallFromClient, **kwargs)
+        message = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name **kwargs)
         message.header.job_id_source = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
         await self.send_as_proto(message)
 
