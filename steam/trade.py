@@ -414,13 +414,14 @@ class TradeOffer:
             return  # no point trying to confirm it
         if not await self._state.get_and_confirm_confirmation(self.id):
             raise ConfirmationError('No matching confirmation could be found for this trade')
+        del self._state._confirmations[self.id]
 
     async def accept(self) -> None:
         """|coro|
         Accepts the :class:`TradeOffer`.
 
         .. note::
-            This also calls :meth:`TradeOffer.confirm` (if necessary) so you don't have to.
+            This also calls :meth:`confirm` (if necessary) so you don't have to.
 
         Raises
         ------
