@@ -333,7 +333,7 @@ class TradeOffer:
     Attributes
     -------------
     partner: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
-        The trade offer partner. This should only be a :class:`~steam.SteamID`
+        The trade offer partner. This should only ever be a :class:`~steam.SteamID`
         if the partner's profile is private.
     items_to_send: Union[List[:class:`Item`], List[:class:`Asset`]]
         A list of items to send to the partner.
