@@ -54,6 +54,7 @@ from .protobufs import EMsg, Msg, MsgProto
 
 if TYPE_CHECKING:
     from .client import Client
+    from .enums import UIMode
     from .state import ConnectionState
 
 
@@ -407,9 +408,10 @@ class SteamWebSocket:
         message.header.job_id_source = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
         await self.send_as_proto(message)
 
-    async def change_presence(self, *, games=None, status=None, ui_mode=None) -> None:
+    async def change_presence(self, *, games: List[dict] = None,
+                              status: EPersonaState = None,
+                              ui_mode: 'UIMode' = None) -> None:
         if games:
-            games = [game.to_dict() for game in games]  # TODO these should already be to_dict'ed
             activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug(f'Sending {activity} to change activity')
             await self.send_as_proto(activity)

@@ -525,3 +525,10 @@ class EMarketListingState(IntEnum):
     Active = 2
     Bought = 4
     Cancelled = 8
+
+
+class UIMode(IntEnum):
+    Desktop = 0
+    BigPicture = 1
+    Mobile = 2
+    Web = 3
