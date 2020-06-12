@@ -51,7 +51,6 @@ from .protobufs.steammessages_friendmessages import (
 )
 from .trade import TradeOffer
 from .user import User
-from .utils import get
 
 if TYPE_CHECKING:
     from .client import Client
@@ -102,6 +101,7 @@ class ConnectionState:
     async def __ainit__(self) -> None:
         self.market = self.client._market
         self._id64 = self.client.user.id64
+        self._device_id = generate_device_id(str(self._id64))
         self.loop.create_task(self._poll_trades())
         self.loop.create_task(self._poll_listings())
 
@@ -149,7 +149,7 @@ class ConnectionState:
 
     async def fetch_confirmation(self, id: int) -> Optional[Confirmation]:
         await self._fetch_confirmations()
-        return get(self._confirmations, trade_id=id)
+        return self._confirmations.get(id)
 
     def get_trade(self, id: int) -> Optional[TradeOffer]:
         return self._trades.get(id)
@@ -346,9 +346,6 @@ class ConnectionState:
             self._confirmations[trade_id] = Confirmation(self, id, confid, key, trade_id)
         return self._confirmations
 
-    def _device_id(self) -> str:
-        return generate_device_id(str(self._id64))
-
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:
         return generate_confirmation_code(self.client.identity_secret, tag, timestamp)
 
@@ -429,6 +426,8 @@ class ConnectionState:
             if user_id64 == self._id64:
                 continue
             before = after = self.get_user(user_id64)
+            if not before and after:  # they're private
+                continue
 
             try:
                 data = self.patch_user_from_ws(data)
