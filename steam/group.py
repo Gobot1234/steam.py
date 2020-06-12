@@ -129,10 +129,9 @@ class Group(SteamID):
 
     def __repr__(self):
         attrs = (
-            'name',
+            'name', 'id', 'type', 'universe', 'instance'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.append(super().__repr__())
         return f"<Group {' '.join(resolved)}>"
 
     def __str__(self):
