@@ -320,9 +320,7 @@ class CWebRTC_WebRTCUpdateRemoteDescription_Notification(betterproto.Message):
 
 
 @dataclass
-class CWebRTC_WebRTCUpdateRemoteDescription_Notification_CSSRCToAccountIDMapping(
-    betterproto.Message
-):
+class CWebRTC_WebRTCUpdateRemoteDescription_Notification_CSSRCToAccountIDMapping(betterproto.Message):
     ssrc: int = betterproto.uint32_field(1)
     accountid: int = betterproto.uint32_field(2)
 
@@ -421,9 +419,7 @@ class CVoiceChat_UserVoiceStatus_Notification(betterproto.Message):
 @dataclass
 class CVoiceChat_AllMembersStatus_Notification(betterproto.Message):
     voice_chatid: float = betterproto.fixed64_field(1)
-    users: List["CVoiceChat_UserVoiceStatus_Notification"] = betterproto.message_field(
-        2
-    )
+    users: List["CVoiceChat_UserVoiceStatus_Notification"] = betterproto.message_field(2)
 
 
 @dataclass
