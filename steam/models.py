@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from .abc import BaseUser
     from .group import Group
     from .state import ConnectionState
+    from .user import User
 
 
 __all__ = (
@@ -175,7 +176,7 @@ class Invite:
 
 class UserInvite:
 
-    def __init__(self, state, invitee):
+    def __init__(self, state: 'ConnectionState', invitee: 'User'):
         self._state = state
         self.invitee = invitee
 
