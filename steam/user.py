@@ -26,7 +26,7 @@ SOFTWARE.
 
 import re
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from .abc import BaseUser, Messageable
 from .models import URL
@@ -239,7 +239,7 @@ class ClientUser(BaseUser):
 
     def __init__(self, state: 'ConnectionState', data: dict):
         super().__init__(state, data)
-        self.friends = []
+        self.friends: List[User] = []
 
     async def __ainit__(self):
         friends = await self._state.http.get_friends(self.id64)
