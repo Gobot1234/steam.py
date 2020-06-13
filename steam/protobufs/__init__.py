@@ -49,7 +49,7 @@ class _Enum(IntEnum):
     """Protocol buffers enumeration base class. Acts like `enum.IntEnum`."""
 
     @classmethod
-    def from_string(cls, name: str) -> int:
+    def from_string(cls, name: str) -> IntEnum:
         """Return the value which corresponds to the string name."""
         try:
             return cls.__members__[name]
