@@ -517,7 +517,7 @@ class HTTPClient:
             "action": 'group_accept',
             "steamids[]": group_id
         }
-        return self.request('POST', CRoute('/me/friends/action'), data=payload)
+        return self.request('POST', CRoute('/my/friends/action'), data=payload)
 
     def decline_group_invite(self, group_id: int) -> Awaitable:
         payload = {
@@ -527,7 +527,7 @@ class HTTPClient:
             "action": 'group_ignore',
             "steamids[]": group_id
         }
-        return self.request('POST', CRoute('/me/friends/action'), data=payload)
+        return self.request('POST', CRoute('/my/friends/action'), data=payload)
 
     def join_group(self, group_id: int) -> Awaitable:
         payload = {
@@ -542,7 +542,7 @@ class HTTPClient:
             "action": 'leaveGroup',
             "groupId": group_id
         }
-        return self.request('POST', CRoute('/me/home_process'), data=payload)
+        return self.request('POST', CRoute('/my/home_process'), data=payload)
 
     def invite_user_to_group(self, user_id64: int, group_id: int) -> Awaitable:
         payload = {
@@ -585,7 +585,10 @@ class HTTPClient:
         payload = {
             "sessionid": self.session_id
         }
-        return self.request('POST', CRoute('/me/ajaxclearaliashistory'), data=payload)
+        return self.request('POST', CRoute('/my/ajaxclearaliashistory'), data=payload)
+
+    def clear_notifications(self) -> Awaitable:
+        return self.request('GET', CRoute('/my/inventory'))
 
     async def edit_profile(self, nick: str, real_name: str,
                            summary: str, group_id: int, avatar: 'Image') -> None:
@@ -603,7 +606,7 @@ class HTTPClient:
             "primary_group_steamid": group_id or current_values['primary_group_steamid']
         }
 
-        await self.request('POST', CRoute('/me/edit'), data=payload)
+        await self.request('POST', CRoute('/my/edit'), data=payload)
         if avatar is not None:
             payload = {
                 "MAX_FILE_SIZE": len(avatar),
