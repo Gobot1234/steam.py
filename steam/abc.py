@@ -388,21 +388,21 @@ class BaseUser(SteamID):
         self.avatar_url = data.get('avatarfull') or self.avatar_url
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
-        self.primary_group = SteamID(data['primaryclanid']) \
-            if 'primaryclanid' in data else None or self.primary_group
+        self.primary_group = (SteamID(data['primaryclanid'])
+                              if 'primaryclanid' in data else None or self.primary_group)
         self.country = data.get('loccountrycode') or self.country
-        self.created_at = datetime.utcfromtimestamp(data['timecreated']) \
-            if 'timecreated' in data else None or self.created_at
-        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) \
-            if 'lastlogoff' in data else None or self.last_logoff
-        self.last_logon = datetime.utcfromtimestamp(data['last_logon']) \
-            if 'last_logon' in data else None or self.last_logon
-        self.last_seen_online = datetime.utcfromtimestamp(data['last_seen_online']) \
-            if 'last_seen_online' in data else None or self.last_seen_online
-        self.game = Game(title=data.get('gameextrainfo'), app_id=data['gameid']) \
-            if 'gameid' in data else None or self.game
+        self.created_at = (datetime.utcfromtimestamp(data['timecreated'])
+                           if 'timecreated' in data else None or self.created_at)
+        self.last_logoff = (datetime.utcfromtimestamp(data['lastlogoff'])
+                            if 'lastlogoff' in data else None or self.last_logoff)
+        self.last_logon = (datetime.utcfromtimestamp(data['last_logon'])
+                           if 'last_logon' in data else None or self.last_logon)
+        self.last_seen_online = (datetime.utcfromtimestamp(data['last_seen_online'])
+                                 if 'last_seen_online' in data else None or self.last_seen_online)
+        self.game = (Game(title=data.get('gameextrainfo'), app_id=data['gameid'])
+                     if 'gameid' in data else None or self.game)
         self.state = EPersonaState(data.get('personastate', 0)) or self.state
-        self.flags = EPersonaStateFlag(data.get('personastateflags', 0)) or self.flags
+        self.flags = EPersonaStateFlag.try_value(data.get('personastateflags', 0)) or self.flags
 
     async def update(self) -> None:
         data = await self._state.http.get_user(self.id64)
