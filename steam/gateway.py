@@ -178,7 +178,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         while not self._stop_ev.wait(self.interval):
             if self._last_ack + self.heartbeat_timeout < time.perf_counter():
                 log.warning(f"Server {self.ws.cm} has stopped responding to the gateway. Closing and restarting.")
-                coro = self.ws.close(4000)
+                coro = self.ws.close()
                 f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
 
                 try:
@@ -210,7 +210,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                             msg = f'{self.block_msg}\n' \
                                   f'Loop thread traceback (most recent call last):\n' \
                                   f'{"".join(stack)}'
-                        log.warning(msg, total)
+                        log.warning(msg.format(total))
 
             except Exception:
                 self.stop()
@@ -316,20 +316,14 @@ class SteamWebSocket:
 
         if not self.connected:
             return log.debug(f'Dropped unexpected message: {repr(emsg)}')
-        if emsg == EMsg.ServiceMethodResponse:
+        try:
             if utils.is_proto(emsg_value):
                 msg = MsgProto(emsg, message)
             else:
-                return log.debug(f'Dropped unexpected message: {repr(emsg)}')
-        else:
-            try:
-                if utils.is_proto(emsg_value):
-                    msg = MsgProto(emsg, message)
-                else:
-                    msg = Msg(emsg, message, extended=True)
-            except Exception as e:
-                log.fatal(f"Failed to deserialize message: {repr(emsg)}")
-                return log.exception(e)
+                msg = Msg(emsg, message, extended=True)
+        except Exception as e:
+            log.fatal(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
+            return log.exception(e)
 
         log.debug(f'Socket has received {repr(msg)} from the websocket.')
         self._dispatch('socket_receive', msg)
@@ -381,7 +375,8 @@ class SteamWebSocket:
             self._keep_alive.start()
             log.debug('Heartbeat started.')
 
-            await self.send_as_proto(MsgProto(EMsg.ClientChangeStatus, persona_state=EPersonaState.Online))
+            status = MsgProto(EMsg.ClientChangeStatus, persona_state=EPersonaState.Online)
+            await self.send_as_proto(status)
             # we want to receive persona state updates and other things
             await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
         else:
