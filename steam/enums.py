@@ -420,7 +420,6 @@ class EPersonaStateFlag(IntEnum):
     ClientTypeMobile = 512
     ClientTypeTenfoot = 1024
     ClientTypeVR = 2048
-    ClientTypeInVR = 3072  # not too sure about this
     LaunchTypeGamepad = 4096
     LaunchTypeCompatTool = 8192
 
