@@ -301,8 +301,8 @@ async def steam64_from_url(url: str, timeout: float = 30) -> Optional[int]:
     """
 
     search = re.search(r'(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/'
-                       r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?',
-                       str(url), flags=re.M)
+                       r'(?P<type>profiles|id|gid|groups)/(?P<value>.+))',
+                       str(url))
 
     if search is None:
         return None
