@@ -39,7 +39,13 @@ from yarl import URL as _URL
 
 from .abc import SteamID
 from .channel import DMChannel
-from .enums import EChatEntryType, EMarketListingState, ETradeOfferState, EType
+from .enums import (
+    EChatEntryType,
+    EMarketListingState,
+    ETradeOfferState,
+    EType,
+    EFriendRelationship
+)
 from .errors import AuthenticatorError, HTTPException, InvalidCredentials
 from .game import Game
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
@@ -58,7 +64,11 @@ if TYPE_CHECKING:
     from .market import Listing
     from .models import Comment
 
-    from .protobufs.steammessages_clientserver_friends import CMsgClientPersonaState
+    from .protobufs.steammessages_clientserver_friends import (
+        CMsgClientPersonaState,
+        CMsgClientPersonaStateFriend,
+        CMsgClientFriendsList,
+    )
     from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications
 
 log = logging.getLogger(__name__)
@@ -97,6 +107,7 @@ class ConnectionState:
         self._users = weakref.WeakValueDictionary()
         self._trades = dict()
         self._confirmations = dict()
+        self.invitees = []
 
     async def __ainit__(self) -> None:
         self.market = self.client._market
@@ -247,7 +258,7 @@ class ConnectionState:
 
     async def _parse_comment(self) -> 'Comment':
         # this isn't very efficient but I'm not sure if it can be done better
-        resp = await self.request('GET', f'{self.client.user.community_url}/commentnotifications')
+        resp = await self.request('GET', f'{URL.COMMUNITY}/my/commentnotifications')
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         steam_id = await SteamID.from_url(f'{URL.COMMUNITY}{_URL(search.group(1)).path}')
         if steam_id.type == EType.Clan:
@@ -267,11 +278,11 @@ class ConnectionState:
         params = {
             "ajax": 1
         }
-        resp = await self.request('GET', f'{URL.COMMUNITY}/me/friends/pending', params=params)
+        resp = await self.request('GET', f'{URL.COMMUNITY}/my/friends/pending', params=params)
         soup = BeautifulSoup(resp, 'html.parser')
         invites = soup.find_all('div', attrs={"class": 'invite_row'})
         if not invites:
-            resp = await self.request('GET', f'{self.client.user.community_url}/groups/pending', params=params)
+            resp = await self.request('GET', f'{URL.COMMUNITY}/my/groups/pending', params=params)
             soup = BeautifulSoup(resp, 'html.parser')
             invites = soup.find_all('div', attrs={"class": 'invite_row'})
             data = invites[loop]
@@ -400,13 +411,6 @@ class ConnectionState:
                 when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
                 self.dispatch('typing', user, when)
 
-    """
-    @register(EMsg.ClientUserNotifications)
-    def parse_notification(self, msg: MsgProto):
-        if msg.body:
-            print(msg, msg.body)
-    """
-
     @register(EMsg.ClientFriendsGroupsList)  # this appears to be one the last multi you receive
     def ready(self, _) -> None:
         self.client._handle_ready()
@@ -422,52 +426,60 @@ class ConnectionState:
         msg.body: 'CMsgClientPersonaState'
         for friend in msg.body.friends:
             data = friend.to_dict(snakecase)
-            user_id64 = int(data['friendid'])
+            if not data:
+                continue
+            user_id64 = int(friend.friendid)
             if user_id64 == self._id64:
                 continue
             before = after = self.get_user(user_id64)
-            if not before and after:  # they're private
-                continue
+            if after is None:  # they're private
+                continue  # TODO maybe request from ws?
 
             try:
-                data = self.patch_user_from_ws(data)
+                data = self.patch_user_from_ws(data, friend)
             except (KeyError, TypeError):
-                invitee = await self.fetch_user(user_id64)
+                steam_id = SteamID(user_id64)
+                invitee = await self.fetch_user(steam_id.id64) or steam_id
                 invite = UserInvite(self, invitee)
                 self.dispatch('user_invite', invite)
 
-            after._update(data)
             old = [getattr(before, attr) for attr in self.user_slots]
+            after._update(data)
             new = [getattr(after, attr) for attr in self.user_slots]
             if old != new:
                 self._users[after.id64] = after
                 self.dispatch('user_update', before, after)
 
-    def patch_user_from_ws(self, data) -> dict:
-        data['personaname'] = data['player_name']
-        # data['avatarfull'] = data['avatar_hash']
+    def patch_user_from_ws(self, data: dict, friend: 'CMsgClientPersonaStateFriend') -> dict:
+        data['personaname'] = friend.player_name
+        hash = (friend.avatar_hash.hex() if data['avatar_hash'] != '\x00' * 20
+                else 'fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb')
+        data['avatarfull'] = (f'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/'
+                              f'{hash[:2]}/{hash}_full.jpg')
 
-        """
-        if data['avatar_hash'] != '\x00' * 20:
-            avatar_hash = data['avatar_hash'].encode('utf-8').hex()  # this is wrong
-        else:
-            avatar_hash = 'fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb'
-        data['avatarfull'] = f'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/' \
-                             f'{avatar_hash[:2]}/{avatar_hash}_full.jpg'
-        """
-
-        if 'last_logoff' in data:
-            data['lastlogoff'] = data['last_logoff']
-        data['gameextrainfo'] = data.get('game_name')
-        data['personastate'] = data.get('persona_state', 0)
-        data['personstateflags'] = data.get('persona_state_flags', 0)
+        if friend.last_logoff:
+            data['lastlogoff'] = friend.last_logoff
+        data['gameextrainfo'] = friend.game_name if friend.game_name else None
+        data['personastate'] = friend.persona_state
+        data['personastateflags'] = friend.persona_state_flags
         return data
 
-    """
     @register(EMsg.ClientFriendsList)
-    def process_friends(self, msg: MsgProto) -> None:
-        self._last_friends_list = msg
-    """
+    async def process_friends(self, msg: MsgProto) -> None:
+        msg.body: 'CMsgClientFriendsList'
+        for user in msg.body.friends:
+            if user.efriendrelationship in (EFriendRelationship.RequestInitiator,
+                                            EFriendRelationship.RequestRecipient):
+                steam_id = SteamID(user.ulfriendid)
+                invitee = await self.fetch_user(steam_id.id64) or steam_id
+                invite = UserInvite(self, invitee)
+                self.dispatch('user_invite', invite)
+                self.invitees.append(invitee)
+            if user.efriendrelationship == EFriendRelationship.Friend:
+                steam_id = SteamID(user.ulfriendid)
+                invitee = self.get_user(steam_id.id64) or steam_id
+                if invitee in self.invitees:
+                    self.dispatch('user_invite_accept', invitee)
 
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, msg: MsgProto) -> None:
@@ -476,23 +488,4 @@ class ConnectionState:
             comment = await self._parse_comment()
             self._obj = None
             self.dispatch('comment', comment)
-
-
-# user remove
-# receive in event <MsgProto msg=<EMsg.ClientFriendsList: 767> _
-# header=<MsgHdrProtoBuf msg=<EMsg.ClientFriendsList: 767> steamid='76561198400794682' clientSessionid=-2017801252>
-# bincremental=True friends=[{'ulfriendid': '76561198248053954'}]>
-
-# user add
-# receive in event <MsgProto msg=<EMsg.ClientFriendsList: 767> _
-# header=<MsgHdrProtoBuf msg=<EMsg.ClientFriendsList: 767> steamid='76561198400794682' clientSessionid=-2017801252>
-# bincremental=True friends=[{'ulfriendid': '76561198248053954', 'efriendrelationship': 2}]>
-# <MsgProto msg=<EMsg.ClientPersonaState: 766> _
-# header=<MsgHdrProtoBuf msg=<EMsg.ClientPersonaState: 766> steamid='76561198400794682' clientSessionid=-2017801252>
-# status_flags=2 friends=[{'friendid': '76561198248053954', 'player_name': 'Gobot1234'}]>
-
-
-# on_invite_accept
-# receive in event <MsgProto msg=<EMsg.ClientFriendsList: 767> _
-# header=<MsgHdrProtoBuf msg=<EMsg.ClientFriendsList: 767> steamid='76561198400794682' client_sessionid=-499266638>
-# bincremental=True friends=[{'ulfriendid': '76561198248053954', 'efriendrelationship': 3}]>
+        await self.http.clear_notifications()
