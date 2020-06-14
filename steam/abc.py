@@ -32,7 +32,14 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    Awaitable,
+    Callable,
+    List,
+    Optional,
+    Tuple
+)
 
 from .enums import (
     EInstanceFlag,
@@ -40,7 +47,7 @@ from .enums import (
     EPersonaStateFlag,
     EType,
     ETypeChar,
-    EUniverse
+    EUniverse,
 )
 from .errors import HTTPException
 from .game import Game
@@ -56,7 +63,7 @@ from .utils import (
 
 if TYPE_CHECKING:
     from .user import User
-    from .group import Group
+    from .clan import Clan
     from .state import ConnectionState
     from .image import Image
 
@@ -334,8 +341,8 @@ class BaseUser(SteamID):
     game: Optional[:class:`~steam.Game`]
         The Game instance attached to the user. Is None if the user
         isn't in a game or one that is recognised by the api.
-    primary_group: Optional[:class:`SteamID`]
-        The primary group the User displays on their profile.
+    primary_clan: Optional[:class:`SteamID`]
+        The primary clan the User displays on their profile.
     avatar_url: :class:`str`
         The avatar url of the user. Uses the large (184x184 px) image url.
     real_name: Optional[:class:`str`]
@@ -350,7 +357,7 @@ class BaseUser(SteamID):
         The persona state flags of the account.
     """
 
-    __slots__ = ('name', 'game', 'state', 'flags', 'country', 'primary_group',
+    __slots__ = ('name', 'game', 'state', 'flags', 'country', 'primary_clan',
                  'trade_url', 'real_name', 'avatar_url', 'last_seen_online',
                  'created_at', 'last_logoff', 'last_logon', '_state', '_data')
 
@@ -360,7 +367,7 @@ class BaseUser(SteamID):
         self.name = None
         self.real_name = None
         self.avatar_url = None
-        self.primary_group = None
+        self.primary_clan = None
         self.country = None
         self.created_at = None
         self.last_logoff = None
@@ -388,8 +395,8 @@ class BaseUser(SteamID):
         self.avatar_url = data.get('avatarfull') or self.avatar_url
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
-        self.primary_group = (SteamID(data['primaryclanid'])
-                              if 'primaryclanid' in data else None or self.primary_group)
+        self.primary_clan = (SteamID(data['primaryclanid'])
+                             if 'primaryclanid' in data else None or self.primary_clan)
         self.country = data.get('loccountrycode') or self.country
         self.created_at = (datetime.utcfromtimestamp(data['timecreated'])
                            if 'timecreated' in data else None or self.created_at)
@@ -403,11 +410,6 @@ class BaseUser(SteamID):
                      if 'gameid' in data else None or self.game)
         self.state = EPersonaState(data.get('personastate', 0)) or self.state
         self.flags = EPersonaStateFlag.try_value(data.get('personastateflags', 0)) or self.flags
-
-    async def update(self) -> None:
-        data = await self._state.http.get_user(self.id64)
-        data = data['response']['players'][0]
-        self._update(data)
 
     async def comment(self, content: str) -> Comment:
         """|coro|
@@ -480,30 +482,30 @@ class BaseUser(SteamID):
         games = data['response'].get('games', [])
         return [Game._from_api(game) for game in games]
 
-    async def groups(self) -> List['Group']:
+    async def clans(self) -> List['Clan']:
         """|coro|
-        Fetches a list of the :class:`User`'s :class:`~steam.Group`
+        Fetches a list of the :class:`User`'s :class:`~steam.Clan`
         objects the :class:`User` is in from the API.
 
         Returns
         -------
-        List[:class:`~steam.Group`]
-            The user's groups.
+        List[:class:`~steam.Clan`]
+            The user's clans.
         """
-        groups = []
+        clans = []
 
         async def getter(gid: str):
             try:
-                group = await self._state.client.fetch_group(gid)
+                clan = await self._state.client.fetch_clans(gid)
             except HTTPException:
                 await asyncio.sleep(20)
                 await getter(gid)
             else:
-                groups.append(group)
-        resp = await self._state.http.get_user_groups(self.id64)
-        for group in resp['response']['groups']:
-            await getter(group['gid'])
-        return groups
+                clans.append(clan)
+        resp = await self._state.http.get_user_clans(self.id64)
+        for clan in resp['response']['groups']:
+            await getter(clan['gid'])
+        return clans
 
     async def bans(self) -> Ban:
         """|coro|
@@ -611,8 +613,7 @@ class BaseUser(SteamID):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-class BaseChannel(metaclass=abc.ABCMeta):
-    pass
+_get_x_endpoint_return = Tuple[int, Callable[..., Awaitable[None]]]
 
 
 class Messageable(metaclass=abc.ABCMeta):
@@ -620,9 +621,16 @@ class Messageable(metaclass=abc.ABCMeta):
     The following classes implement this ABC:
 
         - :class:`~steam.User`
+        - :class:`BaseChannel`
     """
 
     __slots__ = ()
+
+    def _get_message_endpoint(self) -> _get_x_endpoint_return:
+        pass
+
+    def _get_image_endpoint(self) -> _get_x_endpoint_return:
+        pass
 
     async def send(self, content: str = None, image: 'Image' = None):
         """|coro|
@@ -633,7 +641,7 @@ class Messageable(metaclass=abc.ABCMeta):
         content: Optional[:class:`str`]
             The content of the message to send.
         image: Optional[:class:`.Image`]
-            The image to send to the user. This doesn't fully work yet.
+            The image to send to the user.
 
         Raises
         ------
@@ -642,3 +650,13 @@ class Messageable(metaclass=abc.ABCMeta):
         :exc:~steam.Forbidden
             You do not have permission to send the message.
         """
+        if content is not None:
+            id64, message_func = self._get_message_endpoint()
+            await message_func(id64, content)
+        if image is not None:
+            id64, image_func = self._get_image_endpoint()
+            await image_func(id64, image)
+
+
+class BaseChannel(Messageable):
+    pass
