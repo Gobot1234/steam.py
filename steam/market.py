@@ -32,7 +32,14 @@ import asyncio
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, List, Mapping, Union, Optional
+from typing import (
+    Any,
+    Awaitable,
+    List,
+    Mapping,
+    Optional,
+    Union
+)
 
 from bs4 import BeautifulSoup
 

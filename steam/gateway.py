@@ -47,7 +47,7 @@ import aiohttp
 
 from . import utils
 from .abc import SteamID
-from .enums import EResult, EPersonaState
+from .enums import EPersonaState, EResult
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .protobufs import EMsg, Msg, MsgProto
@@ -312,26 +312,27 @@ class SteamWebSocket:
         emsg_value = struct.unpack_from("<I", message)[0]
         emsg = EMsg(utils.clear_proto_bit(emsg_value))
         if emsg in self.handlers:
-            return await self.handlers[emsg](message)
+            msg = MsgProto(emsg, message)
+            return await self.handlers[emsg](msg)
 
         if not self.connected:
-            return log.debug(f'Dropped unexpected message: {repr(emsg)}')
+            return log.debug(f'Dropped unexpected message: {repr(emsg)} {repr(message)}')
         try:
             if utils.is_proto(emsg_value):
                 msg = MsgProto(emsg, message)
             else:
                 msg = Msg(emsg, message, extended=True)
+            log.debug(f'Socket has received {repr(msg)} from the websocket.')
         except Exception as e:
             log.fatal(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
             return log.exception(e)
 
-        log.debug(f'Socket has received {repr(msg)} from the websocket.')
         self._dispatch('socket_receive', msg)
 
         try:
             func = self._parsers[emsg]
         except KeyError:
-            log.debug(f"Ignoring event {emsg}")
+            log.debug(f"Ignoring event {repr(msg)}")
         else:
             await utils.maybe_coroutine(func, self._connection, msg)
 
@@ -359,8 +360,7 @@ class SteamWebSocket:
         log.info(f'Websocket closed, cannot reconnect.')
         raise ConnectionClosed(self.cm, self.cm_list)
 
-    async def handle_logon(self, message: bytes) -> None:
-        msg = MsgProto(EMsg.ClientLogOnResponse, message)
+    async def handle_logon(self, msg: MsgProto) -> None:
         result = msg.body.eresult
 
         if result == EResult.OK:
@@ -377,13 +377,15 @@ class SteamWebSocket:
 
             status = MsgProto(EMsg.ClientChangeStatus, persona_state=EPersonaState.Online)
             await self.send_as_proto(status)
-            # we want to receive persona state updates and other things
+            # we want to receive persona state updates
+            # setting your status to offline will stop
+            # you receiving them, don't ask why.
             await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
+            await self.send_um('ChatRoom.GetMyChatRoomGroups#1_Request')
         else:
             raise ConnectionClosed(self.cm, self.cm_list)
 
-    async def handle_multi(self, message: bytes) -> None:
-        msg = MsgProto(EMsg.Multi, message)
+    async def handle_multi(self, msg: MsgProto) -> None:
         log.debug('Received a multi, unpacking')
         if msg.body.size_unzipped:
             log.debug(f'Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})')

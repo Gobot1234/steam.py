@@ -38,7 +38,7 @@ from typing import (
     Iterable,
     Optional,
     Tuple,
-    Union
+    Union,
 )
 
 import aiohttp
@@ -121,7 +121,10 @@ def make_steam64(id: int = 0, *args, **kwargs) -> int:
                 universe = EUniverse.Public
             # 64 bit
             elif value < 2 ** 64:
-                return value
+                id = value & 0xFFFFFFFF
+                instance = (value >> 32) & 0xFFFFF
+                etype = (value >> 52) & 0xF
+                universe = (value >> 56) & 0xFF
             else:
                 id = 0
 
@@ -351,7 +354,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     return None
 
 
-def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Awaitable[str]:
+def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Callable[..., Awaitable[str]]:
     loop = loop or asyncio.get_running_loop()
     return loop.run_in_executor(None, input, prompt)
 

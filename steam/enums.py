@@ -30,7 +30,7 @@ Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 
 import types
 from collections import namedtuple
-from typing import Any, Union, Iterable
+from typing import Any, Iterable, Union
 
 __all__ = (
     'Enum',
