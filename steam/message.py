@@ -28,22 +28,27 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .channel import DMChannel
-    from .state import ConnectionState
+    from .channel import DMChannel, GroupChannel
+    from .abc import BaseUser
+    from .protobufs.steammessages_friendmessages import CFriendMessages_IncomingMessage_Notification \
+        as UserMessageNotification
+    from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
+        as GroupMessageNotification
 
 
 __all__ = (
-    'Message',
+    'UserMessage',
+    'GroupMessage',
 )
 
 
-class Message:
+class UserMessage:
     """Represents a message from a User."""
 
-    __slots__ = ('type', 'author', 'channel', 'content', 'created_at', '_state')
+    __slots__ = ('author', 'channel', 'content', 'created_at', '_state')
 
-    def __init__(self, state: 'ConnectionState', proto, channel: 'DMChannel'):
-        self._state = state
+    def __init__(self, proto: 'UserMessageNotification', channel: 'DMChannel'):
+        self._state = channel._state
         self.author = channel.participant
         self.channel = channel
         self.content = proto.message
@@ -54,4 +59,23 @@ class Message:
             'author', 'channel'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f"<Message {' '.join(resolved)}>"
+        return f"<UserMessage {' '.join(resolved)}>"
+
+
+class GroupMessage:
+
+    __slots__ = ('author', 'channel', 'content', 'created_at', '_state')
+
+    def __init__(self, proto: 'GroupMessageNotification', channel: 'GroupChannel', author: 'BaseUser'):
+        self._state = channel._state
+        self.author = author
+        self.channel = channel
+        self.content = proto.message
+        self.created_at = datetime.utcfromtimestamp(proto.timestamp)
+
+    def __repr__(self):
+        attrs = (
+            'author', 'channel'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<GroupMessage {' '.join(resolved)}>"
