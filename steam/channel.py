@@ -27,20 +27,26 @@ DEALINGS IN THE SOFTWARE.
 import asyncio
 from typing import TYPE_CHECKING
 
-from .abc import BaseChannel, Messageable
+from .abc import BaseChannel
 
 if TYPE_CHECKING:
+    from .group import Group
     from .image import Image
     from .trade import TradeOffer
     from .state import ConnectionState
     from .user import User
+    from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
+        as GroupMessageNotification
+
 
 __all__ = (
     'DMChannel',
+    'GroupChannel',
 )
 
 
-class DMChannel(BaseChannel, Messageable):
+class DMChannel(BaseChannel):
+    __slots__ = ('participant', '_state')
 
     def __init__(self, state: 'ConnectionState', participant: 'User'):
         self._state = state
@@ -58,7 +64,7 @@ class DMChannel(BaseChannel, Messageable):
         return TypingContextManager(self.participant)
 
     async def trigger_typing(self):
-        await self._state.send_typing(self.participant)
+        await self._state.send_user_typing(self.participant)
 
 
 # this is basically straight from d.py
@@ -73,13 +79,15 @@ def _typing_done_callback(fut):
 
 
 class TypingContextManager:
+    __slots__ = ('participant', '_task', '_state')
+
     def __init__(self, participant: 'User'):
         self._state = participant._state
         self.participant = participant
 
     async def send_typing(self):
         while 1:
-            await self._state.send_typing(self.participant)
+            await self._state.send_user_typing(self.participant)
             await asyncio.sleep(5)
 
     def __enter__(self):
@@ -94,3 +102,23 @@ class TypingContextManager:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self.__exit__(exc_type, exc_val, exc_tb)
+
+
+class GroupChannel(BaseChannel):
+    def __init__(self, state: 'ConnectionState',
+                 group: 'Group',
+                 notification: 'GroupMessageNotification'):
+        self._state = state
+        self.group = group
+        try:
+            self.id = int(notification.chat_group_id)
+            self.name = notification.chat_name or None
+        except AttributeError:
+            self.id = int(notification.chat_id)
+            self.name = notification.chat_name
+
+    def _get_message_endpoint(self):
+        return (self.id, self.group.id), self._state.send_group_message
+
+    def _get_image_endpoint(self):
+        return (self.id, self.group.id), self._state.http.send_group_image
