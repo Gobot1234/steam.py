@@ -47,8 +47,8 @@ import aiohttp
 
 from . import errors
 from .abc import SteamID
+from .clan import Clan
 from .gateway import *
-from .group import Group
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import MarketListingsIterator, TradesIterator
@@ -57,7 +57,7 @@ from .market import (
     Listing,
     MarketClient,
     PriceOverview,
-    convert_items
+    convert_items,
 )
 from .models import URL
 from .state import ConnectionState
@@ -76,6 +76,7 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
+event_type = Callable[..., Awaitable[None]]
 
 
 def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
@@ -112,7 +113,7 @@ def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 
 class ClientEventTask(asyncio.Task):
-    def __init__(self, original_coro: Callable[..., Awaitable[None]], event_name: str,
+    def __init__(self, original_coro: event_type, event_name: str,
                  coro: Awaitable[None], *, loop: asyncio.AbstractEventLoop):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
@@ -217,7 +218,7 @@ class Client:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return float('nan') if self.ws is None else self.ws.latency
 
-    def event(self, coro: Callable[..., Awaitable[None]]) -> Callable[..., Awaitable[None]]:
+    def event(self, coro: event_type) -> event_type:
         """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
@@ -240,7 +241,7 @@ class Client:
         log.debug(f'{coro.__name__} has successfully been registered as an event')
         return coro
 
-    async def _run_event(self, coro: Callable[..., Awaitable[None]],
+    async def _run_event(self, coro: event_type,
                          event_name: str, *args, **kwargs) -> None:
         try:
             await coro(*args, **kwargs)
@@ -252,7 +253,7 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: Callable[..., Awaitable[None]],
+    def _schedule_event(self, coro: event_type,
                         event_name: str, *args, **kwargs) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
@@ -586,9 +587,9 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    async def fetch_group(self, *args, **kwargs) -> Optional[Group]:
+    async def fetch_clan(self, *args, **kwargs) -> Optional['Clan']:
         r"""|coro|
-        Fetches a group from https://steamcommunity.com with a matching ID.
+        Fetches a clan from https://steamcommunity.com with a matching ID.
 
         Parameters
         ----------
@@ -599,32 +600,32 @@ class Client:
 
         Returns
         -------
-        Optional[:class:`~steam.Group`]
-            The group or ``None`` if the group was not found.
+        Optional[:class:`~steam.Clan`]
+            The clan or ``None`` if the clan was not found.
         """
         steam_id = SteamID(*args, **kwargs)
-        group = Group(state=self._connection, id=steam_id.id)
-        await group.__ainit__()
-        return group if group.name else None
+        clan = Clan(state=self._connection, id=steam_id.id)
+        await clan.__ainit__()
+        return clan if clan.name else None
 
-    async def fetch_group_named(self, name: str) -> Optional['Group']:
+    async def fetch_clan_named(self, name: str) -> Optional['Clan']:
         """|coro|
-        Fetches a group from https://steamcommunity.com with a matching name.
+        Fetches a clan from https://steamcommunity.com with a matching name.
 
         Parameters
         ----------
         name: :class:`str`
-            The name of the Steam group.
+            The name of the Steam clan.
 
         Returns
         -------
-        Optional[:class:`~steam.Group`]
-            The group or ``None`` if the group was not found.
+        Optional[:class:`~steam.Clan`]
+            The clan or ``None`` if the clan was not found.
         """
-        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/groups/{name}')
+        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/clans/{name}')
         if not steam_id:
             return None
-        return await self.fetch_group(id=steam_id.id)
+        return await self.fetch_clan(id=steam_id.id)
 
     def get_listing(self, id: int) -> Optional[Listing]:
         """Gets a listing from cache with a matching ID.

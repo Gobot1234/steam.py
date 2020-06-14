@@ -46,7 +46,7 @@ from .models import URL, Comment
 
 if TYPE_CHECKING:
     from .abc import BaseUser
-    from .group import Group
+    from .clan import Clan
     from .market import Listing
     from .trade import TradeOffer
     from .state import ConnectionState
@@ -213,7 +213,7 @@ class CommentsIterator(AsyncIterator):
     __slots__ = ('owner',)
 
     def __init__(self, state: 'ConnectionState', before: datetime,
-                 after: datetime, limit: int, owner: Union['BaseUser', 'Group']):
+                 after: datetime, limit: int, owner: Union['BaseUser', 'Clan']):
         super().__init__(state, limit, before, after)
         self.owner = owner
 

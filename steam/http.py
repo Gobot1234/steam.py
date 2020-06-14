@@ -38,7 +38,7 @@ from typing import (
     List,
     Optional,
     Tuple,
-    Union
+    Union,
 )
 
 import aiohttp
@@ -509,51 +509,51 @@ class HTTPClient:
         }
         return self.request('POST', CRoute(f'/comment/{comment_type}/hideandreport/{id64}'), data=payload)
 
-    def accept_group_invite(self, group_id: int) -> Awaitable:
+    def accept_clan_invite(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionid": self.session_id,
             "steamid": self.user.id64,
             "ajax": '1',
             "action": 'group_accept',
-            "steamids[]": group_id
+            "steamids[]": clan_id
         }
         return self.request('POST', CRoute('/my/friends/action'), data=payload)
 
-    def decline_group_invite(self, group_id: int) -> Awaitable:
+    def decline_clan_invite(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionid": self.session_id,
             "steamid": self.user.id64,
             "ajax": '1',
             "action": 'group_ignore',
-            "steamids[]": group_id
+            "steamids[]": clan_id
         }
         return self.request('POST', CRoute('/my/friends/action'), data=payload)
 
-    def join_group(self, group_id: int) -> Awaitable:
+    def join_clan(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionID": self.session_id,
             "action": 'join',
         }
-        return self.request('POST',  CRoute(f'/gid/{group_id}'), data=payload)
+        return self.request('POST',  CRoute(f'/gid/{clan_id}'), data=payload)
 
-    def leave_group(self, group_id: int) -> Awaitable:
+    def leave_clan(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionID": self.session_id,
             "action": 'leaveGroup',
-            "groupId": group_id
+            "groupId": clan_id
         }
         return self.request('POST', CRoute('/my/home_process'), data=payload)
 
-    def invite_user_to_group(self, user_id64: int, group_id: int) -> Awaitable:
+    def invite_user_to_clan(self, user_id64: int, clan_id: int) -> Awaitable:
         payload = {
             "sessionID": self.session_id,
-            "group": group_id,
+            "group": clan_id,
             "invitee": user_id64,
             "type": 'groupInvite',
         }
         return self.request('POST', CRoute('/actions/GroupInvite'), data=payload)
 
-    def get_user_groups(self, user_id64: int) -> Awaitable:
+    def get_user_clans(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamid": user_id64
@@ -591,7 +591,7 @@ class HTTPClient:
         return self.request('GET', CRoute('/my/inventory'))
 
     async def edit_profile(self, nick: str, real_name: str,
-                           summary: str, group_id: int, avatar: 'Image') -> None:
+                           summary: str, clan_id: int, avatar: 'Image') -> None:
         resp = await self.request('GET', url=f'{self.user.community_url}/edit')
         soup = BeautifulSoup(resp, 'html.parser')
         editable = ['personaName', 'real_name', 'customURL', 'primary_group_steamid']
@@ -603,7 +603,7 @@ class HTTPClient:
             "personaName": nick or current_values['personaName'],
             "real_name": real_name or current_values['real_name'],
             "summary": summary or soup.find('textarea').text,
-            "primary_group_steamid": group_id or current_values['primary_group_steamid']
+            "primary_group_steamid": clan_id or current_values['primary_group_steamid']
         }
 
         await self.request('POST', CRoute('/my/edit'), data=payload)
@@ -624,7 +624,7 @@ class HTTPClient:
             }
             await self.request('POST', CRoute('/actions/FileUploader'), data=payload)
 
-    async def send_image(self, user_id64: int, image: 'Image') -> None:
+    async def send_user_image(self, user_id64: int, image: 'Image') -> None:
         payload = {
             "sessionid": self.session_id,
             "l": 'english',
