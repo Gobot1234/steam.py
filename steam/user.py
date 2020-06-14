@@ -141,6 +141,12 @@ class User(BaseUser, Messageable):
         seconds = their_escrow['escrow_end_duration_seconds']
         return timedelta(seconds=seconds) if seconds else None
 
+    def _get_message_endpoint(self):
+        return self.id64, self._state.send_user_message
+
+    def _get_image_endpoint(self):
+        return self.id64, self._state.http.send_user_image
+
     async def send(self, content: str = None, *,
                    trade: 'TradeOffer' = None,
                    image: 'Image' = None) -> None:
@@ -158,14 +164,13 @@ class User(BaseUser, Messageable):
 
         Raises
         ------
-        :exc:`~steam.HTTPException`
-            Something failed to send.
+        :exc:~steam.HTTPException
+            Sending the message failed.
+        :exc:~steam.Forbidden
+            You do not have permission to send the message.
         """
 
-        if content is not None:
-            await self._state.send_user_message(self, str(content))
-        if image is not None:
-            await self._state.http.send_image(self.id64, image)
+        await super().send(content, image)
         if trade is not None:
             to_send = [item.to_dict() for item in trade.items_to_send]
             to_receive = [item.to_dict() for item in trade.items_to_receive]
