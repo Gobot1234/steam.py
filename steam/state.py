@@ -30,7 +30,7 @@ import re
 import weakref
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Callable, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -38,28 +38,28 @@ from stringcase import snakecase
 from yarl import URL as _URL
 
 from .abc import SteamID
-from .channel import DMChannel
+from .channel import DMChannel, GroupChannel
 from .enums import (
     EChatEntryType,
+    EFriendRelationship,
     EMarketListingState,
     ETradeOfferState,
     EType,
-    EFriendRelationship
 )
 from .errors import AuthenticatorError, HTTPException, InvalidCredentials
 from .game import Game
+from .group import Group
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
-from .message import Message
+from .message import *
 from .models import URL, Invite, UserInvite
 from .protobufs import EMsg, MsgProto
-from .protobufs.steammessages_friendmessages import (
-    CFriendMessages_IncomingMessage_Notification as MessageNotification
-)
+from .protobufs.steammessages_friendmessages import CFriendMessages_IncomingMessage_Notification \
+    as UserMessageNotification
 from .trade import TradeOffer
 from .user import User
 
 if TYPE_CHECKING:
-    from .client import Client
+    from .client import Client, event_type
     from .http import HTTPClient
     from .market import Listing
     from .models import Comment
@@ -70,6 +70,11 @@ if TYPE_CHECKING:
         CMsgClientFriendsList,
     )
     from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications
+    from .protobufs.steammessages_chat import (
+        CChatRoom_GetMyChatRoomGroups_Response,
+        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification
+    )
+
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +83,7 @@ def register(emsg: EMsg):
     class wrapper:
         __slots__ = ('func',)
 
-        def __init__(self, func: Callable):
+        def __init__(self, func: 'event_type'):
             self.func = func
 
         def __set_name__(self, state: 'ConnectionState', _):
@@ -88,7 +93,7 @@ def register(emsg: EMsg):
 
 
 class ConnectionState:
-    parsers = dict()
+    parsers = dict()  # we need this for register
 
     def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
@@ -108,6 +113,7 @@ class ConnectionState:
         self._trades = dict()
         self._confirmations = dict()
         self.invitees = []
+        self.groups = []
 
     async def __ainit__(self) -> None:
         self.market = self.client._market
@@ -137,8 +143,8 @@ class ConnectionState:
 
     async def fetch_user(self, user_id64: int) -> Optional[User]:
         resp = await self.http.get_user(user_id64)
-        user = resp['response']['players'][0] if resp['response']['players'] else None
-        return self._store_user(user) if user else None
+        players = resp['response']['players']
+        return self._store_user(players[0]) if players else None
 
     async def fetch_users(self, user_id64s: List[int]) -> List[Optional[User]]:
         resp = await self.http.get_users(user_id64s)
@@ -262,7 +268,7 @@ class ConnectionState:
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         steam_id = await SteamID.from_url(f'{URL.COMMUNITY}{_URL(search.group(1)).path}')
         if steam_id.type == EType.Clan:
-            obj = await self.client.fetch_group(steam_id.id64)
+            obj = await self.client.fetch_clan(steam_id.id64)
         else:
             obj = await self.fetch_user(steam_id.id64)
 
@@ -371,22 +377,22 @@ class ConnectionState:
 
     # ws stuff
 
-    async def send_user_message(self, user: 'User', content: str) -> None:
+    async def send_user_message(self, user_id64: int, content: str) -> None:
         await self.client.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
-            steamid=str(user.id64), message=content,
+            steamid=str(user_id64), message=content,
             chat_entry_type=EChatEntryType.ChatMsg,
         )
-        proto = MessageNotification(
+        proto = UserMessageNotification(
             steamid_friend=0.0, chat_entry_type=1,
             message=content, rtime32_server_timestamp=time()
         )
-        channel = DMChannel(state=self, participant=user)
-        message = Message(state=self, proto=proto, channel=channel)
+        channel = DMChannel(state=self, participant=self.get_user(user_id64))
+        message = UserMessage(proto=proto, channel=channel)
         message.author = self.client.user
         self.dispatch('message', message)
 
-    async def send_typing(self, user: 'User'):
+    async def send_user_typing(self, user: 'User'):
         await self.client.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
             steamid=str(user.id64),
@@ -394,29 +400,68 @@ class ConnectionState:
         )
         self.dispatch('typing', self.client.user, datetime.utcnow())
 
+    async def send_group_message(self, ids: Tuple[int, int], content: str):
+        await self.client.ws.send_um(
+            "ChatRoom.SendChatMessage#1_Request",
+            chat_id=ids[0], chat_group_id=ids[1],
+            message=content,
+        )
+        proto = GroupMessageNotification(
+            chat_id=ids[0], chat_group_id=ids[1],
+            steamid_sender=0.0, message=content, timestamp=int(time()),
+        )
+        group = [g for g in self.groups if g.id == ids[0]][0]
+        channel = GroupChannel(state=self, notification=proto, group=group)
+        message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
+        self.dispatch('message', message)
+
     # parsers
 
     @register(EMsg.ServiceMethod)
-    def message_create(self, msg: MsgProto):
+    def parse_service_method(self, msg: MsgProto):
         if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
-            msg.body: 'MessageNotification'
+            msg.body: 'UserMessageNotification'
             user = self.get_user(int(msg.body.steamid_friend))
 
             if msg.body.chat_entry_type == EChatEntryType.ChatMsg:
                 channel = DMChannel(state=self, participant=user)
-                message = Message(state=self, proto=msg.body, channel=channel)
+                message = UserMessage(proto=msg.body, channel=channel)
                 self.dispatch('message', message)
 
             if msg.body.chat_entry_type == EChatEntryType.Typing:
                 when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
                 self.dispatch('typing', user, when)
 
+        if msg.header.target_job_name == 'ChatRoomClient.NotifyIncomingChatMessage#1':
+            msg.body: 'GroupMessageNotification'
+            sent_in = None
+            for group in self.groups:
+                for channel in group.channels:
+                    if channel.id == int(msg.body.chat_id):
+                        sent_in = group
+            if sent_in is None:
+                return
+            channel = GroupChannel(state=self, notification=msg.body, group=sent_in)
+            user_id64 = int(msg.body.steamid_sender)
+            author = self.client.get_user(user_id64)
+            message = GroupMessage(proto=msg.body, channel=channel, author=author)
+            self.dispatch('message', message)
+
+    @register(EMsg.ServiceMethodResponse)
+    async def parse_service_method_response(self, msg: MsgProto):
+        if msg.header.target_job_name == 'ChatRoom.GetMyChatRoomGroups#1':
+            msg.body: 'CChatRoom_GetMyChatRoomGroups_Response'
+            for group in msg.body.chat_room_groups:
+                group = Group(state=self, proto=group.group_summary)
+                await group.__ainit__()
+                self.groups.append(group)
+
     @register(EMsg.ClientFriendsGroupsList)  # this appears to be one the last multi you receive
     def ready(self, _) -> None:
         self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
-    def handle_cm_list_update(self, msg: MsgProto) -> None:
+    def parse_cm_list_update(self, msg: MsgProto) -> None:
         log.debug('Updating CM list')
         self.client.ws.cm_list.clear()
         self.client.ws.cm_list.merge_list(msg.body.cm_websocket_addresses)
@@ -471,13 +516,17 @@ class ConnectionState:
             if user.efriendrelationship in (EFriendRelationship.RequestInitiator,
                                             EFriendRelationship.RequestRecipient):
                 steam_id = SteamID(user.ulfriendid)
-                invitee = await self.fetch_user(steam_id.id64) or steam_id
-                invite = UserInvite(self, invitee)
-                self.dispatch('user_invite', invite)
-                self.invitees.append(invitee)
+                if steam_id.type == EType.Individual:
+                    invitee = await self.fetch_user(steam_id.id64) or steam_id
+                    invite = UserInvite(self, invitee)
+                    self.dispatch('user_invite', invite)
+                    self.invitees.append(invitee)
+                if steam_id.type == EType.Clan:
+                    clan = await self.client.fetch_clan(steam_id.id64)  # TODO add a ClanInvite object
+                    self.dispatch('clan_invite', clan)
             if user.efriendrelationship == EFriendRelationship.Friend:
                 steam_id = SteamID(user.ulfriendid)
-                invitee = self.get_user(steam_id.id64) or steam_id
+                invitee = await self.fetch_user(steam_id.id64) or steam_id
                 if invitee in self.invitees:
                     self.dispatch('user_invite_accept', invitee)
 
