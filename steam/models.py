@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from .group import Group
     from .state import ConnectionState
     from .user import User
+    from .protobufs.steammessages_chat import CChatRoleActions as \
+        RoleProto
 
 
 __all__ = (
@@ -319,3 +321,20 @@ class UserBadges:
 
     def __len__(self):
         return len(self.badges)
+
+
+class Role:
+
+    def __init__(self, proto: 'RoleProto'):
+        self.id = int(proto.role_id)
+        self.can_kick = proto.can_kick
+        self.can_ban = proto.can_ban
+        self.can_invite = proto.can_invite
+        self.can_change_tagline_avatar_name = proto.can_change_tagline_avatar_name
+        self.can_chat = proto.can_chat
+        self.can_view_history = proto.can_view_history
+        self.can_change_group_roles = proto.can_change_group_roles
+        self.can_change_user_roles = proto.can_change_user_roles
+        self.can_mention_all = proto.can_mention_all
+        self.can_set_watching_broadcast = proto.can_set_watching_broadcast
+
