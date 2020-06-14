@@ -11,6 +11,10 @@ from . import (
     steammessages_friendmessages,
 )
 
+__all__ = (
+    'UMS',
+)
+
 
 UMS = {
     "GameServers.GetServerList#1_Request": steammessages_gameservers.CGameServers_GetServerList_Request,

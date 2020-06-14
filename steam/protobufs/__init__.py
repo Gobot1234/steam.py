@@ -23,17 +23,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This is a copy of https://github.com/ValvePython/steam/tree/master/steam/core/msg
+This is an updated version of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
 from typing import Optional, Type, Union
 
 import betterproto
 
-from .emsg import EMsg
+from .emsg import *
 from .headers import *
-from .protobufs import PROTOBUFS
-from .unified import UMS
+from .protobufs import *
+from .unified import *
 from ..enums import IntEnum
 
 
@@ -43,22 +43,6 @@ def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
 
 def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
     return UMS.get(method_name)
-
-
-class _Enum(IntEnum):
-    """Protocol buffers enumeration base class. Acts like `enum.IntEnum`."""
-
-    @classmethod
-    def from_string(cls, name: str) -> IntEnum:
-        """Return the value which corresponds to the string name."""
-        try:
-            return cls.__members__[name]
-        except KeyError as e:
-            raise ValueError(f"Unknown value {name} for enum {cls.__name__}") from e
-
-
-# add in our speeder enum
-betterproto.Enum = _Enum
 
 
 class Msg:

@@ -7,7 +7,12 @@ from . import (
     steammessages_clientserver_login,
     steammessages_clientserver
 )
-from .emsg import EMsg
+from .emsg import *
+
+
+__all__ = (
+    'PROTOBUFS',
+)
 
 
 PROTOBUFS = {
