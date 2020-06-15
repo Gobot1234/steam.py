@@ -26,7 +26,7 @@ Client
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_error,
                       on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline,
                       on_trade_cancel, on_trade_expire, on_trade_counter, on_comment,
-                      on_invite, on_listing_create, on_listing_buy, on_listing_sell, on_listing_cancel
+                      on_user_invite, on_clan_invite, on_message, on_user_update
 
 Event Reference
 ---------------
@@ -44,12 +44,8 @@ overriding the specific events. For example: ::
         async def on_trade_receive(self, trade: steam.TradeOffer):
             print(f'Received trade: #{trade.id}')
             print('Trade partner is:', trade.partner.name)
-            print('We are going to send:')
-            print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send)
-                  if trade.items_to_send else 'Nothing')
-            print('We are going to receive:')
-            print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive)
-                  if trade.items_to_receive else 'Nothing')
+            print('We would send:', len(trade.items_to_send), 'items')
+            print('We would receive:', len(trade.items_to_receive), 'items')
 
             if trade.is_gift():
                 print('Accepting the trade as it is a gift')
@@ -74,6 +70,8 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. automethod:: Client.on_error
 
+.. automethod:: Client.on_message
+
 .. automethod:: Client.on_trade_receive
 
 .. automethod:: Client.on_trade_send
@@ -90,17 +88,9 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. automethod:: Client.on_comment
 
-.. automethod:: Client.on_invite
+.. automethod:: Client.on_user_invite
 
-.. automethod:: Client.on_listing_create
-
-.. automethod:: Client.on_listing_buy
-
-.. automethod:: Client.on_listing_sell
-
-.. automethod:: Client.on_listing_cancel
-
-.. automethod:: Client.on_user_update
+.. automethod:: Client.on_clan_invite
 
 
 
