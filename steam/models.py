@@ -120,65 +120,19 @@ class Invite:
 
     Attributes
     -----------
-    type: :class:`str`
-        The type of invite either 'Profile'
-        or 'Clan'.
     invitee: :class:`~steam.User`
         The user who sent the invite. For type
         'Profile', this is the user you would end up adding.
-    group: Optional[:class:`~steam.Group`]
-        The group the invite pertains to,
-        only relevant if type is 'Clan'.
     """
 
-    __slots__ = ('type', 'group', 'invitee', '_data', '_state')
-
-    def __init__(self, state: 'ConnectionState', data: 'BeautifulSoup.Tag'):
-        self._state = state
-        self._data = str(data)
-
-    async def __ainit__(self) -> None:
-        search = re.search(r"href=\"javascript:OpenGroupChat\( '(\d+)' \)\"", self._data)
-        invitee_id = re.search(r'data-miniprofile="(\d+)"', self._data)
-        client = self._state.client
-
-        self.type = 'Clan' if search is not None else 'Profile'
-        self.invitee = await client.fetch_user(invitee_id.group(1))
-        self.group = await client.fetch_group(search.group(1)) if self.type == 'Clan' else None
-
-    def __repr__(self):
-        attrs = (
-            'type', 'invitee', 'group'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f"<Invite {' '.join(resolved)}>"
-
-    async def accept(self) -> None:
-        """|coro|
-        Accepts the invite request.
-        """
-        if self.type == 'Profile':
-            await self._state.http.accept_user_invite(self.invitee.id64)
-            self._state.client.user.friends.append(self.invitee)
-        else:
-            await self._state.http.accept_group_invite(self.group.id64)
-
-    async def decline(self) -> None:
-        """|coro|
-        Declines the invite request.
-        """
-        if self.type == 'Profile':
-            await self._state.http.decline_user_invite(self.invitee.id64)
-        else:
-            await self._state.http.decline_group_invite(self.group.id64)
-
-
-class UserInvite:
+    __slots__ = ('invitee', '_state')
 
     def __init__(self, state: 'ConnectionState', invitee: 'User'):
         self._state = state
         self.invitee = invitee
 
+
+class UserInvite(Invite):
     def __repr__(self):
         attrs = (
             'invitee',
@@ -198,6 +152,33 @@ class UserInvite:
         Declines the invite request.
         """
         await self._state.http.decline_user_invite(self.invitee.id64)
+
+
+class ClanInvite(Invite):
+    __slots__ = ('clan',)
+
+    def __init__(self, state: 'ConnectionState', invitee: 'User', clan: 'Clan'):
+        super().__init__(state, invitee)
+        self.clan = clan
+
+    def __repr__(self):
+        attrs = (
+            'invitee', 'clan',
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<ClanInvite {' '.join(resolved)}>"
+
+    async def accept(self) -> None:
+        """|coro|
+        Accepts the invite request.
+        """
+        await self._state.http.accept_clan_invite(self.clan.id64)
+
+    async def decline(self) -> None:
+        """|coro|
+        Declines the invite request.
+        """
+        await self._state.http.decline_clan_invite(self.clan.id64)
 
 
 class Ban:
