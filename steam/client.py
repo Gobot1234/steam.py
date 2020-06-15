@@ -959,11 +959,11 @@ class Client:
         Called when a user's their state, due to one or more
         of the following attributes changing:
 
-            - username
-            - persona state
+            - name
+            - state
             - avatar
-            - logon
-            - logout
+            - last_logon
+            - last_logout
             - game
 
 
