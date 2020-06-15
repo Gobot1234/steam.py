@@ -224,7 +224,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
     def ack(self) -> None:
         self._last_ack = ack_time = time.perf_counter()
-        self.latency = self.interval - (ack_time - self._last_send)  # I think this is correct
+        self.latency = self.interval - (ack_time - self._last_send)
         if self.latency > 10:
             log.warning(self.behind_msg.format(self.latency))
 
@@ -241,8 +241,6 @@ class SteamWebSocket:
         self.cm = None
         self._parsers = {}
         self.connected = False
-        self.channel_key = None
-        self.channel_hmac = None
         self.session_id = None
         self.steam_id = None
         self.cell_id = 0
@@ -304,7 +302,8 @@ class SteamWebSocket:
                     continue
                 await self.receive(message)
             except WebSocketClosure:
-                self.handle_close()
+                log.info(f'Websocket closed, cannot reconnect.')
+                raise ConnectionClosed(self.cm, self.cm_list)
 
     async def receive(self, message: bytes) -> None:
         self._dispatch('socket_raw_receive', message)
@@ -356,10 +355,6 @@ class SteamWebSocket:
             await self.send_as_proto(MsgProto(EMsg.ClientLogOff))
         await self.socket.close(code=code)
 
-    def handle_close(self) -> None:
-        log.info(f'Websocket closed, cannot reconnect.')
-        raise ConnectionClosed(self.cm, self.cm_list)
-
     async def handle_logon(self, msg: MsgProto) -> None:
         result = msg.body.eresult
 
@@ -401,9 +396,9 @@ class SteamWebSocket:
             data = data[4 + size:]
 
     async def send_um(self, name: str, **kwargs) -> None:
-        message = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
-        message.header.job_id_source = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
-        await self.send_as_proto(message)
+        msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
+        msg.header.job_id_source = self._current_job_id = ((self._current_job_id + 1) % 10000) or 1
+        await self.send_as_proto(msg)
 
     async def change_presence(self, *, games: List[dict] = None,
                               status: EPersonaState = None,
