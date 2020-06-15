@@ -27,6 +27,8 @@ SOFTWARE.
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from .abc import Message
+
 if TYPE_CHECKING:
     from .channel import DMChannel, GroupChannel
     from .abc import BaseUser
@@ -42,15 +44,14 @@ __all__ = (
 )
 
 
-class UserMessage:
+class UserMessage(Message):
     """Represents a message from a User."""
 
-    __slots__ = ('author', 'channel', 'content', 'created_at', '_state')
+    __slots__ = ('author', 'content', 'created_at')
 
     def __init__(self, proto: 'UserMessageNotification', channel: 'DMChannel'):
-        self._state = channel._state
+        super().__init__(channel)
         self.author = channel.participant
-        self.channel = channel
         self.content = proto.message
         self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
 
@@ -62,14 +63,13 @@ class UserMessage:
         return f"<UserMessage {' '.join(resolved)}>"
 
 
-class GroupMessage:
+class GroupMessage(Message):
 
-    __slots__ = ('author', 'channel', 'content', 'created_at', '_state')
+    __slots__ = ('author', 'content', 'created_at')
 
     def __init__(self, proto: 'GroupMessageNotification', channel: 'GroupChannel', author: 'BaseUser'):
-        self._state = channel._state
+        super().__init__(channel)
         self.author = author
-        self.channel = channel
         self.content = proto.message
         self.created_at = datetime.utcfromtimestamp(proto.timestamp)
 
