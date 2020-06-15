@@ -24,17 +24,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import re
+import asyncio
 from datetime import timedelta
 from typing import TYPE_CHECKING, List, Optional
 
 from .abc import BaseUser, Messageable
+from .errors import ConfirmationError
 from .models import URL
 
 if TYPE_CHECKING:
+    from .clan import Clan
     from .group import Group
-    from .state import ConnectionState
     from .image import Image
+    from .state import ConnectionState
     from .trade import TradeOffer
 
 
@@ -177,7 +179,13 @@ class User(BaseUser, Messageable):
             resp = await self._state.http.send_trade_offer(self.id64, self.id, to_send,
                                                            to_receive, trade.token, trade.message)
             if resp.get('needs_mobile_confirmation', False):
-                await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
+                trade._has_been_sent = True
+                for tries in range(5):
+                    try:
+                        await trade.confirm()
+                    except ConfirmationError:
+                        await asyncio.sleep(tries * 2)
+                        continue
 
     async def invite_to_group(self, group: 'Group'):
         """|coro|
@@ -188,7 +196,18 @@ class User(BaseUser, Messageable):
         group: :class:`~steam.Group`
             The group to invite the user to.
         """
-        await self._state.http.invite_user_to_group(self.id64, group.id64)
+        # TODO
+
+    async def invite_to_clan(self, clan: 'Clan'):
+        """|coro|
+        Invites a :class:`~steam.User` to a :class:`Clan`.
+
+        Parameters
+        -----------
+        clan: :class:`~steam.Clan`
+            The clan to invite the user to.
+        """
+        await self._state.http.invite_user_to_clan(self.id64, clan.id64)
 
     def is_friend(self) -> bool:
         """:class:`bool`: Species if the user is in the :class:`ClientUser`'s friends."""
@@ -257,23 +276,10 @@ class ClientUser(BaseUser):
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<ClientUser {' '.join(resolved)}>"
 
-    async def wallet_balance(self) -> Optional[float]:
-        """|coro|
-        Fetches the :class:`ClientUser`'s current wallet balance.
-
-        Returns
-        -------
-        Optional[:class:`float`]
-            The current wallet balance.
-        """
-        resp = await self._state.request('GET', url=f'{URL.STORE}/steamaccount/addfunds')
-        search = re.search(r'Wallet <b>\([^\d]*(\d*)(?:[.,](\d*)|)[^\d]*\)</b>', resp, re.UNICODE)
-        if search is None:
-            return None
-
-        return float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
-
     async def setup_profile(self) -> None:
+        """|coro|
+        Set up your profile if possible
+        """
         if self.has_setup_profile():
             return
 

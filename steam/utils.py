@@ -354,7 +354,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     return None
 
 
-def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Callable[..., Awaitable[str]]:
+def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Awaitable[str]:
     loop = loop or asyncio.get_running_loop()
     return loop.run_in_executor(None, input, prompt)
 
