@@ -42,12 +42,11 @@ from bs4 import BeautifulSoup
 
 from . import utils
 from .enums import ETradeOfferState
-from .models import URL, Comment
+from .models import Comment
 
 if TYPE_CHECKING:
     from .abc import BaseUser
     from .clan import Clan
-    from .market import Listing
     from .trade import TradeOffer
     from .state import ConnectionState
 
@@ -336,67 +335,4 @@ class TradesIterator(AsyncIterator):
         return await super().find(predicate)
 
     async def flatten(self) -> List['TradeOffer']:
-        return await super().flatten()
-
-
-class MarketListingsIterator(AsyncIterator):
-    async def fill(self) -> None:
-        from .market import Listing
-
-        resp = await self._state.market.get_pages()
-        pages = resp['total_count']
-        if not pages:  # they have no listings just return
-            return
-        for start in range(0, pages, 100):
-            params = {
-                "start": start,
-                "count": 100
-            }
-            resp = await self._state.request('GET', url=f'{URL.COMMUNITY}/market/myhistory/render', params=params)
-            matches = re.findall(r"CreateItemHoverFromContainer\( \w+, 'history_row_\d+_(\d+)_\w+', "
-                                 r"\d+, '\d+', '(\d+)', \d+ \);", resp["hovers"])
-            # we need the listing id and the asset id(???)
-            prices = []
-            soup = BeautifulSoup(resp['results_html'], 'html.parser')
-            compiled = re.compile(r'market_listing[\s\w]*')
-            div = soup.find_all('div', attrs={"class": compiled})
-            span = soup.find_all('span', attrs={"class": compiled})
-            div.extend(span)
-            for listing in div:
-                listing_id = re.findall(r'history_row_\d+_(\d+)_\w+', str(listing))
-                price = re.findall(r'[^\d]*(\d+)(?:[.,])(\d+)', listing.text, re.UNICODE)
-                try:
-                    price = float(f'{price[0][0]}.{price[0][1]}')
-                except IndexError:
-                    price = None
-                prices.append((listing_id, price))
-
-            for game_context_id in resp['assets'].values():
-                for games_listings in game_context_id.values():
-                    for listing in games_listings.values():
-                        listing['assetid'] = listing['id']  # we need to swap the ids around
-                        try:
-                            listing['id'] = int([m for m in matches if m[1] == listing['assetid']][0])
-                            price = [price for price in prices
-                                     if price and price[0] and price[0][0] and
-                                     price[0][0] == listing['id']]
-                            if price:
-                                listing['price'] = price[0][1]
-                        except TypeError:  # FIXME
-                            # this isn't very common, the listing couldn't be
-                            # found I need to do more handling for this to make
-                            # sure it doesn't happen but for now this will do.
-                            continue
-                        try:
-                            self.queue.put_nowait(Listing(state=self._state, data=listing))
-                        except asyncio.QueueFull:
-                            return
-
-    def get(self, **attrs) -> Optional['Listing']:
-        return super().get(**attrs)
-
-    async def find(self, predicate: maybe_coro_predicate) -> Optional['Listing']:
-        return await super().find(predicate)
-
-    async def flatten(self) -> List['Listing']:
         return await super().flatten()

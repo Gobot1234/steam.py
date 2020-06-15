@@ -51,17 +51,16 @@ from .clan import Clan
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
-from .iterators import MarketListingsIterator, TradesIterator
+from .iterators import TradesIterator
 from .market import (
     FakeItem,
-    Listing,
     MarketClient,
     PriceOverview,
     convert_items,
 )
 from .models import URL
 from .state import ConnectionState
-from .utils import ainput, get
+from .utils import ainput
 
 if TYPE_CHECKING:
     import steam
@@ -159,6 +158,7 @@ class Client:
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
         self._market = MarketClient(loop=self.loop, session=self._session, client=self, currency=currency)
         self._connection = ConnectionState(loop=self.loop, client=self, http=self.http)
+        self.ws: Optional[SteamWebSocket] = None
 
         self.username = None
         self.api_key = None
@@ -170,7 +170,6 @@ class Client:
 
         self._user = None
         self._closed = True
-        self.ws = None
         self._cm_list = None
         self._listeners = {}
         self._ready = asyncio.Event()
@@ -191,11 +190,6 @@ class Client:
         """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the user has seen."""
         return self._connection.trades
 
-    @property
-    def listings(self) -> List[Listing]:
-        """List[:class:`~steam.Listing`]: Returns a list of all the listings the ClientUser has made."""
-        return self._connection.listings
-
     async def code(self) -> str:
         """|coro|
 
@@ -210,7 +204,7 @@ class Client:
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)
-        code = await ainput('Please enter a Steam guard code\n>>> ', self.loop)
+        code = await ainput('Please enter a Steam guard code\n>>> ')
         return code.strip()
 
     @property
@@ -446,7 +440,7 @@ class Client:
             raise TypeError(f'unexpected keyword argument(s) {list(kwargs.keys())}')
 
         await self.login(username=username, password=password, api_key=api_key, shared_secret=shared_secret)
-        await self._connection.__ainit__()
+        self.loop.create_task(self._connection.__ainit__())
         self._closed = False
         await self.connect()
 
@@ -626,96 +620,6 @@ class Client:
         if not steam_id:
             return None
         return await self.fetch_clan(id=steam_id.id)
-
-    def get_listing(self, id: int) -> Optional[Listing]:
-        """Gets a listing from cache with a matching ID.
-
-        Parameters
-        ----------
-        id: :class:`int`
-            The ID of the listing to get.
-
-        Returns
-        -------
-        Optional[:class:`Listing`]
-            The listing or ``None`` if the listing was not found.
-        """
-        return self._connection.get_listing(id)
-
-    async def fetch_listing(self, id: int) -> Optional[Listing]:
-        """|coro|
-        Gets a listing from from https://steamcommunity.com with a matching ID.
-
-        Parameters
-        ----------
-        id: :class:`int`
-            The ID of the listing to get.
-
-        Returns
-        -------
-        Optional[:class:`Listing`]
-            The listing or ``None`` if a listing with a
-            matching ID was not found.
-        """
-        listings = await self.fetch_listings()
-        return get(listings, id=id)
-
-    async def fetch_listings(self) -> List[Listing]:
-        """|coro|
-        Fetches all of your current market sell listing from https://steamcommunity.com.
-
-        Returns
-        -------
-        List[:class:`Listing`]
-            A list of your listings.
-        """
-        resp = await self._market.get_pages()
-        if not resp['total_count']:  # they have no listings just return
-            return []
-        floor, mod = divmod(resp['total_count'], 100)
-        total = 1 + floor if mod else floor  # totally not math.ceil
-        listings = await self._market.get_listings(total)
-        return [Listing(state=self._connection, data=listing) for listing in listings]
-
-    def listing_history(self, limit: Optional[int] = 100, before: datetime = None,
-                        after: datetime = None) -> MarketListingsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a
-        :class:`ClientUser`'s previous :class:`~steam.Listing` objects.
-
-        Examples
-        --------
-
-        Usage: ::
-
-         async for listing in client.listing_history():
-            if listing.state == EMarketListingState.Bought:
-                print('Sold listing:', listing.id)
-                print('For:', listing.price)
-
-        Flattening into a list: ::
-
-            listings = await client.listing_history(limit=50).flatten()
-            # listings is now a list of Listing
-
-        All parameters are optional.
-
-        Parameters
-        ----------
-        limit: Optional[:class:`int`]
-            The maximum number of listings to search through.
-            Default is 100 which will fetch the first 100 listings.
-            Setting this to ``None`` will fetch all of the client user's listings,
-            but this will be a very slow operation.
-        before: Optional[:class:`datetime.datetime`]
-            A time to search for trades before.
-        after: Optional[:class:`datetime.datetime`]
-            A time to search for trades after.
-
-        Yields
-        ---------
-        :class:`~steam.Listing`
-        """
-        return MarketListingsIterator(state=self._connection, limit=limit, before=before, after=after)
 
     def trade_history(self, limit: Optional[int] = 100, before: datetime = None,
                       after: datetime = None, active_only: bool = False) -> TradesIterator:
@@ -1048,46 +952,6 @@ class Client:
         ----------
         invite: :class:`~steam.UserInvite`
             The invite received.
-        """
-
-    async def on_listing_create(self, listing: 'steam.Listing'):
-        """|coro|
-        Called when a new listing is created on the community market.
-
-        Parameters
-        ----------
-        listing: :class:`~steam.Listing`
-            The listing that was created.
-        """
-
-    async def on_listing_buy(self, listing: 'steam.Listing'):
-        """|coro|
-        Called when an item/listing is bought on the community market.
-
-        Parameters
-        ----------
-        listing: :class:`~steam.Listing`
-            The listing that was bought.
-        """
-
-    async def on_listing_sell(self, listing: 'steam.Listing'):
-        """|coro|
-        Called when an item/listing is sold on the community market.
-
-        Parameters
-        ----------
-        listing: :class:`~steam.Listing`
-            The listing that was sold.
-        """
-
-    async def on_listing_cancel(self, listing: 'steam.Listing'):
-        """|coro|
-        Called when an item/listing is cancelled on the community market.
-
-        Parameters
-        ----------
-        listing: :class:`~steam.Listing`
-            The listing that was cancelled.
         """
 
     async def on_user_update(self, before: 'steam.User', after: 'steam.User'):

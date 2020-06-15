@@ -46,7 +46,6 @@ __all__ = (
     'EPersonaStateFlag',
     'ETradeOfferState',
     'EFriendRelationship',
-    'EMarketListingState',
     'EChatRoomEnterResponse',
     'ECommunityVisibilityState',
 )
@@ -76,11 +75,7 @@ def _IntEnum__ne__(self, other) -> bool:
 
 
 def _IntEnum__lt__(self, x) -> bool:
-    if isinstance(x, self.__class__):
-        return self.value < x.value
-    if isinstance(x, int):
-        return self.value < x
-    return False
+    return int(self) < int(x)
 
 
 def _IntEnum__le__(self, x) -> bool:
@@ -88,11 +83,7 @@ def _IntEnum__le__(self, x) -> bool:
 
 
 def _IntEnum__gt__(self, x) -> bool:
-    if isinstance(x, self.__class__):
-        return self.value > x.value
-    if isinstance(x, int):
-        return self.value > x
-    return False
+    return int(self) > int(x)
 
 
 def _IntEnum__ge__(self, x) -> bool:
@@ -517,13 +508,6 @@ class EChatEntryType(IntEnum):
     Disconnected = 10  #: user disconnected
     HistoricalChat = 11  #: a chat message from user's chat history or offline message
     LinkBlocked = 14  #: a link was removed by the chat filter.
-
-
-class EMarketListingState(IntEnum):
-    ConfirmationNeeded = 0
-    Active = 2
-    Bought = 4
-    Cancelled = 8
 
 
 class UIMode(IntEnum):
