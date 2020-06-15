@@ -30,9 +30,8 @@ import re
 import weakref
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple, Callable
 
-import aiohttp
 from bs4 import BeautifulSoup
 from stringcase import snakecase
 from yarl import URL as _URL
@@ -42,37 +41,37 @@ from .channel import DMChannel, GroupChannel
 from .enums import (
     EChatEntryType,
     EFriendRelationship,
-    EMarketListingState,
     ETradeOfferState,
     EType,
 )
-from .errors import AuthenticatorError, HTTPException, InvalidCredentials
-from .game import Game
+from .errors import AuthenticatorError, InvalidCredentials
 from .group import Group
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
 from .message import *
-from .models import URL, Invite, UserInvite
+from .models import ClanInvite, URL, UserInvite
 from .protobufs import EMsg, MsgProto
+from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
+    as GroupMessageNotification
 from .protobufs.steammessages_friendmessages import CFriendMessages_IncomingMessage_Notification \
     as UserMessageNotification
 from .trade import TradeOffer
 from .user import User
 
 if TYPE_CHECKING:
-    from .client import Client, event_type
+    from .client import Client
     from .http import HTTPClient
-    from .market import Listing
     from .models import Comment
 
+    from .protobufs.steammessages_chat import CChatRoom_GetMyChatRoomGroups_Response
+    from .protobufs.steammessages_clientserver import CMsgClientCMList
+    from .protobufs.steammessages_clientserver_2 import (
+        CMsgClientCommentNotifications,
+        CMsgClientUserNotifications
+    )
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientPersonaState,
         CMsgClientPersonaStateFriend,
         CMsgClientFriendsList,
-    )
-    from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications
-    from .protobufs.steammessages_chat import (
-        CChatRoom_GetMyChatRoomGroups_Response,
-        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification
     )
 
 
@@ -83,7 +82,7 @@ def register(emsg: EMsg):
     class wrapper:
         __slots__ = ('func',)
 
-        def __init__(self, func: 'event_type'):
+        def __init__(self, func: Callable):
             self.func = func
 
         def __set_name__(self, state: 'ConnectionState', _):
@@ -93,7 +92,7 @@ def register(emsg: EMsg):
 
 
 class ConnectionState:
-    parsers = dict()  # we need this for register
+    parsers = dict()  # we need this for @register
 
     def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
@@ -102,9 +101,6 @@ class ConnectionState:
         self.client = client
         self.dispatch = client.dispatch
 
-        self.started_trade_poll = False
-        self.started_notification_poll = False
-        self.started_listings_poll = False
         self._obj = None
         self._previous_iteration = 0
         self.user_slots = set(User.__slots__) - {'_state', '_data'}
@@ -112,15 +108,15 @@ class ConnectionState:
         self._users = weakref.WeakValueDictionary()
         self._trades = dict()
         self._confirmations = dict()
-        self.invitees = []
+        self.invites = []
         self.groups = []
+        self._trades_to_watch = []
 
     async def __ainit__(self) -> None:
         self.market = self.client._market
         self._id64 = self.client.user.id64
         self._device_id = generate_device_id(str(self._id64))
         self.loop.create_task(self._poll_trades())
-        self.loop.create_task(self._poll_listings())
 
     @property
     def users(self) -> List[User]:
@@ -129,10 +125,6 @@ class ConnectionState:
     @property
     def trades(self) -> List[TradeOffer]:
         return list(self._trades.values())
-
-    @property
-    def listings(self) -> List['Listing']:
-        return list(self._listings.values())
 
     @property
     def confirmations(self) -> List[Confirmation]:
@@ -158,9 +150,6 @@ class ConnectionState:
             self._users[user.id64] = user
         return user
 
-    def get_listing(self, id: int) -> Optional['Listing']:
-        return self._listings.get(id)
-
     def get_confirmation(self, id: int) -> Optional[Confirmation]:
         return self._confirmations.get(id)
 
@@ -175,7 +164,7 @@ class ConnectionState:
         resp = await self.http.get_trade(id)
         if resp.get('response'):
             trade = [resp['response']['offer']]
-            descriptions = resp['response']['descriptions']
+            descriptions = resp['response'].get('descriptions', [])
             trade = await self._process_trades(trade, descriptions)
             return trade[0]
         return None
@@ -193,13 +182,14 @@ class ConnectionState:
                 self.dispatch('trade_send', trade)
             else:
                 self.dispatch('trade_receive', trade)
+            self._trades_to_watch.append(trade)
         else:
             if data['trade_offer_state'] != trade.state:
                 trade.state = ETradeOfferState(data['trade_offer_state'])
                 log.info(f'Trade #{trade.id} has updated its trade state to {trade.state}')
                 states = {
                     ETradeOfferState.Accepted: 'accept',
-                    ETradeOfferState.Countered: 'countered',
+                    ETradeOfferState.Countered: 'counter',
                     ETradeOfferState.Expired: 'expire',
                     ETradeOfferState.Canceled: 'cancel',
                     ETradeOfferState.Declined: 'decline',
@@ -211,6 +201,9 @@ class ConnectionState:
                     pass
                 else:
                     self.dispatch(f'trade_{event_name}', trade)
+                    for t in self._trades_to_watch:
+                        if t.id == trade.id:
+                            del t
         return trade
 
     async def _process_trades(self, trades: List[dict], descriptions: List[dict]) -> List[TradeOffer]:
@@ -227,40 +220,26 @@ class ConnectionState:
         return ret
 
     async def _poll_trades(self) -> None:
-        resp = await self.http.get_trade_offers()
-        trades = resp['response']
-        self._trades_received_cache = trades.get('trade_offers_received', [])
-        self._trades_sent_cache = trades.get('trade_offers_sent', [])
-        self._descriptions_cache = trades.get('descriptions', [])
-        await self._process_trades(self._trades_received_cache, self._descriptions_cache)
-        await self._process_trades(self._trades_sent_cache, self._descriptions_cache)
+        while self._trades_to_watch:
+            await asyncio.sleep(1)
+            resp = await self.http.get_trade_offers()
+            trades = resp['response']
+            descriptions = trades.get('descriptions', [])
+            trades_received = trades.get('trade_offers_received', [])
+            trades_sent = trades.get('trade_offers_sent', [])
 
-        try:
-            while 1:
-                await asyncio.sleep(1)
-                resp = await self.http.get_trade_offers()
-                trades = resp['response']
-                descriptions = trades.get('descriptions', [])
-                trades_received = trades.get('trade_offers_received', [])
-                trades_sent = trades.get('trade_offers_sent', [])
+            new_received_trades = [trade for trade in trades_received
+                                   if trade not in self._trades_received_cache]
+            new_sent_trades = [trade for trade in trades_sent
+                               if trade not in self._trades_sent_cache]
+            new_descriptions = [item for item in descriptions
+                                if item not in self._descriptions_cache]
+            await self._process_trades(new_received_trades, new_descriptions)
+            await self._process_trades(new_sent_trades, new_descriptions)
 
-                new_received_trades = [trade for trade in trades_received
-                                       if trade not in self._trades_received_cache]
-                new_sent_trades = [trade for trade in trades_sent
-                                   if trade not in self._trades_sent_cache]
-                new_descriptions = [item for item in descriptions
-                                    if item not in self._descriptions_cache]
-                await self._process_trades(new_received_trades, new_descriptions)
-                await self._process_trades(new_sent_trades, new_descriptions)
-
-                self._trades_received_cache = trades_received
-                self._trades_sent_cache = trades_sent
-                self._descriptions_cache = descriptions
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            self.loop.create_task(self._poll_trades())
-        except HTTPException:
-            await asyncio.sleep(10)
-            self.loop.create_task(self._poll_trades())
+            self._trades_received_cache = trades_received
+            self._trades_sent_cache = trades_sent
+            self._descriptions_cache = descriptions
 
     async def _parse_comment(self) -> 'Comment':
         # this isn't very efficient but I'm not sure if it can be done better
@@ -279,55 +258,6 @@ class ConnectionState:
             self._previous_iteration = 0
         comments = await obj.comments(limit=self._previous_iteration + 1).flatten()
         return comments[self._previous_iteration]
-
-    async def _parse_invite(self, loop: int) -> Invite:
-        params = {
-            "ajax": 1
-        }
-        resp = await self.request('GET', f'{URL.COMMUNITY}/my/friends/pending', params=params)
-        soup = BeautifulSoup(resp, 'html.parser')
-        invites = soup.find_all('div', attrs={"class": 'invite_row'})
-        if not invites:
-            resp = await self.request('GET', f'{URL.COMMUNITY}/my/groups/pending', params=params)
-            soup = BeautifulSoup(resp, 'html.parser')
-            invites = soup.find_all('div', attrs={"class": 'invite_row'})
-            data = invites[loop]
-        else:
-            data = invites[loop]
-        invite = Invite(state=self, data=data)
-        await invite.__ainit__()
-        return invite
-
-    async def _poll_listings(self) -> None:
-        self._listings = {listing.id: listing for listing in await self.client.fetch_listings()}
-        try:
-            while 1:
-                await asyncio.sleep(300)  # we really don't want to spam these
-                listings = {listing.id: listing for listing in await self.client.fetch_listings()}
-
-                polled_values = listings.values()
-                cached_values = self._listings.values()
-                new_listings = [listing for listing in polled_values if listing not in cached_values]
-                removed_listings = [listing for listing in cached_values if listing not in polled_values]
-
-                for listing in new_listings:
-                    self.dispatch('listing_create', listing)
-
-                for listing in removed_listings:
-                    if listing.state == EMarketListingState.Bought:
-                        if listing in self.client.user.fetch_inventory(Game(listing.app_id)):
-                            self.dispatch('listing_buy', listing)
-                        else:
-                            self.dispatch('listing_sell', listing)
-                    elif listing.state == EMarketListingState.Cancelled:
-                        self.dispatch('listing_cancel', listing)
-                self._listings = listings
-
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            self.loop.create_task(self._poll_listings())
-        except HTTPException:
-            await asyncio.sleep(60)
-            self.loop.create_task(self._poll_listings())
 
     # confirmations
 
@@ -401,6 +331,7 @@ class ConnectionState:
         self.dispatch('typing', self.client.user, datetime.utcnow())
 
     async def send_group_message(self, ids: Tuple[int, int], content: str):
+        return
         await self.client.ws.send_um(
             "ChatRoom.SendChatMessage#1_Request",
             chat_id=ids[0], chat_group_id=ids[1],
@@ -410,7 +341,7 @@ class ConnectionState:
             chat_id=ids[0], chat_group_id=ids[1],
             steamid_sender=0.0, message=content, timestamp=int(time()),
         )
-        group = [g for g in self.groups if g.id == ids[0]][0]
+        group = [g for g in self.groups if g.id == ids[1]][0]
         channel = GroupChannel(state=self, notification=proto, group=group)
         message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
         self.dispatch('message', message)
@@ -456,12 +387,13 @@ class ConnectionState:
                 await group.__ainit__()
                 self.groups.append(group)
 
-    @register(EMsg.ClientFriendsGroupsList)  # this appears to be one the last multi you receive
+    @register(EMsg.ClientFriendsGroupsList)
     def ready(self, _) -> None:
         self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
     def parse_cm_list_update(self, msg: MsgProto) -> None:
+        msg.body: 'CMsgClientCMList'
         log.debug('Updating CM list')
         self.client.ws.cm_list.clear()
         self.client.ws.cm_list.merge_list(msg.body.cm_websocket_addresses)
@@ -520,15 +452,26 @@ class ConnectionState:
                     invitee = await self.fetch_user(steam_id.id64) or steam_id
                     invite = UserInvite(self, invitee)
                     self.dispatch('user_invite', invite)
-                    self.invitees.append(invitee)
+                    self.invites.append(invitee)
                 if steam_id.type == EType.Clan:
-                    clan = await self.client.fetch_clan(steam_id.id64)  # TODO add a ClanInvite object
-                    self.dispatch('clan_invite', clan)
+                    resp = await self.request('GET', f'{URL.COMMUNITY}/my/groups/pending?ajax=1')
+                    search = re.search(rf'data-miniprofile="(\d+)".*?\'group_accept\', \'{steam_id.id64}\',',
+                                       resp, flags=re.S)
+                    invitee = await self.client.fetch_user(search.group(1))
+                    clan = await self.client.fetch_clan(steam_id.id64)
+                    invite = ClanInvite(state=self, invitee=invitee, clan=clan)
+                    self.dispatch('clan_invite', invite)
+                    self.invites.append(clan)
             if user.efriendrelationship == EFriendRelationship.Friend:
                 steam_id = SteamID(user.ulfriendid)
-                invitee = await self.fetch_user(steam_id.id64) or steam_id
-                if invitee in self.invitees:
-                    self.dispatch('user_invite_accept', invitee)
+                if steam_id.type == EType.Individual:
+                    invitee = await self.fetch_user(steam_id.id64) or steam_id
+                    if invitee in self.invites:
+                        self.dispatch('user_invite_accept', invitee)
+                if steam_id.type == EType.Clan:
+                    clan = await self.client.fetch_clan(steam_id.id64) or steam_id
+                    if clan in self.invites:
+                        self.dispatch('clan_invite_accept', clan)
 
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, msg: MsgProto) -> None:
@@ -537,4 +480,12 @@ class ConnectionState:
             comment = await self._parse_comment()
             self._obj = None
             self.dispatch('comment', comment)
+        await self.http.clear_notifications()
+
+    @register(EMsg.ClientUserNotifications)
+    async def parse_notification(self, msg: MsgProto):
+        msg.body: 'CMsgClientUserNotifications'
+        for notification in msg.body.notifications:
+            if notification.type == 1:  # received a trade offer
+                self.loop.create_task(self._poll_trades())  # watch trades for changes
         await self.http.clear_notifications()
