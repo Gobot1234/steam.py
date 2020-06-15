@@ -222,7 +222,11 @@ class ConnectionState:
     async def _poll_trades(self) -> None:
         while self._trades_to_watch:
             await asyncio.sleep(1)
-            resp = await self.http.get_trade_offers()
+            try:
+                resp = await self.http.get_trade_offers()
+            except Exception:
+                await asyncio.sleep(10)
+                continue
             trades = resp['response']
             descriptions = trades.get('descriptions', [])
             trades_received = trades.get('trade_offers_received', [])
