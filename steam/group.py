@@ -78,7 +78,7 @@ class Group:
         return f"<Group {' '.join(resolved)}>"
 
     def __str__(self):
-        return self.name
+        return self.name or ''
 
     async def leave(self) -> None:
         """|coro|
