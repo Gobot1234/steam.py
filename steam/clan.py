@@ -212,11 +212,13 @@ class Clan(SteamID):
         resp = await self._state.http.post_comment(self.id64, 'Clan', content)
         id = int(re.findall(r'id="comment_(\d+)"', resp['comments_html'])[0])
         timestamp = datetime.utcfromtimestamp(resp['timelastpost'])
-        return Comment(
+        comment = Comment(
             state=self._state, id=id, owner=self,
             timestamp=timestamp, content=content,
             author=self._state.client.user
         )
+        self._state.dispatch('comment', comment)
+        return comment
 
     def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
