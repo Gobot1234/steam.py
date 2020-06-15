@@ -24,21 +24,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Union
 
 from .game import Game
 
 if TYPE_CHECKING:
-    from bs4 import BeautifulSoup
-
     from .abc import BaseUser
-    from .group import Group
+    from .clan import Clan
     from .state import ConnectionState
     from .user import User
-    from .protobufs.steammessages_chat import CChatRoleActions as \
-        RoleProto
+    from .protobufs.steammessages_chat import CChatRoleActions \
+        as RoleProto
 
 
 __all__ = (
@@ -70,9 +67,9 @@ class Comment:
         The author of the comment.
     created_at: :class:`datetime.datetime`
         The time the comment was posted at.
-    owner: Union[:class:`~steam.Group`, :class:`~steam.User`]
-        The comment sections owner. If the comment section is for a group
-        it will be a :class:`~steam.Group` instance otherwise it
+    owner: Union[:class:`~steam.Clan`, :class:`~steam.User`]
+        The comment sections owner. If the comment section is for a clan
+        it will be a :class:`~steam.Clan` instance otherwise it
         will be an `~steam.User` instance.
     """
 
@@ -80,7 +77,7 @@ class Comment:
 
     def __init__(self, state: 'ConnectionState',
                  id: int, content: str, timestamp: datetime,
-                 author: 'BaseUser', owner: Union['Group', 'BaseUser']):
+                 author: 'BaseUser', owner: Union['Clan', 'BaseUser']):
         self._state = state
         self.content = content
         self.id = id
@@ -337,4 +334,3 @@ class Role:
         self.can_change_user_roles = proto.can_change_user_roles
         self.can_mention_all = proto.can_mention_all
         self.can_set_watching_broadcast = proto.can_set_watching_broadcast
-
