@@ -201,9 +201,7 @@ class ConnectionState:
                     pass
                 else:
                     self.dispatch(f'trade_{event_name}', trade)
-                    for t in self._trades_to_watch:
-                        if t.id == trade.id:
-                            del t
+                    self._trades_to_watch.remove(trade)
         return trade
 
     async def _process_trades(self, trades: List[dict], descriptions: List[dict]) -> List[TradeOffer]:
@@ -326,7 +324,7 @@ class ConnectionState:
         message.author = self.client.user
         self.dispatch('message', message)
 
-    async def send_user_typing(self, user: 'User'):
+    async def send_user_typing(self, user: 'User') -> None:
         await self.client.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
             steamid=str(user.id64),
@@ -334,7 +332,7 @@ class ConnectionState:
         )
         self.dispatch('typing', self.client.user, datetime.utcnow())
 
-    async def send_group_message(self, ids: Tuple[int, int], content: str):
+    async def send_group_message(self, ids: Tuple[int, int], content: str) -> None:
         return
         await self.client.ws.send_um(
             "ChatRoom.SendChatMessage#1_Request",
@@ -353,7 +351,7 @@ class ConnectionState:
     # parsers
 
     @register(EMsg.ServiceMethod)
-    def parse_service_method(self, msg: MsgProto):
+    def parse_service_method(self, msg: MsgProto) -> None:
         if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
             msg.body: 'UserMessageNotification'
             user = self.get_user(int(msg.body.steamid_friend))
@@ -383,7 +381,7 @@ class ConnectionState:
             self.dispatch('message', message)
 
     @register(EMsg.ServiceMethodResponse)
-    async def parse_service_method_response(self, msg: MsgProto):
+    async def parse_service_method_response(self, msg: MsgProto) -> None:
         if msg.header.target_job_name == 'ChatRoom.GetMyChatRoomGroups#1':
             msg.body: 'CChatRoom_GetMyChatRoomGroups_Response'
             for group in msg.body.chat_room_groups:

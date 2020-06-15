@@ -377,8 +377,8 @@ class TradeOffer:
         trade._has_been_sent = True
         trade._state = state
         trade._update(data)
-        trade.partner = await state.client.fetch_user(data['accountid_other']) or \
-            SteamID(data['accountid_other'])  # the account is private :(
+        trade.partner = (await state.client.fetch_user(data['accountid_other']) or
+                         SteamID(data['accountid_other']))  # the account is private :(
         return trade
 
     def __repr__(self):
@@ -399,6 +399,12 @@ class TradeOffer:
         self.items_to_send = [Item(state=self._state, data=item) for item in data.get('items_to_give', [])]
         self.items_to_receive = [Item(state=self._state, data=item) for item in data.get('items_to_receive', [])]
         self._is_our_offer = data.get('is_our_offer', False)
+
+    def __eq__(self, other):
+        if isinstance(other, TradeOffer):
+            if self._has_been_sent and other._has_been_sent:
+                return self.id == other.id
+        return False
 
     async def confirm(self) -> None:
         """|coro|
