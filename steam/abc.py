@@ -666,8 +666,11 @@ class BaseChannel(Messageable):
 
 
 class Message:
-    __slots__ = ('channel', '_state')
+    __slots__ = ('author', 'content', 'channel', 'created_at', '_state')
 
     def __init__(self, channel: 'BaseChannel'):
         self._state = channel._state
         self.channel = channel
+        self.content: str
+        self.author: 'BaseUser'
+        self.created_at: datetime

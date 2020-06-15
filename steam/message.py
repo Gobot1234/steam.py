@@ -47,8 +47,6 @@ __all__ = (
 class UserMessage(Message):
     """Represents a message from a User."""
 
-    __slots__ = ('author', 'content', 'created_at')
-
     def __init__(self, proto: 'UserMessageNotification', channel: 'DMChannel'):
         super().__init__(channel)
         self.author = channel.participant
@@ -64,8 +62,7 @@ class UserMessage(Message):
 
 
 class GroupMessage(Message):
-
-    __slots__ = ('author', 'content', 'created_at')
+    """Represents a message in a Group."""
 
     def __init__(self, proto: 'GroupMessageNotification', channel: 'GroupChannel', author: 'BaseUser'):
         super().__init__(channel)
