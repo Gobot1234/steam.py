@@ -70,6 +70,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     'SteamID',
+    'Message',
 )
 
 
@@ -157,7 +158,7 @@ class SteamID(metaclass=abc.ABCMeta):
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`.
+            and ``X`` was ``0``. If you need that format use :attr:`as_steam2_zero`.
         """
         return f'STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}'
 
@@ -169,7 +170,7 @@ class SteamID(metaclass=abc.ABCMeta):
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`.
+            and ``X`` was ``0``. If you need that format use :attr:`as_steam2_zero`.
 
         An alias to :attr:`id2`.
         """
@@ -181,7 +182,7 @@ class SteamID(metaclass=abc.ABCMeta):
             e.g ``STEAM_0:0:1234``.
 
         For GoldSrc and Orange Box games.
-        See :attr:`as_steam2`.
+        See :attr:`id2`.
         """
         return self.as_steam2.replace('_1', '_0')
 
@@ -224,7 +225,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def invite_code(self) -> Optional[str]:
-        """Optional[:class:`str`]: s.team invite code format
+        """Optional[:class:`str`]: s.team invite code format.
             e.g. ``cv-dgb``
         """
         if self.type == EType.Individual and self.is_valid():
@@ -496,7 +497,7 @@ class BaseUser(SteamID):
 
         async def getter(gid: str):
             try:
-                clan = await self._state.client.fetch_clans(gid)
+                clan = await self._state.client.fetch_clan(gid)
             except HTTPException:
                 await asyncio.sleep(20)
                 await getter(gid)
@@ -659,4 +660,12 @@ class Messageable(metaclass=abc.ABCMeta):
 
 
 class BaseChannel(Messageable):
-    pass
+    __slots__ = ()
+
+
+class Message:
+    __slots__ = ('channel', '_state')
+
+    def __init__(self, channel: 'BaseChannel'):
+        self._state = channel._state
+        self.channel = channel
