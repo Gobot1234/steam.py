@@ -58,7 +58,7 @@ class DMChannel(BaseChannel):
     async def send(self, content: str = None, *,
                    trade: 'TradeOffer' = None,
                    image: 'Image' = None) -> None:
-        await self.participant.send(content, trade=trade, image=image)
+        await self.participant.send(content=content, trade=trade, image=image)
 
     def typing(self):
         return TypingContextManager(self.participant)
@@ -110,12 +110,15 @@ class GroupChannel(BaseChannel):
                  notification: 'GroupMessageNotification'):
         self._state = state
         self.group = group
-        try:
-            self.id = int(notification.chat_group_id)
-            self.name = notification.chat_name or None
-        except AttributeError:
-            self.id = int(notification.chat_id)
-            self.name = notification.chat_name
+        self.id = int(notification.chat_id)
+        self.name = notification.chat_name or None
+
+    def __repr__(self):
+        attrs = (
+            'name', 'id', 'group'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<GroupChannel {' '.join(resolved)}>"
 
     def _get_message_endpoint(self):
         return (self.id, self.group.id), self._state.send_group_message
