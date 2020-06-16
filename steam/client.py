@@ -945,12 +945,23 @@ class Client:
 
     async def on_user_invite(self, invite: 'steam.UserInvite'):
         """|coro|
-        Called when the client receives an invite from a User
+        Called when the client receives an invite from a :class:`~steam.User`
         to become a friend.
 
         Parameters
         ----------
         invite: :class:`~steam.UserInvite`
+            The invite received.
+        """
+
+    async def on_clan_invite(self, invite: 'steam.ClanInvite'):
+        """|coro|
+        Called when the client receives an invite from a :class:`~steam.User`
+        to become join a Clan.
+
+        Parameters
+        ----------
+        invite: :class:`~steam.ClanInvite`
             The invite received.
         """
 
