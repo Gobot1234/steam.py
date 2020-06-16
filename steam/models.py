@@ -45,6 +45,7 @@ __all__ = (
     'Comment',
     'UserBadges',
     'UserInvite',
+    'ClanInvite',
 )
 
 
