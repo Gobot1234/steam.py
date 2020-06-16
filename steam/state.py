@@ -457,9 +457,15 @@ class ConnectionState:
                     self.invites.append(invitee)
                 if steam_id.type == EType.Clan:
                     resp = await self.request('GET', f'{URL.COMMUNITY}/my/groups/pending?ajax=1')
-                    search = re.search(rf'data-miniprofile="(\d+)".*?\'group_accept\', \'{steam_id.id64}\',',
-                                       resp, flags=re.S)
-                    invitee = await self.client.fetch_user(search.group(1))
+                    soup = BeautifulSoup(resp, 'html.parser')
+                    elements = soup.find_all('a', attrs={"class": 'linkStandard'})
+                    invitee_id = 0
+                    for element in elements:
+                        if str(steam_id.id64) in str(element):
+                            invitee = elements[elements.index(element) + 1]
+                            invitee_id = invitee.get('data-miniprofile')
+                            break
+                    invitee = await self.client.fetch_user(invitee_id)
                     clan = await self.client.fetch_clan(steam_id.id64)
                     invite = ClanInvite(state=self, invitee=invitee, clan=clan)
                     self.dispatch('clan_invite', invite)
