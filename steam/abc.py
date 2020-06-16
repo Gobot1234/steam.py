@@ -664,6 +664,12 @@ class Messageable(metaclass=abc.ABCMeta):
 class BaseChannel(Messageable):
     __slots__ = ()
 
+    def typing(self):
+        pass
+
+    async def trigger_typing(self):
+        pass
+
 
 class Message:
     __slots__ = ('author', 'content', 'channel', 'created_at', '_state')
@@ -671,6 +677,6 @@ class Message:
     def __init__(self, channel: 'BaseChannel'):
         self._state = channel._state
         self.channel = channel
-        self.content: str
-        self.author: 'BaseUser'
-        self.created_at: datetime
+        self.content: Optional[str] = None
+        self.author: Optional[BaseUser] = None
+        self.created_at: Optional[datetime] = None

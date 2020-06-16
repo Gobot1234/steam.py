@@ -70,16 +70,8 @@ class DMChannel(BaseChannel):
 # this is basically straight from d.py
 
 
-def _typing_done_callback(fut):
-    # just retrieve any exception and call it a day
-    try:
-        fut.exception()
-    except (asyncio.CancelledError, Exception):
-        pass
-
-
 class TypingContextManager:
-    __slots__ = ('participant', '_task', '_state')
+    __slots__ = ('participant', 'task', '_state')
 
     def __init__(self, participant: 'User'):
         self._state = participant._state
@@ -91,17 +83,17 @@ class TypingContextManager:
             await asyncio.sleep(5)
 
     def __enter__(self):
-        self._task = self._state.loop.create_task(self.send_typing())
-        self._task.add_done_callback(_typing_done_callback)
+        self.task = asyncio.create_task(self.send_typing())
+        return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._task.cancel()
+    def __exit__(self, exc_type, exc, tb):
+        self.task.cancel()
 
     async def __aenter__(self):
-        self.__enter__()
+        return self.__enter__()
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self.__exit__(exc_type, exc_val, exc_tb)
+    async def __aexit__(self, exc_type, exc, tb):
+        self.task.cancel()
 
 
 class GroupChannel(BaseChannel):
