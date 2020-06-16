@@ -92,7 +92,7 @@ def register(emsg: EMsg):
 
 
 class ConnectionState:
-    parsers = dict()  # we need this for @register
+    parsers = dict()  # we need this outside __init__ for @register
 
     def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
@@ -103,6 +103,7 @@ class ConnectionState:
 
         self._obj = None
         self._previous_iteration = 0
+        self.handled_friends = asyncio.Event()
         self.user_slots = set(User.__slots__) - {'_state', '_data'}
 
         self._users = weakref.WeakValueDictionary()
@@ -390,7 +391,8 @@ class ConnectionState:
                 self.groups.append(group)
 
     @register(EMsg.ClientFriendsGroupsList)
-    def ready(self, _) -> None:
+    async def ready(self, _) -> None:
+        await self.handled_friends.wait()  # ensure friend cache is ready
         self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
@@ -446,6 +448,13 @@ class ConnectionState:
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: MsgProto) -> None:
         msg.body: 'CMsgClientFriendsList'
+        if not self.handled_friends.is_set():
+            self.client.user.friends = await self.fetch_users([
+                int(friend.ulfriendid) for friend in msg.body.friends
+                if friend.efriendrelationship == EFriendRelationship.Friend
+            ])
+            self.handled_friends.set()
+
         for user in msg.body.friends:
             if user.efriendrelationship in (EFriendRelationship.RequestInitiator,
                                             EFriendRelationship.RequestRecipient):
@@ -463,17 +472,17 @@ class ConnectionState:
                     for element in elements:
                         if str(steam_id.id64) in str(element):
                             invitee = elements[elements.index(element) + 1]
-                            invitee_id = invitee.get('data-miniprofile')
+                            invitee_id = invitee.get('data-miniprofile', 0)
                             break
-                    invitee = await self.client.fetch_user(invitee_id)
-                    clan = await self.client.fetch_clan(steam_id.id64)
+                    invitee = await self.fetch_user(invitee_id) or SteamID(invitee_id)
+                    clan = await self.client.fetch_clan(steam_id.id64) or steam_id
                     invite = ClanInvite(state=self, invitee=invitee, clan=clan)
                     self.dispatch('clan_invite', invite)
                     self.invites.append(clan)
             if user.efriendrelationship == EFriendRelationship.Friend:
                 steam_id = SteamID(user.ulfriendid)
                 if steam_id.type == EType.Individual:
-                    invitee = await self.fetch_user(steam_id.id64) or steam_id
+                    invitee = self.get_user(steam_id.id64) or await self.fetch_user(steam_id.id64) or steam_id
                     if invitee in self.invites:
                         self.dispatch('user_invite_accept', invitee)
                 if steam_id.type == EType.Clan:

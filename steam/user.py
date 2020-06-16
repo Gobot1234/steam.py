@@ -265,10 +265,6 @@ class ClientUser(BaseUser):
         super().__init__(state, data)
         self.friends: List[User] = []
 
-    async def __ainit__(self):
-        friends = await self._state.http.get_friends(self.id64)
-        self.friends = [self._state._store_user(friend) for friend in friends]
-
     def __repr__(self):
         attrs = (
             'name', 'state', 'id', 'type', 'universe', 'instance'
