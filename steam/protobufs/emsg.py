@@ -3,6 +3,11 @@
 from ..enums import IntEnum
 
 
+__all__ = (
+    'EMsg',
+)
+
+
 class EMsg(IntEnum):
     Invalid = 0
     Multi = 1

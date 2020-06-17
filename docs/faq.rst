@@ -17,7 +17,7 @@ These are some general questions relating to steam.py
 How much Python do I need to know?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**A list of required knowledge courtesy of Scragly:**
+**A list of useful knowledge courtesy of Scragly:**
 
     .. I like https://realpython.com for reading up on things as you can see
 
@@ -110,32 +110,23 @@ How can I get help with my code?
 How can I wait for an event?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. note::
-    ``on_message`` isn't currently a dispatched event
-
 .. code-block:: python3
 
     @client.event
     async def on_message(message):
         if message.content.startswith('?trade'):
-            await message.channel.send('Send me a trade and I will read the contents of it')
-
-            # the check function must return a boolean.
-            def check(trade: steam.TradeOffer) -> bool:
+            def check(trade):
                 return trade.partner == message.author
-                # here we check that the trades partner is the message's author
 
+            await message.channel.send('Send me a trade!')
             try:
-                trade: steam.TradeOffer = await client.wait_for('trade_receive', timeout=60, check=check)
-            except asyncio.TimeoutError:  # they took too long to send the trade
-                await message.send('You took too long to send the offer')
+                offer = await bot.wait_for('trade_receive', timeout=60, check=check)
+            except asyncio.TimeoutError:
+                await message.channel.send('You took too long to send the offer')
             else:
-                to_send = ', '.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send) \
-                    if trade.items_to_send else 'Nothing'
-                to_receive = ', '.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive) \
-                    if trade.items_to_receive else 'Nothing'
-                await message.channel.send(f'You were going to send:\n{to_receive}\nYou were going to receive:\n{to_send}')
-                await trade.decline()  # we don't want to clog up trade offers
+                await message.channel.send(f'You were going to send {len(offer.items_to_receive)} items\n'
+                                           f'You were going to receive {len(offer.items_to_receive)} items')
+                await offer.decline()
 
 The final interaction will end up looking something like this:
 

@@ -36,6 +36,18 @@ __all__ = (
 
 APP_ID_MAX = 2 ** 32
 
+MAPPING = {
+    'Team Fortress 2': [440, 2],
+    'DOTA 2': [570, 2],
+    'Counter Strike Global-Offensive': [730, 2],
+    'Steam': [753, 6],
+
+    440: ['Team Fortress 2', 2],
+    570: ['DOTA 2', 2],
+    730: ['Counter Strike Global-Offensive', 2],
+    753: ['Steam', 6]
+}
+
 
 class Game:
     """Represents a Steam game.
@@ -78,35 +90,23 @@ class Game:
     """
 
     def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2):
-        mapping = {
-            'Team Fortress 2': [440, 2],
-            'DOTA 2': [570, 2],
-            'Counter Strike Global-Offensive': [730, 2],
-            'Steam': [753, 6],
-
-            440: ['Team Fortress 2', 2],
-            570: ['DOTA 2', 2],
-            730: ['Counter Strike Global-Offensive', 2],
-            753: ['Steam', 6]
-        }
-
-        if app_id is not None and title is None:
-            if not str(app_id).isdigit():
-                raise ValueError(f'app_id expected to be type int not {repr(type(app_id).__name__)}')
-            if app_id < 0:
+        if app_id is not None and title:
+            try:
+                self.app_id = int(app_id)
+            except ValueError as exc:
+                raise ValueError(f'app_id expected to be a digit not {repr(type(app_id).__name__)}') from exc
+            if self.app_id < 0:
                 raise ValueError('app_id cannot be negative')
-            app_id = int(app_id)
-            mapping = mapping.get(app_id)
+            mapping = MAPPING.get(app_id)
             if mapping is not None:
                 self.title = mapping[0]
                 self.context_id = mapping[1]
             else:
                 self.title = None
                 self.context_id = 2
-            self.app_id = app_id
 
-        elif app_id is None and title is not None:
-            mapping = mapping.get(title)
+        elif app_id and title is not None:
+            mapping = MAPPING.get(title)
             if mapping is not None:
                 self.app_id = mapping[0]
                 self.context_id = mapping[1]
@@ -116,9 +116,21 @@ class Game:
             self.title = title
 
         else:
-            self.title = title
-            self.app_id = app_id
-            self.context_id = context_id
+            app_id = int(app_id)
+            mapping = MAPPING.get(app_id)
+            if mapping is not None:
+                self.title = mapping[0]
+                self.context_id = mapping[1]
+            else:
+                self.title = title or None
+                self.context_id = 2
+            mapping = MAPPING.get(title)
+            if mapping is not None:
+                self.app_id = mapping[0]
+                self.context_id = mapping[1]
+            else:
+                self.app_id = app_id or None
+                self.context_id = 2
 
     @classmethod
     def _from_api(cls, data):
@@ -133,7 +145,7 @@ class Game:
         attrs = (
             'title', 'app_id', 'context_id'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Game {' '.join(resolved)}>"
 
     def __eq__(self, other):

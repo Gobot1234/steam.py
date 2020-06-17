@@ -39,7 +39,7 @@ class CFriendMessages_GetRecentMessages_ResponseFriendMessage(betterproto.Messag
 
 @dataclass
 class CFriendsMessages_GetActiveMessageSessions_Request(betterproto.Message):
-    lastmessage_since: int = betterproto.uint32_field(1)
+    last_message_since: int = betterproto.uint32_field(1)
     only_sessions_with_messages: bool = betterproto.bool_field(2)
 
 
@@ -52,9 +52,7 @@ class CFriendsMessages_GetActiveMessageSessions_Response(betterproto.Message):
 
 
 @dataclass
-class CFriendsMessages_GetActiveMessageSessions_ResponseFriendMessageSession(
-    betterproto.Message
-):
+class CFriendsMessages_GetActiveMessageSessions_ResponseFriendMessageSession(betterproto.Message):
     accountid_friend: int = betterproto.uint32_field(1)
     last_message: int = betterproto.uint32_field(2)
     last_view: int = betterproto.uint32_field(3)
@@ -84,17 +82,6 @@ class CFriendMessages_SendMessage_Response(betterproto.Message):
 class CFriendMessages_AckMessage_Notification(betterproto.Message):
     steamid_partner: float = betterproto.fixed64_field(1)
     timestamp: int = betterproto.uint32_field(2)
-
-
-@dataclass
-class CFriendMessages_IsInFriendsUIBeta_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
-
-
-@dataclass
-class CFriendMessages_IsInFriendsUIBeta_Response(betterproto.Message):
-    online_in_friendsui: bool = betterproto.bool_field(1)
-    has_used_friendsui: bool = betterproto.bool_field(2)
 
 
 @dataclass

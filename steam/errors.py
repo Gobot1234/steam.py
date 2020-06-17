@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 import re
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup
 
@@ -47,25 +47,26 @@ __all__ = (
     'InvalidCredentials',
 )
 
-CODE_FINDER = re.compile(r'[^\s]([0-9]+)[^\s]')
+CODE_FINDER = re.compile(r'\S(\d+)\S')
 
 
 class SteamException(Exception):
-    """Base exception class for steam.py"""
+    """Base exception class for steam.py."""
     pass
 
 
 class ClientException(SteamException):
     """Exception that's thrown when something isn't possible
     but is handled by the client.
-    Subclass of :exc:`SteamException`
+
+    Subclass of :exc:`SteamException`.
     """
-    pass
 
 
 class HTTPException(SteamException):
     """Exception that's thrown for any web API error.
-    Subclass of :exc:`SteamException`
+
+    Subclass of :exc:`SteamException`.
 
     Attributes
     ------------
@@ -81,7 +82,7 @@ class HTTPException(SteamException):
         It will attempt to find a matching a :class:`~steam.EResult` for the value.
     """
 
-    def __init__(self, response: 'ClientResponse', data: Optional[Union[dict, str]]):
+    def __init__(self, response: 'ClientResponse', data: Optional[Any]):
         self.response = response
         self.status = response.status
         self.code = 0
@@ -106,48 +107,47 @@ class HTTPException(SteamException):
 
 class Forbidden(HTTPException):
     """Exception that's thrown when status code 403 occurs.
-    Subclass of :exc:`HTTPException`
+
+    Subclass of :exc:`HTTPException`.
     """
-    pass
 
 
 class NotFound(HTTPException):
     """Exception that's thrown when status code 404 occurs.
-    Subclass of :exc:`HTTPException`
+
+    Subclass of :exc:`HTTPException`.
     """
-    pass
 
 
 class LoginError(ClientException):
     """Exception that's thrown when a login fails.
-    Subclass of :exc:`ClientException`
+
+    Subclass of :exc:`ClientException`.
     """
-    pass
 
 
 class InvalidCredentials(LoginError):
     """Exception that's thrown when credentials are incorrect.
-    Subclass of :exc:`LoginError`
+    Subclass of :exc:`LoginError`.
     """
-    pass
 
 
 class AuthenticatorError(ClientException):
     """Exception that's thrown when Steam cannot authenticate your details.
-    Subclass of :exc:`LoginError`
+
+    Subclass of :exc:`LoginError`.
     """
-    pass
 
 
 class ConfirmationError(AuthenticatorError):
     """Exception that's thrown when a confirmation fails.
-    Subclass of :exc:`AuthenticatorError`
+
+    Subclass of :exc:`AuthenticatorError`.
     """
-    pass
 
 
 class NoCMsFound(LoginError):
     """Exception that's thrown when no CMs can be found to connect to.
-    Subclass of :exc:`LoginError`
+
+    Subclass of :exc:`LoginError`.
     """
-    pass

@@ -6,7 +6,7 @@ import sphinx.util.inspect as inspect
 from steam import Enum
 
 
-# we can monkey patch in the enum checks to get them to doc properly
+# we can monkey patch in the enum checks to get them to be documented properly
 
 
 def _isenumclass(x: Any) -> bool:
@@ -22,5 +22,6 @@ def _isenumattribute(x: Any) -> bool:
 inspect.isenumclass = _isenumclass
 inspect.isenumattribute = _isenumattribute
 
-def setup(_):
+
+def setup(_):  # stop sphinx complaining when docs are built
     pass

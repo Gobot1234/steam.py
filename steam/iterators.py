@@ -42,12 +42,11 @@ from bs4 import BeautifulSoup
 
 from . import utils
 from .enums import ETradeOfferState
-from .models import URL, Comment
+from .models import Comment
 
 if TYPE_CHECKING:
     from .abc import BaseUser
-    from .group import Group
-    from .market import Listing
+    from .clan import Clan
     from .trade import TradeOffer
     from .state import ConnectionState
 
@@ -200,6 +199,8 @@ class AsyncIterator(_AsyncIterator):
             if self._is_filled:
                 raise StopAsyncIteration
             await self.fill()
+            if self.queue.empty():  # yikes
+                raise StopAsyncIteration
             self._is_filled = True
         return self.queue.get_nowait()
 
@@ -208,28 +209,29 @@ class AsyncIterator(_AsyncIterator):
 
 
 class CommentsIterator(AsyncIterator):
-    __slots__ = ('owner', '_id')
+    __slots__ = ('owner',)
 
     def __init__(self, state: 'ConnectionState', before: datetime,
-                 after: datetime, limit: int, owner: Union['BaseUser', 'Group']):
+                 after: datetime, limit: int, owner: Union['BaseUser', 'Clan']):
         super().__init__(state, limit, before, after)
         self.owner = owner
 
     async def fill(self) -> None:
-        from .user import User
+        from .user import User, BaseUser
 
         data = await self._state.http.get_comments(
             id64=self.owner.id64, limit=self.limit,
-            comment_type='Profile' if isinstance(self.owner, User) else 'Clan'
+            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan'
         )
         soup = BeautifulSoup(data['comments_html'], 'html.parser')
         comments = soup.find_all('div', attrs={'class': 'commentthread_comment responsive_body_text'})
         to_fetch = []
 
         for comment in comments:
-            timestamp = datetime.utcfromtimestamp(int(comment['data-timestamp']))
+            timestamp = comment.find('span', attrs={"class": 'commentthread_comment_timestamp'})['data-timestamp']
+            timestamp = datetime.utcfromtimestamp(int(timestamp))
             if self.after < timestamp < self.before:
-                author_id = int(comment['data-miniprofile'])
+                author_id = int(comment.find('a', attrs={"class": 'commentthread_author_link'})['data-miniprofile'])
                 comment_id = int(re.findall(r'comment_([0-9]*)', str(comment))[0])
                 content = comment.find('div', attrs={"class": 'commentthread_comment_text'}).get_text().strip()
                 to_fetch.append(utils.make_steam64(author_id))
@@ -241,7 +243,7 @@ class CommentsIterator(AsyncIterator):
                     self.queue.put_nowait(comment)
                 except asyncio.QueueFull:
                     return
-        users = await self._state.http.get_profiles(to_fetch)
+        users = await self._state.http.get_users(to_fetch)
         for user in users:
             author = User(state=self._state, data=user)
             for comment in self.queue._queue:
@@ -333,68 +335,4 @@ class TradesIterator(AsyncIterator):
         return await super().find(predicate)
 
     async def flatten(self) -> List['TradeOffer']:
-        return await super().flatten()
-
-
-class MarketListingsIterator(AsyncIterator):
-
-    async def fill(self) -> None:
-        from .market import Listing
-
-        resp = await self._state.market.get_pages()
-        pages = resp['total_count']
-        if not pages:  # they have no listings just return
-            return
-        for start in range(0, pages, 100):
-            params = {
-                "start": start,
-                "count": 100
-            }
-            resp = await self._state.request('GET', url=f'{URL.COMMUNITY}/market/myhistory/render', params=params)
-            matches = re.findall(r"CreateItemHoverFromContainer\( \w+, 'history_row_\d+_(\d+)_\w+', "
-                                 r"\d+, '\d+', '(\d+)', \d+ \);", resp["hovers"])
-            # we need the listing id and the asset id(???)
-            prices = []
-            soup = BeautifulSoup(resp['results_html'], 'html.parser')
-            compiled = re.compile(r'market_listing[\s\w]*')
-            div = soup.find_all('div', attrs={"class": compiled})
-            span = soup.find_all('span', attrs={"class": compiled})
-            div.extend(span)
-            for listing in div:
-                listing_id = re.findall(r'history_row_\d+_(\d+)_\w+', str(listing))
-                price = re.findall(r'[^\d]*(\d+)(?:[.,])(\d+)', listing.text, re.UNICODE)
-                try:
-                    price = float(f'{price[0][0]}.{price[0][1]}')
-                except IndexError:
-                    price = None
-                prices.append((listing_id, price))
-
-            for game_context_id in resp['assets'].values():
-                for games_listings in game_context_id.values():
-                    for listing in games_listings.values():
-                        listing['assetid'] = listing['id']  # we need to swap the ids around
-                        try:
-                            listing['id'] = int([m for m in matches if m[1] == listing['assetid']][0])
-                            price = [price for price in prices
-                                     if price and price[0] and price[0][0] and
-                                     price[0][0] == listing['id']]
-                            if price:
-                                listing['price'] = price[0][1]
-                        except TypeError:  # TODO
-                            # this isn't very common, the listing couldn't be
-                            # found I need to do more handling for this to make
-                            # sure it doesn't happen but for now this will do.
-                            continue
-                        try:
-                            self.queue.put_nowait(Listing(state=self._state, data=listing))
-                        except asyncio.QueueFull:
-                            return
-
-    def get(self, **attrs) -> Optional['Listing']:
-        return super().get(**attrs)
-
-    async def find(self, predicate: maybe_coro_predicate) -> Optional['Listing']:
-        return await super().find(predicate)
-
-    async def flatten(self) -> List['Listing']:
         return await super().flatten()

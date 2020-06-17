@@ -34,25 +34,29 @@ import steam
 
 
 class MyClient(steam.Client):
-    async def on_trade_receive(self, trade: steam.TradeOffer):
+    async def on_ready(self):
+        print('Logged on as', self.user)
+
+    async def on_trade_receive(self, trade):
         print(f'Received trade: #{trade.id}')
         print('Trade partner is:', trade.partner.name)
         print('We are going to send:')
-        print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_send)
-              if trade.items_to_send else 'Nothing')
-        print('We are going to receive:')
-        print('\n'.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive)
-              if trade.items_to_receive else 'Nothing')
+        print('We would send:', len(trade.items_to_send), 'items')
+        print('We would receive:', len(trade.items_to_receive), 'items')
 
         if trade.is_gift():
             print('Accepting the trade as it is a gift')
             await trade.accept()
+
+
+client = MyClient()
+client.run('username', 'password')
 ```
 
 Links
 ------
 
-  - [Documentation](https://steampy.readthedocs.io/en/latest/index.html)
+  - [Documentation](https://steampy.rtfd.io/en/latest/index.html)
   - [Official Discord Server](https://discord.gg/MQ68WUS)
 
-##### Please note this repo is still in alpha if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new)
+##### Please note this repo is under going rapid development, if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new)

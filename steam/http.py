@@ -38,12 +38,11 @@ from typing import (
     List,
     Optional,
     Tuple,
-    Union
+    Union,
 )
 
 import aiohttp
-from Cryptodome.Cipher import PKCS1_v1_5
-from Cryptodome.PublicKey.RSA import construct
+import rsa
 from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
@@ -52,15 +51,13 @@ from .models import URL
 from .user import ClientUser
 
 if TYPE_CHECKING:
-    from Cryptodome.PublicKey.RSA import RsaKey
-
     from .client import Client
     from .image import Image
 
 log = logging.getLogger(__name__)
 
 
-async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Union[list, dict, str]]:
+async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
     text = await r.text()
     try:
         if 'application/json' in r.headers['content-type']:  # thanks steam very cool
@@ -79,9 +76,8 @@ class Route:
 
 
 class APIRoute(Route):
-    BASE = URL.API
     def __init__(self, path):
-        self.url = _URL(f'{self.BASE}{path}{"/v1" if not path.endswith("v2") else ""}')
+        self.url = _URL(f'{URL.API}{path}{"/v1" if not path.endswith("v2") else ""}')
 
 
 class CRoute(Route):
@@ -222,7 +218,6 @@ class HTTPClient:
         resp = await self.get_user(id64)
         data = resp['response']['players'][0]
         self.user = ClientUser(state=self._state, data=data)
-        await self.user.__ainit__()
         self._client.dispatch('login')
 
     async def logout(self) -> None:
@@ -252,11 +247,11 @@ class HTTPClient:
                 return await self._get_rsa_params(current_repetitions + 1)
             raise ValueError('could not obtain rsa-key')
         else:
-            return construct((rsa_mod, rsa_exp)), rsa_timestamp
+            return rsa.PublicKey(rsa_mod, rsa_exp), rsa_timestamp
 
     async def _send_login_request(self) -> dict:
         rsa_key, rsa_timestamp = await self._get_rsa_params()
-        encrypted_password = b64encode(PKCS1_v1_5.new(rsa_key).encrypt(self.password.encode('ascii'))).decode()
+        encrypted_password = b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_key)).decode()
         payload = {
             "username": self.username,
             "password": encrypted_password,
@@ -513,51 +508,51 @@ class HTTPClient:
         }
         return self.request('POST', CRoute(f'/comment/{comment_type}/hideandreport/{id64}'), data=payload)
 
-    def accept_group_invite(self, group_id: int) -> Awaitable:
+    def accept_clan_invite(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionid": self.session_id,
             "steamid": self.user.id64,
             "ajax": '1',
             "action": 'group_accept',
-            "steamids[]": group_id
+            "steamids[]": clan_id
         }
-        return self.request('POST', CRoute('/me/friends/action'), data=payload)
+        return self.request('POST', CRoute('/my/friends/action'), data=payload)
 
-    def decline_group_invite(self, group_id: int) -> Awaitable:
+    def decline_clan_invite(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionid": self.session_id,
             "steamid": self.user.id64,
             "ajax": '1',
             "action": 'group_ignore',
-            "steamids[]": group_id
+            "steamids[]": clan_id
         }
-        return self.request('POST', CRoute('/me/friends/action'), data=payload)
+        return self.request('POST', CRoute('/my/friends/action'), data=payload)
 
-    def join_group(self, group_id: int) -> Awaitable:
+    def join_clan(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionID": self.session_id,
             "action": 'join',
         }
-        return self.request('POST',  CRoute(f'/gid/{group_id}'), data=payload)
+        return self.request('POST',  CRoute(f'/gid/{clan_id}'), data=payload)
 
-    def leave_group(self, group_id: int) -> Awaitable:
+    def leave_clan(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionID": self.session_id,
             "action": 'leaveGroup',
-            "groupId": group_id
+            "groupId": clan_id
         }
-        return self.request('POST', CRoute('/me/home_process'), data=payload)
+        return self.request('POST', CRoute('/my/home_process'), data=payload)
 
-    def invite_user_to_group(self, user_id64: int, group_id: int) -> Awaitable:
+    def invite_user_to_clan(self, user_id64: int, clan_id: int) -> Awaitable:
         payload = {
             "sessionID": self.session_id,
-            "group": group_id,
+            "group": clan_id,
             "invitee": user_id64,
             "type": 'groupInvite',
         }
         return self.request('POST', CRoute('/actions/GroupInvite'), data=payload)
 
-    def get_user_groups(self, user_id64: int) -> Awaitable:
+    def get_user_clans(self, user_id64: int) -> Awaitable:
         params = {
             "key": self.api_key,
             "steamid": user_id64
@@ -589,10 +584,13 @@ class HTTPClient:
         payload = {
             "sessionid": self.session_id
         }
-        return self.request('POST', CRoute('/me/ajaxclearaliashistory'), data=payload)
+        return self.request('POST', CRoute('/my/ajaxclearaliashistory'), data=payload)
+
+    def clear_notifications(self) -> Awaitable:
+        return self.request('GET', CRoute('/my/inventory'))
 
     async def edit_profile(self, nick: str, real_name: str,
-                           summary: str, group_id: int, avatar: 'Image') -> None:
+                           summary: str, clan_id: int, avatar: 'Image') -> None:
         resp = await self.request('GET', url=f'{self.user.community_url}/edit')
         soup = BeautifulSoup(resp, 'html.parser')
         editable = ['personaName', 'real_name', 'customURL', 'primary_group_steamid']
@@ -604,10 +602,10 @@ class HTTPClient:
             "personaName": nick or current_values['personaName'],
             "real_name": real_name or current_values['real_name'],
             "summary": summary or soup.find('textarea').text,
-            "primary_group_steamid": group_id or current_values['primary_group_steamid']
+            "primary_group_steamid": clan_id or current_values['primary_group_steamid']
         }
 
-        await self.request('POST', CRoute('/me/edit'), data=payload)
+        await self.request('POST', CRoute('/my/edit'), data=payload)
         if avatar is not None:
             payload = {
                 "MAX_FILE_SIZE": len(avatar),
@@ -625,7 +623,7 @@ class HTTPClient:
             }
             await self.request('POST', CRoute('/actions/FileUploader'), data=payload)
 
-    async def send_image(self, user_id64: int, image: 'Image') -> None:
+    async def send_user_image(self, user_id64: int, image: 'Image') -> None:
         payload = {
             "sessionid": self.session_id,
             "l": 'english',

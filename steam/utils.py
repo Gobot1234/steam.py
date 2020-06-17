@@ -28,9 +28,8 @@ DEALINGS IN THE SOFTWARE.
 import asyncio
 import json
 import re
-import struct
+from inspect import isawaitable
 from operator import attrgetter
-from os import urandom as random_bytes
 from typing import (
     Any,
     Awaitable,
@@ -39,13 +38,10 @@ from typing import (
     Iterable,
     Optional,
     Tuple,
-    Union
+    Union,
 )
 
 import aiohttp
-from Cryptodome.Cipher import AES, PKCS1_OAEP
-from Cryptodome.Hash import HMAC, SHA1
-from Cryptodome.PublicKey.RSA import RsaKey
 
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 
@@ -56,7 +52,6 @@ __all__ = (
     'parse_trade_url_token',
 )
 
-BS = 16
 PROTOBUF_MASK = 0x80000000
 MAX_ASYNCIO_SECONDS = 3456000
 _INVITE_HEX = '0123456789abcdef'
@@ -70,83 +65,7 @@ _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 ETypeChars = ''.join(type_char.name for type_char in ETypeChar)
 
 
-class UniverseKey:
-    Public = RsaKey(
-        n=int(
-            '1572435756163492767473017547683098671778311221560259237468446760604065883521072242173339019599191749864'
-            '5577395742561473053175122897795413393419038630648254894306773660858554891146738442477393264257606729213'
-            '7056263003121836768211312089498275802694267916711103128551999842076575732754013467986241640244933837449'
-        ), e=17
-    )
-
-
-def pad(s):
-    return s + (BS - len(s) % BS) * struct.pack('B', BS - len(s) % BS)
-
-
-def unpad(s):
-    return s[0:-s[-1]]
-
-
-def generate_session_key(hmac_secret=b''):
-    session_key = random_bytes(32)
-    encrypted_session_key = PKCS1_OAEP.new(UniverseKey.Public, SHA1).encrypt(session_key + hmac_secret)
-
-    return session_key, encrypted_session_key
-
-
-def symmetric_encrypt(message, key):
-    iv = random_bytes(BS)
-    return symmetric_encrypt_with_iv(message, key, iv)
-
-
-def symmetric_encrypt_HMAC(message, key, hmac_secret):
-    prefix = random_bytes(3)
-    hmac = hmac_sha1(hmac_secret, prefix + message)
-    iv = hmac[:13] + prefix
-    return symmetric_encrypt_with_iv(message, key, iv)
-
-
-def symmetric_encrypt_iv(iv, key):
-    return AES.new(key, AES.MODE_ECB).encrypt(iv)
-
-
-def symmetric_encrypt_with_iv(message, key, iv):
-    encrypted_iv = symmetric_encrypt_iv(iv, key)
-    cyphertext = AES.new(key, AES.MODE_CBC, iv).encrypt(pad(message))
-    return encrypted_iv + cyphertext
-
-
-def symmetric_decrypt(cyphertext, key):
-    iv = symmetric_decrypt_iv(cyphertext, key)
-    return symmetric_decrypt_with_iv(cyphertext, key, iv)
-
-
-def symmetric_decrypt_HMAC(cyphertext, key, hmac_secret):
-    iv = symmetric_decrypt_iv(cyphertext, key)
-    message = symmetric_decrypt_with_iv(cyphertext, key, iv)
-
-    hmac = hmac_sha1(hmac_secret, iv[-3:] + message)
-
-    if iv[:13] != hmac[:13]:
-        raise RuntimeError("Unable to decrypt message. HMAC does not match.")
-
-    return message
-
-
-def symmetric_decrypt_iv(cyphertext, key):
-    return AES.new(key, AES.MODE_ECB).decrypt(cyphertext[:BS])
-
-
-def symmetric_decrypt_with_iv(cyphertext, key, iv):
-    return unpad(AES.new(key, AES.MODE_CBC, iv).decrypt(cyphertext[BS:]))
-
-
-def hmac_sha1(secret, data):
-    return HMAC.new(secret, data, SHA1).digest()
-
-
-def is_proto(emsg: bytes) -> bool:
+def is_proto(emsg: int) -> bool:
     return (int(emsg) & PROTOBUF_MASK) > 0
 
 
@@ -154,7 +73,7 @@ def set_proto_bit(emsg: int) -> int:
     return int(emsg) | PROTOBUF_MASK
 
 
-def clear_proto_bit(emsg: bytes) -> int:
+def clear_proto_bit(emsg: int) -> int:
     return int(emsg) & ~PROTOBUF_MASK
 
 
@@ -202,7 +121,10 @@ def make_steam64(id: int = 0, *args, **kwargs) -> int:
                 universe = EUniverse.Public
             # 64 bit
             elif value < 2 ** 64:
-                return value
+                id = value & 0xFFFFFFFF
+                instance = (value >> 32) & 0xFFFFF
+                etype = (value >> 52) & 0xF
+                universe = (value >> 56) & 0xFF
             else:
                 id = 0
 
@@ -256,9 +178,9 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
         The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
     """
     match = re.match(
-        r"^STEAM_(?P<universe>\d+)"
+        r"STEAM_(?P<universe>\d+)"
         r":(?P<reminder>[0-1])"
-        r":(?P<id>\d+)$", value
+        r":(?P<id>\d+)", value
     )
 
     if not match:
@@ -287,10 +209,10 @@ def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
         e.g. (account_id, type, universe, instance) or ``None``.
     """
     match = re.match(
-        rf"^\[(?P<type>[i{ETypeChars}]):"  # type char
+        rf"\[(?P<type>[i{ETypeChars}]):"  # type char
         r"(?P<universe>[0-4]):"  # universe
         r"(?P<id>\d{1,10})"  # accountid
-        r"(:(?P<instance>\d+))?\]$",  # instance
+        r"(:(?P<instance>\d+))?\]",  # instance
         value
     )
     if not match:
@@ -333,7 +255,7 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
         e.g. (account_id, type, universe, instance) or ``None``.
     """
     match = re.match(rf'(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))'
-                     rf'|(?P<code2>[\-{_INVITE_VALID}]+$)', code)
+                     rf'|(?P<code2>[\-{_INVITE_VALID}]+)', code)
     if not match:
         return None
 
@@ -381,9 +303,9 @@ async def steam64_from_url(url: str, timeout: float = 30) -> Optional[int]:
         If ``steamcommunity.com`` is down or no matching account is found returns ``None``
     """
 
-    search = re.search(r'^(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/'
-                       r'(?P<type>profiles|id|gid|groups)/(?P<value>.*?))(?:/(?:.*)?)?$',
-                       str(url), flags=re.M)
+    search = re.search(r'(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/'
+                       r'(?P<type>profiles|id|gid|groups)/(?P<value>.+))',
+                       str(url))
 
     if search is None:
         return None
@@ -432,7 +354,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     return None
 
 
-def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Awaitable:
+def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Awaitable[str]:
     loop = loop or asyncio.get_running_loop()
     return loop.run_in_executor(None, input, prompt)
 
@@ -509,8 +431,8 @@ def get(iterable: Iterable, **attrs) -> Optional[Any]:
     return None
 
 
-async def maybe_coroutine(func: Union[Callable, Coroutine], *args, **kwargs) -> Any:
-    func = func(*args, **kwargs)
-    if asyncio.iscoroutinefunction(func):
-        return await func
-    return func
+async def maybe_coroutine(func: Callable[..., Union[Any, Coroutine]], *args, **kwargs) -> Any:
+    value = func(*args, **kwargs)
+    if isawaitable(value):
+        return await value
+    return value

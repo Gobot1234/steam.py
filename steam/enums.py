@@ -30,7 +30,7 @@ Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 
 import types
 from collections import namedtuple
-from typing import Any, Union, Iterable
+from typing import Any, Iterable, Union
 
 __all__ = (
     'Enum',
@@ -46,7 +46,6 @@ __all__ = (
     'EPersonaStateFlag',
     'ETradeOfferState',
     'EFriendRelationship',
-    'EMarketListingState',
     'EChatRoomEnterResponse',
     'ECommunityVisibilityState',
 )
@@ -76,11 +75,7 @@ def _IntEnum__ne__(self, other) -> bool:
 
 
 def _IntEnum__lt__(self, x) -> bool:
-    if isinstance(x, self.__class__):
-        return self.value < x.value
-    if isinstance(x, int):
-        return self.value < x
-    return False
+    return int(self) < int(x)
 
 
 def _IntEnum__le__(self, x) -> bool:
@@ -88,11 +83,7 @@ def _IntEnum__le__(self, x) -> bool:
 
 
 def _IntEnum__gt__(self, x) -> bool:
-    if isinstance(x, self.__class__):
-        return self.value > x.value
-    if isinstance(x, int):
-        return self.value > x
-    return False
+    return int(self) > int(x)
 
 
 def _IntEnum__ge__(self, x) -> bool:
@@ -420,7 +411,6 @@ class EPersonaStateFlag(IntEnum):
     ClientTypeMobile = 512
     ClientTypeTenfoot = 1024
     ClientTypeVR = 2048
-    ClientTypeInVR = 3072  # not too sure about this
     LaunchTypeGamepad = 4096
     LaunchTypeCompatTool = 8192
 
@@ -520,8 +510,8 @@ class EChatEntryType(IntEnum):
     LinkBlocked = 14  #: a link was removed by the chat filter.
 
 
-class EMarketListingState(IntEnum):
-    ConfirmationNeeded = 0
-    Active = 2
-    Bought = 4
-    Cancelled = 8
+class UIMode(IntEnum):
+    Desktop = 0
+    BigPicture = 1
+    Mobile = 2
+    Web = 3

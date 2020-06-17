@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from .market import PriceOverview
     from .state import ConnectionState
 
+
 __all__ = (
     'Item',
     'Asset',
@@ -333,7 +334,7 @@ class TradeOffer:
     Attributes
     -------------
     partner: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
-        The trade offer partner. This should only be a :class:`~steam.SteamID`
+        The trade offer partner. This should only ever be a :class:`~steam.SteamID`
         if the partner's profile is private.
     items_to_send: Union[List[:class:`Item`], List[:class:`Asset`]]
         A list of items to send to the partner.
@@ -355,7 +356,7 @@ class TradeOffer:
 
     __slots__ = ('id', 'state', 'escrow', 'partner', 'message', 'token',
                  'expires', 'items_to_send', 'items_to_receive',
-                 '_has_been_sent', '_state', '_is_our_offer', '__weakref__')
+                 '_has_been_sent', '_state', '_is_our_offer')
 
     def __init__(self, *, message: str = None, token: str = None,
                  items_to_send: List[Union[Item, Asset]] = None,
@@ -365,6 +366,8 @@ class TradeOffer:
         self.message = message if message is not None else ''
         self.token = token
         self._has_been_sent = False
+        self.partner = None
+        self.state = ETradeOfferState.Invalid
 
     @classmethod
     async def _from_api(cls, state: 'ConnectionState', data: dict) -> 'TradeOffer':
@@ -374,8 +377,8 @@ class TradeOffer:
         trade._has_been_sent = True
         trade._state = state
         trade._update(data)
-        trade.partner = await state.client.fetch_user(data['accountid_other']) or \
-            SteamID(data['accountid_other'])  # the account is private :(
+        trade.partner = (await state.client.fetch_user(data['accountid_other']) or
+                         SteamID(data['accountid_other']))  # the account is private :(
         return trade
 
     def __repr__(self):
@@ -397,6 +400,12 @@ class TradeOffer:
         self.items_to_receive = [Item(state=self._state, data=item) for item in data.get('items_to_receive', [])]
         self._is_our_offer = data.get('is_our_offer', False)
 
+    def __eq__(self, other):
+        if isinstance(other, TradeOffer):
+            if self._has_been_sent and other._has_been_sent:
+                return self.id == other.id
+        return False
+
     async def confirm(self) -> None:
         """|coro|
         Confirms the :class:`TradeOffer`.
@@ -414,13 +423,14 @@ class TradeOffer:
             return  # no point trying to confirm it
         if not await self._state.get_and_confirm_confirmation(self.id):
             raise ConfirmationError('No matching confirmation could be found for this trade')
+        del self._state._confirmations[self.id]
 
     async def accept(self) -> None:
         """|coro|
         Accepts the :class:`TradeOffer`.
 
         .. note::
-            This also calls :meth:`TradeOffer.confirm` (if necessary) so you don't have to.
+            This also calls :meth:`confirm` (if necessary) so you don't have to.
 
         Raises
         ------
@@ -475,23 +485,14 @@ class TradeOffer:
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
 
-    async def counter(self, *, items_to_send: List[Item] = None,
-                      items_to_receive: List[Item] = None,
-                      token: str = None, message: str = None) -> None:
+    async def counter(self, trade: 'TradeOffer') -> None:
         """|coro|
         Counters a trade offer from an :class:`User`.
 
         Parameters
         -----------
-        items_to_send: Optional[Union[List[:class:`steam.Item`], List[:class:`steam.Asset`]]
-            The items you are sending to the other user.
-        items_to_receive: Optional[Union[List[:class:`steam.Item`], List[:class:`steam.Asset`]]
-            The items you are sending to the other user.
-        token: Optional[:class:`str`]
-            The the trade token used to send trades to users who aren't
-            on the ClientUser's friend's list.
-        message: Optional[:class:`str`]
-             The offer message to send with the trade.
+        trade: :class:`TradeOffer`
+            The trade offer to counter with.
 
         Raises
         ------
@@ -502,21 +503,11 @@ class TradeOffer:
             raise ClientException("This trade isn't active")
         if self.is_our_offer():
             raise ClientException('You cannot counter an offer the ClientUser has made')
-        if isinstance(items_to_receive, Item):
-            items_to_receive = [items_to_receive]
-        elif isinstance(items_to_receive, list):
-            items_to_receive = items_to_receive
-        else:
-            items_to_receive = []
-        if isinstance(items_to_send, Item):
-            items_to_send = [items_to_send]
-        elif isinstance(items_to_send, list):
-            items_to_send = items_to_send
-        else:
-            items_to_send = []
-        message = message if message is not None else ''
+
+        to_send = [item.to_dict() for item in trade.items_to_send]
+        to_receive = [item.to_dict() for item in trade.items_to_receive]
         resp = await self._state.http.send_counter_trade_offer(self.id, self.partner.id64, self.partner.id,
-                                                               items_to_send, items_to_receive, token, message)
+                                                               to_send, to_receive, trade.token, trade.message)
         if resp.get('needs_mobile_confirmation', False):
             await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
 

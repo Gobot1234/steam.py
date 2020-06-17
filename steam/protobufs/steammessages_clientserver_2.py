@@ -3,12 +3,11 @@
 # plugin: python-betterproto
 
 from dataclasses import dataclass
-from typing import List, TYPE_CHECKING
+from typing import List
 
 import betterproto
 
-if TYPE_CHECKING:
-    from .steammessages_base import CMsgIPAddress
+from .steammessages_base import CMsgIPAddress
 
 
 @dataclass
@@ -895,7 +894,7 @@ class CMsgClientUserNotifications(betterproto.Message):
 
 @dataclass
 class CMsgClientUserNotificationsNotification(betterproto.Message):
-    user_notification_type: int = betterproto.uint32_field(1)
+    type: int = betterproto.uint32_field(1)
     count: int = betterproto.uint32_field(2)
 
 

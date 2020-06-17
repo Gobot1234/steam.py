@@ -24,28 +24,55 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from .enums import EChatEntryType
+from .abc import Message
 
 if TYPE_CHECKING:
-    from .user import User
-    from .protobufs.steammessages_friendmessages import (
-        CFriendMessages_IncomingMessage_Notification as ProtoMessage
-    )
+    from .channel import DMChannel, GroupChannel
+    from .abc import BaseUser
+    from .protobufs.steammessages_friendmessages import CFriendMessages_IncomingMessage_Notification \
+        as UserMessageNotification
+    from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
+        as GroupMessageNotification
+
 
 __all__ = (
-    'Message',
+    'UserMessage',
+    'GroupMessage',
 )
 
 
-class Message:
+class UserMessage(Message):
+    """Represents a message from a User."""
 
-    def __init__(self, proto: 'ProtoMessage', author: 'User'):
-        self.author = author
+    def __init__(self, proto: 'UserMessageNotification', channel: 'DMChannel'):
+        super().__init__(channel)
+        self.author = channel.participant
         self.content = proto.message
-        self.created_at = proto.rtime32_server_timestamp
-        self.type = EChatEntryType(proto.chat_entry_type)
+        self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
 
     def __repr__(self):
-        pass
+        attrs = (
+            'author', 'channel'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<UserMessage {' '.join(resolved)}>"
+
+
+class GroupMessage(Message):
+    """Represents a message in a Group."""
+
+    def __init__(self, proto: 'GroupMessageNotification', channel: 'GroupChannel', author: 'BaseUser'):
+        super().__init__(channel)
+        self.author = author
+        self.content = proto.message
+        self.created_at = datetime.utcfromtimestamp(proto.timestamp)
+
+    def __repr__(self):
+        attrs = (
+            'author', 'channel'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<GroupMessage {' '.join(resolved)}>"

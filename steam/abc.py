@@ -32,7 +32,14 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    Awaitable,
+    Callable,
+    List,
+    Optional,
+    Tuple
+)
 
 from .enums import (
     EInstanceFlag,
@@ -40,7 +47,7 @@ from .enums import (
     EPersonaStateFlag,
     EType,
     ETypeChar,
-    EUniverse
+    EUniverse,
 )
 from .errors import HTTPException
 from .game import Game
@@ -56,13 +63,14 @@ from .utils import (
 
 if TYPE_CHECKING:
     from .user import User
-    from .group import Group
+    from .clan import Clan
     from .state import ConnectionState
     from .image import Image
 
 
 __all__ = (
     'SteamID',
+    'Message',
 )
 
 
@@ -150,7 +158,7 @@ class SteamID(metaclass=abc.ABCMeta):
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`.
+            and ``X`` was ``0``. If you need that format use :attr:`as_steam2_zero`.
         """
         return f'STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}'
 
@@ -162,7 +170,7 @@ class SteamID(metaclass=abc.ABCMeta):
         .. note::
             ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :attr:`SteamID.as_steam2_zero`.
+            and ``X`` was ``0``. If you need that format use :attr:`as_steam2_zero`.
 
         An alias to :attr:`id2`.
         """
@@ -174,7 +182,7 @@ class SteamID(metaclass=abc.ABCMeta):
             e.g ``STEAM_0:0:1234``.
 
         For GoldSrc and Orange Box games.
-        See :attr:`as_steam2`.
+        See :attr:`id2`.
         """
         return self.as_steam2.replace('_1', '_0')
 
@@ -217,7 +225,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def invite_code(self) -> Optional[str]:
-        """Optional[:class:`str`]: s.team invite code format
+        """Optional[:class:`str`]: s.team invite code format.
             e.g. ``cv-dgb``
         """
         if self.type == EType.Individual and self.is_valid():
@@ -334,8 +342,8 @@ class BaseUser(SteamID):
     game: Optional[:class:`~steam.Game`]
         The Game instance attached to the user. Is None if the user
         isn't in a game or one that is recognised by the api.
-    primary_group: Optional[:class:`SteamID`]
-        The primary group the User displays on their profile.
+    primary_clan: Optional[:class:`SteamID`]
+        The primary clan the User displays on their profile.
     avatar_url: :class:`str`
         The avatar url of the user. Uses the large (184x184 px) image url.
     real_name: Optional[:class:`str`]
@@ -350,21 +358,32 @@ class BaseUser(SteamID):
         The persona state flags of the account.
     """
 
-    __slots__ = ('name', 'game', 'state', 'flags', 'country', 'primary_group',
-                 'trade_url', 'real_name', 'avatar_url',
-                 'created_at', 'last_logoff', '_state', '_data')
+    __slots__ = ('name', 'game', 'state', 'flags', 'country', 'primary_clan',
+                 'trade_url', 'real_name', 'avatar_url', 'last_seen_online',
+                 'created_at', 'last_logoff', 'last_logon', '_state', '_data')
 
     def __init__(self, state: 'ConnectionState', data: dict):
         super().__init__(data['steamid'])
         self._state = state
+        self.name = None
+        self.real_name = None
+        self.avatar_url = None
+        self.primary_clan = None
+        self.country = None
+        self.created_at = None
+        self.last_logoff = None
+        self.last_logon = None
+        self.last_seen_online = None
+        self.state = None
+        self.flags = None
+        self.game = None
         self._update(data)
 
     def __repr__(self):
         attrs = (
-            'name', 'state',
+            'name', 'state', 'id', 'type', 'universe', 'instance'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
-        resolved.append(super().__repr__())
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<User {' '.join(resolved)}>"
 
     def __str__(self):
@@ -373,22 +392,25 @@ class BaseUser(SteamID):
     def _update(self, data) -> None:
         self._data = data
         self.name = data['personaname']
-        self.real_name = data.get('realname')
-        self.avatar_url = data.get('avatarfull')
+        self.real_name = data.get('realname') or self.real_name
+        self.avatar_url = data.get('avatarfull') or self.avatar_url
         self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
 
-        self.primary_group = SteamID(data['primaryclanid']) if 'primaryclanid' in data else None
-        self.country = data.get('loccountrycode')
-        self.created_at = datetime.utcfromtimestamp(data['timecreated']) if 'timecreated' in data else None
-        self.last_logoff = datetime.utcfromtimestamp(data['lastlogoff']) if 'lastlogoff' in data else None
-        self.state = EPersonaState(data.get('personastate', 0))
-        self.flags = EPersonaStateFlag(data.get('personastateflags', 0))
-        self.game = Game(title=data['gameextrainfo'], app_id=int(data['gameid'])) if 'gameextrainfo' in data else None
-
-    async def update(self) -> None:
-        data = await self._state.http.get_user(self.id64)
-        data = data['response']['players'][0]
-        self._update(data)
+        self.primary_clan = (SteamID(data['primaryclanid'])
+                             if 'primaryclanid' in data else None or self.primary_clan)
+        self.country = data.get('loccountrycode') or self.country
+        self.created_at = (datetime.utcfromtimestamp(data['timecreated'])
+                           if 'timecreated' in data else None or self.created_at)
+        self.last_logoff = (datetime.utcfromtimestamp(data['lastlogoff'])
+                            if 'lastlogoff' in data else None or self.last_logoff)
+        self.last_logon = (datetime.utcfromtimestamp(data['last_logon'])
+                           if 'last_logon' in data else None or self.last_logon)
+        self.last_seen_online = (datetime.utcfromtimestamp(data['last_seen_online'])
+                                 if 'last_seen_online' in data else None or self.last_seen_online)
+        self.game = (Game(title=data.get('gameextrainfo'), app_id=data['gameid'])
+                     if 'gameid' in data else None or self.game)
+        self.state = EPersonaState(data.get('personastate', 0)) or self.state
+        self.flags = EPersonaStateFlag.try_value(data.get('personastateflags', 0)) or self.flags
 
     async def comment(self, content: str) -> Comment:
         """|coro|
@@ -407,11 +429,13 @@ class BaseUser(SteamID):
         resp = await self._state.http.post_comment(self.id64, 'Profile', content)
         id = int(re.findall(r'id="comment_(\d+)"', resp['comments_html'])[0])
         timestamp = datetime.utcfromtimestamp(resp['timelastpost'])
-        return Comment(
+        comment = Comment(
             state=self._state, id=id, owner=self,
             timestamp=timestamp, content=content,
             author=self._state.client.user
         )
+        self._state.dispatch('comment', comment)
+        return comment
 
     async def inventory(self, game: Game) -> Inventory:
         """|coro|
@@ -435,7 +459,7 @@ class BaseUser(SteamID):
         resp = await self._state.http.get_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
-    async def fetch_friends(self) -> List['User']:
+    async def friends(self) -> List['User']:
         """|coro|
         Fetch the list of :class:`~steam.User`'s friends from the API.
 
@@ -461,30 +485,30 @@ class BaseUser(SteamID):
         games = data['response'].get('games', [])
         return [Game._from_api(game) for game in games]
 
-    async def groups(self) -> List['Group']:
+    async def clans(self) -> List['Clan']:
         """|coro|
-        Fetches a list of the :class:`User`'s :class:`~steam.Group`
+        Fetches a list of the :class:`User`'s :class:`~steam.Clan`
         objects the :class:`User` is in from the API.
 
         Returns
         -------
-        List[:class:`~steam.Group`]
-            The user's groups.
+        List[:class:`~steam.Clan`]
+            The user's clans.
         """
-        groups = []
+        clans = []
 
-        async def getter(gid):
+        async def getter(gid: str):
             try:
-                group = await self._state.client.fetch_group(gid)
+                clan = await self._state.client.fetch_clan(gid)
             except HTTPException:
                 await asyncio.sleep(20)
                 await getter(gid)
             else:
-                groups.append(group)
-        resp = await self._state.http.get_user_groups(self.id64)
-        for group in resp['response']['groups']:
-            await getter(group['gid'])
-        return groups
+                clans.append(clan)
+        resp = await self._state.http.get_user_clans(self.id64)
+        for clan in resp['response']['groups']:
+            await getter(clan['gid'])
+        return clans
 
     async def bans(self) -> Ban:
         """|coro|
@@ -592,8 +616,7 @@ class BaseUser(SteamID):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-class BaseChannel(metaclass=abc.ABCMeta):
-    pass
+_get_x_endpoint_return = Tuple[int, Callable[..., Awaitable[None]]]
 
 
 class Messageable(metaclass=abc.ABCMeta):
@@ -601,9 +624,16 @@ class Messageable(metaclass=abc.ABCMeta):
     The following classes implement this ABC:
 
         - :class:`~steam.User`
+        - :class:`BaseChannel`
     """
 
     __slots__ = ()
+
+    def _get_message_endpoint(self) -> _get_x_endpoint_return:
+        pass
+
+    def _get_image_endpoint(self) -> _get_x_endpoint_return:
+        pass
 
     async def send(self, content: str = None, image: 'Image' = None):
         """|coro|
@@ -614,7 +644,7 @@ class Messageable(metaclass=abc.ABCMeta):
         content: Optional[:class:`str`]
             The content of the message to send.
         image: Optional[:class:`.Image`]
-            The image to send to the user. This doesn't fully work yet.
+            The image to send to the user.
 
         Raises
         ------
@@ -622,12 +652,45 @@ class Messageable(metaclass=abc.ABCMeta):
             Sending the message failed.
         :exc:~steam.Forbidden
             You do not have permission to send the message.
-
-        Returns
-        -------
-        :class:`~steam.Message`
-            The message that was sent.
         """
-        # ret = state.create_message(channel=channel, data=data)
-        # return ret
+        if content is not None:
+            id64, message_func = self._get_message_endpoint()
+            await message_func(id64, content)
+        if image is not None:
+            id64, image_func = self._get_image_endpoint()
+            await image_func(id64, image)
+
+
+class BaseChannel(Messageable):
+    __slots__ = ()
+
+    def typing(self):
         pass
+
+    async def trigger_typing(self):
+        pass
+
+
+class Message:
+    """Represents a message from a :class:`~steam.User`
+    This is a base class from which all messages inherit.
+
+    Attributes
+    ----------
+    channel: :class:`steam.abc.BaseChannel`
+        The channel the message was sent in.
+    content: :class:`str`
+        The message's content.
+    author: :class:`steam.abc.BaseUser`
+        The message's author.
+    created_at: :class:`datetime.datetime`
+        The time the message was sent at.
+    """
+    __slots__ = ('author', 'content', 'channel', 'created_at', '_state')
+
+    def __init__(self, channel: 'BaseChannel'):
+        self._state = channel._state
+        self.channel = channel
+        self.content: Optional[str] = None
+        self.author: Optional[BaseUser] = None
+        self.created_at: Optional[datetime] = None

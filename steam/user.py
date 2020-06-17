@@ -24,18 +24,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import re
+import asyncio
 from datetime import timedelta
 from typing import TYPE_CHECKING, List, Optional
 
 from .abc import BaseUser, Messageable
-from .enums import *
+from .errors import ConfirmationError
 from .models import URL
 
 if TYPE_CHECKING:
+    from .clan import Clan
     from .group import Group
-    from .state import ConnectionState
     from .image import Image
+    from .state import ConnectionState
     from .trade import TradeOffer
 
 
@@ -44,16 +45,8 @@ __all__ = (
     'ClientUser',
 )
 
-ETypeChars = ''.join([type_char.name for type_char in ETypeChar])
 
-_ICODE_HEX = "0123456789abcdef"
-_ICODE_CUSTOM = "bcdfghjkmnpqrtvw"
-_ICODE_VALID = f'{_ICODE_HEX}{_ICODE_CUSTOM}'
-_ICODE_MAPPING = dict(zip(_ICODE_HEX, _ICODE_CUSTOM))
-_ICODE_INVERSE_MAPPING = dict(zip(_ICODE_CUSTOM, _ICODE_HEX))
-
-
-class User(Messageable, BaseUser):
+class User(BaseUser, Messageable):
     """Represents a Steam user's account.
 
     .. container:: operations
@@ -114,6 +107,7 @@ class User(Messageable, BaseUser):
         Remove an :class:`User` from your friends list.
         """
         await self._state.http.remove_user(self.id64)
+        self._state.client.user.friends.remove(self)
 
     async def block(self) -> None:
         """|coro|
@@ -149,39 +143,49 @@ class User(Messageable, BaseUser):
         seconds = their_escrow['escrow_end_duration_seconds']
         return timedelta(seconds=seconds) if seconds else None
 
-    async def send(self, content: str = None, *, trade: 'TradeOffer' = None, image: 'Image' = None):
+    def _get_message_endpoint(self):
+        return self.id64, self._state.send_user_message
+
+    def _get_image_endpoint(self):
+        return self.id64, self._state.http.send_user_image
+
+    async def send(self, content: str = None, *,
+                   trade: 'TradeOffer' = None,
+                   image: 'Image' = None) -> None:
         """|coro|
         Send a message, trade or image to an :class:`User`.
 
         Parameters
         ----------
         content: Optional[:class:`str`]
-            The message to send.
-
-            .. note::
-                This argument is not currently used does **NOT** currently function.
-
+            The message to send to the user.
         trade: Optional[:class:`.TradeOffer`]
-            The trade offer to send.
+            The trade offer to send to the user.
         image: Optional[:class:`.Image`]
-            The image to send to the user. This doesn't fully work yet.
+            The image to send to the user.
 
         Raises
         ------
-        :exc:`~steam.HTTPException`
-            Something failed to send.
+        :exc:~steam.HTTPException
+            Sending the message failed.
+        :exc:~steam.Forbidden
+            You do not have permission to send the message.
         """
 
-        if image is not None:
-            await self._state.http.send_image(self.id64, image)
+        await super().send(content, image)
         if trade is not None:
             to_send = [item.to_dict() for item in trade.items_to_send]
             to_receive = [item.to_dict() for item in trade.items_to_receive]
             resp = await self._state.http.send_trade_offer(self.id64, self.id, to_send,
                                                            to_receive, trade.token, trade.message)
             if resp.get('needs_mobile_confirmation', False):
-                await self._state.get_and_confirm_confirmation(int(resp['tradeofferid']))
-        # return await self._state.send_message(user_id64=self.id64, content=str(content))
+                trade._has_been_sent = True
+                for tries in range(5):
+                    try:
+                        await trade.confirm()
+                    except ConfirmationError:
+                        await asyncio.sleep(tries * 2)
+                        continue
 
     async def invite_to_group(self, group: 'Group'):
         """|coro|
@@ -192,7 +196,18 @@ class User(Messageable, BaseUser):
         group: :class:`~steam.Group`
             The group to invite the user to.
         """
-        await self._state.http.invite_user_to_group(self.id64, group.id64)
+        # TODO
+
+    async def invite_to_clan(self, clan: 'Clan'):
+        """|coro|
+        Invites a :class:`~steam.User` to a :class:`Clan`.
+
+        Parameters
+        -----------
+        clan: :class:`~steam.Clan`
+            The clan to invite the user to.
+        """
+        await self._state.http.invite_user_to_clan(self.id64, clan.id64)
 
     def is_friend(self) -> bool:
         """:class:`bool`: Species if the user is in the :class:`ClientUser`'s friends."""
@@ -248,40 +263,19 @@ class ClientUser(BaseUser):
 
     def __init__(self, state: 'ConnectionState', data: dict):
         super().__init__(state, data)
-        self.friends = []
-
-    async def __ainit__(self):
-        await self.fetch_friends()
+        self.friends: List[User] = []
 
     def __repr__(self):
         attrs = (
-            'name', 'state',
+            'name', 'state', 'id', 'type', 'universe', 'instance'
         )
-        resolved = [f'{attr}={repr(getattr(self, attr))}' for attr in attrs]
-        resolved.append(super().__repr__())
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<ClientUser {' '.join(resolved)}>"
 
-    async def fetch_friends(self) -> List[User]:
-        self.friends = await super().fetch_friends()
-        return self.friends
-
-    async def wallet_balance(self) -> Optional[float]:
-        """|coro|
-        Fetches the :class:`ClientUser`'s current wallet balance.
-
-        Returns
-        -------
-        Optional[:class:`float`]
-            The current wallet balance.
-        """
-        resp = await self._state.request('GET', url=f'{URL.STORE}/steamaccount/addfunds')
-        search = re.search(r'Wallet <b>\([^\d]*(\d*)(?:[.,](\d*)|)[^\d]*\)</b>', resp, re.UNICODE)
-        if search is None:
-            return None
-
-        return float(f'{search.group(1)}.{search.group(2)}') if search.group(2) else float(search.group(1))
-
     async def setup_profile(self) -> None:
+        """|coro|
+        Set up your profile if possible
+        """
         if self.has_setup_profile():
             return
 

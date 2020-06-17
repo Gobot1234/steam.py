@@ -30,21 +30,22 @@ Thanks confern for letting me use this :D
 
 import asyncio
 import logging
-import re
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, List, Mapping, Union, Optional
+from typing import (
+    Any,
+    List,
+    Mapping,
+    Optional,
+    Union
+)
 
-from bs4 import BeautifulSoup
-
-from . import errors, utils
-from .enums import ECurrencyCode, EMarketListingState
+from . import errors
+from .enums import ECurrencyCode
 from .game import Game
 from .http import HTTPClient, json_or_text
 from .models import URL
-from .trade import Asset
 
 __all__ = (
-    'Listing',
     'PriceOverview',
 )
 
@@ -86,9 +87,9 @@ class PriceOverview:
     -------------
     volume: :class:`int`
         The amount of items are currently on the market.
-    lowest_price: :class:`float`
+    lowest_price: :class:`str`
         The lowest price observed by the market.
-    median_price: :class:`float`
+    median_price: :class:`str`
         The median price observed by the market.
     """
 
@@ -96,96 +97,12 @@ class PriceOverview:
 
     def __init__(self, data: dict):
         self.volume = int(data['volume'].replace(',', ''))
-        search = re.search(r'[^\d]*(\d*)[.,](\d*)', data['lowest_price'])
-        self.lowest_price = float(f'{search.group(1)}.{search.group(2)}') \
-            if search.group(2) else float(search.group(1))
-        search = re.search(r'[^\d]*(\d*)[.,](\d*)', data['median_price'])
-        self.median_price = float(f'{search.group(1)}.{search.group(2)}') \
-            if search.group(2) else float(search.group(1))
+        self.lowest_price = data['lowest_price']
+        self.median_price = data['median_price']
 
     def __repr__(self):
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
         return f"<PriceOverview {' '.join(resolved)}>"
-
-
-class Listing(Asset):
-    """Represents a Steam Market listing
-
-    Attributes
-    ----------
-    name: :class:`str`
-        The name of the listing's item.
-    user_pays: Optional[:class:`float`]
-        The amount the user would pay for the item.
-    we_receive: Optional[:class:`float`]
-        The amount the ClientUser would receive for a sale of the item.
-    price: Optional[:class:`float`]
-        The amount the amount the item was bought or sold for, this only applies
-        to listings from :meth:`~steam.Client.listing_history`.
-    id: :class:`int`
-        The listing's ID.
-    state: :class:`~steam.EMarketListingState`
-        The state of the listing.
-    colour: Optional[:class:`int`]
-        The colour of the listing's item.
-    market_name: Optional[:class:`str`]
-        The market_name of the listing's item.
-    descriptions: Optional[:class:`str`]
-        The listing's item's description.
-    type: Optional[:class:`str`]
-        The type of the listing's item.
-    tags: Optional[:class:`str`]
-        The tags of the listing's item.
-    icon_url: Optional[:class:`str`]
-        The icon_url of the listing's item. Uses the large (184x184 px) image url.
-    """
-
-    def __init__(self, state, data):
-        super().__init__(data)
-        self._state = state
-        self._from_data(data)
-
-    def _from_data(self, data):
-        self.name = data['name']
-        self.user_pays = data.get('user_pays')
-        self.we_receive = data.get('we_receive')
-        self.price = data.get('price')  # for iterator
-        self.id = data['id']
-        self.state = EMarketListingState(data['status'])
-        self.game = Game(app_id=data['appid'], context_id=int(data['contextid']))
-        self.colour = int(data['name_color'], 16) if 'name_color' in data else None
-        self.market_name = data.get('market_name')
-        self.descriptions = data.get('descriptions')
-        self.type = data.get('type')
-        self.tags = data.get('tags')
-        self.icon_url = f'{URL.COMMUNITY}-a.akamaihd.net/economy/image/{data["icon_url_large"]}' \
-            if 'icon_url_large' in data else None
-        self._is_tradable = bool(data.get('tradable', False))
-
-    def __repr__(self):
-        attrs = (
-                    'name', 'id'
-                ) + Asset.__slots__
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f"<Listing {' '.join(resolved)}>"
-
-    def __hash__(self):
-        return hash(self.id)
-
-    def is_tradable(self) -> bool:
-        """:class:`bool`: Whether the listing's item is tradable."""
-        return self._is_tradable
-
-    async def fetch_price(self) -> 'PriceOverview':
-        """|coro|
-        Fetches the price and volume sales of an item.
-
-        Returns
-        -------
-        :class:`PriceOverview`
-            The item's price overview.
-        """
-        return await self._state.client.fetch_price(self.name, self.game)
 
 
 class MarketClient(HTTPClient):
@@ -207,9 +124,9 @@ class MarketClient(HTTPClient):
 
         if isinstance(currency, ECurrencyCode):
             self.currency = currency.value
-        elif isinstance(currency, str):
+        if isinstance(currency, str):
             self.currency = ECurrencyCode[currency.upper()].value
-        elif isinstance(currency, int):
+        if isinstance(currency, int):
             self.currency = ECurrencyCode(currency).value
         else:
             self.currency = 1
@@ -293,40 +210,3 @@ class MarketClient(HTTPClient):
 
     async def get_prices(self, items) -> Mapping[str, PriceOverview]:
         return {item.name: await self.get_price(item) for item in items}
-
-    async def get_listings(self, pages: int) -> List[dict]:
-        ret = []
-        for start in range(0, pages, 100):
-            params = {
-                "start": start,
-                "count": 100
-            }
-            resp = await self.request('GET', url=f'{self.BASE}/mylistings', params=params)
-            matches = re.findall(r"CreateItemHoverFromContainer\( \w+, 'mylisting_(\d+)_"
-                                 r"\w+', \d+, '\d+', '(\d+)', \d+ \);", resp["hovers"])
-            # we need the listing id and the asset id(???)
-            prices = []
-            soup = BeautifulSoup(resp['results_html'], 'html.parser')
-            for listing in soup.find_all('div', attrs={"class": 'market_listing_row'}):
-                listing_id = re.findall(r'mylisting_(\d+)_\w+', str(listing))
-                findall = re.findall(r'[^\d]*(\d+)(?:[.,])(\d+)', listing.text, re.UNICODE)
-                price = float(f'{findall[0][0]}.{findall[0][1]}')
-                to_receive = float(f'{findall[1][0]}.{findall[1][1]}')
-                prices.append((listing_id, price, to_receive))
-
-            for context_id in resp['assets'].values():
-                for listings in context_id.values():
-                    for listing in listings.values():
-                        listing['assetid'] = listing['id']  # we need to swap the ids around
-                        listing['id'] = int(utils.find(lambda m: m[1] == listing['id'], matches)[0])
-                        _, listing['user_pays'], listing['we_receive'] = \
-                            utils.find(lambda p: int(p[0][0]) == listing['id'], prices)
-                        ret.append(listing)
-        return ret
-
-    def get_pages(self) -> Awaitable:
-        params = {
-            "start": 0,
-            "count": 1
-        }
-        return self.request('GET', url=f'{self.BASE}/mylistings', params=params)

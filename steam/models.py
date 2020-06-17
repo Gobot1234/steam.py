@@ -24,18 +24,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Union
 
 from .game import Game
 
 if TYPE_CHECKING:
-    from bs4 import BeautifulSoup
-
     from .abc import BaseUser
-    from .group import Group
+    from .clan import Clan
     from .state import ConnectionState
+    from .user import User
+    from .protobufs.steammessages_chat import CChatRoleActions \
+        as RoleProto
 
 
 __all__ = (
@@ -44,6 +44,8 @@ __all__ = (
     'Invite',
     'Comment',
     'UserBadges',
+    'UserInvite',
+    'ClanInvite',
 )
 
 
@@ -66,9 +68,9 @@ class Comment:
         The author of the comment.
     created_at: :class:`datetime.datetime`
         The time the comment was posted at.
-    owner: Union[:class:`~steam.Group`, :class:`~steam.User`]
-        The comment sections owner. If the comment section is for a group
-        it will be a :class:`~steam.Group` instance otherwise it
+    owner: Union[:class:`~steam.Clan`, :class:`~steam.User`]
+        The comment sections owner. If the comment section is for a clan
+        it will be a :class:`~steam.Clan` instance otherwise it
         will be an `~steam.User` instance.
     """
 
@@ -76,7 +78,7 @@ class Comment:
 
     def __init__(self, state: 'ConnectionState',
                  id: int, content: str, timestamp: datetime,
-                 author: 'BaseUser', owner: Union['Group', 'BaseUser']):
+                 author: 'BaseUser', owner: Union['Clan', 'BaseUser']):
         self._state = state
         self.content = content
         self.id = id
@@ -115,60 +117,86 @@ class Comment:
 
 
 class Invite:
-    """Represents a invite from a Steam user.
+    """Represents a invite from a user.
 
     Attributes
     -----------
-    type: :class:`str`
-        The type of invite either 'Profile'
-        or 'Clan'.
     invitee: :class:`~steam.User`
-        The user who sent the invite. For type
-        'Profile', this is the user you would end up adding.
-    group: Optional[:class:`~steam.Group`]
-        The group the invite pertains to,
-        only relevant if type is 'Clan'.
+        The user who sent the invite.
     """
 
-    __slots__ = ('type', 'group', 'invitee', '_data', '_state')
+    __slots__ = ('invitee', '_state')
 
-    def __init__(self, state: 'ConnectionState', data: 'BeautifulSoup.Tag'):
+    def __init__(self, state: 'ConnectionState', invitee: 'User'):
         self._state = state
-        self._data = str(data)
+        self.invitee = invitee
 
-    async def __ainit__(self) -> None:
-        search = re.search(r"href=\"javascript:OpenGroupChat\( '(\d+)' \)\"", self._data)
-        invitee_id = re.search(r'data-miniprofile="(\d+)"', self._data)
-        client = self._state.client
 
-        self.type = 'Clan' if search is not None else 'Profile'
-        self.invitee = await client.fetch_user(invitee_id.group(1))
-        self.group = await client.fetch_group(search.group(1)) if self.type == 'Clan' else None
+class UserInvite(Invite):
+    """Represents a invite from a user.
+
+    Attributes
+    -----------
+    invitee: :class:`~steam.User`
+        The user who sent the invite.
+    """
 
     def __repr__(self):
         attrs = (
-            'type', 'invitee', 'group'
+            'invitee',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f"<Invite {' '.join(resolved)}>"
+        return f"<UserInvite {' '.join(resolved)}>"
 
     async def accept(self) -> None:
         """|coro|
         Accepts the invite request.
         """
-        if self.type == 'Profile':
-            await self._state.http.accept_user_invite(self.invitee.id64)
-        else:
-            await self._state.http.accept_group_invite(self.group.id64)
+        await self._state.http.accept_user_invite(self.invitee.id64)
+        self._state.client.user.friends.append(self.invitee)
 
     async def decline(self) -> None:
         """|coro|
         Declines the invite request.
         """
-        if self.type == 'Profile':
-            await self._state.http.decline_user_invite(self.invitee.id64)
-        else:
-            await self._state.http.decline_group_invite(self.group.id64)
+        await self._state.http.decline_user_invite(self.invitee.id64)
+
+
+class ClanInvite(Invite):
+    """Represents a invite from a user.
+
+    Attributes
+    -----------
+    clan: :class:`~steam.Clan`
+        The clan to join.
+    invitee: :class:`~steam.User`
+        The user who sent the invite.
+    """
+
+    __slots__ = ('clan',)
+
+    def __init__(self, state: 'ConnectionState', invitee: 'User', clan: 'Clan'):
+        super().__init__(state, invitee)
+        self.clan = clan
+
+    def __repr__(self):
+        attrs = (
+            'invitee', 'clan',
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<ClanInvite {' '.join(resolved)}>"
+
+    async def accept(self) -> None:
+        """|coro|
+        Accepts the invite request.
+        """
+        await self._state.http.accept_clan_invite(self.clan.id64)
+
+    async def decline(self) -> None:
+        """|coro|
+        Declines the invite request.
+        """
+        await self._state.http.decline_clan_invite(self.clan.id64)
 
 
 class Ban:
@@ -289,3 +317,19 @@ class UserBadges:
 
     def __len__(self):
         return len(self.badges)
+
+
+class Role:
+
+    def __init__(self, proto: 'RoleProto'):
+        self.id = int(proto.role_id)
+        self.can_kick = proto.can_kick
+        self.can_ban = proto.can_ban
+        self.can_invite = proto.can_invite
+        self.can_change_tagline_avatar_name = proto.can_change_tagline_avatar_name
+        self.can_chat = proto.can_chat
+        self.can_view_history = proto.can_view_history
+        self.can_change_group_roles = proto.can_change_group_roles
+        self.can_change_user_roles = proto.can_change_user_roles
+        self.can_mention_all = proto.can_mention_all
+        self.can_set_watching_broadcast = proto.can_set_watching_broadcast
