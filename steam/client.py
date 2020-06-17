@@ -30,6 +30,7 @@ https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 import asyncio
 import logging
 import signal
+import sys
 import traceback
 from datetime import datetime
 from typing import (
@@ -835,7 +836,7 @@ class Client:
         \*\*kwargs:
             The key-word arguments associated with the event.
         """
-        print(f'Ignoring exception in {event}')
+        print(f'Ignoring exception in {event}', file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__)
 
     async def on_message(self, message: 'steam.Message'):
