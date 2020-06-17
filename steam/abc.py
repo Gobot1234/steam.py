@@ -672,6 +672,20 @@ class BaseChannel(Messageable):
 
 
 class Message:
+    """Represents a message from a :class:`~steam.User`
+    This is a base class from which all messages inherit.
+
+    Attributes
+    ----------
+    channel: :class:`steam.abc.BaseChannel`
+        The channel the message was sent in.
+    content: :class:`str`
+        The message's content.
+    author: :class:`steam.abc.BaseUser`
+        The message's author.
+    created_at: :class:`datetime.datetime`
+        The time the message was sent at.
+    """
     __slots__ = ('author', 'content', 'channel', 'created_at', '_state')
 
     def __init__(self, channel: 'BaseChannel'):
