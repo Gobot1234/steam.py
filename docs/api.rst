@@ -24,9 +24,11 @@ Client
 .. autoclass:: Client
     :members:
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_error,
-                      on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline,
-                      on_trade_cancel, on_trade_expire, on_trade_counter, on_comment,
-                      on_user_invite, on_clan_invite, on_message, on_user_update
+                      on_message, on_typing, on_trade_receive, on_trade_send,
+                      on_trade_accept, on_trade_decline, on_trade_cancel,
+                      on_trade_expire, on_trade_counter, on_comment, on_user_invite,
+                      on_clan_invite, on_user_update, on_socket_receive,
+                      on_socket_raw_receive, on_socket_send, on_socket_raw_send
 
 Event Reference
 ---------------
@@ -72,6 +74,8 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. automethod:: Client.on_message
 
+.. automethod:: Client.on_typing
+
 .. automethod:: Client.on_trade_receive
 
 .. automethod:: Client.on_trade_send
@@ -91,6 +95,17 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 .. automethod:: Client.on_user_invite
 
 .. automethod:: Client.on_clan_invite
+
+.. automethod:: Client.on_user_update
+
+.. automethod:: Client.on_socket_receive
+
+.. automethod:: Client.on_socket_raw_receive
+
+.. automethod:: Client.on_socket_send
+
+.. automethod:: Client.on_socket_raw_send
+
 
 
 
@@ -186,6 +201,9 @@ They are only used for subclassing.
 .. autoclass:: steam.abc.BaseUser()
     :members:
 
+.. autoclass:: steam.abc.BaseChannel()
+    :members:
+
 .. autoclass:: steam.abc.Messageable()
     :members:
 
@@ -195,7 +213,7 @@ Steam Models
 steam.py provides wrappers around common Steam API objects.
 These are not meant to be constructed by the user instead you receive them from methods/events.
 
-Badges
+Badge
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: Badge()
@@ -204,37 +222,56 @@ Badges
 .. autoclass:: UserBadges()
     :members:
 
-Bans
+Ban
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: Ban()
     :members:
 
-Comments
+Channel
+~~~~~~~~~~~~~~~
+
+.. autoclass:: DMChannel()
+    :members:
+    :inherited-members:
+
+.. autoclass:: GroupChannel()
+    :members:
+    :inherited-members:
+
+
+Clan
+~~~~~~~~~~~~~~~
+
+.. autoclass:: Clan()
+    :members:
+    :inherited-members:
+
+Comment
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: Comment()
     :members:
 
-Groups
+Group
 ~~~~~~~~~~~~~~~
 
 .. autoclass:: Group()
     :members:
-    :inherited-members:
 
-Invites
+Invite
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: Invite()
+.. autoclass:: UserInvite()
     :members:
+    :inherited-members:
+
+.. autoclass:: ClanInvite()
+    :members:
+    :inherited-members:
 
 Market
 ~~~~~~~~~~~~~~~
-
-.. autoclass:: Listing()
-    :members:
-    :inherited-members:
 
 .. autoclass:: PriceOverview()
     :members:
@@ -242,10 +279,16 @@ Market
 Message
 ~~~~~~~~~~~~~~~
 
-This is currently under development and does **not** currently function.
-
 .. autoclass:: Message()
     :members:
+
+.. autoclass:: UserMessage()
+    :members:
+
+.. autoclass:: GroupMessage()
+    :members:
+
+Sending `GroupMessage` does not support replying yet.
 
 Trading
 ~~~~~~~~~~~~~~~
@@ -355,8 +398,6 @@ The following exceptions are thrown by the library.
 
 Exception Hierarchy
 ~~~~~~~~~~~~~~~~~~~~~
-
-.. totally not from discord.py https://github.com/Rapptz/discord.py/blob/master/docs/extensions/exception_hierarchy.py
 
 .. exception_hierarchy::
 

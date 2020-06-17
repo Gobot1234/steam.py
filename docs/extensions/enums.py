@@ -23,5 +23,5 @@ inspect.isenumclass = _isenumclass
 inspect.isenumattribute = _isenumattribute
 
 
-def setup(_):
+def setup(_):  # stop sphinx complaining when docs are built
     pass
