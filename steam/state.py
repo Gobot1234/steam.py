@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_clientserver import CMsgClientCMList
     from .protobufs.steammessages_clientserver_2 import (
         CMsgClientCommentNotifications,
-        CMsgClientUserNotifications
+        CMsgClientUserNotifications,
     )
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientPersonaState,
@@ -111,13 +111,19 @@ class ConnectionState:
         self._confirmations = dict()
         self.invites = []
         self.groups = []
+
+        self._trades_task = None
         self._trades_to_watch = []
+        self._trades_received_cache = []
+        self._trades_sent_cache = []
+        self._descriptions_cache = []
 
     async def __ainit__(self) -> None:
         self.market = self.client._market
         self._id64 = self.client.user.id64
         self._device_id = generate_device_id(str(self._id64))
-        self.loop.create_task(self._poll_trades())
+
+        await self._poll_trades()
 
     @property
     def users(self) -> List[User]:
@@ -219,30 +225,23 @@ class ConnectionState:
         return ret
 
     async def _poll_trades(self) -> None:
-        while self._trades_to_watch:
-            await asyncio.sleep(1)
-            try:
-                resp = await self.http.get_trade_offers()
-            except Exception:
-                await asyncio.sleep(10)
-                continue
-            trades = resp['response']
-            descriptions = trades.get('descriptions', [])
-            trades_received = trades.get('trade_offers_received', [])
-            trades_sent = trades.get('trade_offers_sent', [])
+        resp = await self.http.get_trade_offers()
+        trades = resp['response']
+        descriptions = trades.get('descriptions', [])
+        trades_received = trades.get('trade_offers_received', [])
+        trades_sent = trades.get('trade_offers_sent', [])
 
-            new_received_trades = [trade for trade in trades_received
-                                   if trade not in self._trades_received_cache]
-            new_sent_trades = [trade for trade in trades_sent
-                               if trade not in self._trades_sent_cache]
-            new_descriptions = [item for item in descriptions
-                                if item not in self._descriptions_cache]
-            await self._process_trades(new_received_trades, new_descriptions)
-            await self._process_trades(new_sent_trades, new_descriptions)
-
-            self._trades_received_cache = trades_received
-            self._trades_sent_cache = trades_sent
-            self._descriptions_cache = descriptions
+        new_received_trades = [trade for trade in trades_received
+                               if trade not in self._trades_received_cache]
+        new_sent_trades = [trade for trade in trades_sent
+                           if trade not in self._trades_sent_cache]
+        new_descriptions = [item for item in descriptions
+                            if item not in self._descriptions_cache]
+        await self._process_trades(new_received_trades, new_descriptions)
+        await self._process_trades(new_sent_trades, new_descriptions)
+        self._trades_received_cache = trades_received
+        self._trades_sent_cache = trades_sent
+        self._descriptions_cache = descriptions
 
     async def _parse_comment(self) -> 'Comment':
         # this isn't very efficient but I'm not sure if it can be done better
@@ -504,5 +503,13 @@ class ConnectionState:
         msg.body: 'CMsgClientUserNotifications'
         for notification in msg.body.notifications:
             if notification.type == 1:  # received a trade offer
-                self.loop.create_task(self._poll_trades())  # watch trades for changes
+                async def poll_trades():
+                    while self._trades_to_watch:
+                        await asyncio.sleep(1)
+                        try:
+                            await self._poll_trades()
+                        except Exception:
+                            await asyncio.sleep(10)
+                if self._trades_task is None or self._trades_task.done():
+                    self._trades_task = self.loop.create_task(poll_trades())  # watch trades for changes
         await self.http.clear_notifications()
