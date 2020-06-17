@@ -203,6 +203,7 @@ They are only used for subclassing.
 
 .. autoclass:: steam.abc.BaseChannel()
     :members:
+    :inherited-members:
 
 .. autoclass:: steam.abc.Messageable()
     :members:
