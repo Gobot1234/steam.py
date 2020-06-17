@@ -23,7 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
-This is a slightly modified version of discord's client
+This is a slightly modified version of discord.py's client
 https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 """
 
@@ -68,6 +68,8 @@ if TYPE_CHECKING:
     from .models import Comment, Invite
     from .trade import TradeOffer
     from .user import ClientUser, User
+
+    from .protobufs import Msg, MsgProto
 
 
 __all__ = (
@@ -984,4 +986,49 @@ class Client:
             The user's state state.
         after: :class:`~steam.User`
             The user's state now.
+        """
+
+    async def on_socket_receive(self, msg: Union['Msg', 'MsgProto']):
+        """|coro|
+        Called when the connected web-socket parses a received
+        ``Msg``/``MsgProto``
+
+        Parameters
+        ----------
+        msg: Union['Msg', 'MsgProto']
+            The received message.
+        """
+
+    async def on_socket_raw_receive(self, message: bytes):
+        """|coro|
+        Called when the connected web-socket receives
+        raw :class:`bytes`. This isn't likely to be very useful.
+
+        Parameters
+        ----------
+        message: bytes
+            The raw received message.
+        """
+
+    async def on_socket_send(self, msg: Union['Msg', 'MsgProto']):
+        """|coro|
+        Called when the client sends a parsed ``Msg``/``MsgProto``
+        to the connected web-socket.
+
+        Parameters
+        ----------
+        msg: Union['Msg', 'MsgProto']
+            The sent message.
+        """
+
+    async def on_socket_raw_send(self, message: bytes):
+        """|coro|
+        Called when the client sends raw :class:`bytes`
+        to the connected web-socket.
+        This isn't likely to be very useful.
+
+        Parameters
+        ----------
+        message: bytes
+            The raw sent message.
         """
