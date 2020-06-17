@@ -117,13 +117,12 @@ class Comment:
 
 
 class Invite:
-    """Represents a invite from a Steam user.
+    """Represents a invite from a user.
 
     Attributes
     -----------
     invitee: :class:`~steam.User`
-        The user who sent the invite. For type
-        'Profile', this is the user you would end up adding.
+        The user who sent the invite.
     """
 
     __slots__ = ('invitee', '_state')
@@ -134,6 +133,14 @@ class Invite:
 
 
 class UserInvite(Invite):
+    """Represents a invite from a user.
+
+    Attributes
+    -----------
+    invitee: :class:`~steam.User`
+        The user who sent the invite.
+    """
+
     def __repr__(self):
         attrs = (
             'invitee',
@@ -156,6 +163,16 @@ class UserInvite(Invite):
 
 
 class ClanInvite(Invite):
+    """Represents a invite from a user.
+
+    Attributes
+    -----------
+    clan: :class:`~steam.Clan`
+        The clan to join.
+    invitee: :class:`~steam.User`
+        The user who sent the invite.
+    """
+
     __slots__ = ('clan',)
 
     def __init__(self, state: 'ConnectionState', invitee: 'User', clan: 'Clan'):
