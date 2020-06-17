@@ -960,7 +960,7 @@ class Client:
     async def on_clan_invite(self, invite: 'steam.ClanInvite'):
         """|coro|
         Called when the client receives an invite from a :class:`~steam.User`
-        to become join a Clan.
+        to join a Clan.
 
         Parameters
         ----------
