@@ -97,7 +97,6 @@ class HTTPClient:
         self._loop = loop
         self._session = session
         self._client = client
-        self._state = None
         self._lock = asyncio.Lock()
 
         self.username = None
@@ -212,12 +211,11 @@ class HTTPClient:
             self.api_key = self._client.api_key = api_key
         cookies = self._session.cookie_jar.filter_cookies(_URL(URL.COMMUNITY))
         self.session_id = cookies['sessionid'].value
-        self._state = self._client._connection
 
         id64 = login_response['transfer_parameters']['steamid']
         resp = await self.get_user(id64)
         data = resp['response']['players'][0]
-        self.user = ClientUser(state=self._state, data=data)
+        self.user = ClientUser(state=self._client._connection, data=data)
         self._client.dispatch('login')
 
     async def logout(self) -> None:
@@ -652,7 +650,7 @@ class HTTPClient:
         await self.request('POST', CRoute('/chat/commitfileupload'), data=payload)
 
     async def get_api_key(self) -> str:
-        resp = await self.request('GET', CRoute('/dev/apikey'))
+        resp = await self.request('GET', CRoute('/dev/apikey?l=english'))
         error = 'You must have a validated email address to create a Steam Web API key'
         if error in resp:
             raise errors.LoginError(error)
@@ -660,11 +658,13 @@ class HTTPClient:
         match = re.findall(r'<p>Key: ([0-9A-F]+)</p>', resp)
         if match:
             return match[0]
+
+        self.session_id = re.findall(r'g_sessionID = "(.*?)";', resp)[0]
         payload = {
             "domain": 'steam.py',
             "agreeToTerms": 'agreed',
             "sessionid": self.session_id,
             "Submit": 'Register'
         }
-        await self.request('POST', CRoute('/dev/registerkey'), data=payload)
-        return await self.get_api_key()
+        resp = await self.request('POST', CRoute('/dev/registerkey?l=english'), data=payload)
+        return re.findall(r'<p>Key: ([0-9A-F]+)</p>', resp)[0]
