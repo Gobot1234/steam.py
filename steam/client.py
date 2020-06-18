@@ -975,16 +975,18 @@ class Client:
 
             - name
             - state
+            - flags
             - avatar
             - last_logon
             - last_logout
+            - last_seen_online
             - game
 
 
         Parameters
         ----------
         before: :class:`~steam.User`
-            The user's state state.
+            The user's state before.
         after: :class:`~steam.User`
             The user's state now.
         """
@@ -996,7 +998,7 @@ class Client:
 
         Parameters
         ----------
-        msg: Union['Msg', 'MsgProto']
+        msg: Union[Msg, MsgProto]
             The received message.
         """
 
@@ -1018,7 +1020,7 @@ class Client:
 
         Parameters
         ----------
-        msg: Union['Msg', 'MsgProto']
+        msg: Union[Msg, MsgProto]
             The sent message.
         """
 

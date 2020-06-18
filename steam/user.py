@@ -254,7 +254,7 @@ class ClientUser(BaseUser):
         The last time the user logged into steam. Could be ``None`` (e.g. if they are currently online).
     country: Optional[:class:`str`]
         The country code of the account. Could be ``None``.
-    flags: :class:`~steam.EPersonaStateFlag`
+    flags: Union[:class:`~steam.EPersonaStateFlag`, :class:`int`]
         The persona state flags of the account.
     """
     # TODO more stuff to add https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/profile.js
