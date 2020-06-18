@@ -6,8 +6,8 @@
 Welcome to steam.py's documentation!
 ====================================
 
-steam.py is a modern, easy to use (I hope), and async ready API wrapper
-for Steam. Heavily inspired by `discord.py <https://github.com/Rapptz/discord.py>`_
+steam.py is a modern, easy to use, and async ready API wrapper
+for the Steam API and its CMs. Heavily inspired by `discord.py <https://github.com/Rapptz/discord.py>`_
 
 **Features:**
 
