@@ -8,7 +8,7 @@ from typing import List, TYPE_CHECKING
 import betterproto
 
 if TYPE_CHECKING:
-    from .steammessages_base import CMsgIPAddress
+    from .steammessages_base import CMsgIPAddress, CMsgAuthTicket
 
 
 class EMMSLobbyStatus(betterproto.Enum):
@@ -1074,19 +1074,6 @@ class CMsgClientUFSLoginRequest(betterproto.Message):
 @dataclass
 class CMsgClientUFSLoginResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-
-
-@dataclass
-class CMsgClientRequestEncryptedAppTicket(betterproto.Message):
-    app_id: int = betterproto.uint32_field(1)
-    userdata: bytes = betterproto.bytes_field(2)
-
-
-@dataclass
-class CMsgClientRequestEncryptedAppTicketResponse(betterproto.Message):
-    app_id: int = betterproto.uint32_field(1)
-    eresult: int = betterproto.int32_field(2)
-    encrypted_app_ticket: "EncryptedAppTicket" = betterproto.message_field(3)
 
 
 @dataclass
