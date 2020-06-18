@@ -98,8 +98,6 @@ PROTOBUFS = {
     EMsg.ClientAuthList: steammessages_clientserver.CMsgClientAuthList,
     EMsg.ClientAuthListAck: steammessages_clientserver.CMsgClientAuthListAck,
     EMsg.ClientTicketAuthComplete: steammessages_clientserver.CMsgClientTicketAuthComplete,
-    EMsg.ClientRequestEncryptedAppTicket: steammessages_clientserver.CMsgClientRequestEncryptedAppTicket,
-    EMsg.ClientRequestEncryptedAppTicketResponse: steammessages_clientserver.CMsgClientRequestEncryptedAppTicketResponse,
     EMsg.ClientCurrentUIMode: steammessages_clientserver_2.CMsgClientUIMode,
     EMsg.ClientVanityURLChangedNotification: steammessages_clientserver_2.CMsgClientVanityURLChangedNotification,
     EMsg.ClientAMGetPersonaNameHistory: steammessages_clientserver.CMsgClientAMGetPersonaNameHistory,

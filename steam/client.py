@@ -66,6 +66,7 @@ from .utils import ainput
 if TYPE_CHECKING:
     import steam
     from .game import Game
+    from .group import Group
     from .models import Comment, Invite
     from .trade import TradeOffer
     from .user import ClientUser, User
@@ -190,20 +191,26 @@ class Client:
 
     @property
     def trades(self) -> List['TradeOffer']:
-        """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the user has seen."""
+        """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the connected client has seen."""
         return self._connection.trades
+
+    @property
+    def groups(self) -> List['Group']:
+        """List[:class:`~steam.Group`]: Returns a list of all the groups the connected client is in."""
+        return self._connection.groups
 
     async def code(self) -> str:
         """|coro|
+
+        .. warning::
+            Will wait for a Steam guard code using :func:`input` in an
+            executor if no shared_secret is passed to :meth:`run` or :meth:`start`
+            blocking exiting until one is entered.
 
         Returns
         -------
         :class:`str`
             The current steam guard code.
-
-        .. warning::
-            Will wait for a Steam guard code using :func:`input` in an
-            executor if no shared_secret is passed to :meth:`run` or :meth:`start`.
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)

@@ -125,7 +125,7 @@ How can I wait for an event?
                 await message.channel.send('You took too long to send the offer')
             else:
                 await message.channel.send(f'You were going to send {len(offer.items_to_receive)} items\n'
-                                           f'You were going to receive {len(offer.items_to_receive)} items')
+                                           f'You were going to receive {len(offer.items_to_send)} items')
                 await offer.decline()
 
 The final interaction will end up looking something like this:
@@ -168,7 +168,7 @@ method on the User that you want to send the offer to.
     earbuds = their_inventory.get_item('Earbuds')
 
     # finally construct the trade
-    trade = TradeOffer(items_to_send=keys, items_to_receive=earbuds,
+    trade = TradeOffer(items_to_send=keys, items_to_receive=[earbuds],
                        message='This trade was made using steam.py')
     await user.send(trade=trade)
     # you don't need to confirm the trade manually, the client will handle that for you

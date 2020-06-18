@@ -450,7 +450,8 @@ class ConnectionState:
         if not self.handled_friends.is_set():
             self.client.user.friends = await self.fetch_users([
                 int(friend.ulfriendid) for friend in msg.body.friends
-                if friend.efriendrelationship == EFriendRelationship.Friend
+                if friend.efriendrelationship == EFriendRelationship.Friend and
+                   (int(friend.ulfriendid) >> 52) & 0xF != EType.Clan
             ])
             self.handled_friends.set()
 
@@ -484,10 +485,10 @@ class ConnectionState:
                     invitee = self.get_user(steam_id.id64) or await self.fetch_user(steam_id.id64) or steam_id
                     if invitee in self.invites:
                         self.dispatch('user_invite_accept', invitee)
-                if steam_id.type == EType.Clan:
-                    clan = await self.client.fetch_clan(steam_id.id64) or steam_id
-                    if clan in self.invites:
-                        self.dispatch('clan_invite_accept', clan)
+                # if steam_id.type == EType.Clan:   # this is a bad idea for the first run
+                #    clan = await self.client.fetch_clan(steam_id.id64) or steam_id
+                #    if clan in self.invites:
+                #        self.dispatch('clan_invite_accept', clan)
 
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, msg: MsgProto) -> None:
@@ -499,11 +500,11 @@ class ConnectionState:
         await self.http.clear_notifications()
 
     @register(EMsg.ClientUserNotifications)
-    async def parse_notification(self, msg: MsgProto):
+    async def parse_notification(self, msg: MsgProto) -> None:
         msg.body: 'CMsgClientUserNotifications'
         for notification in msg.body.notifications:
             if notification.type == 1:  # received a trade offer
-                async def poll_trades():
+                async def poll_trades() -> None:
                     while self._trades_to_watch:
                         await asyncio.sleep(1)
                         try:

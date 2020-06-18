@@ -555,7 +555,7 @@ class BaseUser(SteamID):
     def is_private(self) -> bool:
         """:class:`bool`: Specifies if the user has a public profile."""
         state = self._data.get('communityvisibilitystate', 0)
-        return state in {0, 1, 2}
+        return state in (0, 1, 2)
 
     def has_setup_profile(self) -> bool:
         """:class:`bool`: Specifies if the user has a setup their profile."""
@@ -565,15 +565,15 @@ class BaseUser(SteamID):
         """|coro|
         Specifies if the user is banned from any part of Steam.
 
+        This is equivalent to: ::
+
+            bans = await user.bans()
+            bans.is_banned()
+
         Returns
         -------
         :class:`bool`
             Whether or not the user is banned.
-
-        This is equivalent to::
-
-            bans = await user.bans()
-            bans.is_banned()
         """
         bans = await self.bans()
         return bans.is_banned()
