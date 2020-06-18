@@ -1,15 +1,16 @@
 steam.py
 =========
 
-A modern, easy to use, and async ready package to interact with the Steam API. Heavily inspired by [discord.py](https://github.com/Rapptz/discord.py).
+A modern, easy to use, and async ready package to interact with the Steam API. Heavily inspired by 
+[discord.py](https://github.com/Rapptz/discord.py) and borrowing functionality from [ValvePython/steam](https://github.com/ValvePython/steam).
 
 ![License](https://img.shields.io/github/license/Gobot1234/steam.py) [![Codacy](https://img.shields.io/codacy/grade/a0405599d4ab4a8c82655873d7443532)](https://app.codacy.com/manual/Gobot1234/steam.py) [![GitHub issues](https://img.shields.io/github/issues-raw/Gobot1234/steam.py)](https://github.com/Gobot1234/steam.py/issues) [![GitHub stars](https://img.shields.io/github/stars/Gobot1234/steam.py)](https://github.com/Gobot1234/steam.py/stargazers) [![Discord](https://img.shields.io/discord/678629505094647819?color=7289da&label=Discord&logo=discord)](https://discord.gg/MQ68WUS)
 
 Key Features
 --------------
 
-- Modern Pythonic API using `async`/`await` syntax
-- Proper rate limit handling.
+- Modern Pythonic API using ``async``/``await`` syntax
+- Command extension to aid with bot creation (under development)
 - Easy to use with an object oriented design
 
 Installation
