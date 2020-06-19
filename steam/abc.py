@@ -41,6 +41,8 @@ from typing import (
     Tuple
 )
 
+from .badge import UserBadges
+from .comment import Comment
 from .enums import (
     EInstanceFlag,
     EPersonaState,
@@ -52,7 +54,7 @@ from .enums import (
 from .errors import HTTPException
 from .game import Game
 from .iterators import CommentsIterator
-from .models import URL, Ban, Comment, UserBadges
+from .models import URL, Ban
 from .trade import Inventory
 from .utils import (
     _INVITE_HEX,
