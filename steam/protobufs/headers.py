@@ -164,7 +164,7 @@ class GCMsgHdr:
         return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
 
     def parse(self, data):
-        (self.header_version, self.target_job_id, self.source_job_id) = struct.unpack_from("<Hqq", data)
+        self.header_version, self.target_job_id, self.source_job_id = struct.unpack_from("<Hqq", data)
 
 
 class GCMsgHdrProto:
@@ -193,7 +193,7 @@ class GCMsgHdrProto:
         return struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
 
     def parse(self, data):
-        (msg, self.header_length) = struct.unpack_from("<Ii", data)
+        msg, self.header_length = struct.unpack_from("<Ii", data)
 
         self.msg = EMsg(clear_proto_bit(msg))
 
