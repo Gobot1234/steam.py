@@ -41,8 +41,8 @@ from typing import (
 from bs4 import BeautifulSoup
 
 from . import utils
+from .comment import Comment
 from .enums import ETradeOfferState
-from .models import Comment
 
 if TYPE_CHECKING:
     from .abc import BaseUser

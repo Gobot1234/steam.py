@@ -50,8 +50,9 @@ class UserMessage(Message):
     def __init__(self, proto: 'UserMessageNotification', channel: 'DMChannel'):
         super().__init__(channel)
         self.author = channel.participant
-        self.content = proto.message
+        self.content = proto.message.replace('\[', '[')
         self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
+        self.clean_content = proto.message_no_bbcode or proto.message
 
     def __repr__(self):
         attrs = (
@@ -67,8 +68,9 @@ class GroupMessage(Message):
     def __init__(self, proto: 'GroupMessageNotification', channel: 'GroupChannel', author: 'BaseUser'):
         super().__init__(channel)
         self.author = author
-        self.content = proto.message
+        self.content = proto.message.replace('\[', '[').replace('\\\\', '\\')
         self.created_at = datetime.utcfromtimestamp(proto.timestamp)
+        self.clean_content = proto.message_no_bbcode or proto.message
 
     def __repr__(self):
         attrs = (

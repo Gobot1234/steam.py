@@ -24,28 +24,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Union
-
-from .game import Game
+from datetime import timedelta
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .abc import BaseUser
-    from .clan import Clan
-    from .state import ConnectionState
-    from .user import User
     from .protobufs.steammessages_chat import CChatRoleActions \
         as RoleProto
 
 
 __all__ = (
     'Ban',
-    'Badge',
-    'Invite',
-    'Comment',
-    'UserBadges',
-    'UserInvite',
-    'ClanInvite',
 )
 
 
@@ -55,155 +43,11 @@ class URL:
     STORE = 'https://store.steampowered.com'
 
 
-class Comment:
-    """Represents a comment on a Steam profile.
-
-    Attributes
-    -----------
-    id: :class:`int`
-        The comment's id.
-    content: :class:`str`
-        The comment's content.
-    author: :class:`~steam.User`
-        The author of the comment.
-    created_at: :class:`datetime.datetime`
-        The time the comment was posted at.
-    owner: Union[:class:`~steam.Clan`, :class:`~steam.User`]
-        The comment sections owner. If the comment section is for a clan
-        it will be a :class:`~steam.Clan` instance otherwise it
-        will be an `~steam.User` instance.
-    """
-
-    __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_state')
-
-    def __init__(self, state: 'ConnectionState',
-                 id: int, content: str, timestamp: datetime,
-                 author: 'BaseUser', owner: Union['Clan', 'BaseUser']):
-        self._state = state
-        self.content = content
-        self.id = id
-        self.created_at = timestamp
-        self.author = author
-        self.owner = owner
-
-    def __repr__(self):
-        attrs = (
-            'id', 'author'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f"<Comment {' '.join(resolved)}>"
-
-    async def report(self) -> None:
-        """|coro|
-        Reports the :class:`Comment`.
-        """
-        from .user import BaseUser
-
-        await self._state.http.report_comment(
-            id64=self.owner.id64, comment_id=self.id,
-            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan',
-        )
-
-    async def delete(self) -> None:
-        """|coro|
-        Deletes the :class:`Comment`.
-        """
-        from .abc import BaseUser
-
-        await self._state.http.delete_comment(
-            id64=self.owner.id64, comment_id=self.id,
-            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan',
-        )
-
-
-class Invite:
-    """Represents a invite from a user.
-
-    Attributes
-    -----------
-    invitee: :class:`~steam.User`
-        The user who sent the invite.
-    """
-
-    __slots__ = ('invitee', '_state')
-
-    def __init__(self, state: 'ConnectionState', invitee: 'User'):
-        self._state = state
-        self.invitee = invitee
-
-
-class UserInvite(Invite):
-    """Represents a invite from a user.
-
-    Attributes
-    -----------
-    invitee: :class:`~steam.User`
-        The user who sent the invite.
-    """
-
-    def __repr__(self):
-        attrs = (
-            'invitee',
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f"<UserInvite {' '.join(resolved)}>"
-
-    async def accept(self) -> None:
-        """|coro|
-        Accepts the invite request.
-        """
-        await self._state.http.accept_user_invite(self.invitee.id64)
-        self._state.client.user.friends.append(self.invitee)
-
-    async def decline(self) -> None:
-        """|coro|
-        Declines the invite request.
-        """
-        await self._state.http.decline_user_invite(self.invitee.id64)
-
-
-class ClanInvite(Invite):
-    """Represents a invite from a user.
-
-    Attributes
-    -----------
-    clan: :class:`~steam.Clan`
-        The clan to join.
-    invitee: :class:`~steam.User`
-        The user who sent the invite.
-    """
-
-    __slots__ = ('clan',)
-
-    def __init__(self, state: 'ConnectionState', invitee: 'User', clan: 'Clan'):
-        super().__init__(state, invitee)
-        self.clan = clan
-
-    def __repr__(self):
-        attrs = (
-            'invitee', 'clan',
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f"<ClanInvite {' '.join(resolved)}>"
-
-    async def accept(self) -> None:
-        """|coro|
-        Accepts the invite request.
-        """
-        await self._state.http.accept_clan_invite(self.clan.id64)
-
-    async def decline(self) -> None:
-        """|coro|
-        Declines the invite request.
-        """
-        await self._state.http.decline_clan_invite(self.clan.id64)
-
-
 class Ban:
     """Represents a Steam ban.
 
     Attributes
-    -----------
+    ----------
     since_last_ban: :class:`datetime.timedelta`
         How many days since the user was last banned
     number_of_game_bans: :class:`int`
@@ -242,81 +86,6 @@ class Ban:
     def is_market_banned(self) -> bool:
         """:class:`bool`: Species if the user is market banned."""
         return self._market_banned
-
-
-class Badge:
-    """Represents a Steam badge.
-
-    Attributes
-    ----------
-    id: :class:`int`
-        The badge's ID.
-    level: :class:`int`
-        The badge's level.
-    xp: :class:`int`
-        The badges's XP.
-    completion_time: :class:`datetime.datetime`
-        The time the badge was completed at.
-    scarcity: :class:`int`
-        The scarcity of the badge.
-    game: Optional[:class:`~steam.Game`]
-        The game associated with the badge.
-    """
-
-    __slots__ = ('id', 'xp', 'game', 'level', 'scarcity', 'completion_time')
-
-    def __init__(self, data: dict):
-        self.id = data['badgeid']
-        self.level = data['level']
-        self.xp = data['xp']
-        self.completion_time = datetime.utcfromtimestamp(data['completion_time'])
-        self.scarcity = data['scarcity']
-        self.game = Game(data['appid']) if 'appid' in data else None
-
-    def __repr__(self):
-        attrs = (
-            'id', 'level', 'xp', 'game'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f'<Badge {" ".join(resolved)}>'
-
-
-class UserBadges:
-    """Represents a Steam :class:`~steam.User`'s badges/level.
-
-    Attributes
-    ----------
-    level: :class:`int`
-        The badge's level.
-    xp: :class:`int`
-        The badges's XP.
-    xp_needed_to_level_up: :class:`int`
-        The amount of XP the user needs to level up.
-    xp_needed_for_current_level: :class:`int`
-        The amount of XP the user's current level requires
-        to achieve.
-    badges: List[:class:`Badge`]
-        A list of the user's badges.
-    """
-
-    __slots__ = ('xp', 'level', 'badges', 'xp_needed_to_level_up', 'xp_needed_for_current_level')
-
-    def __init__(self, data: dict):
-        self.level = data['player_level']
-        self.xp = data['player_xp']
-        self.xp_needed_to_level_up = data['player_xp_needed_to_level_up']
-        self.xp_needed_for_current_level = data['player_xp_needed_current_level']
-        self.badges = [Badge(data) for data in data['badges']]
-
-    def __repr__(self):
-        attrs = (
-            'level', 'xp'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f'<UserBadges {" ".join(resolved)}>'
-
-    def __len__(self):
-        return len(self.badges)
 
 
 class Role:

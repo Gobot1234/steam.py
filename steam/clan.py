@@ -33,9 +33,10 @@ from xml.etree import ElementTree
 from bs4 import BeautifulSoup
 
 from .abc import SteamID
+from .comment import Comment
 from .errors import HTTPException
 from .iterators import CommentsIterator
-from .models import URL, Comment
+from .models import URL
 
 if TYPE_CHECKING:
     from .user import User
