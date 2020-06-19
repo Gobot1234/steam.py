@@ -248,18 +248,18 @@ class HTTPClient:
             return rsa.PublicKey(rsa_mod, rsa_exp), rsa_timestamp
 
     async def _send_login_request(self) -> dict:
-        rsa_key, rsa_timestamp = await self._get_rsa_params()
-        encrypted_password = b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_key)).decode()
+        rsa_key, timestamp = await self._get_rsa_params()
+        encrypted_password = b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_key))
         payload = {
             "username": self.username,
-            "password": encrypted_password,
+            "password": encrypted_password.decode(),
             "emailauth": '',
             "emailsteamid": '',
             "twofactorcode": self._one_time_code or '',
             "captchagid": '-1',
             "captcha_text": '',
             "loginfriendlyname": self.user_agent,
-            "rsatimestamp": rsa_timestamp,
+            "rsatimestamp": timestamp,
             "remember_login": True,
             "donotcache": int(time() * 1000),
         }
@@ -650,7 +650,10 @@ class HTTPClient:
         await self.request('POST', CRoute('/chat/commitfileupload'), data=payload)
 
     async def get_api_key(self) -> str:
-        resp = await self.request('GET', CRoute('/dev/apikey?l=english'))
+        resp = await self.request('GET', CRoute('/dev/apikey'))
+        if '<h2>Access Denied</h2>' in resp:
+            raise errors.LoginError('Access denied, you will need to generate a key yourself: '
+                                    'https://steamcommunity.com/dev/apikey')
         error = 'You must have a validated email address to create a Steam Web API key'
         if error in resp:
             raise errors.LoginError(error)
@@ -666,5 +669,5 @@ class HTTPClient:
             "sessionid": self.session_id,
             "Submit": 'Register'
         }
-        resp = await self.request('POST', CRoute('/dev/registerkey?l=english'), data=payload)
+        resp = await self.request('POST', CRoute('/dev/registerkey'), data=payload)
         return re.findall(r'<p>Key: ([0-9A-F]+)</p>', resp)[0]
