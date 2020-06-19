@@ -158,10 +158,6 @@ Enumerations
     :members:
     :undoc-members:
 
-.. autoclass:: EMarketListingState
-    :members:
-    :undoc-members:
-
 .. autoclass:: EPersonaStateFlag
     :members:
     :undoc-members:
