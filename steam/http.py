@@ -227,7 +227,7 @@ class HTTPClient:
         self.logged_in = False
         self._client.dispatch('logout')
 
-    async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple['RsaKey', int]:
+    async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple[rsa.PublicKey, int]:
         payload = {
             "username": self.username,
             "donotcache": int(time() * 1000)
