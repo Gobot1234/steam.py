@@ -274,7 +274,8 @@ class Client:
             listeners = self._listeners.get(event)
             if listeners or event == 'error':
                 pass
-            elif coro.__code__.co_filename == __file__:  # ignore events in this file that haven't been subclassed
+            elif coro is None or coro.__code__.co_filename == __file__:
+                # ignore events in this file that haven't been subclassed
                 return
 
         log.debug(f'Dispatching event {event}')
