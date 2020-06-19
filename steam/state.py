@@ -47,8 +47,9 @@ from .enums import (
 from .errors import AuthenticatorError, InvalidCredentials
 from .group import Group
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
+from .invite import UserInvite, ClanInvite
 from .message import *
-from .models import ClanInvite, URL, UserInvite
+from .models import URL
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
     as GroupMessageNotification
@@ -60,7 +61,7 @@ from .user import User
 if TYPE_CHECKING:
     from .client import Client
     from .http import HTTPClient
-    from .models import Comment
+    from .comment import Comment
 
     from .protobufs.steammessages_chat import CChatRoom_GetMyChatRoomGroups_Response
     from .protobufs.steammessages_clientserver import CMsgClientCMList
@@ -334,14 +335,16 @@ class ConnectionState:
 
     async def send_group_message(self, ids: Tuple[int, int], content: str) -> None:
         return
+        chat_id, group_id = ids
         await self.client.ws.send_um(
             "ChatRoom.SendChatMessage#1_Request",
-            chat_id=ids[0], chat_group_id=ids[1],
+            chat_id=chat_id, chat_group_id=group_id,
             message=content,
         )
         proto = GroupMessageNotification(
-            chat_id=ids[0], chat_group_id=ids[1],
-            steamid_sender=0.0, message=content, timestamp=int(time()),
+            chat_id=chat_id, chat_group_id=group_id,
+            steamid_sender=0.0, message=content,
+            timestamp=int(time()),
         )
         group = [g for g in self.groups if g.id == ids[1]][0]
         channel = GroupChannel(state=self, notification=proto, group=group)
@@ -375,8 +378,7 @@ class ConnectionState:
             if sent_in is None:
                 return
             channel = GroupChannel(state=self, notification=msg.body, group=sent_in)
-            user_id64 = int(msg.body.steamid_sender)
-            author = self.client.get_user(user_id64)
+            author = self.get_user(int(msg.body.steamid_sender))
             message = GroupMessage(proto=msg.body, channel=channel, author=author)
             self.dispatch('message', message)
 
@@ -469,10 +471,9 @@ class ConnectionState:
                     soup = BeautifulSoup(resp, 'html.parser')
                     elements = soup.find_all('a', attrs={"class": 'linkStandard'})
                     invitee_id = 0
-                    for element in elements:
+                    for idx, element in enumerate(elements):
                         if str(steam_id.id64) in str(element):
-                            invitee = elements[elements.index(element) + 1]
-                            invitee_id = invitee.get('data-miniprofile', 0)
+                            invitee_id = elements[idx + 1]['data-miniprofile']
                             break
                     invitee = await self.fetch_user(invitee_id) or SteamID(invitee_id)
                     clan = await self.client.fetch_clan(steam_id.id64) or steam_id
