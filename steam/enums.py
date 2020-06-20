@@ -208,7 +208,6 @@ class Enum(metaclass=EnumMeta):
 
 class IntEnum(int, Enum):
     """An enumeration where all the values are integers, emulates enum.IntEnum."""
-    pass
 
 
 class EResult(IntEnum):
