@@ -244,10 +244,12 @@ class ConnectionState:
         self._trades_sent_cache = trades_sent
         self._descriptions_cache = descriptions
 
-    async def _parse_comment(self) -> 'Comment':
+    async def _parse_comment(self) -> Optional['Comment']:
         # this isn't very efficient but I'm not sure if it can be done better
         resp = await self.request('GET', f'{URL.COMMUNITY}/my/commentnotifications')
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
+        if search is None:
+            return None
         steam_id = await SteamID.from_url(f'{URL.COMMUNITY}{_URL(search.group(1)).path}')
         if steam_id.type == EType.Clan:
             obj = await self.client.fetch_clan(steam_id.id64)
@@ -496,8 +498,9 @@ class ConnectionState:
         msg.body: 'CMsgClientCommentNotifications'
         for _ in range(msg.body.count_new_comments):
             comment = await self._parse_comment()
-            self._obj = None
-            self.dispatch('comment', comment)
+            if comment is not None:
+                self.dispatch('comment', comment)
+        self._obj = None
         await self.http.clear_notifications()
 
     @register(EMsg.ClientUserNotifications)
