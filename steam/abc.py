@@ -650,9 +650,9 @@ class Messageable(metaclass=abc.ABCMeta):
 
         Raises
         ------
-        :exc:~steam.HTTPException
+        :exc:`~steam.HTTPException`
             Sending the message failed.
-        :exc:~steam.Forbidden
+        :exc:`~steam.Forbidden`
             You do not have permission to send the message.
         """
         if content is not None:
