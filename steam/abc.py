@@ -691,7 +691,7 @@ class Message:
     __slots__ = ('author', 'content', 'channel', 'created_at', '_state')
 
     def __init__(self, channel: 'BaseChannel'):
-        self._state = channel._state
+        self._state: 'ConnectionState' = channel._state
         self.channel = channel
         self.content: Optional[str] = None
         self.author: Optional[BaseUser] = None

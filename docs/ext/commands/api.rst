@@ -55,7 +55,7 @@ Cogs
 Context
 --------
 
-.. autoclass:: steam.ext.commands.Context
+.. autoclass:: steam.ext.commands.Context()
     :members:
     :inherited-members:
 

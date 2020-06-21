@@ -77,7 +77,7 @@ class Bot(Client):
 
     This class is a subclass of :class:`~steam.Client` and as a
     result anything that you can do with :class:`~steam.Client`
-    you can do with this.
+    you can do with Bot.
 
     Parameters
     ----------
@@ -451,7 +451,7 @@ class Bot(Client):
         """
         prefix = await self.get_prefix(message)
         if not prefix:
-            return cls(message=message, prefix=prefix)
+            return cls(message=message, prefix=prefix, bot=self)
 
         content = message.content[len(prefix):].strip()
         shlex = Shlex(content)

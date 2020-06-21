@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from shlex import shlex as Shlex
 
     from ...image import Image
+    from .bot import Bot
     from .command import Command
 
 
@@ -47,12 +48,33 @@ __all__ = (
 
 
 class Context(Messageable):
+    """Represents the context of a message.
+
+    Attributes
+    ----------
+    message: :class:`~steam.Message`
+        The message the context was generated from.
+    prefix: :class:`str`
+        The prefix of the message the context was generated from
+    author: :class:`~steam.abc.BaseUser`
+        The author of the message.
+    channel: :class:`~steam.abc.BaseChannel`
+        The channel the message was sent in.
+    bot: :class:`~steam.ext.commands.Bot`
+        The bot instance.
+    command: Optional[:class:`~steam.ext.commands.Command`]
+        The command the context is attached to.
+    cog: Optional[:class:`~steam.ext.commands.Cog`]
+        The cog the command is in.
+    """
     def __init__(self,
+                 bot: 'Bot',
                  message: Message,
                  prefix: str,
                  command: 'Command' = None,
                  shlex: 'Shlex' = None,
                  **attrs):
+        self.bot = bot
         self.message = message
         self.command = command
         self.shlex = shlex
@@ -60,7 +82,8 @@ class Context(Messageable):
         self.author = message.author
         self.channel = message.channel
 
-        self.bot = message._state.client
+        self._state = message._state
+
         if command is not None:
             self.cog = command.cog
         self.args: Optional[List] = None
