@@ -4,6 +4,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2015-2020 Rapptz
+Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -845,7 +846,7 @@ class Client:
             The key-word arguments associated with the event.
         """
         print(f'Ignoring exception in {event}', file=sys.stderr)
-        traceback.print_exception(type(error), error, error.__traceback__)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     async def on_message(self, message: 'steam.Message'):
         """|coro|

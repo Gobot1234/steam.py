@@ -34,7 +34,6 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Coroutine,
     Iterable,
     Optional,
     Tuple,
@@ -431,7 +430,7 @@ def get(iterable: Iterable, **attrs) -> Optional[Any]:
     return None
 
 
-async def maybe_coroutine(func: Callable[..., Union[Any, Coroutine]], *args, **kwargs) -> Any:
+async def maybe_coroutine(func: Callable[..., Union[Any, Awaitable]], *args, **kwargs) -> Any:
     value = func(*args, **kwargs)
     if isawaitable(value):
         return await value
