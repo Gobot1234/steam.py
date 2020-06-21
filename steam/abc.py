@@ -154,7 +154,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def id2(self) -> str:
-        """class:`str`: The Steam2 id of the account.
+        """:class:`str`: The Steam2 id of the account.
             e.g ``STEAM_1:0:1234``.
 
         .. note::
@@ -166,7 +166,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def as_steam2(self) -> str:
-        """class:`str`: The Steam2 id of the account.
+        """:class:`str`: The Steam2 id of the account.
             e.g ``STEAM_1:0:1234``.
 
         .. note::
