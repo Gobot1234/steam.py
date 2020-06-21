@@ -160,7 +160,7 @@ class Command:
         return param_type(argument)
 
 
-def command(name: str = None, cls: Type[Command] = Command, **attrs) -> Callable[..., Command]:
+def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..., Command]:
     r"""Register a coroutine as a :class:`~commands.Command`.
 
     Parameters
@@ -173,6 +173,9 @@ def command(name: str = None, cls: Type[Command] = Command, **attrs) -> Callable
     \*\*attrs:
         The attributes to pass to the command's ``__init__``.
     """
+    if cls is None:
+        cls = Command
+
     def decorator(func: command_func_type) -> Command:
         if isinstance(func, Command):
             raise TypeError('Callback is already a command.')

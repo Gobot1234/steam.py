@@ -134,12 +134,12 @@ class Bot(Client):
 
     @property
     def commands(self) -> List[Command]:
-        """List[:class:`~commands.Command`]: A list of loaded commands."""
+        """List[:class:`.Command`]: A list of loaded commands."""
         return list(self.__commands__.values())
 
     @property
     def extensions(self) -> MappingProxyType:
-        """Mapping[:class:`str`, :class:`~commands.Command`]:
+        """Mapping[:class:`str`, :class:`.Command`]:
         A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
@@ -244,7 +244,7 @@ class Bot(Client):
 
         Parameters
         ----------
-        cog: :class:`~commands.Cog`
+        cog: :class:`.Cog`
             The cog to add.
         """
         if not isinstance(cog, Cog):
@@ -258,7 +258,7 @@ class Bot(Client):
 
         Parameters
         ----------
-        cog: :class:`~commands.Cog`
+        cog: :class:`.Cog`
             The cog to remove.
         """
         cog = cog._eject(self)
@@ -307,7 +307,7 @@ class Bot(Client):
     def listen(self, name: str = None) -> Callable[..., 'event_type']:
         """Register a function as a listener.
         Calls :meth:`add_listener`.
-        Similar to :meth:`~commands.Cog.listener`
+        Similar to :meth:`.Cog.listener`
 
         Parameters
         ----------
@@ -326,7 +326,7 @@ class Bot(Client):
 
         Parameters
         ----------
-        command: :class:`~commands.Command`
+        command: :class:`.Command`
             The command to register.
         """
         if not isinstance(command, Command):
@@ -353,7 +353,7 @@ class Bot(Client):
 
         Parameters
         ----------
-        command: :class:`~commands.Command`
+        command: :class:`.Command`
             The command to remove.
         """
         for c in self.__commands__.values():
@@ -361,7 +361,7 @@ class Bot(Client):
                 del self.__commands__[command.name]
 
     def command(self, *args, **kwargs) -> Callable[..., Command]:
-        """A shortcut decorator that invokes :func:`~commands.command`
+        """A shortcut decorator that invokes :func:`.command`
         and adds it to the internal command list.
         """
 
@@ -412,7 +412,7 @@ class Bot(Client):
 
         Parameters
         ----------
-        ctx: :class:`~commands.Context`
+        ctx: :class:`.Context`
             The invocation context.
         """
         if not ctx.prefix:
@@ -440,12 +440,12 @@ class Bot(Client):
         ----------
         message: :class:`~steam.Message`
             The message to get the context for.
-        cls: Type[:class:`~commands.Context`]
+        cls: Type[:class:`.Context`]
             The class to construct the context with.
 
         Returns
         -------
-        :class:`~commands.Context`
+        :class:`.Context`
             The context for the message.
         """
         prefix = await self.get_prefix(message)
@@ -501,7 +501,7 @@ class Bot(Client):
 
         Returns
         -------
-        Optional[:class:`~commands.Command`]
+        Optional[:class:`.Command`]
             The found command or ``None``.
         """
         return self.__commands__.get(name)
@@ -516,7 +516,7 @@ class Bot(Client):
 
         Returns
         -------
-        Optional[:class:`~commands.Cog`]
+        Optional[:class:`.Cog`]
             The found cog or ``None``.
         """
         return self.__cogs__.get(name)
@@ -543,7 +543,7 @@ class Bot(Client):
 
         Parameters
         ----------
-        ctx: :class:`~commands.Context`
+        ctx: :class:`.Context`
             The invocation context where the error happened.
         error: :exc:`Exception`
             The error that was raised.
@@ -570,7 +570,7 @@ class Bot(Client):
 
         Parameters
         ----------
-        ctx: :class:`~commands.Context`
+        ctx: :class:`.Context`
             The invocation context.
         """
 
@@ -581,7 +581,7 @@ class Bot(Client):
 
         Parameters
         ----------
-        ctx: :class:`~commands.Context`
+        ctx: :class:`.Context`
             The invocation context.
         """
 

@@ -12,6 +12,13 @@ Bot
 .. autoclass:: steam.ext.commands.Bot
     :members:
     :inherited-members:
+    :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_error,
+                      on_message, on_typing, on_trade_receive, on_trade_send,
+                      on_trade_accept, on_trade_decline, on_trade_cancel,
+                      on_trade_expire, on_trade_counter, on_comment, on_user_invite,
+                      on_clan_invite, on_user_update, on_socket_receive,
+                      on_socket_raw_receive, on_socket_send, on_socket_raw_send,
+                      on_command, on_command_error, on_command_completion
 
 
 Event Reference
@@ -20,11 +27,11 @@ Event Reference
 These events function similar to `the regular events <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
 except they are custom to the command extension module.
 
-.. autofunction:: Bot.on_command_error
+.. autofunction:: steam.ext.commands.Bot.on_command_error
 
-.. autofunction:: Bot.on_command
+.. autofunction:: .Bot.on_command
 
-.. autofunction:: Bot.on_command_completion
+.. autofunction:: commands.Bot.on_command_completion
 
 
 Command
