@@ -87,16 +87,17 @@ class Bot(Client):
         Can be any one of:
             - :class:`str`
             - Iterable[:class:`str`]
-            - Callable[[:class:`Bot, :class:`~steam.Message`], Union[:class:`str`, Iterable[:class:`str`]]
-            - Callable[[:class:`Bot, :class:`~steam.Message`], Awaitable[Union[:class:`str`, Iterable[:class:`str`]]]
+            - Callable[[:class:`Bot`, :class:`~steam.Message`], Union[:class:`str`, Iterable[:class:`str`]]
+            - Callable[[:class:`Bot`, :class:`~steam.Message`], Awaitable[Union[:class:`str`, Iterable[:class:`str`]]]
 
         .. note::
             The first prefix matched when getting context will always be returned,
             ensure that no prefix matches a longer prefix later in the sequence.
             e.g. ::
+
                 bot = commands.Bot(command_prefix=('!', '!?'))
-                # '!?' prefix will never be matched as the previous
-                # prefix matches messages starting with '!?'
+                # the '!?' prefix will never be matched as the previous
+                # prefix would match the '!' at the start of the message
 
             This is especially important when passing an empty string,
             it should always be last as no prefix after it will be matched.

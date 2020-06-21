@@ -25,13 +25,13 @@ Event Reference
 -----------------
 
 These events function similar to `the regular events <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
-except they are custom to the command extension module.
+except they are unique to the command extension module.
 
 .. autofunction:: steam.ext.commands.Bot.on_command_error
 
-.. autofunction:: .Bot.on_command
+.. autofunction:: steam.ext.commands.Bot.on_command
 
-.. autofunction:: commands.Bot.on_command_completion
+.. autofunction:: steam.ext.commands.Bot.on_command_completion
 
 
 Command

@@ -105,6 +105,7 @@ class Command:
         ``on_error`` function.
 
         Example: ::
+
             @bot.command()
             async def raise_an_error(ctx):
                 raise Exception('oh no an error')
