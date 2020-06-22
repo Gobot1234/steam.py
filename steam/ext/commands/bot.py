@@ -30,7 +30,6 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/bot.py
 
 import asyncio
 import importlib
-import inspect
 import sys
 import traceback
 from copy import copy
@@ -44,8 +43,9 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Set,
     Type,
-    Union, Set,
+    Union,
 )
 
 from .cog import Cog, ExtensionType
@@ -125,7 +125,7 @@ class Bot(Client):
             raise ValueError('you cannot have both owner_id and owner_ids')
         super().__init__(**options)
 
-        for attr in (getattr(self, attr) for attr in dir(self)):
+        for attr in [getattr(self, attr) for attr in dir(self)]:
             if not isinstance(attr, Command):
                 continue
 
@@ -139,7 +139,7 @@ class Bot(Client):
         return list(self.__commands__.values())
 
     @property
-    def extensions(self) -> MappingProxyType:
+    def extensions(self) -> MappingProxyType[str, ExtensionType]:
         """Mapping[:class:`str`, :class:`.Command`]:
         A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
@@ -152,7 +152,7 @@ class Bot(Client):
 
     async def close(self) -> None:
         """|coro|
-        Unloads any extensions, cogs and commands then
+        Unloads any extensions, cogs and commands, then
         closes the connection to Steam CMs and logs out.
         """
         for extension in self.__extensions__:
@@ -164,12 +164,6 @@ class Bot(Client):
         for cog in self.__cogs__.values():
             try:
                 self.remove_cog(cog)
-            except Exception:
-                pass
-
-        for command in self.__commands__.values():
-            try:
-                self.remove_command(command)
             except Exception:
                 pass
 
@@ -208,10 +202,9 @@ class Bot(Client):
             raise ModuleNotFoundError(f'extension {extension} was not found')
 
         module: 'ExtensionType' = self.__extensions__[extension]
-        for (name, attr) in inspect.getmembers(module):
+        for attr in [(getattr(self, attr) for attr in dir(module))]:
             if isinstance(attr, Cog):
-                attr._eject(self)
-                del self.__extensions__[name]
+                self.remove_cog(attr)
 
         if hasattr(module, 'teardown'):
             module.teardown(self)
@@ -252,7 +245,7 @@ class Bot(Client):
             raise TypeError('cogs must derive from Cog')
 
         cog._inject(self)
-        self.__cogs__[cog.__class__.__name__] = cog
+        self.__cogs__[cog.qualified_name] = cog
 
     def remove_cog(self, cog: 'Cog') -> None:
         """Remove a cog from the internal list.
@@ -263,7 +256,7 @@ class Bot(Client):
             The cog to remove.
         """
         cog = cog._eject(self)
-        del self.__cogs__[cog.__class__.__name__]
+        del self.__cogs__[cog.qualified_name]
 
     def add_listener(self, func: event_type, name: str = None):
         """Add a function from the internal listeners list.
@@ -274,7 +267,7 @@ class Bot(Client):
             The function to add.
         name: Optional[:class:`str`]
             The name of the event to listen for.
-            Will default to ``func.__name__``.
+            Defaults to ``func.__name__``.
         """
         name = name or func.__name__
 
@@ -295,7 +288,7 @@ class Bot(Client):
             The function to remove.
         name: Optional[:class:`str`]
             The name of the event to remove.
-            Will default to ``func.__name__``.
+            Defaults to ``func.__name__``.
         """
         name = name or func.__name__
 
