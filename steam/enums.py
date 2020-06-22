@@ -157,7 +157,7 @@ class EnumMeta(type):
         return f'<enum {cls.__name__!r}>'
 
     @property
-    def __members__(cls) -> types.MappingProxyType:
+    def __members__(cls) -> types.MappingProxyType[str, 'Enum']:
         return types.MappingProxyType(cls._enum_member_map_)
 
     def __call__(cls, value: Any) -> 'Enum':
