@@ -28,9 +28,10 @@ EnumMeta and Enum from https://github.com/Rapptz/discord.py/blob/master/discord/
 Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
-import types
 from collections import namedtuple
-from typing import Any, Iterable, Union
+from types import MappingProxyType
+from typing import Any, Iterable, Union, Mapping
+
 
 __all__ = (
     'Enum',
@@ -157,8 +158,8 @@ class EnumMeta(type):
         return f'<enum {cls.__name__!r}>'
 
     @property
-    def __members__(cls) -> types.MappingProxyType[str, 'Enum']:
-        return types.MappingProxyType(cls._enum_member_map_)
+    def __members__(cls) -> Mapping[str, 'Enum']:
+        return MappingProxyType(cls._enum_member_map_)
 
     def __call__(cls, value: Any) -> 'Enum':
         try:

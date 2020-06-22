@@ -42,6 +42,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Mapping,
     Optional,
     Set,
     Type,
@@ -139,7 +140,7 @@ class Bot(Client):
         return list(self.__commands__.values())
 
     @property
-    def extensions(self) -> MappingProxyType[str, ExtensionType]:
+    def extensions(self) -> Mapping[str, 'Command']:
         """Mapping[:class:`str`, :class:`.Command`]:
         A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
