@@ -52,6 +52,25 @@ class CommandNotFound(CommandError):
     Subclass of :exc:`CommandError`."""
 
 
+class BadArgument(CommandError):
+    """Exception raised when a bad argument is passed to a command.
+
+    Subclass of :exc:`CommandError`.
+
+    Attributes
+    ----------
+    param: :class:`inspect.Parameter`
+        The parameter that failed to convert.
+    argument: :class:`str`
+        The user inputted argument that failed to convert.
+    """
+
+    def __init__(self, param: 'Parameter', argument: str):
+        self.param = param
+        self.argument = argument
+        super().__init__(f'{argument} failed to convert to type {param.annotation or str}')
+
+
 class MissingRequiredArgument(CommandError):
     """Exception raised when a required argument is not passed to a command.
 
@@ -66,12 +85,6 @@ class MissingRequiredArgument(CommandError):
     def __init__(self, param: 'Parameter'):
         self.param = param
         super().__init__(f'{param.name} is a required argument that is missing.')
-
-
-class BadArgument(CommandError):
-    """Exception raised when a bad argument is passed to a command.
-
-    Subclass of :exc:`CommandError`."""
 
 
 class CheckFailure(CommandError):
