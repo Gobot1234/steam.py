@@ -75,6 +75,7 @@ class Cog:
 
     def __init_subclass__(cls, *args, **kwargs):
         cls.qualified_name = kwargs.get('name', cls.__name__)
+        cls.command_attrs = kwargs.get('command_attrs', dict())
         for name, attr in inspect.getmembers(cls):
             if isinstance(attr, Command):
                 cls.__commands__[name] = attr
@@ -118,6 +119,23 @@ class Cog:
         print(f'Ignoring exception in command {ctx.command.name}:', file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+    async def cog_check(self, ctx: 'commands.Context'):
+        """|coro|
+        A special method that registers as a :func:`commands.check`
+        for every command and subcommand in this cog.
+        This should return a boolean result.
+
+        Parameters
+        -----------
+        ctx: :class:`~commands.Context`
+            The invocation context.
+
+        Returns
+        -------
+        :class:`bool`
+        """
+        return True
+
     def cog_unload(self):
         """A special method that is called when the cog gets removed.
 
@@ -126,7 +144,10 @@ class Cog:
 
     def _inject(self, bot: 'Bot'):
         for command in self.__commands__.values():
+            for (name, value) in self.command_attrs.items():
+                setattr(command, name, value)
             command.cog = self
+            command.checks.append(self.cog_check)
             bot.add_command(command)
 
         for (name, listener) in self.__listeners__.items():
