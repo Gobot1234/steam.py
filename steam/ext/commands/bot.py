@@ -52,7 +52,7 @@ from typing import (
 from .cog import Cog, ExtensionType
 from .command import Command, command
 from .context import Context
-from .errors import CommandNotFound
+from .errors import CheckFailure, CommandNotFound
 from ... import utils
 from ...client import Client, event_type
 from ...errors import ClientException
@@ -417,9 +417,9 @@ class Bot(Client):
         command = ctx.command
         await command._parse_arguments(ctx)
         # await ctx.command._check_cooldown(ctx)
-        # if command.cog is not None:
-        #     if not command.cog.cog_check(ctx):
-        #         return
+        for check in command.checks:
+            if not await check(ctx):
+                raise CheckFailure('You failed to pass one of the command checks')
         try:
             await ctx.command.callback(*ctx.args, **ctx.kwargs)
         except Exception as exc:
