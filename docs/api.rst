@@ -43,9 +43,10 @@ overriding the specific events. For example: ::
 
 
     class MyClient(steam.Client):
-        async def on_trade_receive(self, trade: steam.TradeOffer):
+        async def on_trade_receive(self, trade):
+            await trade.partner.send('Thank you for your trade')
             print(f'Received trade: #{trade.id}')
-            print('Trade partner is:', trade.partner.name)
+            print('Trade partner is:', trade.partner)
             print('We would send:', len(trade.items_to_send), 'items')
             print('We would receive:', len(trade.items_to_receive), 'items')
 
@@ -235,6 +236,11 @@ Channel
 .. autoclass:: GroupChannel()
     :members:
     :inherited-members:
+
+
+.. note::
+
+    Sending messages to ``GroupChannel`` does not currently work.
 
 
 Clan
