@@ -67,6 +67,7 @@ class Context(Messageable):
     cog: Optional[:class:`~steam.ext.commands.Cog`]
         The cog the command is in.
     """
+
     def __init__(self,
                  bot: 'Bot',
                  message: Message,

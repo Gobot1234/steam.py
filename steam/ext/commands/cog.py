@@ -71,7 +71,7 @@ class Cog:
     @classmethod
     def listener(cls, name: str = None):
         """Register a function as a listener.
-        Similar to :meth:`~commands.Bot.listen`
+        Similar to :meth:`~steam.ext.commands.Bot.listen`
 
         Parameters
         ----------
@@ -99,7 +99,7 @@ class Cog:
 
         Parameters
         -----------
-        ctx: :class:`~commands.Context`
+        ctx: :class:`~steam.ext.commands.Context`
             The invocation context where the error happened.
         error: :exc:`Exception`
             The error that happened.
