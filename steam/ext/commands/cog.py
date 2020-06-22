@@ -58,12 +58,23 @@ class ExtensionType(ModuleType):
 class Cog:
     """A class from which Cogs can be created.
     These are used to separate commands and listeners into separate files.
+
+    Attributes
+    ----------
+    qualified_name: :class:`str`
+        The name of the cog. Can be set in subclass e.g. ::
+
+            MyCog(commands.Cog, name='SpecialCogName'):
+                pass
+
+        Defaults to ``MyCog.__name__``.
     """
 
     __commands__: Dict[str, Command] = dict()
     __listeners__: Dict[str, List['event_type']] = dict()
 
     def __init_subclass__(cls, *args, **kwargs):
+        cls.qualified_name = kwargs.get('name', cls.__name__)
         for name, attr in inspect.getmembers(cls):
             if isinstance(attr, Command):
                 cls.__commands__[name] = attr
@@ -77,7 +88,7 @@ class Cog:
         ----------
         name: Optional[:class:`str`]
             The name of the event to listen for.
-            Will default to ``func.__name__``.
+            Defaults to ``func.__name__``.
         """
         def decorator(func: 'event_type'):
             if not asyncio.iscoroutinefunction(func):
