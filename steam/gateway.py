@@ -172,7 +172,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
         self.heartbeat_timeout = 60
-        self.msg = "Keeping websocket alive with sequence {}."
+        self.msg = "Keeping websocket alive with heartbeat {}."
         self.block_msg = "Heartbeat blocked for more than {} seconds."
         self.behind_msg = "Can't keep up, websocket is {:.1f} behind."
         self._stop_ev = threading.Event()
@@ -432,17 +432,17 @@ class SteamWebSocket:
         msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
 
-    async def change_presence(self, *, games: List[dict] = None,
-                              status: EPersonaState = None,
-                              ui_mode: 'UIMode' = None) -> None:
+    async def change_presence(self, *, games: List[dict],
+                         state: EPersonaState,
+                         ui_mode: 'UIMode') -> None:
         if games:
             activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug(f'Sending {activity} to change activity')
             await self.send_as_proto(activity)
-        if status:
-            status = MsgProto(EMsg.ClientPersonaState, status_flags=status)
-            log.debug(f'Sending {status} to change status')
-            await self.send_as_proto(status)
+        if state:
+            state = MsgProto(EMsg.ClientPersonaState, status_flags=state)
+            log.debug(f'Sending {state} to change state')
+            await self.send_as_proto(state)
         if ui_mode:
             ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
             log.debug(f'Sending {ui_mode} to change UI mode')

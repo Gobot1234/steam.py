@@ -66,9 +66,11 @@ from .utils import ainput
 
 if TYPE_CHECKING:
     import steam
+    from .comment import Comment
+    from .enums import EPersonaState, UIMode
     from .game import Game
     from .group import Group
-    from .models import Comment, Invite
+    from .invite import Invite
     from .trade import TradeOffer
     from .user import ClientUser, User
 
@@ -717,6 +719,29 @@ class Client:
         return await self._market.get_prices(items)
 
     # misc
+
+    async def change_presence(self, games: List['Game'] = None, state: 'EPersonaState' = None,
+                         ui_mode: 'UIMode' = None) -> None:
+        """|coro|
+        Set your status.
+
+        Parameters
+        ----------
+        games: List[:class:`~steam.Game`]
+            A list of games to set your status to.
+        state: :class:`~steam.EPersonaState`
+            The state to show your account as.
+
+            .. note::
+                Setting your status to :attr:`~steam.EPersonaState.Offline`,
+                will stop you receiving persona state updates, so :meth:`on_user_update`
+                will stop dispatching.
+
+        ui_mode: :class:`~steam.UIMode`
+            The UI mode to set your status to.
+        """
+        games = [game.to_dict() for game in games] if games is not None else []
+        await self.ws.change_presence(games=games, state=state, ui_mode=ui_mode)
 
     async def wait_until_ready(self) -> None:
         """|coro|
