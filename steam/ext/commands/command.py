@@ -30,8 +30,16 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 
 import asyncio
 import inspect
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    List,
+    Type,
+)
 
+from .errors import BadArgument
 from ...errors import ClientException
 
 if TYPE_CHECKING:
@@ -53,7 +61,7 @@ class Command:
             raise TypeError('Callback must be a coroutine.')
 
         self.callback = func
-        self.checks = []
+        self.checks: List[Callable[..., Awaitable[bool]]] = []
         self.params = inspect.signature(func).parameters
         self.name = kwargs.get('name') or func.__name__
         if not isinstance(self.name, str):
@@ -80,7 +88,7 @@ class Command:
                 if not type(alias) is str:
                     raise TypeError
         except TypeError:
-            raise TypeError("Aliases of a command must be an iterable containing only strings.")
+            raise TypeError("aliases of a command must be an iterable containing only strings.")
 
         self.description = inspect.cleandoc(kwargs.get('description', ''))
         self.hidden = kwargs.get('hidden', False)
@@ -113,7 +121,7 @@ class Command:
 
             @raise_an_error.error
             async def on_error(ctx, error):
-                print(f'{ctx.command.name} raised an exception')
+                print(f'{ctx.command.name} raised an exception {error}')
         """
         if not asyncio.iscoroutinefunction(func):
             raise TypeError('callback must be a coroutine.')
@@ -158,7 +166,10 @@ class Command:
 
     async def transform(self, param: inspect.Parameter, argument: str) -> Any:
         param_type = str if param.empty else type(param.annotation)
-        return param_type(argument)
+        try:
+            return param_type(argument)
+        except TypeError:
+            raise BadArgument(param, argument)
 
 
 def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..., Command]:
