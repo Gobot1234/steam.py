@@ -34,10 +34,18 @@ except they are unique to the command extension module.
 .. autofunction:: steam.ext.commands.Bot.on_command_completion
 
 
+Enums
+--------
+
+.. autoclass:: steam.ext.commands.BucketType
+
+
 Command
 --------
 
 .. autofunction:: steam.ext.commands.command
+
+.. autofunction:: steam.ext.commands.cooldown
 
 .. autoclass:: steam.ext.commands.Command
     :members:

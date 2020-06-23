@@ -82,6 +82,8 @@ class Context(Messageable):
         self.prefix = prefix
         self.author = message.author
         self.channel = message.channel
+        self.clan = getattr(self.channel, 'clan', None)
+        self.group = getattr(self.channel, 'group', None)
 
         self._state = message._state
 

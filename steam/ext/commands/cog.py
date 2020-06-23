@@ -35,7 +35,7 @@ from .command import Command
 
 if TYPE_CHECKING:
     from steam.ext import commands
-    from ...client import event_type
+    from ...client import EventType
     from .context import Context
     from .bot import Bot
 
@@ -68,10 +68,17 @@ class Cog:
                 pass
 
         Defaults to ``MyCog.__name__``.
+
+    command_attrs: :class:`Dict[str, Any]`
+        Attributes to pass to every command registered in the cog.
+        Can be set in subclass e.g. ::
+
+            MyBrokenCog(commands.Cog, command_attrs=dict(enabled=False)):
+                pass
     """
 
     __commands__: Dict[str, Command] = dict()
-    __listeners__: Dict[str, List['event_type']] = dict()
+    __listeners__: Dict[str, List['EventType']] = dict()
 
     def __init_subclass__(cls, *args, **kwargs):
         cls.qualified_name = kwargs.get('name', cls.__name__)
@@ -91,15 +98,14 @@ class Cog:
             The name of the event to listen for.
             Defaults to ``func.__name__``.
         """
-        def decorator(func: 'event_type'):
+        def decorator(func: 'EventType'):
             if not asyncio.iscoroutinefunction(func):
                 raise TypeError('listeners must be coroutines')
 
-            name_ = name or func.__name__
             if name in cls.__listeners__:
-                cls.__listeners__[name_].append(func)
+                cls.__listeners__[name or func.__name__].append(func)
             else:
-                cls.__listeners__[name_] = [func]
+                cls.__listeners__[name or func.__name__] = [func]
         return decorator
 
     async def cog_command_error(self, ctx: 'commands.Context', error: Exception):
