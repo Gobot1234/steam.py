@@ -18,6 +18,8 @@ __all__ = (
 PROTOBUFS = {
     EMsg.Multi: steammessages_base.CMsgMulti,
     EMsg.ClientHeartBeat: steammessages_clientserver_login.CMsgClientHeartBeat,
+    EMsg.ClientServerTimestampRequest: steammessages_clientserver_login.CMsgClientServerTimestampRequest,
+    EMsg.TimestampResponse: steammessages_clientserver_login.CMsgClientServerTimestampResponse,
     EMsg.ClientLogon: steammessages_clientserver_login.CMsgClientLogon,
     EMsg.ClientLogonGameServer: steammessages_clientserver_login.CMsgClientLogon,
     EMsg.ClientLogOnResponse: steammessages_clientserver_login.CMsgClientLogonResponse,
