@@ -54,7 +54,7 @@ from .command import Command, command
 from .context import Context
 from .errors import CheckFailure, CommandNotFound
 from ... import utils
-from ...client import Client, event_type
+from ...client import Client, EventType
 from ...errors import ClientException
 
 if TYPE_CHECKING:
@@ -112,7 +112,7 @@ class Bot(Client):
     """
     __cogs__: Dict[str, Cog] = dict()
     __commands__: Dict[str, Command] = dict()
-    __listeners__: Dict[str, List[event_type]] = dict()
+    __listeners__: Dict[str, List[EventType]] = dict()
     __extensions__: Dict[str, 'ExtensionType'] = dict()
 
     def __init__(self, *, command_prefix: command_prefix_type, **options):
@@ -259,7 +259,7 @@ class Bot(Client):
         cog = cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: event_type, name: str = None):
+    def add_listener(self, func: EventType, name: str = None):
         """Add a function from the internal listeners list.
 
         Parameters
@@ -280,7 +280,7 @@ class Bot(Client):
         else:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: 'event_type', name: str = None):
+    def remove_listener(self, func: 'EventType', name: str = None):
         """Remove a function from the internal listeners list.
 
         Parameters
@@ -299,7 +299,7 @@ class Bot(Client):
             except ValueError:
                 pass
 
-    def listen(self, name: str = None) -> Callable[..., 'event_type']:
+    def listen(self, name: str = None) -> Callable[..., EventType]:
         """Register a function as a listener.
         Calls :meth:`add_listener`.
         Similar to :meth:`.Cog.listener`
@@ -310,7 +310,7 @@ class Bot(Client):
             The name of the event to listen for.
             Will default to ``func.__name__``.
         """
-        def decorator(func: 'event_type'):
+        def decorator(func: 'EventType'):
             self.add_listener(func, name)
             return func
 
@@ -412,11 +412,15 @@ class Bot(Client):
         """
         if not ctx.prefix:
             return
+
+        if not ctx.command.enabled:
+            return
+
         self.dispatch('command', ctx)
 
         command = ctx.command
         await command._parse_arguments(ctx)
-        # await ctx.command._check_cooldown(ctx)
+        await ctx.command._parse_cooldown(ctx)
         for check in command.checks:
             if not await check(ctx):
                 raise CheckFailure('You failed to pass one of the command checks')

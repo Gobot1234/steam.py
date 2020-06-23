@@ -39,11 +39,12 @@ from typing import (
     Type,
 )
 
+from .cooldown import Cooldown, BucketType
 from .errors import BadArgument
 from ...errors import ClientException
 
 if TYPE_CHECKING:
-    from ...client import event_type
+    from ...client import EventType
     from .context import Context
     from .cog import Cog
 
@@ -52,16 +53,17 @@ __all__ = (
     'command',
 )
 
-command_func_type = Callable[['Context'], Awaitable[None]]
+CommandDecoType = Callable[['Context'], Awaitable[None]]
 
 
 class Command:
-    def __init__(self, func: command_func_type, **kwargs):
+    def __init__(self, func: CommandDecoType, **kwargs):
         if not asyncio.iscoroutinefunction(func):
             raise TypeError('Callback must be a coroutine.')
 
         self.callback = func
         self.checks: List[Callable[..., Awaitable[bool]]] = []
+        self._cooldowns = List[Cooldown]
         self.params = inspect.signature(func).parameters
         self.name = kwargs.get('name') or func.__name__
         if not isinstance(self.name, str):
@@ -108,7 +110,7 @@ class Command:
         else:
             return await self.callback(*args, **kwargs)
 
-    def error(self, func: 'event_type') -> 'event_type':
+    def error(self, func: 'EventType') -> 'EventType':
         """Register an event to handle a commands
         ``on_error`` function.
 
@@ -171,6 +173,11 @@ class Command:
         except TypeError:
             raise BadArgument(param, argument)
 
+    def _parse_cooldown(self, ctx: 'Context'):
+        for cooldown in self._cooldowns:
+            bucket = cooldown.bucket.get_bucket(ctx)
+            cooldown(bucket)
+
 
 def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..., Command]:
     r"""Register a coroutine as a :class:`~commands.Command`.
@@ -181,16 +188,37 @@ def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..
         The name of the command.
         Will default to ``func.__name__``.
     cls: Type[:class:`Command`]
-        The class to construct the command from.
+        The class to construct the command from. Defaults to
+        :class:`Command`.
     \*\*attrs:
         The attributes to pass to the command's ``__init__``.
     """
     if cls is None:
         cls = Command
 
-    def decorator(func: command_func_type) -> Command:
+    def decorator(func: CommandDecoType) -> Command:
         if isinstance(func, Command):
             raise TypeError('Callback is already a command.')
         return cls(func, name=name, **attrs)
+
+    return decorator
+
+
+def cooldown(rate: int, per: float, bucket: BucketType) -> Callable[..., None]:
+    """Mark a :class:`Command`'s cooldown.
+
+    Parameters
+    ----------
+    rate: :class:`int`
+        The amount of times a command can be executed
+        before being put on cooldown.
+    per: :class:`float`
+        The amount of time to wait between cooldowns.
+    bucket:
+        The :class:`.BucketType` that the cooldown applies
+        to.
+    """
+    def decorator(func: 'Command') -> None:
+        func._cooldowns.append(Cooldown(rate, per, bucket))
 
     return decorator

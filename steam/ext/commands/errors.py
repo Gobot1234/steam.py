@@ -31,6 +31,7 @@ from ...errors import SteamException
 if TYPE_CHECKING:
     from inspect import Parameter
 
+
 __all__ = (
     'CommandError',
     'BadArgument',
@@ -91,3 +92,10 @@ class CheckFailure(CommandError):
     """Exception raised when a check fails.
 
     Subclass of :exc:`CommandError`."""
+
+
+class CommandOnCooldown(CommandError):
+
+    def __init__(self, retry_after: float):
+        self.retry_after = retry_after
+        super().__init__(f'Command is on cooldown for {retry_after:.2} more seconds')
