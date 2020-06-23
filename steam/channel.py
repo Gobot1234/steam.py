@@ -46,6 +46,13 @@ __all__ = (
 
 
 class DMChannel(BaseChannel):
+    """Represents the channel a DM is sent in.
+
+    Attributes
+    ----------
+    participant: :class:`steam.User`
+        The recipient of any messages sent.
+    """
     __slots__ = ('participant', '_state')
 
     def __init__(self, state: 'ConnectionState', participant: 'User'):
@@ -60,10 +67,33 @@ class DMChannel(BaseChannel):
                    image: 'Image' = None) -> None:
         await self.participant.send(content=content, trade=trade, image=image)
 
-    def typing(self):
+    def typing(self) -> 'TypingContextManager':
+        """Send a typing indicator continuously to the channel while
+        in the context manager.
+
+        .. note::
+
+            This only works in DMs.
+
+        Usage: ::
+
+            async with ctx.channel.typing():
+                # do your expensive operations
+
+            with ctx.channel.typing():
+                # do your expensive operations
+
+            # these do the same thing
+        """
         return TypingContextManager(self.participant)
 
-    async def trigger_typing(self):
+    async def trigger_typing(self) -> None:
+        """Send a typing indicator to the channel once.
+
+        .. note::
+
+            This only works in DMs.
+        """
         await self._state.send_user_typing(self.participant)
 
 
@@ -97,6 +127,20 @@ class TypingContextManager:
 
 
 class GroupChannel(BaseChannel):
+    """Represents a group channel.
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the channel.
+    group: :class:`steam.Group`
+        The group to which messages are sent.
+    name: Optional[:class:`str`]
+        The name of the channel could be ``None``.
+    """
+
+    __slots__ = ('group', 'id', 'name', '_state')
+
     def __init__(self, state: 'ConnectionState',
                  group: 'Group',
                  notification: 'GroupMessageNotification'):

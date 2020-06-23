@@ -24,12 +24,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from .channel import GroupChannel
 from .models import Role
 
 if TYPE_CHECKING:
+    from .abc import BaseUser
     from .state import ConnectionState
     from .user import User
     from .protobufs.steammessages_chat import CChatRoom_GetChatRoomGroupSummary_Response \
@@ -42,6 +43,31 @@ __all__ = (
 
 
 class Group:
+    """Represents a Steam group.
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The group's ID.
+    name: Optional[:class:`str`]
+        The name of the group, could be ``None``.
+    owner: :class:`~steam.abc.BaseUser`
+        The owner of the group.
+    top_members: List[:class:`~steam.abc.BaseUser`]
+        A list of the group's top members.
+    active_member_count: :class:`int`
+        The group's active member count.
+    roles: List[:class:`~steam.Role`]
+        A list of the group's roles.
+    default_role: :class:`~steam.Role`
+        The group's default role.
+    default_channel: :class:`~steam.GroupChannel`
+        The group's default channel.
+    channels: List[:class:`~steam.GroupChannel`]
+        A list of the group's channels.
+    """
+    __slots__ = ('owner', 'top_members', 'id', 'name', 'active_member_count', 'roles',
+                 'default_role', 'default_channel', 'channels', '_state')
 
     def __init__(self, state: 'ConnectionState', proto: 'GroupProto'):
         self._state = state
@@ -49,7 +75,7 @@ class Group:
 
     async def __ainit__(self):
         self.owner = await self._state.client.fetch_user(self.owner)
-        self.top_members = await self._state.client.fetch_users(self.top_members)
+        self.top_members: List['BaseUser'] = await self._state.client.fetch_users(self.top_members)
 
     def _from_proto(self, proto: 'GroupProto'):
         self.id = int(proto.chat_group_id)

@@ -665,6 +665,7 @@ class Messageable(metaclass=abc.ABCMeta):
 
 class BaseChannel(Messageable):
     __slots__ = ()
+    _state: 'ConnectionState'
 
     def typing(self):
         pass
