@@ -161,7 +161,7 @@ class Game:
         return f"<Game {' '.join(resolved)}>"
 
     def __eq__(self, other):
-        return isinstance(other, Game) and self.app_id == other.app_id or self.title == other.title
+        return isinstance(other, Game) and (self.app_id == other.app_id or self.title == other.title)
 
     def to_dict(self) -> dict:
         if not self.is_steam_game():
