@@ -216,6 +216,7 @@ class HTTPClient:
         resp = await self.get_user(id64)
         data = resp['response']['players'][0]
         self.user = ClientUser(state=self._client._connection, data=data)
+        self._client._connection._users[self.user.id64] = self.user
         self._client.dispatch('login')
 
     async def logout(self) -> None:
