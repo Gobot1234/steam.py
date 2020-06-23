@@ -32,6 +32,7 @@ and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 
 import asyncio
 import concurrent.futures
+import functools
 import logging
 import random
 import struct
@@ -402,12 +403,11 @@ class SteamWebSocket:
             self._keep_alive.start()
             log.debug('Heartbeat started.')
 
+            await self.send_um('ChatRoom.GetMyChatRoomGroups#1_Request')
             status = MsgProto(EMsg.ClientChangeStatus, persona_state=EPersonaState.Online)
             await self.send_as_proto(status)
-            # setting your status to offline will stop
-            # you receiving them, don't ask why.
+            # setting your status to offline will stop you receiving persona updates, don't ask why.
             await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
-            await self.send_um('ChatRoom.GetMyChatRoomGroups#1_Request')
         else:
             raise ConnectionClosed(self.cm, self.cm_list)
 
@@ -416,7 +416,9 @@ class SteamWebSocket:
         log.debug('Received a multi, unpacking')
         if msg.body.size_unzipped:
             log.debug(f'Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})')
-            data = await self.loop.run_in_executor(None, GzipFile(fileobj=BytesIO(msg.body.message_body)).read)
+            bytesio = await self.loop.run_in_executor(None, BytesIO, msg.body.message_body)
+            gzipped = await self.loop.run_in_executor(None, functools.partial(GzipFile, fileobj=bytesio))
+            data = await self.loop.run_in_executor(None, gzipped.read)
             if len(data) != msg.body.size_unzipped:
                 return log.info(f'Unzipped size mismatch for multi payload {msg}, discarding')
         else:
@@ -429,7 +431,7 @@ class SteamWebSocket:
 
     async def send_um(self, name: str, **kwargs) -> None:
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
-        msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
+        msg.header.jobid_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
 
     async def change_presence(self, *, games: List[dict],
