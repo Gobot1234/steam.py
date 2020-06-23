@@ -238,11 +238,6 @@ Channel
     :inherited-members:
 
 
-.. note::
-
-    Sending messages to ``GroupChannel`` does not currently work.
-
-
 Clan
 ~~~~~~~~~~~~~~~
 
