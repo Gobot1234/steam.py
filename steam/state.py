@@ -66,7 +66,8 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_chat import (
         CChatRoom_GetMyChatRoomGroups_Response as MyChatRooms,
         CChatRoom_ChatRoomHeaderState_Notification as GroupStateUpdate,
-        ChatRoomClient_NotifyChatGroupUserStateChanged_Notification as GroupAction
+        ChatRoomClient_NotifyChatGroupUserStateChanged_Notification as GroupAction,
+        CChatRoom_GetChatRoomGroupSummary_Response as GroupProto
     )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
     from .protobufs.steammessages_clientserver_2 import (
@@ -117,7 +118,6 @@ class ConnectionState:
         self._groups = dict()
         self._confirmations = dict()
         self.invites = []
-        self.groups = []
 
         self._trades_task = None
         self._trades_to_watch = []
@@ -412,13 +412,20 @@ class ConnectionState:
         if msg.header.target_job_name == 'ChatRoom.GetMyChatRoomGroups#1':
             msg.body: 'MyChatRooms'
             for group in msg.body.chat_room_groups:
-                group = Group(state=self, proto=group.group_summary)
-                await group.__ainit__()
-                self._groups[group.id] = group
+                if group.group_summary.clanid:
+                    data = group.group_summary.to_dict()
+                    data = self.patch_clan_from_ws(data, group.group_summary)
+                else:
+                    group = Group(state=self, proto=group.group_summary)
+                    await group.__ainit__()
+                    self._groups[group.id] = group
 
             if not self.handled_groups:
                 await self.handled_friends.wait()  # ensure friend cache is ready
                 self.client._handle_ready()
+
+    def patch_clan_from_ws(self, data: dict, proto: 'GroupProto'):
+        pass
 
     @register(EMsg.ClientCMList)
     def parse_cm_list_update(self, msg: MsgProto) -> None:
