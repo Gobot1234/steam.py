@@ -82,7 +82,7 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
-event_type = Callable[..., Awaitable[None]]
+EventType = Callable[..., Awaitable[None]]
 
 
 def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
@@ -119,7 +119,7 @@ def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 
 class ClientEventTask(asyncio.Task):
-    def __init__(self, original_coro: event_type, event_name: str,
+    def __init__(self, original_coro: EventType, event_name: str,
                  coro: Awaitable[None], *, loop: asyncio.AbstractEventLoop):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
@@ -225,7 +225,7 @@ class Client:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return float('nan') if self.ws is None else self.ws.latency
 
-    def event(self, coro: event_type) -> event_type:
+    def event(self, coro: EventType) -> EventType:
         """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
@@ -248,7 +248,7 @@ class Client:
         log.debug(f'{coro.__name__} has successfully been registered as an event')
         return coro
 
-    async def _run_event(self, coro: event_type,
+    async def _run_event(self, coro: EventType,
                          event_name: str, *args, **kwargs) -> None:
         try:
             await coro(*args, **kwargs)
@@ -260,7 +260,7 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: event_type,
+    def _schedule_event(self, coro: EventType,
                         event_name: str, *args, **kwargs) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
