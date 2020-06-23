@@ -63,7 +63,11 @@ if TYPE_CHECKING:
     from .http import HTTPClient
     from .comment import Comment
 
-    from .protobufs.steammessages_chat import CChatRoom_GetMyChatRoomGroups_Response
+    from .protobufs.steammessages_chat import (
+        CChatRoom_GetMyChatRoomGroups_Response as MyChatRooms,
+        CChatRoom_ChatRoomHeaderState_Notification as GroupStateUpdate,
+        ChatRoomClient_NotifyChatGroupUserStateChanged_Notification as GroupAction
+    )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
     from .protobufs.steammessages_clientserver_2 import (
         CMsgClientCommentNotifications,
@@ -105,10 +109,12 @@ class ConnectionState:
         self._obj = None
         self._previous_iteration = 0
         self.handled_friends = asyncio.Event()
+        self.handled_groups = False
         self.user_slots = set(User.__slots__) - {'_state', '_data'}
 
         self._users = weakref.WeakValueDictionary()
         self._trades = dict()
+        self._groups = dict()
         self._confirmations = dict()
         self.invites = []
         self.groups = []
@@ -133,6 +139,10 @@ class ConnectionState:
     @property
     def trades(self) -> List[TradeOffer]:
         return list(self._trades.values())
+
+    @property
+    def groups(self) -> List[Group]:
+        return list(self._groups.values())
 
     @property
     def confirmations(self) -> List[Confirmation]:
@@ -336,7 +346,6 @@ class ConnectionState:
         self.dispatch('typing', self.client.user, datetime.utcnow())
 
     async def send_group_message(self, ids: Tuple[int, int], content: str) -> None:
-        return
         chat_id, group_id = ids
         await self.client.ws.send_um(
             "ChatRoom.SendChatMessage#1_Request",
@@ -348,7 +357,7 @@ class ConnectionState:
             steamid_sender=0.0, message=content,
             timestamp=int(time()),
         )
-        group = [g for g in self.groups if g.id == ids[1]][0]
+        group = self.groups[group_id]
         channel = GroupChannel(state=self, notification=proto, group=group)
         message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
         self.dispatch('message', message)
@@ -356,47 +365,60 @@ class ConnectionState:
     # parsers
 
     @register(EMsg.ServiceMethod)
-    def parse_service_method(self, msg: MsgProto) -> None:
+    async def parse_service_method(self, msg: MsgProto) -> None:
         if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
             msg.body: 'UserMessageNotification'
-            user = self.get_user(int(msg.body.steamid_friend))
+            user_id64 = int(msg.body.steamid_friend)
+            author = self.get_user(user_id64) or await self.fetch_user(user_id64)
 
             if msg.body.chat_entry_type == EChatEntryType.ChatMsg:
-                channel = DMChannel(state=self, participant=user)
+                channel = DMChannel(state=self, participant=author)
                 message = UserMessage(proto=msg.body, channel=channel)
                 self.dispatch('message', message)
 
             if msg.body.chat_entry_type == EChatEntryType.Typing:
                 when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
-                self.dispatch('typing', user, when)
+                self.dispatch('typing', author, when)
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyIncomingChatMessage#1':
             msg.body: 'GroupMessageNotification'
-            sent_in = None
-            for group in self.groups:
-                for channel in group.channels:
-                    if channel.id == int(msg.body.chat_id):
-                        sent_in = group
-            if sent_in is None:
+            try:
+                group = self.groups[int(msg.body.chat_group_id)]
+            except KeyError:
                 return
-            channel = GroupChannel(state=self, notification=msg.body, group=sent_in)
-            author = self.get_user(int(msg.body.steamid_sender))
+            channel = GroupChannel(state=self, notification=msg.body, group=group)
+            user_id64 = int(msg.body.steamid_sender)
+            author = self.get_user(user_id64) or await self.fetch_user(user_id64)
             message = GroupMessage(proto=msg.body, channel=channel, author=author)
             self.dispatch('message', message)
+
+        if msg.header.target_job_name == 'ChatRoomClient.NotifyChatRoomHeaderStateChange#1':  # group update
+            msg.body: 'GroupStateUpdate'
+            try:
+                group = self.groups[int(msg.body.header_state.chat_group_id)]
+            except KeyError:
+                return
+            group._from_proto(msg.body.header_state)
+
+        if msg.header.target_job_name == 'ChatRoomClient.NotifyChatGroupUserStateChanged#1':  # join group
+            msg.body: 'GroupAction'
+            if msg.body.user_action == 'Joined':
+                group = Group(state=self, proto=msg.body.group_summary)
+                self.groups.append(group)
+                self.dispatch('group_join', group)
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
         if msg.header.target_job_name == 'ChatRoom.GetMyChatRoomGroups#1':
-            msg.body: 'CChatRoom_GetMyChatRoomGroups_Response'
+            msg.body: 'MyChatRooms'
             for group in msg.body.chat_room_groups:
                 group = Group(state=self, proto=group.group_summary)
                 await group.__ainit__()
-                self.groups.append(group)
+                self._groups[group.id] = group
 
-    @register(EMsg.ClientFriendsGroupsList)
-    async def ready(self, _) -> None:
-        await self.handled_friends.wait()  # ensure friend cache is ready
-        self.client._handle_ready()
+            if not self.handled_groups:
+                await self.handled_friends.wait()  # ensure friend cache is ready
+                self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
     def parse_cm_list_update(self, msg: MsgProto) -> None:
@@ -413,11 +435,9 @@ class ConnectionState:
             if not data:
                 continue
             user_id64 = int(friend.friendid)
-            if user_id64 == self._id64:
-                continue
             before = after = self.get_user(user_id64)
             if after is None:  # they're private
-                continue  # TODO maybe request from ws?
+                continue
 
             try:
                 data = self.patch_user_from_ws(data, friend)
