@@ -132,6 +132,7 @@ class Bot(Client):
 
             self.add_command(attr)
             attr.cog = self
+            attr.cog.cog_command_error = self.on_command_error
         self.add_command(Command(self._help_command, name='help'))
 
     @property
@@ -413,19 +414,19 @@ class Bot(Client):
         if not ctx.prefix:
             return
 
-        if not ctx.command.enabled:
+        command = ctx.command
+        if not command.enabled:
             return
 
         self.dispatch('command', ctx)
 
-        command = ctx.command
+        command._parse_cooldown(ctx)
         await command._parse_arguments(ctx)
-        await ctx.command._parse_cooldown(ctx)
         for check in command.checks:
             if not await check(ctx):
                 raise CheckFailure('You failed to pass one of the command checks')
         try:
-            await ctx.command.callback(*ctx.args, **ctx.kwargs)
+            await command.callback(*ctx.args, **ctx.kwargs)
         except Exception as exc:
             await self.on_command_error(ctx, exc)
             return
@@ -452,13 +453,14 @@ class Bot(Client):
             return cls(message=message, prefix=prefix, bot=self)
 
         content = message.content[len(prefix):].strip()
-        shlex = Shlex(content)
-        shlex.whitespace_split = True
-        command_name = shlex.get_token().strip()  # skip command name
+        lex = Shlex(content)
+        lex.commenters = ''
+        lex.whitespace_split = True
+        command_name = lex.get_token().strip()  # skip command name
         command = self.__commands__.get(command_name)
         if command is None:
             raise CommandNotFound(f'the command {command_name} was not found')
-        return cls(bot=self, message=message, shlex=shlex, command=command, prefix=prefix)
+        return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix)
 
     async def get_prefix(self, message: 'Message') -> Optional[str]:
         """|coro|
@@ -548,7 +550,7 @@ class Bot(Client):
             The error that was raised.
         """
         default = self.__listeners__.get('on_command_error')
-        if default is not None:
+        if default != self.on_command_error and default is not None:
             for listener in default:
                 await listener(ctx, error)
             return
@@ -590,6 +592,7 @@ class Bot(Client):
         # TODO make a help class.
         if command is None:
             commands = []
+            await ctx.send(self.commands)
             for c in self.commands:
                 try:
                     doc = c.help.splitlines()[0]

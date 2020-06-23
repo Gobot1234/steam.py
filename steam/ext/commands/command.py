@@ -53,17 +53,17 @@ __all__ = (
     'command',
 )
 
-CommandDecoType = Callable[['Context'], Awaitable[None]]
+CommandFuncType = Callable[['Context'], Awaitable[None]]
 
 
 class Command:
-    def __init__(self, func: CommandDecoType, **kwargs):
+    def __init__(self, func: CommandFuncType, **kwargs):
         if not asyncio.iscoroutinefunction(func):
             raise TypeError('Callback must be a coroutine.')
 
         self.callback = func
         self.checks: List[Callable[..., Awaitable[bool]]] = []
-        self._cooldowns = List[Cooldown]
+        self._cooldowns: List[Cooldown] = []
         self.params = inspect.signature(func).parameters
         self.name = kwargs.get('name') or func.__name__
         if not isinstance(self.name, str):
@@ -196,7 +196,7 @@ def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..
     if cls is None:
         cls = Command
 
-    def decorator(func: CommandDecoType) -> Command:
+    def decorator(func: CommandFuncType) -> Command:
         if isinstance(func, Command):
             raise TypeError('Callback is already a command.')
         return cls(func, name=name, **attrs)
