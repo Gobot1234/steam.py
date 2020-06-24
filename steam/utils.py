@@ -269,7 +269,8 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
         return steam_32, EType(1), EUniverse.Public, 1
 
 
-async def steam64_from_url(url: str, timeout: float = 30) -> Optional[int]:
+async def steam64_from_url(url: str, session: aiohttp.ClientSession = None,
+                           timeout: float = 30) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or None
 
     .. note::
@@ -293,13 +294,16 @@ async def steam64_from_url(url: str, timeout: float = 30) -> Optional[int]:
     ----------
     url: :class:`str`
         The Steam community url.
-    timeout: :class:`int`
+    session: Optional[:class:`aiohttp.ClientSession`]
+        The session to make the request with. If
+        ``None`` is passed a new one is generated
+    timeout: Optional[:class:`float`]
         How long to wait on http request before turning ``None``.
 
     Returns
     -------
     steam64: Optional[:class:`int`]
-        If ``steamcommunity.com`` is down or no matching account is found returns ``None``
+        If ``https://steamcommunity.com`` is down or no matching account is found returns ``None``
     """
 
     search = re.search(r'(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/'
@@ -309,7 +313,7 @@ async def steam64_from_url(url: str, timeout: float = 30) -> Optional[int]:
     if search is None:
         return None
 
-    session = aiohttp.ClientSession()
+    session = session or aiohttp.ClientSession()
 
     # user profiles
     try:
@@ -325,7 +329,7 @@ async def steam64_from_url(url: str, timeout: float = 30) -> Optional[int]:
         else:
             r = await session.get(search.group('clean_url'), timeout=timeout)
             text = await r.text()
-            data_match = re.search(r"OpenGroupChat\(\s*'(?P<steam_id>\d+)'", text)
+            data_match = re.search(r"OpenGroupChat\(\s*'(?P<steam_id>\d+)'\s*\)", text)
 
             if data_match:
                 return int(data_match.group('steam_id'))
