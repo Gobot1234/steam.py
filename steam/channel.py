@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 from .abc import BaseChannel
 
 if TYPE_CHECKING:
+    from .clan import Clan
     from .group import Group
     from .image import Image
     from .trade import TradeOffer
@@ -56,6 +57,7 @@ class DMChannel(BaseChannel):
     __slots__ = ('participant', '_state')
 
     def __init__(self, state: 'ConnectionState', participant: 'User'):
+        super().__init__()
         self._state = state
         self.participant = participant
 
@@ -126,28 +128,15 @@ class TypingContextManager:
         self.task.cancel()
 
 
-class GroupChannel(BaseChannel):
-    """Represents a group channel.
-
-    Attributes
-    ----------
-    id: :class:`int`
-        The ID of the channel.
-    group: :class:`steam.Group`
-        The group to which messages are sent.
-    name: Optional[:class:`str`]
-        The name of the channel could be ``None``.
-    """
-
-    __slots__ = ('group', 'id', 'name', '_state')
+class _GroupChannel(BaseChannel):
+    __slots__ = ('id', 'name', '_state')
 
     def __init__(self, state: 'ConnectionState',
-                 group: 'Group',
-                 notification: 'GroupMessageNotification'):
+                 channel: 'GroupMessageNotification'):
+        super().__init__()
         self._state = state
-        self.group = group
-        self.id = int(notification.chat_id)
-        self.name = notification.chat_name or None
+        self.id = int(channel.chat_id)
+        self.name = channel.chat_name or None
 
     def __repr__(self):
         attrs = (
@@ -161,3 +150,57 @@ class GroupChannel(BaseChannel):
 
     def _get_image_endpoint(self):
         return (self.id, self.group.id), self._state.http.send_group_image
+
+
+class GroupChannel(_GroupChannel):
+    """Represents a group channel.
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the channel.
+    group: :class:`steam.Group`
+        The group to which messages are sent.
+    name: Optional[:class:`str`]
+        The name of the channel could be ``None``.
+    """
+
+    def __init__(self, state: 'ConnectionState',
+                 group: 'Group',
+                 channel: 'GroupMessageNotification'):
+        super().__init__(state, channel)
+        self.group = group
+
+
+class ClanChannel(_GroupChannel):  # they're basically the same thing
+    """Represents a group channel.
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the channel.
+    clan: :class:`steam.Clan`
+        The clan to which messages are sent.
+    name: Optional[:class:`str`]
+        The name of the channel could be ``None``.
+    """
+
+    def __init__(self, state: 'ConnectionState',
+                 clan: 'Clan',
+                 channel: 'GroupMessageNotification'):
+        super().__init__(state, channel)
+        self.clan = clan
+
+    def __repr__(self):
+        attrs = (
+            'name', 'id', 'clan'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<ClanChannel {' '.join(resolved)}>"
+
+    def _get_message_endpoint(self):
+        return (self.id, self.clan.chat_id), self._state.send_group_message  # TODO FIGURE OUT CORRECT ID
+        # CURRENTLY RETURNS ERESULT 10
+
+    def _get_image_endpoint(self):
+        return (self.id, self.clan.chat_id), self._state.http.send_group_image
