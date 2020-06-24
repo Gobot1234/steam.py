@@ -37,7 +37,8 @@ from stringcase import snakecase
 from yarl import URL as _URL
 
 from .abc import SteamID
-from .channel import DMChannel, GroupChannel
+from .channel import DMChannel, GroupChannel, ClanChannel
+from .clan import Clan
 from .enums import (
     EChatEntryType,
     EFriendRelationship,
@@ -49,6 +50,7 @@ from .group import Group
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
 from .invite import UserInvite, ClanInvite
 from .message import *
+from .message import ClanMessage
 from .models import URL
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
@@ -116,6 +118,8 @@ class ConnectionState:
         self._users = weakref.WeakValueDictionary()
         self._trades = dict()
         self._groups = dict()
+        self._clans = dict()
+        self._combined = dict()
         self._confirmations = dict()
         self.invites = []
 
@@ -143,6 +147,10 @@ class ConnectionState:
     @property
     def groups(self) -> List[Group]:
         return list(self._groups.values())
+
+    @property
+    def clans(self) -> List[Clan]:
+        return list(self._clans.values())
 
     @property
     def confirmations(self) -> List[Confirmation]:
@@ -260,7 +268,7 @@ class ConnectionState:
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         if search is None:
             return None
-        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}{_URL(search.group(1)).path}')
+        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}{_URL(search.group(1)).path}', self.http._session)
         if steam_id.type == EType.Clan:
             obj = await self.client.fetch_clan(steam_id.id64)
         else:
@@ -357,9 +365,18 @@ class ConnectionState:
             steamid_sender=0.0, message=content,
             timestamp=int(time()),
         )
-        group = self.groups[group_id]
-        channel = GroupChannel(state=self, notification=proto, group=group)
-        message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
+        try:
+            group = [c for c in self.clans if c.id == group_id][0]
+        except IndexError:
+            group = self._groups.get(group_id)
+            if group is None:
+                return
+        if isinstance(group, Clan):
+            channel = ClanChannel(state=self, channel=proto, clan=group)
+            message = ClanMessage(proto=proto, channel=channel, author=self.client.user)
+        else:
+            channel = GroupChannel(state=self, channel=proto, group=group)
+            message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
         self.dispatch('message', message)
 
     # parsers
@@ -383,10 +400,10 @@ class ConnectionState:
         if msg.header.target_job_name == 'ChatRoomClient.NotifyIncomingChatMessage#1':
             msg.body: 'GroupMessageNotification'
             try:
-                group = self.groups[int(msg.body.chat_group_id)]
+                group = self._combined[int(msg.body.chat_group_id)]
             except KeyError:
                 return
-            channel = GroupChannel(state=self, notification=msg.body, group=group)
+            channel = GroupChannel(state=self, channel=msg.body, group=group)
             user_id64 = int(msg.body.steamid_sender)
             author = self.get_user(user_id64) or await self.fetch_user(user_id64)
             message = GroupMessage(proto=msg.body, channel=channel, author=author)
@@ -398,6 +415,8 @@ class ConnectionState:
                 group = self.groups[int(msg.body.header_state.chat_group_id)]
             except KeyError:
                 return
+            # FIXME
+            return
             group._from_proto(msg.body.header_state)
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyChatGroupUserStateChanged#1':  # join group
@@ -412,13 +431,15 @@ class ConnectionState:
         if msg.header.target_job_name == 'ChatRoom.GetMyChatRoomGroups#1':
             msg.body: 'MyChatRooms'
             for group in msg.body.chat_room_groups:
-                if group.group_summary.clanid:
-                    data = group.group_summary.to_dict()
-                    data = self.patch_clan_from_ws(data, group.group_summary)
-                else:
+                if group.group_summary.clanid:  # received a clan
+                    clan = await Clan._from_proto(state=self, proto=group.group_summary)
+                    self._clans[clan.id64] = clan
+                    self._combined[clan.chat_id] = clan
+                else:  # else it's a group
                     group = Group(state=self, proto=group.group_summary)
                     await group.__ainit__()
                     self._groups[group.id] = group
+                    self._combined[group.id] = group
 
             if not self.handled_groups:
                 await self.handled_friends.wait()  # ensure friend cache is ready
