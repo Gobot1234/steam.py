@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 from .abc import Message
 
 if TYPE_CHECKING:
-    from .channel import DMChannel, GroupChannel
+    from .channel import DMChannel, GroupChannel, ClanChannel
     from .abc import BaseUser
     from .protobufs.steammessages_friendmessages import CFriendMessages_IncomingMessage_Notification \
         as UserMessageNotification
@@ -62,10 +62,8 @@ class UserMessage(Message):
         return f"<UserMessage {' '.join(resolved)}>"
 
 
-class GroupMessage(Message):
-    """Represents a message in a Group."""
-
-    def __init__(self, proto: 'GroupMessageNotification', channel: 'GroupChannel', author: 'BaseUser'):
+class _GroupMessage(Message):
+    def __init__(self, proto: 'GroupMessageNotification', channel, author: 'BaseUser'):
         super().__init__(channel)
         self.author = author
         self.content = proto.message.replace('\[', '[').replace('\\\\', '\\')
@@ -77,4 +75,18 @@ class GroupMessage(Message):
             'author', 'channel'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        return f"<GroupMessage {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
+
+
+class GroupMessage(_GroupMessage):
+    """Represents a message in a Group."""
+
+    def __init__(self, proto: 'GroupMessageNotification', channel: 'GroupChannel', author: 'BaseUser'):
+        super().__init__(proto, channel, author)
+
+
+class ClanMessage(_GroupMessage):
+    """Represents a message in a Clan."""
+
+    def __init__(self, proto: 'GroupMessageNotification', channel: 'ClanChannel', author: 'BaseUser'):
+        super().__init__(proto, channel, author)
