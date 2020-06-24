@@ -558,7 +558,7 @@ class Bot(Client):
         if hasattr(ctx.command, 'on_error'):
             return await ctx.command.on_error(ctx, error)
 
-        if ctx.cog:
+        if ctx.cog and ctx.cog is not self:
             return await ctx.cog.cog_command_error(ctx, error)
 
         print(f'Ignoring exception in command {ctx.command.name}:', file=sys.stderr)
