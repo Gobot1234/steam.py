@@ -202,6 +202,11 @@ class Client:
         """List[:class:`~steam.Group`]: Returns a list of all the groups the connected client is in."""
         return self._connection.groups
 
+    @property
+    def clans(self) -> List['Clan']:
+        """List[:class:`~steam.Clan`]: Returns a list of all the clans the connected client is in."""
+        return self._connection.clans
+
     async def code(self) -> str:
         """|coro|
 
@@ -335,6 +340,7 @@ class Client:
         or :meth:`login`.
         """
         loop = self.loop
+
         try:
             loop.add_signal_handler(signal.SIGINT, loop.stop)
             loop.add_signal_handler(signal.SIGTERM, loop.stop)
@@ -350,19 +356,19 @@ class Client:
         def stop_loop_on_completion(_):
             loop.stop()
 
-        task = loop.create_task(runner())
-        task.add_done_callback(stop_loop_on_completion)
+        future = asyncio.ensure_future(runner(), loop=loop)
+        future.add_done_callback(stop_loop_on_completion)
         try:
             loop.run_forever()
         except KeyboardInterrupt:
             log.info('Received signal to terminate the client and event loop.')
         finally:
-            task.remove_done_callback(stop_loop_on_completion)
+            future.remove_done_callback(stop_loop_on_completion)
             log.info('Cleaning up tasks.')
             _cleanup_loop(loop)
 
-        if not task.cancelled():
-            return task.result()
+        if not future.cancelled():
+            return future.result()
 
     async def login(self, username: str, password: str,
                     api_key: str = None, shared_secret: str = None) -> None:
@@ -473,6 +479,7 @@ class Client:
         Initialize a connection to a Steam CM.
         """
         while not self._closed:
+            last_connect = datetime.now()
             try:
                 await self._connect()
             except (OSError,
@@ -486,8 +493,9 @@ class Client:
                 if self._closed:
                     return
 
-                log.exception(f'Attempting to reconnect to {self.ws.cm}')
-                # TODO add backoff
+                reconnect = min((datetime.now() - last_connect).total_seconds() * 2, 60)
+                log.exception(f'Attempting to reconnect to {self.ws.cm} in {reconnect}')
+                await asyncio.sleep(reconnect)
 
     # state stuff
 
