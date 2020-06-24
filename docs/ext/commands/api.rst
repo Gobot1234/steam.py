@@ -86,6 +86,9 @@ Exceptions
 .. autoexception:: steam.ext.commands.CommandNotFound
     :members:
 
+.. autoexception:: steam.ext.commands.CommandOnCooldown
+    :members:
+
 
 Exception Hierarchy
 +++++++++++++++++++++
@@ -98,3 +101,4 @@ Exception Hierarchy
             - :exc:`~.commands.BadArgument`
             - :exc:`~.commands.CommandNotFound`
             - :exc:`~.commands.CheckFailure`
+            - :exc:`~.commands.CommandOnCooldown`

@@ -95,6 +95,15 @@ class CheckFailure(CommandError):
 
 
 class CommandOnCooldown(CommandError):
+    """Exception raised when a command is still on cooldown.
+
+    Subclass of :exc:`CommandError`.
+
+    Attributes
+    ----------
+    retry_after: :class:`float`
+        When the next command can successfully be executed.
+    """
 
     def __init__(self, retry_after: float):
         self.retry_after = retry_after
