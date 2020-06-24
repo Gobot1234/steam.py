@@ -93,7 +93,7 @@ class Group:
         self.default_channel = int(proto.default_chat_id)
         self.channels = []
         for channel in proto.chat_rooms:
-            self.channels.append(GroupChannel(state=self._state, group=self, notification=channel))
+            self.channels.append(GroupChannel(state=self._state, group=self, channel=channel))
         self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
 
     def __repr__(self):
