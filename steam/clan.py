@@ -27,19 +27,22 @@ SOFTWARE.
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, List
-from xml.etree import ElementTree
+from typing import TYPE_CHECKING, List, Optional
 
 from bs4 import BeautifulSoup
 
+from . import utils
 from .abc import SteamID
+from .channel import ClanChannel
 from .comment import Comment
 from .errors import HTTPException
 from .iterators import CommentsIterator
-from .models import URL
+from .models import URL, Role
 
 if TYPE_CHECKING:
-    from .user import User
+    from .user import User, BaseUser
+    from .protobufs.steammessages_chat import CChatRoom_GetChatRoomGroupSummary_Response \
+        as ClanProto
     from .state import ConnectionState
 
 
@@ -80,17 +83,21 @@ class Clan(SteamID):
         The icon url of the clan. Uses the large (184x184 px) image url.
     description: :class:`str`
         The description of the clan.
-    headline: :class:`str`
-        The headline of the clan.
     count: :class:`int`
         The amount of users in the clan.
     online_count: :class:`int`
         The amount of users currently online.
-    in_chat_count: :class:`int`
+    active_member_count: :class:`int`
         The amount of currently users in the clan's chat room.
     in_game_count: :class:`int`
         The amount of user's currently in game.
     """
+    # TODO more docs
+
+    __slots__ = ('url', '_state', 'name', 'description', 'icon_url', 'created_at',
+                 'language', 'location', 'count', 'in_game_count', 'online_count',
+                 'admins', 'mods', 'chat_id', 'active_member_count', 'owner',
+                 'default_role', 'tagline', 'top_members', 'roles', 'channels', 'default_channel')
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/clans.js
 
@@ -98,35 +105,73 @@ class Clan(SteamID):
         self.url = f'{URL.COMMUNITY}/gid/{id}'
         self._state = state
 
+        # don't break for fetched clans
+        self.chat_id = 0
+        self.active_member_count = 0
+        self.channels: List['ClanChannel'] = []
+        self.top_members: List['BaseUser'] = []
+        self.roles: List['Role'] = []
+        self.owner: Optional['BaseUser'] = None
+        self.tagline: Optional[str] = None
+        self.default_role: Optional['Role'] = None
+        self.default_channel: Optional['ClanChannel'] = None
+
     async def __ainit__(self) -> None:
-        data = await self._state.request('GET', f'{self.url}/memberslistxml')
-        try:
-            tree = ElementTree.fromstring(data)
-        except ElementTree.ParseError:
+        resp = await self._state.request('GET', self.url)
+        search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
+        if search is None:
             return
-        for elem in tree:
-            if elem.tag == 'totalPages':
-                self._pages = int(elem.text)
-            elif elem.tag == 'groupID64':  # we need to use the proper id64 as it doesn't convert well
-                super().__init__(elem.text)
-            elif elem.tag == 'groupDetails':
-                for sub in elem:
-                    if sub.tag == 'groupName':
-                        self.name = sub.text
-                    elif sub.tag == 'headline':
-                        self.headline = sub.text
-                    elif sub.tag == 'summary':
-                        self.description = BeautifulSoup(sub.text, 'html.parser').get_text()
-                    elif sub.tag == 'avatarFull':
-                        self.icon_url = sub.text
-                    elif sub.tag == 'memberCount':
-                        self.count = int(sub.text)
-                    elif sub.tag == 'membersInChat':
-                        self.in_chat_count = int(sub.text)
-                    elif sub.tag == 'membersInGame':
-                        self.in_game_count = int(sub.text)
-                    elif sub.tag == 'membersOnline':
-                        self.online_count = int(sub.text)
+        super().__init__(search.group(1))
+
+        soup = BeautifulSoup(resp, 'html.parser')
+        self.name = soup.find('title').text.replace('Steam Community :: Group :: ', '', 1)
+        self.description = soup.find('meta', attrs={"property": 'og:description'})['content']
+        self.icon_url = soup.find('link', attrs={"rel": 'image_src'})['href']
+        stats = soup.find('div', attrs={"class": 'grouppage_resp_stats'})
+        for stat in stats.find_all('div', attrs={"class": 'groupstat'}):
+            if 'Founded' in stat.text:
+                text = stat.text.split('Founded')[1].strip()
+                if ', ' not in stat.text:
+                    text = f'{text}, {datetime.utcnow().year}'
+                self.created_at = datetime.strptime(text, '%d %B, %Y')
+            if 'Language' in stat.text:
+                self.language = stat.text.split('Language')[1].strip()
+            if 'Location' in stat.text:
+                self.location = stat.text.split('Location')[1].strip()
+
+        for count in stats.find_all('div', attrs={"class": 'membercount'}):
+            if 'MEMBERS' in count.text:
+                self.count = int(count.text.split('MEMBERS')[0].strip().replace(',', ''))
+            if 'IN-GAME' in count.text:
+                self.in_game_count = int(count.text.split('IN-GAME')[0].strip().replace(',', ''))
+            if 'ONLINE' in count.text:
+                self.online_count = int(count.text.split('ONLINE')[0].strip().replace(',', ''))
+
+        admins = []
+        mods = []
+        is_admins = True
+        for fields in soup.find_all('div', attrs={"class": 'membergrid'}):
+            for idx, field in enumerate(fields.find_all('div')):
+                if 'Members' in field.text:
+                    if mods:
+                        mods.pop()
+                    break
+                if 'Moderators' in field.text:
+                    officer = admins.pop()
+                    mods.append(officer)
+                    is_admins = False
+                try:
+                    account_id = fields.find_all('div', attrs={"class": 'playerAvatar'})[idx]['data-miniprofile']
+                except IndexError:
+                    break
+                else:
+                    if is_admins:
+                        admins.append(account_id)
+                    else:
+                        mods.append(account_id)
+
+        self.admins = await self._state.client.fetch_users(*admins)
+        self.mods = await self._state.client.fetch_users(*mods)
 
     def __repr__(self):
         attrs = (
@@ -148,27 +193,28 @@ class Clan(SteamID):
         Returns
         --------
         List[:class:`~steam.SteamID`]
-            A basic list of the clans members.
+            A basic list of the clan's members.
             This can be a very slow operation due to
             the rate limits on this endpoint.
         """
         ret = []
+        resp = await self._state.request('GET', f'{self.url}/members?p=1&content_only=true')
+        soup = BeautifulSoup(resp, 'html.parser')
+        pages = int(soup.find_all('a', attrs={"class": 'pagelink'}).pop().text)
 
-        async def getter(i):
+        async def getter(i) -> None:
             try:
-                data = await self._state.request('GET', f'{self.url}/memberslistxml?p={i + 1}')
+                resp = await self._state.request('GET', f'{self.url}/members?p={i + 1}')
             except HTTPException:
                 await asyncio.sleep(20)
                 await getter(i)
             else:
-                tree = ElementTree.fromstring(data)
-                for elem in tree:
-                    if elem.tag == 'members':
-                        for sub in elem:
-                            if sub.tag == 'steamID64':
-                                ret.append(SteamID(sub.text))
+                soup = BeautifulSoup(resp, 'html.parser')
+                for s in soup.find_all('div', attrs={"id": 'memberList'}):
+                    for user in s.find_all('div', attrs={"class": 'member_block'}):
+                        ret.append(SteamID(user['data-miniprofile']))
 
-        for i in range(self._pages):
+        for i in range(pages):
             await getter(i)
 
         return ret
@@ -256,3 +302,28 @@ class Clan(SteamID):
             The comment with the comment information parsed.
         """
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
+
+    @classmethod
+    async def _from_proto(cls, state: 'ConnectionState', proto: 'ClanProto'):
+        clan = cls(state=state, id=proto.clanid)
+        await clan.__ainit__()
+        clan.owner = await state.fetch_user(utils.make_steam64(proto.accountid_owner))
+        clan.tagline = proto.chat_group_tagline or None
+
+        clan.chat_id = proto.chat_group_id
+        clan.active_member_count = proto.active_member_count
+
+        clan.top_members = await state.client.fetch_users(proto.top_members)
+        clan.roles = []
+
+        for role in proto.role_actions:
+            clan.roles.append(Role(role))
+
+        clan.default_role = [r for r in clan.roles if r.id == int(proto.default_role_id)][0]
+        clan.default_channel = int(proto.default_chat_id)
+        clan.channels = []
+        for channel in proto.chat_rooms:
+            clan.channels.append(ClanChannel(state=state, clan=clan, channel=channel))
+        clan.default_channel = [c for c in clan.channels if c.id == int(proto.default_chat_id)][0]
+
+        return clan
