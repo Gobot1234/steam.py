@@ -41,6 +41,8 @@ from typing import (
     Tuple
 )
 
+from aiohttp import ClientSession
+
 from .badge import UserBadges
 from .comment import Comment
 from .enums import (
@@ -64,8 +66,11 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
+    from aiohttp import ClientSession
+
     from .user import User
     from .clan import Clan
+    from .group import Group
     from .state import ConnectionState
     from .image import Image
 
@@ -294,23 +299,27 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(cls, url: str, timeout: float = 30) -> Optional['SteamID']:
+    async def from_url(cls, url: str, session: 'ClientSession' = None,
+                       timeout: float = 30) -> Optional['SteamID']:
         """Takes Steam community url and returns a SteamID instance or ``None``.
         See :func:`steam64_from_url` for details.
 
         Parameters
         ----------
         url: :class:`str`
-            The Steam community url.
-        timeout: :class:`int`
-            How long to wait for the http request before turning ``None``.
+        The Steam community url.
+        session Optional[:class:`aiohttp.ClientSession`]
+            The session to make the request with. If
+            ``None`` is passed a new one is generated
+        timeout: Optional[:class:`float`]
+            How long to wait on http request before turning ``None``.
 
         Returns
         -------
         Optional[:class:`SteamID`]
             `SteamID` instance or ``None``.
         """
-        id64 = await steam64_from_url(url, timeout)
+        id64 = await steam64_from_url(url, session, timeout)
         return cls(id64) if id64 else None
 
 
@@ -657,15 +666,20 @@ class Messageable(metaclass=abc.ABCMeta):
         """
         if content is not None:
             id64, message_func = self._get_message_endpoint()
-            await message_func(id64, content)
+            await message_func(id64, str(content))
         if image is not None:
             id64, image_func = self._get_image_endpoint()
             await image_func(id64, image)
 
 
 class BaseChannel(Messageable):
-    __slots__ = ()
-    _state: 'ConnectionState'
+    __slots__ = ('_state', 'participant', 'clan', 'group')
+
+    def __init__(self):
+        self._state: 'ConnectionState'
+        self.participant: Optional['BaseUser'] = None
+        self.clan: Optional['Clan'] = None
+        self.group: Optional['Group'] = None
 
     def typing(self):
         pass
