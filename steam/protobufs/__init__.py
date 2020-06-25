@@ -72,7 +72,7 @@ def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
 
 
 class Msg:
-    """A wrapper around received protobuf messages.
+    r"""A wrapper around received protobuf messages.
 
     .. container:: operations
 
@@ -91,7 +91,7 @@ class Msg:
         :class:`.ExtendedMsgHdr` else its :class:`.MsgHdr`.
     parse: :class:`bool`
         Whether or not to parse the data into a constructed protobuf.
-    **kwargs
+    \*\*kwargs
         Any keyword-arguments to construct the :attr:`body` with.
 
     Attributes
@@ -182,7 +182,7 @@ class Msg:
 
 
 class MsgProto:
-    """A wrapper around received protobuf messages.
+    r"""A wrapper around received protobuf messages.
 
     .. container:: operations
 
@@ -200,7 +200,8 @@ class MsgProto:
         The name of the Unified Message the protobuf is associated.
     parse: :class:`bool`
         Whether or not to parse the data into a constructed protobuf.
-    **kwargs
+    \*\*kwargs
+        Any keyword-arguments to construct the :attr:`body` with.
 
     Attributes
     ----------
