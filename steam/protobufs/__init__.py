@@ -98,7 +98,7 @@ class Msg:
     ----------
     header: Union[:class:`.ExtendedMsgHdr`, :class:`.MsgHdr`]
         The message's header.
-    msg :class:`EMsg`
+    msg: :class:`EMsg`
         The emsg for the message.
     body
         The instance of the protobuf.
@@ -207,7 +207,7 @@ class MsgProto:
     ----------
     header: Union[:class:`.ExtendedMsgHdr`, :class:`.MsgHdr`]
         The message's header.
-    msg :class:`EMsg`
+    msg: :class:`EMsg`
         The emsg for the message.
     body
         The instance of the protobuf.
