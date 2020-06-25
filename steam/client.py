@@ -67,7 +67,7 @@ from .utils import ainput
 if TYPE_CHECKING:
     import steam
     from .comment import Comment
-    from .enums import EPersonaState, UIMode
+    from .enums import EPersonaState, EUIMode
     from .game import Game
     from .group import Group
     from .invite import Invite
@@ -472,14 +472,17 @@ class Client:
         coro = SteamWebSocket.from_client(self, cms=self._cm_list)
         self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
         while 1:
-            await self.ws.poll_event()
+            try:
+                await self.ws.poll_event()
+            except AttributeError:
+                self.dispatch('disconnect')
+                await self._connect()
 
     async def connect(self) -> None:
         """|coro|
         Initialize a connection to a Steam CM.
         """
         while not self._closed:
-            last_connect = datetime.now()
             try:
                 await self._connect()
             except (OSError,
@@ -493,9 +496,8 @@ class Client:
                 if self._closed:
                     return
 
-                reconnect = min((datetime.now() - last_connect).total_seconds() * 2, 60)
-                log.exception(f'Attempting to reconnect to {self.ws.cm} in {reconnect}')
-                await asyncio.sleep(reconnect)
+                log.exception(f'Attempting to reconnect to {self.ws.cm}')
+                await asyncio.sleep(5)
 
     # state stuff
 
@@ -605,9 +607,8 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    async def fetch_clan(self, *args, **kwargs) -> Optional['Clan']:
-        r"""|coro|
-        Fetches a clan from https://steamcommunity.com with a matching ID.
+    def get_clan(self, *args, **kwargs) -> Optional['Clan']:
+        """Get a clan from cache with a matching ID.
 
         Parameters
         ----------
@@ -622,9 +623,26 @@ class Client:
             The clan or ``None`` if the clan was not found.
         """
         steam_id = SteamID(*args, **kwargs)
-        clan = Clan(state=self._connection, id=steam_id.id)
-        await clan.__ainit__()
-        return clan if clan.name else None
+        return self._connection.get_clan(steam_id.id)
+
+    async def fetch_clan(self, *args, **kwargs) -> Optional['Clan']:
+        r"""|coro|
+        Fetches a clan from the websocket with a matching ID.
+
+        Parameters
+        ----------
+        \*args
+            The arguments to pass to :meth:`~steam.utils.make_steam64`.
+        \*\*kwargs
+            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
+
+        Returns
+        -------
+        Optional[:class:`~steam.Clan`]
+            The clan or ``None`` if the clan was not found.
+        """
+        steam_id = SteamID(*args, **kwargs)
+        return await self._connection.fetch_clan(steam_id.id64)
 
     async def fetch_clan_named(self, name: str) -> Optional['Clan']:
         """|coro|
@@ -643,7 +661,7 @@ class Client:
         steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/clans/{name}')
         if not steam_id:
             return None
-        return await self.fetch_clan(id=steam_id.id)
+        return await self._connection.fetch_clan(steam_id.id64)
 
     def trade_history(self, limit: Optional[int] = 100, before: datetime = None,
                       after: datetime = None, active_only: bool = False) -> TradesIterator:
@@ -730,13 +748,15 @@ class Client:
 
     # misc
 
-    async def change_presence(self, games: List['Game'] = None, state: 'EPersonaState' = None,
-                         ui_mode: 'UIMode' = None) -> None:
+    async def change_presence(self, *, game: 'Game' = None, games: List['Game'] = None,
+                              state: 'EPersonaState' = None, ui_mode: 'EUIMode' = None) -> None:
         """|coro|
         Set your status.
 
         Parameters
         ----------
+        game: :class:`~steam.Game`
+            A games to set your status as.
         games: List[:class:`~steam.Game`]
             A list of games to set your status to.
         state: :class:`~steam.EPersonaState`
@@ -747,10 +767,11 @@ class Client:
                 will stop you receiving persona state updates, so :meth:`on_user_update`
                 will stop dispatching.
 
-        ui_mode: :class:`~steam.UIMode`
+        ui_mode: :class:`~steam.EUIMode`
             The UI mode to set your status to.
         """
         games = [game.to_dict() for game in games] if games is not None else []
+        games.append(game.to_dict()) if game is not None else ''
         await self.ws.change_presence(games=games, state=state, ui_mode=ui_mode)
 
     async def wait_until_ready(self) -> None:
