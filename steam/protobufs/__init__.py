@@ -4,6 +4,7 @@
 MIT License
 
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
+Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -35,6 +36,9 @@ from .headers import *
 from .protobufs import *
 from .unified import *
 from ..enums import IntEnum
+
+
+betterproto.Message.__bool__ = lambda self: bool(self.to_dict(include_default_values=False))
 
 
 def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
