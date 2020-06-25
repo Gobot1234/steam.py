@@ -26,19 +26,13 @@ Msg
 Headers
 ~~~~~~~~
 
-.. automodule:: steam.protobufs.headers.MsgHdr
+.. autoclass:: steam.protobufs.headers.MsgHdr
     :members:
 
-.. automodule:: steam.protobufs.headers.ExtendedMsgHdr
+.. autoclass:: steam.protobufs.headers.ExtendedMsgHdr
     :members:
 
-.. automodule:: steam.protobufs.headers.MsgHdrProtoBuf
-    :members:
-
-.. automodule:: steam.protobufs.headers.GCMsgHdr
-    :members:
-
-.. automodule:: steam.protobufs.headers.GCMsgHdrProto
+.. autoclass:: steam.protobufs.headers.MsgHdrProtoBuf
     :members:
 
 

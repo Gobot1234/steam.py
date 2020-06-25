@@ -47,9 +47,15 @@ __all__ = (
 class MsgHdr:
     """The standard message header.
 
+    .. container:: operations
+
+        .. describe:: bytes(x)
+
+            Returns the sterilised header.
+
     Attributes
     ----------
-    msg: class:`.EMsg`
+    msg: :class:`EMsg`
     target_job_id: :class:`int`
     source_job_id: :class:`int`
     """
@@ -84,9 +90,15 @@ class MsgHdr:
 class ExtendedMsgHdr:
     """The extended standard message header.
 
+    .. container:: operations
+
+        .. describe:: bytes(x)
+
+            Returns the sterilised header.
+
     Attributes
     ----------
-    msg: class:`.EMsg`
+    msg: :class:`EMsg`
     target_job_id: :class:`int`
     source_job_id: :class:`int`
     steam_id: :class:`str`
@@ -142,9 +154,15 @@ class ExtendedMsgHdr:
 class MsgHdrProtoBuf:
     """The message header for :class:`steam.protobufs.MsgProto` objects.
 
+    .. container:: operations
+
+        .. describe:: bytes(x)
+
+            Returns the sterilised header.
+
     Attributes
     ----------
-    msg: class:`.EMsg`
+    msg: :class:`EMsg`
     proto: :class:`protobufs.steammessages_base.CMsgProtoBufHeader`
     """
     SIZE = 8
