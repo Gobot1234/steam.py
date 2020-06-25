@@ -82,7 +82,7 @@ class Msg:
 
     Parameters
     ----------
-    msg :class:`EMsg`
+    msg: :class:`EMsg`
         The emsg for the message.
     data: Optional[:class:`bytes`]
         The raw data for the message.
@@ -192,7 +192,7 @@ class MsgProto:
 
     Parameters
     ----------
-    msg :class:`EMsg`
+    msg: :class:`EMsg`
         The emsg for the message.
     data: Optional[:class:`bytes`]
         The raw data for the message.
