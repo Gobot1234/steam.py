@@ -58,12 +58,7 @@ from .game import Game
 from .iterators import CommentsIterator
 from .models import URL, Ban
 from .trade import Inventory
-from .utils import (
-    _INVITE_HEX,
-    _INVITE_MAPPING,
-    make_steam64,
-    steam64_from_url,
-)
+from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
@@ -97,8 +92,8 @@ class SteamID(metaclass=abc.ABCMeta):
         return f"<SteamID {' '.join(resolved)}>"
 
     def __int__(self):
-        # the reason I moved away from a direct implementation of this
-        # is due to not being able to use __slots__ for an int subclass
+        # I moved away from a direct implementation of this
+        # due to not being able to use __slots__ for an int subclass
         # this is currently the best implementation I can think of
         return self._BASE
 
@@ -665,11 +660,11 @@ class Messageable(metaclass=abc.ABCMeta):
             You do not have permission to send the message.
         """
         if content is not None:
-            id64, message_func = self._get_message_endpoint()
-            await message_func(id64, str(content))
+            destination, message_func = self._get_message_endpoint()
+            await message_func(destination, str(content))
         if image is not None:
-            id64, image_func = self._get_image_endpoint()
-            await image_func(id64, image)
+            destination, image_func = self._get_image_endpoint()
+            await image_func(destination, image)
 
 
 class BaseChannel(Messageable):
@@ -703,7 +698,7 @@ class Message:
     created_at: :class:`datetime.datetime`
         The time the message was sent at.
     """
-    __slots__ = ('author', 'content', 'channel', 'created_at', '_state')
+    __slots__ = ('author', 'content', 'channel', 'created_at', 'group', 'clan', '_state')
 
     def __init__(self, channel: 'BaseChannel'):
         self._state: 'ConnectionState' = channel._state
@@ -711,3 +706,5 @@ class Message:
         self.content: Optional[str] = None
         self.author: Optional[BaseUser] = None
         self.created_at: Optional[datetime] = None
+        self.group = channel.group
+        self.clan = channel.clan
