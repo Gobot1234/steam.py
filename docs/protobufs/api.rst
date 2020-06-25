@@ -15,27 +15,36 @@ MsgProto
 
 .. autoclass:: steam.protobufs.MsgProto
     :members:
-    :undoc-members:
 
 Msg
 ~~~~~~~~
 
 .. autoclass:: steam.protobufs.Msg
     :members:
-    :undoc-members:
 
 
 Headers
 ~~~~~~~~
 
-.. automodule:: steam.protobufs.headers
+.. automodule:: steam.protobufs.headers.MsgHdr
     :members:
-    :undoc-members:
+
+.. automodule:: steam.protobufs.headers.ExtendedMsgHdr
+    :members:
+
+.. automodule:: steam.protobufs.headers.MsgHdrProtoBuf
+    :members:
+
+.. automodule:: steam.protobufs.headers.GCMsgHdr
+    :members:
+
+.. automodule:: steam.protobufs.headers.GCMsgHdrProto
+    :members:
 
 
 Get methods
 -----------
 
-.. autofunction:: steam.protobuf.get_cmsg
+.. autofunction:: steam.protobufs.get_cmsg
 
-.. autofunction:: steam.protobuf.get_um
+.. autofunction:: steam.protobufs.get_um
