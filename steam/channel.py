@@ -25,7 +25,8 @@ DEALINGS IN THE SOFTWARE.
 """
 
 import asyncio
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Union
 
 from .abc import BaseChannel
 
@@ -36,9 +37,11 @@ if TYPE_CHECKING:
     from .trade import TradeOffer
     from .state import ConnectionState
     from .user import User
-    from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
-        as GroupMessageNotification
-
+    from .protobufs.steammessages_chat import (
+        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
+        CChatRoomState,
+        CUserChatRoomState,
+    )
 
 __all__ = (
     'DMChannel',
@@ -129,14 +132,20 @@ class TypingContextManager:
 
 
 class _GroupChannel(BaseChannel):
-    __slots__ = ('id', 'name', '_state')
+    __slots__ = ('name', 'id', 'joined_at', '_state')
 
-    def __init__(self, state: 'ConnectionState',
-                 channel: 'GroupMessageNotification'):
+    def __init__(self, state: 'ConnectionState', channel):
         super().__init__()
         self._state = state
         self.id = int(channel.chat_id)
-        self.name = channel.chat_name or None
+        if hasattr(channel, 'time_joined'):
+            self.joined_at = datetime.utcfromtimestamp(channel.time_joined)
+        else:
+            self.joined_at = None
+        if hasattr(channel, 'chat_name'):
+            self.name = channel.chat_name
+        else:
+            self.name = None
 
     def __repr__(self):
         attrs = (
@@ -163,11 +172,13 @@ class GroupChannel(_GroupChannel):
         The group to which messages are sent.
     name: Optional[:class:`str`]
         The name of the channel could be ``None``.
+    joined_at: Optional[:class:`datetime.datetime`]
+        The time the client joined the chat.
     """
 
     def __init__(self, state: 'ConnectionState',
                  group: 'Group',
-                 channel: 'GroupMessageNotification'):
+                 channel: Union['GroupMessageNotification', 'CChatRoomState']):
         super().__init__(state, channel)
         self.group = group
 
@@ -183,11 +194,13 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
         The clan to which messages are sent.
     name: Optional[:class:`str`]
         The name of the channel could be ``None``.
+    joined_at: Optional[:class:`datetime.datetime`]
+        The time the client joined the chat.
     """
 
     def __init__(self, state: 'ConnectionState',
                  clan: 'Clan',
-                 channel: 'GroupMessageNotification'):
+                 channel: Union['GroupMessageNotification', 'CUserChatRoomState']):
         super().__init__(state, channel)
         self.clan = clan
 
@@ -199,8 +212,7 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
         return f"<ClanChannel {' '.join(resolved)}>"
 
     def _get_message_endpoint(self):
-        return (self.id, self.clan.chat_id), self._state.send_group_message  # TODO FIGURE OUT CORRECT ID
-        # CURRENTLY RETURNS ERESULT 10
+        return (self.id, self.clan.chat_id), self._state.send_group_message
 
     def _get_image_endpoint(self):
         return (self.id, self.clan.chat_id), self._state.http.send_group_image
