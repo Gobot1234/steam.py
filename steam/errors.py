@@ -34,6 +34,9 @@ from .enums import EResult
 if TYPE_CHECKING:
     from aiohttp import ClientResponse
 
+    from .protobufs import MsgProto
+
+
 __all__ = (
     'SteamException',
     'NotFound',
@@ -74,12 +77,12 @@ class HTTPException(SteamException):
         The response of the failed HTTP request.
     message: :class:`str`
         The message associated with the error.
-        Could be an empty string if the message is html.
+        Could be an empty string if no message can parsed.
     status: :class:`int`
         The status code of the HTTP request.
-    code: Union[:class:`~steam.EResult`, :class:`int`]
+    code: Union[:class:`.EResult`, :class:`int`]
         The Steam specific error code for the failure.
-        It will attempt to find a matching a :class:`~steam.EResult` for the value.
+        It will attempt to find a matching a :class:`.EResult` for the value.
     """
 
     def __init__(self, response: 'ClientResponse', data: Optional[Any]):
@@ -116,6 +119,45 @@ class NotFound(HTTPException):
     """Exception that's thrown when status code 404 occurs.
 
     Subclass of :exc:`HTTPException`.
+    """
+
+
+class WSException(SteamException):
+    """Exception that's thrown for any web API error.
+
+    Subclass of :exc:`SteamException`.
+
+    Attributes
+    ------------
+    msg: Union[:class:`~steam.protobufs.MsgProto`, :class:`~steam.protobufs.Msg`]
+        The received protobuf.
+    code: Union[:class:`~steam.EResult`, :class:`int`]
+        The Steam specific error code for the failure.
+        It will attempt to find a matching a :class:`~steam.EResult` for the value.
+    """
+
+    def __init__(self, msg: 'MsgProto'):
+        self.msg = msg
+        self.code = EResult.try_value(msg.header.eresult)
+        super().__init__(f'{msg.header.target_job_name} failed (error code: {self.code})')
+
+
+class WSForbidden(WSException):
+    """Exception that's thrown when the websocket returns
+    an :class:`.EResult` that means we do not have permission
+    to perform an action.
+    Similar to :exc:`Forbidden`.
+
+    Subclass of :exc:`WSException`.
+    """
+
+
+class WSNotFound(WSException):
+    """Exception that's thrown when the websocket returns
+    an :class:`.EResult` that means the object wasn't found.
+    Similar to :exc:`NotFound`.
+
+    Subclass of :exc:`WSException`.
     """
 
 
