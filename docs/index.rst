@@ -33,6 +33,16 @@ Extensions
 
   ext/commands/index.rst
 
+Protobufs
+---------
+
+.. note:: These aren't really necessary for most users.
+
+.. toctree::
+  :maxdepth: 3
+
+  protobufs/index.rst
+
 
 If you still can't find what you're looking for, try in one of the following pages:
 

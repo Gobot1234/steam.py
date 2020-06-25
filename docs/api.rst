@@ -163,6 +163,10 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: EUIMode
+    :members:
+    :undoc-members:
+
 
 Guard
 ---------------
@@ -377,8 +381,6 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: ClientException
 
-.. autoexception:: HTTPException
-
 .. autoexception:: LoginError
 
 .. autoexception:: InvalidCredentials
@@ -389,9 +391,18 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: ConfirmationError
 
+.. autoexception:: HTTPException
+
 .. autoexception:: Forbidden
 
 .. autoexception:: NotFound
+
+.. autoexception:: WSException
+
+.. autoexception:: WSForbidden
+
+.. autoexception:: WSNotFound
+
 
 
 Exception Hierarchy
@@ -410,3 +421,6 @@ Exception Hierarchy
             - :exc:`HTTPException`
                 - :exc:`Forbidden`
                 - :exc:`NotFound`
+            - :exc:`WSException`
+                - :exc:`WSForbidden`
+                - :exc:`WSNotFound`
