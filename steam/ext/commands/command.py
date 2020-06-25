@@ -39,7 +39,7 @@ from typing import (
     Type,
 )
 
-from .cooldown import Cooldown, BucketType
+from .cooldown import BucketType, Cooldown
 from .errors import BadArgument
 from ...errors import ClientException
 

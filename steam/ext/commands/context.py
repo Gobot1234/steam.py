@@ -29,7 +29,7 @@ from typing import (
     Any,
     Dict,
     List,
-    Optional
+    Optional,
 )
 
 from ...abc import Message, Messageable
@@ -82,8 +82,8 @@ class Context(Messageable):
         self.prefix = prefix
         self.author = message.author
         self.channel = message.channel
-        self.clan = getattr(self.channel, 'clan', None)
-        self.group = getattr(self.channel, 'group', None)
+        self.clan = message.clan
+        self.group = message.group
 
         self._state = message._state
 

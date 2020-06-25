@@ -66,10 +66,10 @@ __all__ = (
 )
 
 
-str_or_iter_str = Union[str, Iterable[str]]
-command_prefix_type = Union[
-    str_or_iter_str,
-    Callable[['Bot', 'Message'], Union[str_or_iter_str, Awaitable[str_or_iter_str]]]
+StrOrIterStr = Union[str, Iterable[str]]
+CommandPrefixType = Union[
+    StrOrIterStr,
+    Callable[['Bot', 'Message'], Union[StrOrIterStr, Awaitable[StrOrIterStr]]]
 ]
 
 
@@ -115,7 +115,7 @@ class Bot(Client):
     __listeners__: Dict[str, List[EventType]] = dict()
     __extensions__: Dict[str, 'ExtensionType'] = dict()
 
-    def __init__(self, *, command_prefix: command_prefix_type, **options):
+    def __init__(self, *, command_prefix: CommandPrefixType, **options):
         self.command_prefix = command_prefix
         self.owner_id: int = utils.make_steam64(options.get('owner_id', 0))
         owner_ids: Set[int] = options.get('owner_ids', [])
@@ -592,7 +592,6 @@ class Bot(Client):
         # TODO make a help class.
         if command is None:
             commands = []
-            await ctx.send(self.commands)
             for c in self.commands:
                 try:
                     doc = c.help.splitlines()[0]
