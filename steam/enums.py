@@ -30,14 +30,14 @@ Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 
 from collections import namedtuple
 from types import MappingProxyType
-from typing import Any, Iterable, Union, Mapping
-
+from typing import Any, Iterable, Mapping, Union
 
 __all__ = (
     'Enum',
     'IntEnum',
     'EType',
     'EResult',
+    'EUIMode',
     'ETypeChar',
     'EUniverse',
     'ECurrencyCode',
@@ -510,7 +510,7 @@ class EChatEntryType(IntEnum):
     LinkBlocked = 14  #: a link was removed by the chat filter.
 
 
-class UIMode(IntEnum):
+class EUIMode(IntEnum):
     Desktop = 0
     BigPicture = 1
     Mobile = 2

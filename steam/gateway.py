@@ -42,7 +42,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, Callable, List, Optional, NamedTuple, Union
+from typing import TYPE_CHECKING, Callable, List, NamedTuple, Optional, Union
 
 import aiohttp
 
@@ -54,7 +54,7 @@ from .protobufs import EMsg, Msg, MsgProto
 
 if TYPE_CHECKING:
     from .client import Client
-    from .enums import UIMode
+    from .enums import EUIMode
     from .state import ConnectionState
 
     from .protobufs.steammessages_base import CMsgMulti
@@ -267,8 +267,7 @@ class SteamWebSocket:
 
     def wait_for(self, emsg: EMsg, predicate: Callable[..., bool] = None) -> asyncio.Future:
         future = self.loop.create_future()
-        if predicate is None:
-            predicate = lambda msg: True
+        predicate = lambda msg: True if predicate is None else predicate
         entry = EventListener(emsg=emsg, predicate=predicate, future=future)
         self.listeners.append(entry)
         return future
@@ -311,8 +310,6 @@ class SteamWebSocket:
                     raise WebSocketClosure
 
                 message = message.data
-                if not message:  # sometimes data can be empty/None
-                    continue
                 await self.receive(message)
             except WebSocketClosure:
                 log.info(f'Websocket closed, cannot reconnect.')
@@ -416,8 +413,9 @@ class SteamWebSocket:
         log.debug('Received a multi, unpacking')
         if msg.body.size_unzipped:
             log.debug(f'Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})')
-            bytesio = await self.loop.run_in_executor(None, BytesIO, msg.body.message_body)
-            gzipped = await self.loop.run_in_executor(None, functools.partial(GzipFile, fileobj=bytesio))
+            # aiofiles is overrated
+            bytes_io = await self.loop.run_in_executor(None, BytesIO, msg.body.message_body)
+            gzipped = await self.loop.run_in_executor(None, functools.partial(GzipFile, fileobj=bytes_io))
             data = await self.loop.run_in_executor(None, gzipped.read)
             if len(data) != msg.body.size_unzipped:
                 return log.info(f'Unzipped size mismatch for multi payload {msg}, discarding')
@@ -429,14 +427,15 @@ class SteamWebSocket:
             await self.receive(data[4:4 + size])
             data = data[4 + size:]
 
-    async def send_um(self, name: str, **kwargs) -> None:
+    async def send_um(self, name: str, **kwargs) -> int:
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
         msg.header.jobid_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
+        return self._current_job_id
 
     async def change_presence(self, *, games: List[dict],
                          state: EPersonaState,
-                         ui_mode: 'UIMode') -> None:
+                         ui_mode: 'EUIMode') -> None:
         if games:
             activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug(f'Sending {activity} to change activity')

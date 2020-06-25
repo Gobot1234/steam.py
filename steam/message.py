@@ -32,10 +32,10 @@ from .abc import Message
 if TYPE_CHECKING:
     from .channel import DMChannel, GroupChannel, ClanChannel
     from .abc import BaseUser
-    from .protobufs.steammessages_friendmessages import CFriendMessages_IncomingMessage_Notification \
-        as UserMessageNotification
-    from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
-        as GroupMessageNotification
+    from .protobufs.steammessages_friendmessages import \
+        CFriendMessages_IncomingMessage_Notification as UserMessageNotification
+    from .protobufs.steammessages_chat import \
+        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification
 
 
 __all__ = (
@@ -50,9 +50,9 @@ class UserMessage(Message):
     def __init__(self, proto: 'UserMessageNotification', channel: 'DMChannel'):
         super().__init__(channel)
         self.author = channel.participant
-        self.content = proto.message.replace('\[', '[')
+        self.content = proto.message.replace('\[', '[').replace('\\\\', '\\')
         self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
-        self.clean_content = proto.message_no_bbcode or proto.message
+        self.clean_content = proto.message_no_bbcode or self.content
 
     def __repr__(self):
         attrs = (
@@ -68,7 +68,7 @@ class _GroupMessage(Message):
         self.author = author
         self.content = proto.message.replace('\[', '[').replace('\\\\', '\\')
         self.created_at = datetime.utcfromtimestamp(proto.timestamp)
-        self.clean_content = proto.message_no_bbcode or proto.message
+        self.clean_content = proto.message_no_bbcode or self.content
 
     def __repr__(self):
         attrs = (

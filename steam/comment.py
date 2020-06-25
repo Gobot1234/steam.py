@@ -27,7 +27,6 @@ SOFTWARE.
 from datetime import datetime
 from typing import TYPE_CHECKING, Union
 
-
 if TYPE_CHECKING:
     from .abc import BaseUser
     from .clan import Clan
