@@ -132,7 +132,7 @@ class TypingContextManager:
 
 
 class _GroupChannel(BaseChannel):
-    __slots__ = ('name', 'id', 'joined_at', '_state')
+    __slots__ = ('id', 'joined_at', '_state')
 
     def __init__(self, state: 'ConnectionState', channel):
         super().__init__()
@@ -142,14 +142,10 @@ class _GroupChannel(BaseChannel):
             self.joined_at = datetime.utcfromtimestamp(channel.time_joined)
         else:
             self.joined_at = None
-        if hasattr(channel, 'chat_name'):
-            self.name = channel.chat_name
-        else:
-            self.name = None
 
     def __repr__(self):
         attrs = (
-            'name', 'id', 'group'
+            'id', 'clan'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<GroupChannel {' '.join(resolved)}>"
@@ -170,8 +166,6 @@ class GroupChannel(_GroupChannel):
         The ID of the channel.
     group: :class:`steam.Group`
         The group to which messages are sent.
-    name: Optional[:class:`str`]
-        The name of the channel could be ``None``.
     joined_at: Optional[:class:`datetime.datetime`]
         The time the client joined the chat.
     """
@@ -192,8 +186,6 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
         The ID of the channel.
     clan: :class:`steam.Clan`
         The clan to which messages are sent.
-    name: Optional[:class:`str`]
-        The name of the channel could be ``None``.
     joined_at: Optional[:class:`datetime.datetime`]
         The time the client joined the chat.
     """
@@ -206,7 +198,7 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
 
     def __repr__(self):
         attrs = (
-            'name', 'id', 'clan'
+            'id', 'clan'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<ClanChannel {' '.join(resolved)}>"
