@@ -88,7 +88,7 @@ class Msg:
         The raw data for the message.
     extended: :class:`bool`
         Which header type to use, ``True`` uses
-        :class:`.ExtendedMsgHdr` else its :class:`.MsgHdr`.
+        :class:`.ExtendedMsgHdr` else it's :class:`.MsgHdr`.
     parse: :class:`bool`
         Whether or not to parse the data into a constructed protobuf.
     \*\*kwargs
