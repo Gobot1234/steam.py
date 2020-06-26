@@ -467,6 +467,11 @@ class Client:
         await self.connect()
 
     async def _connect(self) -> None:
+        if self.ws is not None:
+            try:
+                await self.ws.close()
+            except Exception:
+                traceback.print_exc()
         resp = await self.http.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
         self.token = resp['token']
         coro = SteamWebSocket.from_client(self, cms=self._cm_list)

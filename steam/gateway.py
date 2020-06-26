@@ -300,20 +300,20 @@ class SteamWebSocket:
             return ws
 
     async def poll_event(self) -> None:
-        async for message in self.socket:
-            try:
-                if message.type is aiohttp.WSMsgType.ERROR:
-                    log.debug(f'Received {message}')
-                    raise message.data
-                if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE):
-                    log.debug(f'Received {message}')
-                    raise WebSocketClosure
+        try:
+            message = await self.socket.receive()
+            if message.type is aiohttp.WSMsgType.ERROR:
+                log.debug(f'Received {message}')
+                raise message.data
+            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE):
+                log.debug(f'Received {message}')
+                raise WebSocketClosure
 
-                message = message.data
-                await self.receive(message)
-            except WebSocketClosure:
-                log.info(f'Websocket closed, cannot reconnect.')
-                raise ConnectionClosed(self.cm, self.cm_list)
+            message = message.data
+            await self.receive(message)
+        except WebSocketClosure:
+            log.info(f'Websocket closed, cannot reconnect.')
+            raise ConnectionClosed(self.cm, self.cm_list)
 
     async def receive(self, message: bytes) -> None:
         self._dispatch('socket_raw_receive', message)
