@@ -30,7 +30,7 @@ import re
 import weakref
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
@@ -84,7 +84,6 @@ if TYPE_CHECKING:
         CMsgClientFriendsList,
     )
 
-
 log = logging.getLogger(__name__)
 
 
@@ -121,7 +120,6 @@ class ConnectionState:
         self._trades = dict()
         self._groups = dict()
         self._clans = dict()
-        self._combined = dict()
         self._confirmations = dict()
         self.invites = []
 
@@ -204,7 +202,6 @@ class ConnectionState:
         clan = Clan(self, int(msg.body.chat_group_summary.clanid))
         await clan.__ainit__(msg.body)
         self._clans[clan.id] = clan
-        self._combined[clan.chat_id] = clan
         return clan
 
     def get_trade(self, id: int) -> Optional[TradeOffer]:
@@ -215,8 +212,8 @@ class ConnectionState:
         if resp.get('response'):
             trade = [resp['response']['offer']]
             descriptions = resp['response'].get('descriptions', [])
-            trade = await self._process_trades(trade, descriptions)
-            return trade[0]
+            trades = await self._process_trades(trade, descriptions)
+            return trades[0]
         return None
 
     async def _store_trade(self, data: dict) -> TradeOffer:
@@ -354,6 +351,10 @@ class ConnectionState:
 
     # ws stuff
 
+    @property
+    def _combined(self) -> Dict[int, Union['Group', 'Clan']]:
+        return {**{group.id: group for group in self.groups}, **{clan.chat_id: clan for clan in self.clans}}
+
     async def send_user_message(self, user_id64: int, content: str) -> None:
         await self.client.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
@@ -389,17 +390,14 @@ class ConnectionState:
             steamid_sender=0.0, message=content,
             timestamp=int(time()),
         )
-        try:
-            group = [c for c in self.clans if c.id == group_id][0]
-        except IndexError:
-            group = self._groups.get(group_id)
-            if group is None:
-                return
-        if isinstance(group, Clan):
-            channel = ClanChannel(state=self, channel=proto, clan=group)
+        endpoint = self._combined.get(group_id)
+        if endpoint is None:
+            return
+        if isinstance(endpoint, Clan):
+            channel = ClanChannel(state=self, channel=proto, clan=endpoint)
             message = ClanMessage(proto=proto, channel=channel, author=self.client.user)
         else:
-            channel = GroupChannel(state=self, channel=proto, group=group)
+            channel = GroupChannel(state=self, channel=proto, group=endpoint)
             message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
         self.dispatch('message', message)
 
@@ -480,12 +478,10 @@ class ConnectionState:
                     clan = Clan(state=self, id=group.group_summary.clanid)
                     await clan.__ainit__(msg.body.group_summary)
                     self._clans[clan.id] = clan
-                    self._combined[clan.chat_id] = clan
                     self.dispatch('clan_join', group)
                 else:
                     group = Group(state=self, proto=msg.body.group_summary)
                     self._groups[group.id] = group
-                    self._combined[group.id] = group
                     self.dispatch('group_join', group)
 
             if msg.body.user_action == 'Parted':  # leave group
@@ -505,12 +501,10 @@ class ConnectionState:
                     clan = Clan(state=self, id=group.group_summary.clanid)
                     await clan.__ainit__(group)
                     self._clans[clan.id] = clan
-                    self._combined[clan.chat_id] = clan
                 else:  # else it's a group
                     group = Group(state=self, proto=group.group_summary)
                     await group.__ainit__()
                     self._groups[group.id] = group
-                    self._combined[group.id] = group
 
             if not self.handled_groups:
                 await self.handled_friends.wait()  # ensure friend cache is ready
@@ -593,7 +587,7 @@ class ConnectionState:
                         if str(steam_id.id64) in str(element):
                             invitee_id = elements[idx + 1]['data-miniprofile']
                             break
-                    invitee = await self.fetch_user(invitee_id) or SteamID(invitee_id)
+                    invitee = self.get_user(invitee_id) or await self.fetch_user(invitee_id) or SteamID(invitee_id)
                     clan = self.get_clan(steam_id.id64) or await self.client.fetch_clan(steam_id.id64) or steam_id
                     invite = ClanInvite(state=self, invitee=invitee, clan=clan)
                     self.dispatch('clan_invite', invite)
