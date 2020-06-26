@@ -58,13 +58,10 @@ log = logging.getLogger(__name__)
 
 
 async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
-    text = await r.text()
     try:
-        if 'application/json' in r.headers['content-type']:  # thanks steam very cool
-            return json.loads(text)
-    except KeyError:  # this should only really happen if steam is down
-        pass
-    return text
+        return await r.json()
+    except aiohttp.ContentTypeError:  # steam is too inconsistent to do this properly
+        return await r.text()
 
 
 class Route:
