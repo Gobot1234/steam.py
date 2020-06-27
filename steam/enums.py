@@ -40,7 +40,6 @@ __all__ = (
     'EUIMode',
     'ETypeChar',
     'EUniverse',
-    'ECurrencyCode',
     'EInstanceFlag',
     'EPersonaState',
     'EChatEntryType',
@@ -52,7 +51,7 @@ __all__ = (
 )
 
 
-def _create_value_cls(name) -> namedtuple:
+def _create_value_cls(name: str) -> namedtuple:
     cls = namedtuple(f'_EnumValue_{name}', 'name value')
     cls.__repr__ = lambda self: f'<{name}.{self.name}: {repr(self.value)}>'
     cls.__str__ = lambda self: f'{name}.{self.name}'
@@ -129,7 +128,6 @@ class EnumMeta(type):
         attrs['_enum_value_map_'] = value_mapping
         attrs['_enum_member_map_'] = member_mapping
         attrs['_enum_member_names_'] = member_names
-        del attrs['__qualname__']
         value_cls._actual_enum_cls_ = super().__new__(mcs, name, bases, attrs)
         try:
             if IntEnum in bases:
@@ -438,47 +436,6 @@ class EChatRoomEnterResponse(IntEnum):
     MemberBlockedYou = 10  #: Join failed - some member in the chat has blocked you from joining
     YouBlockedMember = 11  #: Join failed - you have blocked some member already in the chat
     RatelimitExceeded = 15  #: Join failed - to many join attempts in a very short period of time
-
-
-class ECurrencyCode(IntEnum):
-    Invalid = 0
-    USD = 1
-    GBP = 2
-    EUR = 3
-    CHF = 4
-    RUB = 5
-    PLN = 6
-    BRL = 7
-    JPY = 8
-    NOK = 9
-    IDR = 10
-    MYR = 11
-    PHP = 12
-    SGD = 13
-    THB = 14
-    TRY = 17
-    UAH = 18
-    MXN = 19
-    CAD = 20
-    AUD = 21
-    NZD = 22
-    CNY = 23
-    INR = 24
-    PEN = 26
-    ZAR = 28
-    HKD = 29
-    TWD = 30
-    SAR = 31
-    AED = 32
-    SEK = 33
-    ARS = 34
-    ILS = 35
-    BYN = 36
-    KZT = 37
-    KWD = 38
-    QAR = 39
-    UYU = 41
-    Max = 42
 
 
 class ETradeOfferState(IntEnum):
