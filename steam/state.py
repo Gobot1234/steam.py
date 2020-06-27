@@ -30,7 +30,16 @@ import re
 import weakref
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
@@ -46,7 +55,7 @@ from .enums import (
     ETradeOfferState,
     EType
 )
-from .errors import AuthenticatorError, InvalidCredentials, WSNotFound
+from .errors import AuthenticatorError, InvalidCredentials, WSNotFound, WSException
 from .group import Group
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
 from .invite import ClanInvite, UserInvite
@@ -87,21 +96,26 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+class Registerer:
+    __slots__ = ('func', 'emsg')
+
+    def __init__(self, func: Callable[['ConnectionState', 'MsgProto'], None], emsg: EMsg):
+        self.func = func
+        self.emsg = emsg
+
+    def __set_name__(self, state: 'ConnectionState', _):
+        state.parsers[self.emsg] = self.func
+
+
 def register(emsg: EMsg):
-    class wrapper:
-        __slots__ = ('func',)
-
-        def __init__(self, func: Callable):
-            self.func = func
-
-        def __set_name__(self, state: 'ConnectionState', _):
-            state.parsers[emsg] = self.func
-
-    return wrapper
+    def decorator(func):
+        return Registerer(func, emsg)
+    return decorator
 
 
 class ConnectionState:
-    parsers = dict()  # we need this outside __init__ for @register
+    parsers: Dict[EMsg, Callable[['ConnectionState', 'MsgProto'], None]] = dict()
+    # we need this outside __init__ for @register
 
     def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
@@ -116,12 +130,12 @@ class ConnectionState:
         self.handled_groups = False
         self.user_slots = set(User.__slots__) - {'_state', '_data'}
 
-        self._users = weakref.WeakValueDictionary()
-        self._trades = dict()
-        self._groups = dict()
-        self._clans = dict()
-        self._confirmations = dict()
-        self.invites = []
+        self._users: Mapping[int, User] = weakref.WeakValueDictionary()
+        self._trades: Dict[int, TradeOffer] = dict()
+        self._groups: Dict[int, Group] = dict()
+        self._clans: Dict[int, Clan] = dict()
+        self._confirmations: Dict[int, Confirmation] = dict()
+        self.invites: List[Union[UserInvite, ClanInvite]] = []
 
         self._trades_task = None
         self._trades_to_watch = []
@@ -130,7 +144,6 @@ class ConnectionState:
         self._descriptions_cache = []
 
     async def __ainit__(self) -> None:
-        self.market = self.client._market
         self._id64 = self.client.user.id64
         self._device_id = generate_device_id(str(self._id64))
 
@@ -378,8 +391,8 @@ class ConnectionState:
         )
         self.dispatch('typing', self.client.user, datetime.utcnow())
 
-    async def send_group_message(self, ids: Tuple[int, int], content: str) -> None:
-        chat_id, group_id = ids
+    async def send_group_message(self, destination: Tuple[int, int], content: str) -> None:
+        chat_id, group_id = destination
         await self.client.ws.send_um(
             "ChatRoom.SendChatMessage#1_Request",
             chat_id=chat_id, chat_group_id=group_id,
@@ -414,6 +427,8 @@ class ConnectionState:
             raise WSNotFound
         if msg.header.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
+        elif msg.header.eresult != EResult.OK:
+            raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
         job_id = await self.client.ws.send_um(
@@ -428,6 +443,8 @@ class ConnectionState:
             raise WSNotFound
         if msg.header.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
+        elif msg.header.eresult != EResult.OK:
+            raise WSException(msg)
 
     # parsers
 
@@ -449,9 +466,8 @@ class ConnectionState:
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyIncomingChatMessage#1':
             msg.body: 'GroupMessageNotification'
-            try:
-                destination = self._combined[int(msg.body.chat_group_id)]
-            except KeyError:
+            destination = self._combined.get(int(msg.body.header_state.chat_group_id))
+            if destination is None:
                 return
             if isinstance(destination, Clan):
                 channel = ClanChannel(state=self, channel=msg.body, clan=destination)
@@ -467,30 +483,37 @@ class ConnectionState:
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyChatRoomHeaderStateChange#1':  # group update
             msg.body: 'GroupStateUpdate'
-            group = self._combined[int(msg.body.header_state.chat_group_id)]
-            return
-            group._from_proto(msg.body.header_state)
+            destination = self._combined.get(int(msg.body.header_state.chat_group_id))
+            if destination is None:
+                return
+
+            if isinstance(destination, Clan):
+                await destination.__ainit__(msg.body.header_state)
+            else:
+                destination._from_proto(msg.body.header_state)
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyChatGroupUserStateChanged#1':
             msg.body: 'GroupAction'
             if msg.body.user_action == 'Joined':  # join group
                 if msg.body.group_summary.clanid:
-                    clan = Clan(state=self, id=group.group_summary.clanid)
+                    clan = Clan(state=self, id=msg.body.group_summary.clanid)
                     await clan.__ainit__(msg.body.group_summary)
                     self._clans[clan.id] = clan
-                    self.dispatch('clan_join', group)
+                    self.dispatch('clan_join', clan)
                 else:
                     group = Group(state=self, proto=msg.body.group_summary)
                     self._groups[group.id] = group
                     self.dispatch('group_join', group)
 
             if msg.body.user_action == 'Parted':  # leave group
-                left = self._combined[int(msg.body.chat_group_id)]
+                left = self._combined.pop(int(msg.body.chat_group_id), None)
+                if left is None:
+                    return
+
                 if isinstance(left, Clan):
                     self.dispatch('clan_leave', left)
                 else:
                     self.dispatch('group_leave', left)
-                del self._combined[int(msg.body.chat_group_id)]
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
