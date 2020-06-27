@@ -165,6 +165,7 @@ class MsgHdrProtoBuf:
     msg: :class:`EMsg`
     proto: :class:`protobufs.steammessages_base.CMsgProtoBufHeader`
     """
+
     SIZE = 8
     __slots__ = ('proto', 'msg', '_full_size')
 

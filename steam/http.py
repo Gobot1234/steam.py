@@ -73,8 +73,11 @@ class Route:
 
 
 class APIRoute(Route):
+    BASE = URL.API
+
     def __init__(self, path):
-        self.url = _URL(f'{URL.API}{path}{"/v1" if not path.endswith("v2") else ""}')
+        path = f'{path}{"/v1" if not path.endswith("v2") else ""}'
+        super().__init__(path)
 
 
 class CRoute(Route):
