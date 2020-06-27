@@ -130,13 +130,15 @@ class CMServerList(AsyncIterator):
         except Exception as e:
             log.error(f'WebAPI fetch request failed with result: {repr(e)}')
             return False
-        if resp['response']['result'] != EResult.OK:
+
+        resp = resp['response']
+        if resp['result'] != EResult.OK:
             log.error(f'Fetching the CMList failed with '
-                      f'Result: {EResult(resp["response"]["result"])} '
-                      f'Message: {repr(resp["response"]["message"])}')
+                      f'Result: {EResult(resp["result"])} '
+                      f'Message: {repr(resp["message"])}')
             return False
 
-        websockets_list = resp['response']['serverlist_websockets']
+        websockets_list = resp['serverlist_websockets']
         log.debug(f'Received {len(websockets_list)} servers from WebAPI')
 
         self.clear()
@@ -312,8 +314,7 @@ class SteamWebSocket:
             message = message.data
             await self.receive(message)
         except WebSocketClosure:
-            log.info(f'Websocket closed, cannot reconnect.')
-            raise ConnectionClosed(self.cm, self.cm_list)
+            await self.handle_close()
 
     async def receive(self, message: bytes) -> None:
         self._dispatch('socket_raw_receive', message)
@@ -381,11 +382,20 @@ class SteamWebSocket:
         await self.send(bytes(message))
 
     async def close(self, code: int = 4000) -> None:
-        if self._keep_alive:
+        if self._keep_alive is not None:
             self._keep_alive.stop()
         if self.connected:
             await self.send_as_proto(MsgProto(EMsg.ClientLogOff))
         await self.socket.close(code=code)
+
+    async def handle_close(self):
+        try:
+            await self.close()
+        except Exception:
+            pass
+        self.cm_list.queue.get_nowait()  # pop the disconnected cm
+        log.info(f'Websocket closed, cannot reconnect.')
+        raise ConnectionClosed(self.cm, self.cm_list)
 
     async def handle_logon(self, msg: MsgProto) -> None:
         msg.body: 'CMsgClientLogonResponse'
@@ -434,8 +444,13 @@ class SteamWebSocket:
         return self._current_job_id
 
     async def change_presence(self, *, games: List[dict],
-                         state: EPersonaState,
-                         ui_mode: 'EUIMode') -> None:
+                              state: EPersonaState,
+                              ui_mode: 'EUIMode',
+                              force_kick: bool) -> None:
+        if force_kick:
+            kick = MsgProto(EMsg.ClientKickPlayingSession)
+            log.debug('Kicking any currently playing sessions')
+            await self.send_as_proto(kick)
         if games:
             activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug(f'Sending {activity} to change activity')

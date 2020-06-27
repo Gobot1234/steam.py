@@ -40,7 +40,6 @@ from typing import (
     Awaitable,
     Callable,
     List,
-    Mapping,
     Optional,
     Union,
 )
@@ -54,12 +53,6 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .market import (
-    FakeItem,
-    MarketClient,
-    PriceOverview,
-    convert_items,
-)
 from .models import URL
 from .state import ConnectionState
 from .utils import ainput
@@ -161,9 +154,7 @@ class Client:
         self.loop = loop or asyncio.get_event_loop()
         self._session = aiohttp.ClientSession(loop=self.loop)
 
-        currency = options.get('currency', 1)
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
-        self._market = MarketClient(loop=self.loop, session=self._session, client=self, currency=currency)
         self._connection = ConnectionState(loop=self.loop, client=self, http=self.http)
         self.ws: Optional[SteamWebSocket] = None
 
@@ -497,6 +488,7 @@ class Client:
                 self.dispatch('disconnect')
             except ConnectionClosed as exc:
                 self._cm_list = exc.cm_list
+                self.dispatch('disconnect')
             finally:
                 if self._closed:
                     return
@@ -710,51 +702,11 @@ class Client:
         """
         return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only)
 
-    # market stuff
-
-    async def fetch_price(self, item_name: str, game: 'Game') -> PriceOverview:
-        """|coro|
-        Fetches the price and volume sales of an item.
-
-        Parameters
-        ----------
-        item_name: :class:`str`
-            The name of the item to fetch the price of.
-        game: :class:`~steam.Game`
-            The game the item is from.
-
-        Returns
-        -------
-        :class:`PriceOverview`
-            The item's price overview.
-        """
-        item = FakeItem(item_name, game)
-        return await self._market.get_price(item)
-
-    async def fetch_prices(self, item_names: List[str],
-                           games: Union[List['Game'], 'Game']) -> Mapping[str, PriceOverview]:
-        """|coro|
-        Fetches the price(s) and volume of each item in the list.
-
-        Parameters
-        ----------
-        item_names: List[:class:`str`]
-            A list of the items to get the prices for.
-        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
-            A list of :class:`~steam.Game`s or :class:`~steam.Game` the items are from.
-
-        Returns
-        -------
-        Mapping[:class:`str`, :class:`PriceOverview`]
-            A mapping of the prices of item names to price overviews.
-        """
-        items = convert_items(item_names, games)
-        return await self._market.get_prices(items)
-
     # misc
 
     async def change_presence(self, *, game: 'Game' = None, games: List['Game'] = None,
-                              state: 'EPersonaState' = None, ui_mode: 'EUIMode' = None) -> None:
+                              state: 'EPersonaState' = None, ui_mode: 'EUIMode' = None,
+                              force_kick: bool = False) -> None:
         """|coro|
         Set your status.
 
@@ -769,15 +721,18 @@ class Client:
 
             .. note::
                 Setting your status to :attr:`~steam.EPersonaState.Offline`,
-                will stop you receiving persona state updates, so :meth:`on_user_update`
-                will stop dispatching.
+                will stop you receiving persona state updates and by extension
+                :meth:`on_user_update` will stop being dispatched.
 
         ui_mode: :class:`~steam.EUIMode`
             The UI mode to set your status to.
+        force_kick: :class:`bool`
+            Whether or not to forcefully kick any other playing sessions.
         """
         games = [game.to_dict() for game in games] if games is not None else []
-        games.append(game.to_dict()) if game is not None else ''
-        await self.ws.change_presence(games=games, state=state, ui_mode=ui_mode)
+        if game is not None:
+            games.append(game.to_dict())
+        await self.ws.change_presence(games=games, state=state, ui_mode=ui_mode, force_kick=force_kick)
 
     async def wait_until_ready(self) -> None:
         """|coro|
