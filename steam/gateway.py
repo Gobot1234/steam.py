@@ -42,7 +42,15 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, Callable, List, NamedTuple, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Union,
+)
 
 import aiohttp
 
@@ -93,7 +101,7 @@ class CMServerList(AsyncIterator):
 
     def __init__(self, state: 'ConnectionState', first_cm_to_try: str):
         super().__init__(state, None, None, None)
-        self.dict = dict()
+        self.dict: Dict[str, int] = dict()
         self.last_updated = 0
         self.cell_id = 0
         if first_cm_to_try is not None:
@@ -103,7 +111,7 @@ class CMServerList(AsyncIterator):
         return len(self.dict)
 
     async def fill(self) -> None:
-        if not await self.fetch_servers_from_api():  # TODO bootstrap from internal list?
+        if not await self.fetch_servers_from_api():
             raise NoCMsFound('No Community Managers could be found to connect to')
 
         good_servers = [k for (k, v) in self.dict.items() if v == self.GOOD]
@@ -159,18 +167,18 @@ class CMServerList(AsyncIterator):
         self.dict[server] = self.BAD
 
     def merge_list(self, hosts: List[str]) -> None:
-        total = len(self.dict)
+        total = len(self)
         for host in hosts:
             if host not in self.dict:
                 self.mark_good(host)
-        if len(self.dict) > total:
-            log.debug(f'Added {len(self.dict) - total} new CM server addresses.')
+        if len(self) > total:
+            log.debug(f'Added {len(self) - total} new CM server addresses.')
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool
     def __init__(self, *args, **kwargs):
-        self.ws = kwargs.pop('ws')
-        self.interval = kwargs.pop('interval')
+        self.ws: 'SteamWebSocket' = kwargs.pop('ws')
+        self.interval: int = kwargs.pop('interval')
         super().__init__(*args, **kwargs)
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
@@ -245,12 +253,12 @@ class SteamWebSocket:
         self.cm_list: Optional[CMServerList] = None
         self._keep_alive: Optional[KeepAliveHandler] = None
         self._dispatch = lambda *args: None
-        self.cm = None
+        self.cm: Optional[str] = None
         self.cell_id = 0
         self.thread_id = threading.get_ident()
 
-        self.listeners = []
-        self._parsers = dict()
+        self.listeners: List[EventListener] = []
+        self._parsers: Dict[EMsg, Callable[['ConnectionState', 'MsgProto'], None]] = dict()
 
         self.connected = False
         self.session_id = 0
