@@ -151,10 +151,6 @@ Enumerations
     :members:
     :undoc-members:
 
-.. autoclass:: ECurrencyCode
-    :members:
-    :undoc-members:
-
 .. autoclass:: ETradeOfferState
     :members:
     :undoc-members:
@@ -272,12 +268,6 @@ Invite
     :members:
     :inherited-members:
 
-Market
-~~~~~~~~~~~~~~~
-
-.. autoclass:: PriceOverview()
-    :members:
-
 Message
 ~~~~~~~~~~~~~~~
 
@@ -286,11 +276,11 @@ Message
 
 .. autoclass:: UserMessage()
     :members:
+    :inherited-members:
 
 .. autoclass:: GroupMessage()
     :members:
-
-Sending `GroupMessage` does not support replying yet.
+    :inherited-members:
 
 Trading
 ~~~~~~~~~~~~~~~
