@@ -117,6 +117,14 @@ class ConnectionState:
     parsers: Dict[EMsg, Callable[['ConnectionState', 'MsgProto'], None]] = dict()
     # we need this outside __init__ for @register
 
+    __slots__ = ('loop', 'http', 'request', 'client', 'dispatch',
+                 '_obj', '_previous_iteration', 'handled_friends',
+                 'handled_groups', 'user_slots', '_users', '_trades',
+                 '_groups', '_clans', '_confirmations', 'invites',
+                 '_trades_task', '_trades_to_watch',
+                 '_trades_received_cache', '_trades_sent_cache',
+                 '_descriptions_cache', '_id64', '_device_id')
+
     def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
         self.loop = loop
         self.http = http
@@ -135,7 +143,7 @@ class ConnectionState:
         self._groups: Dict[int, Group] = dict()
         self._clans: Dict[int, Clan] = dict()
         self._confirmations: Dict[int, Confirmation] = dict()
-        self.invites: List[Union[UserInvite, ClanInvite]] = []
+        self.invites: List[Union[User, Clan]] = []
 
         self._trades_task = None
         self._trades_to_watch = []
@@ -466,7 +474,7 @@ class ConnectionState:
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyIncomingChatMessage#1':
             msg.body: 'GroupMessageNotification'
-            destination = self._combined.get(int(msg.body.header_state.chat_group_id))
+            destination = self._combined.get(int(msg.body.chat_group_id))
             if destination is None:
                 return
             if isinstance(destination, Clan):
@@ -599,8 +607,8 @@ class ConnectionState:
                 if steam_id.type == EType.Individual:
                     invitee = await self.fetch_user(steam_id.id64) or steam_id
                     invite = UserInvite(self, invitee)
-                    self.dispatch('user_invite', invite)
                     self.invites.append(invitee)
+                    self.dispatch('user_invite', invite)
                 if steam_id.type == EType.Clan:
                     resp = await self.request('GET', f'{URL.COMMUNITY}/my/groups/pending?ajax=1')
                     soup = BeautifulSoup(resp, 'html.parser')
