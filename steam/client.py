@@ -139,8 +139,6 @@ class Client:
         The :class:`asyncio.AbstractEventLoop` used for asynchronous operations.
         Defaults to ``None``, in which case the default event loop is used via
         :func:`asyncio.get_event_loop()`.
-    currency: Optional[Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]]
-        The currency used for market interactions. Defaults to :class:`~steam.ECurrencyCode.USD`.
 
     Attributes
     -----------
@@ -166,7 +164,6 @@ class Client:
         self.shared_secret = None
         self.token = None
 
-        self._user = None
         self._closed = True
         self._cm_list = None
         self._listeners = {}
