@@ -75,14 +75,26 @@ class Cog:
 
             MyBrokenCog(commands.Cog, command_attrs=dict(enabled=False)):
                 pass
+
+    help: Optional[:class:`str`]
+        The cleaned up docstring for the class
     """
 
     __commands__: Dict[str, Command] = dict()
     __listeners__: Dict[str, List['EventType']] = dict()
 
     def __init_subclass__(cls, *args, **kwargs):
-        cls.qualified_name = kwargs.get('name', cls.__name__)
+        cls.qualified_name = kwargs.get('name') or cls.__name__
         cls.command_attrs = kwargs.get('command_attrs', dict())
+        help_doc = cls.__doc__
+        if help_doc is not None:
+            help_doc = inspect.cleandoc(help_doc)
+        else:
+            help_doc = inspect.getdoc(cls)
+            if isinstance(help_doc, bytes):
+                help_doc = help_doc.decode('utf-8')
+
+        cls.help = help_doc
         for name, attr in inspect.getmembers(cls):
             if isinstance(attr, Command):
                 cls.__commands__[name] = attr
