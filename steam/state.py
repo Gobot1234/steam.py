@@ -28,6 +28,7 @@ import asyncio
 import logging
 import re
 import weakref
+from copy import copy
 from datetime import datetime
 from time import time
 from typing import (
@@ -145,11 +146,11 @@ class ConnectionState:
         self._confirmations: Dict[int, Confirmation] = dict()
         self.invites: List[Union[User, Clan]] = []
 
-        self._trades_task = None
-        self._trades_to_watch = []
-        self._trades_received_cache = []
-        self._trades_sent_cache = []
-        self._descriptions_cache = []
+        self._trades_task: Optional[asyncio.Task] = None
+        self._trades_to_watch: List[int] = []
+        self._trades_received_cache: List[dict] = []
+        self._trades_sent_cache: List[dict] = []
+        self._descriptions_cache: List[dict] = []
 
     async def __ainit__(self) -> None:
         self._id64 = self.client.user.id64
@@ -183,7 +184,7 @@ class ConnectionState:
     async def fetch_user(self, user_id64: int) -> Optional[User]:
         resp = await self.http.get_user(user_id64)
         players = resp['response']['players']
-        return self._store_user(players[0]) if players else None
+        return User(state=self, data=players[0]) if players else None
 
     async def fetch_users(self, user_id64s: List[int]) -> List[Optional[User]]:
         resp = await self.http.get_users(user_id64s)
@@ -222,7 +223,6 @@ class ConnectionState:
         msg.body: 'FetchGroupResponse'
         clan = Clan(self, int(msg.body.chat_group_summary.clanid))
         await clan.__ainit__(msg.body)
-        self._clans[clan.id] = clan
         return clan
 
     def get_trade(self, id: int) -> Optional[TradeOffer]:
@@ -250,7 +250,7 @@ class ConnectionState:
                 self.dispatch('trade_send', trade)
             else:
                 self.dispatch('trade_receive', trade)
-            self._trades_to_watch.append(trade)
+            self._trades_to_watch.append(trade.id)
         else:
             if data['trade_offer_state'] != trade.state:
                 trade.state = ETradeOfferState(data['trade_offer_state'])
@@ -269,7 +269,7 @@ class ConnectionState:
                     pass
                 else:
                     self.dispatch(f'trade_{event_name}', trade)
-                    self._trades_to_watch.remove(trade)
+                    self._trades_to_watch.remove(trade.id)
         return trade
 
     async def _process_trades(self, trades: List[dict], descriptions: List[dict]) -> List[TradeOffer]:
@@ -309,8 +309,10 @@ class ConnectionState:
         resp = await self.request('GET', f'{URL.COMMUNITY}/my/commentnotifications')
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         if search is None:
-            return None
+            return
         steam_id = await SteamID.from_url(f'{URL.COMMUNITY}{_URL(search.group(1)).path}', self.http._session)
+        if steam_id is None:
+            return
         if steam_id.type == EType.Clan:
             obj = await self.client.fetch_clan(steam_id.id64)
         else:
@@ -556,7 +558,8 @@ class ConnectionState:
             if not data:
                 continue
             user_id64 = int(friend.friendid)
-            before = after = self.get_user(user_id64)
+            after = self.get_user(user_id64)
+            before = copy(after)
             if after is None:  # they're private
                 continue
 
@@ -568,11 +571,10 @@ class ConnectionState:
                 invite = UserInvite(self, invitee)
                 self.dispatch('user_invite', invite)
 
-            old = [getattr(before, attr) for attr in self.user_slots]
             after._update(data)
+            old = [getattr(before, attr) for attr in self.user_slots]
             new = [getattr(after, attr) for attr in self.user_slots]
             if old != new:
-                self._users[after.id64] = after
                 self.dispatch('user_update', before, after)
 
     def patch_user_from_ws(self, data: dict, friend: 'CMsgClientPersonaStateFriend') -> dict:
@@ -598,6 +600,11 @@ class ConnectionState:
                 if friend.efriendrelationship == EFriendRelationship.Friend and
                    (int(friend.ulfriendid) >> 52) & 0xF != EType.Clan
             ])
+            for friend in self.client.user.friends:
+                try:
+                    self._users[friend.id64] = friend
+                except AttributeError:
+                    pass
             self.handled_friends.set()
 
         for user in msg.body.friends:
@@ -669,3 +676,10 @@ class ConnectionState:
                     self._trades_task = self.loop.create_task(poll_trades())  # watch trades for changes
         if msg.body:
             await self.http.clear_notifications()
+
+    @register(EMsg.ClientAccountInfo)
+    def parse_account_info(self, msg: MsgProto):
+        if msg.body.persona_name != self.client.user.name:
+            before = copy(self.client.user)
+            self.client.user.name = msg.body.persona_name
+            self.dispatch('user_update', before, self.client.user)
