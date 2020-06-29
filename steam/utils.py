@@ -350,8 +350,8 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     Optional[:class:`str`]
         The found token or ``None`` if the URL doesn't match the regex.
     """
-    search = re.search(r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d{7,}"
-                       r"(?:&|&amp;)token=(?P<token>[\w-]{7,})", url)
+    search = re.search(r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+"
+                       r"&token=(?P<token>[\w-]{7,})", replace_steam_code(url))
     if search:
         return search.group('token')
     return None
@@ -439,3 +439,15 @@ async def maybe_coroutine(func: Callable[..., Union[Any, Awaitable]], *args, **k
     if isawaitable(value):
         return await value
     return value
+
+
+def replace_steam_code(s: str) -> str:
+    steam_code = [  # TODO try and find a list for these?
+        ('&quot;', '"'),
+        ('&gt;', '>'),
+        ('&lt;', '<'),
+        ('&amp;', '&'),
+    ]
+    for code in steam_code:
+        s = s.replace(*code)
+    return s
