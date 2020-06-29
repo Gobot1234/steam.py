@@ -455,30 +455,22 @@ class Client:
         await self.connect()
 
     async def _connect(self) -> None:
-        if self.ws is not None:
-            try:
-                await self.ws.close()
-            except Exception:
-                traceback.print_exc()
         resp = await self.http.request('GET', url=f'{URL.COMMUNITY}/chat/clientjstoken')
         self.token = resp['token']
         coro = SteamWebSocket.from_client(self, cms=self._cm_list)
         self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
         while 1:
-            try:
-                await self.ws.poll_event()
-            except AttributeError:
-                self.dispatch('disconnect')
-                await self._connect()
+            await self.ws.poll_event()
 
     async def connect(self) -> None:
         """|coro|
         Initialize a connection to a Steam CM.
         """
-        while not self._closed:
+        while not self.is_closed():
             try:
                 await self._connect()
             except (OSError,
+                    AttributeError,
                     aiohttp.ClientError,
                     asyncio.TimeoutError,
                     errors.HTTPException):
@@ -487,8 +479,10 @@ class Client:
                 self._cm_list = exc.cm_list
                 self.dispatch('disconnect')
             finally:
-                if self._closed:
-                    return
+                if self.ws is not None:
+                    await self.ws.close()  # ensure previous connections are fully closed
+                if self.is_closed():
+                    break
 
                 log.exception(f'Attempting to reconnect to {self.ws.cm}')
                 await asyncio.sleep(5)
