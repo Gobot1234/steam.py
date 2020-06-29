@@ -131,7 +131,7 @@ class Command:
         return func
 
     async def _parse_arguments(self, ctx: 'Context') -> None:
-        args = ctx.args = [ctx] if self.cog is None else [self.cog, ctx]
+        args = ctx.args = (ctx,) if self.cog is None else (self.cog, ctx)
         kwargs = ctx.kwargs = {}
 
         shlex = ctx.shlex
@@ -153,16 +153,17 @@ class Command:
         for name, param in iterator:
             if param.kind == param.POSITIONAL_OR_KEYWORD:
                 transformed = await self.transform(param, ctx.shlex.get_token()) or param.default
-                args.append(transformed)
+                args = args + (transformed,)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
                 kwargs[name] = await self.transform(param, ' '.join(ctx.shlex)) or param.default
                 break
             elif param.kind == param.VAR_POSITIONAL:
+                # same as *args
                 while not shlex.eof:
                     try:
                         transformed = await self.transform(param, ctx.shlex.get_token()) or param.default
-                        args.append(transformed)
+                        args = args + (transformed,)
                     except RuntimeError:
                         break
 
