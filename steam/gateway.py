@@ -424,6 +424,8 @@ class SteamWebSocket:
             # setting your status to offline will stop you receiving persona updates, don't ask why.
             await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
         else:
+            if msg.body.eresult == EResult.InvalidPassword:
+                await asyncio.sleep(60)
             raise ConnectionClosed(self.cm, self.cm_list)
 
     async def handle_multi(self, msg: MsgProto) -> None:
