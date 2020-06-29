@@ -403,7 +403,7 @@ class Client:
         """
         if self._closed:
             return
-        if getattr(self, 'ws') is not None:
+        if self.ws is not None:
             await self.ws.close()
         await self.http.logout()
         await self._session.close()

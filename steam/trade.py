@@ -78,14 +78,13 @@ class Asset:
     def __init__(self, data: dict):
         self.asset_id = int(data['assetid'])
         self.game = Game(app_id=data['appid'])
-        self.app_id = int(data['appid'])
+        self.app_id = self.game.app_id
         self.amount = int(data['amount'])
         self.instance_id = int(data['instanceid'])
         self.class_id = int(data['classid'])
 
     def __repr__(self):
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__
-                    if attr[0] != '_']
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
         return f"<Asset {' '.join(resolved)}>"
 
     def __eq__(self, other):
@@ -142,7 +141,7 @@ class Item(Asset):
         self._from_data(data)
 
     def __repr__(self):
-        attrs = ('name',) + Asset.__slots__
+        attrs = ('name',) + super().__slots__
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Item {' '.join(resolved)}>"
 
@@ -188,8 +187,8 @@ class Inventory:
 
     Attributes
     -------------
-    items: List[:class:`Item`]
-        A list of the inventories owner's items.
+    items: List[Union[:class:`Item`, :class:`Asset`]
+        A list of the inventory's items.
     owner: :class:`~steam.User`
         The owner of the inventory.
     game: :class:`steam.Game`
@@ -219,10 +218,9 @@ class Inventory:
 
     def __contains__(self, item):
         if isinstance(item, Asset):
-            item = [i for i in self
-                    if i.instance_id == item.instance_id
-                    and i.class_id == item.class_id]
-            return True if item else False
+            return bool([i for i in self if
+                         i.instance_id == item.instance_id
+                         and i.class_id == item.class_id])
         return False
 
     def _update(self, data) -> None:
