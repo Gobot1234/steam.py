@@ -588,7 +588,7 @@ class HTTPClient:
     def clear_notifications(self) -> Awaitable:
         return self.request('GET', CRoute('/my/inventory'))
 
-    async def edit_profile(self, nick: str, real_name: str,
+    async def edit_profile(self, name: str, real_name: str,
                            url: str, summary: str, country: str,
                            state: str, city: str,
                            avatar: 'Image') -> None:
@@ -612,7 +612,7 @@ class HTTPClient:
             "weblink_2_url": '',
             "weblink_3_title": '',
             "weblink_3_url": '',
-            "personaName": nick or profile['strPersonaName'],
+            "personaName": name or profile['strPersonaName'],
             "real_name": real_name or profile['strRealName'],
             "customURL": url or profile['strCustomURL'],
             "country": country or profile['LocationData']['locCountryCode'],

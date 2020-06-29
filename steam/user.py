@@ -291,9 +291,9 @@ class ClientUser(BaseUser):
         await self._state.http.clear_nickname_history()
 
     async def edit(self, *,
-                   nick: str = None, real_name: str = None,
+                   name: str = None, real_name: str = None,
                    url: str = None, summary: str = None,
                    country: str = None, state: str = None,
                    city: str = None, avatar: 'Image' = None):
-        await self._state.http.edit_profile(nick, real_name, url, summary,
+        await self._state.http.edit_profile(name, real_name, url, summary,
                                             country, state, city, avatar)
