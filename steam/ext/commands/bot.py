@@ -49,15 +49,17 @@ from typing import (
     Union,
 )
 
+from ... import utils
+from ...client import Client, EventType
+from ...errors import ClientException
 from .cog import Cog, ExtensionType
 from .command import Command, command
 from .context import Context
 from .errors import CheckFailure, CommandNotFound
-from ... import utils
-from ...client import Client, EventType
-from ...errors import ClientException
+from .help import HelpCommand
 
 if TYPE_CHECKING:
+    import steam
     from steam.ext import commands
     from ...message import Message
 
@@ -115,7 +117,9 @@ class Bot(Client):
     __listeners__: Dict[str, List[EventType]] = dict()
     __extensions__: Dict[str, 'ExtensionType'] = dict()
 
-    def __init__(self, *, command_prefix: CommandPrefixType, **options):
+    def __init__(self, *, command_prefix: CommandPrefixType,
+                 help_command: HelpCommand = HelpCommand,
+                 **options):
         self.command_prefix = command_prefix
         self.owner_id: int = utils.make_steam64(options.get('owner_id', 0))
         owner_ids: Set[int] = options.get('owner_ids', [])
@@ -133,7 +137,11 @@ class Bot(Client):
             self.add_command(attr)
             attr.cog = self
             attr.cog.cog_command_error = self.on_command_error
-        self.add_command(Command(self._help_command, name='help'))
+        if callable(help_command):
+            help_command = help_command()
+
+        self.add_command(help_command)
+        self.help_command = help_command
 
     @property
     def commands(self) -> List[Command]:
@@ -372,7 +380,7 @@ class Bot(Client):
 
         return decorator
 
-    async def on_message(self, message: 'Message'):
+    async def on_message(self, message: 'steam.Message'):
         """|coro|
         Called when a message is created.
 
@@ -455,6 +463,7 @@ class Bot(Client):
         content = message.content[len(prefix):].strip()
         lex = Shlex(content)
         lex.commenters = ''
+        lex.whitespace = ' '
         lex.whitespace_split = True
         command_name = lex.get_token().strip()  # skip command name
         command = self.__commands__.get(command_name)
@@ -585,23 +594,3 @@ class Bot(Client):
         ctx: :class:`.Context`
             The invocation context.
         """
-
-    async def _help_command(self, ctx: Context, *, command: str = None):
-        """Shows help about the bot, a command, or a category."""
-        # the default implementation for help.
-        # TODO make a help class.
-        if command is None:
-            commands = []
-            for c in self.commands:
-                try:
-                    doc = c.help.splitlines()[0]
-                except (AttributeError, IndexError):
-                    doc = 'None given'
-                commands.append((command.name, doc))
-            await ctx.send('\n'.join(f'{name}: {doc}' for name, doc in commands))
-        else:
-            command_ = self.__commands__.get(command)
-            if command_ is not None:
-                await ctx.send(f'Help with {command_.name}:\n{command_.help or "None given"}')
-            else:
-                await ctx.send(f'The command "{command}" was not found.')

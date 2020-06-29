@@ -15,3 +15,4 @@ from .command import *
 from .context import *
 from .cooldown import *
 from .errors import *
+from .help import *
