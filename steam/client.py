@@ -482,9 +482,9 @@ class Client:
                 if self.ws is not None:
                     await self.ws.close()  # ensure previous connections are fully closed
                 if self.is_closed():
-                    break
+                    return
 
-                log.exception(f'Attempting to reconnect to {self.ws.cm}')
+                log.exception(f'Attempting to reconnect')
                 await asyncio.sleep(5)
 
     # state stuff
