@@ -99,11 +99,12 @@ class WebSocketClosure(Exception):
 class CMServerList(AsyncIterator):
     GOOD = 1
     BAD = 2
+    __slots__ = ('dict', 'cell_id', 'best_cms', '_state')
 
     def __init__(self, state: 'ConnectionState', first_cm_to_try: str):
         super().__init__(state, None, None, None)
         self.dict: Dict[str, Tuple[int, float]] = dict()
-        self.last_updated = 0
+        self.best_cms: List[Tuple[str, float]] = []
         self.cell_id = 0
         if first_cm_to_try is not None:
             self.queue.put_nowait(first_cm_to_try)
@@ -123,8 +124,8 @@ class CMServerList(AsyncIterator):
             return
 
         random.shuffle(good_servers)
-        good_servers = await self.ping_cms(good_servers)
-        for server_address, _ in good_servers:
+        await self.ping_cms(good_servers)
+        for server_address, _ in self.best_cms:
             self.queue.put_nowait(server_address)
 
     def clear(self) -> None:
@@ -161,6 +162,7 @@ class CMServerList(AsyncIterator):
         log.debug('Marking all CM servers as Good.')
         for server in self.dict:
             self.mark_good(server)
+        self.best_cms = []
 
     def mark_good(self, server: str, score: float = 0.0) -> None:
         self.dict[server] = self.GOOD, score
@@ -176,9 +178,9 @@ class CMServerList(AsyncIterator):
         if len(self) > total:
             log.debug(f'Added {len(self) - total} new CM server addresses.')
 
-    async def ping_cms(self, hosts: List[str]):
-        best = []
-        for host in hosts[:10]:  # only ping the first 10 cms
+    async def ping_cms(self, hosts: List[str] = None, to_ping: int = 10) -> None:
+        hosts = list(self.dict.keys()) if hosts is None else hosts
+        for host in hosts[:to_ping]:  # only ping the first 10 cms
             # TODO dynamically make sure we get good ones
             # by checking len and stuff
             start = time.perf_counter()
@@ -192,15 +194,18 @@ class CMServerList(AsyncIterator):
             else:
                 latency = time.perf_counter() - start
                 score = (int(load) * 2) + latency
-                best.append((host, score))
-                best = sorted(best, key=lambda x: x[1])
+                self.best_cms.append((host, score))
+                self.best_cms = sorted(self.best_cms, key=lambda x: x[1])
                 self.mark_good(host, score)
 
         log.debug('Finished pinging CMs')
-        return best
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool
+    __slots__ = ('ws', 'interval', 'heartbeat', 'heartbeat_timeout',
+                 'msg', 'block_msg', 'behind_msg', 'latency',
+                 '_stop_ev', '_last_ack', '_last_send', '_main_thread_id')
+
     def __init__(self, *args, **kwargs):
         self.ws: 'SteamWebSocket' = kwargs.pop('ws')
         self.interval: int = kwargs.pop('interval')
