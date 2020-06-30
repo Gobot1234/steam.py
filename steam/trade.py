@@ -84,7 +84,10 @@ class Asset:
         self.class_id = int(data['classid'])
 
     def __repr__(self):
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
+        attrs = (
+            'game', 'amount', 'class_id', 'asset_id', 'instance_id',
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Asset {' '.join(resolved)}>"
 
     def __eq__(self, other):
@@ -141,8 +144,10 @@ class Item(Asset):
         self._from_data(data)
 
     def __repr__(self):
-        attrs = ('name',) + super().__slots__
+        asset_repr = super().__repr__()[7:-1]
+        attrs = ('name',)
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        resolved.append(asset_repr)
         return f"<Item {' '.join(resolved)}>"
 
     def _from_data(self, data) -> None:
