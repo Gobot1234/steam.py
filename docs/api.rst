@@ -43,9 +43,10 @@ overriding the specific events. For example: ::
 
 
     class MyClient(steam.Client):
-        async def on_trade_receive(self, trade: steam.TradeOffer):
+        async def on_trade_receive(self, trade):
+            await trade.partner.send('Thank you for your trade')
             print(f'Received trade: #{trade.id}')
-            print('Trade partner is:', trade.partner.name)
+            print('Trade partner is:', trade.partner)
             print('We would send:', len(trade.items_to_send), 'items')
             print('We would receive:', len(trade.items_to_receive), 'items')
 
@@ -150,15 +151,15 @@ Enumerations
     :members:
     :undoc-members:
 
-.. autoclass:: ECurrencyCode
-    :members:
-    :undoc-members:
-
 .. autoclass:: ETradeOfferState
     :members:
     :undoc-members:
 
 .. autoclass:: EPersonaStateFlag
+    :members:
+    :undoc-members:
+
+.. autoclass:: EUIMode
     :members:
     :undoc-members:
 
@@ -267,12 +268,6 @@ Invite
     :members:
     :inherited-members:
 
-Market
-~~~~~~~~~~~~~~~
-
-.. autoclass:: PriceOverview()
-    :members:
-
 Message
 ~~~~~~~~~~~~~~~
 
@@ -281,11 +276,11 @@ Message
 
 .. autoclass:: UserMessage()
     :members:
+    :inherited-members:
 
 .. autoclass:: GroupMessage()
     :members:
-
-Sending `GroupMessage` does not support replying yet.
+    :inherited-members:
 
 Trading
 ~~~~~~~~~~~~~~~
@@ -376,8 +371,6 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: ClientException
 
-.. autoexception:: HTTPException
-
 .. autoexception:: LoginError
 
 .. autoexception:: InvalidCredentials
@@ -388,9 +381,18 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: ConfirmationError
 
+.. autoexception:: HTTPException
+
 .. autoexception:: Forbidden
 
 .. autoexception:: NotFound
+
+.. autoexception:: WSException
+
+.. autoexception:: WSForbidden
+
+.. autoexception:: WSNotFound
+
 
 
 Exception Hierarchy
@@ -409,3 +411,6 @@ Exception Hierarchy
             - :exc:`HTTPException`
                 - :exc:`Forbidden`
                 - :exc:`NotFound`
+            - :exc:`WSException`
+                - :exc:`WSForbidden`
+                - :exc:`WSNotFound`

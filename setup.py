@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import re
 
 from setuptools import setup
@@ -8,7 +10,6 @@ with open('requirements.txt') as f:
 
 with open('steam/__init__.py') as f:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', f.read(), re.MULTILINE).group(1)
-    f.close()
 
 if version is None:
     raise RuntimeError('Version is not set')
@@ -31,7 +32,6 @@ if version.endswith(('a', 'b')) or 'rc' in version:
 
 with open('README.md') as f:
     readme = f.read()
-    f.close()
 
 extras_require = {
     'docs': [
@@ -53,7 +53,7 @@ setup(
     packages=[
         'steam',
         'steam.protobufs',
-        'steam.ext'
+        'steam.ext.commands',
     ],
     license='MIT',
     description='A Python wrapper for the Steam API',

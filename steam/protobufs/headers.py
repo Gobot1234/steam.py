@@ -45,6 +45,20 @@ __all__ = (
 
 
 class MsgHdr:
+    """The standard message header.
+
+    .. container:: operations
+
+        .. describe:: bytes(x)
+
+            Returns the sterilised header.
+
+    Attributes
+    ----------
+    msg: :class:`EMsg`
+    target_job_id: :class:`int`
+    source_job_id: :class:`int`
+    """
     __slots__ = ('msg', 'target_job_id', 'source_job_id')
     SIZE = 20
 
@@ -62,14 +76,39 @@ class MsgHdr:
     def __bytes__(self):
         return struct.pack("<Iqq", self.msg, self.target_job_id, self.source_job_id)
 
-    def parse(self, data):
+    def parse(self, data: bytes):
+        """Parse the header.
+
+        Parameters
+        ----------
+        data: :class:`bytes`
+        """
         msg, self.target_job_id, self.source_job_id = struct.unpack_from("<Iqq", data)
         self.msg = EMsg(msg)
 
 
 class ExtendedMsgHdr:
+    """The extended standard message header.
+
+    .. container:: operations
+
+        .. describe:: bytes(x)
+
+            Returns the sterilised header.
+
+    Attributes
+    ----------
+    msg: :class:`EMsg`
+    target_job_id: :class:`int`
+    source_job_id: :class:`int`
+    steam_id: :class:`str`
+    session_id: :class:`int`
+    header_size: :class:`int`
+    header_version: :class:`int`
+    header_canary: :class:`int`
+    """
     __slots__ = ('msg', 'steam_id', 'session_id',
-                 'header_size', 'header_size', 'header_version', 'header_canary',
+                 'header_size', 'header_version', 'header_canary',
                  'target_job_id', 'source_job_id')
     SIZE = 36
 
@@ -97,6 +136,12 @@ class ExtendedMsgHdr:
                            self.source_job_id, self.header_canary, self.steam_id, self.session_id)
 
     def parse(self, data: bytes):
+        """Parse the header.
+
+        Parameters
+        ----------
+        data: :class:`bytes`
+        """
         (msg, self.header_size, self.header_version, self.target_job_id, self.source_job_id,
          self.header_canary, self.steam_id, self.session_id) = struct.unpack_from("<IBHqqBqi", data)
 
@@ -107,6 +152,20 @@ class ExtendedMsgHdr:
 
 
 class MsgHdrProtoBuf:
+    """The message header for :class:`steam.protobufs.MsgProto` objects.
+
+    .. container:: operations
+
+        .. describe:: bytes(x)
+
+            Returns the sterilised header.
+
+    Attributes
+    ----------
+    msg: :class:`EMsg`
+    proto: :class:`protobufs.steammessages_base.CMsgProtoBufHeader`
+    """
+
     SIZE = 8
     __slots__ = ('proto', 'msg', '_full_size')
 
@@ -131,6 +190,12 @@ class MsgHdrProtoBuf:
         return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
 
     def parse(self, data: bytes) -> None:
+        """Parse the header.
+
+        Parameters
+        ----------
+        data: :class:`bytes`
+        """
         msg, proto_length = struct.unpack_from("<II", data)
 
         self.msg = EMsg(clear_proto_bit(msg))

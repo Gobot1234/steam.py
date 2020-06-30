@@ -26,7 +26,6 @@ SOFTWARE.
 
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from .clan import Clan
     from .state import ConnectionState

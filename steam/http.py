@@ -46,7 +46,7 @@ import rsa
 from bs4 import BeautifulSoup
 from yarl import URL as _URL
 
-from . import __version__, errors
+from . import __version__, errors, utils
 from .models import URL
 from .user import ClientUser
 
@@ -58,13 +58,10 @@ log = logging.getLogger(__name__)
 
 
 async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
-    text = await r.text()
     try:
-        if 'application/json' in r.headers['content-type']:  # thanks steam very cool
-            return json.loads(text)
-    except KeyError:  # this should only really happen if steam is down
-        pass
-    return text
+        return await r.json()
+    except aiohttp.ContentTypeError:  # steam is too inconsistent to do this properly
+        return await r.text()
 
 
 class Route:
@@ -76,8 +73,11 @@ class Route:
 
 
 class APIRoute(Route):
+    BASE = URL.API
+
     def __init__(self, path):
-        self.url = _URL(f'{URL.API}{path}{"/v1" if not path.endswith("v2") else ""}')
+        path = f'{path}{"/v1" if not path.endswith("v2") else ""}'
+        super().__init__(path)
 
 
 class CRoute(Route):
@@ -106,7 +106,7 @@ class HTTPClient:
         self._one_time_code = None
 
         self.session_id = None
-        self.user = None
+        self.user: Optional[ClientUser] = None
         self.logged_in = False
         self._steam_id = None
         self.user_agent = f'steam.py/{__version__} client (https://github.com/Gobot1234/steam.py), ' \
@@ -126,7 +126,7 @@ class HTTPClient:
         async with self._lock:
             for tries in range(5):
                 async with self._session.request(method, str(url), **kwargs) as r:
-                    payload = kwargs.get('json')
+                    payload = kwargs.get('data')
                     log.debug(self.REQUEST_LOG.format(
                         method=method,
                         url=url,
@@ -216,6 +216,7 @@ class HTTPClient:
         resp = await self.get_user(id64)
         data = resp['response']['players'][0]
         self.user = ClientUser(state=self._client._connection, data=data)
+        self._client._connection._users[self.user.id64] = self.user
         self._client.dispatch('login')
 
     async def logout(self) -> None:
@@ -531,7 +532,7 @@ class HTTPClient:
             "sessionID": self.session_id,
             "action": 'join',
         }
-        return self.request('POST',  CRoute(f'/gid/{clan_id}'), data=payload)
+        return self.request('POST', CRoute(f'/gid/{clan_id}'), data=payload)
 
     def leave_clan(self, clan_id: int) -> Awaitable:
         payload = {
@@ -587,38 +588,50 @@ class HTTPClient:
     def clear_notifications(self) -> Awaitable:
         return self.request('GET', CRoute('/my/inventory'))
 
-    async def edit_profile(self, nick: str, real_name: str,
-                           summary: str, clan_id: int, avatar: 'Image') -> None:
-        resp = await self.request('GET', url=f'{self.user.community_url}/edit')
+    async def edit_profile(self, name: str, real_name: str,
+                           url: str, summary: str, country: str,
+                           state: str, city: str,
+                           avatar: 'Image') -> None:
+        resp = await self.request('GET', url=CRoute('/my/edit'))
         soup = BeautifulSoup(resp, 'html.parser')
-        editable = ['personaName', 'real_name', 'customURL', 'primary_group_steamid']
-        current_values = {i['name']: i['value'] for i in soup.find_all('input') if i['name'] in editable}
+        edit_config = str(soup.find('div', attrs={"id": "profile_edit_config"}))
+        value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', utils.replace_steam_code(edit_config), flags=re.S)[0]
+        loadable = value.replace('\r', '\\r').replace('\n', '\\n')
+        profile = json.loads(f'{"{"}{loadable}{"}}"}')
+        for key, value in profile.items():
+            if isinstance(value, dict):
+                continue
+            profile[key] = str(value).replace('\\r', '\r').replace('\\n', '\n')
 
         payload = {
             "sessionID": self.session_id,
             "type": 'profileSave',
-            "personaName": nick or current_values['personaName'],
-            "real_name": real_name or current_values['real_name'],
-            "summary": summary or soup.find('textarea').text,
-            "primary_group_steamid": clan_id or current_values['primary_group_steamid']
+            "weblink_1_title": '',
+            "weblink_1_url": '',
+            "weblink_2_title": '',
+            "weblink_2_url": '',
+            "weblink_3_title": '',
+            "weblink_3_url": '',
+            "personaName": name or profile['strPersonaName'],
+            "real_name": real_name or profile['strRealName'],
+            "customURL": url or profile['strCustomURL'],
+            "country": country or profile['LocationData']['locCountryCode'],
+            "state": state or profile['LocationData']['locStateCode'],
+            "city": city or profile['LocationData']['locCityCode'],
+            "summary": summary or profile['strSummary'],
         }
 
-        await self.request('POST', CRoute('/my/edit'), data=payload)
+        await self.request('POST', url=f'{self.user.community_url}/edit', data=payload)
         if avatar is not None:
-            payload = {
-                "MAX_FILE_SIZE": len(avatar),
-                "type": 'player_avatar_image',
-                "sId": self.user.id64,
-                "sessionid": self.session_id,
-                "doSub": 1,
-                "avatar": {
-                    "value": avatar.read(),
-                    "options": {
-                        "filename": avatar.name,
-                        "contentType": f'image/{avatar.type}'
-                    }
-                }
-            }
+            return  # doesn't work yet
+            payload = aiohttp.FormData()
+            payload.add_field(name='type', value='player_avatar_image')
+            payload.add_field(name="sId", value=str(self.user.id64))
+            payload.add_field(name='sessionid', value=self.session_id)
+            payload.add_field(name="doSub", value="1")
+            payload.add_field(name="json", value="1")
+            payload.add_field(name='avatar', value=avatar.read(),
+                              filename=f'avatar.{avatar.type}', content_type=f'image/{avatar.type}')
             await self.request('POST', CRoute('/actions/FileUploader'), data=payload)
 
     async def send_user_image(self, user_id64: int, image: 'Image') -> None:
@@ -645,6 +658,35 @@ class HTTPClient:
             'timestamp': resp['timestamp'],
             'hmac': resp['hmac'],
             'friend_steamid': user_id64,
+            'spoiler': int(image.spoiler)
+        })
+        await self.request('POST', CRoute('/chat/commitfileupload'), data=payload)
+
+    async def send_group_image(self, chat_id: int, channel_id: int, image: 'Image') -> None:
+        payload = {
+            "sessionid": self.session_id,
+            "l": 'english',
+            "file_size": len(image),
+            "file_name": image.name,
+            "file_sha": image.hash,
+            "file_image_width": image.width,
+            "file_image_height": image.height,
+            "file_type": f'image/{image.type}',
+        }
+        resp = await self.request('POST', CRoute('/chat/beginfileupload'), data=payload)
+
+        result = resp['result']
+        url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        headers = {header['name']: header['value'] for header in result['request_headers']}
+        await self.request('PUT', url=url, headers=headers, data=image.read())
+
+        payload.update({
+            'success': 1,
+            'ugcid': result['ugcid'],
+            'timestamp': resp['timestamp'],
+            'hmac': resp['hmac'],
+            'chat_group_id': channel_id,
+            'chat_id': chat_id,
             'spoiler': int(image.spoiler)
         })
         await self.request('POST', CRoute('/chat/commitfileupload'), data=payload)

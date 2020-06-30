@@ -25,19 +25,23 @@ DEALINGS IN THE SOFTWARE.
 """
 
 import asyncio
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Union
 
 from .abc import BaseChannel
 
 if TYPE_CHECKING:
+    from .clan import Clan
     from .group import Group
     from .image import Image
     from .trade import TradeOffer
     from .state import ConnectionState
     from .user import User
-    from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification \
-        as GroupMessageNotification
-
+    from .protobufs.steammessages_chat import (
+        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
+        CChatRoomState,
+        CUserChatRoomState,
+    )
 
 __all__ = (
     'DMChannel',
@@ -46,9 +50,17 @@ __all__ = (
 
 
 class DMChannel(BaseChannel):
+    """Represents the channel a DM is sent in.
+
+    Attributes
+    ----------
+    participant: :class:`steam.User`
+        The recipient of any messages sent.
+    """
     __slots__ = ('participant', '_state')
 
     def __init__(self, state: 'ConnectionState', participant: 'User'):
+        super().__init__()
         self._state = state
         self.participant = participant
 
@@ -60,10 +72,33 @@ class DMChannel(BaseChannel):
                    image: 'Image' = None) -> None:
         await self.participant.send(content=content, trade=trade, image=image)
 
-    def typing(self):
+    def typing(self) -> 'TypingContextManager':
+        """Send a typing indicator continuously to the channel while
+        in the context manager.
+
+        .. note::
+
+            This only works in DMs.
+
+        Usage: ::
+
+            async with ctx.channel.typing():
+                # do your expensive operations
+
+            with ctx.channel.typing():
+                # do your expensive operations
+
+            # these do the same thing
+        """
         return TypingContextManager(self.participant)
 
-    async def trigger_typing(self):
+    async def trigger_typing(self) -> None:
+        """Send a typing indicator to the channel once.
+
+        .. note::
+
+            This only works in DMs.
+        """
         await self._state.send_user_typing(self.participant)
 
 
@@ -96,18 +131,21 @@ class TypingContextManager:
         self.task.cancel()
 
 
-class GroupChannel(BaseChannel):
-    def __init__(self, state: 'ConnectionState',
-                 group: 'Group',
-                 notification: 'GroupMessageNotification'):
+class _GroupChannel(BaseChannel):
+    __slots__ = ('id', 'joined_at', '_state')
+
+    def __init__(self, state: 'ConnectionState', channel):
+        super().__init__()
         self._state = state
-        self.group = group
-        self.id = int(notification.chat_id)
-        self.name = notification.chat_name or None
+        self.id = int(channel.chat_id)
+        if hasattr(channel, 'time_joined'):
+            self.joined_at = datetime.utcfromtimestamp(channel.time_joined)
+        else:
+            self.joined_at = None
 
     def __repr__(self):
         attrs = (
-            'name', 'id', 'group'
+            'id', 'clan'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<GroupChannel {' '.join(resolved)}>"
@@ -117,3 +155,56 @@ class GroupChannel(BaseChannel):
 
     def _get_image_endpoint(self):
         return (self.id, self.group.id), self._state.http.send_group_image
+
+
+class GroupChannel(_GroupChannel):
+    """Represents a group channel.
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the channel.
+    group: :class:`steam.Group`
+        The group to which messages are sent.
+    joined_at: Optional[:class:`datetime.datetime`]
+        The time the client joined the chat.
+    """
+
+    def __init__(self, state: 'ConnectionState',
+                 group: 'Group',
+                 channel: Union['GroupMessageNotification', 'CChatRoomState']):
+        super().__init__(state, channel)
+        self.group = group
+
+
+class ClanChannel(_GroupChannel):  # they're basically the same thing
+    """Represents a group channel.
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The ID of the channel.
+    clan: :class:`steam.Clan`
+        The clan to which messages are sent.
+    joined_at: Optional[:class:`datetime.datetime`]
+        The time the client joined the chat.
+    """
+
+    def __init__(self, state: 'ConnectionState',
+                 clan: 'Clan',
+                 channel: Union['GroupMessageNotification', 'CUserChatRoomState']):
+        super().__init__(state, channel)
+        self.clan = clan
+
+    def __repr__(self):
+        attrs = (
+            'id', 'clan'
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        return f"<ClanChannel {' '.join(resolved)}>"
+
+    def _get_message_endpoint(self):
+        return (self.id, self.clan.chat_id), self._state.send_group_message
+
+    def _get_image_endpoint(self):
+        return (self.id, self.clan.chat_id), self._state.http.send_group_image

@@ -33,7 +33,6 @@ with extra doc-strings and it's slightly sped up.
 
 import base64
 import hmac
-import logging
 import struct
 from hashlib import sha1
 from time import time
@@ -51,8 +50,6 @@ __all__ = (
     'generate_device_id',
     'Confirmation',
 )
-
-log = logging.getLogger(__name__)
 
 
 def generate_one_time_code(shared_secret: str, timestamp: int = None) -> str:

@@ -4,6 +4,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2015-2020 Rapptz
+Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -39,7 +40,6 @@ from typing import (
     Awaitable,
     Callable,
     List,
-    Mapping,
     Optional,
     Union,
 )
@@ -53,21 +53,17 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .market import (
-    FakeItem,
-    MarketClient,
-    PriceOverview,
-    convert_items,
-)
 from .models import URL
 from .state import ConnectionState
 from .utils import ainput
 
 if TYPE_CHECKING:
     import steam
+    from .comment import Comment
+    from .enums import EPersonaState, EUIMode
     from .game import Game
     from .group import Group
-    from .models import Comment, Invite
+    from .invite import Invite
     from .trade import TradeOffer
     from .user import ClientUser, User
 
@@ -79,7 +75,7 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
-event_type = Callable[..., Awaitable[None]]
+EventType = Callable[..., Awaitable[None]]
 
 
 def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
@@ -116,7 +112,7 @@ def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 
 class ClientEventTask(asyncio.Task):
-    def __init__(self, original_coro: event_type, event_name: str,
+    def __init__(self, original_coro: EventType, event_name: str,
                  coro: Awaitable[None], *, loop: asyncio.AbstractEventLoop):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
@@ -143,8 +139,6 @@ class Client:
         The :class:`asyncio.AbstractEventLoop` used for asynchronous operations.
         Defaults to ``None``, in which case the default event loop is used via
         :func:`asyncio.get_event_loop()`.
-    currency: Optional[Union[:class:`~steam.ECurrencyCode`, :class:`int`, :class:`str`]]
-        The currency used for market interactions. Defaults to :class:`~steam.ECurrencyCode.USD`.
 
     Attributes
     -----------
@@ -158,9 +152,7 @@ class Client:
         self.loop = loop or asyncio.get_event_loop()
         self._session = aiohttp.ClientSession(loop=self.loop)
 
-        currency = options.get('currency', 1)
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
-        self._market = MarketClient(loop=self.loop, session=self._session, client=self, currency=currency)
         self._connection = ConnectionState(loop=self.loop, client=self, http=self.http)
         self.ws: Optional[SteamWebSocket] = None
 
@@ -172,7 +164,6 @@ class Client:
         self.shared_secret = None
         self.token = None
 
-        self._user = None
         self._closed = True
         self._cm_list = None
         self._listeners = {}
@@ -199,6 +190,11 @@ class Client:
         """List[:class:`~steam.Group`]: Returns a list of all the groups the connected client is in."""
         return self._connection.groups
 
+    @property
+    def clans(self) -> List['Clan']:
+        """List[:class:`~steam.Clan`]: Returns a list of all the clans the connected client is in."""
+        return self._connection.clans
+
     async def code(self) -> str:
         """|coro|
 
@@ -222,7 +218,7 @@ class Client:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return float('nan') if self.ws is None else self.ws.latency
 
-    def event(self, coro: event_type) -> event_type:
+    def event(self, coro: EventType) -> EventType:
         """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
@@ -245,7 +241,7 @@ class Client:
         log.debug(f'{coro.__name__} has successfully been registered as an event')
         return coro
 
-    async def _run_event(self, coro: event_type,
+    async def _run_event(self, coro: EventType,
                          event_name: str, *args, **kwargs) -> None:
         try:
             await coro(*args, **kwargs)
@@ -257,7 +253,7 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: event_type,
+    def _schedule_event(self, coro: EventType,
                         event_name: str, *args, **kwargs) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
@@ -348,19 +344,19 @@ class Client:
         def stop_loop_on_completion(_):
             loop.stop()
 
-        task = loop.create_task(runner())
-        task.add_done_callback(stop_loop_on_completion)
+        future = asyncio.ensure_future(runner(), loop=loop)
+        future.add_done_callback(stop_loop_on_completion)
         try:
             loop.run_forever()
         except KeyboardInterrupt:
             log.info('Received signal to terminate the client and event loop.')
         finally:
-            task.remove_done_callback(stop_loop_on_completion)
+            future.remove_done_callback(stop_loop_on_completion)
             log.info('Cleaning up tasks.')
             _cleanup_loop(loop)
 
-        if not task.cancelled():
-            return task.result()
+        if not future.cancelled():
+            return future.result()
 
     async def login(self, username: str, password: str,
                     api_key: str = None, shared_secret: str = None) -> None:
@@ -407,7 +403,7 @@ class Client:
         """
         if self._closed:
             return
-        if getattr(self, 'ws') is not None:
+        if self.ws is not None:
             await self.ws.close()
         await self.http.logout()
         await self._session.close()
@@ -470,22 +466,26 @@ class Client:
         """|coro|
         Initialize a connection to a Steam CM.
         """
-        while not self._closed:
+        while not self.is_closed():
             try:
                 await self._connect()
             except (OSError,
+                    AttributeError,
                     aiohttp.ClientError,
                     asyncio.TimeoutError,
                     errors.HTTPException):
                 self.dispatch('disconnect')
             except ConnectionClosed as exc:
                 self._cm_list = exc.cm_list
+                self.dispatch('disconnect')
             finally:
-                if self._closed:
+                if self.ws is not None:
+                    await self.ws.close()  # ensure previous connections are fully closed
+                if self.is_closed():
                     return
 
-                log.exception(f'Attempting to reconnect to {self.ws.cm}')
-                # TODO add backoff
+                log.exception(f'Attempting to reconnect')
+                await asyncio.sleep(5)
 
     # state stuff
 
@@ -595,9 +595,8 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    async def fetch_clan(self, *args, **kwargs) -> Optional['Clan']:
-        r"""|coro|
-        Fetches a clan from https://steamcommunity.com with a matching ID.
+    def get_clan(self, *args, **kwargs) -> Optional['Clan']:
+        """Get a clan from cache with a matching ID.
 
         Parameters
         ----------
@@ -612,9 +611,26 @@ class Client:
             The clan or ``None`` if the clan was not found.
         """
         steam_id = SteamID(*args, **kwargs)
-        clan = Clan(state=self._connection, id=steam_id.id)
-        await clan.__ainit__()
-        return clan if clan.name else None
+        return self._connection.get_clan(steam_id.id)
+
+    async def fetch_clan(self, *args, **kwargs) -> Optional['Clan']:
+        r"""|coro|
+        Fetches a clan from the websocket with a matching ID.
+
+        Parameters
+        ----------
+        \*args
+            The arguments to pass to :meth:`~steam.utils.make_steam64`.
+        \*\*kwargs
+            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
+
+        Returns
+        -------
+        Optional[:class:`~steam.Clan`]
+            The clan or ``None`` if the clan was not found.
+        """
+        steam_id = SteamID(*args, **kwargs)
+        return await self._connection.fetch_clan(steam_id.id64)
 
     async def fetch_clan_named(self, name: str) -> Optional['Clan']:
         """|coro|
@@ -633,7 +649,7 @@ class Client:
         steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/clans/{name}')
         if not steam_id:
             return None
-        return await self.fetch_clan(id=steam_id.id)
+        return await self._connection.fetch_clan(steam_id.id64)
 
     def trade_history(self, limit: Optional[int] = 100, before: datetime = None,
                       after: datetime = None, active_only: bool = False) -> TradesIterator:
@@ -677,48 +693,37 @@ class Client:
         """
         return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only)
 
-    # market stuff
-
-    async def fetch_price(self, item_name: str, game: 'Game') -> PriceOverview:
-        """|coro|
-        Fetches the price and volume sales of an item.
-
-        Parameters
-        ----------
-        item_name: :class:`str`
-            The name of the item to fetch the price of.
-        game: :class:`~steam.Game`
-            The game the item is from.
-
-        Returns
-        -------
-        :class:`PriceOverview`
-            The item's price overview.
-        """
-        item = FakeItem(item_name, game)
-        return await self._market.get_price(item)
-
-    async def fetch_prices(self, item_names: List[str],
-                           games: Union[List['Game'], 'Game']) -> Mapping[str, PriceOverview]:
-        """|coro|
-        Fetches the price(s) and volume of each item in the list.
-
-        Parameters
-        ----------
-        item_names: List[:class:`str`]
-            A list of the items to get the prices for.
-        games: Union[List[:class:`~steam.Game`], :class:`~steam.Game`]
-            A list of :class:`~steam.Game`s or :class:`~steam.Game` the items are from.
-
-        Returns
-        -------
-        Mapping[:class:`str`, :class:`PriceOverview`]
-            A mapping of the prices of item names to price overviews.
-        """
-        items = convert_items(item_names, games)
-        return await self._market.get_prices(items)
-
     # misc
+
+    async def change_presence(self, *, game: 'Game' = None, games: List['Game'] = None,
+                              state: 'EPersonaState' = None, ui_mode: 'EUIMode' = None,
+                              force_kick: bool = False) -> None:
+        """|coro|
+        Set your status.
+
+        Parameters
+        ----------
+        game: :class:`~steam.Game`
+            A games to set your status as.
+        games: List[:class:`~steam.Game`]
+            A list of games to set your status to.
+        state: :class:`~steam.EPersonaState`
+            The state to show your account as.
+
+            .. note::
+                Setting your status to :attr:`~steam.EPersonaState.Offline`,
+                will stop you receiving persona state updates and by extension
+                :meth:`on_user_update` will stop being dispatched.
+
+        ui_mode: :class:`~steam.EUIMode`
+            The UI mode to set your status to.
+        force_kick: :class:`bool`
+            Whether or not to forcefully kick any other playing sessions.
+        """
+        games = [game.to_dict() for game in games] if games is not None else []
+        if game is not None:
+            games.append(game.to_dict())
+        await self.ws.change_presence(games=games, state=state, ui_mode=ui_mode, force_kick=force_kick)
 
     async def wait_until_ready(self) -> None:
         """|coro|
@@ -848,7 +853,7 @@ class Client:
             The key-word arguments associated with the event.
         """
         print(f'Ignoring exception in {event}', file=sys.stderr)
-        traceback.print_exception(type(error), error, error.__traceback__)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     async def on_message(self, message: 'steam.Message'):
         """|coro|

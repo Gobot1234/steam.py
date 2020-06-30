@@ -27,7 +27,6 @@ SOFTWARE.
 from datetime import datetime
 from typing import TYPE_CHECKING, Union
 
-
 if TYPE_CHECKING:
     from .abc import BaseUser
     from .clan import Clan
@@ -55,7 +54,7 @@ class Comment:
     owner: Union[:class:`~steam.Clan`, :class:`~steam.User`]
         The comment sections owner. If the comment section is for a clan
         it will be a :class:`~steam.Clan` instance otherwise it
-        will be an `~steam.User` instance.
+        will be an :class:`~steam.User` instance.
     """
 
     __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_state')

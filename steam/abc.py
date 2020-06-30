@@ -41,6 +41,8 @@ from typing import (
     Tuple
 )
 
+from aiohttp import ClientSession
+
 from .badge import UserBadges
 from .comment import Comment
 from .enums import (
@@ -56,16 +58,14 @@ from .game import Game
 from .iterators import CommentsIterator
 from .models import URL, Ban
 from .trade import Inventory
-from .utils import (
-    _INVITE_HEX,
-    _INVITE_MAPPING,
-    make_steam64,
-    steam64_from_url,
-)
+from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 
 if TYPE_CHECKING:
+    from aiohttp import ClientSession
+
     from .user import User
     from .clan import Clan
+    from .group import Group
     from .state import ConnectionState
     from .image import Image
 
@@ -92,8 +92,8 @@ class SteamID(metaclass=abc.ABCMeta):
         return f"<SteamID {' '.join(resolved)}>"
 
     def __int__(self):
-        # the reason I moved away from a direct implementation of this
-        # is due to not being able to use __slots__ for an int subclass
+        # I moved away from a direct implementation of this
+        # due to not being able to use __slots__ for an int subclass
         # this is currently the best implementation I can think of
         return self._BASE
 
@@ -154,7 +154,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def id2(self) -> str:
-        """class:`str`: The Steam2 id of the account.
+        """:class:`str`: The Steam2 id of the account.
             e.g ``STEAM_1:0:1234``.
 
         .. note::
@@ -166,7 +166,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def as_steam2(self) -> str:
-        """class:`str`: The Steam2 id of the account.
+        """:class:`str`: The Steam2 id of the account.
             e.g ``STEAM_1:0:1234``.
 
         .. note::
@@ -294,23 +294,27 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(cls, url: str, timeout: float = 30) -> Optional['SteamID']:
+    async def from_url(cls, url: str, session: 'ClientSession' = None,
+                       timeout: float = 30) -> Optional['SteamID']:
         """Takes Steam community url and returns a SteamID instance or ``None``.
         See :func:`steam64_from_url` for details.
 
         Parameters
         ----------
         url: :class:`str`
-            The Steam community url.
-        timeout: :class:`int`
-            How long to wait for the http request before turning ``None``.
+        The Steam community url.
+        session Optional[:class:`aiohttp.ClientSession`]
+            The session to make the request with. If
+            ``None`` is passed a new one is generated
+        timeout: Optional[:class:`float`]
+            How long to wait on http request before turning ``None``.
 
         Returns
         -------
         Optional[:class:`SteamID`]
             `SteamID` instance or ``None``.
         """
-        id64 = await steam64_from_url(url, timeout)
+        id64 = await steam64_from_url(url, session, timeout)
         return cls(id64) if id64 else None
 
 
@@ -650,21 +654,27 @@ class Messageable(metaclass=abc.ABCMeta):
 
         Raises
         ------
-        :exc:~steam.HTTPException
+        :exc:`~steam.HTTPException`
             Sending the message failed.
-        :exc:~steam.Forbidden
+        :exc:`~steam.Forbidden`
             You do not have permission to send the message.
         """
         if content is not None:
-            id64, message_func = self._get_message_endpoint()
-            await message_func(id64, content)
+            destination, message_func = self._get_message_endpoint()
+            await message_func(destination, str(content))
         if image is not None:
-            id64, image_func = self._get_image_endpoint()
-            await image_func(id64, image)
+            destination, image_func = self._get_image_endpoint()
+            await image_func(destination, image)
 
 
 class BaseChannel(Messageable):
-    __slots__ = ()
+    __slots__ = ('_state', 'participant', 'clan', 'group')
+
+    def __init__(self):
+        self._state: 'ConnectionState'
+        self.participant: Optional['BaseUser'] = None
+        self.clan: Optional['Clan'] = None
+        self.group: Optional['Group'] = None
 
     def typing(self):
         pass
@@ -688,11 +698,13 @@ class Message:
     created_at: :class:`datetime.datetime`
         The time the message was sent at.
     """
-    __slots__ = ('author', 'content', 'channel', 'created_at', '_state')
+    __slots__ = ('author', 'content', 'channel', 'created_at', 'group', 'clan', '_state')
 
     def __init__(self, channel: 'BaseChannel'):
-        self._state = channel._state
+        self._state: 'ConnectionState' = channel._state
         self.channel = channel
         self.content: Optional[str] = None
         self.author: Optional[BaseUser] = None
         self.created_at: Optional[datetime] = None
+        self.group = channel.group
+        self.clan = channel.clan

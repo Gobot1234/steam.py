@@ -88,9 +88,11 @@ class Game:
         Whether the game has publicly visible stats.
         Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     """
+    __slots__ = ('app_id', 'title', 'context_id',
+                 'total_play_time', 'icon_url', 'logo_url', 'stats_visible')
 
     def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2):
-        if app_id is not None and title:
+        if app_id is not None and title is None:
             try:
                 self.app_id = int(app_id)
             except ValueError as exc:
@@ -102,17 +104,17 @@ class Game:
                 self.title = mapping[0]
                 self.context_id = mapping[1]
             else:
-                self.title = None
-                self.context_id = 2
+                self.title = title
+                self.context_id = context_id
 
-        elif app_id and title is not None:
+        elif app_id is None and title is not None:
             mapping = MAPPING.get(title)
             if mapping is not None:
                 self.app_id = mapping[0]
                 self.context_id = mapping[1]
             else:
-                self.app_id = None
-                self.context_id = 2
+                self.app_id = app_id
+                self.context_id = context_id
             self.title = title
 
         else:
@@ -120,17 +122,27 @@ class Game:
             mapping = MAPPING.get(app_id)
             if mapping is not None:
                 self.title = mapping[0]
+                self.app_id = app_id
                 self.context_id = mapping[1]
             else:
-                self.title = title or None
-                self.context_id = 2
+                self.title = title
+                self.app_id = app_id
+                self.context_id = context_id
+
             mapping = MAPPING.get(title)
             if mapping is not None:
+                self.title = title
                 self.app_id = mapping[0]
                 self.context_id = mapping[1]
             else:
-                self.app_id = app_id or None
-                self.context_id = 2
+                self.title = title
+                self.app_id = app_id
+                self.context_id = context_id
+
+        self.total_play_time = None
+        self.icon_url = None
+        self.logo_url = None
+        self.stats_visible = None
 
     @classmethod
     def _from_api(cls, data):
@@ -149,7 +161,7 @@ class Game:
         return f"<Game {' '.join(resolved)}>"
 
     def __eq__(self, other):
-        return isinstance(other, Game) and self.app_id == other.app_id
+        return isinstance(other, Game) and (self.app_id == other.app_id or self.title == other.title)
 
     def to_dict(self) -> dict:
         if not self.is_steam_game():
@@ -162,7 +174,7 @@ class Game:
         }
 
     def is_steam_game(self) -> bool:
-        return self.app_id < APP_ID_MAX
+        return self.app_id <= APP_ID_MAX
 
 
 TF2 = Game(title='Team Fortress 2', app_id=440)

@@ -34,7 +34,6 @@ from .game import Game
 
 if TYPE_CHECKING:
     from .abc import BaseUser
-    from .market import PriceOverview
     from .state import ConnectionState
 
 
@@ -79,14 +78,16 @@ class Asset:
     def __init__(self, data: dict):
         self.asset_id = int(data['assetid'])
         self.game = Game(app_id=data['appid'])
-        self.app_id = int(data['appid'])
+        self.app_id = self.game.app_id
         self.amount = int(data['amount'])
         self.instance_id = int(data['instanceid'])
         self.class_id = int(data['classid'])
 
     def __repr__(self):
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__
-                    if attr[0] != '_']
+        attrs = (
+            'game', 'amount', 'class_id', 'asset_id', 'instance_id',
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<Asset {' '.join(resolved)}>"
 
     def __eq__(self, other):
@@ -143,8 +144,10 @@ class Item(Asset):
         self._from_data(data)
 
     def __repr__(self):
-        attrs = ('name',) + Asset.__slots__
+        asset_repr = super().__repr__()[7:-1]
+        attrs = ('name',)
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        resolved.append(asset_repr)
         return f"<Item {' '.join(resolved)}>"
 
     def _from_data(self, data) -> None:
@@ -158,17 +161,6 @@ class Item(Asset):
             if 'icon_url_large' in data else None
         self._is_tradable = bool(data.get('tradable', False))
         self._is_marketable = bool(data.get('marketable', False))
-
-    async def fetch_price(self) -> 'PriceOverview':
-        """|coro|
-        Fetches the price and volume sales of an item.
-
-        Returns
-        -------
-        :class:`PriceOverview`
-            The item's price overview.
-        """
-        return await self._state.client.fetch_price(self.name, self.game)
 
     def is_tradable(self) -> bool:
         """:class:`bool`: Whether the item is tradable."""
@@ -200,8 +192,8 @@ class Inventory:
 
     Attributes
     -------------
-    items: List[:class:`Item`]
-        A list of the inventories owner's items.
+    items: List[Union[:class:`Item`, :class:`Asset`]
+        A list of the inventory's items.
     owner: :class:`~steam.User`
         The owner of the inventory.
     game: :class:`steam.Game`
@@ -231,10 +223,9 @@ class Inventory:
 
     def __contains__(self, item):
         if isinstance(item, Asset):
-            item = [i for i in self
-                    if i.instance_id == item.instance_id
-                    and i.class_id == item.class_id]
-            return True if item else False
+            return bool([i for i in self if
+                         i.instance_id == item.instance_id
+                         and i.class_id == item.class_id])
         return False
 
     def _update(self, data) -> None:
@@ -321,6 +312,10 @@ class TradeOffer:
 
     Parameters
     ----------
+    item_to_send: Optional[Union[:class:`steam.Item`, :class:`steam.Asset`]]
+        The item to send with the trade offer.
+    item_to_receive: Optional[Union[:class:`steam.Item`, :class:`steam.Asset`]]
+        The item to receive with the trade offer.
     items_to_send: Optional[List[Union[:class:`steam.Item`, :class:`steam.Asset`]]]
         The items you are sending to the other user.
     items_to_receive: Optional[List[Union[:class:`steam.Item`, :class:`steam.Asset`]]]
@@ -359,10 +354,16 @@ class TradeOffer:
                  '_has_been_sent', '_state', '_is_our_offer')
 
     def __init__(self, *, message: str = None, token: str = None,
+                 item_to_send: Union[Item, Asset] = None,
+                 item_to_receive: Union[Item, Asset] = None,
                  items_to_send: List[Union[Item, Asset]] = None,
                  items_to_receive: List[Union[Item, Asset]] = None):
         self.items_to_receive = items_to_receive if items_to_receive else []
         self.items_to_send = items_to_send if items_to_send else []
+        if item_to_receive:
+            self.items_to_receive.append(item_to_receive)
+        if item_to_send:
+            self.items_to_send.append(item_to_send)
         self.message = message if message is not None else ''
         self.token = token
         self._has_been_sent = False
