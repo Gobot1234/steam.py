@@ -79,6 +79,10 @@ __all__ = (
 log = logging.getLogger(__name__)
 
 
+def return_true(*_):
+    return True
+
+
 class EventListener(NamedTuple):
     emsg: EMsg
     predicate: Callable[..., bool]
@@ -275,6 +279,11 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
 
 class SteamWebSocket:
+    ___slots___ = ('socket ', 'loop ', '_connection ', 'cm_list ',
+                   '_dispatch ', 'cm ', 'thread_id ', 'listeners ',
+                   'connected ', 'steam_id ', 'handlers ',
+                   '_current_job_id ', '_parsers ')
+
     def __init__(self, socket: aiohttp.ClientWebSocketResponse, *, loop: asyncio.AbstractEventLoop):
         self.socket = socket
         self.loop = loop
@@ -307,8 +316,7 @@ class SteamWebSocket:
 
     def wait_for(self, emsg: EMsg, predicate: Callable[..., bool] = None) -> asyncio.Future:
         future = self.loop.create_future()
-        predicate = lambda msg: True if predicate is None else predicate
-        entry = EventListener(emsg=emsg, predicate=predicate, future=future)
+        entry = EventListener(emsg=emsg, predicate=predicate or return_true, future=future)
         self.listeners.append(entry)
         return future
 
