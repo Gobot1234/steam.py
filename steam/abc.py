@@ -41,8 +41,6 @@ from typing import (
     Tuple
 )
 
-from aiohttp import ClientSession
-
 from .badge import UserBadges
 from .comment import Comment
 from .enums import (
@@ -303,9 +301,9 @@ class SteamID(metaclass=abc.ABCMeta):
         ----------
         url: :class:`str`
         The Steam community url.
-        session Optional[:class:`aiohttp.ClientSession`]
+        session: Optional[:class:`aiohttp.ClientSession`]
             The session to make the request with. If
-            ``None`` is passed a new one is generated
+            ``None`` is passed a new one is generated.
         timeout: Optional[:class:`float`]
             How long to wait on http request before turning ``None``.
 
