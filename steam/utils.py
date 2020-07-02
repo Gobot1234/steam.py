@@ -43,7 +43,7 @@ from typing import (
 
 import aiohttp
 
-from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
+from .enums import EInstanceFlag, EType, ETypeChar, EUniverse, EnumValue
 
 __all__ = (
     'get',
@@ -159,10 +159,10 @@ def make_steam64(id: int = 0, *args, **kwargs) -> int:
     if instance is None:
         instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
 
-    return (universe.value << 56) | (etype.value << 52) | (instance << 32) | id
+    return int(universe) << 56 | int(etype) << 52 | int(instance) << 32 | id
 
 
-def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+def steam2_to_tuple(value: str) -> Optional[Tuple[int, EnumValue, EnumValue, int]]:
     """
     Parameters
     ----------
@@ -196,7 +196,7 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     return steam_32, EType(1), EUniverse(universe), 1
 
 
-def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+def steam3_to_tuple(value: str) -> Optional[Tuple[int, EnumValue, EnumValue, int]]:
     """
     Parameters
     ----------
@@ -242,7 +242,7 @@ def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     return steam_32, etype, universe, instance
 
 
-def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EnumValue, EnumValue, int]]:
     """
     Parameters
     ----------
