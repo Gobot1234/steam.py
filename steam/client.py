@@ -64,10 +64,9 @@ if TYPE_CHECKING:
     from .game import Game
     from .group import Group
     from .invite import Invite
+    from .protobufs import Msg, MsgProto
     from .trade import TradeOffer
     from .user import ClientUser, User
-
-    from .protobufs import Msg, MsgProto
 
 
 __all__ = (
@@ -145,7 +144,8 @@ class Client:
     loop: :class:`asyncio.AbstractEventLoop`
         The event loop that the client uses for HTTP requests.
     ws:
-        The connected websocket, this can be used to directly send messages the connected CM.
+        The connected websocket, this can be used to directly send messages
+        to the connected CM.
     """
 
     def __init__(self, loop: asyncio.AbstractEventLoop = None, **options):
@@ -153,7 +153,7 @@ class Client:
         self._session = aiohttp.ClientSession(loop=self.loop)
 
         self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
-        self._connection = ConnectionState(loop=self.loop, client=self, http=self.http)
+        self._connection = ConnectionState(loop=self.loop, client=self, http=self.http, **options)
         self.ws: Optional[SteamWebSocket] = None
 
         self.username = None
@@ -417,6 +417,7 @@ class Client:
         """
         self._closed = False
         self._ready.clear()
+        self._connection.clear()
         self.http.recreate()
 
     async def start(self, *args, **kwargs) -> None:
@@ -484,7 +485,7 @@ class Client:
                 if self.is_closed():
                     return
 
-                log.exception(f'Attempting to reconnect')
+                log.info(f'Attempting to connect to another CM')
                 await asyncio.sleep(5)
 
     # state stuff
