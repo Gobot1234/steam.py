@@ -36,8 +36,8 @@ from typing import (
     Callable,
     Iterable,
     Optional,
+    T,
     Tuple,
-    TypeVar,
     Union,
 )
 
@@ -52,9 +52,8 @@ __all__ = (
     'parse_trade_url_token',
 )
 
-T = TypeVar('T')  # for get
 PROTOBUF_MASK = 0x80000000
-MAX_ASYNCIO_SECONDS = 3456000
+MAX_ASYNCIO_SECONDS = 60 * 60 * 24 * 40
 _INVITE_HEX = '0123456789abcdef'
 _INVITE_CUSTOM = 'bcdfghjkmnpqrtvw'
 _INVITE_VALID = f'{_INVITE_HEX}{_INVITE_CUSTOM}'
