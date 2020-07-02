@@ -25,9 +25,11 @@ SOFTWARE.
 """
 
 import asyncio
+import gc
 import logging
 import re
 import weakref
+from collections import deque
 from copy import copy
 from datetime import datetime
 from time import time
@@ -56,7 +58,7 @@ from .enums import (
     ETradeOfferState,
     EType
 )
-from .errors import AuthenticatorError, InvalidCredentials, WSNotFound, WSException
+from .errors import AuthenticatorError, InvalidCredentials, WSNotFound, WSException, WSForbidden
 from .group import Group
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
 from .invite import ClanInvite, UserInvite
@@ -122,28 +124,34 @@ class ConnectionState:
                  '_obj', '_previous_iteration', 'handled_friends',
                  'handled_groups', 'user_slots', '_users', '_trades',
                  '_groups', '_clans', '_confirmations', 'invites',
-                 '_trades_task', '_trades_to_watch',
+                 '_trades_task', '_trades_to_watch', 'max_messages',
                  '_trades_received_cache', '_trades_sent_cache',
-                 '_descriptions_cache', '_id64', '_device_id')
+                 '_descriptions_cache', '_id64', '_device_id',
+                 '_messages')
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, client: 'Client', http: 'HTTPClient'):
+    def __init__(self, loop: asyncio.AbstractEventLoop,
+                 client: 'Client',
+                 http: 'HTTPClient',
+                 **kwargs):
         self.loop = loop
         self.http = http
         self.request = http.request
         self.client = client
         self.dispatch = client.dispatch
 
-        self._obj = None
-        self._previous_iteration = 0
         self.handled_friends = asyncio.Event()
-        self.handled_groups = False
         self.user_slots = set(User.__slots__) - {'_state', '_data'}
+        self.max_messages = kwargs.pop('max_messages', 1000)
 
+        self.clear()
+
+    def clear(self) -> None:
         self._users: Mapping[int, User] = weakref.WeakValueDictionary()
         self._trades: Dict[int, TradeOffer] = dict()
         self._groups: Dict[int, Group] = dict()
         self._clans: Dict[int, Clan] = dict()
         self._confirmations: Dict[int, Confirmation] = dict()
+        self._messages = self.max_messages and deque(maxlen=self.max_messages)
         self.invites: List[Union[User, Clan]] = []
 
         self._trades_task: Optional[asyncio.Task] = None
@@ -151,6 +159,13 @@ class ConnectionState:
         self._trades_received_cache: List[dict] = []
         self._trades_sent_cache: List[dict] = []
         self._descriptions_cache: List[dict] = []
+
+        self.handled_friends.clear()
+        self.handled_groups = False
+        self._obj = None
+        self._previous_iteration = 0
+
+        gc.collect()
 
     async def __ainit__(self) -> None:
         self._id64 = self.client.user.id64
@@ -216,7 +231,7 @@ class ConnectionState:
                 EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
             ), timeout=5)
         except asyncio.TimeoutError:
-            return None
+            return
         if msg.header.eresult == EResult.Busy:
             raise WSNotFound(msg)
 
@@ -317,6 +332,8 @@ class ConnectionState:
             obj = await self.client.fetch_clan(steam_id.id64)
         else:
             obj = await self.fetch_user(steam_id.id64)
+        if obj is None:
+            return
 
         if self._obj == obj:
             self._previous_iteration += 1
@@ -376,14 +393,28 @@ class ConnectionState:
 
     @property
     def _combined(self) -> Dict[int, Union['Group', 'Clan']]:
-        return {**{group.id: group for group in self.groups}, **{clan.chat_id: clan for clan in self.clans}}
+        return {
+            **{group.id: group for group in self.groups},
+            **{clan.chat_id: clan for clan in self.clans}
+        }
 
     async def send_user_message(self, user_id64: int, content: str) -> None:
-        await self.client.ws.send_um(
+        job_id = await self.client.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
             steamid=str(user_id64), message=content,
             chat_entry_type=EChatEntryType.ChatMsg,
         )
+        try:
+            msg = await asyncio.wait_for(self.client.ws.wait_for(
+                EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
+            ), timeout=5)
+        except asyncio.TimeoutError:
+            return
+        if msg.header.eresult == EResult.LimitExceeded:
+            raise WSForbidden(msg)
+        if msg.header.eresult != EResult.OK:
+            raise WSException(msg)
+
         proto = UserMessageNotification(
             steamid_friend=0.0, chat_entry_type=1,
             message=content, rtime32_server_timestamp=time()
@@ -391,6 +422,7 @@ class ConnectionState:
         channel = DMChannel(state=self, participant=self.get_user(user_id64))
         message = UserMessage(proto=proto, channel=channel)
         message.author = self.client.user
+        self._messages.append(message)
         self.dispatch('message', message)
 
     async def send_user_typing(self, user: 'User') -> None:
@@ -403,11 +435,24 @@ class ConnectionState:
 
     async def send_group_message(self, destination: Tuple[int, int], content: str) -> None:
         chat_id, group_id = destination
-        await self.client.ws.send_um(
+        job_id = await self.client.ws.send_um(
             "ChatRoom.SendChatMessage#1_Request",
             chat_id=chat_id, chat_group_id=group_id,
             message=content,
         )
+        try:
+            msg = await asyncio.wait_for(self.client.ws.wait_for(
+                EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
+            ), timeout=5)
+        except asyncio.TimeoutError:
+            return
+        if msg.header.eresult == EResult.LimitExceeded:
+            raise WSForbidden(msg)
+        if msg.header.eresult == EResult.InvalidParameter:
+            raise WSNotFound(msg)
+        if msg.header.eresult != EResult.OK:
+            raise WSException(msg)
+
         proto = GroupMessageNotification(
             chat_id=chat_id, chat_group_id=group_id,
             steamid_sender=0.0, message=content,
@@ -422,6 +467,7 @@ class ConnectionState:
         else:
             channel = GroupChannel(state=self, channel=proto, group=endpoint)
             message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
+        self._messages.append(message)
         self.dispatch('message', message)
 
     async def join_chat(self, chat_id: int, invite_code: str = None) -> None:
@@ -434,7 +480,7 @@ class ConnectionState:
                 EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
             ), timeout=5)
         except asyncio.TimeoutError:
-            raise WSNotFound
+            return
         if msg.header.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.header.eresult != EResult.OK:
@@ -450,7 +496,7 @@ class ConnectionState:
                 EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
             ), timeout=5)
         except asyncio.TimeoutError:
-            raise WSNotFound
+            return
         if msg.header.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.header.eresult != EResult.OK:
@@ -468,6 +514,7 @@ class ConnectionState:
             if msg.body.chat_entry_type == EChatEntryType.ChatMsg:
                 channel = DMChannel(state=self, participant=author)
                 message = UserMessage(proto=msg.body, channel=channel)
+                self._messages.append(message)
                 self.dispatch('message', message)
 
             if msg.body.chat_entry_type == EChatEntryType.Typing:
@@ -489,6 +536,7 @@ class ConnectionState:
                 user_id64 = int(msg.body.steamid_sender)
                 author = self.get_user(user_id64) or await self.fetch_user(user_id64)
                 message = GroupMessage(proto=msg.body, channel=channel, author=author)
+            self._messages.append(message)
             self.dispatch('message', message)
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyChatRoomHeaderStateChange#1':  # group update
