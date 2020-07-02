@@ -358,6 +358,8 @@ class SteamWebSocket:
                 raise WebSocketClosure
 
             message = message.data
+            if not message:  # it can sometimes be None/empty
+                return
             await self.receive(message)
         except WebSocketClosure:
             await self.handle_close()
