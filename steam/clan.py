@@ -220,7 +220,15 @@ class Clan(SteamID):
         else:
             return
         for channel in channels:
-            self.channels.append(ClanChannel(state=self._state, clan=self, channel=channel))
+            channel = ClanChannel(state=self._state, clan=self, channel=channel)
+            if channel not in self.channels:
+                self.channels.append(channel)
+            else:  # update the old instance
+                idx = self.channels.index(channel)
+                old_channel = self.channels[idx]
+                for key, value in channel.__dict__.items():
+                    if value:
+                        old_channel.__dict__[key] = value
         self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
 
     def __repr__(self):
@@ -234,7 +242,7 @@ class Clan(SteamID):
         return self.name
 
     def __len__(self):
-        return self.count
+        return self.member_count
 
     async def fetch_members(self) -> List['SteamID']:
         """|coro|

@@ -54,7 +54,7 @@ class DMChannel(BaseChannel):
 
     Attributes
     ----------
-    participant: :class:`steam.User`
+    participant: :class:`~steam.User`
         The recipient of any messages sent.
     """
     __slots__ = ('participant', '_state')
@@ -132,12 +132,18 @@ class TypingContextManager:
 
 
 class _GroupChannel(BaseChannel):
-    __slots__ = ('id', 'joined_at', '_state')
+    __slots__ = ('id', 'joined_at', 'name', '_state')
 
     def __init__(self, state: 'ConnectionState', channel):
         super().__init__()
         self._state = state
         self.id = int(channel.chat_id)
+        name = getattr(channel, 'chat_name', '')
+        if name:
+            split = name.split(' | ', 1)
+            self.name = split[1] if len(split) != 1 else split[0]
+        else:
+            self.name = None
         if hasattr(channel, 'time_joined'):
             self.joined_at = datetime.utcfromtimestamp(channel.time_joined)
         else:
@@ -164,7 +170,10 @@ class GroupChannel(_GroupChannel):
     ----------
     id: :class:`int`
         The ID of the channel.
-    group: :class:`steam.Group`
+    name: Optional[:class:`str`]
+        The name of the channel, this could be the same
+        as the :attr:`~steam.Group.name` if it's the main channel.
+    group: :class:`~steam.Group`
         The group to which messages are sent.
     joined_at: Optional[:class:`datetime.datetime`]
         The time the client joined the chat.
@@ -184,7 +193,10 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
     ----------
     id: :class:`int`
         The ID of the channel.
-    clan: :class:`steam.Clan`
+    name: Optional[:class:`str`]
+        The name of the channel, this could be the same
+        as the :attr:`~steam.Clan.name` if it's the main channel.
+    clan: :class:`~steam.Clan`
         The clan to which messages are sent.
     joined_at: Optional[:class:`datetime.datetime`]
         The time the client joined the chat.
