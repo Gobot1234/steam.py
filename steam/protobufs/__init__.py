@@ -35,7 +35,7 @@ from .emsg import *
 from .headers import *
 from .protobufs import *
 from .unified import *
-from ..enums import IntEnum
+from ..enums import EnumValue
 
 
 betterproto.Message.__bool__ = lambda self: bool(self.to_dict(include_default_values=False))
@@ -126,7 +126,7 @@ class Msg:
             self.parse()
         if kwargs:
             for (key, value) in kwargs.items():
-                if isinstance(value, IntEnum):
+                if isinstance(value, EnumValue):
                     kwargs[key] = value.value
             self.body.from_dict(kwargs)
 
@@ -236,7 +236,7 @@ class MsgProto:
             self.parse()
         if kwargs:
             for (key, value) in kwargs.items():
-                if isinstance(value, IntEnum):
+                if isinstance(value, EnumValue):
                     kwargs[key] = value.value
             self.body.from_dict(kwargs)
 
