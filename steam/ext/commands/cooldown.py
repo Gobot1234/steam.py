@@ -28,7 +28,7 @@ import time as _time
 from typing import TYPE_CHECKING
 
 from .errors import CommandOnCooldown
-from ...enums import IntEnum
+from ...enums import IntEnum, IntEnumValue
 
 if TYPE_CHECKING:
     from .context import Context
@@ -41,13 +41,13 @@ __all__ = (
 
 
 class BucketType(IntEnum):
-    User = 1
-    Member = 2
-    Group = 3
-    Clan = 4
-    Role = 5
-    Channel = 6
-    Officer = 7
+    User: IntEnumValue = 1
+    Member: IntEnumValue = 2
+    Group: IntEnumValue = 3
+    Clan: IntEnumValue = 4
+    Role: IntEnumValue = 5
+    Channel: IntEnumValue = 6
+    Officer: IntEnumValue = 7
 
     def get_bucket(self, ctx: 'Context'):
         if self == self.User:

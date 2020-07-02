@@ -28,9 +28,18 @@ EnumMeta and Enum from https://github.com/Rapptz/discord.py/blob/master/discord/
 Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
-from collections import namedtuple
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    NamedTuple,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 __all__ = (
     'Enum',
@@ -50,57 +59,76 @@ __all__ = (
     'ECommunityVisibilityState',
 )
 
-
-def _create_value_cls(name: str) -> namedtuple:
-    cls = namedtuple(f'_EnumValue_{name}', 'name value')
-    cls.__repr__ = lambda self: f'<{name}.{self.name}: {repr(self.value)}>'
-    cls.__str__ = lambda self: f'{name}.{self.name}'
-    return cls
+T = TypeVar('T', bound='Enum')
 
 
-def _is_descriptor(obj) -> bool:
+def _is_descriptor(obj: Any) -> bool:
     return hasattr(obj, '__get__') or hasattr(obj, '__set__') or hasattr(obj, '__delete__')
 
 
-def _IntEnum__eq__(self, other) -> bool:
-    if isinstance(other, int):
-        return self.value == other
-    return Enum.__eq__(self, other)
+class EnumValue(NamedTuple):
+    name: str
+    value: Any
+
+    def __repr__(self: T):
+        return f'<{self._actual_enum_cls_.__name__}.{self.name}: {repr(self.value)}>'
+
+    def __str__(self: T):
+        return f'{self._actual_enum_cls_.__name__}.{self.name}'
+
+    def __hash__(self):
+        return hash((self.name, self.value))
+
+    def __eq__(self, other: Any):
+        if isinstance(other, self.__class__):
+            return self.name == other.name and self.value == other.value
+        return NotImplemented
+
+    def __ne__(self, other: Any):
+        return not self == other
 
 
-def _IntEnum__ne__(self, other) -> bool:
-    if isinstance(other, int):
-        return self.value != other
-    return Enum.__ne__(self, other)
+class IntEnumValue(EnumValue):
+    value: int
 
+    def __hash__(self):
+        return super().__hash__()  # guido mean
 
-def _IntEnum__lt__(self, x) -> bool:
-    return int(self) < int(x)
+    def __eq__(self, other: Any):
+        if isinstance(other, int):
+            return self.value == other
+        return super().__eq__(other)
 
+    def __ne__(self, other: Any):
+        return not self == other
 
-def _IntEnum__le__(self, x) -> bool:
-    return self < x or self == x
+    def __lt__(self, x: Any):
+        return int(self) < int(x)
 
+    def __le__(self, x: Any):
+        return self < x or self == x
 
-def _IntEnum__gt__(self, x) -> bool:
-    return int(self) > int(x)
+    def __gt__(self, x: Any):
+        return int(self) > int(x)
 
+    def __ge__(self, x: Any):
+        return self > x or self == x
 
-def _IntEnum__ge__(self, x) -> bool:
-    return self > x or self == x
-
-
-def _IntEnum__int__(self) -> int:
-    return self.value
+    def __int__(self):
+        return self.value
 
 
 class EnumMeta(type):
-    def __new__(mcs, name, bases, attrs):
-        value_mapping = {}
-        member_mapping = {}
-        member_names = []
+    def __new__(mcs: T, name: str, bases: Tuple[type], attrs: Dict[str, Any]):
+        value_mapping: Dict[Any, EnumValue] = {}
+        member_mapping: Dict[str, EnumValue] = {}
+        member_names: List[str] = []
 
-        value_cls = _create_value_cls(name)
+        try:
+            value_cls = IntEnumValue if IntEnum in bases else EnumValue
+        except NameError:
+            value_cls = EnumValue
+
         for key, value in list(attrs.items()):
             is_descriptor = _is_descriptor(value)
             if key[0] == '_' and not is_descriptor:
@@ -129,49 +157,33 @@ class EnumMeta(type):
         attrs['_enum_member_map_'] = member_mapping
         attrs['_enum_member_names_'] = member_names
         value_cls._actual_enum_cls_ = super().__new__(mcs, name, bases, attrs)
-        try:
-            if IntEnum in bases:
-                # monkey patch the operators in
-                value_cls.__eq__ = _IntEnum__eq__
-                value_cls.__ne__ = _IntEnum__ne__
-                value_cls.__lt__ = _IntEnum__lt__
-                value_cls.__le__ = _IntEnum__le__
-                value_cls.__gt__ = _IntEnum__gt__
-                value_cls.__ge__ = _IntEnum__ge__
-                value_cls.__int__ = _IntEnum__int__
-        except NameError:
-            pass
         return value_cls._actual_enum_cls_
 
-    def __iter__(cls) -> Iterable['Enum']:
-        return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
-
-    def __reversed__(cls) -> Iterable['Enum']:
-        return (cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_))
-
-    def __len__(cls):
-        return len(cls._enum_member_names_)
-
-    def __repr__(cls):
-        return f'<enum {cls.__name__!r}>'
-
-    @property
-    def __members__(cls) -> Mapping[str, 'Enum']:
-        return MappingProxyType(cls._enum_member_map_)
-
-    def __call__(cls, value: Any) -> 'Enum':
+    def __call__(cls: T, value: Any) -> 'EnumValue':
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
             raise ValueError(f"{repr(value)} is not a valid {cls.__name__}")
 
-    def __getitem__(cls, key: Any) -> 'Enum':
+    def __repr__(cls: T):
+        return f'<enum {cls.__name__!r}>'
+
+    def __iter__(cls: T) -> Iterable['EnumValue']:
+        return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
+
+    def __reversed__(cls: T) -> Iterable['EnumValue']:
+        return (cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_))
+
+    def __len__(cls: T):
+        return len(cls._enum_member_names_)
+
+    def __getitem__(cls: T, key: Any) -> 'EnumValue':
         return cls._enum_member_map_[key]
 
-    def __setattr__(cls, name, value) -> None:
+    def __setattr__(cls: T, name: str, value: Any) -> None:
         raise TypeError('Enums are immutable.')
 
-    def __delattr__(cls, attr) -> None:
+    def __delattr__(cls: T, attr: Any) -> None:
         raise TypeError('Enums are immutable')
 
     def __instancecheck__(self, instance: Any):
@@ -183,26 +195,20 @@ class EnumMeta(type):
         except AttributeError:
             return False
 
+    @property
+    def __members__(cls: T) -> Mapping[str, 'EnumValue']:
+        return MappingProxyType(cls._enum_member_map_)
+
 
 class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates enum.Enum."""
 
     @classmethod
-    def try_value(cls, value: Union['Enum', int, str]) -> Union['Enum', int, str]:
+    def try_value(cls: T, value: Union['Enum', int, str]) -> Union['EnumValue', int, str]:
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
             return value
-
-    # linting helpers
-
-    @property
-    def name(self) -> str:
-        return self.name
-
-    @property
-    def value(self) -> Any:
-        return self.value
 
 
 class IntEnum(int, Enum):
@@ -210,265 +216,265 @@ class IntEnum(int, Enum):
 
 
 class EResult(IntEnum):
-    Invalid = 0
-    OK = 1  #: Success
-    Fail = 2  #: Generic failure
-    NoConnection = 3  #: No/failed network connection
-    InvalidPassword = 5  #: Password/ticket is invalid
-    LoggedInElsewhere = 6  #: Same user logged in elsewhere
-    InvalidProtocolVersion = 7
-    InvalidParameter = 8
-    FileNotFound = 9
-    Busy = 10  #: Called method busy - action not taken
-    InvalidState = 11  #: Called object was in an invalid state
-    InvalidName = 12
-    InvalidEmail = 13
-    DuplicateName = 14
-    AccessDenied = 15
-    Timeout = 16
-    Banned = 17  #: VAC2 banned
-    AccountNotFound = 18
-    InvalidSteamID = 19
-    ServiceUnavailable = 20  #: The requested service is currently unavailable
-    NotLoggedOn = 21
-    Pending = 22  #: Request is pending (may be in process, or waiting on third party)
-    EncryptionFailure = 23
-    InsufficientPrivilege = 24
-    LimitExceeded = 25  #: Too much of a good thing
-    Revoked = 26  #: Access has been revoked (used for revoked guest passes)
-    Expired = 27  #: License/Guest pass the user is trying to access is expired
-    AlreadyRedeemed = 28  #: Guest pass has already been redeemed by account, cannot be acked again
-    DuplicateRequest = 29
-    AlreadyOwned = 30  #: All the games in guest pass redemption request are already owned by the user
-    IPNotFound = 31
-    PersistFailed = 32  #: Failed to write change to the data store
-    LockingFailed = 33  #: Failed to acquire access lock for this operation
-    LogonSessionReplaced = 34
-    ConnectFailed = 35
-    HandshakeFailed = 36
-    IOFailure = 37
-    RemoteDisconnect = 38
-    ShoppingCartNotFound = 39
-    Blocked = 40
-    Ignored = 41
-    NoMatch = 42
-    AccountDisabled = 43
-    ServiceReadOnly = 44
-    AccountNotFeatured = 45  #: Account doesn't have value, so this feature isn't available
-    AdministratorOK = 46  #: Allowed to take this action, but only because requester is admin
-    ContentVersion = 47  #: A Version mismatch in content transmitted within the Steam protocol
-    TryAnotherCM = 48  #: The current CM can't service the user making a request, should try another
-    PasswordRequiredToKickSession = 49  #: You are already logged in elsewhere, this cached credential login has failed
-    AlreadyLoggedInElsewhere = 50  #: You are already logged in elsewhere, you must wait
-    Suspended = 51  #: Long running operation (content download) suspended/paused
-    Cancelled = 52  #: Operation canceled (typically by user content download)
-    DataCorruption = 53  #: Operation canceled because data is ill formed or unrecoverable
-    DiskFull = 54  #: Operation canceled - not enough disk space.
-    RemoteCallFailed = 55  #: An remote call or IPC call failed
-    ExternalAccountUnlinked = 57  #: External account (PSN, Facebook...) is not linked to a Steam account
-    PSNTicketInvalid = 58  #: PSN ticket was invalid
-    ExternalAccountAlreadyLinked = 59  #: External account (PSN, Facebook...) is already linked to some other account
-    RemoteFileConflict = 60  #: The sync cannot resume due to a conflict between the local and remote files
-    IllegalPassword = 61  #: The requested new password is not legal
-    SameAsPreviousValue = 62  #: New value is the same as the old one (secret question and answer)
-    AccountLogonDenied = 63  #: Account login denied due to 2nd factor authentication failure
-    CannotUseOldPassword = 64  #: The requested new password is not legal
-    InvalidLoginAuthCode = 65  #: Account login denied due to auth code invalid
-    HardwareNotCapableOfIPT = 67
-    IPTInitError = 68
-    ParentalControlRestricted = 69  #: Operation failed due to parental control restrictions for current user
-    FacebookQueryError = 70
-    ExpiredLoginAuthCode = 71  #: Account login denied due to auth code expired
-    IPLoginRestrictionFailed = 72
-    VerifiedEmailRequired = 74
-    NoMatchingURL = 75
-    BadResponse = 76  #: Parse failure, missing field, etc.
-    RequirePasswordReEntry = 77  #: The user cannot complete the action until they re-enter their password
-    ValueOutOfRange = 78  #: The value entered is outside the acceptable range
-    UnexpectedError = 79  #: Something happened that we didn't expect to ever happen
-    Disabled = 80  #: The requested service has been configured to be unavailable
-    InvalidCEGSubmission = 81  #: The set of files submitted to the CEG server are not valid!
-    RestrictedDevice = 82  #: The device being used is not allowed to perform this action
-    RegionLocked = 83  #: The action could not be complete because it is region restricted
-    RateLimitExceeded = 84  #: Temporary rate limit exceeded. different from k_EResultLimitExceeded
-    LoginDeniedNeedTwoFactor = 85  #: Need two-factor code to login
-    ItemDeleted = 86  #: The thing we're trying to access has been deleted
-    AccountLoginDeniedThrottle = 87  #: Login attempt failed, try to throttle response to possible attacker
-    TwoFactorCodeMismatch = 88  #: Two factor code mismatch
-    TwoFactorActivationCodeMismatch = 89  #: Activation code for two-factor didn't match
-    NotModified = 91  #: Data not modified
-    TimeNotSynced = 93  #: The time presented is out of range or tolerance
-    SMSCodeFailed = 94  #: SMS code failure (no match, none pending, etc.)
-    AccountActivityLimitExceeded = 96  #: Too many changes to this account
-    PhoneActivityLimitExceeded = 97  #: Too many changes to this phone
-    RefundToWallet = 98  #: Cannot refund to payment method, must use wallet
-    EmailSendFailure = 99  #: Cannot send an email
-    NotSettled = 100  #: Can't perform operation till payment has settled
-    NeedCaptcha = 101  #: Needs to provide a valid captcha
-    GSLTDenied = 102  #: A game server login token owned by this token's owner has been banned
-    GSOwnerDenied = 103  #: Game server owner is denied for other reason
-    InvalidItemType = 104  #: The type of thing we were requested to act on is invalid
-    IPBanned = 105  #: The ip address has been banned from taking this action
-    GSLTExpired = 106  #: This token has expired from disuse; can be reset for use
-    InsufficientFunds = 107  #: User doesn't have enough wallet funds to complete the action
-    TooManyPending = 108  #: There are too many of this thing pending already
-    NoSiteLicensesFound = 109  #: No site licenses found
-    WGNetworkSendExceeded = 110  #: The WG couldn't send a response because we exceeded max network send size
-    AccountNotFriends = 111
-    LimitedUserAccount = 112
-    CantRemoveItem = 113
+    Invalid: IntEnumValue = 0
+    OK: IntEnumValue = 1  #: Success
+    Fail: IntEnumValue = 2  #: Generic failure
+    NoConnection: IntEnumValue = 3  #: No/failed network connection
+    InvalidPassword: IntEnumValue = 5  #: Password/ticket is invalid
+    LoggedInElsewhere: IntEnumValue = 6  #: Same user logged in elsewhere
+    InvalidProtocolVersion: IntEnumValue = 7
+    InvalidParameter: IntEnumValue = 8
+    FileNotFound: IntEnumValue = 9
+    Busy: IntEnumValue = 10  #: Called method busy - action not taken
+    InvalidState: IntEnumValue = 11  #: Called object was in an invalid state
+    InvalidName: IntEnumValue = 12
+    InvalidEmail: IntEnumValue = 13
+    DuplicateName: IntEnumValue = 14
+    AccessDenied: IntEnumValue = 15
+    Timeout: IntEnumValue = 16
+    Banned: IntEnumValue = 17  #: VAC2 banned
+    AccountNotFound: IntEnumValue = 18
+    InvalidSteamID: IntEnumValue = 19
+    ServiceUnavailable: IntEnumValue = 20  #: The requested service is currently unavailable
+    NotLoggedOn: IntEnumValue = 21
+    Pending: IntEnumValue = 22  #: Request is pending (may be in process, or waiting on third party)
+    EncryptionFailure: IntEnumValue = 23
+    InsufficientPrivilege: IntEnumValue = 24
+    LimitExceeded: IntEnumValue = 25  #: Too much of a good thing
+    Revoked: IntEnumValue = 26  #: Access has been revoked (used for revoked guest passes)
+    Expired: IntEnumValue = 27  #: License/Guest pass the user is trying to access is expired
+    AlreadyRedeemed: IntEnumValue = 28  #: Guest pass has already been redeemed by account, cannot be acked again
+    DuplicateRequest: IntEnumValue = 29
+    AlreadyOwned: IntEnumValue = 30  #: All the games in guest pass redemption request are already owned by the user
+    IPNotFound: IntEnumValue = 31
+    PersistFailed: IntEnumValue = 32  #: Failed to write change to the data store
+    LockingFailed: IntEnumValue = 33  #: Failed to acquire access lock for this operation
+    LogonSessionReplaced: IntEnumValue = 34
+    ConnectFailed: IntEnumValue = 35
+    HandshakeFailed: IntEnumValue = 36
+    IOFailure: IntEnumValue = 37
+    RemoteDisconnect: IntEnumValue = 38
+    ShoppingCartNotFound: IntEnumValue = 39
+    Blocked: IntEnumValue = 40
+    Ignored: IntEnumValue = 41
+    NoMatch: IntEnumValue = 42
+    AccountDisabled: IntEnumValue = 43
+    ServiceReadOnly: IntEnumValue = 44
+    AccountNotFeatured: IntEnumValue = 45  #: Account doesn't have value, so this feature isn't available
+    AdministratorOK: IntEnumValue = 46  #: Allowed to take this action, but only because requester is admin
+    ContentVersion: IntEnumValue = 47  #: A Version mismatch in content transmitted within the Steam protocol
+    TryAnotherCM: IntEnumValue = 48  #: The current CM can't service the user making a request, should try another
+    PasswordRequiredToKickSession: IntEnumValue = 49  #: You are already logged in elsewhere, this cached credential login has failed
+    AlreadyLoggedInElsewhere: IntEnumValue = 50  #: You are already logged in elsewhere, you must wait
+    Suspended: IntEnumValue = 51  #: Long running operation (content download) suspended/paused
+    Cancelled: IntEnumValue = 52  #: Operation canceled (typically by user content download)
+    DataCorruption: IntEnumValue = 53  #: Operation canceled because data is ill formed or unrecoverable
+    DiskFull: IntEnumValue = 54  #: Operation canceled - not enough disk space.
+    RemoteCallFailed: IntEnumValue = 55  #: An remote call or IPC call failed
+    ExternalAccountUnlinked: IntEnumValue = 57  #: External account (PSN, Facebook...) is not linked to a Steam account
+    PSNTicketInvalid: IntEnumValue = 58  #: PSN ticket was invalid
+    ExternalAccountAlreadyLinked: IntEnumValue = 59  #: External account (PSN, Facebook...) is already linked to some other account
+    RemoteFileConflict: IntEnumValue = 60  #: The sync cannot resume due to a conflict between the local and remote files
+    IllegalPassword: IntEnumValue = 61  #: The requested new password is not legal
+    SameAsPreviousValue: IntEnumValue = 62  #: New value is the same as the old one (secret question and answer)
+    AccountLogonDenied: IntEnumValue = 63  #: Account login denied due to 2nd factor authentication failure
+    CannotUseOldPassword: IntEnumValue = 64  #: The requested new password is not legal
+    InvalidLoginAuthCode: IntEnumValue = 65  #: Account login denied due to auth code invalid
+    HardwareNotCapableOfIPT: IntEnumValue = 67
+    IPTInitError: IntEnumValue = 68
+    ParentalControlRestricted: IntEnumValue = 69  #: Operation failed due to parental control restrictions for current user
+    FacebookQueryError: IntEnumValue = 70
+    ExpiredLoginAuthCode: IntEnumValue = 71  #: Account login denied due to auth code expired
+    IPLoginRestrictionFailed: IntEnumValue = 72
+    VerifiedEmailRequired: IntEnumValue = 74
+    NoMatchingURL: IntEnumValue = 75
+    BadResponse: IntEnumValue = 76  #: Parse failure, missing field, etc.
+    RequirePasswordReEntry: IntEnumValue = 77  #: The user cannot complete the action until they re-enter their password
+    ValueOutOfRange: IntEnumValue = 78  #: The value entered is outside the acceptable range
+    UnexpectedError: IntEnumValue = 79  #: Something happened that we didn't expect to ever happen
+    Disabled: IntEnumValue = 80  #: The requested service has been configured to be unavailable
+    InvalidCEGSubmission: IntEnumValue = 81  #: The set of files submitted to the CEG server are not valid!
+    RestrictedDevice: IntEnumValue = 82  #: The device being used is not allowed to perform this action
+    RegionLocked: IntEnumValue = 83  #: The action could not be complete because it is region restricted
+    RateLimitExceeded: IntEnumValue = 84  #: Temporary rate limit exceeded. different from k_EResultLimitExceeded
+    LoginDeniedNeedTwoFactor: IntEnumValue = 85  #: Need two-factor code to login
+    ItemDeleted: IntEnumValue = 86  #: The thing we're trying to access has been deleted
+    AccountLoginDeniedThrottle: IntEnumValue = 87  #: Login attempt failed, try to throttle response to possible attacker
+    TwoFactorCodeMismatch: IntEnumValue = 88  #: Two factor code mismatch
+    TwoFactorActivationCodeMismatch: IntEnumValue = 89  #: Activation code for two-factor didn't match
+    NotModified: IntEnumValue = 91  #: Data not modified
+    TimeNotSynced: IntEnumValue = 93  #: The time presented is out of range or tolerance
+    SMSCodeFailed: IntEnumValue = 94  #: SMS code failure (no match, none pending, etc.)
+    AccountActivityLimitExceeded: IntEnumValue = 96  #: Too many changes to this account
+    PhoneActivityLimitExceeded: IntEnumValue = 97  #: Too many changes to this phone
+    RefundToWallet: IntEnumValue = 98  #: Cannot refund to payment method, must use wallet
+    EmailSendFailure: IntEnumValue = 99  #: Cannot send an email
+    NotSettled: IntEnumValue = 100  #: Can't perform operation till payment has settled
+    NeedCaptcha: IntEnumValue = 101  #: Needs to provide a valid captcha
+    GSLTDenied: IntEnumValue = 102  #: A game server login token owned by this token's owner has been banned
+    GSOwnerDenied: IntEnumValue = 103  #: Game server owner is denied for other reason
+    InvalidItemType: IntEnumValue = 104  #: The type of thing we were requested to act on is invalid
+    IPBanned: IntEnumValue = 105  #: The ip address has been banned from taking this action
+    GSLTExpired: IntEnumValue = 106  #: This token has expired from disuse; can be reset for use
+    InsufficientFunds: IntEnumValue = 107  #: User doesn't have enough wallet funds to complete the action
+    TooManyPending: IntEnumValue = 108  #: There are too many of this thing pending already
+    NoSiteLicensesFound: IntEnumValue = 109  #: No site licenses found
+    WGNetworkSendExceeded: IntEnumValue = 110  #: The WG couldn't send a response because we exceeded max network send size
+    AccountNotFriends: IntEnumValue = 111
+    LimitedUserAccount: IntEnumValue = 112
+    CantRemoveItem: IntEnumValue = 113
 
 
 class EUniverse(IntEnum):
-    Invalid = 0
-    Public = 1
-    Beta = 2
-    Internal = 3
-    Dev = 4
-    Max = 6
+    Invalid: IntEnumValue = 0
+    Public: IntEnumValue = 1
+    Beta: IntEnumValue = 2
+    Internal: IntEnumValue = 3
+    Dev: IntEnumValue = 4
+    Max: IntEnumValue = 6
 
     def __str__(self):
         return self.name
 
 
 class EType(IntEnum):
-    Invalid = 0
-    Individual = 1  #: Single user account
-    Multiseat = 2  #: Multiseat (e.g. cybercafe) account
-    GameServer = 3  #: Game server account
-    AnonGameServer = 4  #: Anonymous game server account
-    Pending = 5
-    ContentServer = 6  #: Content server
-    Clan = 7
-    Chat = 8
-    ConsoleUser = 9  #: Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
-    AnonUser = 10
-    Max = 11
+    Invalid: IntEnumValue = 0
+    Individual: IntEnumValue = 1  #: Single user account
+    Multiseat: IntEnumValue = 2  #: Multiseat (e.g. cybercafe) account
+    GameServer: IntEnumValue = 3  #: Game server account
+    AnonGameServer: IntEnumValue = 4  #: Anonymous game server account
+    Pending: IntEnumValue = 5
+    ContentServer: IntEnumValue = 6  #: Content server
+    Clan: IntEnumValue = 7
+    Chat: IntEnumValue = 8
+    ConsoleUser: IntEnumValue = 9  #: Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
+    AnonUser: IntEnumValue = 10
+    Max: IntEnumValue = 11
 
     def __str__(self):
         return self.name
 
 
 class ETypeChar(IntEnum):
-    I = EType.Invalid
-    U = EType.Individual
-    M = EType.Multiseat
-    G = EType.GameServer
-    A = EType.AnonGameServer
-    P = EType.Pending
-    C = EType.ContentServer
-    g = EType.Clan
-    T = EType.Chat
-    L = EType.Chat  # lobby chat, 'c' for clan chat
-    c = EType.Chat  # clan chat
-    a = EType.AnonUser
+    I: IntEnumValue = EType.Invalid
+    U: IntEnumValue = EType.Individual
+    M: IntEnumValue = EType.Multiseat
+    G: IntEnumValue = EType.GameServer
+    A: IntEnumValue = EType.AnonGameServer
+    P: IntEnumValue = EType.Pending
+    C: IntEnumValue = EType.ContentServer
+    g: IntEnumValue = EType.Clan
+    T: IntEnumValue = EType.Chat
+    L: IntEnumValue = EType.Chat  # lobby chat, 'c' for clan chat
+    c: IntEnumValue = EType.Chat  # clan chat
+    a: IntEnumValue = EType.AnonUser
 
     def __str__(self):
         return self.name
 
 
 class EInstanceFlag(IntEnum):
-    MMSLobby = 0x20000
-    Lobby = 0x40000
-    Clan = 0x80000
+    MMSLobby: IntEnumValue = 0x20000
+    Lobby: IntEnumValue = 0x40000
+    Clan: IntEnumValue = 0x80000
 
 
 class EFriendRelationship(IntEnum):
-    NONE = 0
-    Blocked = 1
-    RequestRecipient = 2
-    Friend = 3
-    RequestInitiator = 4
-    Ignored = 5
-    IgnoredFriend = 6
-    SuggestedFriend = 7
-    Max = 8
+    NONE: IntEnumValue = 0
+    Blocked: IntEnumValue = 1
+    RequestRecipient: IntEnumValue = 2
+    Friend: IntEnumValue = 3
+    RequestInitiator: IntEnumValue = 4
+    Ignored: IntEnumValue = 5
+    IgnoredFriend: IntEnumValue = 6
+    SuggestedFriend: IntEnumValue = 7
+    Max: IntEnumValue = 8
 
 
 class EPersonaState(IntEnum):
-    Offline = 0
-    Online = 1
-    Busy = 2
-    Away = 3
-    Snooze = 4
-    LookingToTrade = 5
-    LookingToPlay = 6
-    Max = 7
+    Offline: IntEnumValue = 0
+    Online: IntEnumValue = 1
+    Busy: IntEnumValue = 2
+    Away: IntEnumValue = 3
+    Snooze: IntEnumValue = 4
+    LookingToTrade: IntEnumValue = 5
+    LookingToPlay: IntEnumValue = 6
+    Max: IntEnumValue = 7
 
     def __str__(self):
         return self.name
 
 
 class EPersonaStateFlag(IntEnum):
-    NONE = 0
-    HasRichPresence = 1
-    InJoinableGame = 2
-    Golden = 4
-    RemotePlayTogether = 8
-    ClientTypeWeb = 256
-    ClientTypeMobile = 512
-    ClientTypeTenfoot = 1024
-    ClientTypeVR = 2048
-    LaunchTypeGamepad = 4096
-    LaunchTypeCompatTool = 8192
+    NONE: IntEnumValue = 0
+    HasRichPresence: IntEnumValue = 1
+    InJoinableGame: IntEnumValue = 2
+    Golden: IntEnumValue = 4
+    RemotePlayTogether: IntEnumValue = 8
+    ClientTypeWeb: IntEnumValue = 256
+    ClientTypeMobile: IntEnumValue = 512
+    ClientTypeTenfoot: IntEnumValue = 1024
+    ClientTypeVR: IntEnumValue = 2048
+    LaunchTypeGamepad: IntEnumValue = 4096
+    LaunchTypeCompatTool: IntEnumValue = 8192
 
     def __str__(self):
         return self.name
 
 
 class ECommunityVisibilityState(IntEnum):
-    NONE = 0
-    Private = 1
-    FriendsOnly = 2
-    Public = 3
+    NONE: IntEnumValue = 0
+    Private: IntEnumValue = 1
+    FriendsOnly: IntEnumValue = 2
+    Public: IntEnumValue = 3
 
 
 class EChatRoomEnterResponse(IntEnum):
-    Success = 1  #: Success
-    DoesntExist = 2  #: Chat doesn't exist (probably closed)
-    NotAllowed = 3  #: General Denied - You don't have the permissions needed to join the chat
-    Full = 4  #: Chat room has reached its maximum size
-    Error = 5  #: Unexpected Error
-    Banned = 6  #: You are banned from this chat room and may not join
-    Limited = 7  #: Joining this chat is not allowed because you are a limited user (no value on account)
-    ClanDisabled = 8  #: Attempt to join a clan chat when the clan is locked or disabled
-    CommunityBan = 9  #: Attempt to join a chat when the user has a community lock on their account
-    MemberBlockedYou = 10  #: Join failed - some member in the chat has blocked you from joining
-    YouBlockedMember = 11  #: Join failed - you have blocked some member already in the chat
-    RatelimitExceeded = 15  #: Join failed - to many join attempts in a very short period of time
+    Success: IntEnumValue = 1  #: Success
+    DoesntExist: IntEnumValue = 2  #: Chat doesn't exist (probably closed)
+    NotAllowed: IntEnumValue = 3  #: General Denied - You don't have the permissions needed to join the chat
+    Full: IntEnumValue = 4  #: Chat room has reached its maximum size
+    Error: IntEnumValue = 5  #: Unexpected Error
+    Banned: IntEnumValue = 6  #: You are banned from this chat room and may not join
+    Limited: IntEnumValue = 7  #: Joining this chat is not allowed because you are a limited user (no value on account)
+    ClanDisabled: IntEnumValue = 8  #: Attempt to join a clan chat when the clan is locked or disabled
+    CommunityBan: IntEnumValue = 9  #: Attempt to join a chat when the user has a community lock on their account
+    MemberBlockedYou: IntEnumValue = 10  #: Join failed - some member in the chat has blocked you from joining
+    YouBlockedMember: IntEnumValue = 11  #: Join failed - you have blocked some member already in the chat
+    RatelimitExceeded: IntEnumValue = 15  #: Join failed - to many join attempts in a very short period of time
 
 
 class ETradeOfferState(IntEnum):
-    Invalid = 1
-    Active = 2
-    Accepted = 3
-    Countered = 4
-    Expired = 5
-    Canceled = 6
-    Declined = 7
-    InvalidItems = 8
-    ConfirmationNeed = 9
-    CanceledBySecondaryFactor = 10
-    StateInEscrow = 11
+    Invalid: IntEnumValue = 1
+    Active: IntEnumValue = 2
+    Accepted: IntEnumValue = 3
+    Countered: IntEnumValue = 4
+    Expired: IntEnumValue = 5
+    Canceled: IntEnumValue = 6
+    Declined: IntEnumValue = 7
+    InvalidItems: IntEnumValue = 8
+    ConfirmationNeed: IntEnumValue = 9
+    CanceledBySecondaryFactor: IntEnumValue = 10
+    StateInEscrow: IntEnumValue = 11
 
 
 class EChatEntryType(IntEnum):
-    Invalid = 0
-    ChatMsg = 1  #: Normal text message from another user
-    Typing = 2  #: Another user is typing (not used in multi-user chat)
-    InviteGame = 3  #: Invite from other user into that users current game
-    LobbyGameStart = 5  #: lobby game is starting (dead - listen for LobbyGameCreated_t callback instead)
-    LeftConversation = 6  #: user has left the conversation ( closed chat window )
-    Entered = 7  #: User has entered the conversation (used in multi-user chat and group chat)
-    WasKicked = 8  #: user was kicked (data: 64-bit steamid of actor performing the kick)
-    WasBanned = 9  #: user was banned (data: 64-bit steamid of actor performing the ban)
-    Disconnected = 10  #: user disconnected
-    HistoricalChat = 11  #: a chat message from user's chat history or offline message
-    LinkBlocked = 14  #: a link was removed by the chat filter.
+    Invalid: IntEnumValue = 0
+    ChatMsg: IntEnumValue = 1  #: Normal text message from another user
+    Typing: IntEnumValue = 2  #: Another user is typing (not used in multi-user chat)
+    InviteGame: IntEnumValue = 3  #: Invite from other user into that users current game
+    LobbyGameStart: IntEnumValue = 5  #: lobby game is starting (dead - listen for LobbyGameCreated_t callback instead)
+    LeftConversation: IntEnumValue = 6  #: user has left the conversation ( closed chat window )
+    Entered: IntEnumValue = 7  #: User has entered the conversation (used in multi-user chat and group chat)
+    WasKicked: IntEnumValue = 8  #: user was kicked (data: 64-bit steamid of actor performing the kick)
+    WasBanned: IntEnumValue = 9  #: user was banned (data: 64-bit steamid of actor performing the ban)
+    Disconnected: IntEnumValue = 10  #: user disconnected
+    HistoricalChat: IntEnumValue = 11  #: a chat message from user's chat history or offline message
+    LinkBlocked: IntEnumValue = 14  #: a link was removed by the chat filter.
 
 
 class EUIMode(IntEnum):
-    Desktop = 0
-    BigPicture = 1
-    Mobile = 2
-    Web = 3
+    Desktop: IntEnumValue = 0
+    BigPicture: IntEnumValue = 1
+    Mobile: IntEnumValue = 2
+    Web: IntEnumValue = 3
