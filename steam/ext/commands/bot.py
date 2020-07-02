@@ -39,12 +39,12 @@ from typing import (
     TYPE_CHECKING,
     Awaitable,
     Callable,
+    Collection,
     Dict,
     Iterable,
     List,
     Mapping,
     Optional,
-    Set,
     Type,
     Union,
 )
@@ -121,8 +121,8 @@ class Bot(Client):
                  help_command: HelpCommand = HelpCommand,
                  **options):
         self.command_prefix = command_prefix
-        self.owner_id: int = utils.make_steam64(options.get('owner_id', 0))
-        owner_ids: Set[int] = options.get('owner_ids', [])
+        self.owner_id = utils.make_steam64(options.get('owner_id', 0))
+        owner_ids: Collection[int] = options.get('owner_ids', [])
         self.owner_ids = set()
         for owner_id in owner_ids:
             self.owner_ids.add(utils.make_steam64(owner_id))
@@ -421,6 +421,8 @@ class Bot(Client):
         """
         if not ctx.prefix:
             return
+        if ctx.command is None:
+            raise CommandNotFound(f'the command {ctx.invoked_with} was not found')
 
         command = ctx.command
         if not command.enabled:
@@ -467,9 +469,8 @@ class Bot(Client):
         lex.whitespace_split = True
         command_name = lex.get_token().strip()  # skip command name
         command = self.__commands__.get(command_name)
-        if command is None:
-            raise CommandNotFound(f'the command {command_name} was not found')
-        return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix)
+        return cls(bot=self, message=message, shlex=lex, command=command,
+                   prefix=prefix, invoked_with=command_name)
 
     async def get_prefix(self, message: 'Message') -> Optional[str]:
         """|coro|

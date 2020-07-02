@@ -84,6 +84,7 @@ class Context(Messageable):
         self.channel = message.channel
         self.clan = message.clan
         self.group = message.group
+        self.invoked_with: Optional[str] = attrs.get('invoked_with')
 
         self._state = message._state
 
