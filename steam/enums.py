@@ -44,19 +44,19 @@ from typing import (
 __all__ = (
     'Enum',
     'IntEnum',
-    'EType',
     'EResult',
-    'EUIMode',
-    'ETypeChar',
     'EUniverse',
+    'EType',
+    'ETypeChar',
     'EInstanceFlag',
-    'EPersonaState',
-    'EChatEntryType',
-    'EPersonaStateFlag',
-    'ETradeOfferState',
     'EFriendRelationship',
-    'EChatRoomEnterResponse',
+    'EPersonaState',
+    'EPersonaStateFlag',
     'ECommunityVisibilityState',
+    'EChatRoomEnterResponse',
+    'ETradeOfferState',
+    'EChatEntryType',
+    'EUIMode',
 )
 
 T = TypeVar('T', bound='Enum')
@@ -156,8 +156,10 @@ class EnumMeta(type):
         attrs['_enum_value_map_'] = value_mapping
         attrs['_enum_member_map_'] = member_mapping
         attrs['_enum_member_names_'] = member_names
-        value_cls._actual_enum_cls_ = super().__new__(mcs, name, bases, attrs)
-        return value_cls._actual_enum_cls_
+        enum_class = super().__new__(mcs, name, bases, attrs)
+        for value in value_mapping.values():  # edit each value to ensure it's correct
+            value._actual_enum_cls_: 'EnumMeta' = enum_class
+        return enum_class
 
     def __call__(cls: T, value: Any) -> 'EnumValue':
         try:
