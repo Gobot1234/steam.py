@@ -37,6 +37,7 @@ from typing import (
     Iterable,
     Optional,
     Tuple,
+    TypeVar,
     Union,
 )
 
@@ -51,6 +52,7 @@ __all__ = (
     'parse_trade_url_token',
 )
 
+T = TypeVar('T')  # for get
 PROTOBUF_MASK = 0x80000000
 MAX_ASYNCIO_SECONDS = 3456000
 _INVITE_HEX = '0123456789abcdef'
@@ -390,21 +392,21 @@ def find(predicate: Callable[..., bool], iterable: Iterable) -> Optional[Any]:
     return None
 
 
-def get(iterable: Iterable, **attrs) -> Optional[Any]:
+def get(iterable: Iterable[T], **attrs) -> Optional[T]:
     r"""A helper that returns the first element in the iterable that meets
     all the traits passed in ``attrs``. This is an alternative for
     :func:`utils.find`.
 
     Parameters
     -----------
-    iterable: Iterable
+    iterable: Iterable[T]
         An iterable to search through.
     \*\*attrs
         Keyword arguments that denote attributes to match.
 
     Returns
     -------
-    Optional[Any]
+    Optional[T]
         The first element from the ``iterable``
         which matches all the traits passed in ``attrs``
         or ``None`` if no matching element was found.
