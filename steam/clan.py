@@ -48,7 +48,6 @@ if TYPE_CHECKING:
     from .user import User
     from .state import ConnectionState
 
-
 __all__ = (
     'Clan',
 )
@@ -80,13 +79,17 @@ class Clan(SteamID):
     ------------
     name: :class:`str`
         The name of the clan.
+    chat_id: :class:`int`
+        The clan's chat_id.
     url: :class:`str`
         The url of the clan.
     icon_url: :class:`str`
         The icon url of the clan. Uses the large (184x184 px) image url.
     description: :class:`str`
         The description of the clan.
-    count: :class:`int`
+    tagline: Optional[:class:`str`]
+        The clan's tagline.
+    member_count: :class:`int`
         The amount of users in the clan.
     online_count: :class:`int`
         The amount of users currently online.
@@ -94,11 +97,35 @@ class Clan(SteamID):
         The amount of currently users in the clan's chat room.
     in_game_count: :class:`int`
         The amount of user's currently in game.
+    created_at: :class:`datetime.datetime`
+        The time the clan was created_at.
+    language: :class:`str`
+        The language set for the clan.
+    location: :class:`str`
+        The location set for the clan.
+    game: :class:`.Game`
+        The clan's associated game.
+    owner: :class:`~steam.User`
+        The clan's owner.
+    admins: List[:class:`~steam.User`]
+        A list of the clan's administrators.
+    mods: List[:class:`~steam.User`]
+        A list of the clan's moderators.
+    top_members: List[:class:`~steam.User`]
+        A list of the clan's top_members.
+    roles: List[:class:`.Role`]
+        A list of the clan's roles.
+    default_role: :class:`.Role`
+        The clan's default_role.
+    channels: List[:class:`.ClanChannel`]
+        A list of the clan's channels.
+    default_channel: :class:`.ClanChannel`
+        The clan's default_channel.
     """
     # TODO more docs
 
     __slots__ = ('url', '_state', 'name', 'description', 'icon_url', 'created_at',
-                 'language', 'location', 'count', 'in_game_count', 'online_count',
+                 'language', 'location', 'member_count', 'in_game_count', 'online_count',
                  'admins', 'mods', 'chat_id', 'active_member_count', 'owner',
                  'default_role', 'tagline', 'top_members', 'roles', 'channels',
                  'default_channel', 'game')
@@ -142,7 +169,7 @@ class Clan(SteamID):
 
         for count in stats.find_all('div', attrs={"class": 'membercount'}):
             if 'MEMBERS' in count.text:
-                self.count = int(count.text.split('MEMBERS')[0].strip().replace(',', ''))
+                self.member_count = int(count.text.split('MEMBERS')[0].strip().replace(',', ''))
             if 'IN-GAME' in count.text:
                 self.in_game_count = int(count.text.split('IN-GAME')[0].strip().replace(',', ''))
             if 'ONLINE' in count.text:
