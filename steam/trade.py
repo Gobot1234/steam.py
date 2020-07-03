@@ -33,7 +33,7 @@ from .errors import ClientException, ConfirmationError
 from .game import Game
 
 if TYPE_CHECKING:
-    from .abc import BaseUser
+    from .user import BaseUser, User
     from .state import ConnectionState
 
 
@@ -367,7 +367,7 @@ class TradeOffer:
         self.message = message if message is not None else ''
         self.token = token
         self._has_been_sent = False
-        self.partner = None
+        self.partner: Optional['User'] = None
         self.state = ETradeOfferState.Invalid
 
     @classmethod
