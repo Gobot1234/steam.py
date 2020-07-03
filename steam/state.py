@@ -95,6 +95,7 @@ if TYPE_CHECKING:
         CMsgClientPersonaStateFriend,
         CMsgClientFriendsList,
     )
+    from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo
 
 log = logging.getLogger(__name__)
 
@@ -507,7 +508,7 @@ class ConnectionState:
 
     @register(EMsg.ServiceMethod)
     async def parse_service_method(self, msg: MsgProto) -> None:
-        if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
+        if msg.header.job_name_target == 'FriendMessagesClient.IncomingMessage#1':
             msg: MsgProto['UserMessageNotification']
             user_id64 = int(msg.body.steamid_friend)
             author = self.get_user(user_id64) or await self.fetch_user(user_id64)
@@ -522,7 +523,7 @@ class ConnectionState:
                 when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
                 self.dispatch('typing', author, when)
 
-        if msg.header.target_job_name == 'ChatRoomClient.NotifyIncomingChatMessage#1':
+        if msg.header.job_name_target == 'ChatRoomClient.NotifyIncomingChatMessage#1':
             msg: MsgProto['GroupMessageNotification']
             destination = self._combined.get(int(msg.body.chat_group_id))
             if destination is None:
@@ -540,7 +541,7 @@ class ConnectionState:
             self._messages.append(message)
             self.dispatch('message', message)
 
-        if msg.header.target_job_name == 'ChatRoomClient.NotifyChatRoomHeaderStateChange#1':  # group update
+        if msg.header.job_name_target == 'ChatRoomClient.NotifyChatRoomHeaderStateChange#1':  # group update
             msg: MsgProto['GroupStateUpdate']
             destination = self._combined.get(int(msg.body.header_state.chat_group_id))
             if destination is None:
@@ -551,8 +552,8 @@ class ConnectionState:
             else:
                 destination._from_proto(msg.body.header_state)
 
-        if msg.header.target_job_name == 'ChatRoomClient.NotifyChatGroupUserStateChanged#1':
-            msg.body: MsgProto['GroupAction']
+        if msg.header.job_name_target == 'ChatRoomClient.NotifyChatGroupUserStateChanged#1':
+            msg: MsgProto['GroupAction']
             if msg.body.user_action == 'Joined':  # join group
                 if msg.body.group_summary.clanid:
                     clan = Clan(state=self, id=msg.body.group_summary.clanid)
@@ -576,7 +577,7 @@ class ConnectionState:
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
-        if msg.header.target_job_name == 'ChatRoom.GetMyChatRoomGroups#1':
+        if msg.header.job_name_target == 'ChatRoom.GetMyChatRoomGroups#1':
             msg: MsgProto['MyChatRooms']
             for group in msg.body.chat_room_groups:
                 if group.group_summary.clanid:  # received a clan
@@ -725,7 +726,7 @@ class ConnectionState:
             await self.http.clear_notifications()
 
     @register(EMsg.ClientAccountInfo)
-    def parse_account_info(self, msg: MsgProto):
+    def parse_account_info(self, msg: MsgProto['CMsgClientAccountInfo']):
         if msg.body.persona_name != self.client.user.name:
             before = copy(self.client.user)
             self.client.user.name = msg.body.persona_name
