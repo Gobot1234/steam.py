@@ -471,7 +471,6 @@ class Client:
             try:
                 await self._connect()
             except (OSError,
-                    AttributeError,
                     aiohttp.ClientError,
                     asyncio.TimeoutError,
                     errors.HTTPException):
