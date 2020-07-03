@@ -131,8 +131,8 @@ class Command:
         return func
 
     async def _parse_arguments(self, ctx: 'Context') -> None:
-        args = ctx.args = (ctx,) if self.cog is None else (self.cog, ctx)
-        kwargs = ctx.kwargs = {}
+        args = (ctx,) if self.cog is None else (self.cog, ctx)
+        kwargs = {}
 
         shlex = ctx.shlex
         iterator = iter(self.params.items())
@@ -152,23 +152,22 @@ class Command:
             raise ClientException(f'callback for {self.name} command is missing "ctx" parameter.')
         for name, param in iterator:
             if param.kind == param.POSITIONAL_OR_KEYWORD:
-                transformed = await self.transform(param, ctx.shlex.get_token()) or param.default
+                transformed = await self.transform(param, shlex.get_token()) or param.default
                 args = args + (transformed,)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                kwargs[name] = await self.transform(param, ' '.join(ctx.shlex)) or param.default
+                kwargs[name] = await self.transform(param, ' '.join(shlex)) or param.default
                 break
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
-                while not shlex.eof:
-                    try:
-                        transformed = await self.transform(param, ctx.shlex.get_token()) or param.default
-                        args = args + (transformed,)
-                    except RuntimeError:
-                        break
+                for arg in shlex:
+                    transformed = await self.transform(param, arg) or param.default
+                    args = args + (transformed,)
+        ctx.args = args
+        ctx.kwargs = kwargs
 
     async def transform(self, param: inspect.Parameter, argument: str) -> Any:
-        param_type = str if param.empty else type(param.annotation)
+        param_type = param.annotation if param.annotation is not inspect._empty else str
         try:
             return param_type(argument)
         except TypeError:
