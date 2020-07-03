@@ -223,10 +223,8 @@ class Inventory:
 
     def __contains__(self, item):
         if isinstance(item, Asset):
-            return bool([i for i in self if
-                         i.instance_id == item.instance_id
-                         and i.class_id == item.class_id])
-        return False
+            return item in self.items
+        return NotImplemented
 
     def _update(self, data) -> None:
         try:
