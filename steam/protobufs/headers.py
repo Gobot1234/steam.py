@@ -33,6 +33,7 @@ from stringcase import snakecase
 
 from . import steammessages_base, foobar
 from .emsg import EMsg
+from ..enums import EResult
 from ..utils import set_proto_bit, clear_proto_bit
 
 __all__ = (
@@ -74,7 +75,7 @@ class MsgHdr:
         return f'<MsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
-        return struct.pack("<Iqq", self.msg, self.target_job_id, self.source_job_id)
+        return struct.pack("<Iqq", self.msg, self.job_id_target, self.job_id_source)
 
     def parse(self, data: bytes):
         """Parse the header.
@@ -132,8 +133,8 @@ class ExtendedMsgHdr:
         return f'<ExtendedMsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
-        return struct.pack("<IBHqqBqi", self.msg, self.header_size, self.header_version, self.target_job_id,
-                           self.source_job_id, self.header_canary, self.steam_id, self.session_id)
+        return struct.pack("<IBHqqBqi", self.msg, self.header_size, self.header_version, self.job_id_target,
+                           self.job_id_source, self.header_canary, self.steam_id, self.session_id)
 
     def parse(self, data: bytes):
         """Parse the header.
@@ -163,16 +164,16 @@ class MsgHdrProtoBuf:
     Attributes
     ----------
     msg: :class:`EMsg`
-    proto: :class:`protobufs.steammessages_base.CMsgProtoBufHeader`
+    body: :class:`protobufs.steammessages_base.CMsgProtoBufHeader`
     """
 
     SIZE = 8
-    __slots__ = ('proto', 'msg', '_full_size')
+    __slots__ = ('body', 'msg', '_full_size')
 
     def __init__(self, data: bytes = None):
         self.msg = EMsg.Invalid
-        self.proto = steammessages_base.CMsgProtoBufHeader()
-        self._full_size = self.SIZE
+        self.body = steammessages_base.CMsgProtoBufHeader()
+        self._full_size = 0
 
         if data:
             self.parse(data)
@@ -182,11 +183,11 @@ class MsgHdrProtoBuf:
             'msg',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict(snakecase).items()])
+        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items()])
         return f'<MsgHdrProtoBuf {" ".join(resolved)}>'
 
     def __bytes__(self):
-        proto_data = bytes(self.proto)
+        proto_data = bytes(self.body)
         return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
 
     def parse(self, data: bytes) -> None:
@@ -200,58 +201,66 @@ class MsgHdrProtoBuf:
 
         self.msg = EMsg(clear_proto_bit(msg))
         self._full_size = self.SIZE + proto_length
-        self.proto = self.proto.parse(data[self.SIZE:self._full_size])
+        self.body = self.body.parse(data[self.SIZE:self._full_size])
 
     # allow for consistency between headers
 
     @property
     def session_id(self) -> int:
-        return self.proto.client_sessionid
+        return self.body.client_sessionid
 
     @session_id.setter
     def session_id(self, value: int):
-        self.proto.client_sessionid = int(value)
+        self.body.client_sessionid = int(value)
 
     @property
     def steam_id(self) -> int:
-        return self.proto.steamid
+        return int(self.body.steamid)
 
     @steam_id.setter
     def steam_id(self, value):
-        self.proto.steamid = int(value)
+        self.body.steamid = int(value)
 
     @property
-    def target_job_name(self) -> str:
-        return self.proto.target_job_name
+    def job_name_target(self) -> str:
+        return self.body.target_job_name
 
-    @target_job_name.setter
-    def target_job_name(self, value) -> None:
-        self.proto.target_job_name = value
+    @job_name_target.setter
+    def job_name_target(self, value) -> None:
+        self.body.target_job_name = value
 
     @property
     def job_id_source(self) -> int:
-        return self.proto.jobid_source
+        return int(self.body.jobid_source)
 
     @job_id_source.setter
     def job_id_source(self, value: int) -> None:
-        self.proto.jobid_source = int(value)
+        self.body.jobid_source = int(value)
 
     @property
     def job_id_target(self) -> int:
-        return self.proto.jobid_target
+        return int(self.body.jobid_target)
 
     @job_id_target.setter
     def job_id_target(self, value: int) -> None:
-        self.proto.jobid_target = int(value)
+        self.body.jobid_target = int(value)
+
+    @property
+    def eresult(self) -> EResult:
+        return EResult.try_value(self.body.eresult)
+
+    @property
+    def message(self) -> str:
+        return self.body.error_message
 
 
 class GCMsgHdr:
-    __slots__ = ('msg', 'proto', 'header_version', 'target_job_id', 'source_job_id')
+    __slots__ = ('msg', 'body', 'header_version', 'target_job_id', 'source_job_id')
     SIZE = 18
 
     def __init__(self, msg, data=None):
         self.msg = clear_proto_bit(msg)
-        self.proto = None
+        self.body = None
         self.header_version = 1
         self.target_job_id = -1
         self.source_job_id = -1
@@ -264,7 +273,7 @@ class GCMsgHdr:
             'msg', 'target_job_id', 'source_job_id'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict(snakecase).items()])
+        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items()])
         return f'<GCMsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
@@ -275,12 +284,12 @@ class GCMsgHdr:
 
 
 class GCMsgHdrProto:
-    __slots__ = ('msg', 'proto', 'header_length')
+    __slots__ = ('msg', 'body', 'header_length')
     SIZE = 8
 
     def __init__(self, msg, data=None):
         self.msg = EMsg.try_value(clear_proto_bit(msg))
-        self.proto = foobar.CMsgProtoBufHeader()
+        self.body = foobar.CMsgProtoBufHeader()
         self.header_length = 0
 
         if data:
@@ -291,11 +300,11 @@ class GCMsgHdrProto:
             'msg',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.proto.to_dict(snakecase).items()])
+        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items()])
         return f'<GCMsgHdrProto {" ".join(resolved)}>'
 
     def __bytes__(self):
-        proto_data = bytes(self.proto)
+        proto_data = bytes(self.body)
         self.header_length = len(proto_data)
         return struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
 
@@ -306,4 +315,4 @@ class GCMsgHdrProto:
 
         if self.header_length:
             x = GCMsgHdrProto.SIZE
-            self.proto = self.proto.parse(data[x:x + self.header_length])
+            self.body = self.body.parse(data[x:x + self.header_length])
