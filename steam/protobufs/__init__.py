@@ -28,7 +28,7 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 """
 
 from dataclasses import dataclass
-from typing import Optional, Type, Union, Generic, TypeVar
+from typing import Generic, Optional, Type, TypeVar, Union
 
 import betterproto
 
@@ -100,7 +100,16 @@ class MsgBase(Generic[T]):
                     kwargs[key] = value.value
             self.body.from_dict(kwargs)
 
-    def parse(self, proto: Type[T]):
+    def __repr__(self):
+        attrs = (
+            'msg', 'header',
+        )
+        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        if isinstance(self.body, betterproto.Message):
+            resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
+        return ' '.join(resolved)
+
+    def parse(self, proto: Type[T]) -> None:
         """Parse the payload/data into a protobuf."""
         if proto:
             self.body = proto()
@@ -120,7 +129,7 @@ class MsgBase(Generic[T]):
 
     @property
     def steam_id(self) -> Optional[int]:
-        """:class:`int`: The :attr:`header`'s 64 bit Steam ID."""
+        """Optional[:class:`int`]: The :attr:`header`'s 64 bit Steam ID."""
         return self.header.steam_id if isinstance(self.header, AllowedHeaders) else None
 
     @steam_id.setter
@@ -130,7 +139,7 @@ class MsgBase(Generic[T]):
 
     @property
     def session_id(self) -> Optional[int]:
-        """:class:`int`: The :attr:`header`'s session ID."""
+        """Optional[:class:`int`]: The :attr:`header`'s session ID."""
         return self.header.session_id if isinstance(self.header, AllowedHeaders) else None
 
     @session_id.setter
@@ -150,6 +159,16 @@ class Msg(MsgBase[T]):
         .. describe:: bytes(x)
 
             Returns the sterilised message.
+
+        .. describe:: x[y]
+
+            Allows for type hinting of the messages
+            body. e.g.::
+
+                async def handle_multi(self, msg: MsgProto['CMsgMulti']) -> None:
+                    log.debug('Received a multi, unpacking')
+                    if msg.body.size_unzipped:  # this is now properly typed
+                        ...
 
     Parameters
     ----------
@@ -188,15 +207,10 @@ class Msg(MsgBase[T]):
         super().__init__(msg, data, parse, **kwargs)
 
     def __repr__(self):
-        attrs = (
-            'msg', 'header',
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        if isinstance(self.body, betterproto.Message):
-            resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
-        return f"<Msg {' '.join(resolved)}>"
+        return f"<Msg {super().__repr__()}>"
 
     def parse(self):
+        """Parse the payload/data into a protobuf."""
         if self.body is None:
             proto = get_cmsg(self.msg)
             super().parse(proto)
@@ -210,6 +224,16 @@ class MsgProto(MsgBase[T]):
         .. describe:: bytes(x)
 
             Returns the sterilised message.
+
+        .. describe:: x[y]
+
+            Allows for type hinting of the messages
+            body. e.g.::
+
+                async def handle_multi(self, msg: MsgProto['CMsgMulti']) -> None:
+                    log.debug('Received a multi, unpacking')
+                    if msg.body.size_unzipped:  # this is now properly typed
+                        ...
 
     Parameters
     ----------
@@ -247,36 +271,22 @@ class MsgProto(MsgBase[T]):
         self.skip = self.header._full_size
         self.proto = True
         self.um_name = um_name
-
-        super().__init__(msg, data, False)
-        if parse:
-            self.parse()
-        if kwargs:
-            for (key, value) in kwargs.items():
-                if isinstance(value, EnumValue):
-                    kwargs[key] = value.value
-            self.body.from_dict(kwargs)
+        super().__init__(msg, data, parse, **kwargs)
 
     def __repr__(self):
-        attrs = (
-            'msg', 'header',
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        if not isinstance(self.body, str) and self.body is not None:
-            resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items()])
-        return f"<MsgProto {' '.join(resolved)}>"
+        return f"<MsgProto {super().__repr__()}>"
 
     def parse(self):
         """Parse the payload/data into a protobuf."""
         if self.body is None:
             if self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodResponse,
                             EMsg.ServiceMethodSendToClient, EMsg.ServiceMethodCallFromClient):
-                name = self.header.proto.target_job_name or self.um_name
+                name = self.header.job_name_target or self.um_name
                 proto = get_um(name)
                 if not name.endswith('_Response') and proto is None:
                     proto = get_um(f'{name}_Response')  # assume its a response
                 if name:
-                    self.header.proto.target_job_name = name.replace('_Request', '').replace('_Response', '')
+                    self.header.job_name_target = name.replace('_Request', '').replace('_Response', '')
 
             else:
                 proto = get_cmsg(self.msg)
