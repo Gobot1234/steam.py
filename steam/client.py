@@ -480,8 +480,6 @@ class Client:
                 self._cm_list = exc.cm_list
                 self.dispatch('disconnect')
             finally:
-                if self.ws is not None:
-                    await self.ws.close()  # ensure previous connections are fully closed
                 if self.is_closed():
                     return
 
