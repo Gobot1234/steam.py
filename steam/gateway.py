@@ -371,6 +371,7 @@ class SteamWebSocket:
         emsg = EMsg(utils.clear_proto_bit(emsg_value))
         if emsg in self.handlers:
             msg = MsgProto(emsg, message)
+            self._dispatch('socket_receive', msg)
             return await self.handlers[emsg](msg)
 
         if not self.connected:
