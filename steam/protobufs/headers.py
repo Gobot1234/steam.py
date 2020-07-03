@@ -183,7 +183,7 @@ class MsgHdrProtoBuf:
             'msg',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items()])
+        resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items())
         return f'<MsgHdrProtoBuf {" ".join(resolved)}>'
 
     def __bytes__(self):
@@ -273,7 +273,7 @@ class GCMsgHdr:
             'msg', 'target_job_id', 'source_job_id'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items()])
+        resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items())
         return f'<GCMsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
@@ -300,7 +300,7 @@ class GCMsgHdrProto:
             'msg',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items()])
+        resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items())
         return f'<GCMsgHdrProto {" ".join(resolved)}>'
 
     def __bytes__(self):
