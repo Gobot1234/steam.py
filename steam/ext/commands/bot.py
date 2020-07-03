@@ -463,11 +463,11 @@ class Bot(Client):
             return cls(message=message, prefix=prefix, bot=self)
 
         content = message.content[len(prefix):].strip()
-        lex = Shlex(content)
+        lex = Shlex(content, posix=True)
         lex.commenters = ''
         lex.whitespace = ' '
         lex.whitespace_split = True
-        command_name = lex.get_token().strip()  # skip command name
+        command_name = lex.get_token().strip()  # skip the command name
         command = self.__commands__.get(command_name)
         return cls(bot=self, message=message, shlex=lex, command=command,
                    prefix=prefix, invoked_with=command_name)
