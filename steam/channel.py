@@ -151,7 +151,7 @@ class _GroupChannel(BaseChannel):
 
     def __repr__(self):
         attrs = (
-            'id', 'clan'
+            'id', 'group'
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f"<GroupChannel {' '.join(resolved)}>"
