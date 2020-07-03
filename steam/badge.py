@@ -26,6 +26,7 @@ SOFTWARE.
 
 from datetime import datetime
 
+from .enums import EUserBadge
 from .game import Game
 
 __all__ = (
@@ -39,7 +40,7 @@ class Badge:
 
     Attributes
     ----------
-    id: :class:`int`
+    id: Union[.EUserBadge, :class:`int`]
         The badge's ID.
     level: :class:`int`
         The badge's level.
@@ -56,7 +57,7 @@ class Badge:
     __slots__ = ('id', 'xp', 'game', 'level', 'scarcity', 'completion_time')
 
     def __init__(self, data: dict):
-        self.id = data['badgeid']
+        self.id = EUserBadge.try_value(data['badgeid'])
         self.level = data['level']
         self.xp = data['xp']
         self.completion_time = datetime.utcfromtimestamp(data['completion_time'])

@@ -53,7 +53,6 @@ __all__ = (
     'EPersonaState',
     'EPersonaStateFlag',
     'ECommunityVisibilityState',
-    'EChatRoomEnterResponse',
     'ETradeOfferState',
     'EChatEntryType',
     'EUIMode',
@@ -378,6 +377,12 @@ class ETypeChar(IntEnum):
 
     def __str__(self):
         return self.name
+
+
+class EInstanceFlag(IntEnum):
+    MMSLobby = 0x20000
+    Lobby    = 0x40000
+    Clan     = 0x80000
 
 
 class EFriendRelationship(IntEnum):
