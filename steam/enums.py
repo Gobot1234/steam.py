@@ -28,6 +28,7 @@ EnumMeta and Enum from https://github.com/Rapptz/discord.py/blob/master/discord/
 Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
+from dataclasses import dataclass
 from types import MappingProxyType
 from typing import (
     Any,
@@ -35,7 +36,6 @@ from typing import (
     Iterable,
     List,
     Mapping,
-    NamedTuple,
     Tuple,
     TypeVar,
     Union,
@@ -66,7 +66,8 @@ def _is_descriptor(obj: Any) -> bool:
     return hasattr(obj, '__get__') or hasattr(obj, '__set__') or hasattr(obj, '__delete__')
 
 
-class EnumValue(NamedTuple):
+@dataclass()
+class EnumValue:
     name: str
     value: Any
 
@@ -88,6 +89,7 @@ class EnumValue(NamedTuple):
         return not self == other
 
 
+@dataclass(repr=False)
 class IntEnumValue(EnumValue):
     value: int
 
@@ -98,9 +100,6 @@ class IntEnumValue(EnumValue):
         if isinstance(other, int):
             return self.value == other
         return super().__eq__(other)
-
-    def __ne__(self, other: Any):
-        return not self == other
 
     def __lt__(self, x: Any):
         return int(self) < int(x)
@@ -158,7 +157,7 @@ class EnumMeta(type):
         attrs['_enum_member_names_'] = member_names
         enum_class = super().__new__(mcs, name, bases, attrs)
         for value in value_mapping.values():  # edit each value to ensure it's correct
-            value._actual_enum_cls_: 'EnumMeta' = enum_class
+            value._actual_enum_cls_ = enum_class
         return enum_class
 
     def __call__(cls: T, value: Any) -> 'EnumValue':
