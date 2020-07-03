@@ -5,6 +5,7 @@ from ..enums import IntEnum, IntEnumValue
 
 __all__ = (
     'EMsg',
+    'IntEnumValue',
 )
 
 

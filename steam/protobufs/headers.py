@@ -56,16 +56,16 @@ class MsgHdr:
     Attributes
     ----------
     msg: :class:`EMsg`
-    target_job_id: :class:`int`
-    source_job_id: :class:`int`
+    job_id_target: :class:`int`
+    job_id_source: :class:`int`
     """
-    __slots__ = ('msg', 'target_job_id', 'source_job_id')
+    __slots__ = ('msg', 'job_id_target', 'job_id_source')
     SIZE = 20
 
     def __init__(self, data: bytes = None):
         self.msg = EMsg.Invalid
-        self.target_job_id = -1
-        self.source_job_id = -1
+        self.job_id_target = -1
+        self.job_id_source = -1
         if data:
             self.parse(data)
 
@@ -83,7 +83,7 @@ class MsgHdr:
         ----------
         data: :class:`bytes`
         """
-        msg, self.target_job_id, self.source_job_id = struct.unpack_from("<Iqq", data)
+        msg, self.job_id_target, self.job_id_source = struct.unpack_from("<Iqq", data)
         self.msg = EMsg(msg)
 
 
@@ -99,8 +99,8 @@ class ExtendedMsgHdr:
     Attributes
     ----------
     msg: :class:`EMsg`
-    target_job_id: :class:`int`
-    source_job_id: :class:`int`
+    job_id_target: :class:`int`
+    job_id_source: :class:`int`
     steam_id: :class:`str`
     session_id: :class:`int`
     header_size: :class:`int`
@@ -109,15 +109,15 @@ class ExtendedMsgHdr:
     """
     __slots__ = ('msg', 'steam_id', 'session_id',
                  'header_size', 'header_version', 'header_canary',
-                 'target_job_id', 'source_job_id')
+                 'job_id_target', 'job_id_source')
     SIZE = 36
 
     def __init__(self, data: bytes = None):
         self.msg = EMsg.Invalid
         self.header_size = 36
         self.header_version = 2
-        self.target_job_id = -1
-        self.source_job_id = -1
+        self.job_id_target = -1
+        self.job_id_source = -1
         self.header_canary = 239
         self.steam_id = -1
         self.session_id = -1
@@ -142,7 +142,7 @@ class ExtendedMsgHdr:
         ----------
         data: :class:`bytes`
         """
-        (msg, self.header_size, self.header_version, self.target_job_id, self.source_job_id,
+        (msg, self.header_size, self.header_version, self.job_id_target, self.job_id_source,
          self.header_canary, self.steam_id, self.session_id) = struct.unpack_from("<IBHqqBqi", data)
 
         self.msg = EMsg(msg)
@@ -201,6 +201,48 @@ class MsgHdrProtoBuf:
         self.msg = EMsg(clear_proto_bit(msg))
         self._full_size = self.SIZE + proto_length
         self.proto = self.proto.parse(data[self.SIZE:self._full_size])
+
+    # allow for consistency between headers
+
+    @property
+    def session_id(self) -> int:
+        return self.proto.client_sessionid
+
+    @session_id.setter
+    def session_id(self, value: int):
+        self.proto.client_sessionid = int(value)
+
+    @property
+    def steam_id(self) -> int:
+        return self.proto.steamid
+
+    @steam_id.setter
+    def steam_id(self, value):
+        self.proto.steamid = int(value)
+
+    @property
+    def target_job_name(self) -> str:
+        return self.proto.target_job_name
+
+    @target_job_name.setter
+    def target_job_name(self, value) -> None:
+        self.proto.target_job_name = value
+
+    @property
+    def job_id_source(self) -> int:
+        return self.proto.jobid_source
+
+    @job_id_source.setter
+    def job_id_source(self, value: int) -> None:
+        self.proto.jobid_source = int(value)
+
+    @property
+    def job_id_target(self) -> int:
+        return self.proto.jobid_target
+
+    @job_id_target.setter
+    def job_id_target(self, value: int) -> None:
+        self.proto.jobid_target = int(value)
 
 
 class GCMsgHdr:

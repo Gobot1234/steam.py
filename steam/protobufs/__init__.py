@@ -27,7 +27,8 @@ SOFTWARE.
 This is an updated version of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
-from typing import Optional, Type, Union
+from dataclasses import dataclass
+from typing import Optional, Type, Union, Generic, TypeVar
 
 import betterproto
 
@@ -37,8 +38,14 @@ from .protobufs import *
 from .unified import *
 from ..enums import EnumValue
 
-
+T = TypeVar('T', bound=betterproto.Message)
+AllowedHeaders = (ExtendedMsgHdr, MsgHdrProtoBuf)
 betterproto.Message.__bool__ = lambda self: bool(self.to_dict(include_default_values=False))
+
+
+@dataclass
+class FailedToParse(betterproto.Message):
+    body: str = '!!! Failed To Parse !!!'
 
 
 def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
@@ -71,7 +78,71 @@ def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
     return UMS.get(method_name)
 
 
-class Msg:
+class MsgBase(Generic[T]):
+    __slots__ = ('header', 'proto', 'body', 'payload', 'skip')
+
+    def __init__(self, msg: Union[EMsg, IntEnumValue],
+                 data: bytes,
+                 parse: bool,
+                 **kwargs):
+        self.msg = EMsg.try_value(msg)
+        self.body: Optional[T] = None
+        self.payload: Optional[bytes] = None
+        self.header: Union[AllowedHeaders, MsgHdr]
+
+        if data:
+            self.payload = data[self.skip:]
+        if parse:
+            self.parse()
+        if kwargs:
+            for (key, value) in kwargs.items():
+                if isinstance(value, EnumValue):
+                    kwargs[key] = value.value
+            self.body.from_dict(kwargs)
+
+    def parse(self, proto: Type[T]):
+        """Parse the payload/data into a protobuf."""
+        if proto:
+            self.body = proto()
+            if self.payload:
+                self.body = proto().parse(self.payload)
+        else:
+            self.body = FailedToParse
+
+    @property
+    def msg(self) -> Union[EMsg, int]:
+        """Union[:class:`EMsg`, :class:`int`]: The :attr:`header`'s EMsg."""
+        return self.header.msg
+
+    @msg.setter
+    def msg(self, value) -> None:
+        self.header.msg = EMsg.try_value(value)
+
+    @property
+    def steam_id(self) -> Optional[int]:
+        """:class:`int`: The :attr:`header`'s 64 bit Steam ID."""
+        return self.header.steam_id if isinstance(self.header, AllowedHeaders) else None
+
+    @steam_id.setter
+    def steam_id(self, value) -> None:
+        if isinstance(self.header, AllowedHeaders):
+            self.header.steam_id = value
+
+    @property
+    def session_id(self) -> Optional[int]:
+        """:class:`int`: The :attr:`header`'s session ID."""
+        return self.header.session_id if isinstance(self.header, AllowedHeaders) else None
+
+    @session_id.setter
+    def session_id(self, value) -> None:
+        if isinstance(self.header, AllowedHeaders):
+            self.header.session_id = value
+
+    def __bytes__(self):
+        return bytes(self.header) + bytes(self.body)
+
+
+class Msg(MsgBase[T]):
     r"""A wrapper around received protobuf messages.
 
     .. container:: operations
@@ -106,82 +177,32 @@ class Msg:
         The raw data for the message.
     """
 
-    __slots__ = ('header', 'proto', 'body', 'payload')
-
-    def __init__(self, msg: EMsg,
+    def __init__(self, msg: Union[EMsg, IntEnumValue],
                  data: bytes = None,
                  extended: bool = False,
                  parse: bool = True,
                  **kwargs):
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
-        self.msg = EMsg.try_value(msg)
-
         self.proto = False
-        self.body: Optional[betterproto.Message] = None
-        self.payload: Optional[bytes] = None
-
-        if data:
-            self.payload = data[self.header.SIZE:]
-        if parse:
-            self.parse()
-        if kwargs:
-            for (key, value) in kwargs.items():
-                if isinstance(value, EnumValue):
-                    kwargs[key] = value.value
-            self.body.from_dict(kwargs)
+        self.skip = self.header.SIZE
+        super().__init__(msg, data, parse, **kwargs)
 
     def __repr__(self):
         attrs = (
             'msg', 'header',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        if not isinstance(self.body, str) and self.body is not None:
-            resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items()])
-        else:
-            resolved.append(f'body={self.body!r}')
+        if isinstance(self.body, betterproto.Message):
+            resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
         return f"<Msg {' '.join(resolved)}>"
 
     def parse(self):
-        """Parse the payload/data into a protobuf."""
         if self.body is None:
             proto = get_cmsg(self.msg)
-
-            if proto:
-                self.body = proto().parse(self.payload)
-            else:
-                self.body = '!!! Failed to resolve message !!!'
-
-    @property
-    def msg(self) -> Union[EMsg, int]:
-        return self.header.msg
-
-    @msg.setter
-    def msg(self, value) -> None:
-        self.header.msg = EMsg.try_value(value)
-
-    @property
-    def steam_id(self) -> Optional[str]:
-        return self.header.steam_id if isinstance(self.header, ExtendedMsgHdr) else None
-
-    @steam_id.setter
-    def steam_id(self, value) -> None:
-        if isinstance(self.header, ExtendedMsgHdr):
-            self.header.steam_id = value
-
-    @property
-    def session_id(self) -> Optional[int]:
-        return self.header.session_id if isinstance(self.header, ExtendedMsgHdr) else None
-
-    @session_id.setter
-    def session_id(self, value) -> None:
-        if isinstance(self.header, ExtendedMsgHdr):
-            self.header.session_id = value
-
-    def __bytes__(self):
-        return bytes(self.header) + bytes(self.body)
+            super().parse(proto)
 
 
-class MsgProto:
+class MsgProto(MsgBase[T]):
     r"""A wrapper around received protobuf messages.
 
     .. container:: operations
@@ -215,23 +236,19 @@ class MsgProto:
         The raw data for the message.
     """
 
-    __slots__ = ('header', '_header', 'proto', 'body', 'payload', 'um_name')
+    __slots__ = ('um_name',)
 
-    def __init__(self, msg: EMsg,
+    def __init__(self, msg: Union[EMsg, EnumValue],
                  data: bytes = None,
                  parse: bool = True,
                  um_name: str = None,
                  **kwargs):
-        self._header = MsgHdrProtoBuf(data)
-        self.header = self._header.proto
-        self.msg = msg
+        self.header = MsgHdrProtoBuf(data)
+        self.skip = self.header._full_size
         self.proto = True
         self.um_name = um_name
-        self.body: Optional[betterproto.Message] = None
-        self.payload: Optional[bytes] = None
 
-        if data:
-            self.payload = data[self._header._full_size:]
+        super().__init__(msg, data, False)
         if parse:
             self.parse()
         if kwargs:
@@ -242,13 +259,11 @@ class MsgProto:
 
     def __repr__(self):
         attrs = (
-            'msg', '_header',
+            'msg', 'header',
         )
         resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         if not isinstance(self.body, str) and self.body is not None:
             resolved.extend([f'{k}={v!r}' for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items()])
-        else:
-            resolved.append(f'body={self.body!r}')
         return f"<MsgProto {' '.join(resolved)}>"
 
     def parse(self):
@@ -256,50 +271,14 @@ class MsgProto:
         if self.body is None:
             if self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodResponse,
                             EMsg.ServiceMethodSendToClient, EMsg.ServiceMethodCallFromClient):
-                name = self.header.target_job_name or self.um_name
+                name = self.header.proto.target_job_name or self.um_name
                 proto = get_um(name)
                 if not name.endswith('_Response') and proto is None:
                     proto = get_um(f'{name}_Response')  # assume its a response
                 if name:
-                    self.header.target_job_name = name.replace('_Request', '').replace('_Response', '')
+                    self.header.proto.target_job_name = name.replace('_Request', '').replace('_Response', '')
 
             else:
                 proto = get_cmsg(self.msg)
 
-            if proto:
-                self.body = proto()
-                if self.payload:
-                    self.body = self.body.parse(self.payload)
-                    self.payload = None
-            else:
-                self.body = '!!! Failed to resolve message !!!'
-
-    @property
-    def msg(self) -> Union[EMsg, int]:
-        """Union[:class:`EMsg`, :class:`int`]: The :attr:`header`'s EMsg."""
-        return self._header.msg
-
-    @msg.setter
-    def msg(self, value) -> None:
-        self._header.msg = EMsg.try_value(value)
-
-    @property
-    def steam_id(self) -> str:
-        """:class:`str`: The :attr:`header`'s 64 bit Steam ID."""
-        return self.header.steamid
-
-    @steam_id.setter
-    def steam_id(self, value) -> None:
-        self.header.steamid = value
-
-    @property
-    def session_id(self) -> int:
-        """:class:`INT`: The :attr:`header`'s session ID."""
-        return self.header.client_sessionid
-
-    @session_id.setter
-    def session_id(self, value) -> None:
-        self.header.client_sessionid = value
-
-    def __bytes__(self):
-        return bytes(self._header) + bytes(self.body)
+            super().parse(proto)
