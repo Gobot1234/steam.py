@@ -60,6 +60,7 @@ __all__ = (
 )
 
 T = TypeVar('T', bound='Enum')
+EnumValues = Union['EnumValue', 'IntEnumValue']
 
 
 def _is_descriptor(obj: Any) -> bool:
@@ -160,7 +161,7 @@ class EnumMeta(type):
             value._actual_enum_cls_ = enum_class
         return enum_class
 
-    def __call__(cls: T, value: Any) -> 'EnumValue':
+    def __call__(cls: T, value: Any) -> EnumValues:
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
@@ -169,16 +170,16 @@ class EnumMeta(type):
     def __repr__(cls: T):
         return f'<enum {cls.__name__!r}>'
 
-    def __iter__(cls: T) -> Iterable['EnumValue']:
+    def __iter__(cls: T) -> Iterable[EnumValues]:
         return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
 
-    def __reversed__(cls: T) -> Iterable['EnumValue']:
+    def __reversed__(cls: T) -> Iterable[EnumValues]:
         return (cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_))
 
     def __len__(cls: T):
         return len(cls._enum_member_names_)
 
-    def __getitem__(cls: T, key: Any) -> 'EnumValue':
+    def __getitem__(cls: T, key: Any) -> EnumValues:
         return cls._enum_member_map_[key]
 
     def __setattr__(cls: T, name: str, value: Any) -> None:
@@ -197,7 +198,7 @@ class EnumMeta(type):
             return False
 
     @property
-    def __members__(cls: T) -> Mapping[str, 'EnumValue']:
+    def __members__(cls: T) -> Mapping[str, EnumValues]:
         return MappingProxyType(cls._enum_member_map_)
 
 
@@ -205,7 +206,7 @@ class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates enum.Enum."""
 
     @classmethod
-    def try_value(cls: T, value: Union['Enum', int, str]) -> Union['EnumValue', int, str]:
+    def try_value(cls: T, value: Union['Enum', int, str]) -> Union[EnumValues, int, str]:
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
