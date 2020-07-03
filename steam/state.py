@@ -227,15 +227,16 @@ class ConnectionState:
         job_id = await self.client.ws.send_um('ClanChatRooms.GetClanChatRoomInfo#1_Request',
                                               steamid=id64, autocreate=True)
         try:
-            msg = await asyncio.wait_for(self.client.ws.wait_for(
-                EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
+            msg: MsgProto['FetchGroupResponse'] = await asyncio.wait_for(self.client.ws.wait_for(
+                EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,
             ), timeout=5)
         except asyncio.TimeoutError:
             return
         if msg.header.eresult == EResult.Busy:
             raise WSNotFound(msg)
+        if msg.header.eresult != EResult.OK:
+            raise WSException(msg)
 
-        msg.body: 'FetchGroupResponse'
         clan = Clan(self, int(msg.body.chat_group_summary.clanid))
         await clan.__ainit__(msg.body)
         return clan
@@ -406,7 +407,7 @@ class ConnectionState:
         )
         try:
             msg = await asyncio.wait_for(self.client.ws.wait_for(
-                EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
+                EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,
             ), timeout=5)
         except asyncio.TimeoutError:
             return
@@ -442,7 +443,7 @@ class ConnectionState:
         )
         try:
             msg = await asyncio.wait_for(self.client.ws.wait_for(
-                EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
+                EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,
             ), timeout=5)
         except asyncio.TimeoutError:
             return
@@ -477,7 +478,7 @@ class ConnectionState:
         )
         try:
             msg = await asyncio.wait_for(self.client.ws.wait_for(
-                EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
+                EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,
             ), timeout=5)
         except asyncio.TimeoutError:
             return
@@ -493,7 +494,7 @@ class ConnectionState:
         )
         try:
             msg = await asyncio.wait_for(self.client.ws.wait_for(
-                EMsg.ServiceMethodResponse, lambda m: int(m.header.jobid_target) == job_id,
+                EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,
             ), timeout=5)
         except asyncio.TimeoutError:
             return
@@ -507,7 +508,7 @@ class ConnectionState:
     @register(EMsg.ServiceMethod)
     async def parse_service_method(self, msg: MsgProto) -> None:
         if msg.header.target_job_name == 'FriendMessagesClient.IncomingMessage#1':
-            msg.body: 'UserMessageNotification'
+            msg: MsgProto['UserMessageNotification']
             user_id64 = int(msg.body.steamid_friend)
             author = self.get_user(user_id64) or await self.fetch_user(user_id64)
 
@@ -522,7 +523,7 @@ class ConnectionState:
                 self.dispatch('typing', author, when)
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyIncomingChatMessage#1':
-            msg.body: 'GroupMessageNotification'
+            msg: MsgProto['GroupMessageNotification']
             destination = self._combined.get(int(msg.body.chat_group_id))
             if destination is None:
                 return
@@ -540,7 +541,7 @@ class ConnectionState:
             self.dispatch('message', message)
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyChatRoomHeaderStateChange#1':  # group update
-            msg.body: 'GroupStateUpdate'
+            msg: MsgProto['GroupStateUpdate']
             destination = self._combined.get(int(msg.body.header_state.chat_group_id))
             if destination is None:
                 return
@@ -551,7 +552,7 @@ class ConnectionState:
                 destination._from_proto(msg.body.header_state)
 
         if msg.header.target_job_name == 'ChatRoomClient.NotifyChatGroupUserStateChanged#1':
-            msg.body: 'GroupAction'
+            msg.body: MsgProto['GroupAction']
             if msg.body.user_action == 'Joined':  # join group
                 if msg.body.group_summary.clanid:
                     clan = Clan(state=self, id=msg.body.group_summary.clanid)
@@ -576,7 +577,7 @@ class ConnectionState:
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
         if msg.header.target_job_name == 'ChatRoom.GetMyChatRoomGroups#1':
-            msg.body: 'MyChatRooms'
+            msg: MsgProto['MyChatRooms']
             for group in msg.body.chat_room_groups:
                 if group.group_summary.clanid:  # received a clan
                     clan = Clan(state=self, id=group.group_summary.clanid)
@@ -592,8 +593,7 @@ class ConnectionState:
                 self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
-    def parse_cm_list_update(self, msg: MsgProto) -> None:
-        msg.body: 'CMsgClientCMList'
+    def parse_cm_list_update(self, msg: MsgProto['CMsgClientCMList']) -> None:
         log.debug('Updating CM list')
         cms = msg.body.cm_websocket_addresses
         self.client.ws.cm_list.clear()
@@ -602,8 +602,7 @@ class ConnectionState:
         # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)
-    async def parse_persona_state_update(self, msg: MsgProto) -> None:
-        msg.body: 'CMsgClientPersonaState'
+    async def parse_persona_state_update(self, msg: MsgProto['CMsgClientPersonaState']) -> None:
         for friend in msg.body.friends:
             data = friend.to_dict(snakecase)
             if not data:
@@ -643,8 +642,7 @@ class ConnectionState:
         return data
 
     @register(EMsg.ClientFriendsList)
-    async def process_friends(self, msg: MsgProto) -> None:
-        msg.body: 'CMsgClientFriendsList'
+    async def process_friends(self, msg: MsgProto['CMsgClientFriendsList']) -> None:
         if not self.handled_friends.is_set():
             self.client.user.friends = await self.fetch_users([
                 int(friend.ulfriendid) for friend in msg.body.friends
@@ -700,8 +698,7 @@ class ConnectionState:
             """
 
     @register(EMsg.ClientCommentNotifications)
-    async def handle_comments(self, msg: MsgProto) -> None:
-        msg.body: 'CMsgClientCommentNotifications'
+    async def handle_comments(self, msg: MsgProto['CMsgClientCommentNotifications']) -> None:
         for _ in range(msg.body.count_new_comments):
             comment = await self._parse_comment()
             if comment is not None:
@@ -710,8 +707,7 @@ class ConnectionState:
         await self.http.clear_notifications()
 
     @register(EMsg.ClientUserNotifications)
-    async def parse_notification(self, msg: MsgProto) -> None:
-        msg.body: 'CMsgClientUserNotifications'
+    async def parse_notification(self, msg: MsgProto['CMsgClientUserNotifications']) -> None:
         for notification in msg.body.notifications:
             if notification.type == 1:  # received a trade offer
                 async def poll_trades() -> None:

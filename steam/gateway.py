@@ -56,7 +56,7 @@ from typing import (
 import aiohttp
 
 from . import utils
-from .enums import EPersonaState, EResult
+from .enums import EPersonaState, EResult, IntEnumValue
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .protobufs import EMsg, Msg, MsgProto
@@ -184,7 +184,7 @@ class CMServerList(AsyncIterator):
 
     async def ping_cms(self, hosts: List[str] = None, to_ping: int = 10) -> None:
         hosts = list(self.dict.keys()) if hosts is None else hosts
-        for host in hosts[:to_ping]:  # only ping the first 10 cms
+        for host in hosts[:to_ping]:  # only ping the first 10 cms (by default)
             # TODO dynamically make sure we get good ones
             # by checking len and stuff
             start = time.perf_counter()
@@ -210,10 +210,10 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                  'msg', 'block_msg', 'behind_msg', 'latency',
                  '_stop_ev', '_last_ack', '_last_send', '_main_thread_id')
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
+        super().__init__()
         self.ws: 'SteamWebSocket' = kwargs.pop('ws')
         self.interval: int = kwargs.pop('interval')
-        super().__init__(*args, **kwargs)
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
         self.heartbeat_timeout = 60
@@ -229,7 +229,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         while not self._stop_ev.wait(self.interval):
             if self._last_ack + self.heartbeat_timeout < time.perf_counter():
                 log.warning(f"Server {self.ws.cm} has stopped responding to the gateway. Closing and restarting.")
-                coro = self.ws.close()
+                coro = self.ws.handle_close()
                 f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
 
                 try:
@@ -314,7 +314,7 @@ class SteamWebSocket:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg, predicate: Callable[..., bool] = None) -> asyncio.Future:
+    def wait_for(self, emsg: Union[EMsg, IntEnumValue], predicate: Callable[..., bool] = None) -> asyncio.Future:
         future = self.loop.create_future()
         entry = EventListener(emsg=emsg, predicate=predicate or return_true, future=future)
         self.listeners.append(entry)
@@ -445,8 +445,7 @@ class SteamWebSocket:
         log.info(f'Websocket closed, cannot reconnect.')
         raise ConnectionClosed(self.cm, self.cm_list)
 
-    async def handle_logon(self, msg: MsgProto) -> None:
-        msg.body: 'CMsgClientLogonResponse'
+    async def handle_logon(self, msg: MsgProto['CMsgClientLogonResponse']) -> None:
         if msg.body.eresult == EResult.OK:
             log.debug('Logon completed')
 
@@ -468,8 +467,7 @@ class SteamWebSocket:
                 await asyncio.sleep(60)
             raise ConnectionClosed(self.cm, self.cm_list)
 
-    async def handle_multi(self, msg: MsgProto) -> None:
-        msg.body: 'CMsgMulti'
+    async def handle_multi(self, msg: MsgProto['CMsgMulti']) -> None:
         log.debug('Received a multi, unpacking')
         if msg.body.size_unzipped:
             log.debug(f'Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})')
@@ -489,7 +487,7 @@ class SteamWebSocket:
 
     async def send_um(self, name: str, **kwargs) -> int:
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
-        msg.header.jobid_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
+        msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
         return self._current_job_id
 
