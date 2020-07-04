@@ -48,6 +48,9 @@ __all__ = (
     'ConfirmationError',
     'AuthenticatorError',
     'InvalidCredentials',
+    'WSException',
+    'WSForbidden',
+    'WSNotFound',
 )
 
 CODE_FINDER = re.compile(r'\S(\d+)\S')

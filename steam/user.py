@@ -67,8 +67,6 @@ class User(BaseUser, Messageable):
     ----------
     name: :class:`str`
         The user's username.
-    steam_id: :class:`SteamID`
-        The SteamID instance attached to the user.
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
@@ -88,12 +86,6 @@ class User(BaseUser, Messageable):
         The country code of the account. Could be ``None``.
     flags: :class:`~steam.EPersonaStateFlag`
         The persona state flags of the account.
-    id64: :class:`int`
-        The 64 bit id of the user's account.
-    id3: :class:`str`
-        The id3 of the user's account. Used for newer steam games.
-    id2: :class:`str`
-        The id2 of the user's account. Used for older steam games.
     """
 
     async def add(self) -> None:
