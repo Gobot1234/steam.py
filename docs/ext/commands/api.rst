@@ -45,7 +45,7 @@ Command
 
 .. autofunction:: steam.ext.commands.command
 
-.. autofunction:: steam.ext.commands.cooldown
+.. autofunction:: steam.ext.commands.command.cooldown
 
 .. autoclass:: steam.ext.commands.Command
     :members:

@@ -129,7 +129,7 @@ class AsyncIterator(_AsyncIterator):
         """|coro|
         A helper function which is similar to :func:`~steam.utils.find`
         except it runs over the :class:`AsyncIterator`. However unlike
-         :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
+        :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
 
         This is roughly equivalent to: ::
 
