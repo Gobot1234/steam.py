@@ -29,12 +29,13 @@ import re
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
-    Any,
     AsyncIterator as _AsyncIterator,
     Awaitable,
     Callable,
+    Generic,
     List,
     Optional,
+    TypeVar,
     Union,
 )
 
@@ -50,10 +51,11 @@ if TYPE_CHECKING:
     from .trade import TradeOffer
     from .state import ConnectionState
 
-maybe_coro_predicate = Callable[..., Union[bool, Awaitable[bool]]]
+T = TypeVar('T')
+MaybeCoro = Callable[..., Union[bool, Awaitable[bool]]]
 
 
-class AsyncIterator(_AsyncIterator):
+class AsyncIterator(_AsyncIterator, Generic[T]):
     """A class from which async iterators (see :pep:`525`) can ben easily derived.
 
     .. container:: operations
@@ -81,11 +83,12 @@ class AsyncIterator(_AsyncIterator):
         self.before = before or datetime.utcnow()
         self.after = after or datetime.utcfromtimestamp(0)
         self._is_filled = False
-        self.queue = asyncio.Queue(maxsize=limit or 0)
+        self.queue: 'asyncio.Queue[T]' = asyncio.Queue(maxsize=limit or 0)
         self.limit = limit
 
-    def get(self, **attrs) -> Optional[Any]:
-        r"""A helper function which is similar to :func:`~steam.utils.get`
+    def get(self, **attrs) -> Awaitable[Optional[T]]:
+        r"""|coro|
+        A helper function which is similar to :func:`~steam.utils.get`
         except it runs over the :class:`AsyncIterator`.
 
         This is roughly equipment to: ::
@@ -125,7 +128,7 @@ class AsyncIterator(_AsyncIterator):
 
         return self.find(predicate)
 
-    async def find(self, predicate: maybe_coro_predicate) -> Optional[Any]:
+    async def find(self, predicate: MaybeCoro) -> Optional[T]:
         """|coro|
         A helper function which is similar to :func:`~steam.utils.find`
         except it runs over the :class:`AsyncIterator`. However unlike
@@ -167,7 +170,7 @@ class AsyncIterator(_AsyncIterator):
             if ret:
                 return elem
 
-    async def flatten(self) -> List[Any]:
+    async def flatten(self) -> List[T]:
         """|coro|
         A helper function that iterates over the :class:`AsyncIterator`
         returning a list of all the elements in the iterator.
@@ -183,10 +186,10 @@ class AsyncIterator(_AsyncIterator):
         """
         return [element async for element in self]
 
-    async def __anext__(self) -> Any:
+    async def __anext__(self) -> T:
         return await self.next()
 
-    async def next(self) -> Any:
+    async def next(self) -> T:
         """|coro|
         Advances the iterator by one, if possible.
 
@@ -208,7 +211,7 @@ class AsyncIterator(_AsyncIterator):
         pass
 
 
-class CommentsIterator(AsyncIterator):
+class CommentsIterator(AsyncIterator['Comment']):
     __slots__ = ('owner',)
 
     def __init__(self, state: 'ConnectionState', before: datetime,
@@ -250,15 +253,6 @@ class CommentsIterator(AsyncIterator):
                 if comment.author == author.id:
                     comment.author = author
 
-    def get(self, **attrs) -> Optional[Comment]:
-        return super().get(**attrs)
-
-    async def find(self, predicate: maybe_coro_predicate) -> Optional[Comment]:
-        return await super().find(predicate)
-
-    async def flatten(self) -> List[Comment]:
-        return await super().flatten()
-
 
 class TradesIterator(AsyncIterator):
     __slots__ = ('_active_only',)
@@ -267,37 +261,6 @@ class TradesIterator(AsyncIterator):
                  after: datetime, active_only: bool):
         super().__init__(state, limit, before, after)
         self._active_only = active_only
-
-    async def _process_trade(self, data: dict, descriptions: dict) -> None:
-        from .trade import TradeOffer
-
-        if self.after.timestamp() < data['time_init'] < self.before.timestamp():
-            for item in descriptions:
-                for asset in data.get('assets_received', []):
-                    if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
-                        asset.update(item)
-                for asset in data.get('assets_given', []):
-                    if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
-                        asset.update(item)
-
-            # patch in the attributes cause steam is cool
-            data['tradeofferid'] = data['tradeid']
-            data['accountid_other'] = data['steamid_other']
-            data['trade_offer_state'] = data['status']
-            data['items_to_give'] = data.get('assets_given', [])
-            data['items_to_receive'] = data.get('assets_received', [])
-
-            trade = await TradeOffer._from_api(state=self._state, data=data)
-
-            try:
-                if not self._active_only:
-                    self.queue.put_nowait(trade)
-                elif self._active_only and trade.state in \
-                        (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
-                    self.queue.put_nowait(trade)
-
-            except asyncio.QueueFull:
-                raise StopAsyncIteration
 
     async def fill(self) -> None:
         resp = await self._state.http.get_trade_history(100, None)
@@ -308,8 +271,39 @@ class TradesIterator(AsyncIterator):
 
         descriptions = resp.get('descriptions', [])
         try:
+            from .trade import TradeOffer
+
+            async def process_trade(data: dict, descriptions: dict):
+                if self.after.timestamp() < data['time_init'] < self.before.timestamp():
+                    for item in descriptions:
+                        for asset in data.get('assets_received', []):
+                            if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                                asset.update(item)
+                        for asset in data.get('assets_given', []):
+                            if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                                asset.update(item)
+
+                    # patch in the attributes cause steam is cool
+                    data['tradeofferid'] = data['tradeid']
+                    data['accountid_other'] = data['steamid_other']
+                    data['trade_offer_state'] = data['status']
+                    data['items_to_give'] = data.get('assets_given', [])
+                    data['items_to_receive'] = data.get('assets_received', [])
+
+                    trade = await TradeOffer._from_api(state=self._state, data=data)
+
+                    try:
+                        if not self._active_only:
+                            self.queue.put_nowait(trade)
+                        elif self._active_only and trade.state in \
+                                (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+                            self.queue.put_nowait(trade)
+
+                    except asyncio.QueueFull:
+                        raise StopAsyncIteration
+
             for trade in resp.get('trades', []):
-                await self._process_trade(trade, descriptions)
+                await process_trade(trade, descriptions)
 
             previous_time = trade['time_init']
             if total > 100:
@@ -319,20 +313,11 @@ class TradesIterator(AsyncIterator):
                     resp = await self._state.http.get_trade_history(page, previous_time)
                     resp = resp['response']
                     for trade in resp.get('trades', []):
-                        await self._process_trade(trade, descriptions)
+                        await process_trade(trade, descriptions)
                     previous_time = trade['time_init']
                 resp = await self._state.http.get_trade_history(page + 100, previous_time)
                 resp = resp['response']
                 for trade in resp.get('trades', []):
-                    await self._process_trade(trade, descriptions)
+                    await process_trade(trade, descriptions)
         except StopAsyncIteration:
             return
-
-    def get(self, **attrs) -> Optional['TradeOffer']:
-        return super().get(**attrs)
-
-    async def find(self, predicate: maybe_coro_predicate) -> Optional['TradeOffer']:
-        return await super().find(predicate)
-
-    async def flatten(self) -> List['TradeOffer']:
-        return await super().flatten()
