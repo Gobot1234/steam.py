@@ -35,13 +35,17 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Dict,
     List,
     Type,
+    Union,
 )
 
-from .cooldown import BucketType, Cooldown
-from .errors import BadArgument
+import steam
 from ...errors import ClientException
+from . import converters
+from .cooldown import BucketType, Cooldown
+from .errors import BadArgument, MissingRequiredArgument
 
 if TYPE_CHECKING:
     from ...client import EventType
@@ -54,6 +58,16 @@ __all__ = (
 )
 
 CommandFuncType = Callable[['Context'], Awaitable[None]]
+
+
+def to_bool(argument: str):
+    lowered = argument.lower()
+    if lowered in ('yes', 'y', 'true', 't', '1', 'enable', 'on'):
+        return True
+    elif lowered in ('no', 'n', 'false', 'f', '0', 'disable', 'off'):
+        return False
+    else:
+        raise BadArgument(f'"{lowered}" is not a recognised boolean option')
 
 
 class Command:
@@ -96,7 +110,7 @@ class Command:
         self.hidden = kwargs.get('hidden', False)
         self.cog: 'Cog' = kwargs.get('cog')
 
-    async def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         """|coro|
         Calls the internal callback that the command holds.
 
@@ -106,9 +120,9 @@ class Command:
             the proper arguments and types to this function.
         """
         if self.cog is not None:
-            return await self.callback(self.cog, *args, **kwargs)
+            return self.callback(self.cog, *args, **kwargs)
         else:
-            return await self.callback(*args, **kwargs)
+            return self.callback(*args, **kwargs)
 
     def error(self, func: 'EventType') -> 'EventType':
         """Register an event to handle a commands
@@ -131,7 +145,7 @@ class Command:
         return func
 
     async def _parse_arguments(self, ctx: 'Context') -> None:
-        args = (ctx,) if self.cog is None else (self.cog, ctx)
+        args = [ctx] if self.cog is None else [self.cog, ctx]
         kwargs = {}
 
         shlex = ctx.shlex
@@ -143,35 +157,100 @@ class Command:
             try:
                 next(iterator)
             except StopIteration:
-                raise ClientException(f'callback for {self.name} command is missing "self" parameter.')
+                raise ClientException(f'Callback for {self.name} command is missing "self" parameter.')
 
         # next we have the 'ctx' as the next parameter
         try:
             next(iterator)
         except StopIteration:
-            raise ClientException(f'callback for {self.name} command is missing "ctx" parameter.')
+            raise ClientException(f'Callback for {self.name} command is missing "ctx" parameter.')
         for name, param in iterator:
             if param.kind == param.POSITIONAL_OR_KEYWORD:
-                transformed = await self.transform(param, shlex.get_token()) or param.default
-                args = args + (transformed,)
+                argument = shlex.get_token()
+                if argument is None:
+                    transformed = await self._get_default(ctx, param)
+                else:
+                    transformed = await self.transform(ctx, param, argument)
+                args.append(transformed)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                kwargs[name] = await self.transform(param, ' '.join(shlex)) or param.default
+                arg = ' '.join(shlex)
+                if not arg:
+                    kwargs[name] = await self._get_default(ctx, param)
+                else:
+                    kwargs[name] = await self.transform(ctx, param, arg)
                 break
+            elif param.kind == param.VAR_KEYWORD:
+                # we have received **kwargs
+                arguments = list(shlex)
+                if not arguments:
+                    kwargs[name] = await self._get_default(ctx, param)
+
+                annotation = param.annotation
+                if annotation is inspect.Parameter.empty or annotation is dict:
+                    annotation = Dict[str, str]  # default to {str: str}
+
+                key_converter = self._get_converter(annotation.__args__[0])
+                value_converter = self._get_converter(annotation.__args__[1])
+
+                kv_pairs = [arg.split('=') for arg in arguments]
+                kwargs[name] = {
+                    await self._convert(ctx, key_converter, key):
+                        await self._convert(ctx, value_converter, value)
+                    for (key, value) in kv_pairs
+                }
+                break
+
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
                 for arg in shlex:
-                    transformed = await self.transform(param, arg) or param.default
-                    args = args + (transformed,)
-        ctx.args = args
+                    transformed = await self.transform(ctx, param, arg)
+                    args.append(transformed)
+                break
+        ctx.args = tuple(args)
         ctx.kwargs = kwargs
 
-    async def transform(self, param: inspect.Parameter, argument: str) -> Any:
-        param_type = param.annotation if param.annotation is not inspect._empty else str
-        try:
-            return param_type(argument)
-        except TypeError:
-            raise BadArgument(param, argument)
+    def transform(self, ctx, param: inspect.Parameter, argument: str) -> Awaitable[Any]:
+        param_type = param.annotation if param.annotation is not param.empty else str
+        converter = self._get_converter(param_type)
+        return self._convert(ctx, converter, argument)
+
+    def _get_converter(self, param_type: type) -> Union[converters.Converter, type]:
+        if param_type.__name__ in dir(steam):  # find a converter
+            converter = getattr(converters, f'{param_type.__name__}Converter', None)
+            if converter is None:
+                raise NotImplementedError(f'{param_type.__name__} does not have an associated converter')
+            return converter
+        return param_type
+
+    async def _convert(self, ctx: 'Context', converter: Union[Type[converters.Converter], type], argument: str):
+        if isinstance(converter, converters.Converter):
+            try:
+                return await converter.convert(ctx, argument)
+            except Exception as exc:
+                raise BadArgument(f'{argument} failed to convert to type {converter.__name__ or str}') from exc
+        if issubclass(converter, converters.Converter):
+            try:
+                return await converter.convert(converter, ctx, argument)
+            except Exception as exc:
+                raise BadArgument(f'{argument} failed to convert to type {converter.__name__ or str}') from exc
+        else:
+            if converter is bool:
+                return to_bool(argument)
+            try:
+                return converter(argument)
+            except TypeError as exc:
+                raise BadArgument(f'{argument} failed to convert to type {converter.__name__ or str}') from exc
+
+    async def _get_default(self, ctx, param: inspect.Parameter):
+        if param.default is param.empty:
+            raise MissingRequiredArgument(param)
+        if inspect.isclass(param.default):
+            if isinstance(param.default, converters.Default):
+                return await param.default.default(ctx)
+            if issubclass(param.default, converters.Default):
+                return await param.default.default(param.default, ctx)
+        return param.default
 
     def _parse_cooldown(self, ctx: 'Context'):
         for cooldown in self._cooldowns:

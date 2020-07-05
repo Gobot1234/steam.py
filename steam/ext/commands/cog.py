@@ -44,6 +44,18 @@ __all__ = (
 )
 
 
+class InjectedListener:
+    """Injects the cog's "self" parameter into every event call
+    auto-magically.
+    """
+    def __init__(self, cog: 'Cog', func: 'EventType'):
+        self.func = func
+        self.cog = cog
+
+    def __call__(self, *args, **kwargs):
+        return self.func(self.cog, *args, **kwargs)
+
+
 # for a bit of type hinting
 class ExtensionType(ModuleType):
     @staticmethod
@@ -111,13 +123,14 @@ class Cog:
             Defaults to ``func.__name__``.
         """
         def decorator(func: 'EventType'):
+            name_ = name or func.__name__
             if not asyncio.iscoroutinefunction(func):
-                raise TypeError('listeners must be coroutines')
+                raise TypeError(f'listeners must be coroutines, {name_} is {type(func).__name__}')
 
-            if name in cls.__listeners__:
-                cls.__listeners__[name or func.__name__].append(func)
+            if name_ in cls.__listeners__:
+                cls.__listeners__[name_].append(func)
             else:
-                cls.__listeners__[name or func.__name__] = [func]
+                cls.__listeners__[name_] = [func]
         return decorator
 
     async def cog_command_error(self, ctx: 'commands.Context', error: Exception):
@@ -168,8 +181,12 @@ class Cog:
             command.checks.append(self.cog_check)
             bot.add_command(command)
 
-        for (name, listener) in self.__listeners__.items():
-            bot.add_listener(listener, name)
+        for (name, listeners) in self.__listeners__.items():
+            for listener in listeners:
+                if not isinstance(listener, staticmethod):
+                    # we need to manually inject the "self" parameter then
+                    listener = InjectedListener(self, listener)
+                bot.add_listener(listener, name)
 
     def _eject(self, bot: 'Bot'):
         self.cog_unload()

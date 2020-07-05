@@ -13,6 +13,7 @@ from .bot import *
 from .cog import *
 from .command import *
 from .context import *
+from .converters import *
 from .cooldown import *
 from .errors import *
 from .help import *

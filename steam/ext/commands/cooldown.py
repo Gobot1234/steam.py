@@ -25,10 +25,10 @@ SOFTWARE.
 """
 
 import time as _time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple
 
-from .errors import CommandOnCooldown
 from ...enums import IntEnum, IntEnumValue
+from .errors import CommandOnCooldown
 
 if TYPE_CHECKING:
     from .context import Context
@@ -72,7 +72,7 @@ class Cooldown:
         self._per = per
         self.bucket = bucket
         self._last_update = 0
-        self._last_called_by = []
+        self._last_called_by: List[Tuple[int, int]] = []
 
     def reset(self):
         self._last_update = 0

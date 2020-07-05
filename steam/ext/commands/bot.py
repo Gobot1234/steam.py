@@ -30,6 +30,7 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/bot.py
 
 import asyncio
 import importlib
+import inspect
 import sys
 import traceback
 from copy import copy
@@ -52,7 +53,7 @@ from typing import (
 from ... import utils
 from ...client import Client, EventType
 from ...errors import ClientException
-from .cog import Cog, ExtensionType
+from .cog import Cog, ExtensionType, InjectedListener
 from .command import Command, command
 from .context import Context
 from .errors import CheckFailure, CommandNotFound
@@ -149,8 +150,8 @@ class Bot(Client):
         return list(self.__commands__.values())
 
     @property
-    def extensions(self) -> Mapping[str, 'Command']:
-        """Mapping[:class:`str`, :class:`.Command`]:
+    def extensions(self) -> Mapping[str, 'ExtensionType']:
+        """Mapping[:class:`str`, :class:`ExtensionType`]:
         A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
@@ -165,13 +166,13 @@ class Bot(Client):
         Unloads any extensions, cogs and commands, then
         closes the connection to Steam CMs and logs out.
         """
-        for extension in self.__extensions__:
+        for extension in tuple(self.__extensions__):
             try:
                 self.unload_extension(extension)
             except Exception:
                 pass
 
-        for cog in self.__cogs__.values():
+        for cog in tuple(self.__cogs__.values()):
             try:
                 self.remove_cog(cog)
             except Exception:
@@ -195,8 +196,8 @@ class Bot(Client):
             module.setup(self)
         else:
             del module
-            del sys.modules[name]
-            raise ImportError(f'extension {name} is missing a setup function')
+            del sys.modules[extension]
+            raise ImportError(f'extension {extension} is missing a setup function')
 
         self.__extensions__[extension] = module
 
@@ -212,9 +213,10 @@ class Bot(Client):
             raise ModuleNotFoundError(f'extension {extension} was not found')
 
         module: 'ExtensionType' = self.__extensions__[extension]
-        for attr in [(getattr(self, attr) for attr in dir(module))]:
-            if isinstance(attr, Cog):
-                self.remove_cog(attr)
+        for attr in ((getattr(module, attr) for attr in dir(module))):
+            if inspect.isclass(attr) and issubclass(attr, Cog):
+                cog = self.get_cog(attr.qualified_name)
+                self.remove_cog(cog)
 
         if hasattr(module, 'teardown'):
             module.teardown(self)
@@ -265,7 +267,7 @@ class Bot(Client):
         cog: :class:`.Cog`
             The cog to remove.
         """
-        cog = cog._eject(self)
+        cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
     def add_listener(self, func: EventType, name: str = None):
@@ -281,8 +283,8 @@ class Bot(Client):
         """
         name = name or func.__name__
 
-        if not asyncio.iscoroutinefunction(func):
-            raise TypeError('listeners must be coroutines')
+        if not (asyncio.iscoroutinefunction(func) or isinstance(func, InjectedListener)):
+            raise TypeError(f'listeners must be coroutines, {name} is {type(func).__name__}')
 
         if name in self.__listeners__:
             self.__listeners__[name].append(func)
@@ -360,8 +362,11 @@ class Bot(Client):
         command: :class:`.Command`
             The command to remove.
         """
-        for c in self.__commands__.values():
-            if c.name == command.name:
+        for name, c in tuple(self.__commands__.items()):
+            if name == command.name:
+                if c.aliases:
+                    for alias in c.aliases:
+                        del self.__commands__[alias]
                 del self.__commands__[command.name]
 
     def command(self, *args, **kwargs) -> Callable[..., Command]:
@@ -465,6 +470,7 @@ class Bot(Client):
         content = message.content[len(prefix):].strip()
         lex = Shlex(content, posix=True)
         lex.commenters = ''
+        lex.quotes = '"'
         lex.whitespace = ' '
         lex.whitespace_split = True
         command_name = lex.get_token().strip()  # skip the command name
