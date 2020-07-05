@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ... import utils
 from ...game import Game
@@ -48,7 +48,7 @@ __all__ = (
 
 
 class Converter:
-    async def convert(self, ctx: 'commands.Context', param: str) -> C:
+    async def convert(self, ctx: 'commands.Context', param: str) -> Any:
         raise NotImplementedError('derived classes need to implement this')
 
     def __repr__(self):
