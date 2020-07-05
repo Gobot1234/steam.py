@@ -38,6 +38,8 @@ Enums
 --------
 
 .. autoclass:: steam.ext.commands.BucketType
+    :members:
+    :undoc-members:
 
 
 Command

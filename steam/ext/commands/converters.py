@@ -63,33 +63,34 @@ class Converter:
 
     Examples
     --------
+
     Builtin: ::
 
-    @bot.command()
-    async def command(ctx, user: steam.User):
-        # this will end up making the user variable a `User` object.
+        @bot.command()
+        async def command(ctx, user: steam.User):
+            # this will end up making the user variable a `User` object.
 
-    # invoked as
-    # !command 80528701850124288
-    # or !command "Gobot1234"
+        # invoked as
+        # !command 80528701850124288
+        # or !command "Gobot1234"
 
     A custom converter: ::
 
-    class ImageConverter:
-        async def convert(self, ctx: 'commands.Context', argument: str):
-            async with aiohttp.ClientSession as session:
-                async with session.get(argument) as r:
-                    image_bytes = await r.read()
-            try:
-                return steam.Image(image_bytes)
-            except (TypeError, ValueError) as exc:  # failed to convert to an image
-                raise commands.BadArgument from exc
+        class ImageConverter:
+            async def convert(self, ctx: 'commands.Context', argument: str):
+                async with aiohttp.ClientSession as session:
+                    async with session.get(argument) as r:
+                        image_bytes = await r.read()
+                try:
+                    return steam.Image(image_bytes)
+                except (TypeError, ValueError) as exc:  # failed to convert to an image
+                    raise commands.BadArgument from exc
 
-    # then later
+        # then later
 
-    @bot.command()
-    async def set_avatar(ctx, avatar: ImageConverter):
-        await bot.edit(avatar=avatar)
+        @bot.command()
+        async def set_avatar(ctx, avatar: ImageConverter):
+            await bot.edit(avatar=avatar)
         await ctx.send('👌')
 
     # invoked as
@@ -104,7 +105,7 @@ class Converter:
 
 class UserConverter(Converter):
     """The converter that is used when the
-    type-hint passed is `~steam.User`.
+    type-hint passed is :class:`~steam.User`.
 
     Lookup is in the order of:
         - steam id
@@ -121,7 +122,7 @@ class UserConverter(Converter):
 
 class ChannelConverter(Converter):
     """The converter that is used when the
-    type-hint passed is `~steam.Channel`.
+    type-hint passed is :class:`~steam.Channel`.
 
     Lookup is in the order of:
         - id
@@ -144,7 +145,7 @@ class ChannelConverter(Converter):
 
 class ClanConverter(Converter):
     """The converter that is used when the
-    type-hint passed is `~steam.Clan`.
+    type-hint passed is :class:`~steam.Clan`.
 
     Lookup is in the order of:
         - steam id
@@ -161,7 +162,7 @@ class ClanConverter(Converter):
 
 class GroupConverter(Converter):
     """The converter that is used when the
-    type-hint passed is `~steam.Group`.
+    type-hint passed is :class:`~steam.Group`.
 
     Lookup is in the order of:
         - id
@@ -179,7 +180,7 @@ class GroupConverter(Converter):
 
 class GameConverter(Converter):
     """The converter that is used when the
-    type-hint passed is `~steam.Game`.
+    type-hint passed is :class:`~steam.Game`.
 
     If the param is a digit it is assumed
     that the argument is the game's app id else
@@ -196,21 +197,21 @@ class Default:
     --------
     Builtin: ::
 
-    @bot.command()
-    async def info(ctx, user: steam.User = Author):
-        # if no user is passed it will be ctx.author
+        @bot.command()
+        async def info(ctx, user: steam.User = Author):
+            # if no user is passed it will be ctx.author
 
     A custom default: ::
 
-    class CurrentCommand(commands.Default):
-        async def default(self, ctx: 'commands.Context'):
-            return ctx.command  # return the current command
+        class CurrentCommand(commands.Default):
+            async def default(self, ctx: 'commands.Context'):
+                return ctx.command  # return the current command
 
-    # then later
+        # then later
 
-    @bot.command()
-    async def source(ctx, command=CurrentCommand):
-        # command would now be source
+        @bot.command()
+        async def source(ctx, command=CurrentCommand):
+            # command would now be source
     """
     async def default(self, ctx: 'commands.Context'):
         raise NotImplementedError('derived classes need to implement this')

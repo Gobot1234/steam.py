@@ -14,12 +14,14 @@ MsgProto
 ~~~~~~~~
 
 .. autoclass:: steam.protobufs.MsgProto
+    :inherited-members:
     :members:
 
 Msg
 ~~~~~~~~
 
 .. autoclass:: steam.protobufs.Msg
+    :inherited-members:
     :members:
 
 
