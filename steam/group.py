@@ -89,7 +89,11 @@ class Group:
         for role in proto.role_actions:
             self.roles.append(Role(role))
 
-        self.default_role = [r for r in self.roles if r.id == int(proto.default_role_id)][0]
+        default_role = [r for r in self.roles if r.id == int(proto.default_role_id)]
+        if default_role:
+            self.default_role = default_role[0]
+        else:
+            self.default_role = None
         self.default_channel = int(proto.default_chat_id)
         self.channels = []
         for channel in proto.chat_rooms:
