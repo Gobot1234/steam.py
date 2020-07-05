@@ -48,6 +48,8 @@ class InjectedListener:
     """Injects the cog's "self" parameter into every event call
     auto-magically.
     """
+    __slots__ = ('func', 'cog')
+
     def __init__(self, cog: 'Cog', func: 'EventType'):
         self.func = func
         self.cog = cog
