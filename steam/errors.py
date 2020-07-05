@@ -142,7 +142,7 @@ class WSException(SteamException):
     def __init__(self, msg: 'MsgProto'):
         self.msg = msg
         self.code = EResult.try_value(msg.header.eresult)
-        super().__init__(f'{msg.header.target_job_name} failed (error code: {self.code})')
+        super().__init__(f'The request {msg.header.job_name_target} failed. (error code: {repr(self.code)})')
 
 
 class WSForbidden(WSException):
