@@ -24,13 +24,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING
 
 from ... import utils
 from ...game import Game
 from .errors import BadArgument
 
 if TYPE_CHECKING:
+    from steam.ext import commands
     from ...clan import Clan
     from ...group import Group
     from ...user import User
@@ -45,19 +46,17 @@ __all__ = (
     'DefaultGame',
 )
 
-C = TypeVar('C', bound='Converter')
 
-
-class Converter(Generic[C]):
-    async def convert(self, ctx: 'Context', param: str) -> C:
+class Converter:
+    async def convert(self, ctx: 'commands.Context', param: str) -> C:
         raise NotImplementedError('derived classes need to implement this')
 
     def __repr__(self):
         return f'{self.__class__.__name__.rstrip("Converter")}'
 
 
-class UserConverter(Converter['User']):
-    async def convert(self, ctx: 'Context', param: str) -> 'User':
+class UserConverter(Converter):
+    async def convert(self, ctx: 'commands.Context', param: str) -> 'User':
         user = ctx.bot.get_user(param) or await ctx.bot.fetch_user(param)
         if user is None:
             user = utils.get(ctx.bot.users, name=param)
@@ -66,8 +65,8 @@ class UserConverter(Converter['User']):
         return user
 
 
-class ClanConverter(Converter['Clan']):
-    async def convert(self, ctx: 'Context', param: str) -> 'Clan':
+class ClanConverter(Converter):
+    async def convert(self, ctx: 'commands.Context', param: str) -> 'Clan':
         clan = ctx.bot.get_clan(param)
         if clan is None:
             clan = utils.get(ctx.bot.clans, name=param)
@@ -76,8 +75,8 @@ class ClanConverter(Converter['Clan']):
         return clan
 
 
-class GroupConverter(Converter['Group']):
-    async def convert(self, ctx: 'Context', param: str) -> 'Group':
+class GroupConverter(Converter):
+    async def convert(self, ctx: 'commands.Context', param: str) -> 'Group':
         if param.isdigit():
             group = ctx.bot.get_group(int(param))
         else:
@@ -87,31 +86,31 @@ class GroupConverter(Converter['Group']):
         return group
 
 
-class GameConverter(Converter['Game']):
-    async def convert(self, ctx: 'Context', param: str):
+class GameConverter(Converter):
+    async def convert(self, ctx: 'commands.Context', param: str):
         return Game(app_id=int(param)) if param.isdigit() else Game(title=param)
 
 
 class Default:
-    async def default(self, ctx: 'Context'):
+    async def default(self, ctx: 'commands.Context'):
         raise NotImplementedError('derived classes need to implement this')
 
 
 class Author(Default):
-    async def default(self, ctx: 'Context'):
+    async def default(self, ctx: 'commands.Context'):
         return ctx.author
 
 
 class DefaultGroup(Default):
-    async def default(self, ctx: 'Context'):
+    async def default(self, ctx: 'commands.Context'):
         return ctx.group
 
 
 class DefaultClan(Default):
-    async def default(self, ctx: 'Context'):
+    async def default(self, ctx: 'commands.Context'):
         return ctx.clan
 
 
 class DefaultGame(Default):
-    async def default(self, ctx: 'Context'):
+    async def default(self, ctx: 'commands.Context'):
         return ctx.author.game
