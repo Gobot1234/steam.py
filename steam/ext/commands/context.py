@@ -60,6 +60,12 @@ class Context(Messageable):
         The author of the message.
     channel: :class:`~steam.abc.BaseChannel`
         The channel the message was sent in.
+    clan: Optional[:class:`~steam.Clan`]
+        The clan the message was sent in ``None`` if the
+        message wasn't sent in a clan.
+    group: Optional[:class:`~steam.Group`]
+        The group the message was sent in ``None`` if the
+        message wasn't sent in a group.
     bot: :class:`~steam.ext.commands.Bot`
         The bot instance.
     command: Optional[:class:`~steam.ext.commands.Command`]

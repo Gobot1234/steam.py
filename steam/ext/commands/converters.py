@@ -224,6 +224,7 @@ class Author(Default):
 
 
 class DefaultChannel(Default):
+    """Returns the :attr:`.Context.channel`"""
     async def default(self, ctx: 'commands.Context'):
         return ctx.channel
 
