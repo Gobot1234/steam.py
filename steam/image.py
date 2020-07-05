@@ -84,12 +84,12 @@ class Image:
         # from https://stackoverflow.com/questions/8032642
         head = self.fp.read(24)
         if len(head) != 24:
-            raise ValueError('opened file has no headers')
+            raise ValueError('Opened file has no headers')
         self.type = imghdr.what(None, head)
         if self.type == 'png':
             check = struct.unpack('>i', head[4:8])[0]
             if check != 0x0d0a1a0a:
-                raise ValueError("opened file's headers do not match a standard PNG's headers")
+                raise ValueError("Opened file's headers do not match a standard PNG's headers")
             width, height = struct.unpack('>ii', head[16:24])
         elif self.type == 'gif':
             width, height = struct.unpack('<HH', head[6:10])
@@ -111,7 +111,7 @@ class Image:
             except Exception as exc:
                 raise ValueError from exc
         else:
-            raise TypeError('unsupported file type passed')
+            raise TypeError('Unsupported file type passed')
         self.width = width
         self.height = height
         self.hash = hashlib.sha1(self.read()).hexdigest()

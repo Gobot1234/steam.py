@@ -68,6 +68,38 @@ Context
     :inherited-members:
 
 
+Converters
+-----------
+
+.. autoclass:: steam.ext.commands.Converter
+
+.. autoclass:: steam.ext.commands.UserConverter
+
+.. autoclass:: steam.ext.commands.ChannelConverter
+
+.. autoclass:: steam.ext.commands.ClanConverter
+
+.. autoclass:: steam.ext.commands.GroupConverter
+
+.. autoclass:: steam.ext.commands.GameConverter
+
+
+Default Values
+---------------
+
+.. autoclass:: steam.ext.commands.Default
+
+.. autoclass:: steam.ext.commands.Author
+
+.. autoclass:: steam.ext.commands.DefaultChannel
+
+.. autoclass:: steam.ext.commands.DefaultClan
+
+.. autoclass:: steam.ext.commands.DefaultGroup
+
+.. autoclass:: steam.ext.commands.DefaultGame
+
+
 Exceptions
 -----------
 
