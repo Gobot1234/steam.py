@@ -77,7 +77,7 @@ def clear_proto_bit(emsg: int) -> int:
     return int(emsg) & ~PROTOBUF_MASK
 
 
-def make_steam64(id: int = 0, *args, **kwargs) -> int:
+def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
     """Returns a Steam 64-bit ID from various other representations.
 
     .. code:: python
