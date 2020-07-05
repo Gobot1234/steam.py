@@ -48,8 +48,8 @@ __all__ = (
 
 
 class Converter:
-    async def convert(self, ctx: 'commands.Context', param: str) -> Any:
-        raise NotImplementedError('derived classes need to implement this')
+    async def convert(self, ctx: 'commands.Context', param: str):
+        raise NotImplementedError('Derived classes must implement this')
 
     def __repr__(self):
         return f'{self.__class__.__name__.rstrip("Converter")}'
