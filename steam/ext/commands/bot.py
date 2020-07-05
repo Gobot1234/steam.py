@@ -283,7 +283,7 @@ class Bot(Client):
         """
         name = name or func.__name__
 
-        if not (asyncio.iscoroutinefunction(func) or isinstance(func, InjectedListener)):
+        if not (asyncio.iscoroutinefunction(func) or type(func) is InjectedListener):
             raise TypeError(f'listeners must be coroutines, {name} is {type(func).__name__}')
 
         if name in self.__listeners__:
