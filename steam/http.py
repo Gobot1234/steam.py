@@ -198,7 +198,7 @@ class HTTPClient:
 
         data = login_response.get('transfer_parameters')
         if data is None:
-            raise errors.LoginError('Cannot perform redirects after login, no parameters fetched. '
+            raise errors.LoginError('Cannot perform redirects after login. '
                                     'The Steam API likely is down, please try again later.')
 
         for url in login_response['transfer_urls']:
