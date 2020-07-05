@@ -287,5 +287,36 @@ class ClientUser(BaseUser):
                    url: str = None, summary: str = None,
                    country: str = None, state: str = None,
                    city: str = None, avatar: 'Image' = None):
+        """|coro|
+        Edit the :class:`ClientUser`'s profile.
+        Any values that aren't set will use their defaults.
+
+        Parameters
+        ----------
+        name: Optional[:class:`str`]
+            The new name you wish to go by.
+        real_name: Optional[:class:`str`]
+            The real name you wish to go by.
+        url: Optional[:class:`str`]
+            The custom url ending/path you wish to use.
+        summary: Optional[:class:`str`]
+            The summary/description you wish to use.
+        country: Optional[:class:`str`]
+            The country you want to be from.
+        state: Optional[:class:`str`]
+            The state you want to be from.
+        city: Optional[:class:`str`]
+            The city you want to be from.
+        avatar: Optional[:class:`~steam.Image`]
+            The avatar you wish to use.
+
+            .. note::
+                This needs to be atleast 184px x 184px.
+
+        Raises
+        -------
+        :exc:`HTTPException`
+            Editing your profile failed.
+        """
         await self._state.http.edit_profile(name, real_name, url, summary,
                                             country, state, city, avatar)
