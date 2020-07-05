@@ -221,6 +221,9 @@ class ConnectionState:
         await self._fetch_confirmations()
         return self._confirmations.get(id)
 
+    def get_group(self, id: int) -> Optional['Group']:
+        return self._groups.get(id)
+
     def get_clan(self, id: int) -> Optional['Clan']:
         return self._clans.get(id)
 
