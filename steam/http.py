@@ -592,46 +592,46 @@ class HTTPClient:
                            url: str, summary: str, country: str,
                            state: str, city: str,
                            avatar: 'Image') -> None:
-        resp = await self.request('GET', url=CRoute('/my/edit'))
-        soup = BeautifulSoup(resp, 'html.parser')
-        edit_config = str(soup.find('div', attrs={"id": "profile_edit_config"}))
-        value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', utils.replace_steam_code(edit_config), flags=re.S)[0]
-        loadable = value.replace('\r', '\\r').replace('\n', '\\n')
-        profile = json.loads(f'{"{"}{loadable}{"}}"}')
-        for key, value in profile.items():
-            if isinstance(value, dict):
-                continue
-            profile[key] = str(value).replace('\\r', '\r').replace('\\n', '\n')
+        if any((name, real_name, url, summary, country, state, city, avatar)):
+            resp = await self.request('GET', url=CRoute('/my/edit'))
+            soup = BeautifulSoup(resp, 'html.parser')
+            edit_config = str(soup.find('div', attrs={"id": "profile_edit_config"}))
+            value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', utils.replace_steam_code(edit_config), flags=re.S)[0]
+            loadable = value.replace('\r', '\\r').replace('\n', '\\n')
+            profile = json.loads(f'{"{"}{loadable}{"}}"}')
+            for key, value in profile.items():
+                if isinstance(value, dict):
+                    continue
+                profile[key] = str(value).replace('\\r', '\r').replace('\\n', '\n')
 
-        payload = {
-            "sessionID": self.session_id,
-            "type": 'profileSave',
-            "weblink_1_title": '',
-            "weblink_1_url": '',
-            "weblink_2_title": '',
-            "weblink_2_url": '',
-            "weblink_3_title": '',
-            "weblink_3_url": '',
-            "personaName": name or profile['strPersonaName'],
-            "real_name": real_name or profile['strRealName'],
-            "customURL": url or profile['strCustomURL'],
-            "country": country or profile['LocationData']['locCountryCode'],
-            "state": state or profile['LocationData']['locStateCode'],
-            "city": city or profile['LocationData']['locCityCode'],
-            "summary": summary or profile['strSummary'],
-        }
+            payload = {
+                "sessionID": self.session_id,
+                "type": 'profileSave',
+                "weblink_1_title": '',
+                "weblink_1_url": '',
+                "weblink_2_title": '',
+                "weblink_2_url": '',
+                "weblink_3_title": '',
+                "weblink_3_url": '',
+                "personaName": name or profile['strPersonaName'],
+                "real_name": real_name or profile['strRealName'],
+                "customURL": url or profile['strCustomURL'],
+                "country": country or profile['LocationData']['locCountryCode'],
+                "state": state or profile['LocationData']['locStateCode'],
+                "city": city or profile['LocationData']['locCityCode'],
+                "summary": summary or profile['strSummary'],
+            }
 
-        await self.request('POST', url=f'{self.user.community_url}/edit', data=payload)
+            await self.request('POST', url=f'{self.user.community_url}/edit', data=payload)
         if avatar is not None:
-            return  # doesn't work yet
             payload = aiohttp.FormData()
-            payload.add_field(name='type', value='player_avatar_image')
-            payload.add_field(name="sId", value=str(self.user.id64))
-            payload.add_field(name='sessionid', value=self.session_id)
-            payload.add_field(name="doSub", value="1")
-            payload.add_field(name="json", value="1")
-            payload.add_field(name='avatar', value=avatar.read(),
-                              filename=f'avatar.{avatar.type}', content_type=f'image/{avatar.type}')
+            payload.add_field("MAX_FILE_SIZE", str(len(avatar)))
+            payload.add_field("type", 'player_avatar_image')
+            payload.add_field("sId", str(self.user.id64))
+            payload.add_field('sessionid', self.session_id)
+            payload.add_field("doSub", '1')
+            payload.add_field('avatar', avatar.read(), filename=f'avatar.{avatar.type}',
+                              content_type=f'image/{avatar.type}')
             await self.request('POST', CRoute('/actions/FileUploader'), data=payload)
 
     async def send_user_image(self, user_id64: int, image: 'Image') -> None:
@@ -662,7 +662,8 @@ class HTTPClient:
         })
         await self.request('POST', CRoute('/chat/commitfileupload'), data=payload)
 
-    async def send_group_image(self, chat_id: int, channel_id: int, image: 'Image') -> None:
+    async def send_group_image(self, destination: Tuple[int, int], image: 'Image') -> None:
+        chat_id, channel_id = destination
         payload = {
             "sessionid": self.session_id,
             "l": 'english',
