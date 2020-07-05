@@ -16,8 +16,9 @@ __version__ = '0.2.5'
 
 
 import logging
+from typing import NamedTuple
 
-from . import guard, utils
+from . import abc, guard, utils
 from .abc import *
 from .badge import *
 from .channel import *
@@ -34,5 +35,15 @@ from .message import *
 from .models import *
 from .trade import *
 from .user import *
+
+
+class VersionInfo(NamedTuple):
+    major: int
+    minor: int
+    macro: int
+    release_level: str
+
+
+version_info = VersionInfo(major=0, minor=2, macro=5, release_level='full')
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
