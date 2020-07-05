@@ -620,7 +620,7 @@ class BaseUser(SteamID):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-_get_x_endpoint_return = Tuple[int, Callable[..., Awaitable[None]]]
+_get_x_endpoint_return = Tuple[Tuple[int, ...], Callable[..., Awaitable[None]]]
 
 
 class Messageable(metaclass=abc.ABCMeta):
