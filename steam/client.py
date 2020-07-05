@@ -413,7 +413,8 @@ class Client:
     def clear(self) -> None:
         """Clears the internal state of the bot.
         After this, the bot can be considered "re-opened", i.e. :meth:`is_closed`
-        and :meth:`is_ready` both return ``False``.
+        and :meth:`is_ready` both return ``False``. This also clears the internal
+        cache.
         """
         self._closed = False
         self._ready.clear()
@@ -592,6 +593,21 @@ class Client:
             The trade offer or ``None`` if the trade was not found.
         """
         return await self._connection.fetch_trade(id)
+
+    def get_group(self, id: int) -> Optional['Group']:
+        """Get a group from cache with a matching ID.
+
+        Parameters
+        ----------
+        id: :class:`int`
+            The id of the group to search for from the cache.
+
+        Returns
+        -------
+        Optional[:class:`~steam.Group`]
+            The group or ``None`` if the group was not found.
+        """
+        return self._connection.get_group(id)
 
     def get_clan(self, *args, **kwargs) -> Optional['Clan']:
         """Get a clan from cache with a matching ID.
