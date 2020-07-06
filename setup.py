@@ -58,7 +58,7 @@ setup(
     license='MIT',
     description='A Python wrapper for the Steam API',
     long_description=readme,
-    long_description_content_type='text/md',
+    long_description_content_type='text/markdown',
     include_package_data=True,
     install_requires=requirements,
     extras_require=extras_require,
