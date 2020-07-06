@@ -300,7 +300,7 @@ class SteamID(metaclass=abc.ABCMeta):
         Parameters
         ----------
         url: :class:`str`
-        The Steam community url.
+            The Steam community url.
         session: Optional[:class:`aiohttp.ClientSession`]
             The session to make the request with. If
             ``None`` is passed a new one is generated.
