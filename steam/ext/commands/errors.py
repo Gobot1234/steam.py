@@ -91,7 +91,8 @@ class CommandOnCooldown(CommandError):
     Attributes
     ----------
     retry_after: :class:`float`
-        When the next command can successfully be executed.
+        The time in seconds at which that the next command can
+        successfully be executed.
     """
 
     def __init__(self, retry_after: float):

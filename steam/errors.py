@@ -58,7 +58,6 @@ CODE_FINDER = re.compile(r'\S(\d+)\S')
 
 class SteamException(Exception):
     """Base exception class for steam.py."""
-    pass
 
 
 class ClientException(SteamException):
