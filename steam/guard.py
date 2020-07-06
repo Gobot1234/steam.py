@@ -28,7 +28,7 @@ This contains a copy of
 https://github.com/bukson/steampy/blob/master/steampy/guard.py
 and
 https://github.com/Zwork101/steam-trade/blob/master/pytrade/confirmations.py
-with extra doc-strings and it's slightly sped up.
+with extra doc-strings and performance improvements.
 """
 
 import base64
@@ -73,11 +73,11 @@ def generate_one_time_code(shared_secret: str, timestamp: int = None) -> str:
     begin = ord(time_hmac[19:20]) & 0xf
     full_code = struct.unpack('>I', time_hmac[begin:begin + 4])[0] & 0x7fffffff  # unpack as Big endian uint32
     chars = '23456789BCDFGHJKMNPQRTVWXY'
-    code = []
+    code = ''
     for _ in range(5):
         full_code, i = divmod(full_code, len(chars))
-        code.append(chars[i])
-    return ''.join(code)  # faster than string concatenation
+        code = f'{code}{chars[i]}'
+    return code  # faster than string concatenation
 
 
 def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = None) -> str:
