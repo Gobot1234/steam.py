@@ -405,7 +405,7 @@ class Client:
         if self.ws is not None:
             await self.ws.close()
         await self.http.logout()
-        await self._session.close()
+        await self.http._session.close()
         self._closed = True
         self._ready.clear()
 
