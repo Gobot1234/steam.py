@@ -351,13 +351,13 @@ class BaseUser(SteamID):
     avatar_url: :class:`str`
         The avatar url of the user. Uses the large (184x184 px) image url.
     real_name: Optional[:class:`str`]
-        The user's real name defined by them. Could be None.
+        The user's real name defined by them. Could be ``None``.
     created_at: Optional[:class:`datetime.datetime`]
-        The time at which the user's account was created. Could be None.
+        The time at which the user's account was created. Could be ``None``.
     last_logoff: Optional[:class:`datetime.datetime`]
         The last time the user logged into steam. Could be None (e.g. if they are currently online).
     country: Optional[:class:`str`]
-        The country code of the account. Could be None.
+        The country code of the account. Could be ``None``.
     flags: Union[:class:`~steam.EPersonaStateFlag`, :class:`int`]
         The persona state flags of the account.
     """
