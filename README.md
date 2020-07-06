@@ -10,7 +10,7 @@ Key Features
 --------------
 
 - Modern Pythonic API using ``async``/``await`` syntax
-- Command extension to aid with bot creation (under development)
+- Command extension to aid with bot creation
 - Easy to use with an object oriented design
 
 Installation
@@ -19,6 +19,15 @@ Installation
 **Python 3.7 or higher is required**
 
 To install the library just run either of the following commands:
+
+```sh
+# Linux/macOS
+python3 -m pip install -U steamio
+# Windows
+py -m pip install -U steamio
+```
+
+Or for the development version.
 
 ```sh
 # Linux/macOS
