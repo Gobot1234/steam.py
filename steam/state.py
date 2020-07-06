@@ -204,7 +204,7 @@ class ConnectionState:
 
     async def fetch_users(self, user_id64s: List[int]) -> List[Optional[User]]:
         resp = await self.http.get_users(user_id64s)
-        return [self._store_user(user) for user in resp]
+        return [User(state=self, data=data) for data in resp]
 
     def _store_user(self, data: dict) -> User:
         try:
@@ -334,7 +334,7 @@ class ConnectionState:
         if steam_id is None:
             return
         if steam_id.type == EType.Clan:
-            obj = await self.client.fetch_clan(steam_id.id64)
+            obj = await self.fetch_clan(steam_id.id64)
         else:
             obj = await self.fetch_user(steam_id.id64)
         if obj is None:

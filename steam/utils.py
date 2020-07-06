@@ -314,6 +314,7 @@ async def steam64_from_url(url: str, session: aiohttp.ClientSession = None,
     if search is None:
         return None
 
+    gave_session = bool(session)
     session = session or aiohttp.ClientSession()
 
     # user profiles
@@ -335,7 +336,8 @@ async def steam64_from_url(url: str, session: aiohttp.ClientSession = None,
             if data_match:
                 return int(data_match.group('steam_id'))
     finally:
-        await session.close()
+        if not gave_session:
+            await session.close()
 
 
 def parse_trade_url_token(url: str) -> Optional[str]:
