@@ -92,10 +92,9 @@ class HTTPClient:
 
     def __init__(self,
                  loop: asyncio.AbstractEventLoop,
-                 session: aiohttp.ClientSession,
                  client: 'Client'):
         self._loop = loop
-        self._session = session
+        self._session: Optional[aiohttp.ClientSession] = None  # filled in login
         self._client = client
         self._lock = asyncio.Lock()
 
@@ -114,7 +113,7 @@ class HTTPClient:
 
     def recreate(self) -> None:
         if self._session.closed:
-            self._session = aiohttp.ClientSession(loop=self._loop)
+            self._session = aiohttp.ClientSession()
 
     async def request(self, method: str, url: Union[APIRoute, CRoute, str],
                       **kwargs) -> Optional[Any]:  # adapted from d.py
@@ -188,6 +187,8 @@ class HTTPClient:
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
+
+        self._session = aiohttp.ClientSession()
 
         login_response = await self._send_login_request()
 

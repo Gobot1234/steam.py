@@ -150,9 +150,8 @@ class Client:
 
     def __init__(self, loop: asyncio.AbstractEventLoop = None, **options):
         self.loop = loop or asyncio.get_event_loop()
-        self._session = aiohttp.ClientSession(loop=self.loop)
 
-        self.http = HTTPClient(loop=self.loop, session=self._session, client=self)
+        self.http = HTTPClient(loop=self.loop, client=self)
         self._connection = ConnectionState(loop=self.loop, client=self, http=self.http, **options)
         self.ws: Optional[SteamWebSocket] = None
 
@@ -558,7 +557,7 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/id/{name}')
+        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/id/{name}', self.http._session)
         if not steam_id:
             return None
         return await self.fetch_user(id=steam_id.id64)
@@ -660,7 +659,7 @@ class Client:
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/clans/{name}')
+        steam_id = await SteamID.from_url(f'{URL.COMMUNITY}/clans/{name}', self.http._session)
         if not steam_id:
             return None
         return await self._connection.fetch_clan(steam_id.id64)
