@@ -9,7 +9,7 @@ with open('requirements.txt') as f:
     f.close()
 
 with open('steam/__init__.py') as f:
-    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', f.read(), re.MULTILINE).group(1)
+    version = re.search(r"^__version__\s*=\s*'([^']*)'", f.read(), re.MULTILINE).group(1)
 
 if version is None:
     raise RuntimeError('Version is not set')
