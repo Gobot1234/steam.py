@@ -42,7 +42,7 @@ extras_require = {
 }
 
 setup(
-    name='aiosteam',
+    name='steamio',
     author='Gobot1234',
     url='https://github.com/Gobot1234/steam.py',
     project_urls={
