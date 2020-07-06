@@ -77,6 +77,7 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 
 
 def return_true(*_):
@@ -384,7 +385,8 @@ class SteamWebSocket:
             log.debug(f'Socket has received {repr(msg)} from the websocket.')
         except Exception as e:
             log.fatal(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
-            return log.exception(e)
+            if emsg != EMsg.ServiceMethodResponse:  # the repr likely failed so just ignore it
+                return log.exception(e)
 
         self._dispatch('socket_receive', msg)
 
@@ -473,9 +475,9 @@ class SteamWebSocket:
         if msg.body.size_unzipped:
             log.debug(f'Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})')
             # aiofiles is overrated
-            bytes_io = await self.loop.run_in_executor(None, BytesIO, msg.body.message_body)
-            gzipped = await self.loop.run_in_executor(None, functools.partial(GzipFile, fileobj=bytes_io))
-            data = await self.loop.run_in_executor(None, gzipped.read)
+            bytes_io = await self.loop.run_in_executor(EXECUTOR, BytesIO, msg.body.message_body)
+            gzipped = await self.loop.run_in_executor(EXECUTOR, functools.partial(GzipFile, fileobj=bytes_io))
+            data = await self.loop.run_in_executor(EXECUTOR, gzipped.read)
             if len(data) != msg.body.size_unzipped:
                 return log.info(f'Unzipped size mismatch for multi payload {msg}, discarding')
         else:
