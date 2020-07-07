@@ -1,6 +1,6 @@
 # This workflow will check code for import inconsistencies.
 
-name: Blacken Code.
+name: Sort Imports.
 on: [push, pull_request]
 
 jobs:
