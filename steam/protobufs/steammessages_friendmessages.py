@@ -52,7 +52,9 @@ class CFriendsMessages_GetActiveMessageSessions_Response(betterproto.Message):
 
 
 @dataclass
-class CFriendsMessages_GetActiveMessageSessions_ResponseFriendMessageSession(betterproto.Message):
+class CFriendsMessages_GetActiveMessageSessions_ResponseFriendMessageSession(
+    betterproto.Message
+):
     accountid_friend: int = betterproto.uint32_field(1)
     last_message: int = betterproto.uint32_field(2)
     last_view: int = betterproto.uint32_field(3)

@@ -23,34 +23,32 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 from typing import TYPE_CHECKING, Dict, Optional
 
-from .command import Command
 from .cog import Cog
+from .command import Command
 
 if TYPE_CHECKING:
     from .context import Context
 
-__all__ = (
-    'HelpCommand',
-)
+__all__ = ("HelpCommand",)
 
 
 class HelpCommand(Command):
     """The default implementation of the help command."""
+
     def __init__(self):
-        super().__init__(self.command_callback, name='help', help="Shows this message.")
-        self.context: Optional['Context'] = None
+        super().__init__(self.command_callback, name="help", help="Shows this message.")
+        self.context: Optional["Context"] = None
 
     def __repr__(self):
-        return '<default help-command>'
+        return "<default help-command>"
 
-    def _get_doc(self, command: 'Command') -> str:
+    def _get_doc(self, command: "Command") -> str:
         try:
             return command.help.splitlines()[0]
         except (IndexError, AttributeError):
-            return ''
+            return ""
 
     async def _parse_arguments(self, ctx):
         # Make the parser think we don't have a cog so it doesn't
@@ -62,7 +60,7 @@ class HelpCommand(Command):
         finally:
             self.cog = original_cog
 
-    async def command_callback(self, ctx: 'Context', *, command: str = None) -> None:
+    async def command_callback(self, ctx: "Context", *, command: str = None) -> None:
         """The actual implementation of the help command."""
         self.context = ctx
         bot = ctx.bot
@@ -79,34 +77,35 @@ class HelpCommand(Command):
 
         await self.command_not_found(command)
 
-    def get_bot_mapping(self) -> Dict[Optional['Cog'], Command]:
+    def get_bot_mapping(self) -> Dict[Optional["Cog"], Command]:
         bot = self.context.bot
-        mapping = {
-            name: cog.__cog_commands__
-            for (name, cog) in bot.__cogs__.items()
-        }
+        mapping = {name: cog.__cog_commands__ for (name, cog) in bot.__cogs__.items()}
         mapping[None] = [c for c in bot.commands if c not in mapping.values()]
         return mapping
 
-    async def send_help(self, mapping: Dict[Optional['Cog'], Command]):
+    async def send_help(self, mapping: Dict[Optional["Cog"], Command]):
         message = []
         for name, commands in sorted(mapping.items()):
             if name is not None:
                 message.append(f"--= {name}'s commands =--")
             else:
-                message.append('--= Un-categorized commands =--')
+                message.append("--= Un-categorized commands =--")
             for command in commands:
-                message.append(f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}')
-        await self.context.send('\n'.join(message))
+                message.append(
+                    f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}'
+                )
+        await self.context.send("\n".join(message))
 
-    async def send_cog_help(self, cog: 'Cog'):
+    async def send_cog_help(self, cog: "Cog"):
         message = [f"--= {cog.qualified_name}'s commands =--"]
         for name, command in sorted(cog.__commands__.items()):
-            message.append(f'{name}{f": {self._get_doc(command)}" if command.help else ""}')
-        await self.context.send('\n'.join(message))
+            message.append(
+                f'{name}{f": {self._get_doc(command)}" if command.help else ""}'
+            )
+        await self.context.send("\n".join(message))
 
-    async def send_command_help(self, command: 'Command'):
-        await self.context.send(f'Help with {command.name}:\n\n{command.help}')
+    async def send_command_help(self, command: "Command"):
+        await self.context.send(f"Help with {command.name}:\n\n{command.help}")
 
     async def command_not_found(self, command: str):
         await self.context.send(f'The command "{command}" was not found.')

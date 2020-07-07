@@ -33,12 +33,12 @@ if TYPE_CHECKING:
 
 
 __all__ = (
-    'CommandError',
-    'BadArgument',
-    'CheckFailure',
-    'CommandNotFound',
-    'MissingRequiredArgument',
-    'CommandOnCooldown',
+    "CommandError",
+    "BadArgument",
+    "CheckFailure",
+    "CommandNotFound",
+    "MissingRequiredArgument",
+    "CommandOnCooldown",
 )
 
 
@@ -72,9 +72,9 @@ class MissingRequiredArgument(CommandError):
         The argument that is missing.
     """
 
-    def __init__(self, param: 'Parameter'):
+    def __init__(self, param: "Parameter"):
         self.param = param
-        super().__init__(f'{param.name} is a required argument that is missing.')
+        super().__init__(f"{param.name} is a required argument that is missing.")
 
 
 class CheckFailure(CommandError):
@@ -97,4 +97,4 @@ class CommandOnCooldown(CommandError):
 
     def __init__(self, retry_after: float):
         self.retry_after = retry_after
-        super().__init__(f'Command is on cooldown for {retry_after:.2} more seconds')
+        super().__init__(f"Command is on cooldown for {retry_after:.2} more seconds")

@@ -624,7 +624,9 @@ class CChatRoom_GetChatRoomGroupSummary_Response(betterproto.Message):
 @dataclass
 class CChatRoomSummaryPair(betterproto.Message):
     user_chat_group_state: "CUserChatRoomGroupState" = betterproto.message_field(1)
-    group_summary: "CChatRoom_GetChatRoomGroupSummary_Response" = betterproto.message_field(2)
+    group_summary: "CChatRoom_GetChatRoomGroupSummary_Response" = betterproto.message_field(
+        2
+    )
 
 
 @dataclass
@@ -802,8 +804,9 @@ class CChatRoom_SetSessionActiveChatRoomGroups_Response(betterproto.Message):
 @dataclass
 class CChatRoom_SetUserChatGroupPreferences_Request(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
-    chat_group_preferences: \
-        "CChatRoom_SetUserChatGroupPreferences_RequestChatGroupPreferences" = betterproto.message_field(2)
+    chat_group_preferences: "CChatRoom_SetUserChatGroupPreferences_RequestChatGroupPreferences" = betterproto.message_field(
+        2
+    )
     chat_room_preferences: List[
         "CChatRoom_SetUserChatGroupPreferences_RequestChatRoomPreferences"
     ] = betterproto.message_field(3)
@@ -819,7 +822,9 @@ class CChatRoom_SetUserChatGroupPreferences_RequestChatGroupPreferences(
 
 
 @dataclass
-class CChatRoom_SetUserChatGroupPreferences_RequestChatRoomPreferences(betterproto.Message):
+class CChatRoom_SetUserChatGroupPreferences_RequestChatRoomPreferences(
+    betterproto.Message
+):
     chat_id: int = betterproto.uint64_field(1)
     desktop_notification_level: "EChatRoomNotificationLevel" = betterproto.enum_field(2)
     mobile_notification_level: "EChatRoomNotificationLevel" = betterproto.enum_field(3)
@@ -975,7 +980,9 @@ class CChatRoom_NotifyShouldRejoinChatRoomVoiceChat_Notification(betterproto.Mes
 class ChatRoomClient_NotifyChatGroupUserStateChanged_Notification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     user_chat_group_state: "CUserChatRoomGroupState" = betterproto.message_field(2)
-    group_summary: "CChatRoom_GetChatRoomGroupSummary_Response" = betterproto.message_field(3)
+    group_summary: "CChatRoom_GetChatRoomGroupSummary_Response" = betterproto.message_field(
+        3
+    )
     user_action: "EChatRoomMemberStateChange" = betterproto.enum_field(4)
 
 
@@ -1005,14 +1012,20 @@ class CChatRoomClient_MemberListViewUpdated_Notification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     view_id: int = betterproto.uint64_field(2)
     view: "CChatRoomMemberListView" = betterproto.message_field(3)
-    members: List["CChatRoomClient_MemberListViewUpdated_NotificationMemberListViewEntry"] = betterproto.message_field(4)
+    members: List[
+        "CChatRoomClient_MemberListViewUpdated_NotificationMemberListViewEntry"
+    ] = betterproto.message_field(4)
     status_flags: int = betterproto.uint32_field(5)
     member_summary: "CChatRoomMemberSummaryCounts" = betterproto.message_field(6)
-    subscribed_personas: List["CMsgClientPersonaStateFriend"] = betterproto.message_field(7)
+    subscribed_personas: List[
+        "CMsgClientPersonaStateFriend"
+    ] = betterproto.message_field(7)
 
 
 @dataclass
-class CChatRoomClient_MemberListViewUpdated_NotificationMemberListViewEntry(betterproto.Message):
+class CChatRoomClient_MemberListViewUpdated_NotificationMemberListViewEntry(
+    betterproto.Message
+):
     rank: int = betterproto.int32_field(1)
     accountid: int = betterproto.uint32_field(2)
     persona: "CMsgClientPersonaStateFriend" = betterproto.message_field(3)
@@ -1024,10 +1037,18 @@ class CChatUsability_ClientUsabilityMetrics_Notification(betterproto.Message):
     client_build: int = betterproto.uint32_field(2)
     metrics_version: int = betterproto.uint32_field(3)
     in_web: bool = betterproto.bool_field(4)
-    settings: "CChatUsability_ClientUsabilityMetrics_NotificationSettings" = betterproto.message_field(10)
-    voice_settings: "CChatUsability_ClientUsabilityMetrics_NotificationVoiceSettings" = betterproto.message_field(11)
-    ui_state: "CChatUsability_ClientUsabilityMetrics_NotificationUIState" = betterproto.message_field(12)
-    metrics: "CChatUsability_ClientUsabilityMetrics_NotificationMetrics" = betterproto.message_field(13)
+    settings: "CChatUsability_ClientUsabilityMetrics_NotificationSettings" = betterproto.message_field(
+        10
+    )
+    voice_settings: "CChatUsability_ClientUsabilityMetrics_NotificationVoiceSettings" = betterproto.message_field(
+        11
+    )
+    ui_state: "CChatUsability_ClientUsabilityMetrics_NotificationUIState" = betterproto.message_field(
+        12
+    )
+    metrics: "CChatUsability_ClientUsabilityMetrics_NotificationMetrics" = betterproto.message_field(
+        13
+    )
 
 
 @dataclass
@@ -1089,7 +1110,9 @@ class CChatUsability_ClientUsabilityMetrics_NotificationUIState(betterproto.Mess
     friend_chat_tabs_opened: int = betterproto.int32_field(9)
     chat_window_width: int = betterproto.int32_field(10)
     chat_window_height: int = betterproto.int32_field(11)
-    category_collapse: "CChatUsability_ClientUsabilityMetrics_NotificationUIStateCategoryCollapseState" = betterproto.message_field(12)
+    category_collapse: "CChatUsability_ClientUsabilityMetrics_NotificationUIStateCategoryCollapseState" = betterproto.message_field(
+        12
+    )
     group_chat_left_col_collapsed: int = betterproto.int32_field(13)
     group_chat_right_col_collapsed: int = betterproto.int32_field(14)
     in_one_on_one_voice_chat: bool = betterproto.bool_field(15)
@@ -1097,7 +1120,9 @@ class CChatUsability_ClientUsabilityMetrics_NotificationUIState(betterproto.Mess
 
 
 @dataclass
-class CChatUsability_ClientUsabilityMetrics_NotificationUIStateCategoryCollapseState(betterproto.Message):
+class CChatUsability_ClientUsabilityMetrics_NotificationUIStateCategoryCollapseState(
+    betterproto.Message
+):
     in_game_collapsed: bool = betterproto.bool_field(1)
     online_collapsed: bool = betterproto.bool_field(2)
     offline_collapsed: bool = betterproto.bool_field(3)

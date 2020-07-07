@@ -28,20 +28,19 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .protobufs.steammessages_chat import CChatRoleActions \
-        as RoleProto
+    from .protobufs.steammessages_chat import CChatRoleActions as RoleProto
 
 
 __all__ = (
-    'Ban',
-    'Role',
+    "Ban",
+    "Role",
 )
 
 
 class URL:
-    API = 'https://api.steampowered.com'
-    COMMUNITY = 'https://steamcommunity.com'
-    STORE = 'https://store.steampowered.com'
+    API = "https://api.steampowered.com"
+    COMMUNITY = "https://steamcommunity.com"
+    STORE = "https://store.steampowered.com"
 
 
 class Ban:
@@ -55,26 +54,36 @@ class Ban:
         The number of game bans the User has.
     """
 
-    __slots__ = ('since_last_ban', 'number_of_game_bans', '_vac_banned', '_community_banned', '_market_banned')
+    __slots__ = (
+        "since_last_ban",
+        "number_of_game_bans",
+        "_vac_banned",
+        "_community_banned",
+        "_market_banned",
+    )
 
     def __init__(self, data: dict):
-        self._vac_banned = data['VACBanned']
-        self._community_banned = data['CommunityBanned']
-        self._market_banned = data['EconomyBan']
-        self.since_last_ban = timedelta(days=data['DaysSinceLastBan'])
-        self.number_of_game_bans = data['NumberOfGameBans']
+        self._vac_banned = data["VACBanned"]
+        self._community_banned = data["CommunityBanned"]
+        self._market_banned = data["EconomyBan"]
+        self.since_last_ban = timedelta(days=data["DaysSinceLastBan"])
+        self.number_of_game_bans = data["NumberOfGameBans"]
 
     def __repr__(self):
         attrs = [
-            ('is_banned', self.is_banned()),
-            ('is_vac_banned', self.is_vac_banned())
+            ("is_banned", self.is_banned()),
+            ("is_vac_banned", self.is_vac_banned()),
         ]
-        resolved = [f'{method}={value!r}' for method, value in attrs]
+        resolved = [f"{method}={value!r}" for method, value in attrs]
         return f'<Ban {" ".join(resolved)}>'
 
     def is_banned(self) -> bool:
         """:class:`bool`: Species if the user is banned from any part of Steam."""
-        return True in (self.is_vac_banned(), self.is_community_banned(), self.is_market_banned())
+        return True in (
+            self.is_vac_banned(),
+            self.is_community_banned(),
+            self.is_market_banned(),
+        )
 
     def is_vac_banned(self) -> bool:
         """:class:`bool`: Species if the user is VAC banned."""
@@ -90,8 +99,7 @@ class Ban:
 
 
 class Role:
-
-    def __init__(self, proto: 'RoleProto'):
+    def __init__(self, proto: "RoleProto"):
         self.id = int(proto.role_id)
         self.can_kick = proto.can_kick
         self.can_ban = proto.can_ban

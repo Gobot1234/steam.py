@@ -41,8 +41,8 @@ if TYPE_CHECKING:
 
 
 __all__ = (
-    'User',
-    'ClientUser',
+    "User",
+    "ClientUser",
 )
 
 
@@ -129,10 +129,10 @@ class User(BaseUser, Messageable):
             ``None`` if the :class:`User` has no escrow or has a private inventory.
         """
         resp = await self._state.http.get_user_escrow(self.id64, token)
-        their_escrow = resp['response'].get('their_escrow')
+        their_escrow = resp["response"].get("their_escrow")
         if their_escrow is None:  # private
             return None
-        seconds = their_escrow['escrow_end_duration_seconds']
+        seconds = their_escrow["escrow_end_duration_seconds"]
         return timedelta(seconds=seconds) if seconds else None
 
     def _get_message_endpoint(self):
@@ -141,9 +141,9 @@ class User(BaseUser, Messageable):
     def _get_image_endpoint(self):
         return self.id64, self._state.http.send_user_image
 
-    async def send(self, content: str = None, *,
-                   trade: 'TradeOffer' = None,
-                   image: 'Image' = None) -> None:
+    async def send(
+        self, content: str = None, *, trade: "TradeOffer" = None, image: "Image" = None
+    ) -> None:
         """|coro|
         Send a message, trade or image to an :class:`User`.
 
@@ -168,9 +168,10 @@ class User(BaseUser, Messageable):
         if trade is not None:
             to_send = [item.to_dict() for item in trade.items_to_send]
             to_receive = [item.to_dict() for item in trade.items_to_receive]
-            resp = await self._state.http.send_trade_offer(self.id64, self.id, to_send,
-                                                           to_receive, trade.token, trade.message)
-            if resp.get('needs_mobile_confirmation', False):
+            resp = await self._state.http.send_trade_offer(
+                self.id64, self.id, to_send, to_receive, trade.token, trade.message
+            )
+            if resp.get("needs_mobile_confirmation", False):
                 trade._has_been_sent = True
                 for tries in range(5):
                     try:
@@ -179,7 +180,7 @@ class User(BaseUser, Messageable):
                         await asyncio.sleep(tries * 2)
                         continue
 
-    async def invite_to_group(self, group: 'Group'):
+    async def invite_to_group(self, group: "Group"):
         """|coro|
         Invites a :class:`~steam.User` to a :class:`Group`.
 
@@ -190,7 +191,7 @@ class User(BaseUser, Messageable):
         """
         # TODO
 
-    async def invite_to_clan(self, clan: 'Clan'):
+    async def invite_to_clan(self, clan: "Clan"):
         """|coro|
         Invites a :class:`~steam.User` to a :class:`Clan`.
 
@@ -249,19 +250,18 @@ class ClientUser(BaseUser):
     flags: Union[:class:`~steam.EPersonaStateFlag`, :class:`int`]
         The persona state flags of the account.
     """
+
     # TODO more stuff to add https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/profile.js
 
-    __slots__ = ('friends',)
+    __slots__ = ("friends",)
 
-    def __init__(self, state: 'ConnectionState', data: dict):
+    def __init__(self, state: "ConnectionState", data: dict):
         super().__init__(state, data)
         self.friends: List[User] = []
 
     def __repr__(self):
-        attrs = (
-            'name', 'state', 'id', 'type', 'universe', 'instance'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("name", "state", "id", "type", "universe", "instance")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClientUser {' '.join(resolved)}>"
 
     async def setup_profile(self) -> None:
@@ -271,10 +271,8 @@ class ClientUser(BaseUser):
         if self.has_setup_profile():
             return
 
-        params = {
-            "welcomed": 1
-        }
-        await self._state.request('GET', url=f'{URL.COMMUNITY}/me/edit', params=params)
+        params = {"welcomed": 1}
+        await self._state.request("GET", url=f"{URL.COMMUNITY}/me/edit", params=params)
 
     async def clear_nicks(self) -> None:
         """|coro|
@@ -282,11 +280,18 @@ class ClientUser(BaseUser):
         """
         await self._state.http.clear_nickname_history()
 
-    async def edit(self, *,
-                   name: str = None, real_name: str = None,
-                   url: str = None, summary: str = None,
-                   country: str = None, state: str = None,
-                   city: str = None, avatar: 'Image' = None):
+    async def edit(
+        self,
+        *,
+        name: str = None,
+        real_name: str = None,
+        url: str = None,
+        summary: str = None,
+        country: str = None,
+        state: str = None,
+        city: str = None,
+        avatar: "Image" = None,
+    ):
         """|coro|
         Edit the :class:`ClientUser`'s profile.
         Any values that aren't set will use their defaults.
@@ -318,5 +323,6 @@ class ClientUser(BaseUser):
         :exc:`HTTPException`
             Editing your profile failed.
         """
-        await self._state.http.edit_profile(name, real_name, url, summary,
-                                            country, state, city, avatar)
+        await self._state.http.edit_profile(
+            name, real_name, url, summary, country, state, city, avatar
+        )

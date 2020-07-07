@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
-
 from . import (
     steammessages_base,
+    steammessages_clientserver,
     steammessages_clientserver_2,
     steammessages_clientserver_friends,
-    steammessages_clientserver_login,
-    steammessages_clientserver
+    steammessages_clientserver_login
 )
 from .emsg import *
 
-
-__all__ = (
-    'PROTOBUFS',
-)
+__all__ = ("PROTOBUFS",)
 
 
 PROTOBUFS = {

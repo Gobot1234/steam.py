@@ -23,7 +23,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 from typing import TYPE_CHECKING
 
 from ... import utils
@@ -32,25 +31,26 @@ from .errors import BadArgument
 
 if TYPE_CHECKING:
     from steam.ext import commands
-    from ...clan import Clan
+
     from ...channel import BaseChannel
+    from ...clan import Clan
     from ...group import Group
     from ...user import User
     from .context import Context
 
 __all__ = (
-    'Converter',
-    'UserConverter',
-    'ChannelConverter',
-    'ClanConverter',
-    'GroupConverter',
-    'GameConverter',
-    'Default',
-    'Author',
-    'DefaultChannel',
-    'DefaultClan',
-    'DefaultGroup',
-    'DefaultGame',
+    "Converter",
+    "UserConverter",
+    "ChannelConverter",
+    "ClanConverter",
+    "GroupConverter",
+    "GameConverter",
+    "Default",
+    "Author",
+    "DefaultChannel",
+    "DefaultClan",
+    "DefaultGroup",
+    "DefaultGame",
 )
 
 
@@ -96,8 +96,9 @@ class Converter:
     # invoked as
     # !set_avatar "my image url"
     """
-    async def convert(self, ctx: 'commands.Context', argument: str):
-        raise NotImplementedError('Derived classes must implement this')
+
+    async def convert(self, ctx: "commands.Context", argument: str):
+        raise NotImplementedError("Derived classes must implement this")
 
     def __repr__(self):
         return self.__class__.__name__
@@ -111,7 +112,8 @@ class UserConverter(Converter):
         - steam id
         - name
     """
-    async def convert(self, ctx: 'commands.Context', argument: str) -> 'User':
+
+    async def convert(self, ctx: "commands.Context", argument: str) -> "User":
         user = ctx.bot.get_user(argument) or await ctx.bot.fetch_user(argument)
         if user is None:
             user = utils.get(ctx.bot.users, name=argument)
@@ -128,7 +130,8 @@ class ChannelConverter(Converter):
         - id
         - name
     """
-    async def convert(self, ctx: 'commands.Context', argument: str) -> 'BaseChannel':
+
+    async def convert(self, ctx: "commands.Context", argument: str) -> "BaseChannel":
         if argument.isdigit():
             channel = ctx.bot._connection._combined.get(int(argument))
         else:
@@ -151,7 +154,8 @@ class ClanConverter(Converter):
         - steam id
         - name
     """
-    async def convert(self, ctx: 'commands.Context', argument: str) -> 'Clan':
+
+    async def convert(self, ctx: "commands.Context", argument: str) -> "Clan":
         clan = ctx.bot.get_clan(argument)
         if clan is None:
             clan = utils.get(ctx.bot.clans, name=argument)
@@ -168,7 +172,8 @@ class GroupConverter(Converter):
         - id
         - name
     """
-    async def convert(self, ctx: 'commands.Context', argument: str) -> 'Group':
+
+    async def convert(self, ctx: "commands.Context", argument: str) -> "Group":
         if argument.isdigit():
             group = ctx.bot.get_group(int(argument))
         else:
@@ -186,8 +191,11 @@ class GameConverter(Converter):
     that the argument is the game's app id else
     it is assumed it is the game's title.
     """
-    async def convert(self, ctx: 'commands.Context', argument: str):
-        return Game(app_id=int(argument)) if argument.isdigit() else Game(title=argument)
+
+    async def convert(self, ctx: "commands.Context", argument: str):
+        return (
+            Game(app_id=int(argument)) if argument.isdigit() else Game(title=argument)
+        )
 
 
 class Default:
@@ -213,35 +221,41 @@ class Default:
         async def source(ctx, command=CurrentCommand):
             # command would now be source
     """
-    async def default(self, ctx: 'commands.Context'):
-        raise NotImplementedError('derived classes need to implement this')
+
+    async def default(self, ctx: "commands.Context"):
+        raise NotImplementedError("derived classes need to implement this")
 
 
 class Author(Default):
     """Returns the :attr:`.Context.author`"""
-    async def default(self, ctx: 'commands.Context'):
+
+    async def default(self, ctx: "commands.Context"):
         return ctx.author
 
 
 class DefaultChannel(Default):
     """Returns the :attr:`.Context.channel`"""
-    async def default(self, ctx: 'commands.Context'):
+
+    async def default(self, ctx: "commands.Context"):
         return ctx.channel
 
 
 class DefaultGroup(Default):
     """Returns the :attr:`.Context.group`"""
-    async def default(self, ctx: 'commands.Context'):
+
+    async def default(self, ctx: "commands.Context"):
         return ctx.group
 
 
 class DefaultClan(Default):
     """Returns the :attr:`.Context.clan`"""
-    async def default(self, ctx: 'commands.Context'):
+
+    async def default(self, ctx: "commands.Context"):
         return ctx.clan
 
 
 class DefaultGame(Default):
     """Returns the :attr:`~steam.User.game`"""
-    async def default(self, ctx: 'commands.Context'):
+
+    async def default(self, ctx: "commands.Context"):
         return ctx.author.game

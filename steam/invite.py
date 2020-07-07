@@ -33,9 +33,9 @@ if TYPE_CHECKING:
 
 
 __all__ = (
-    'Invite',
-    'UserInvite',
-    'ClanInvite',
+    "Invite",
+    "UserInvite",
+    "ClanInvite",
 )
 
 
@@ -48,9 +48,9 @@ class Invite:
         The user who sent the invite.
     """
 
-    __slots__ = ('invitee', '_state')
+    __slots__ = ("invitee", "_state")
 
-    def __init__(self, state: 'ConnectionState', invitee: 'User'):
+    def __init__(self, state: "ConnectionState", invitee: "User"):
         self._state = state
         self.invitee = invitee
 
@@ -65,10 +65,8 @@ class UserInvite(Invite):
     """
 
     def __repr__(self):
-        attrs = (
-            'invitee',
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("invitee",)
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<UserInvite {' '.join(resolved)}>"
 
     async def accept(self) -> None:
@@ -96,17 +94,18 @@ class ClanInvite(Invite):
         The user who sent the invite.
     """
 
-    __slots__ = ('clan',)
+    __slots__ = ("clan",)
 
-    def __init__(self, state: 'ConnectionState', invitee: 'User', clan: 'Clan'):
+    def __init__(self, state: "ConnectionState", invitee: "User", clan: "Clan"):
         super().__init__(state, invitee)
         self.clan = clan
 
     def __repr__(self):
         attrs = (
-            'invitee', 'clan',
+            "invitee",
+            "clan",
         )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClanInvite {' '.join(resolved)}>"
 
     async def accept(self) -> None:

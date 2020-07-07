@@ -45,10 +45,10 @@ if TYPE_CHECKING:
 
 
 __all__ = (
-    'generate_one_time_code',
-    'generate_confirmation_code',
-    'generate_device_id',
-    'Confirmation',
+    "generate_one_time_code",
+    "generate_confirmation_code",
+    "generate_device_id",
+    "Confirmation",
 )
 
 
@@ -68,19 +68,25 @@ def generate_one_time_code(shared_secret: str, timestamp: int = None) -> str:
         The desired 2FA code for the timestamp.
     """
     timestamp = timestamp or int(time())
-    time_buffer = struct.pack('>Q', timestamp // 30)  # pack as Big endian, uint64
-    time_hmac = hmac.new(base64.b64decode(shared_secret), time_buffer, digestmod=sha1).digest()
-    begin = ord(time_hmac[19:20]) & 0xf
-    full_code = struct.unpack('>I', time_hmac[begin:begin + 4])[0] & 0x7fffffff  # unpack as Big endian uint32
-    chars = '23456789BCDFGHJKMNPQRTVWXY'
-    code = ''
+    time_buffer = struct.pack(">Q", timestamp // 30)  # pack as Big endian, uint64
+    time_hmac = hmac.new(
+        base64.b64decode(shared_secret), time_buffer, digestmod=sha1
+    ).digest()
+    begin = ord(time_hmac[19:20]) & 0xF
+    full_code = (
+        struct.unpack(">I", time_hmac[begin : begin + 4])[0] & 0x7FFFFFFF
+    )  # unpack as Big endian uint32
+    chars = "23456789BCDFGHJKMNPQRTVWXY"
+    code = ""
     for _ in range(5):
         full_code, i = divmod(full_code, len(chars))
-        code = f'{code}{chars[i]}'
+        code = f"{code}{chars[i]}"
     return code  # faster than string concatenation
 
 
-def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = None) -> str:
+def generate_confirmation_code(
+    identity_secret: str, tag: str, timestamp: int = None
+) -> str:
     """Generate a trade confirmation code.
 
     Parameters
@@ -98,8 +104,10 @@ def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = 
         Confirmation code for the set timestamp.
     """
     timestamp = timestamp or int(time())
-    buffer = struct.pack('>Q', timestamp) + tag.encode('ascii')
-    return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
+    buffer = struct.pack(">Q", timestamp) + tag.encode("ascii")
+    return base64.b64encode(
+        hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()
+    ).decode()
 
 
 def generate_device_id(user_id64: str) -> str:
@@ -116,24 +124,31 @@ def generate_device_id(user_id64: str) -> str:
     """
     # it works, however it's different that one generated from mobile app
 
-    hexed_steam_id = sha1(user_id64.encode('ascii')).hexdigest()
+    hexed_steam_id = sha1(user_id64.encode("ascii")).hexdigest()
     partial_id = [
         hexed_steam_id[:8],
         hexed_steam_id[8:12],
         hexed_steam_id[12:16],
         hexed_steam_id[16:20],
-        hexed_steam_id[20:32]
+        hexed_steam_id[20:32],
     ]
     return f'android:{"-".join(partial_id)}'
 
 
 class Confirmation:
-    def __init__(self, state: 'ConnectionState', id: str, data_confid: int, data_key: str, trade_id: int):
+    def __init__(
+        self,
+        state: "ConnectionState",
+        id: str,
+        data_confid: int,
+        data_key: str,
+        trade_id: int,
+    ):
         self._state = state
-        self.id = id.split('conf')[1]
+        self.id = id.split("conf")[1]
         self.data_confid = data_confid
         self.data_key = data_key
-        self.tag = f'details{self.id}'
+        self.tag = f"details{self.id}"
         self.trade_id = trade_id
 
     def __repr__(self):
@@ -142,28 +157,34 @@ class Confirmation:
     def _confirm_params(self, tag) -> dict:
         timestamp = int(time())
         return {
-            'p': self._state._device_id,
-            'a': self._state._id64,
-            'k': self._state._generate_confirmation(tag, timestamp),
-            't': timestamp,
-            'm': 'android',
-            'tag': tag
+            "p": self._state._device_id,
+            "a": self._state._id64,
+            "k": self._state._generate_confirmation(tag, timestamp),
+            "t": timestamp,
+            "m": "android",
+            "tag": tag,
         }
 
     def confirm(self) -> Awaitable:
-        params = self._confirm_params('allow')
-        params['op'] = 'allow'
-        params['cid'] = self.data_confid
-        params['ck'] = self.data_key
-        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
+        params = self._confirm_params("allow")
+        params["op"] = "allow"
+        params["cid"] = self.data_confid
+        params["ck"] = self.data_key
+        return self._state.request(
+            "GET", f"{URL.COMMUNITY}/mobileconf/ajaxop", params=params
+        )
 
     def cancel(self) -> Awaitable:
-        params = self._confirm_params('cancel')
-        params['op'] = 'cancel'
-        params['cid'] = self.data_confid
-        params['ck'] = self.data_key
-        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/ajaxop', params=params)
+        params = self._confirm_params("cancel")
+        params["op"] = "cancel"
+        params["cid"] = self.data_confid
+        params["ck"] = self.data_key
+        return self._state.request(
+            "GET", f"{URL.COMMUNITY}/mobileconf/ajaxop", params=params
+        )
 
     def details(self) -> Awaitable:  # need to do ['html'] for the good stuff
         params = self._confirm_params(self.tag)
-        return self._state.request('GET', f'{URL.COMMUNITY}/mobileconf/details/{self.id}', params=params)
+        return self._state.request(
+            "GET", f"{URL.COMMUNITY}/mobileconf/details/{self.id}", params=params
+        )

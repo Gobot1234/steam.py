@@ -30,8 +30,8 @@ from .enums import EUserBadge
 from .game import Game
 
 __all__ = (
-    'Badge',
-    'UserBadges',
+    "Badge",
+    "UserBadges",
 )
 
 
@@ -54,21 +54,19 @@ class Badge:
         The game associated with the badge.
     """
 
-    __slots__ = ('id', 'xp', 'game', 'level', 'scarcity', 'completion_time')
+    __slots__ = ("id", "xp", "game", "level", "scarcity", "completion_time")
 
     def __init__(self, data: dict):
-        self.id = EUserBadge.try_value(data['badgeid'])
-        self.level = data['level']
-        self.xp = data['xp']
-        self.completion_time = datetime.utcfromtimestamp(data['completion_time'])
-        self.scarcity = data['scarcity']
-        self.game = Game(data['appid']) if 'appid' in data else None
+        self.id = EUserBadge.try_value(data["badgeid"])
+        self.level = data["level"]
+        self.xp = data["xp"]
+        self.completion_time = datetime.utcfromtimestamp(data["completion_time"])
+        self.scarcity = data["scarcity"]
+        self.game = Game(data["appid"]) if "appid" in data else None
 
     def __repr__(self):
-        attrs = (
-            'id', 'level', 'xp', 'game'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("id", "level", "xp", "game")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f'<Badge {" ".join(resolved)}>'
 
 
@@ -90,20 +88,24 @@ class UserBadges:
         A list of the user's badges.
     """
 
-    __slots__ = ('xp', 'level', 'badges', 'xp_needed_to_level_up', 'xp_needed_for_current_level')
+    __slots__ = (
+        "xp",
+        "level",
+        "badges",
+        "xp_needed_to_level_up",
+        "xp_needed_for_current_level",
+    )
 
     def __init__(self, data: dict):
-        self.level = data['player_level']
-        self.xp = data['player_xp']
-        self.xp_needed_to_level_up = data['player_xp_needed_to_level_up']
-        self.xp_needed_for_current_level = data['player_xp_needed_current_level']
-        self.badges = [Badge(data) for data in data['badges']]
+        self.level = data["player_level"]
+        self.xp = data["player_xp"]
+        self.xp_needed_to_level_up = data["player_xp_needed_to_level_up"]
+        self.xp_needed_for_current_level = data["player_xp_needed_current_level"]
+        self.badges = [Badge(data) for data in data["badges"]]
 
     def __repr__(self):
-        attrs = (
-            'level', 'xp'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("level", "xp")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f'<UserBadges {" ".join(resolved)}>'
 
     def __len__(self):

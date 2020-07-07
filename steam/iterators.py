@@ -23,7 +23,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 import asyncio
 import re
 from datetime import datetime
@@ -36,7 +35,7 @@ from typing import (
     List,
     Optional,
     TypeVar,
-    Union,
+    Union
 )
 
 from bs4 import BeautifulSoup
@@ -48,10 +47,10 @@ from .enums import ETradeOfferState
 if TYPE_CHECKING:
     from .abc import BaseUser
     from .clan import Clan
-    from .trade import TradeOffer
     from .state import ConnectionState
+    from .trade import TradeOffer
 
-T = TypeVar('T')
+T = TypeVar("T")
 MaybeCoro = Callable[..., Union[bool, Awaitable[bool]]]
 
 
@@ -75,15 +74,21 @@ class AsyncIterator(_AsyncIterator, Generic[T]):
     queue: :class:`asyncio.Queue`
         The queue containing the elements of the iterator.
     """
-    __slots__ = ('before', 'after', 'limit', 'queue', '_is_filled', '_state')
 
-    def __init__(self, state: 'ConnectionState', limit: Optional[int],
-                 before: Optional[datetime], after: Optional[datetime]):
+    __slots__ = ("before", "after", "limit", "queue", "_is_filled", "_state")
+
+    def __init__(
+        self,
+        state: "ConnectionState",
+        limit: Optional[int],
+        before: Optional[datetime],
+        after: Optional[datetime],
+    ):
         self._state = state
         self.before = before or datetime.utcnow()
         self.after = after or datetime.utcfromtimestamp(0)
         self._is_filled = False
-        self.queue: 'asyncio.Queue[T]' = asyncio.Queue(maxsize=limit or 0)
+        self.queue: "asyncio.Queue[T]" = asyncio.Queue(maxsize=limit or 0)
         self.limit = limit
 
     def get(self, **attrs) -> Awaitable[Optional[T]]:
@@ -117,7 +122,7 @@ class AsyncIterator(_AsyncIterator, Generic[T]):
 
         def predicate(elem):
             for attr, val in attrs.items():
-                nested = attr.split('__')
+                nested = attr.split("__")
                 obj = elem
                 for attribute in nested:
                     obj = getattr(obj, attribute)
@@ -211,36 +216,59 @@ class AsyncIterator(_AsyncIterator, Generic[T]):
         pass
 
 
-class CommentsIterator(AsyncIterator['Comment']):
-    __slots__ = ('owner',)
+class CommentsIterator(AsyncIterator["Comment"]):
+    __slots__ = ("owner",)
 
-    def __init__(self, state: 'ConnectionState', before: datetime,
-                 after: datetime, limit: int, owner: Union['BaseUser', 'Clan']):
+    def __init__(
+        self,
+        state: "ConnectionState",
+        before: datetime,
+        after: datetime,
+        limit: int,
+        owner: Union["BaseUser", "Clan"],
+    ):
         super().__init__(state, limit, before, after)
         self.owner = owner
 
     async def fill(self) -> None:
-        from .user import User, BaseUser
+        from .user import BaseUser, User
 
         data = await self._state.http.get_comments(
-            id64=self.owner.id64, limit=self.limit,
-            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan'
+            id64=self.owner.id64,
+            limit=self.limit,
+            comment_type="Profile" if isinstance(self.owner, BaseUser) else "Clan",
         )
-        soup = BeautifulSoup(data['comments_html'], 'html.parser')
-        comments = soup.find_all('div', attrs={'class': 'commentthread_comment responsive_body_text'})
+        soup = BeautifulSoup(data["comments_html"], "html.parser")
+        comments = soup.find_all(
+            "div", attrs={"class": "commentthread_comment responsive_body_text"}
+        )
         to_fetch = []
 
         for comment in comments:
-            timestamp = comment.find('span', attrs={"class": 'commentthread_comment_timestamp'})['data-timestamp']
+            timestamp = comment.find(
+                "span", attrs={"class": "commentthread_comment_timestamp"}
+            )["data-timestamp"]
             timestamp = datetime.utcfromtimestamp(int(timestamp))
             if self.after < timestamp < self.before:
-                author_id = int(comment.find('a', attrs={"class": 'commentthread_author_link'})['data-miniprofile'])
-                comment_id = int(re.findall(r'comment_([0-9]*)', str(comment))[0])
-                content = comment.find('div', attrs={"class": 'commentthread_comment_text'}).get_text().strip()
+                author_id = int(
+                    comment.find("a", attrs={"class": "commentthread_author_link"})[
+                        "data-miniprofile"
+                    ]
+                )
+                comment_id = int(re.findall(r"comment_([0-9]*)", str(comment))[0])
+                content = (
+                    comment.find("div", attrs={"class": "commentthread_comment_text"})
+                    .get_text()
+                    .strip()
+                )
                 to_fetch.append(utils.make_steam64(author_id))
                 comment = Comment(
-                    state=self._state, id=comment_id, timestamp=timestamp,
-                    content=content, author=author_id, owner=self.owner
+                    state=self._state,
+                    id=comment_id,
+                    timestamp=timestamp,
+                    content=content,
+                    author=author_id,
+                    owner=self.owner,
                 )
                 try:
                     self.queue.put_nowait(comment)
@@ -255,69 +283,85 @@ class CommentsIterator(AsyncIterator['Comment']):
 
 
 class TradesIterator(AsyncIterator):
-    __slots__ = ('_active_only',)
+    __slots__ = ("_active_only",)
 
-    def __init__(self, state: 'ConnectionState', limit: int, before: datetime,
-                 after: datetime, active_only: bool):
+    def __init__(
+        self,
+        state: "ConnectionState",
+        limit: int,
+        before: datetime,
+        after: datetime,
+        active_only: bool,
+    ):
         super().__init__(state, limit, before, after)
         self._active_only = active_only
 
     async def fill(self) -> None:
         resp = await self._state.http.get_trade_history(100, None)
-        resp = resp['response']
-        total = resp.get('total_trades', 0)
+        resp = resp["response"]
+        total = resp.get("total_trades", 0)
         if not total:
             return
 
-        descriptions = resp.get('descriptions', [])
+        descriptions = resp.get("descriptions", [])
         try:
             from .trade import TradeOffer
 
             async def process_trade(data: dict, descriptions: dict):
-                if self.after.timestamp() < data['time_init'] < self.before.timestamp():
+                if self.after.timestamp() < data["time_init"] < self.before.timestamp():
                     for item in descriptions:
-                        for asset in data.get('assets_received', []):
-                            if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                        for asset in data.get("assets_received", []):
+                            if (
+                                item["classid"] == asset["classid"]
+                                and item["instanceid"] == asset["instanceid"]
+                            ):
                                 asset.update(item)
-                        for asset in data.get('assets_given', []):
-                            if item['classid'] == asset['classid'] and item['instanceid'] == asset['instanceid']:
+                        for asset in data.get("assets_given", []):
+                            if (
+                                item["classid"] == asset["classid"]
+                                and item["instanceid"] == asset["instanceid"]
+                            ):
                                 asset.update(item)
 
                     # patch in the attributes cause steam is cool
-                    data['tradeofferid'] = data['tradeid']
-                    data['accountid_other'] = data['steamid_other']
-                    data['trade_offer_state'] = data['status']
-                    data['items_to_give'] = data.get('assets_given', [])
-                    data['items_to_receive'] = data.get('assets_received', [])
+                    data["tradeofferid"] = data["tradeid"]
+                    data["accountid_other"] = data["steamid_other"]
+                    data["trade_offer_state"] = data["status"]
+                    data["items_to_give"] = data.get("assets_given", [])
+                    data["items_to_receive"] = data.get("assets_received", [])
 
                     trade = await TradeOffer._from_api(state=self._state, data=data)
 
                     try:
                         if not self._active_only:
                             self.queue.put_nowait(trade)
-                        elif self._active_only and trade.state in \
-                                (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed):
+                        elif self._active_only and trade.state in (
+                            ETradeOfferState.Active,
+                            ETradeOfferState.ConfirmationNeed,
+                        ):
                             self.queue.put_nowait(trade)
 
                     except asyncio.QueueFull:
                         raise StopAsyncIteration
 
-            for trade in resp.get('trades', []):
+            for trade in resp.get("trades", []):
                 await process_trade(trade, descriptions)
 
-            previous_time = trade['time_init']
+            previous_time = trade["time_init"]
             if total > 100:
                 for page in range(0, total, 100):
                     if page in (0, 100):
                         continue
                     resp = await self._state.http.get_trade_history(page, previous_time)
-                    resp = resp['response']
-                    for trade in resp.get('trades', []):
+                    resp = resp["response"]
+                    for trade in resp.get("trades", []):
                         await process_trade(trade, descriptions)
-                    previous_time = trade['time_init']
-                resp = await self._state.http.get_trade_history(page + 100, previous_time)
-                resp = resp['response']
-                for trade in resp.get('trades', []):
+                    previous_time = trade["time_init"]
+                resp = await self._state.http.get_trade_history(
+                    page + 100, previous_time
+                )
+                resp = resp["response"]
+                for trade in resp.get("trades", []):
                     await process_trade(trade, descriptions)
         except StopAsyncIteration:
             return

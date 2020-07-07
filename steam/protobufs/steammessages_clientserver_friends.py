@@ -168,7 +168,9 @@ class CMsgClientPersonaStateFriend(betterproto.Message):
     game_data_blob: bytes = betterproto.bytes_field(60)
     clan_data: "CMsgClientPersonaStateFriendClanData" = betterproto.message_field(64)
     clan_tag: str = betterproto.string_field(65)
-    rich_presence: List["CMsgClientPersonaStateFriendKV"] = betterproto.message_field(71)
+    rich_presence: List["CMsgClientPersonaStateFriendKV"] = betterproto.message_field(
+        71
+    )
     broadcast_id: float = betterproto.fixed64_field(72)
     game_lobby_id: float = betterproto.fixed64_field(73)
     watching_broadcast_accountid: int = betterproto.uint32_field(74)

@@ -27,43 +27,35 @@ SOFTWARE.
 EnumMeta and Enum from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
 Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
-
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, Iterable, List, Mapping, Tuple, TypeVar, Union
 
 __all__ = (
-    'Enum',
-    'IntEnum',
-    'EResult',
-    'EUniverse',
-    'EType',
-    'ETypeChar',
-    'EInstanceFlag',
-    'EFriendRelationship',
-    'EPersonaState',
-    'EPersonaStateFlag',
-    'ECommunityVisibilityState',
-    'ETradeOfferState',
-    'EChatEntryType',
-    'EUIMode',
+    "Enum",
+    "IntEnum",
+    "EResult",
+    "EUniverse",
+    "EType",
+    "ETypeChar",
+    "EInstanceFlag",
+    "EFriendRelationship",
+    "EPersonaState",
+    "EPersonaStateFlag",
+    "ECommunityVisibilityState",
+    "ETradeOfferState",
+    "EChatEntryType",
+    "EUIMode",
 )
 
-T = TypeVar('T', bound='Enum')
-EnumValues = Union['EnumValue', 'IntEnumValue']
+T = TypeVar("T", bound="Enum")
+EnumValues = Union["EnumValue", "IntEnumValue"]
 
 
 def _is_descriptor(obj: Any) -> bool:
-    return hasattr(obj, '__get__') or hasattr(obj, '__set__') or hasattr(obj, '__delete__')
+    return (
+        hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
+    )
 
 
 @dataclass()
@@ -72,10 +64,10 @@ class EnumValue:
     value: Any
 
     def __repr__(self: T):
-        return f'<{self._actual_enum_cls_.__name__}.{self.name}: {repr(self.value)}>'
+        return f"<{self._actual_enum_cls_.__name__}.{self.name}: {repr(self.value)}>"
 
     def __str__(self: T):
-        return f'{self._actual_enum_cls_.__name__}.{self.name}'
+        return f"{self._actual_enum_cls_.__name__}.{self.name}"
 
     def __hash__(self):
         return hash((self.name, self.value))
@@ -135,7 +127,7 @@ class EnumMeta(type):
 
         for key, value in list(attrs.items()):
             is_descriptor = _is_descriptor(value)
-            if key[0] == '_' and not is_descriptor:
+            if key[0] == "_" and not is_descriptor:
                 continue
 
             # special case for classmethods to pass through
@@ -157,9 +149,9 @@ class EnumMeta(type):
             member_mapping[key] = new_value
             attrs[key] = new_value
 
-        attrs['_enum_value_map_'] = value_mapping
-        attrs['_enum_member_map_'] = member_mapping
-        attrs['_enum_member_names_'] = member_names
+        attrs["_enum_value_map_"] = value_mapping
+        attrs["_enum_member_map_"] = member_mapping
+        attrs["_enum_member_names_"] = member_names
         enum_class = super().__new__(mcs, name, bases, attrs)
         for value in value_mapping.values():  # edit each value to ensure it's correct
             value._actual_enum_cls_ = enum_class
@@ -172,13 +164,15 @@ class EnumMeta(type):
             raise ValueError(f"{repr(value)} is not a valid {cls.__name__}")
 
     def __repr__(cls: T):
-        return f'<enum {cls.__name__!r}>'
+        return f"<enum {cls.__name__!r}>"
 
     def __iter__(cls: T) -> Iterable[EnumValues]:
         return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
 
     def __reversed__(cls: T) -> Iterable[EnumValues]:
-        return (cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_))
+        return (
+            cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_)
+        )
 
     def __len__(cls: T):
         return len(cls._enum_member_names_)
@@ -187,10 +181,10 @@ class EnumMeta(type):
         return cls._enum_member_map_[key]
 
     def __setattr__(cls: T, name: str, value: Any) -> None:
-        raise TypeError('Enums are immutable.')
+        raise TypeError("Enums are immutable.")
 
     def __delattr__(cls: T, attr: Any) -> None:
-        raise TypeError('Enums are immutable')
+        raise TypeError("Enums are immutable")
 
     def __instancecheck__(self, instance: Any):
         # isinstance(x, Y)
@@ -210,7 +204,9 @@ class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates enum.Enum."""
 
     @classmethod
-    def try_value(cls: T, value: Union['Enum', int, str]) -> Union[EnumValues, int, str]:
+    def try_value(
+        cls: T, value: Union["Enum", int, str]
+    ) -> Union[EnumValues, int, str]:
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
@@ -220,6 +216,8 @@ class Enum(metaclass=EnumMeta):
 class IntEnum(int, Enum):
     """An enumeration where all the values are integers, emulates enum.IntEnum."""
 
+
+# fmt: off
 
 class EResult(IntEnum):
     Invalid: IntEnumValue                         = 0

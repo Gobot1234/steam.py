@@ -23,14 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from ...abc import Message, Messageable
 
@@ -42,9 +35,7 @@ if TYPE_CHECKING:
     from .command import Command
 
 
-__all__ = (
-    'Context',
-)
+__all__ = ("Context",)
 
 
 class Context(Messageable):
@@ -74,13 +65,15 @@ class Context(Messageable):
         The cog the command is in.
     """
 
-    def __init__(self,
-                 bot: 'Bot',
-                 message: Message,
-                 prefix: str,
-                 command: 'Command' = None,
-                 shlex: 'Shlex' = None,
-                 **attrs):
+    def __init__(
+        self,
+        bot: "Bot",
+        message: Message,
+        prefix: str,
+        command: "Command" = None,
+        shlex: "Shlex" = None,
+        **attrs
+    ):
         self.bot = bot
         self.message = message
         self.command = command
@@ -90,7 +83,7 @@ class Context(Messageable):
         self.channel = message.channel
         self.clan = message.clan
         self.group = message.group
-        self.invoked_with: Optional[str] = attrs.get('invoked_with')
+        self.invoked_with: Optional[str] = attrs.get("invoked_with")
 
         self._state = message._state
 
@@ -99,5 +92,5 @@ class Context(Messageable):
         self.args: Optional[List] = None
         self.kwargs: Optional[Dict[str, Any]] = None
 
-    async def send(self, content: str = None, *, image: 'Image' = None):
+    async def send(self, content: str = None, *, image: "Image" = None):
         return await self.channel.send(content=content, image=image)

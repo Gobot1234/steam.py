@@ -405,6 +405,7 @@ class CMsgClientCheckFileSignatureResponse(betterproto.Message):
     getlasterror: int = betterproto.uint32_field(9)
     evalvesignaturecheckdetail: int = betterproto.uint32_field(10)
 
+
 @dataclass
 class CMsgClientRegisterKey(betterproto.Message):
     key: str = betterproto.string_field(1)

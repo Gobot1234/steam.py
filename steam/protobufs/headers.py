@@ -26,22 +26,21 @@ DEALINGS IN THE SOFTWARE.
 This is an updated copy of
 https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 """
-
 import struct
 
 from stringcase import snakecase
 
-from . import steammessages_base, foobar
-from .emsg import EMsg
 from ..enums import EResult
-from ..utils import set_proto_bit, clear_proto_bit
+from ..utils import clear_proto_bit, set_proto_bit
+from . import foobar, steammessages_base
+from .emsg import EMsg
 
 __all__ = (
-    'MsgHdr',
-    'GCMsgHdr',
-    'GCMsgHdrProto',
-    'ExtendedMsgHdr',
-    'MsgHdrProtoBuf',
+    "MsgHdr",
+    "GCMsgHdr",
+    "GCMsgHdrProto",
+    "ExtendedMsgHdr",
+    "MsgHdrProtoBuf",
 )
 
 
@@ -60,7 +59,8 @@ class MsgHdr:
     job_id_target: :class:`int`
     job_id_source: :class:`int`
     """
-    __slots__ = ('msg', 'job_id_target', 'job_id_source')
+
+    __slots__ = ("msg", "job_id_target", "job_id_source")
     SIZE = 20
 
     def __init__(self, data: bytes = None):
@@ -71,7 +71,7 @@ class MsgHdr:
             self.parse(data)
 
     def __repr__(self):
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__]
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]
         return f'<MsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
@@ -108,9 +108,17 @@ class ExtendedMsgHdr:
     header_version: :class:`int`
     header_canary: :class:`int`
     """
-    __slots__ = ('msg', 'steam_id', 'session_id',
-                 'header_size', 'header_version', 'header_canary',
-                 'job_id_target', 'job_id_source')
+
+    __slots__ = (
+        "msg",
+        "steam_id",
+        "session_id",
+        "header_size",
+        "header_version",
+        "header_canary",
+        "job_id_target",
+        "job_id_source",
+    )
     SIZE = 36
 
     def __init__(self, data: bytes = None):
@@ -126,15 +134,22 @@ class ExtendedMsgHdr:
             self.parse(data)
 
     def __repr__(self):
-        attrs = (
-            'msg', 'steam_id', 'session_id'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("msg", "steam_id", "session_id")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f'<ExtendedMsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
-        return struct.pack("<IBHqqBqi", self.msg, self.header_size, self.header_version, self.job_id_target,
-                           self.job_id_source, self.header_canary, self.steam_id, self.session_id)
+        return struct.pack(
+            "<IBHqqBqi",
+            self.msg,
+            self.header_size,
+            self.header_version,
+            self.job_id_target,
+            self.job_id_source,
+            self.header_canary,
+            self.steam_id,
+            self.session_id,
+        )
 
     def parse(self, data: bytes):
         """Parse the header.
@@ -143,8 +158,16 @@ class ExtendedMsgHdr:
         ----------
         data: :class:`bytes`
         """
-        (msg, self.header_size, self.header_version, self.job_id_target, self.job_id_source,
-         self.header_canary, self.steam_id, self.session_id) = struct.unpack_from("<IBHqqBqi", data)
+        (
+            msg,
+            self.header_size,
+            self.header_version,
+            self.job_id_target,
+            self.job_id_source,
+            self.header_canary,
+            self.steam_id,
+            self.session_id,
+        ) = struct.unpack_from("<IBHqqBqi", data)
 
         self.msg = EMsg(msg)
 
@@ -168,7 +191,7 @@ class MsgHdrProtoBuf:
     """
 
     SIZE = 8
-    __slots__ = ('body', 'msg', '_full_size')
+    __slots__ = ("body", "msg", "_full_size")
 
     def __init__(self, data: bytes = None):
         self.msg = EMsg.Invalid
@@ -179,16 +202,17 @@ class MsgHdrProtoBuf:
             self.parse(data)
 
     def __repr__(self):
-        attrs = (
-            'msg',
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items())
+        attrs = ("msg",)
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snakecase).items())
         return f'<MsgHdrProtoBuf {" ".join(resolved)}>'
 
     def __bytes__(self):
         proto_data = bytes(self.body)
-        return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
+        return (
+            struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data))
+            + proto_data
+        )
 
     def parse(self, data: bytes) -> None:
         """Parse the header.
@@ -201,7 +225,7 @@ class MsgHdrProtoBuf:
 
         self.msg = EMsg(clear_proto_bit(msg))
         self._full_size = self.SIZE + proto_length
-        self.body = self.body.parse(data[self.SIZE:self._full_size])
+        self.body = self.body.parse(data[self.SIZE : self._full_size])
 
     # allow for consistency between headers
 
@@ -255,7 +279,7 @@ class MsgHdrProtoBuf:
 
 
 class GCMsgHdr:
-    __slots__ = ('msg', 'body', 'header_version', 'target_job_id', 'source_job_id')
+    __slots__ = ("msg", "body", "header_version", "target_job_id", "source_job_id")
     SIZE = 18
 
     def __init__(self, msg, data=None):
@@ -269,22 +293,26 @@ class GCMsgHdr:
             self.parse(data)
 
     def __repr__(self):
-        attrs = (
-            'msg', 'target_job_id', 'source_job_id'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items())
+        attrs = ("msg", "target_job_id", "source_job_id")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snakecase).items())
         return f'<GCMsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
-        return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
+        return struct.pack(
+            "<Hqq", self.header_version, self.target_job_id, self.source_job_id
+        )
 
     def parse(self, data):
-        self.header_version, self.target_job_id, self.source_job_id = struct.unpack_from("<Hqq", data)
+        (
+            self.header_version,
+            self.target_job_id,
+            self.source_job_id,
+        ) = struct.unpack_from("<Hqq", data)
 
 
 class GCMsgHdrProto:
-    __slots__ = ('msg', 'body', 'header_length')
+    __slots__ = ("msg", "body", "header_length")
     SIZE = 8
 
     def __init__(self, msg, data=None):
@@ -296,17 +324,17 @@ class GCMsgHdrProto:
             self.parse(data)
 
     def __repr__(self):
-        attrs = (
-            'msg',
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
-        resolved.extend(f'{k}={v!r}' for k, v in self.body.to_dict(snakecase).items())
+        attrs = ("msg",)
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snakecase).items())
         return f'<GCMsgHdrProto {" ".join(resolved)}>'
 
     def __bytes__(self):
         proto_data = bytes(self.body)
         self.header_length = len(proto_data)
-        return struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
+        return (
+            struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
+        )
 
     def parse(self, data):
         msg, self.header_length = struct.unpack_from("<Ii", data)
@@ -315,4 +343,4 @@ class GCMsgHdrProto:
 
         if self.header_length:
             x = GCMsgHdrProto.SIZE
-            self.body = self.body.parse(data[x:x + self.header_length])
+            self.body = self.body.parse(data[x : x + self.header_length])

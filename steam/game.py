@@ -27,25 +27,24 @@ SOFTWARE.
 # TODO rename to activity for UI mode and Persona States
 
 __all__ = (
-    'TF2',
-    'Game',
-    'CSGO',
-    'DOTA2',
-    'STEAM',
+    "TF2",
+    "Game",
+    "CSGO",
+    "DOTA2",
+    "STEAM",
 )
 
 APP_ID_MAX = 2 ** 32
 
 MAPPING = {
-    'Team Fortress 2': [440, 2],
-    'DOTA 2': [570, 2],
-    'Counter Strike Global-Offensive': [730, 2],
-    'Steam': [753, 6],
-
-    440: ['Team Fortress 2', 2],
-    570: ['DOTA 2', 2],
-    730: ['Counter Strike Global-Offensive', 2],
-    753: ['Steam', 6]
+    "Team Fortress 2": [440, 2],
+    "DOTA 2": [570, 2],
+    "Counter Strike Global-Offensive": [730, 2],
+    "Steam": [753, 6],
+    440: ["Team Fortress 2", 2],
+    570: ["DOTA 2", 2],
+    730: ["Counter Strike Global-Offensive", 2],
+    753: ["Steam", 6],
 }
 
 
@@ -88,17 +87,27 @@ class Game:
         Whether the game has publicly visible stats.
         Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     """
-    __slots__ = ('app_id', 'title', 'context_id',
-                 'total_play_time', 'icon_url', 'logo_url', 'stats_visible')
+
+    __slots__ = (
+        "app_id",
+        "title",
+        "context_id",
+        "total_play_time",
+        "icon_url",
+        "logo_url",
+        "stats_visible",
+    )
 
     def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2):
         if app_id is not None and title is None:
             try:
                 self.app_id = int(app_id)
             except ValueError as exc:
-                raise ValueError(f'app_id expected to be a digit not {repr(type(app_id).__name__)}') from exc
+                raise ValueError(
+                    f"app_id expected to be a digit not {repr(type(app_id).__name__)}"
+                ) from exc
             if self.app_id < 0:
-                raise ValueError('app_id cannot be negative')
+                raise ValueError("app_id cannot be negative")
             mapping = MAPPING.get(app_id)
             if mapping is not None:
                 self.title = mapping[0]
@@ -146,38 +155,33 @@ class Game:
 
     @classmethod
     def _from_api(cls, data):
-        game = cls(app_id=data.get('appid'), title=data.get('name'))
-        game.total_play_time = data.get('playtime_forever', 0)
-        game.icon_url = data.get('img_icon_url')
-        game.logo_url = data.get('img_logo_url')
-        game.stats_visible = data.get('has_community_visible_stats', False)
+        game = cls(app_id=data.get("appid"), title=data.get("name"))
+        game.total_play_time = data.get("playtime_forever", 0)
+        game.icon_url = data.get("img_icon_url")
+        game.logo_url = data.get("img_logo_url")
+        game.stats_visible = data.get("has_community_visible_stats", False)
         return game
 
     def __repr__(self):
-        attrs = (
-            'title', 'app_id', 'context_id'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("title", "app_id", "context_id")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Game {' '.join(resolved)}>"
 
     def __eq__(self, other):
-        return isinstance(other, Game) and (self.app_id == other.app_id or self.title == other.title)
+        return isinstance(other, Game) and (
+            self.app_id == other.app_id or self.title == other.title
+        )
 
     def to_dict(self) -> dict:
         if not self.is_steam_game():
-            return {
-                "game_id": str(self.app_id),
-                "game_extra_info": self.title
-            }
-        return {
-            "game_id": str(self.app_id)
-        }
+            return {"game_id": str(self.app_id), "game_extra_info": self.title}
+        return {"game_id": str(self.app_id)}
 
     def is_steam_game(self) -> bool:
         return self.app_id <= APP_ID_MAX
 
 
-TF2 = Game(title='Team Fortress 2', app_id=440)
-DOTA2 = Game(title='DOTA 2', app_id=570)
-CSGO = Game(title='Counter Strike Global-Offensive', app_id=730)
-STEAM = Game(title='Steam', app_id=753, context_id=6)
+TF2 = Game(title="Team Fortress 2", app_id=440)
+DOTA2 = Game(title="DOTA 2", app_id=570)
+CSGO = Game(title="Counter Strike Global-Offensive", app_id=730)
+STEAM = Game(title="Steam", app_id=753, context_id=6)

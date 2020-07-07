@@ -23,7 +23,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 import asyncio
 import inspect
 import sys
@@ -35,22 +34,22 @@ from .command import Command
 
 if TYPE_CHECKING:
     from steam.ext import commands
-    from ...client import EventType
-    from .context import Context
-    from .bot import Bot
 
-__all__ = (
-    'Cog',
-)
+    from ...client import EventType
+    from .bot import Bot
+    from .context import Context
+
+__all__ = ("Cog",)
 
 
 class InjectedListener:
     """Injects the cog's "self" parameter into every event call
     auto-magically.
     """
-    __slots__ = ('func', 'cog')
 
-    def __init__(self, cog: 'Cog', func: 'EventType'):
+    __slots__ = ("func", "cog")
+
+    def __init__(self, cog: "Cog", func: "EventType"):
         self.func = func
         self.cog = cog
 
@@ -61,11 +60,11 @@ class InjectedListener:
 # for a bit of type hinting
 class ExtensionType(ModuleType):
     @staticmethod
-    def setup(bot: 'Bot'):
+    def setup(bot: "Bot"):
         pass
 
     @staticmethod
-    def teardown(bot: 'Bot'):
+    def teardown(bot: "Bot"):
         pass
 
 
@@ -95,18 +94,18 @@ class Cog:
     """
 
     __commands__: Dict[str, Command] = dict()
-    __listeners__: Dict[str, List['EventType']] = dict()
+    __listeners__: Dict[str, List["EventType"]] = dict()
 
     def __init_subclass__(cls, *args, **kwargs):
-        cls.qualified_name = kwargs.get('name') or cls.__name__
-        cls.command_attrs = kwargs.get('command_attrs', dict())
+        cls.qualified_name = kwargs.get("name") or cls.__name__
+        cls.command_attrs = kwargs.get("command_attrs", dict())
         help_doc = cls.__doc__
         if help_doc is not None:
             help_doc = inspect.cleandoc(help_doc)
         else:
             help_doc = inspect.getdoc(cls)
             if isinstance(help_doc, bytes):
-                help_doc = help_doc.decode('utf-8')
+                help_doc = help_doc.decode("utf-8")
 
         cls.help = help_doc
         for name, attr in inspect.getmembers(cls):
@@ -124,18 +123,22 @@ class Cog:
             The name of the event to listen for.
             Defaults to ``func.__name__``.
         """
-        def decorator(func: 'EventType'):
+
+        def decorator(func: "EventType"):
             name_ = name or func.__name__
             if not asyncio.iscoroutinefunction(func):
-                raise TypeError(f'listeners must be coroutines, {name_} is {type(func).__name__}')
+                raise TypeError(
+                    f"listeners must be coroutines, {name_} is {type(func).__name__}"
+                )
 
             if name_ in cls.__listeners__:
                 cls.__listeners__[name_].append(func)
             else:
                 cls.__listeners__[name_] = [func]
+
         return decorator
 
-    async def cog_command_error(self, ctx: 'commands.Context', error: Exception):
+    async def cog_command_error(self, ctx: "commands.Context", error: Exception):
         """|coro|
         A special method that is called whenever an error
         is dispatched inside this cog. This is similar to
@@ -149,10 +152,12 @@ class Cog:
         error: :exc:`Exception`
             The error that happened.
         """
-        print(f'Ignoring exception in command {ctx.command.name}:', file=sys.stderr)
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
+        traceback.print_exception(
+            type(error), error, error.__traceback__, file=sys.stderr
+        )
 
-    async def cog_check(self, ctx: 'commands.Context'):
+    async def cog_check(self, ctx: "commands.Context"):
         """|coro|
         A special method that registers as a :func:`commands.check`
         for every command and subcommand in this cog.
@@ -175,7 +180,7 @@ class Cog:
         This is called before :func:`teardown`.
         """
 
-    def _inject(self, bot: 'Bot'):
+    def _inject(self, bot: "Bot"):
         for command in self.__commands__.values():
             for (name, value) in self.command_attrs.items():
                 setattr(command, name, value)
@@ -190,7 +195,7 @@ class Cog:
                     listener = InjectedListener(self, listener)
                 bot.add_listener(listener, name)
 
-    def _eject(self, bot: 'Bot'):
+    def _eject(self, bot: "Bot"):
         self.cog_unload()
         for command in self.__commands__.values():
             bot.remove_command(command)

@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-
 from ..enums import IntEnum, IntEnumValue
 
-
 __all__ = (
-    'EMsg',
-    'IntEnumValue',
+    "EMsg",
+    "IntEnumValue",
 )
 
 

@@ -27,19 +27,11 @@ SOFTWARE.
 This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
-
 import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Awaitable,
-    Callable,
-    List,
-    Optional,
-    Tuple
-)
+from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, Tuple
 
 from .badge import UserBadges
 from .comment import Comment
@@ -49,7 +41,7 @@ from .enums import (
     EPersonaStateFlag,
     EType,
     ETypeChar,
-    EUniverse,
+    EUniverse
 )
 from .errors import HTTPException
 from .game import Game
@@ -61,32 +53,30 @@ from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
-    from .user import User
     from .clan import Clan
     from .group import Group
-    from .state import ConnectionState
     from .image import Image
+    from .state import ConnectionState
+    from .user import User
 
 
 __all__ = (
-    'SteamID',
-    'Message',
+    "SteamID",
+    "Message",
 )
 
 
 class SteamID(metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations."""
 
-    __slots__ = ('_BASE', '__weakref__')
+    __slots__ = ("_BASE", "__weakref__")
 
     def __init__(self, *args, **kwargs):
         self._BASE = make_steam64(*args, **kwargs)
 
     def __repr__(self):
-        attrs = (
-            'id', 'type', 'universe', 'instance'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("id", "type", "universe", "instance")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<SteamID {' '.join(resolved)}>"
 
     def __int__(self):
@@ -112,12 +102,12 @@ class SteamID(metaclass=abc.ABCMeta):
         """:class:`int`: Represents the account id.
         This is also known as the 32 bit id.
         """
-        return int(self) & 0xFFffFFff
+        return int(self) & 0xFFFFFFFF
 
     @property
     def instance(self) -> int:
         """:class:`int`: Returns the instance of the account."""
-        return (int(self) >> 32) & 0xFFffF
+        return (int(self) >> 32) & 0xFFFFF
 
     @property
     def type(self) -> EType:
@@ -160,7 +150,7 @@ class SteamID(metaclass=abc.ABCMeta):
             for ``Public``. However, there was a bug in GoldSrc and Orange Box games
             and ``X`` was ``0``. If you need that format use :attr:`as_steam2_zero`.
         """
-        return f'STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}'
+        return f"STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}"
 
     @property
     def as_steam2(self) -> str:
@@ -184,7 +174,7 @@ class SteamID(metaclass=abc.ABCMeta):
         For GoldSrc and Orange Box games.
         See :attr:`id2`.
         """
-        return self.as_steam2.replace('_1', '_0')
+        return self.as_steam2.replace("_1", "_0")
 
     @property
     def id3(self) -> str:
@@ -203,11 +193,11 @@ class SteamID(metaclass=abc.ABCMeta):
                 instance = self.instance
         elif self.type == EType.Chat:
             if self.instance & EInstanceFlag.Clan:
-                typechar = 'c'
+                typechar = "c"
             elif self.instance & EInstanceFlag.Lobby:
-                typechar = 'L'
+                typechar = "L"
             else:
-                typechar = 'T'
+                typechar = "T"
 
         parts = [typechar, int(self.universe), self.id]
 
@@ -229,6 +219,7 @@ class SteamID(metaclass=abc.ABCMeta):
             e.g. ``cv-dgb``
         """
         if self.type == EType.Individual and self.is_valid():
+
             def repl_mapper(x):
                 return _INVITE_MAPPING[x.group()]
 
@@ -236,7 +227,7 @@ class SteamID(metaclass=abc.ABCMeta):
             split_idx = len(invite_code) // 2
 
             if split_idx:
-                invite_code = f'{invite_code[:split_idx]}-{invite_code[split_idx:]}'
+                invite_code = f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
 
             return invite_code
 
@@ -247,7 +238,7 @@ class SteamID(metaclass=abc.ABCMeta):
         """
         code = self.invite_code
         if code:
-            return f'https://s.team/p/{code}'
+            return f"https://s.team/p/{code}"
 
     @property
     def community_url(self) -> Optional[str]:
@@ -255,11 +246,11 @@ class SteamID(metaclass=abc.ABCMeta):
             e.g https://steamcommunity.com/profiles/123456789.
         """
         suffix = {
-            EType.Individual: 'profiles',
-            EType.Clan: 'gid',
+            EType.Individual: "profiles",
+            EType.Clan: "gid",
         }
         if self.type in suffix:
-            return f'https://steamcommunity.com/{suffix[self.type]}/{self.id64}'
+            return f"https://steamcommunity.com/{suffix[self.type]}/{self.id64}"
 
         return None
 
@@ -292,8 +283,9 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(cls, url: str, session: 'ClientSession' = None,
-                       timeout: float = 30) -> Optional['SteamID']:
+    async def from_url(
+        cls, url: str, session: "ClientSession" = None, timeout: float = 30
+    ) -> Optional["SteamID"]:
         """Takes Steam community url and returns a SteamID instance or ``None``.
         See :func:`steam64_from_url` for details.
 
@@ -362,12 +354,26 @@ class BaseUser(SteamID):
         The persona state flags of the account.
     """
 
-    __slots__ = ('name', 'game', 'state', 'flags', 'country', 'primary_clan',
-                 'trade_url', 'real_name', 'avatar_url', 'last_seen_online',
-                 'created_at', 'last_logoff', 'last_logon', '_state', '_data')
+    __slots__ = (
+        "name",
+        "game",
+        "state",
+        "flags",
+        "country",
+        "primary_clan",
+        "trade_url",
+        "real_name",
+        "avatar_url",
+        "last_seen_online",
+        "created_at",
+        "last_logoff",
+        "last_logon",
+        "_state",
+        "_data",
+    )
 
-    def __init__(self, state: 'ConnectionState', data: dict):
-        super().__init__(data['steamid'])
+    def __init__(self, state: "ConnectionState", data: dict):
+        super().__init__(data["steamid"])
         self._state = state
         self.name = None
         self.real_name = None
@@ -384,10 +390,8 @@ class BaseUser(SteamID):
         self._update(data)
 
     def __repr__(self):
-        attrs = (
-            'name', 'state', 'id', 'type', 'universe', 'instance'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("name", "state", "id", "type", "universe", "instance")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<User {' '.join(resolved)}>"
 
     def __str__(self):
@@ -395,26 +399,46 @@ class BaseUser(SteamID):
 
     def _update(self, data) -> None:
         self._data = data
-        self.name = data['personaname']
-        self.real_name = data.get('realname') or self.real_name
-        self.avatar_url = data.get('avatarfull') or self.avatar_url
-        self.trade_url = f'{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}'
+        self.name = data["personaname"]
+        self.real_name = data.get("realname") or self.real_name
+        self.avatar_url = data.get("avatarfull") or self.avatar_url
+        self.trade_url = f"{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}"
 
-        self.primary_clan = (SteamID(data['primaryclanid'])
-                             if 'primaryclanid' in data else None or self.primary_clan)
-        self.country = data.get('loccountrycode') or self.country
-        self.created_at = (datetime.utcfromtimestamp(data['timecreated'])
-                           if 'timecreated' in data else None or self.created_at)
-        self.last_logoff = (datetime.utcfromtimestamp(data['lastlogoff'])
-                            if 'lastlogoff' in data else None or self.last_logoff)
-        self.last_logon = (datetime.utcfromtimestamp(data['last_logon'])
-                           if 'last_logon' in data else None or self.last_logon)
-        self.last_seen_online = (datetime.utcfromtimestamp(data['last_seen_online'])
-                                 if 'last_seen_online' in data else None or self.last_seen_online)
-        self.game = (Game(title=data.get('gameextrainfo'), app_id=data['gameid'])
-                     if 'gameid' in data else None or self.game)
-        self.state = EPersonaState(data.get('personastate', 0)) or self.state
-        self.flags = EPersonaStateFlag.try_value(data.get('personastateflags', 0)) or self.flags
+        self.primary_clan = (
+            SteamID(data["primaryclanid"])
+            if "primaryclanid" in data
+            else None or self.primary_clan
+        )
+        self.country = data.get("loccountrycode") or self.country
+        self.created_at = (
+            datetime.utcfromtimestamp(data["timecreated"])
+            if "timecreated" in data
+            else None or self.created_at
+        )
+        self.last_logoff = (
+            datetime.utcfromtimestamp(data["lastlogoff"])
+            if "lastlogoff" in data
+            else None or self.last_logoff
+        )
+        self.last_logon = (
+            datetime.utcfromtimestamp(data["last_logon"])
+            if "last_logon" in data
+            else None or self.last_logon
+        )
+        self.last_seen_online = (
+            datetime.utcfromtimestamp(data["last_seen_online"])
+            if "last_seen_online" in data
+            else None or self.last_seen_online
+        )
+        self.game = (
+            Game(title=data.get("gameextrainfo"), app_id=data["gameid"])
+            if "gameid" in data
+            else None or self.game
+        )
+        self.state = EPersonaState(data.get("personastate", 0)) or self.state
+        self.flags = (
+            EPersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
+        )
 
     async def comment(self, content: str) -> Comment:
         """|coro|
@@ -430,15 +454,18 @@ class BaseUser(SteamID):
         :class:`~steam.Comment`
             The created comment.
         """
-        resp = await self._state.http.post_comment(self.id64, 'Profile', content)
-        id = int(re.findall(r'id="comment_(\d+)"', resp['comments_html'])[0])
-        timestamp = datetime.utcfromtimestamp(resp['timelastpost'])
+        resp = await self._state.http.post_comment(self.id64, "Profile", content)
+        id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
+        timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
         comment = Comment(
-            state=self._state, id=id, owner=self,
-            timestamp=timestamp, content=content,
-            author=self._state.client.user
+            state=self._state,
+            id=id,
+            owner=self,
+            timestamp=timestamp,
+            content=content,
+            author=self._state.client.user,
         )
-        self._state.dispatch('comment', comment)
+        self._state.dispatch("comment", comment)
         return comment
 
     async def inventory(self, game: Game) -> Inventory:
@@ -460,10 +487,12 @@ class BaseUser(SteamID):
         :class:`Inventory`
             The user's inventory.
         """
-        resp = await self._state.http.get_user_inventory(self.id64, game.app_id, game.context_id)
+        resp = await self._state.http.get_user_inventory(
+            self.id64, game.app_id, game.context_id
+        )
         return Inventory(state=self._state, data=resp, owner=self)
 
-    async def friends(self) -> List['User']:
+    async def friends(self) -> List["User"]:
         """|coro|
         Fetch the list of :class:`~steam.User`'s friends from the API.
 
@@ -486,10 +515,10 @@ class BaseUser(SteamID):
             The list of game objects from the API.
         """
         data = await self._state.http.get_user_games(self.id64)
-        games = data['response'].get('games', [])
+        games = data["response"].get("games", [])
         return [Game._from_api(game) for game in games]
 
-    async def clans(self) -> List['Clan']:
+    async def clans(self) -> List["Clan"]:
         """|coro|
         Fetches a list of the :class:`User`'s :class:`~steam.Clan`
         objects the :class:`User` is in from the API.
@@ -509,9 +538,10 @@ class BaseUser(SteamID):
                 await getter(gid)
             else:
                 clans.append(clan)
+
         resp = await self._state.http.get_user_clans(self.id64)
-        for clan in resp['response']['groups']:
-            await getter(clan['gid'])
+        for clan in resp["response"]["groups"]:
+            await getter(clan["gid"])
         return clans
 
     async def bans(self) -> Ban:
@@ -524,8 +554,8 @@ class BaseUser(SteamID):
             The user's bans.
         """
         resp = await self._state.http.get_user_bans(self.id64)
-        resp = resp['players'][0]
-        resp['EconomyBan'] = False if resp['EconomyBan'] == 'none' else True
+        resp = resp["players"][0]
+        resp["EconomyBan"] = False if resp["EconomyBan"] == "none" else True
         return Ban(data=resp)
 
     async def badges(self) -> UserBadges:
@@ -538,7 +568,7 @@ class BaseUser(SteamID):
             The user's badges.
         """
         resp = await self._state.http.get_user_badges(self.id64)
-        return UserBadges(data=resp['response'])
+        return UserBadges(data=resp["response"])
 
     async def level(self) -> int:
         """|coro|
@@ -550,20 +580,20 @@ class BaseUser(SteamID):
             The user's level.
         """
         resp = await self._state.http.get_user_level(self.id64)
-        return resp['response']['player_level']
+        return resp["response"]["player_level"]
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
-        return bool(self._data.get('commentpermission'))
+        return bool(self._data.get("commentpermission"))
 
     def is_private(self) -> bool:
         """:class:`bool`: Specifies if the user has a public profile."""
-        state = self._data.get('communityvisibilitystate', 0)
+        state = self._data.get("communityvisibilitystate", 0)
         return state in (0, 1, 2)
 
     def has_setup_profile(self) -> bool:
         """:class:`bool`: Specifies if the user has a setup their profile."""
-        return bool(self._data.get('profilestate'))
+        return bool(self._data.get("profilestate"))
 
     async def is_banned(self) -> bool:
         """|coro|
@@ -582,8 +612,12 @@ class BaseUser(SteamID):
         bans = await self.bans()
         return bans.is_banned()
 
-    def comments(self, limit: Optional[int] = None,
-                 before: datetime = None, after: datetime = None) -> CommentsIterator:
+    def comments(
+        self,
+        limit: Optional[int] = None,
+        before: datetime = None,
+        after: datetime = None,
+    ) -> CommentsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
         :class:`~steam.User`'s :class:`~steam.Comment` objects.
 
@@ -617,7 +651,9 @@ class BaseUser(SteamID):
         :class:`~steam.Comment`
             The comment with the comment information parsed.
         """
-        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
+        return CommentsIterator(
+            state=self._state, owner=self, limit=limit, before=before, after=after
+        )
 
 
 _get_x_endpoint_return = Tuple[Tuple[int, ...], Callable[..., Awaitable[None]]]
@@ -639,7 +675,7 @@ class Messageable(metaclass=abc.ABCMeta):
     def _get_image_endpoint(self) -> _get_x_endpoint_return:
         pass
 
-    async def send(self, content: str = None, image: 'Image' = None):
+    async def send(self, content: str = None, image: "Image" = None):
         """|coro|
         Send a message to a certain destination.
 
@@ -666,13 +702,13 @@ class Messageable(metaclass=abc.ABCMeta):
 
 
 class BaseChannel(Messageable):
-    __slots__ = ('_state', 'participant', 'clan', 'group')
+    __slots__ = ("_state", "participant", "clan", "group")
 
     def __init__(self):
-        self._state: 'ConnectionState'
-        self.participant: Optional['BaseUser'] = None
-        self.clan: Optional['Clan'] = None
-        self.group: Optional['Group'] = None
+        self._state: "ConnectionState"
+        self.participant: Optional["BaseUser"] = None
+        self.clan: Optional["Clan"] = None
+        self.group: Optional["Group"] = None
 
     def typing(self):
         pass
@@ -696,10 +732,19 @@ class Message:
     created_at: :class:`datetime.datetime`
         The time the message was sent at.
     """
-    __slots__ = ('author', 'content', 'channel', 'created_at', 'group', 'clan', '_state')
 
-    def __init__(self, channel: 'BaseChannel'):
-        self._state: 'ConnectionState' = channel._state
+    __slots__ = (
+        "author",
+        "content",
+        "channel",
+        "created_at",
+        "group",
+        "clan",
+        "_state",
+    )
+
+    def __init__(self, channel: "BaseChannel"):
+        self._state: "ConnectionState" = channel._state
         self.channel = channel
         self.content: Optional[str] = None
         self.author: Optional[BaseUser] = None

@@ -35,8 +35,8 @@ if TYPE_CHECKING:
 
 
 __all__ = (
-    'BucketType',
-    'Cooldown',
+    "BucketType",
+    "Cooldown",
 )
 
 
@@ -49,7 +49,7 @@ class BucketType(IntEnum):
     Channel: IntEnumValue = 6
     Officer: IntEnumValue = 7
 
-    def get_bucket(self, ctx: 'Context'):
+    def get_bucket(self, ctx: "Context"):
         if self == self.User:
             return ctx.author.id
         elif self is self.Member:

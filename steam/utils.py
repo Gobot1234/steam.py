@@ -24,7 +24,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
-
 import asyncio
 import json
 import re
@@ -38,31 +37,31 @@ from typing import (
     Optional,
     T,
     Tuple,
-    Union,
+    Union
 )
 
 import aiohttp
 
-from .enums import EInstanceFlag, EType, ETypeChar, EUniverse, EnumValue
+from .enums import EInstanceFlag, EnumValue, EType, ETypeChar, EUniverse
 
 __all__ = (
-    'get',
-    'find',
-    'make_steam64',
-    'parse_trade_url_token',
+    "get",
+    "find",
+    "make_steam64",
+    "parse_trade_url_token",
 )
 
 PROTOBUF_MASK = 0x80000000
 MAX_ASYNCIO_SECONDS = 60 * 60 * 24 * 40
-_INVITE_HEX = '0123456789abcdef'
-_INVITE_CUSTOM = 'bcdfghjkmnpqrtvw'
-_INVITE_VALID = f'{_INVITE_HEX}{_INVITE_CUSTOM}'
+_INVITE_HEX = "0123456789abcdef"
+_INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
+_INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 
 # from ValvePython/steam
 
-ETypeChars = ''.join(type_char.name for type_char in ETypeChar)
+ETypeChars = "".join(type_char.name for type_char in ETypeChar)
 
 
 def is_proto(emsg: int) -> bool:
@@ -130,7 +129,11 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
 
         # textual input e.g. [g:1:4]
         else:
-            result = steam2_to_tuple(value) or steam3_to_tuple(value) or invite_code_to_tuple(value)
+            result = (
+                steam2_to_tuple(value)
+                or steam3_to_tuple(value)
+                or invite_code_to_tuple(value)
+            )
 
             if result:
                 id, etype, universe, instance = result
@@ -149,9 +152,9 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
             raise TypeError(f"Takes at most 4 arguments ({length} given)")
 
     if len(kwargs) > 0:
-        etype = kwargs.get('type', etype)
-        universe = kwargs.get('universe', universe)
-        instance = kwargs.get('instance', instance)
+        etype = kwargs.get("type", etype)
+        universe = kwargs.get("universe", universe)
+        instance = kwargs.get("instance", instance)
 
     etype = EType.try_value(etype)
     universe = EUniverse.try_value(universe)
@@ -178,16 +181,14 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EnumValue, EnumValue, int
         The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
     """
     match = re.match(
-        r"STEAM_(?P<universe>\d+)"
-        r":(?P<reminder>[0-1])"
-        r":(?P<id>\d+)", value
+        r"STEAM_(?P<universe>\d+)" r":(?P<reminder>[0-1])" r":(?P<id>\d+)", value
     )
 
     if not match:
         return None
 
-    steam_32 = (int(match.group('id')) << 1) | int(match.group('reminder'))
-    universe = int(match.group('universe'))
+    steam_32 = (int(match.group("id")) << 1) | int(match.group("reminder"))
+    universe = int(match.group("universe"))
 
     # games before orange box used to incorrectly display universe as 0, we support that
     if universe == 0:
@@ -213,24 +214,24 @@ def steam3_to_tuple(value: str) -> Optional[Tuple[int, EnumValue, EnumValue, int
         r"(?P<universe>[0-4]):"  # universe
         r"(?P<id>\d{1,10})"  # accountid
         r"(:(?P<instance>\d+))?\]",  # instance
-        value
+        value,
     )
     if not match:
         return None
 
-    steam_32 = int(match.group('id'))
-    universe = EUniverse(int(match.group('universe')))
-    typechar = match.group('type').replace('i', 'I')
+    steam_32 = int(match.group("id"))
+    universe = EUniverse(int(match.group("universe")))
+    typechar = match.group("type").replace("i", "I")
     etype = EType(ETypeChar[typechar])
-    instance = match.group('instance')
+    instance = match.group("instance")
 
-    if typechar in 'gT':
+    if typechar in "gT":
         instance = 0
     elif instance is not None:
         instance = int(instance)
-    elif typechar == 'L':
+    elif typechar == "L":
         instance = EInstanceFlag.Lobby
-    elif typechar == 'c':
+    elif typechar == "c":
         instance = EInstanceFlag.Clan
     elif etype in (EType.Individual, EType.GameServer):
         instance = 1
@@ -254,12 +255,15 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EnumValue, EnumValue,
     Optional[:class:`tuple`]
         e.g. (account_id, type, universe, instance) or ``None``.
     """
-    match = re.match(rf'(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))'
-                     rf'|(?P<code2>[\-{_INVITE_VALID}]+)', code)
+    match = re.match(
+        rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))"
+        rf"|(?P<code2>[\-{_INVITE_VALID}]+)",
+        code,
+    )
     if not match:
         return None
 
-    code = (match.group('code1') or match.group('code2')).replace('-', '')
+    code = (match.group("code1") or match.group("code2")).replace("-", "")
 
     def repl_mapper(x):
         return _INVITE_INVERSE_MAPPING[x.group()]
@@ -270,8 +274,9 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EnumValue, EnumValue,
         return steam_32, EType(1), EUniverse.Public, 1
 
 
-async def steam64_from_url(url: str, session: aiohttp.ClientSession = None,
-                           timeout: float = 30) -> Optional[int]:
+async def steam64_from_url(
+    url: str, session: aiohttp.ClientSession = None, timeout: float = 30
+) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or None
 
     .. note::
@@ -307,9 +312,11 @@ async def steam64_from_url(url: str, session: aiohttp.ClientSession = None,
         If ``https://steamcommunity.com`` is down or no matching account is found returns ``None``
     """
 
-    search = re.search(r'(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/'
-                       r'(?P<type>profiles|id|gid|groups)/(?P<value>.+))',
-                       str(url).rstrip('/'))
+    search = re.search(
+        r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/"
+        r"(?P<type>profiles|id|gid|groups)/(?P<value>.+))",
+        str(url).rstrip("/"),
+    )
 
     if search is None:
         return None
@@ -319,22 +326,22 @@ async def steam64_from_url(url: str, session: aiohttp.ClientSession = None,
 
     # user profiles
     try:
-        if search.group('type') in ('id', 'profiles'):
-            r = await session.get(search.group('clean_url'), timeout=timeout)
+        if search.group("type") in ("id", "profiles"):
+            r = await session.get(search.group("clean_url"), timeout=timeout)
             text = await r.text()
             data_match = re.search("g_rgProfileData\s*=\s*(?P<json>{.*?});\s*", text)
 
             if data_match:
-                data = json.loads(data_match.group('json'))
-                return int(data['steamid'])
+                data = json.loads(data_match.group("json"))
+                return int(data["steamid"])
         # group profiles
         else:
-            r = await session.get(search.group('clean_url'), timeout=timeout)
+            r = await session.get(search.group("clean_url"), timeout=timeout)
             text = await r.text()
             data_match = re.search(r"OpenGroupChat\(\s*'(?P<steam_id>\d+)'\s*\)", text)
 
             if data_match:
-                return int(data_match.group('steam_id'))
+                return int(data_match.group("steam_id"))
     finally:
         if not gave_session:
             await session.close()
@@ -353,14 +360,17 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     Optional[:class:`str`]
         The found token or ``None`` if the URL doesn't match the regex.
     """
-    search = re.search(r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+"
-                       r"&token=(?P<token>[\w-]{7,})", replace_steam_code(url))
+    search = re.search(
+        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+"
+        r"&token=(?P<token>[\w-]{7,})",
+        replace_steam_code(url),
+    )
     if search:
-        return search.group('token')
+        return search.group("token")
     return None
 
 
-def ainput(prompt: str = '', loop: asyncio.AbstractEventLoop = None) -> Awaitable[str]:
+def ainput(prompt: str = "", loop: asyncio.AbstractEventLoop = None) -> Awaitable[str]:
     loop = loop or asyncio.get_running_loop()
     return loop.run_in_executor(None, input, prompt)
 
@@ -420,15 +430,14 @@ def get(iterable: Iterable[T], **attrs) -> Optional[T]:
     # Special case the single element call
     if len(attrs) == 1:
         k, v = attrs.popitem()
-        pred = attrget(k.replace('__', '.'))
+        pred = attrget(k.replace("__", "."))
         for elem in iterable:
             if pred(elem) == v:
                 return elem
         return None
 
     converted = [
-        (attrget(attr.replace('__', '.')), value)
-        for attr, value in attrs.items()
+        (attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()
     ]
 
     for elem in iterable:
@@ -437,7 +446,9 @@ def get(iterable: Iterable[T], **attrs) -> Optional[T]:
     return None
 
 
-async def maybe_coroutine(func: Callable[..., Union[Any, Awaitable]], *args, **kwargs) -> Any:
+async def maybe_coroutine(
+    func: Callable[..., Union[Any, Awaitable]], *args, **kwargs
+) -> Any:
     value = func(*args, **kwargs)
     if isawaitable(value):
         return await value
@@ -446,10 +457,10 @@ async def maybe_coroutine(func: Callable[..., Union[Any, Awaitable]], *args, **k
 
 def replace_steam_code(s: str) -> str:
     steam_code = [  # TODO try and find a list for these?
-        ('&quot;', '"'),
-        ('&gt;', '>'),
-        ('&lt;', '<'),
-        ('&amp;', '&'),
+        ("&quot;", '"'),
+        ("&gt;", ">"),
+        ("&lt;", "<"),
+        ("&amp;", "&"),
     ]
     for code in steam_code:
         s = s.replace(*code)

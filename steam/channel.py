@@ -23,7 +23,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
-
 import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Union
@@ -34,18 +33,18 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
     from .image import Image
-    from .trade import TradeOffer
-    from .state import ConnectionState
-    from .user import User
     from .protobufs.steammessages_chat import (
         CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
         CChatRoomState,
-        CUserChatRoomState,
+        CUserChatRoomState
     )
+    from .state import ConnectionState
+    from .trade import TradeOffer
+    from .user import User
 
 __all__ = (
-    'DMChannel',
-    'GroupChannel',
+    "DMChannel",
+    "GroupChannel",
 )
 
 
@@ -57,9 +56,10 @@ class DMChannel(BaseChannel):
     participant: :class:`~steam.User`
         The recipient of any messages sent.
     """
-    __slots__ = ('participant', '_state')
 
-    def __init__(self, state: 'ConnectionState', participant: 'User'):
+    __slots__ = ("participant", "_state")
+
+    def __init__(self, state: "ConnectionState", participant: "User"):
         super().__init__()
         self._state = state
         self.participant = participant
@@ -67,12 +67,12 @@ class DMChannel(BaseChannel):
     def __repr__(self):
         return f"<DMChannel participant={self.participant!r}>"
 
-    async def send(self, content: str = None, *,
-                   trade: 'TradeOffer' = None,
-                   image: 'Image' = None) -> None:
+    async def send(
+        self, content: str = None, *, trade: "TradeOffer" = None, image: "Image" = None
+    ) -> None:
         await self.participant.send(content=content, trade=trade, image=image)
 
-    def typing(self) -> 'TypingContextManager':
+    def typing(self) -> "TypingContextManager":
         """Send a typing indicator continuously to the channel while
         in the context manager.
 
@@ -106,9 +106,9 @@ class DMChannel(BaseChannel):
 
 
 class TypingContextManager:
-    __slots__ = ('participant', 'task', '_state')
+    __slots__ = ("participant", "task", "_state")
 
-    def __init__(self, participant: 'User'):
+    def __init__(self, participant: "User"):
         self._state = participant._state
         self.participant = participant
 
@@ -132,28 +132,26 @@ class TypingContextManager:
 
 
 class _GroupChannel(BaseChannel):
-    __slots__ = ('id', 'joined_at', 'name', '_state')
+    __slots__ = ("id", "joined_at", "name", "_state")
 
-    def __init__(self, state: 'ConnectionState', channel):
+    def __init__(self, state: "ConnectionState", channel):
         super().__init__()
         self._state = state
         self.id = int(channel.chat_id)
-        name = getattr(channel, 'chat_name', '')
+        name = getattr(channel, "chat_name", "")
         if name:
-            split = name.split(' | ', 1)
+            split = name.split(" | ", 1)
             self.name = split[1] if len(split) != 1 else split[0]
         else:
             self.name = None
-        if hasattr(channel, 'time_joined'):
+        if hasattr(channel, "time_joined"):
             self.joined_at = datetime.utcfromtimestamp(channel.time_joined)
         else:
             self.joined_at = None
 
     def __repr__(self):
-        attrs = (
-            'id', 'group'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("id", "group")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<GroupChannel {' '.join(resolved)}>"
 
     def _get_message_endpoint(self):
@@ -179,9 +177,12 @@ class GroupChannel(_GroupChannel):
         The time the client joined the chat.
     """
 
-    def __init__(self, state: 'ConnectionState',
-                 group: 'Group',
-                 channel: Union['GroupMessageNotification', 'CChatRoomState']):
+    def __init__(
+        self,
+        state: "ConnectionState",
+        group: "Group",
+        channel: Union["GroupMessageNotification", "CChatRoomState"],
+    ):
         super().__init__(state, channel)
         self.group = group
 
@@ -202,17 +203,18 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
         The time the client joined the chat.
     """
 
-    def __init__(self, state: 'ConnectionState',
-                 clan: 'Clan',
-                 channel: Union['GroupMessageNotification', 'CUserChatRoomState']):
+    def __init__(
+        self,
+        state: "ConnectionState",
+        clan: "Clan",
+        channel: Union["GroupMessageNotification", "CUserChatRoomState"],
+    ):
         super().__init__(state, channel)
         self.clan = clan
 
     def __repr__(self):
-        attrs = (
-            'id', 'clan'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("id", "clan")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClanChannel {' '.join(resolved)}>"
 
     def _get_message_endpoint(self):

@@ -33,9 +33,7 @@ if TYPE_CHECKING:
     from .state import ConnectionState
 
 
-__all__ = (
-    'Comment',
-)
+__all__ = ("Comment",)
 
 
 class Comment:
@@ -57,11 +55,17 @@ class Comment:
         will be an :class:`~steam.User` instance.
     """
 
-    __slots__ = ('content', 'id', 'created_at', 'author', 'owner', '_state')
+    __slots__ = ("content", "id", "created_at", "author", "owner", "_state")
 
-    def __init__(self, state: 'ConnectionState',
-                 id: int, content: str, timestamp: datetime,
-                 author: 'BaseUser', owner: Union['Clan', 'BaseUser']):
+    def __init__(
+        self,
+        state: "ConnectionState",
+        id: int,
+        content: str,
+        timestamp: datetime,
+        author: "BaseUser",
+        owner: Union["Clan", "BaseUser"],
+    ):
         self._state = state
         self.content = content
         self.id = id
@@ -70,10 +74,8 @@ class Comment:
         self.owner = owner
 
     def __repr__(self):
-        attrs = (
-            'id', 'author'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("id", "author")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Comment {' '.join(resolved)}>"
 
     async def report(self) -> None:
@@ -83,8 +85,9 @@ class Comment:
         from .abc import BaseUser
 
         await self._state.http.report_comment(
-            id64=self.owner.id64, comment_id=self.id,
-            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan',
+            id64=self.owner.id64,
+            comment_id=self.id,
+            comment_type="Profile" if isinstance(self.owner, BaseUser) else "Clan",
         )
 
     async def delete(self) -> None:
@@ -94,6 +97,7 @@ class Comment:
         from .abc import BaseUser
 
         await self._state.http.delete_comment(
-            id64=self.owner.id64, comment_id=self.id,
-            comment_type='Profile' if isinstance(self.owner, BaseUser) else 'Clan',
+            id64=self.owner.id64,
+            comment_id=self.id,
+            comment_type="Profile" if isinstance(self.owner, BaseUser) else "Clan",
         )

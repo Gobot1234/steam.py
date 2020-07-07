@@ -27,7 +27,6 @@ SOFTWARE.
 Heavily inspired by
 https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/bot.py
 """
-
 import asyncio
 import importlib
 import inspect
@@ -47,7 +46,7 @@ from typing import (
     Mapping,
     Optional,
     Type,
-    Union,
+    Union
 )
 
 from ... import utils
@@ -62,17 +61,16 @@ from .help import HelpCommand
 if TYPE_CHECKING:
     import steam
     from steam.ext import commands
+
     from ...message import Message
 
-__all__ = (
-    'Bot',
-)
+__all__ = ("Bot",)
 
 
 StrOrIterStr = Union[str, Iterable[str]]
 CommandPrefixType = Union[
     StrOrIterStr,
-    Callable[['Bot', 'Message'], Union[StrOrIterStr, Awaitable[StrOrIterStr]]]
+    Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]],
 ]
 
 
@@ -113,22 +111,27 @@ class Bot(Client):
         The Steam IDs of the owners, these are converted to their 64 bit ID
         representation upon initialization.
     """
+
     __cogs__: Dict[str, Cog] = dict()
     __commands__: Dict[str, Command] = dict()
     __listeners__: Dict[str, List[EventType]] = dict()
-    __extensions__: Dict[str, 'ExtensionType'] = dict()
+    __extensions__: Dict[str, "ExtensionType"] = dict()
 
-    def __init__(self, *, command_prefix: CommandPrefixType,
-                 help_command: HelpCommand = HelpCommand,
-                 **options):
+    def __init__(
+        self,
+        *,
+        command_prefix: CommandPrefixType,
+        help_command: HelpCommand = HelpCommand,
+        **options,
+    ):
         self.command_prefix = command_prefix
-        self.owner_id = utils.make_steam64(options.get('owner_id', 0))
-        owner_ids: Collection[int] = options.get('owner_ids', [])
+        self.owner_id = utils.make_steam64(options.get("owner_id", 0))
+        owner_ids: Collection[int] = options.get("owner_ids", [])
         self.owner_ids = set()
         for owner_id in owner_ids:
             self.owner_ids.add(utils.make_steam64(owner_id))
         if self.owner_id and self.owner_ids:
-            raise ValueError('you cannot have both owner_id and owner_ids')
+            raise ValueError("you cannot have both owner_id and owner_ids")
         super().__init__(**options)
 
         for attr in [getattr(self, attr) for attr in dir(self)]:
@@ -150,14 +153,14 @@ class Bot(Client):
         return list(self.__commands__.values())
 
     @property
-    def extensions(self) -> Mapping[str, 'ExtensionType']:
+    def extensions(self) -> Mapping[str, "ExtensionType"]:
         """Mapping[:class:`str`, :class:`ExtensionType`]:
         A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
     def dispatch(self, event: str, *args, **kwargs) -> None:
         super().dispatch(event, *args, **kwargs)
-        method = f'on_{event}'
+        method = f"on_{event}"
         for event in self.__listeners__.get(method, []):
             self._schedule_event(event, method, *args, **kwargs)
 
@@ -191,13 +194,13 @@ class Bot(Client):
         if extension in self.__extensions__:
             return
 
-        module: 'ExtensionType' = importlib.import_module(extension)
-        if hasattr(module, 'setup'):
+        module: "ExtensionType" = importlib.import_module(extension)
+        if hasattr(module, "setup"):
             module.setup(self)
         else:
             del module
             del sys.modules[extension]
-            raise ImportError(f'extension {extension} is missing a setup function')
+            raise ImportError(f"extension {extension} is missing a setup function")
 
         self.__extensions__[extension] = module
 
@@ -210,15 +213,15 @@ class Bot(Client):
             The name of the extension to unload.
         """
         if extension not in self.__extensions__:
-            raise ModuleNotFoundError(f'extension {extension} was not found')
+            raise ModuleNotFoundError(f"extension {extension} was not found")
 
-        module: 'ExtensionType' = self.__extensions__[extension]
-        for attr in ((getattr(module, attr) for attr in dir(module))):
+        module: "ExtensionType" = self.__extensions__[extension]
+        for attr in (getattr(module, attr) for attr in dir(module)):
             if inspect.isclass(attr) and issubclass(attr, Cog):
                 cog = self.get_cog(attr.qualified_name)
                 self.remove_cog(cog)
 
-        if hasattr(module, 'teardown'):
+        if hasattr(module, "teardown"):
             module.teardown(self)
 
         del sys.modules[extension]
@@ -245,7 +248,7 @@ class Bot(Client):
             sys.modules.update({extension: previous})
             raise
 
-    def add_cog(self, cog: 'Cog') -> None:
+    def add_cog(self, cog: "Cog") -> None:
         """Add a cog to the internal list.
 
         Parameters
@@ -254,12 +257,12 @@ class Bot(Client):
             The cog to add.
         """
         if not isinstance(cog, Cog):
-            raise TypeError('cogs must derive from Cog')
+            raise TypeError("cogs must derive from Cog")
 
         cog._inject(self)
         self.__cogs__[cog.qualified_name] = cog
 
-    def remove_cog(self, cog: 'Cog') -> None:
+    def remove_cog(self, cog: "Cog") -> None:
         """Remove a cog from the internal list.
 
         Parameters
@@ -284,14 +287,16 @@ class Bot(Client):
         name = name or func.__name__
 
         if not (asyncio.iscoroutinefunction(func) or type(func) is InjectedListener):
-            raise TypeError(f'listeners must be coroutines, {name} is {type(func).__name__}')
+            raise TypeError(
+                f"listeners must be coroutines, {name} is {type(func).__name__}"
+            )
 
         if name in self.__listeners__:
             self.__listeners__[name].append(func)
         else:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: 'EventType', name: str = None):
+    def remove_listener(self, func: "EventType", name: str = None):
         """Remove a function from the internal listeners list.
 
         Parameters
@@ -321,13 +326,14 @@ class Bot(Client):
             The name of the event to listen for.
             Will default to ``func.__name__``.
         """
-        def decorator(func: 'EventType'):
+
+        def decorator(func: "EventType"):
             self.add_listener(func, name)
             return func
 
         return decorator
 
-    def add_command(self, command: 'Command') -> None:
+    def add_command(self, command: "Command") -> None:
         """Add a command to the internal commands list.
 
         Parameters
@@ -336,13 +342,13 @@ class Bot(Client):
             The command to register.
         """
         if not isinstance(command, Command):
-            raise TypeError('the command passed must be a subclass of Command')
+            raise TypeError("the command passed must be a subclass of Command")
 
         if isinstance(self, Command):
             command.parent = self
 
         if command.name in self.__commands__:
-            raise ClientException(f'command {command.name} is already registered.')
+            raise ClientException(f"command {command.name} is already registered.")
 
         self.__commands__[command.name] = command
         if not command.aliases:
@@ -351,10 +357,12 @@ class Bot(Client):
         for alias in command.aliases:
             if alias in self.__commands__:
                 del self.__commands__[command.name]
-                raise ClientException(f'{alias} is already an existing command or alias.')
+                raise ClientException(
+                    f"{alias} is already an existing command or alias."
+                )
             self.__commands__[alias] = command
 
-    def remove_command(self, command: 'Command') -> None:
+    def remove_command(self, command: "Command") -> None:
         """Removes a command from the internal commands list.
 
         Parameters
@@ -376,16 +384,16 @@ class Bot(Client):
 
         def decorator(func):
             try:
-                kwargs['parent']
+                kwargs["parent"]
             except KeyError:
-                kwargs['parent'] = self
+                kwargs["parent"] = self
             result = command(*args, **kwargs)(func)
             self.add_command(result)
             return result
 
         return decorator
 
-    async def on_message(self, message: 'steam.Message'):
+    async def on_message(self, message: "steam.Message"):
         """|coro|
         Called when a message is created.
 
@@ -396,7 +404,7 @@ class Bot(Client):
         """
         await self.process_commands(message)
 
-    async def process_commands(self, message: 'Message'):
+    async def process_commands(self, message: "Message"):
         """|coro|
         A method to process commands for a message.
 
@@ -414,7 +422,7 @@ class Bot(Client):
         ctx = await self.get_context(message)
         await self.invoke(ctx)
 
-    async def invoke(self, ctx: 'Context'):
+    async def invoke(self, ctx: "Context"):
         """|coro|
         Invoke a command. This will parse arguments,
         checks, cooldowns etc. correctly.
@@ -427,27 +435,29 @@ class Bot(Client):
         if not ctx.prefix:
             return
         if ctx.command is None:
-            raise CommandNotFound(f'the command {ctx.invoked_with} was not found')
+            raise CommandNotFound(f"the command {ctx.invoked_with} was not found")
 
         command = ctx.command
         if not command.enabled:
             return
 
-        self.dispatch('command', ctx)
+        self.dispatch("command", ctx)
 
         command._parse_cooldown(ctx)
         await command._parse_arguments(ctx)
         for check in command.checks:
             if not await check(ctx):
-                raise CheckFailure('You failed to pass one of the command checks')
+                raise CheckFailure("You failed to pass one of the command checks")
         try:
             await command.callback(*ctx.args, **ctx.kwargs)
         except Exception as exc:
             await self.on_command_error(ctx, exc)
             return
-        self.dispatch('command_completion', ctx)
+        self.dispatch("command_completion", ctx)
 
-    async def get_context(self, message: 'Message', *, cls: Type[Context] = Context) -> Context:
+    async def get_context(
+        self, message: "Message", *, cls: Type[Context] = Context
+    ) -> Context:
         r"""|coro|
         Get context for a certain message.
 
@@ -467,18 +477,24 @@ class Bot(Client):
         if not prefix:
             return cls(message=message, prefix=prefix, bot=self)
 
-        content = message.content[len(prefix):].strip()
+        content = message.content[len(prefix) :].strip()
         lex = Shlex(content, posix=True)
-        lex.commenters = ''
+        lex.commenters = ""
         lex.quotes = '"'
-        lex.whitespace = ' '
+        lex.whitespace = " "
         lex.whitespace_split = True
         command_name = lex.get_token().strip()  # skip the command name
         command = self.__commands__.get(command_name)
-        return cls(bot=self, message=message, shlex=lex, command=command,
-                   prefix=prefix, invoked_with=command_name)
+        return cls(
+            bot=self,
+            message=message,
+            shlex=lex,
+            command=command,
+            prefix=prefix,
+            invoked_with=command_name,
+        )
 
-    async def get_prefix(self, message: 'Message') -> Optional[str]:
+    async def get_prefix(self, message: "Message") -> Optional[str]:
         """|coro|
         Get a command prefix for a certain message.
 
@@ -501,7 +517,9 @@ class Bot(Client):
             try:
                 prefixes = tuple(prefixes)
             except TypeError as exc:
-                raise TypeError(f'command_prefix must return an iterable not {type(prefixes)}') from exc
+                raise TypeError(
+                    f"command_prefix must return an iterable not {type(prefixes)}"
+                ) from exc
 
         for prefix in prefixes:
             if message.content.startswith(prefix):
@@ -538,7 +556,7 @@ class Bot(Client):
         """
         return self.__cogs__.get(name)
 
-    def get_extension(self, name: str) -> Optional['ExtensionType']:
+    def get_extension(self, name: str) -> Optional["ExtensionType"]:
         """Get a copy of a loaded extension.
 
         Parameters
@@ -553,7 +571,7 @@ class Bot(Client):
         """
         return copy(self.__extensions__.get(name))
 
-    async def on_command_error(self, ctx: 'commands.Context', error: Exception):
+    async def on_command_error(self, ctx: "commands.Context", error: Exception):
         """|coro|
         The default command error handler provided by the bot.
         This only fires if you do not specify any listeners for command error.
@@ -565,22 +583,24 @@ class Bot(Client):
         error: :exc:`Exception`
             The error that was raised.
         """
-        default = self.__listeners__.get('on_command_error')
+        default = self.__listeners__.get("on_command_error")
         if default != self.on_command_error and default is not None:
             for listener in default:
                 await listener(ctx, error)
             return
 
-        if hasattr(ctx.command, 'on_error'):
+        if hasattr(ctx.command, "on_error"):
             return await ctx.command.on_error(ctx, error)
 
         if ctx.cog and ctx.cog is not self:
             return await ctx.cog.cog_command_error(ctx, error)
 
-        print(f'Ignoring exception in command {ctx.command.name}:', file=sys.stderr)
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
+        traceback.print_exception(
+            type(error), error, error.__traceback__, file=sys.stderr
+        )
 
-    async def on_command(self, ctx: 'commands.Context'):
+    async def on_command(self, ctx: "commands.Context"):
         """|coro|
         A method that is called every time a command is
         dispatched.
@@ -591,7 +611,7 @@ class Bot(Client):
             The invocation context.
         """
 
-    async def on_command_completion(self, ctx: 'commands.Context'):
+    async def on_command_completion(self, ctx: "commands.Context"):
         """|coro|
         A method that is called every time a command is
         dispatched and completed without error.

@@ -27,7 +27,6 @@ SOFTWARE.
 Heavily inspired by
 https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 """
-
 import asyncio
 import inspect
 from typing import (
@@ -38,10 +37,11 @@ from typing import (
     Dict,
     List,
     Type,
-    Union,
+    Union
 )
 
 import steam
+
 from ...errors import ClientException
 from . import converters
 from .cooldown import BucketType, Cooldown
@@ -49,22 +49,22 @@ from .errors import BadArgument, MissingRequiredArgument
 
 if TYPE_CHECKING:
     from ...client import EventType
-    from .context import Context
     from .cog import Cog
+    from .context import Context
 
 __all__ = (
-    'Command',
-    'command',
+    "Command",
+    "command",
 )
 
-CommandFuncType = Callable[['Context'], Awaitable[None]]
+CommandFuncType = Callable[["Context"], Awaitable[None]]
 
 
 def to_bool(argument: str):
     lowered = argument.lower()
-    if lowered in ('yes', 'y', 'true', 't', '1', 'enable', 'on'):
+    if lowered in ("yes", "y", "true", "t", "1", "enable", "on"):
         return True
-    elif lowered in ('no', 'n', 'false', 'f', '0', 'disable', 'off'):
+    elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
         return False
     else:
         raise BadArgument(f'"{lowered}" is not a recognised boolean option')
@@ -73,42 +73,44 @@ def to_bool(argument: str):
 class Command:
     def __init__(self, func: CommandFuncType, **kwargs):
         if not asyncio.iscoroutinefunction(func):
-            raise TypeError('Callback must be a coroutine.')
+            raise TypeError("Callback must be a coroutine.")
 
         self.callback = func
         self.checks: List[Callable[..., Awaitable[bool]]] = []
         self._cooldowns: List[Cooldown] = []
         self.params = inspect.signature(func).parameters
-        self.name = kwargs.get('name') or func.__name__
+        self.name = kwargs.get("name") or func.__name__
         if not isinstance(self.name, str):
-            raise TypeError('Name of a command must be a string.')
+            raise TypeError("Name of a command must be a string.")
 
-        self.enabled = kwargs.get('enabled', True)
+        self.enabled = kwargs.get("enabled", True)
 
-        help_doc = kwargs.get('help')
+        help_doc = kwargs.get("help")
         if help_doc is not None:
             help_doc = inspect.cleandoc(help_doc)
         else:
             help_doc = inspect.getdoc(func)
             if isinstance(help_doc, bytes):
-                help_doc = help_doc.decode('utf-8')
+                help_doc = help_doc.decode("utf-8")
 
         self.help = help_doc
 
-        self.brief = kwargs.get('brief')
-        self.usage = kwargs.get('usage')
-        self.aliases = kwargs.get('aliases', [])
+        self.brief = kwargs.get("brief")
+        self.usage = kwargs.get("usage")
+        self.aliases = kwargs.get("aliases", [])
 
         try:
             for alias in self.aliases:
                 if not type(alias) is str:
                     raise TypeError
         except TypeError:
-            raise TypeError("aliases of a command must be an iterable containing only strings.")
+            raise TypeError(
+                "aliases of a command must be an iterable containing only strings."
+            )
 
-        self.description = inspect.cleandoc(kwargs.get('description', ''))
-        self.hidden = kwargs.get('hidden', False)
-        self.cog: 'Cog' = kwargs.get('cog')
+        self.description = inspect.cleandoc(kwargs.get("description", ""))
+        self.hidden = kwargs.get("hidden", False)
+        self.cog: "Cog" = kwargs.get("cog")
 
     def __call__(self, *args, **kwargs):
         """|coro|
@@ -124,7 +126,7 @@ class Command:
         else:
             return self.callback(*args, **kwargs)
 
-    def error(self, func: 'EventType') -> 'EventType':
+    def error(self, func: "EventType") -> "EventType":
         """Register an event to handle a commands
         ``on_error`` function.
 
@@ -140,11 +142,11 @@ class Command:
                 print(f'{ctx.command.name} raised an exception {error}')
         """
         if not asyncio.iscoroutinefunction(func):
-            raise TypeError('callback must be a coroutine.')
+            raise TypeError("callback must be a coroutine.")
         self.on_error = func
         return func
 
-    async def _parse_arguments(self, ctx: 'Context') -> None:
+    async def _parse_arguments(self, ctx: "Context") -> None:
         args = [ctx] if self.cog is None else [self.cog, ctx]
         kwargs = {}
 
@@ -157,13 +159,17 @@ class Command:
             try:
                 next(iterator)
             except StopIteration:
-                raise ClientException(f'Callback for {self.name} command is missing "self" parameter.')
+                raise ClientException(
+                    f'Callback for {self.name} command is missing "self" parameter.'
+                )
 
         # next we have the 'ctx' as the next parameter
         try:
             next(iterator)
         except StopIteration:
-            raise ClientException(f'Callback for {self.name} command is missing "ctx" parameter.')
+            raise ClientException(
+                f'Callback for {self.name} command is missing "ctx" parameter.'
+            )
         for name, param in iterator:
             if param.kind == param.POSITIONAL_OR_KEYWORD:
                 argument = shlex.get_token()
@@ -174,7 +180,7 @@ class Command:
                 args.append(transformed)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                arg = ' '.join(shlex)
+                arg = " ".join(shlex)
                 if not arg:
                     kwargs[name] = await self._get_default(ctx, param)
                 else:
@@ -193,10 +199,11 @@ class Command:
                 key_converter = self._get_converter(annotation.__args__[0])
                 value_converter = self._get_converter(annotation.__args__[1])
 
-                kv_pairs = [arg.split('=') for arg in arguments]
+                kv_pairs = [arg.split("=") for arg in arguments]
                 kwargs[name] = {
-                    await self._convert(ctx, key_converter, key):
-                        await self._convert(ctx, value_converter, value)
+                    await self._convert(ctx, key_converter, key): await self._convert(
+                        ctx, value_converter, value
+                    )
                     for (key, value) in kv_pairs
                 }
                 break
@@ -217,30 +224,43 @@ class Command:
 
     def _get_converter(self, param_type: type) -> Union[converters.Converter, type]:
         if param_type.__name__ in dir(steam):  # find a converter
-            converter = getattr(converters, f'{param_type.__name__}Converter', None)
+            converter = getattr(converters, f"{param_type.__name__}Converter", None)
             if converter is None:
-                raise NotImplementedError(f'{param_type.__name__} does not have an associated converter')
+                raise NotImplementedError(
+                    f"{param_type.__name__} does not have an associated converter"
+                )
             return converter
         return param_type
 
-    async def _convert(self, ctx: 'Context', converter: Union[Type[converters.Converter], type], argument: str):
+    async def _convert(
+        self,
+        ctx: "Context",
+        converter: Union[Type[converters.Converter], type],
+        argument: str,
+    ):
         if isinstance(converter, converters.Converter):
             try:
                 return await converter.convert(ctx, argument)
             except Exception as exc:
-                raise BadArgument(f'{argument} failed to convert to type {converter.__name__ or str}') from exc
+                raise BadArgument(
+                    f"{argument} failed to convert to type {converter.__name__ or str}"
+                ) from exc
         if issubclass(converter, converters.Converter):
             try:
                 return await converter.convert(converter, ctx, argument)
             except Exception as exc:
-                raise BadArgument(f'{argument} failed to convert to type {converter.__name__ or str}') from exc
+                raise BadArgument(
+                    f"{argument} failed to convert to type {converter.__name__ or str}"
+                ) from exc
         else:
             if converter is bool:
                 return to_bool(argument)
             try:
                 return converter(argument)
             except TypeError as exc:
-                raise BadArgument(f'{argument} failed to convert to type {converter.__name__ or str}') from exc
+                raise BadArgument(
+                    f"{argument} failed to convert to type {converter.__name__ or str}"
+                ) from exc
 
     async def _get_default(self, ctx, param: inspect.Parameter):
         if param.default is param.empty:
@@ -252,13 +272,15 @@ class Command:
                 return await param.default.default(param.default, ctx)
         return param.default
 
-    def _parse_cooldown(self, ctx: 'Context'):
+    def _parse_cooldown(self, ctx: "Context"):
         for cooldown in self._cooldowns:
             bucket = cooldown.bucket.get_bucket(ctx)
             cooldown(bucket)
 
 
-def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..., Command]:
+def command(
+    name: str = None, cls: Type[Command] = None, **attrs
+) -> Callable[..., Command]:
     r"""Register a coroutine as a :class:`~commands.Command`.
 
     Parameters
@@ -277,7 +299,7 @@ def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..
 
     def decorator(func: CommandFuncType) -> Command:
         if isinstance(func, Command):
-            raise TypeError('Callback is already a command.')
+            raise TypeError("Callback is already a command.")
         return cls(func, name=name, **attrs)
 
     return decorator
@@ -297,7 +319,8 @@ def cooldown(rate: int, per: float, bucket: BucketType) -> Callable[..., None]:
         The :class:`.BucketType` that the cooldown applies
         to.
     """
-    def decorator(func: 'Command') -> None:
+
+    def decorator(func: "Command") -> None:
         func._cooldowns.append(Cooldown(rate, per, bucket))
 
     return decorator

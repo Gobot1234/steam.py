@@ -38,22 +38,22 @@ if TYPE_CHECKING:
 
 
 __all__ = (
-    'SteamException',
-    'NotFound',
-    'Forbidden',
-    'LoginError',
-    'NoCMsFound',
-    'HTTPException',
-    'ClientException',
-    'ConfirmationError',
-    'AuthenticatorError',
-    'InvalidCredentials',
-    'WSException',
-    'WSForbidden',
-    'WSNotFound',
+    "SteamException",
+    "NotFound",
+    "Forbidden",
+    "LoginError",
+    "NoCMsFound",
+    "HTTPException",
+    "ClientException",
+    "ConfirmationError",
+    "AuthenticatorError",
+    "InvalidCredentials",
+    "WSException",
+    "WSForbidden",
+    "WSNotFound",
 )
 
-CODE_FINDER = re.compile(r'\S(\d+)\S')
+CODE_FINDER = re.compile(r"\S(\d+)\S")
 
 
 class SteamException(Exception):
@@ -87,27 +87,31 @@ class HTTPException(SteamException):
         It will attempt to find a matching a :class:`.EResult` for the value.
     """
 
-    def __init__(self, response: 'ClientResponse', data: Optional[Any]):
+    def __init__(self, response: "ClientResponse", data: Optional[Any]):
         self.response = response
         self.status = response.status
         self.code = 0
-        self.message = ''
+        self.message = ""
 
         if data:
             if isinstance(data, dict):
-                if len(data) != 1 and data.get('success', False):  # ignore {'success': False} as the message
-                    message = data.get('message') or str(list(data.values())[0])
-                    code = data.get('result') or CODE_FINDER.findall(message)
+                if len(data) != 1 and data.get(
+                    "success", False
+                ):  # ignore {'success': False} as the message
+                    message = data.get("message") or str(list(data.values())[0])
+                    code = data.get("result") or CODE_FINDER.findall(message)
                     if code:
                         self.code = EResult.try_value(int(code[0]))
-                    self.message = CODE_FINDER.sub('', message)
+                    self.message = CODE_FINDER.sub("", message)
             else:
-                text = BeautifulSoup(data, 'html.parser').get_text('\n')
-                self.message = text if text else ''
+                text = BeautifulSoup(data, "html.parser").get_text("\n")
+                self.message = text if text else ""
 
-        self.message = self.message.replace('  ', ' ')
-        super().__init__(f'{response.status} {response.reason} (error code: {self.code})'
-                         f'{f": {self.message}" if self.message else ""}')
+        self.message = self.message.replace("  ", " ")
+        super().__init__(
+            f"{response.status} {response.reason} (error code: {self.code})"
+            f'{f": {self.message}" if self.message else ""}'
+        )
 
 
 class Forbidden(HTTPException):
@@ -138,10 +142,12 @@ class WSException(SteamException):
         It will attempt to find a matching a :class:`~steam.EResult` for the value.
     """
 
-    def __init__(self, msg: 'MsgProto'):
+    def __init__(self, msg: "MsgProto"):
         self.msg = msg
         self.code = EResult.try_value(msg.header.eresult)
-        super().__init__(f'The request {msg.header.job_name_target} failed. (error code: {repr(self.code)})')
+        super().__init__(
+            f"The request {msg.header.job_name_target} failed. (error code: {repr(self.code)})"
+        )
 
 
 class WSForbidden(WSException):

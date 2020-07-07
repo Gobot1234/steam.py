@@ -23,7 +23,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 from typing import TYPE_CHECKING, List
 
 from .channel import GroupChannel
@@ -31,15 +30,14 @@ from .models import Role
 
 if TYPE_CHECKING:
     from .abc import BaseUser
+    from .protobufs.steammessages_chat import (
+        CChatRoom_GetChatRoomGroupSummary_Response as GroupProto
+    )
     from .state import ConnectionState
     from .user import User
-    from .protobufs.steammessages_chat import \
-        CChatRoom_GetChatRoomGroupSummary_Response as GroupProto
 
 
-__all__ = (
-    'Group',
-)
+__all__ = ("Group",)
 
 
 class Group:
@@ -66,18 +64,31 @@ class Group:
     channels: List[:class:`~steam.GroupChannel`]
         A list of the group's channels.
     """
-    __slots__ = ('owner', 'top_members', 'id', 'name', 'active_member_count', 'roles',
-                 'default_role', 'default_channel', 'channels', '_state')
 
-    def __init__(self, state: 'ConnectionState', proto: 'GroupProto'):
+    __slots__ = (
+        "owner",
+        "top_members",
+        "id",
+        "name",
+        "active_member_count",
+        "roles",
+        "default_role",
+        "default_channel",
+        "channels",
+        "_state",
+    )
+
+    def __init__(self, state: "ConnectionState", proto: "GroupProto"):
         self._state = state
         self._from_proto(proto)
 
     async def __ainit__(self):
         self.owner = await self._state.client.fetch_user(self.owner)
-        self.top_members: List['BaseUser'] = await self._state.client.fetch_users(self.top_members)
+        self.top_members: List["BaseUser"] = await self._state.client.fetch_users(
+            self.top_members
+        )
 
-    def _from_proto(self, proto: 'GroupProto'):
+    def _from_proto(self, proto: "GroupProto"):
         self.id = int(proto.chat_group_id)
         self.owner = proto.accountid_owner
         self.name = proto.chat_group_name or None
@@ -99,24 +110,24 @@ class Group:
         for channel in proto.chat_rooms:
             channel = GroupChannel(state=self._state, group=self, channel=channel)
             self.channels.append(channel)
-        self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
+        self.default_channel = [
+            c for c in self.channels if c.id == int(proto.default_chat_id)
+        ][0]
 
     def __repr__(self):
-        attrs = (
-            'name', 'id', 'owner'
-        )
-        resolved = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
+        attrs = ("name", "id", "owner")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Group {' '.join(resolved)}>"
 
     def __str__(self):
-        return self.name or ''
+        return self.name or ""
 
     async def leave(self) -> None:
         """|coro|
         Leaves the :class:`Group`.
         """
 
-    async def invite(self, user: 'User'):
+    async def invite(self, user: "User"):
         """|coro|
         Invites a :class:`~steam.User` to the :class:`Group`.
 
