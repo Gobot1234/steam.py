@@ -11,10 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
-      - uses: actions/setup-python@v1
+        uses: actions/setup-python@v1
         with:
           python-version: 3.7
       - name: Install dependencies
-      - run: pip install isort
+        run: pip install isort
       - name: Check formatting
-      - run: isort . --multi-line=VERTICAL_HANGING_INDENT --combine-as --atomic
+        run: isort . --multi-line=VERTICAL_HANGING_INDENT --combine-as --atomic --diff
