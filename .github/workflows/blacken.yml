@@ -17,8 +17,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install black
-          pip install blacken-docs
+          git clone https://github.com/Gobot1234/blacken-docs
+          cd blacken-docs
+          python3 -m pip install -U blacken-docs
       - name: Check formatting
         run: |
           black . --check --diff
-          python3 -m blacken_docs docs/api.rst docs/faq.rst docs/index.rst docs/ext/commands/index.rst docs/ext/commands/api.rst docs/protobufs/index.rst docs/protobufs/api.rst
+          python3 -m blacken_docs docs/
