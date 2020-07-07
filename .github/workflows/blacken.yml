@@ -19,7 +19,7 @@ jobs:
           pip install black
           git clone https://github.com/Gobot1234/blacken-docs
           cd blacken-docs
-          python3 -m pip install -U blacken-docs
+          python3 -m pip install -U .
       - name: Check formatting
         run: |
           black . --check --diff
