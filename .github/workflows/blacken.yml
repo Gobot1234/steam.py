@@ -21,4 +21,4 @@ jobs:
       - name: Check formatting
         run: |
           black . --check --diff
-          blacken_docs docs/api.rst docs/faq.rst docs/index.rst docs/ext/commands/index.rst docs/ext/commands/api.rst docs/protobufs/index.rst docs/protobufs/api.rst
+          python3 -m blacken_docs docs/api.rst docs/faq.rst docs/index.rst docs/ext/commands/index.rst docs/ext/commands/api.rst docs/protobufs/index.rst docs/protobufs/api.rst
