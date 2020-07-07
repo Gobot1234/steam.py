@@ -16,11 +16,13 @@ jobs:
           python-version: 3.7
       - name: Install dependencies
         run: |
-          pip install black
+          git clone https://github.com/psf/black
+          cd black
+          python3 -m pip install -U .
           git clone https://github.com/Gobot1234/blacken-docs
           cd blacken-docs
           python3 -m pip install -U .
       - name: Check formatting
         run: |
-          black . --check --diff
-          python3 -m blacken_docs docs/
+          python3 -m black . --check --diff
+          python3 -m blacken_docs docs --check --diff
