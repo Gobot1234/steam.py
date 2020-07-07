@@ -1,0 +1,20 @@
+# This workflow will check code for import inconsistencies.
+
+name: Blacken Code.
+on: [push, pull_request]
+
+jobs:
+  check-formatting:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+      - run: pip install isort
+      - name: Check formatting
+      - run: isort . --multi-line=VERTICAL_HANGING_INDENT --combine-as --atomic

@@ -1,0 +1,24 @@
+# This workflow will check code for code inconsistencies.
+
+name: Blacken Code.
+on: [push, pull_request]
+
+jobs:
+  check-formatting:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+      - run: |
+        pip install black
+        pip install blacken-docs
+      - name: Check formatting
+      - run: |
+        black . --check --diff
+        blacken_docs docs/api.rst docs/faq.rst docs/index.rst docs/ext/commands/index.rst docs/ext/commands/api.rst docs/protobufs/index.rst docs/protobufs/api.rst
