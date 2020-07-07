@@ -146,7 +146,8 @@ class WSException(SteamException):
         self.msg = msg
         self.code = EResult.try_value(msg.header.eresult)
         super().__init__(
-            f"The request {msg.header.job_name_target} failed. (error code: {repr(self.code)})"
+            f"The request {msg.header.job_name_target} failed. (error code:"
+            f" {repr(self.code)})"
         )
 
 

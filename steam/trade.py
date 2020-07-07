@@ -528,7 +528,8 @@ class TradeOffer:
             raise ClientException("This trade has already been cancelled")
         if not self.is_gift():
             raise ClientException(
-                "Offer wasn't created by the ClientUser and therefore cannot be canceled"
+                "Offer wasn't created by the ClientUser and therefore cannot be"
+                " canceled"
             )
         await self._state.http.cancel_user_trade(self.id)
 

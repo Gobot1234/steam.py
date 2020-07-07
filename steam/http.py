@@ -152,7 +152,8 @@ class HTTPClient:
                         if not data:
                             raise errors.HTTPException(r, data)
                         if (
-                            "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>"
+                            "Access is denied. Retrying will not help. Please verify"
+                            " your <pre>key=</pre>"
                             in data
                         ):
                             # time to fetch a new key
@@ -693,7 +694,9 @@ class HTTPClient:
         resp = await self.request("POST", CRoute("/chat/beginfileupload"), data=payload)
 
         result = resp["result"]
-        url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        url = (
+            f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        )
         headers = {
             header["name"]: header["value"] for header in result["request_headers"]
         }
@@ -728,7 +731,9 @@ class HTTPClient:
         resp = await self.request("POST", CRoute("/chat/beginfileupload"), data=payload)
 
         result = resp["result"]
-        url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        url = (
+            f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        )
         headers = {
             header["name"]: header["value"] for header in result["request_headers"]
         }

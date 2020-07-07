@@ -726,7 +726,7 @@ class ConnectionState:
             else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
         )
         data["avatarfull"] = (
-            f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/"
+            "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/"
             f"{hash[:2]}/{hash}_full.jpg"
         )
 

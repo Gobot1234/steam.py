@@ -148,7 +148,7 @@ class CMServerList(AsyncIterator):
         resp = resp["response"]
         if resp["result"] != EResult.OK:
             log.error(
-                f"Fetching the CMList failed with "
+                "Fetching the CMList failed with "
                 f'Result: {EResult(resp["result"])} '
                 f'Message: {repr(resp["message"])}'
             )
@@ -243,7 +243,8 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         while not self._stop_ev.wait(self.interval):
             if self._last_ack + self.heartbeat_timeout < time.perf_counter():
                 log.warning(
-                    f"Server {self.ws.cm} has stopped responding to the gateway. Closing and restarting."
+                    f"Server {self.ws.cm} has stopped responding to the gateway."
+                    " Closing and restarting."
                 )
                 coro = self.ws.handle_close()
                 f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
@@ -275,7 +276,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                             stack = traceback.format_stack(frame)
                             msg = (
                                 f"{self.block_msg}\n"
-                                f"Loop thread traceback (most recent call last):\n"
+                                "Loop thread traceback (most recent call last):\n"
                                 f'{"".join(stack)}'
                             )
                         log.warning(msg.format(total))
@@ -527,9 +528,10 @@ class SteamWebSocket:
         log.debug("Received a multi, unpacking")
         if msg.body.size_unzipped:
             log.debug(
-                f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})"
+                f"Decompressing payload ({len(msg.body.message_body)} ->"
+                f" {msg.body.size_unzipped})"
             )
-            # aiofiles is overrated
+            # aiofiles is overrated :P
             bytes_io = await self.loop.run_in_executor(
                 EXECUTOR, BytesIO, msg.body.message_body
             )

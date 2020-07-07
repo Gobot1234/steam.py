@@ -216,7 +216,7 @@ class SteamID(metaclass=abc.ABCMeta):
     @property
     def invite_code(self) -> Optional[str]:
         """Optional[:class:`str`]: s.team invite code format.
-            e.g. ``cv-dgb``
+        e.g. ``cv-dgb``
         """
         if self.type == EType.Individual and self.is_valid():
 
@@ -234,7 +234,7 @@ class SteamID(metaclass=abc.ABCMeta):
     @property
     def invite_url(self) -> Optional[str]:
         """Optional[:class:`str`]: The user's full invite code URL.
-            e.g ``https://s.team/p/cv-dgb``
+        e.g ``https://s.team/p/cv-dgb``
         """
         code = self.invite_code
         if code:
@@ -243,7 +243,7 @@ class SteamID(metaclass=abc.ABCMeta):
     @property
     def community_url(self) -> Optional[str]:
         """Optional[:class:`str`]: The community url of the account
-            e.g https://steamcommunity.com/profiles/123456789.
+        e.g https://steamcommunity.com/profiles/123456789.
         """
         suffix = {
             EType.Individual: "profiles",

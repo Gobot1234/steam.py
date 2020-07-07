@@ -459,7 +459,8 @@ class Client:
 
         if identity_secret is None:
             log.info(
-                "Trades will not be automatically accepted when sent as no identity_secret was passed."
+                "Trades will not be automatically accepted when sent as no"
+                " identity_secret was passed."
             )
         if not (username or password):
             raise errors.LoginError("one or more required login detail is missing")
