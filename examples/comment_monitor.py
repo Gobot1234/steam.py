@@ -20,9 +20,7 @@ async def on_ready():
 @client.event
 async def on_comment(comment):
     print(f"Received comment #{comment.id}, from", comment.author)
-    if (
-        comment.owner != client.user
-    ):  # if we don't own the section, don't watch the comments
+    if comment.owner != client.user:  # if we don't own the section, don't watch the comments
         return
 
     if comment.author in client.user.friends:  # ignore messages from friends
