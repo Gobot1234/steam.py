@@ -27,9 +27,7 @@ class CPlayer_IncomingInviteMutualFriendList(betterproto.Message):
 
 @dataclass
 class CPlayer_GetMutualFriendsForIncomingInvites_Response(betterproto.Message):
-    incoming_invite_mutual_friends_lists: List[
-        "CPlayer_IncomingInviteMutualFriendList"
-    ] = betterproto.message_field(1)
+    incoming_invite_mutual_friends_lists: List["CPlayer_IncomingInviteMutualFriendList"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -39,24 +37,12 @@ class CPlayer_GetFriendsGameplayInfo_Request(betterproto.Message):
 
 @dataclass
 class CPlayer_GetFriendsGameplayInfo_Response(betterproto.Message):
-    your_info: "CPlayer_GetFriendsGameplayInfo_ResponseOwnGameplayInfo" = betterproto.message_field(
-        1
-    )
-    in_game: List[
-        "CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"
-    ] = betterproto.message_field(2)
-    played_recently: List[
-        "CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"
-    ] = betterproto.message_field(3)
-    played_ever: List[
-        "CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"
-    ] = betterproto.message_field(4)
-    owns: List[
-        "CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"
-    ] = betterproto.message_field(5)
-    in_wishlist: List[
-        "CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"
-    ] = betterproto.message_field(6)
+    your_info: "CPlayer_GetFriendsGameplayInfo_ResponseOwnGameplayInfo" = betterproto.message_field(1)
+    in_game: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(2)
+    played_recently: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(3)
+    played_ever: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(4)
+    owns: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(5)
+    in_wishlist: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(6)
 
 
 @dataclass
@@ -83,30 +69,14 @@ class CPlayer_GetFriendsAppsActivity_Request(betterproto.Message):
 
 @dataclass
 class CPlayer_GetFriendsAppsActivity_Response(betterproto.Message):
-    trending: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"
-    ] = betterproto.message_field(1)
-    recent_purchases: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"
-    ] = betterproto.message_field(2)
-    unowned: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"
-    ] = betterproto.message_field(3)
-    popular: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"
-    ] = betterproto.message_field(4)
-    dont_forget: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"
-    ] = betterproto.message_field(5)
-    being_discussed: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"
-    ] = betterproto.message_field(6)
-    new_to_group: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"
-    ] = betterproto.message_field(7)
-    returned_to_group: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"
-    ] = betterproto.message_field(8)
+    trending: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(1)
+    recent_purchases: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(2)
+    unowned: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(3)
+    popular: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(4)
+    dont_forget: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(5)
+    being_discussed: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(6)
+    new_to_group: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(7)
+    returned_to_group: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(8)
     active_friend_count: int = betterproto.uint32_field(9)
 
 
@@ -122,9 +92,7 @@ class CPlayer_GetFriendsAppsActivity_ResponseFriendPlayTime(betterproto.Message)
 @dataclass
 class CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    friends: List[
-        "CPlayer_GetFriendsAppsActivity_ResponseFriendPlayTime"
-    ] = betterproto.message_field(2)
+    friends: List["CPlayer_GetFriendsAppsActivity_ResponseFriendPlayTime"] = betterproto.message_field(2)
     display_order: int = betterproto.uint32_field(3)
 
 
@@ -136,9 +104,7 @@ class CPlayer_GetGameBadgeLevels_Request(betterproto.Message):
 @dataclass
 class CPlayer_GetGameBadgeLevels_Response(betterproto.Message):
     player_level: int = betterproto.uint32_field(1)
-    badges: List[
-        "CPlayer_GetGameBadgeLevels_ResponseBadge"
-    ] = betterproto.message_field(2)
+    badges: List["CPlayer_GetGameBadgeLevels_ResponseBadge"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -155,9 +121,7 @@ class CPlayer_GetEmoticonList_Request(betterproto.Message):
 
 @dataclass
 class CPlayer_GetEmoticonList_Response(betterproto.Message):
-    emoticons: List[
-        "CPlayer_GetEmoticonList_ResponseEmoticon"
-    ] = betterproto.message_field(1)
+    emoticons: List["CPlayer_GetEmoticonList_ResponseEmoticon"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -236,9 +200,7 @@ class CPlayer_GetLastPlayedTimes_Request(betterproto.Message):
 
 @dataclass
 class CPlayer_GetLastPlayedTimes_Response(betterproto.Message):
-    games: List["CPlayer_GetLastPlayedTimes_ResponseGame"] = betterproto.message_field(
-        1
-    )
+    games: List["CPlayer_GetLastPlayedTimes_ResponseGame"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -276,9 +238,7 @@ class CPlayer_GetNicknameList_Request(betterproto.Message):
 
 @dataclass
 class CPlayer_GetNicknameList_Response(betterproto.Message):
-    nicknames: List[
-        "CPlayer_GetNicknameList_ResponsePlayerNickname"
-    ] = betterproto.message_field(1)
+    nicknames: List["CPlayer_GetNicknameList_ResponsePlayerNickname"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -442,9 +402,7 @@ class CPlayer_GetDurationControl_Response(betterproto.Message):
 
 @dataclass
 class CPlayer_LastPlayedTimes_Notification(betterproto.Message):
-    games: List["CPlayer_GetLastPlayedTimes_ResponseGame"] = betterproto.message_field(
-        1
-    )
+    games: List["CPlayer_GetLastPlayedTimes_ResponseGame"] = betterproto.message_field(1)
 
 
 @dataclass

@@ -36,16 +36,10 @@ class CCredentials_GetSteamGuardDetails_Response(betterproto.Message):
         "CCredentials_GetSteamGuardDetails_ResponseNewAuthentication"
     ] = betterproto.message_field(3)
     deprecated_machine_name_userchosen: str = betterproto.string_field(4)
-    deprecated_timestamp_machine_steamguard_enabled: float = betterproto.fixed32_field(
-        5
-    )
-    deprecated_authentication_exists_from_geoloc_before_mintime: bool = betterproto.bool_field(
-        6
-    )
+    deprecated_timestamp_machine_steamguard_enabled: float = betterproto.fixed32_field(5)
+    deprecated_authentication_exists_from_geoloc_before_mintime: bool = betterproto.bool_field(6)
     deprecated_machine_id: int = betterproto.uint64_field(7)
-    session_data: List[
-        "CCredentials_GetSteamGuardDetails_ResponseSessionData"
-    ] = betterproto.message_field(8)
+    session_data: List["CCredentials_GetSteamGuardDetails_ResponseSessionData"] = betterproto.message_field(8)
     is_twofactor_enabled: bool = betterproto.bool_field(9)
     timestamp_twofactor_enabled: float = betterproto.fixed32_field(10)
     is_phone_verified: bool = betterproto.bool_field(11)
@@ -68,9 +62,9 @@ class CCredentials_GetSteamGuardDetails_ResponseSessionData(betterproto.Message)
     machine_name_userchosen: str = betterproto.string_field(2)
     timestamp_machine_steamguard_enabled: float = betterproto.fixed32_field(3)
     authentication_exists_from_geoloc_before_mintime: bool = betterproto.bool_field(4)
-    newauthentication: List[
-        "CCredentials_GetSteamGuardDetails_ResponseNewAuthentication"
-    ] = betterproto.message_field(5)
+    newauthentication: List["CCredentials_GetSteamGuardDetails_ResponseNewAuthentication"] = betterproto.message_field(
+        5
+    )
     authentication_exists_from_same_ip_before_mintime: bool = betterproto.bool_field(6)
     public_ipv4: int = betterproto.uint32_field(7)
     public_ip_address: str = betterproto.string_field(8)

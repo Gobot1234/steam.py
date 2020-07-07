@@ -60,9 +60,7 @@ class CInventory_AddItem_Request(betterproto.Message):
 class CInventory_ModifyItems_Request(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     steamid: int = betterproto.uint64_field(2)
-    updates: List[
-        "CInventory_ModifyItems_RequestItemPropertyUpdate"
-    ] = betterproto.message_field(3)
+    updates: List["CInventory_ModifyItems_RequestItemPropertyUpdate"] = betterproto.message_field(3)
     timestamp: int = betterproto.uint32_field(4)
 
 
@@ -140,9 +138,7 @@ class CInventory_GetUserPurchaseInfo_Response(betterproto.Message):
 class CInventory_PurchaseInit_Request(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     language: int = betterproto.int32_field(2)
-    line_items: List[
-        "CInventory_PurchaseInit_RequestLineItem"
-    ] = betterproto.message_field(3)
+    line_items: List["CInventory_PurchaseInit_RequestLineItem"] = betterproto.message_field(3)
 
 
 @dataclass

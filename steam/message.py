@@ -31,9 +31,7 @@ from .abc import Message
 if TYPE_CHECKING:
     from .abc import BaseUser
     from .channel import ClanChannel, DMChannel, GroupChannel
-    from .protobufs.steammessages_chat import (
-        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
-    )
+    from .protobufs.steammessages_chat import CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification
     from .protobufs.steammessages_friendmessages import (
         CFriendMessages_IncomingMessage_Notification as UserMessageNotification,
     )
@@ -79,10 +77,7 @@ class GroupMessage(_GroupMessage):
     """Represents a message in a Group."""
 
     def __init__(
-        self,
-        proto: "GroupMessageNotification",
-        channel: "GroupChannel",
-        author: "BaseUser",
+        self, proto: "GroupMessageNotification", channel: "GroupChannel", author: "BaseUser",
     ):
         super().__init__(proto, channel, author)
 
@@ -91,9 +86,6 @@ class ClanMessage(_GroupMessage):
     """Represents a message in a Clan."""
 
     def __init__(
-        self,
-        proto: "GroupMessageNotification",
-        channel: "ClanChannel",
-        author: "BaseUser",
+        self, proto: "GroupMessageNotification", channel: "ClanChannel", author: "BaseUser",
     ):
         super().__init__(proto, channel, author)

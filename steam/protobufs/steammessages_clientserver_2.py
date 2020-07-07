@@ -101,12 +101,8 @@ class CMsgClientUCMUpdatePublishedFile(betterproto.Message):
     update_metadata: bool = betterproto.bool_field(21)
     language: int = betterproto.int32_field(22)
     removed_kvtags: List[str] = betterproto.string_field(23)
-    kvtags: List[
-        "CMsgClientUCMUpdatePublishedFileKeyValueTag"
-    ] = betterproto.message_field(24)
-    previews: List[
-        "CMsgClientUCMUpdatePublishedFileAdditionalPreview"
-    ] = betterproto.message_field(25)
+    kvtags: List["CMsgClientUCMUpdatePublishedFileKeyValueTag"] = betterproto.message_field(24)
+    previews: List["CMsgClientUCMUpdatePublishedFileAdditionalPreview"] = betterproto.message_field(25)
     previews_to_remove: List[int] = betterproto.int32_field(26)
     clear_in_progress: bool = betterproto.bool_field(27)
     remove_all_kvtags: bool = betterproto.bool_field(28)
@@ -161,9 +157,7 @@ class CMsgClientUCMEnumerateUserPublishedFilesResponse(betterproto.Message):
 
 
 @dataclass
-class CMsgClientUCMEnumerateUserPublishedFilesResponsePublishedFileId(
-    betterproto.Message
-):
+class CMsgClientUCMEnumerateUserPublishedFilesResponsePublishedFileId(betterproto.Message):
     published_file_id: float = betterproto.fixed64_field(1)
 
 
@@ -186,9 +180,7 @@ class CMsgClientUCMEnumerateUserSubscribedFilesResponse(betterproto.Message):
 
 
 @dataclass
-class CMsgClientUCMEnumerateUserSubscribedFilesResponsePublishedFileId(
-    betterproto.Message
-):
+class CMsgClientUCMEnumerateUserSubscribedFilesResponsePublishedFileId(betterproto.Message):
     published_file_id: float = betterproto.fixed64_field(1)
     rtime32_subscribed: float = betterproto.fixed32_field(2)
 
@@ -211,9 +203,7 @@ class CMsgClientUCMEnumerateUserSubscribedFilesWithUpdatesResponse(betterproto.M
 
 
 @dataclass
-class CMsgClientUCMEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileId(
-    betterproto.Message
-):
+class CMsgClientUCMEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileId(betterproto.Message):
     published_file_id: float = betterproto.fixed64_field(1)
     rtime32_subscribed: float = betterproto.fixed32_field(2)
     appid: int = betterproto.uint32_field(3)
@@ -245,9 +235,7 @@ class CMsgClientWorkshopItemChangesRequest(betterproto.Message):
 class CMsgClientWorkshopItemChangesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     update_time: int = betterproto.uint32_field(2)
-    workshop_items: List[
-        "CMsgClientWorkshopItemChangesResponseWorkshopItemInfo"
-    ] = betterproto.message_field(5)
+    workshop_items: List["CMsgClientWorkshopItemChangesResponseWorkshopItemInfo"] = betterproto.message_field(5)
 
 
 @dataclass
@@ -261,9 +249,7 @@ class CMsgClientWorkshopItemChangesResponseWorkshopItemInfo(betterproto.Message)
 class CMsgClientWorkshopItemInfoRequest(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     last_time_updated: int = betterproto.uint32_field(2)
-    workshop_items: List[
-        "CMsgClientWorkshopItemInfoRequestWorkshopItem"
-    ] = betterproto.message_field(3)
+    workshop_items: List["CMsgClientWorkshopItemInfoRequestWorkshopItem"] = betterproto.message_field(3)
 
 
 @dataclass
@@ -276,9 +262,7 @@ class CMsgClientWorkshopItemInfoRequestWorkshopItem(betterproto.Message):
 class CMsgClientWorkshopItemInfoResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     update_time: int = betterproto.uint32_field(2)
-    workshop_items: List[
-        "CMsgClientWorkshopItemInfoResponseWorkshopItemInfo"
-    ] = betterproto.message_field(3)
+    workshop_items: List["CMsgClientWorkshopItemInfoResponseWorkshopItemInfo"] = betterproto.message_field(3)
     private_items: List[float] = betterproto.fixed64_field(4)
 
 
@@ -302,9 +286,7 @@ class CMsgClientUCMGetPublishedFilesForUser(betterproto.Message):
 @dataclass
 class CMsgClientUCMGetPublishedFilesForUserResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    published_files: List[
-        "CMsgClientUCMGetPublishedFilesForUserResponsePublishedFileId"
-    ] = betterproto.message_field(2)
+    published_files: List["CMsgClientUCMGetPublishedFilesForUserResponsePublishedFileId"] = betterproto.message_field(2)
     total_results: int = betterproto.uint32_field(3)
 
 
@@ -342,9 +324,7 @@ class CMsgClientUCMEnumeratePublishedFilesByUserActionResponse(betterproto.Messa
 
 
 @dataclass
-class CMsgClientUCMEnumeratePublishedFilesByUserActionResponsePublishedFileId(
-    betterproto.Message
-):
+class CMsgClientUCMEnumeratePublishedFilesByUserActionResponsePublishedFileId(betterproto.Message):
     published_file_id: float = betterproto.fixed64_field(1)
     rtime_time_stamp: float = betterproto.fixed32_field(2)
 
@@ -376,9 +356,7 @@ class CMsgClientRichPresenceRequest(betterproto.Message):
 
 @dataclass
 class CMsgClientRichPresenceInfo(betterproto.Message):
-    rich_presence: List[
-        "CMsgClientRichPresenceInfoRichPresence"
-    ] = betterproto.message_field(1)
+    rich_presence: List["CMsgClientRichPresenceInfoRichPresence"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -503,9 +481,7 @@ class CMsgClientCheckAppBetaPassword(betterproto.Message):
 @dataclass
 class CMsgClientCheckAppBetaPasswordResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    betapasswords: List[
-        "CMsgClientCheckAppBetaPasswordResponseBetaPassword"
-    ] = betterproto.message_field(4)
+    betapasswords: List["CMsgClientCheckAppBetaPasswordResponseBetaPassword"] = betterproto.message_field(4)
 
 
 @dataclass
@@ -614,9 +590,7 @@ class CMsgClientUGSGetGlobalStatsResponse(betterproto.Message):
 @dataclass
 class CMsgClientUGSGetGlobalStatsResponseDay(betterproto.Message):
     day_id: int = betterproto.uint32_field(1)
-    stats: List[
-        "CMsgClientUGSGetGlobalStatsResponseDayStat"
-    ] = betterproto.message_field(2)
+    stats: List["CMsgClientUGSGetGlobalStatsResponseDayStat"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -676,9 +650,7 @@ class CMsgClientGMSServerQuery(betterproto.Message):
 
 @dataclass
 class CMsgGMSClientServerQueryResponse(betterproto.Message):
-    servers: List["CMsgGMSClientServerQueryResponseServer"] = betterproto.message_field(
-        1
-    )
+    servers: List["CMsgGMSClientServerQueryResponseServer"] = betterproto.message_field(1)
     error: str = betterproto.string_field(2)
 
 
@@ -866,9 +838,7 @@ class CMsgClientRequestForgottenPasswordEmailResponse(betterproto.Message):
 @dataclass
 class CMsgClientItemAnnouncements(betterproto.Message):
     count_new_items: int = betterproto.uint32_field(1)
-    unseen_items: List[
-        "CMsgClientItemAnnouncementsUnseenItem"
-    ] = betterproto.message_field(2)
+    unseen_items: List["CMsgClientItemAnnouncementsUnseenItem"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -888,9 +858,7 @@ class CMsgClientRequestItemAnnouncements(betterproto.Message):
 
 @dataclass
 class CMsgClientUserNotifications(betterproto.Message):
-    notifications: List[
-        "CMsgClientUserNotificationsNotification"
-    ] = betterproto.message_field(1)
+    notifications: List["CMsgClientUserNotificationsNotification"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -931,9 +899,7 @@ class CMsgClientChatGetFriendMessageHistory(betterproto.Message):
 class CMsgClientChatGetFriendMessageHistoryResponse(betterproto.Message):
     steamid: float = betterproto.fixed64_field(1)
     success: int = betterproto.uint32_field(2)
-    messages: List[
-        "CMsgClientChatGetFriendMessageHistoryResponseFriendMessage"
-    ] = betterproto.message_field(3)
+    messages: List["CMsgClientChatGetFriendMessageHistoryResponseFriendMessage"] = betterproto.message_field(3)
 
 
 @dataclass
@@ -956,9 +922,7 @@ class CMsgClientFSGetFriendsSteamLevels(betterproto.Message):
 
 @dataclass
 class CMsgClientFSGetFriendsSteamLevelsResponse(betterproto.Message):
-    friends: List[
-        "CMsgClientFSGetFriendsSteamLevelsResponseFriend"
-    ] = betterproto.message_field(1)
+    friends: List["CMsgClientFSGetFriendsSteamLevelsResponseFriend"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -979,9 +943,7 @@ class CMsgClientEmailAddrInfo(betterproto.Message):
 
 @dataclass
 class CMsgCREItemVoteSummary(betterproto.Message):
-    published_file_ids: List[
-        "CMsgCREItemVoteSummaryPublishedFileId"
-    ] = betterproto.message_field(1)
+    published_file_ids: List["CMsgCREItemVoteSummaryPublishedFileId"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -992,9 +954,7 @@ class CMsgCREItemVoteSummaryPublishedFileId(betterproto.Message):
 @dataclass
 class CMsgCREItemVoteSummaryResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    item_vote_summaries: List[
-        "CMsgCREItemVoteSummaryResponseItemVoteSummary"
-    ] = betterproto.message_field(2)
+    item_vote_summaries: List["CMsgCREItemVoteSummaryResponseItemVoteSummary"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -1019,9 +979,7 @@ class CMsgCREUpdateUserPublishedItemVoteResponse(betterproto.Message):
 
 @dataclass
 class CMsgCREGetUserPublishedItemVoteDetails(betterproto.Message):
-    published_file_ids: List[
-        "CMsgCREGetUserPublishedItemVoteDetailsPublishedFileId"
-    ] = betterproto.message_field(1)
+    published_file_ids: List["CMsgCREGetUserPublishedItemVoteDetailsPublishedFileId"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -1038,9 +996,7 @@ class CMsgCREGetUserPublishedItemVoteDetailsResponse(betterproto.Message):
 
 
 @dataclass
-class CMsgCREGetUserPublishedItemVoteDetailsResponseUserItemVoteDetail(
-    betterproto.Message
-):
+class CMsgCREGetUserPublishedItemVoteDetailsResponseUserItemVoteDetail(betterproto.Message):
     published_file_id: float = betterproto.fixed64_field(1)
     vote: int = betterproto.int32_field(2)
 
@@ -1171,9 +1127,7 @@ class CMsgClientDeauthorizeDevice(betterproto.Message):
 @dataclass
 class CMsgClientUseLocalDeviceAuthorizations(betterproto.Message):
     authorization_account_id: List[int] = betterproto.uint32_field(1)
-    device_tokens: List[
-        "CMsgClientUseLocalDeviceAuthorizationsDeviceToken"
-    ] = betterproto.message_field(2)
+    device_tokens: List["CMsgClientUseLocalDeviceAuthorizationsDeviceToken"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -1190,9 +1144,7 @@ class CMsgClientGetAuthorizedDevices(betterproto.Message):
 @dataclass
 class CMsgClientGetAuthorizedDevicesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    authorized_device: List[
-        "CMsgClientGetAuthorizedDevicesResponseAuthorizedDevice"
-    ] = betterproto.message_field(2)
+    authorized_device: List["CMsgClientGetAuthorizedDevicesResponseAuthorizedDevice"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -1207,9 +1159,7 @@ class CMsgClientGetAuthorizedDevicesResponseAuthorizedDevice(betterproto.Message
 
 @dataclass
 class CMsgClientSharedLibraryLockStatus(betterproto.Message):
-    locked_library: List[
-        "CMsgClientSharedLibraryLockStatusLockedLibrary"
-    ] = betterproto.message_field(1)
+    locked_library: List["CMsgClientSharedLibraryLockStatusLockedLibrary"] = betterproto.message_field(1)
     own_library_locked_by: int = betterproto.uint32_field(2)
 
 
@@ -1222,9 +1172,7 @@ class CMsgClientSharedLibraryLockStatusLockedLibrary(betterproto.Message):
 @dataclass
 class CMsgClientSharedLibraryStopPlaying(betterproto.Message):
     seconds_left: int = betterproto.int32_field(1)
-    stop_apps: List[
-        "CMsgClientSharedLibraryStopPlayingStopApp"
-    ] = betterproto.message_field(2)
+    stop_apps: List["CMsgClientSharedLibraryStopPlayingStopApp"] = betterproto.message_field(2)
 
 
 @dataclass

@@ -39,9 +39,7 @@ class CUserAccount_GetAvailableValveDiscountPromotions_Response(betterproto.Mess
 
 
 @dataclass
-class CUserAccount_GetAvailableValveDiscountPromotions_ResponseValveDiscountPromotionDetails(
-    betterproto.Message
-):
+class CUserAccount_GetAvailableValveDiscountPromotions_ResponseValveDiscountPromotionDetails(betterproto.Message):
     promotionid: int = betterproto.uint32_field(1)
     promotion_description: str = betterproto.string_field(2)
     minimum_cart_amount: int = betterproto.int64_field(3)
@@ -97,9 +95,7 @@ class CUserAccount_GetFriendInviteTokens_Request(betterproto.Message):
 
 @dataclass
 class CUserAccount_GetFriendInviteTokens_Response(betterproto.Message):
-    tokens: List[
-        "CUserAccount_CreateFriendInviteToken_Response"
-    ] = betterproto.message_field(1)
+    tokens: List["CUserAccount_CreateFriendInviteToken_Response"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -162,9 +158,7 @@ class CAccountLinking_GetLinkedAccountInfo_Response(betterproto.Message):
 
 
 @dataclass
-class CAccountLinking_GetLinkedAccountInfo_ResponseCExternalAccountTuple_Response(
-    betterproto.Message
-):
+class CAccountLinking_GetLinkedAccountInfo_ResponseCExternalAccountTuple_Response(betterproto.Message):
     external_type: "EExternalAccountType" = betterproto.enum_field(1)
     external_id: str = betterproto.string_field(2)
     external_user_name: str = betterproto.string_field(3)

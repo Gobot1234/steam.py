@@ -171,11 +171,7 @@ method on the User that you want to send the offer to.
     earbuds = their_inventory.get_item("Earbuds")
 
     # finally construct the trade
-    trade = TradeOffer(
-        items_to_send=keys,
-        items_to_receive=[earbuds],
-        message="This trade was made using steam.py",
-    )
+    trade = TradeOffer(items_to_send=keys, item_to_receive=earbuds, message="This trade was made using steam.py",)
     await user.send(trade=trade)
     # you don't need to confirm the trade manually, the client will handle that for you
 

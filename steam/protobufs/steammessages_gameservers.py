@@ -16,9 +16,7 @@ class CGameServers_GetServerList_Request(betterproto.Message):
 
 @dataclass
 class CGameServers_GetServerList_Response(betterproto.Message):
-    servers: List[
-        "CGameServers_GetServerList_ResponseServer"
-    ] = betterproto.message_field(1)
+    servers: List["CGameServers_GetServerList_ResponseServer"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -50,9 +48,7 @@ class CGameServers_GetServerSteamIDsByIP_Request(betterproto.Message):
 
 @dataclass
 class CGameServers_IPsWithSteamIDs_Response(betterproto.Message):
-    servers: List[
-        "CGameServers_IPsWithSteamIDs_ResponseServer"
-    ] = betterproto.message_field(1)
+    servers: List["CGameServers_IPsWithSteamIDs_ResponseServer"] = betterproto.message_field(1)
 
 
 @dataclass

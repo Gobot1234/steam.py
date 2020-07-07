@@ -78,11 +78,7 @@ class AsyncIterator(_AsyncIterator, Generic[T]):
     __slots__ = ("before", "after", "limit", "queue", "_is_filled", "_state")
 
     def __init__(
-        self,
-        state: "ConnectionState",
-        limit: Optional[int],
-        before: Optional[datetime],
-        after: Optional[datetime],
+        self, state: "ConnectionState", limit: Optional[int], before: Optional[datetime], after: Optional[datetime],
     ):
         self._state = state
         self.before = before or datetime.utcnow()
@@ -220,12 +216,7 @@ class CommentsIterator(AsyncIterator["Comment"]):
     __slots__ = ("owner",)
 
     def __init__(
-        self,
-        state: "ConnectionState",
-        before: datetime,
-        after: datetime,
-        limit: int,
-        owner: Union["BaseUser", "Clan"],
+        self, state: "ConnectionState", before: datetime, after: datetime, limit: int, owner: Union["BaseUser", "Clan"],
     ):
         super().__init__(state, limit, before, after)
         self.owner = owner
@@ -239,28 +230,16 @@ class CommentsIterator(AsyncIterator["Comment"]):
             comment_type="Profile" if isinstance(self.owner, BaseUser) else "Clan",
         )
         soup = BeautifulSoup(data["comments_html"], "html.parser")
-        comments = soup.find_all(
-            "div", attrs={"class": "commentthread_comment responsive_body_text"}
-        )
+        comments = soup.find_all("div", attrs={"class": "commentthread_comment responsive_body_text"})
         to_fetch = []
 
         for comment in comments:
-            timestamp = comment.find(
-                "span", attrs={"class": "commentthread_comment_timestamp"}
-            )["data-timestamp"]
+            timestamp = comment.find("span", attrs={"class": "commentthread_comment_timestamp"})["data-timestamp"]
             timestamp = datetime.utcfromtimestamp(int(timestamp))
             if self.after < timestamp < self.before:
-                author_id = int(
-                    comment.find("a", attrs={"class": "commentthread_author_link"})[
-                        "data-miniprofile"
-                    ]
-                )
+                author_id = int(comment.find("a", attrs={"class": "commentthread_author_link"})["data-miniprofile"])
                 comment_id = int(re.findall(r"comment_([0-9]*)", str(comment))[0])
-                content = (
-                    comment.find("div", attrs={"class": "commentthread_comment_text"})
-                    .get_text()
-                    .strip()
-                )
+                content = comment.find("div", attrs={"class": "commentthread_comment_text"}).get_text().strip()
                 to_fetch.append(utils.make_steam64(author_id))
                 comment = Comment(
                     state=self._state,
@@ -286,12 +265,7 @@ class TradesIterator(AsyncIterator):
     __slots__ = ("_active_only",)
 
     def __init__(
-        self,
-        state: "ConnectionState",
-        limit: int,
-        before: datetime,
-        after: datetime,
-        active_only: bool,
+        self, state: "ConnectionState", limit: int, before: datetime, after: datetime, active_only: bool,
     ):
         super().__init__(state, limit, before, after)
         self._active_only = active_only
@@ -311,16 +285,10 @@ class TradesIterator(AsyncIterator):
                 if self.after.timestamp() < data["time_init"] < self.before.timestamp():
                     for item in descriptions:
                         for asset in data.get("assets_received", []):
-                            if (
-                                item["classid"] == asset["classid"]
-                                and item["instanceid"] == asset["instanceid"]
-                            ):
+                            if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
                                 asset.update(item)
                         for asset in data.get("assets_given", []):
-                            if (
-                                item["classid"] == asset["classid"]
-                                and item["instanceid"] == asset["instanceid"]
-                            ):
+                            if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
                                 asset.update(item)
 
                     # patch in the attributes cause steam is cool
@@ -357,9 +325,7 @@ class TradesIterator(AsyncIterator):
                     for trade in resp.get("trades", []):
                         await process_trade(trade, descriptions)
                     previous_time = trade["time_init"]
-                resp = await self._state.http.get_trade_history(
-                    page + 100, previous_time
-                )
+                resp = await self._state.http.get_trade_history(page + 100, previous_time)
                 resp = resp["response"]
                 for trade in resp.get("trades", []):
                     await process_trade(trade, descriptions)

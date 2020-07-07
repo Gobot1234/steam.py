@@ -123,9 +123,7 @@ class CBroadcast_WatchBroadcast_Request(betterproto.Message):
 
 @dataclass
 class CBroadcast_WatchBroadcast_Response(betterproto.Message):
-    response: "CBroadcast_WatchBroadcast_ResponseEWatchResponse" = betterproto.enum_field(
-        1
-    )
+    response: "CBroadcast_WatchBroadcast_ResponseEWatchResponse" = betterproto.enum_field(1)
     mpd_url: str = betterproto.string_field(2)
     broadcast_id: float = betterproto.fixed64_field(3)
     gameid: int = betterproto.uint64_field(4)
@@ -304,9 +302,7 @@ class CBroadcast_GetBroadcastChatUserNames_Request(betterproto.Message):
 
 @dataclass
 class CBroadcast_GetBroadcastChatUserNames_Response(betterproto.Message):
-    persona_names: List[
-        "CBroadcast_GetBroadcastChatUserNames_ResponsePersonaName"
-    ] = betterproto.message_field(1)
+    persona_names: List["CBroadcast_GetBroadcastChatUserNames_ResponsePersonaName"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -518,9 +514,7 @@ class CBroadcast_GetBroadcastUploadStats_Request(betterproto.Message):
 
 @dataclass
 class CBroadcast_GetBroadcastUploadStats_Response(betterproto.Message):
-    upload_stats: List[
-        "CBroadcast_GetBroadcastUploadStats_ResponseUploadStats"
-    ] = betterproto.message_field(1)
+    upload_stats: List["CBroadcast_GetBroadcastUploadStats_ResponseUploadStats"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -555,12 +549,8 @@ class CBroadcast_GetBroadcastViewerStats_Request(betterproto.Message):
 
 @dataclass
 class CBroadcast_GetBroadcastViewerStats_Response(betterproto.Message):
-    viewer_stats: List[
-        "CBroadcast_GetBroadcastViewerStats_ResponseViewerStats"
-    ] = betterproto.message_field(1)
-    country_stats: List[
-        "CBroadcast_GetBroadcastViewerStats_ResponseCountryStats"
-    ] = betterproto.message_field(2)
+    viewer_stats: List["CBroadcast_GetBroadcastViewerStats_ResponseViewerStats"] = betterproto.message_field(1)
+    country_stats: List["CBroadcast_GetBroadcastViewerStats_ResponseCountryStats"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -578,9 +568,7 @@ class CBroadcast_GetBroadcastViewerStats_ResponseCountryStats(betterproto.Messag
 @dataclass
 class CBroadcast_BroadcastViewerState_Notification(betterproto.Message):
     steamid: float = betterproto.fixed64_field(1)
-    state: "CBroadcast_BroadcastViewerState_NotificationEViewerState" = betterproto.enum_field(
-        2
-    )
+    state: "CBroadcast_BroadcastViewerState_NotificationEViewerState" = betterproto.enum_field(2)
 
 
 @dataclass

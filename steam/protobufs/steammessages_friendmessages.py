@@ -23,9 +23,7 @@ class CFriendMessages_GetRecentMessages_Request(betterproto.Message):
 
 @dataclass
 class CFriendMessages_GetRecentMessages_Response(betterproto.Message):
-    messages: List[
-        "CFriendMessages_GetRecentMessages_ResponseFriendMessage"
-    ] = betterproto.message_field(1)
+    messages: List["CFriendMessages_GetRecentMessages_ResponseFriendMessage"] = betterproto.message_field(1)
     more_available: bool = betterproto.bool_field(4)
 
 
@@ -52,9 +50,7 @@ class CFriendsMessages_GetActiveMessageSessions_Response(betterproto.Message):
 
 
 @dataclass
-class CFriendsMessages_GetActiveMessageSessions_ResponseFriendMessageSession(
-    betterproto.Message
-):
+class CFriendsMessages_GetActiveMessageSessions_ResponseFriendMessageSession(betterproto.Message):
     accountid_friend: int = betterproto.uint32_field(1)
     last_message: int = betterproto.uint32_field(2)
     last_view: int = betterproto.uint32_field(3)

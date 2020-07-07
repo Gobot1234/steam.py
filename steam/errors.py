@@ -95,9 +95,7 @@ class HTTPException(SteamException):
 
         if data:
             if isinstance(data, dict):
-                if len(data) != 1 and data.get(
-                    "success", False
-                ):  # ignore {'success': False} as the message
+                if len(data) != 1 and data.get("success", False):  # ignore {'success': False} as the message
                     message = data.get("message") or str(list(data.values())[0])
                     code = data.get("result") or CODE_FINDER.findall(message)
                     if code:
@@ -145,10 +143,7 @@ class WSException(SteamException):
     def __init__(self, msg: "MsgProto"):
         self.msg = msg
         self.code = EResult.try_value(msg.header.eresult)
-        super().__init__(
-            f"The request {msg.header.job_name_target} failed. (error code:"
-            f" {repr(self.code)})"
-        )
+        super().__init__(f"The request {msg.header.job_name_target} failed. (error code: {repr(self.code)})")
 
 
 class WSForbidden(WSException):

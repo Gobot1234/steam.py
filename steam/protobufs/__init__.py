@@ -39,9 +39,7 @@ from .unified import *
 
 T = TypeVar("T", bound=betterproto.Message)
 AllowedHeaders = (ExtendedMsgHdr, MsgHdrProtoBuf)
-betterproto.Message.__bool__ = lambda self: bool(
-    self.to_dict(include_default_values=False)
-)
+betterproto.Message.__bool__ = lambda self: bool(self.to_dict(include_default_values=False))
 
 
 @dataclass
@@ -82,9 +80,7 @@ def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
 class MsgBase(Generic[T]):
     __slots__ = ("header", "proto", "body", "payload", "skip")
 
-    def __init__(
-        self, msg: Union[EMsg, IntEnumValue], data: bytes, parse: bool, **kwargs
-    ):
+    def __init__(self, msg: Union[EMsg, IntEnumValue], data: bytes, parse: bool, **kwargs):
         self.msg = EMsg.try_value(msg)
         self.body: Optional[T] = None
         self.payload: Optional[bytes] = None
@@ -107,10 +103,7 @@ class MsgBase(Generic[T]):
         )
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         if isinstance(self.body, betterproto.Message):
-            resolved.extend(
-                f"{k}={v!r}"
-                for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items()
-            )
+            resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
         return " ".join(resolved)
 
     def parse(self, proto: Type[T]) -> None:
@@ -144,9 +137,7 @@ class MsgBase(Generic[T]):
     @property
     def session_id(self) -> Optional[int]:
         """Optional[:class:`int`]: The :attr:`header`'s session ID."""
-        return (
-            self.header.session_id if isinstance(self.header, AllowedHeaders) else None
-        )
+        return self.header.session_id if isinstance(self.header, AllowedHeaders) else None
 
     @session_id.setter
     def session_id(self, value) -> None:
@@ -203,12 +194,7 @@ class Msg(MsgBase[T]):
     """
 
     def __init__(
-        self,
-        msg: Union[EMsg, IntEnumValue],
-        data: bytes = None,
-        extended: bool = False,
-        parse: bool = True,
-        **kwargs,
+        self, msg: Union[EMsg, IntEnumValue], data: bytes = None, extended: bool = False, parse: bool = True, **kwargs,
     ):
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.proto = False
@@ -272,12 +258,7 @@ class MsgProto(MsgBase[T]):
     __slots__ = ("um_name",)
 
     def __init__(
-        self,
-        msg: Union[EMsg, EnumValue],
-        data: bytes = None,
-        parse: bool = True,
-        um_name: str = None,
-        **kwargs,
+        self, msg: Union[EMsg, EnumValue], data: bytes = None, parse: bool = True, um_name: str = None, **kwargs,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size
@@ -302,9 +283,7 @@ class MsgProto(MsgBase[T]):
                 if not name.endswith("_Response") and proto is None:
                     proto = get_um(f"{name}_Response")  # assume its a response
                 if name:
-                    self.header.job_name_target = name.replace("_Request", "").replace(
-                        "_Response", ""
-                    )
+                    self.header.job_name_target = name.replace("_Request", "").replace("_Response", "")
 
             else:
                 proto = get_cmsg(self.msg)

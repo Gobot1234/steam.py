@@ -67,9 +67,7 @@ class CEconItem_Description(betterproto.Message):
     descriptions: List["CEconItem_DescriptionLine"] = betterproto.message_field(8)
     tradable: bool = betterproto.bool_field(9)
     actions: List["CEconItem_Action"] = betterproto.message_field(10)
-    owner_descriptions: List["CEconItem_DescriptionLine"] = betterproto.message_field(
-        11
-    )
+    owner_descriptions: List["CEconItem_DescriptionLine"] = betterproto.message_field(11)
     owner_actions: List["CEconItem_Action"] = betterproto.message_field(12)
     fraudwarnings: List[str] = betterproto.string_field(13)
     name: str = betterproto.string_field(14)

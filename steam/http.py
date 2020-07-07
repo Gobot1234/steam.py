@@ -116,12 +116,7 @@ class HTTPClient:
                 async with self._session.request(method, str(url), **kwargs) as r:
                     payload = kwargs.get("data")
                     log.debug(
-                        self.REQUEST_LOG.format(
-                            method=method,
-                            url=url,
-                            payload=f"PAYLOAD: {payload}",
-                            status=r.status,
-                        )
+                        self.REQUEST_LOG.format(method=method, url=url, payload=f"PAYLOAD: {payload}", status=r.status,)
                     )
 
                     # even errors have text involved in them so this is safe to call
@@ -151,11 +146,7 @@ class HTTPClient:
                         # api key either got revoked or it was never valid
                         if not data:
                             raise errors.HTTPException(r, data)
-                        if (
-                            "Access is denied. Retrying will not help. Please verify"
-                            " your <pre>key=</pre>"
-                            in data
-                        ):
+                        if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
                             # time to fetch a new key
                             self.api_key = kwargs["key"] = await self.get_api_key()
                             continue
@@ -174,13 +165,9 @@ class HTTPClient:
 
     def connect_to_cm(self, cm: str) -> Awaitable:
         headers = {"User-Agent": self.user_agent}
-        return self._session.ws_connect(
-            f"wss://{cm}/cmsocket/", timeout=60, headers=headers
-        )
+        return self._session.ws_connect(f"wss://{cm}/cmsocket/", timeout=60, headers=headers)
 
-    async def login(
-        self, username: str, password: str, api_key: str, shared_secret: str = None
-    ) -> None:
+    async def login(self, username: str, password: str, api_key: str, shared_secret: str = None) -> None:
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
@@ -190,17 +177,14 @@ class HTTPClient:
         login_response = await self._send_login_request()
 
         if "captcha_needed" in login_response:
-            raise errors.LoginError(
-                "A captcha code is required, please try again later"
-            )
+            raise errors.LoginError("A captcha code is required, please try again later")
         if not login_response["success"]:
             raise errors.InvalidCredentials(login_response["message"])
 
         data = login_response.get("transfer_parameters")
         if data is None:
             raise errors.LoginError(
-                "Cannot perform redirects after login. "
-                "The Steam API likely is down, please try again later."
+                "Cannot perform redirects after login. The Steam API likely is down, please try again later."
             )
 
         for url in login_response["transfer_urls"]:
@@ -228,14 +212,10 @@ class HTTPClient:
         self.logged_in = False
         self._client.dispatch("logout")
 
-    async def _get_rsa_params(
-        self, current_repetitions: int = 0
-    ) -> Tuple[rsa.PublicKey, int]:
+    async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple[rsa.PublicKey, int]:
         payload = {"username": self.username, "donotcache": int(time() * 1000)}
         try:
-            key_response = await self.request(
-                "POST", CRoute("/login/getrsakey"), data=payload
-            )
+            key_response = await self.request("POST", CRoute("/login/getrsakey"), data=payload)
         except Exception as e:
             raise errors.LoginError from e
         try:
@@ -251,9 +231,7 @@ class HTTPClient:
 
     async def _send_login_request(self) -> dict:
         rsa_key, timestamp = await self._get_rsa_params()
-        encrypted_password = b64encode(
-            rsa.encrypt(self.password.encode("utf-8"), rsa_key)
-        )
+        encrypted_password = b64encode(rsa.encrypt(self.password.encode("utf-8"), rsa_key))
         payload = {
             "username": self.username,
             "password": encrypted_password.decode(),
@@ -268,9 +246,7 @@ class HTTPClient:
             "donotcache": int(time() * 1000),
         }
         try:
-            login_response = await self.request(
-                "POST", CRoute("/login/dologin"), data=payload
-            )
+            login_response = await self.request("POST", CRoute("/login/dologin"), data=payload)
             if login_response["requires_twofactor"]:
                 self._one_time_code = await self._client.code()
                 return await self._send_login_request()
@@ -280,9 +256,7 @@ class HTTPClient:
 
     def get_user(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamids": user_id64}
-        return self.request(
-            "GET", APIRoute("/ISteamUser/GetPlayerSummaries/v2"), params=params
-        )
+        return self.request("GET", APIRoute("/ISteamUser/GetPlayerSummaries/v2"), params=params)
 
     async def get_users(self, user_id64s: List[int]) -> List[dict]:
         ret = []
@@ -295,9 +269,7 @@ class HTTPClient:
             for _ in sublist:
                 params = {"key": self.api_key, "steamids": ",".join(map(str, sublist))}
 
-            full_resp = await self.request(
-                "GET", APIRoute("/ISteamUser/GetPlayerSummaries/v2"), params=params
-            )
+            full_resp = await self.request("GET", APIRoute("/ISteamUser/GetPlayerSummaries/v2"), params=params)
             ret.extend(full_resp["response"]["players"])
         return ret
 
@@ -338,9 +310,7 @@ class HTTPClient:
             "steamid": user_id64,
             "accept_invite": 0,
         }
-        return self.request(
-            "POST", CRoute("/actions/IgnoreFriendInviteAjax"), data=payload
-        )
+        return self.request("POST", CRoute("/actions/IgnoreFriendInviteAjax"), data=payload)
 
     def get_user_games(self, user_id64: int) -> Awaitable:
         params = {
@@ -349,21 +319,13 @@ class HTTPClient:
             "include_appinfo": 1,
             "include_played_free_games": 1,
         }
-        return self.request(
-            "GET", APIRoute("/IPlayerService/GetOwnedGames"), params=params
-        )
+        return self.request("GET", APIRoute("/IPlayerService/GetOwnedGames"), params=params)
 
-    def get_user_inventory(
-        self, user_id64: int, app_id: int, context_id: int
-    ) -> Awaitable:
+    def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> Awaitable:
         params = {
             "count": 5000,
         }
-        return self.request(
-            "GET",
-            CRoute(f"/inventory/{user_id64}/{app_id}/{context_id}"),
-            params=params,
-        )
+        return self.request("GET", CRoute(f"/inventory/{user_id64}/{app_id}/{context_id}"), params=params,)
 
     def get_user_escrow(self, user_id64: int, token: Optional[str]) -> Awaitable:
         params = {
@@ -371,22 +333,14 @@ class HTTPClient:
             "steamid_target": user_id64,
             "trade_offer_access_token": token if token is not None else "",
         }
-        return self.request(
-            "GET", APIRoute("/IEconService/GetTradeHoldDurations"), params=params
-        )
+        return self.request("GET", APIRoute("/IEconService/GetTradeHoldDurations"), params=params)
 
     async def get_friends(self, user_id64: int) -> List[dict]:
         params = {"key": self.api_key, "steamid": user_id64, "relationship": "friend"}
-        friends = await self.request(
-            "GET", APIRoute("/ISteamUser/GetFriendList"), params=params
-        )
-        return await self.get_users(
-            [friend["steamid"] for friend in friends["friendslist"]["friends"]]
-        )
+        friends = await self.request("GET", APIRoute("/ISteamUser/GetFriendList"), params=params)
+        return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])
 
-    def get_trade_offers(
-        self, active_only: bool = True, sent: bool = True, received: bool = True
-    ) -> Awaitable:
+    def get_trade_offers(self, active_only: bool = True, sent: bool = True, received: bool = True) -> Awaitable:
         params = {
             "key": self.api_key,
             "active_only": int(active_only),
@@ -394,9 +348,7 @@ class HTTPClient:
             "get_descriptions": 1,
             "get_received_offers": int(received),
         }
-        return self.request(
-            "GET", APIRoute("/IEconService/GetTradeOffers"), params=params
-        )
+        return self.request("GET", APIRoute("/IEconService/GetTradeOffers"), params=params)
 
     def get_trade_history(self, limit: int, previous_time: int) -> Awaitable:
         params = {
@@ -406,15 +358,11 @@ class HTTPClient:
             "include_total": 1,
             "start_after_time": previous_time or 0,
         }
-        return self.request(
-            "GET", APIRoute("/IEconService/GetTradeHistory"), params=params
-        )
+        return self.request("GET", APIRoute("/IEconService/GetTradeHistory"), params=params)
 
     def get_trade(self, trade_id: int) -> Awaitable:
         params = {"key": self.api_key, "tradeofferid": trade_id, "get_descriptions": 1}
-        return self.request(
-            "GET", APIRoute("/IEconService/GetTradeOffer"), params=params
-        )
+        return self.request("GET", APIRoute("/IEconService/GetTradeOffer"), params=params)
 
     def accept_user_trade(self, user_id64: int, trade_id: int) -> Awaitable:
         payload = {
@@ -425,24 +373,15 @@ class HTTPClient:
             "captcha": "",
         }
         headers = {"Referer": f"{URL.COMMUNITY}/tradeoffer/{trade_id}"}
-        return self.request(
-            "POST",
-            CRoute(f"/tradeoffer/{trade_id}/accept"),
-            data=payload,
-            headers=headers,
-        )
+        return self.request("POST", CRoute(f"/tradeoffer/{trade_id}/accept"), data=payload, headers=headers,)
 
     def decline_user_trade(self, trade_id: int) -> Awaitable:
         payload = {"key": self.api_key, "tradeofferid": trade_id}
-        return self.request(
-            "POST", APIRoute("/IEconService/DeclineTradeOffer"), data=payload
-        )
+        return self.request("POST", APIRoute("/IEconService/DeclineTradeOffer"), data=payload)
 
     def cancel_user_trade(self, trade_id: int) -> Awaitable:
         payload = {"key": self.api_key, "tradeofferid": trade_id}
-        return self.request(
-            "POST", APIRoute("/IEconService/CancelTradeOffer"), data=payload
-        )
+        return self.request("POST", APIRoute("/IEconService/CancelTradeOffer"), data=payload)
 
     def send_trade_offer(
         self,
@@ -468,15 +407,11 @@ class HTTPClient:
                 }
             ),
             "captcha": "",
-            "trade_offer_create_params": json.dumps({"trade_offer_access_token": token})
-            if token is not None
-            else {},
+            "trade_offer_create_params": json.dumps({"trade_offer_access_token": token}) if token is not None else {},
         }
         payload.update(**kwargs)
         headers = {"Referer": f"{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}"}
-        return self.request(
-            "POST", CRoute("/tradeoffer/new/send"), data=payload, headers=headers
-        )
+        return self.request("POST", CRoute("/tradeoffer/new/send"), data=payload, headers=headers)
 
     def send_counter_trade_offer(
         self,
@@ -488,63 +423,37 @@ class HTTPClient:
         token: Optional[str],
         offer_message: str,
     ) -> Awaitable:
-        return self.send_trade_offer(
-            user_id64,
-            user_id,
-            to_send,
-            to_receive,
-            token,
-            offer_message,
-            trade_id=trade_id,
-        )
+        return self.send_trade_offer(user_id64, user_id, to_send, to_receive, token, offer_message, trade_id=trade_id,)
 
     def get_cm_list(self, cell_id: int) -> Awaitable:
         params = {"cellid": cell_id}
-        return self.request(
-            "GET", APIRoute("/ISteamDirectory/GetCMList"), params=params
-        )
+        return self.request("GET", APIRoute("/ISteamDirectory/GetCMList"), params=params)
 
-    def get_comments(
-        self, id64: int, comment_type: str, limit: int = None
-    ) -> Awaitable:
+    def get_comments(self, id64: int, comment_type: str, limit: int = None) -> Awaitable:
         params = {"start": 0, "totalcount": 9999999999}
         if limit is None:
             params["count"] = 9999999999
         else:
             params["count"] = limit
-        return self.request(
-            "GET", CRoute(f"/comment/{comment_type}/render/{id64}"), params=params
-        )
+        return self.request("GET", CRoute(f"/comment/{comment_type}/render/{id64}"), params=params)
 
     def post_comment(self, id64: int, comment_type: str, content: str) -> Awaitable:
         payload = {
             "sessionid": self.session_id,
             "comment": content,
         }
-        return self.request(
-            "POST", CRoute(f"/comment/{comment_type}/post/{id64}"), data=payload
-        )
+        return self.request("POST", CRoute(f"/comment/{comment_type}/post/{id64}"), data=payload)
 
-    def delete_comment(
-        self, id64: int, comment_id: int, comment_type: str
-    ) -> Awaitable:
+    def delete_comment(self, id64: int, comment_id: int, comment_type: str) -> Awaitable:
         payload = {
             "sessionid": self.session_id,
             "gidcomment": comment_id,
         }
-        return self.request(
-            "POST", CRoute(f"/comment/{comment_type}/delete/{id64}"), data=payload
-        )
+        return self.request("POST", CRoute(f"/comment/{comment_type}/delete/{id64}"), data=payload)
 
-    def report_comment(
-        self, id64: int, comment_id: int, comment_type: str
-    ) -> Awaitable:
+    def report_comment(self, id64: int, comment_id: int, comment_type: str) -> Awaitable:
         payload = {"gidcomment": comment_id, "hide": 1}
-        return self.request(
-            "POST",
-            CRoute(f"/comment/{comment_type}/hideandreport/{id64}"),
-            data=payload,
-        )
+        return self.request("POST", CRoute(f"/comment/{comment_type}/hideandreport/{id64}"), data=payload,)
 
     def accept_clan_invite(self, clan_id: int) -> Awaitable:
         payload = {
@@ -592,9 +501,7 @@ class HTTPClient:
 
     def get_user_clans(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamid": user_id64}
-        return self.request(
-            "GET", APIRoute("/ISteamUser/GetUserGroupList"), params=params
-        )
+        return self.request("GET", APIRoute("/ISteamUser/GetUserGroupList"), params=params)
 
     def get_user_bans(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamids": user_id64}
@@ -602,9 +509,7 @@ class HTTPClient:
 
     def get_user_level(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamid": user_id64}
-        return self.request(
-            "GET", APIRoute("/IPlayerService/GetSteamLevel"), params=params
-        )
+        return self.request("GET", APIRoute("/IPlayerService/GetSteamLevel"), params=params)
 
     def get_user_badges(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamid": user_id64}
@@ -618,25 +523,15 @@ class HTTPClient:
         return self.request("GET", CRoute("/my/inventory"))
 
     async def edit_profile(
-        self,
-        name: str,
-        real_name: str,
-        url: str,
-        summary: str,
-        country: str,
-        state: str,
-        city: str,
-        avatar: "Image",
+        self, name: str, real_name: str, url: str, summary: str, country: str, state: str, city: str, avatar: "Image",
     ) -> None:
         if any((name, real_name, url, summary, country, state, city, avatar)):
             resp = await self.request("GET", url=CRoute("/my/edit"))
             soup = BeautifulSoup(resp, "html.parser")
             edit_config = str(soup.find("div", attrs={"id": "profile_edit_config"}))
-            value = re.findall(
-                r'data-profile-edit=[\'"]{(.*?)},',
-                utils.replace_steam_code(edit_config),
-                flags=re.S,
-            )[0]
+            value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', utils.replace_steam_code(edit_config), flags=re.S,)[
+                0
+            ]
             loadable = value.replace("\r", "\\r").replace("\n", "\\n")
             profile = json.loads(f'{"{"}{loadable}{"}}"}')
             for key, value in profile.items():
@@ -662,9 +557,7 @@ class HTTPClient:
                 "summary": summary or profile["strSummary"],
             }
 
-            await self.request(
-                "POST", url=f"{self.user.community_url}/edit", data=payload
-            )
+            await self.request("POST", url=f"{self.user.community_url}/edit", data=payload)
         if avatar is not None:
             payload = aiohttp.FormData()
             payload.add_field("MAX_FILE_SIZE", str(len(avatar)))
@@ -673,10 +566,7 @@ class HTTPClient:
             payload.add_field("sessionid", self.session_id)
             payload.add_field("doSub", "1")
             payload.add_field(
-                "avatar",
-                avatar.read(),
-                filename=f"avatar.{avatar.type}",
-                content_type=f"image/{avatar.type}",
+                "avatar", avatar.read(), filename=f"avatar.{avatar.type}", content_type=f"image/{avatar.type}",
             )
             await self.request("POST", CRoute("/actions/FileUploader"), data=payload)
 
@@ -694,12 +584,8 @@ class HTTPClient:
         resp = await self.request("POST", CRoute("/chat/beginfileupload"), data=payload)
 
         result = resp["result"]
-        url = (
-            f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
-        )
-        headers = {
-            header["name"]: header["value"] for header in result["request_headers"]
-        }
+        url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        headers = {header["name"]: header["value"] for header in result["request_headers"]}
         await self.request("PUT", url=url, headers=headers, data=image.read())
 
         payload.update(
@@ -714,9 +600,7 @@ class HTTPClient:
         )
         await self.request("POST", CRoute("/chat/commitfileupload"), data=payload)
 
-    async def send_group_image(
-        self, destination: Tuple[int, int], image: "Image"
-    ) -> None:
+    async def send_group_image(self, destination: Tuple[int, int], image: "Image") -> None:
         chat_id, channel_id = destination
         payload = {
             "sessionid": self.session_id,
@@ -731,12 +615,8 @@ class HTTPClient:
         resp = await self.request("POST", CRoute("/chat/beginfileupload"), data=payload)
 
         result = resp["result"]
-        url = (
-            f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
-        )
-        headers = {
-            header["name"]: header["value"] for header in result["request_headers"]
-        }
+        url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        headers = {header["name"]: header["value"] for header in result["request_headers"]}
         await self.request("PUT", url=url, headers=headers, data=image.read())
 
         payload.update(
@@ -756,8 +636,7 @@ class HTTPClient:
         resp = await self.request("GET", CRoute("/dev/apikey"))
         if "<h2>Access Denied</h2>" in resp:
             raise errors.LoginError(
-                "Access denied, you will need to generate a key yourself: "
-                "https://steamcommunity.com/dev/apikey"
+                "Access denied, you will need to generate a key yourself: https://steamcommunity.com/dev/apikey"
             )
         error = "You must have a validated email address to create a Steam Web API key"
         if error in resp:

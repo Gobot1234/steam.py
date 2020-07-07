@@ -60,9 +60,7 @@ class Image:
 
     __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash")
 
-    def __init__(
-        self, fp: Union[io.IOBase, aiohttp.StreamReader, str], *, spoiler: bool = False
-    ):
+    def __init__(self, fp: Union[io.IOBase, aiohttp.StreamReader, str], *, spoiler: bool = False):
         self.fp = fp
         self.spoiler = spoiler
 
@@ -73,9 +71,7 @@ class Image:
         elif isinstance(fp, aiohttp.StreamReader):
             exc = fp.exception()
             if exc is not None:
-                raise ValueError(
-                    "aiohttp.StreamReader cannot be read due to an exception"
-                ) from exc
+                raise ValueError("aiohttp.StreamReader cannot be read due to an exception") from exc
             self.fp = fp
         else:
             self.fp = open(fp, "rb")
@@ -91,9 +87,7 @@ class Image:
         if self.type == "png":
             check = struct.unpack(">i", head[4:8])[0]
             if check != 0x0D0A1A0A:
-                raise ValueError(
-                    "Opened file's headers do not match a standard PNG's headers"
-                )
+                raise ValueError("Opened file's headers do not match a standard PNG's headers")
             width, height = struct.unpack(">ii", head[16:24])
         elif self.type == "gif":
             width, height = struct.unpack("<HH", head[6:10])

@@ -127,9 +127,7 @@ class Cog:
         def decorator(func: "EventType"):
             name_ = name or func.__name__
             if not asyncio.iscoroutinefunction(func):
-                raise TypeError(
-                    f"listeners must be coroutines, {name_} is {type(func).__name__}"
-                )
+                raise TypeError(f"listeners must be coroutines, {name_} is {type(func).__name__}")
 
             if name_ in cls.__listeners__:
                 cls.__listeners__[name_].append(func)
@@ -153,9 +151,7 @@ class Cog:
             The error that happened.
         """
         print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
-        traceback.print_exception(
-            type(error), error, error.__traceback__, file=sys.stderr
-        )
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     async def cog_check(self, ctx: "commands.Context"):
         """|coro|

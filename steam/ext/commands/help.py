@@ -91,17 +91,13 @@ class HelpCommand(Command):
             else:
                 message.append("--= Un-categorized commands =--")
             for command in commands:
-                message.append(
-                    f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}'
-                )
+                message.append(f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
     async def send_cog_help(self, cog: "Cog"):
         message = [f"--= {cog.qualified_name}'s commands =--"]
         for name, command in sorted(cog.__commands__.items()):
-            message.append(
-                f'{name}{f": {self._get_doc(command)}" if command.help else ""}'
-            )
+            message.append(f'{name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
     async def send_command_help(self, command: "Command"):

@@ -95,9 +95,7 @@ class Command:
                 if not type(alias) is str:
                     raise TypeError
         except TypeError:
-            raise TypeError(
-                "aliases of a command must be an iterable containing only strings."
-            )
+            raise TypeError("aliases of a command must be an iterable containing only strings.")
 
         self.description = inspect.cleandoc(kwargs.get("description", ""))
         self.hidden = kwargs.get("hidden", False)
@@ -150,17 +148,13 @@ class Command:
             try:
                 next(iterator)
             except StopIteration:
-                raise ClientException(
-                    f'Callback for {self.name} command is missing "self" parameter.'
-                )
+                raise ClientException(f'Callback for {self.name} command is missing "self" parameter.')
 
         # next we have the 'ctx' as the next parameter
         try:
             next(iterator)
         except StopIteration:
-            raise ClientException(
-                f'Callback for {self.name} command is missing "ctx" parameter.'
-            )
+            raise ClientException(f'Callback for {self.name} command is missing "ctx" parameter.')
         for name, param in iterator:
             if param.kind == param.POSITIONAL_OR_KEYWORD:
                 argument = shlex.get_token()
@@ -192,9 +186,7 @@ class Command:
 
                 kv_pairs = [arg.split("=") for arg in arguments]
                 kwargs[name] = {
-                    await self._convert(ctx, key_converter, key): await self._convert(
-                        ctx, value_converter, value
-                    )
+                    await self._convert(ctx, key_converter, key): await self._convert(ctx, value_converter, value)
                     for (key, value) in kv_pairs
                 }
                 break
@@ -217,41 +209,30 @@ class Command:
         if param_type.__name__ in dir(steam):  # find a converter
             converter = getattr(converters, f"{param_type.__name__}Converter", None)
             if converter is None:
-                raise NotImplementedError(
-                    f"{param_type.__name__} does not have an associated converter"
-                )
+                raise NotImplementedError(f"{param_type.__name__} does not have an associated converter")
             return converter
         return param_type
 
     async def _convert(
-        self,
-        ctx: "Context",
-        converter: Union[Type[converters.Converter], type],
-        argument: str,
+        self, ctx: "Context", converter: Union[Type[converters.Converter], type], argument: str,
     ):
         if isinstance(converter, converters.Converter):
             try:
                 return await converter.convert(ctx, argument)
             except Exception as exc:
-                raise BadArgument(
-                    f"{argument} failed to convert to type {converter.__name__ or str}"
-                ) from exc
+                raise BadArgument(f"{argument} failed to convert to type {converter.__name__ or str}") from exc
         if issubclass(converter, converters.Converter):
             try:
                 return await converter.convert(converter, ctx, argument)
             except Exception as exc:
-                raise BadArgument(
-                    f"{argument} failed to convert to type {converter.__name__ or str}"
-                ) from exc
+                raise BadArgument(f"{argument} failed to convert to type {converter.__name__ or str}") from exc
         else:
             if converter is bool:
                 return to_bool(argument)
             try:
                 return converter(argument)
             except TypeError as exc:
-                raise BadArgument(
-                    f"{argument} failed to convert to type {converter.__name__ or str}"
-                ) from exc
+                raise BadArgument(f"{argument} failed to convert to type {converter.__name__ or str}") from exc
 
     async def _get_default(self, ctx, param: inspect.Parameter):
         if param.default is param.empty:
@@ -269,9 +250,7 @@ class Command:
             cooldown(bucket)
 
 
-def command(
-    name: str = None, cls: Type[Command] = None, **attrs
-) -> Callable[..., Command]:
+def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..., Command]:
     r"""Register a coroutine as a :class:`~commands.Command`.
 
     Parameters

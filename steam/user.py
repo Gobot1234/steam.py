@@ -141,9 +141,7 @@ class User(BaseUser, Messageable):
     def _get_image_endpoint(self):
         return self.id64, self._state.http.send_user_image
 
-    async def send(
-        self, content: str = None, *, trade: "TradeOffer" = None, image: "Image" = None
-    ) -> None:
+    async def send(self, content: str = None, *, trade: "TradeOffer" = None, image: "Image" = None) -> None:
         """|coro|
         Send a message, trade or image to an :class:`User`.
 
@@ -323,6 +321,4 @@ class ClientUser(BaseUser):
         :exc:`HTTPException`
             Editing your profile failed.
         """
-        await self._state.http.edit_profile(
-            name, real_name, url, summary, country, state, city, avatar
-        )
+        await self._state.http.edit_profile(name, real_name, url, summary, country, state, city, avatar)

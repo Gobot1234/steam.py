@@ -69,8 +69,7 @@ __all__ = ("Bot",)
 
 StrOrIterStr = Union[str, Iterable[str]]
 CommandPrefixType = Union[
-    StrOrIterStr,
-    Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]],
+    StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]],
 ]
 
 
@@ -118,11 +117,7 @@ class Bot(Client):
     __extensions__: Dict[str, "ExtensionType"] = dict()
 
     def __init__(
-        self,
-        *,
-        command_prefix: CommandPrefixType,
-        help_command: HelpCommand = HelpCommand,
-        **options,
+        self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand, **options,
     ):
         self.command_prefix = command_prefix
         self.owner_id = utils.make_steam64(options.get("owner_id", 0))
@@ -287,9 +282,7 @@ class Bot(Client):
         name = name or func.__name__
 
         if not (asyncio.iscoroutinefunction(func) or type(func) is InjectedListener):
-            raise TypeError(
-                f"listeners must be coroutines, {name} is {type(func).__name__}"
-            )
+            raise TypeError(f"listeners must be coroutines, {name} is {type(func).__name__}")
 
         if name in self.__listeners__:
             self.__listeners__[name].append(func)
@@ -357,9 +350,7 @@ class Bot(Client):
         for alias in command.aliases:
             if alias in self.__commands__:
                 del self.__commands__[command.name]
-                raise ClientException(
-                    f"{alias} is already an existing command or alias."
-                )
+                raise ClientException(f"{alias} is already an existing command or alias.")
             self.__commands__[alias] = command
 
     def remove_command(self, command: "Command") -> None:
@@ -455,9 +446,7 @@ class Bot(Client):
             return
         self.dispatch("command_completion", ctx)
 
-    async def get_context(
-        self, message: "Message", *, cls: Type[Context] = Context
-    ) -> Context:
+    async def get_context(self, message: "Message", *, cls: Type[Context] = Context) -> Context:
         r"""|coro|
         Get context for a certain message.
 
@@ -485,14 +474,7 @@ class Bot(Client):
         lex.whitespace_split = True
         command_name = lex.get_token().strip()  # skip the command name
         command = self.__commands__.get(command_name)
-        return cls(
-            bot=self,
-            message=message,
-            shlex=lex,
-            command=command,
-            prefix=prefix,
-            invoked_with=command_name,
-        )
+        return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix, invoked_with=command_name,)
 
     async def get_prefix(self, message: "Message") -> Optional[str]:
         """|coro|
@@ -517,9 +499,7 @@ class Bot(Client):
             try:
                 prefixes = tuple(prefixes)
             except TypeError as exc:
-                raise TypeError(
-                    f"command_prefix must return an iterable not {type(prefixes)}"
-                ) from exc
+                raise TypeError(f"command_prefix must return an iterable not {type(prefixes)}") from exc
 
         for prefix in prefixes:
             if message.content.startswith(prefix):
@@ -596,9 +576,7 @@ class Bot(Client):
             return await ctx.cog.cog_command_error(ctx, error)
 
         print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
-        traceback.print_exception(
-            type(error), error, error.__traceback__, file=sys.stderr
-        )
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     async def on_command(self, ctx: "commands.Context"):
         """|coro|

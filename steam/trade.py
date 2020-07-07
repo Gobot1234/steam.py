@@ -95,11 +95,7 @@ class Asset:
         return f"<Asset {' '.join(resolved)}>"
 
     def __eq__(self, other):
-        return (
-            isinstance(other, Asset)
-            and self.instance_id == other.instance_id
-            and self.class_id == other.class_id
-        )
+        return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
     def to_dict(self) -> dict:
         return {
@@ -255,10 +251,7 @@ class Inventory:
             for asset in data["assets"]:
                 found = False
                 for item in data["descriptions"]:
-                    if (
-                        item["instanceid"] == asset["instanceid"]
-                        and item["classid"] == asset["classid"]
-                    ):
+                    if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                         item.update(asset)
                         self.items.append(Item(state=self._state, data=item))
                         found = True
@@ -275,9 +268,7 @@ class Inventory:
         :class:`~steam.Inventory`
             The refreshed inventory.
         """
-        data = await self._state.http.get_user_inventory(
-            self.owner.id64, self.game.app_id, self.game.context_id
-        )
+        data = await self._state.http.get_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
         self._update(data)
         return self
 
@@ -414,9 +405,7 @@ class TradeOffer:
         trade._has_been_sent = True
         trade._state = state
         trade._update(data)
-        trade.partner = await state.client.fetch_user(
-            data["accountid_other"]
-        ) or SteamID(
+        trade.partner = await state.client.fetch_user(data["accountid_other"]) or SteamID(
             data["accountid_other"]
         )  # the account is private :(
         return trade
@@ -434,13 +423,8 @@ class TradeOffer:
         self.expires = datetime.utcfromtimestamp(expires) if expires else None
         self.escrow = datetime.utcfromtimestamp(escrow) if escrow else None
         self.state = ETradeOfferState(data.get("trade_offer_state", 1))
-        self.items_to_send = [
-            Item(state=self._state, data=item) for item in data.get("items_to_give", [])
-        ]
-        self.items_to_receive = [
-            Item(state=self._state, data=item)
-            for item in data.get("items_to_receive", [])
-        ]
+        self.items_to_send = [Item(state=self._state, data=item) for item in data.get("items_to_give", [])]
+        self.items_to_receive = [Item(state=self._state, data=item) for item in data.get("items_to_receive", [])]
         self._is_our_offer = data.get("is_our_offer", False)
 
     def __eq__(self, other):
@@ -465,9 +449,7 @@ class TradeOffer:
         if self.is_gift():
             return  # no point trying to confirm it
         if not await self._state.get_and_confirm_confirmation(self.id):
-            raise ConfirmationError(
-                "No matching confirmation could be found for this trade"
-            )
+            raise ConfirmationError("No matching confirmation could be found for this trade")
         del self._state._confirmations[self.id]
 
     async def accept(self) -> None:
@@ -527,10 +509,7 @@ class TradeOffer:
         if self.state == ETradeOfferState.Canceled:
             raise ClientException("This trade has already been cancelled")
         if not self.is_gift():
-            raise ClientException(
-                "Offer wasn't created by the ClientUser and therefore cannot be"
-                " canceled"
-            )
+            raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
 
     async def counter(self, trade: "TradeOffer") -> None:
@@ -555,13 +534,7 @@ class TradeOffer:
         to_send = [item.to_dict() for item in trade.items_to_send]
         to_receive = [item.to_dict() for item in trade.items_to_receive]
         resp = await self._state.http.send_counter_trade_offer(
-            self.id,
-            self.partner.id64,
-            self.partner.id,
-            to_send,
-            to_receive,
-            trade.token,
-            trade.message,
+            self.id, self.partner.id64, self.partner.id, to_send, to_receive, trade.token, trade.message,
         )
         if resp.get("needs_mobile_confirmation", False):
             await self._state.get_and_confirm_confirmation(int(resp["tradeofferid"]))
@@ -575,9 +548,5 @@ class TradeOffer:
         return self._is_our_offer
 
     def _check_active(self) -> None:
-        if (
-            self.state
-            not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed)
-            or not self._has_been_sent
-        ):
+        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException("This trade is not active")

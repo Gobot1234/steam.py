@@ -148,9 +148,7 @@ class CMServerList(AsyncIterator):
         resp = resp["response"]
         if resp["result"] != EResult.OK:
             log.error(
-                "Fetching the CMList failed with "
-                f'Result: {EResult(resp["result"])} '
-                f'Message: {repr(resp["message"])}'
+                f'Fetching the CMList failed with Result: {EResult(resp["result"])} Message: {repr(resp["message"])}'
             )
             return False
 
@@ -190,9 +188,7 @@ class CMServerList(AsyncIterator):
             # by checking len and stuff
             start = time.perf_counter()
             try:
-                resp = await self._state.http._session.get(
-                    f"https://{host}/cmping/", timeout=5
-                )
+                resp = await self._state.http._session.get(f"https://{host}/cmping/", timeout=5)
                 if resp.status != 200:
                     self.mark_bad(host)
                 load = resp.headers["X-Steam-CMLoad"]
@@ -242,10 +238,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
     def run(self) -> None:
         while not self._stop_ev.wait(self.interval):
             if self._last_ack + self.heartbeat_timeout < time.perf_counter():
-                log.warning(
-                    f"Server {self.ws.cm} has stopped responding to the gateway."
-                    " Closing and restarting."
-                )
+                log.warning(f"Server {self.ws.cm} has stopped responding to the gateway. Closing and restarting.")
                 coro = self.ws.handle_close()
                 f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
 
@@ -274,11 +267,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                             msg = self.block_msg
                         else:
                             stack = traceback.format_stack(frame)
-                            msg = (
-                                f"{self.block_msg}\n"
-                                "Loop thread traceback (most recent call last):\n"
-                                f'{"".join(stack)}'
-                            )
+                            msg = f'{self.block_msg}\nLoop thread traceback (most recent call last):\n{"".join(stack)}'
                         log.warning(msg.format(total))
 
             except Exception:
@@ -315,10 +304,7 @@ class SteamWebSocket:
     )
 
     def __init__(
-        self,
-        socket: aiohttp.ClientWebSocketResponse,
-        *,
-        loop: asyncio.AbstractEventLoop,
+        self, socket: aiohttp.ClientWebSocketResponse, *, loop: asyncio.AbstractEventLoop,
     ):
         self.socket = socket
         self.loop = loop
@@ -332,9 +318,7 @@ class SteamWebSocket:
         self.thread_id = threading.get_ident()
 
         self.listeners: List[EventListener] = []
-        self._parsers: Dict[
-            EMsg, Callable[["ConnectionState", "MsgProto"], None]
-        ] = dict()
+        self._parsers: Dict[EMsg, Callable[["ConnectionState", "MsgProto"], None]] = dict()
 
         self.connected = False
         self.session_id = 0
@@ -351,20 +335,14 @@ class SteamWebSocket:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(
-        self, emsg: Union[EMsg, IntEnumValue], predicate: Callable[..., bool] = None
-    ) -> asyncio.Future:
+    def wait_for(self, emsg: Union[EMsg, IntEnumValue], predicate: Callable[..., bool] = None) -> asyncio.Future:
         future = self.loop.create_future()
-        entry = EventListener(
-            emsg=emsg, predicate=predicate or return_true, future=future
-        )
+        entry = EventListener(emsg=emsg, predicate=predicate or return_true, future=future)
         self.listeners.append(entry)
         return future
 
     @classmethod
-    async def from_client(
-        cls, client: "Client", cm: str = None, cms: CMServerList = None
-    ) -> "SteamWebSocket":
+    async def from_client(cls, client: "Client", cm: str = None, cms: CMServerList = None) -> "SteamWebSocket":
         connection = client._connection
         cm_list = cms or CMServerList(connection, cm)
         async for cm in cm_list:
@@ -390,9 +368,7 @@ class SteamWebSocket:
             ws.cm = cm
             ws.cm_list = cm_list
             ws.connected = True
-            await ws.send_as_proto(
-                payload
-            )  # send the identification message straight away
+            await ws.send_as_proto(payload)  # send the identification message straight away
             ws._dispatch("connect")
             return ws
 
@@ -424,9 +400,7 @@ class SteamWebSocket:
             return await self.handlers[emsg](msg)
 
         if not self.connected:
-            return log.debug(
-                f"Dropped unexpected message: {repr(emsg)} {repr(message)}"
-            )
+            return log.debug(f"Dropped unexpected message: {repr(emsg)} {repr(message)}")
         try:
             if utils.is_proto(emsg_value):
                 msg = MsgProto(emsg, message)
@@ -435,9 +409,7 @@ class SteamWebSocket:
             log.debug(f"Socket has received {repr(msg)} from the websocket.")
         except Exception as e:
             log.fatal(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
-            if (
-                emsg != EMsg.ServiceMethodResponse
-            ):  # the repr likely failed so just ignore it
+            if emsg != EMsg.ServiceMethodResponse:  # the repr likely failed so just ignore it
                 return log.exception(e)
 
         self._dispatch("socket_receive", msg)
@@ -513,9 +485,7 @@ class SteamWebSocket:
             log.debug("Heartbeat started.")
 
             await self.send_um("ChatRoom.GetMyChatRoomGroups#1_Request")
-            status = MsgProto(
-                EMsg.ClientChangeStatus, persona_state=EPersonaState.Online
-            )
+            status = MsgProto(EMsg.ClientChangeStatus, persona_state=EPersonaState.Online)
             await self.send_as_proto(status)
             # setting your status to offline will stop you receiving persona updates, don't ask why.
             await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
@@ -527,22 +497,13 @@ class SteamWebSocket:
     async def handle_multi(self, msg: MsgProto["CMsgMulti"]) -> None:
         log.debug("Received a multi, unpacking")
         if msg.body.size_unzipped:
-            log.debug(
-                f"Decompressing payload ({len(msg.body.message_body)} ->"
-                f" {msg.body.size_unzipped})"
-            )
+            log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
             # aiofiles is overrated :P
-            bytes_io = await self.loop.run_in_executor(
-                EXECUTOR, BytesIO, msg.body.message_body
-            )
-            gzipped = await self.loop.run_in_executor(
-                EXECUTOR, functools.partial(GzipFile, fileobj=bytes_io)
-            )
+            bytes_io = await self.loop.run_in_executor(EXECUTOR, BytesIO, msg.body.message_body)
+            gzipped = await self.loop.run_in_executor(EXECUTOR, functools.partial(GzipFile, fileobj=bytes_io))
             data = await self.loop.run_in_executor(EXECUTOR, gzipped.read)
             if len(data) != msg.body.size_unzipped:
-                return log.info(
-                    f"Unzipped size mismatch for multi payload {msg}, discarding"
-                )
+                return log.info(f"Unzipped size mismatch for multi payload {msg}, discarding")
         else:
             data = msg.body.message_body
 
@@ -553,19 +514,12 @@ class SteamWebSocket:
 
     async def send_um(self, name: str, **kwargs) -> int:
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
-        msg.header.job_id_source = self._current_job_id = (
-            self._current_job_id + 1
-        ) % 10000 or 1
+        msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
         return self._current_job_id
 
     async def change_presence(
-        self,
-        *,
-        games: List[dict],
-        state: EPersonaState,
-        ui_mode: "EUIMode",
-        force_kick: bool,
+        self, *, games: List[dict], state: EPersonaState, ui_mode: "EUIMode", force_kick: bool,
     ) -> None:
         if force_kick:
             kick = MsgProto(EMsg.ClientKickPlayingSession)

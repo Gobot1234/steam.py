@@ -30,9 +30,7 @@ from .models import Role
 
 if TYPE_CHECKING:
     from .abc import BaseUser
-    from .protobufs.steammessages_chat import (
-        CChatRoom_GetChatRoomGroupSummary_Response as GroupProto,
-    )
+    from .protobufs.steammessages_chat import CChatRoom_GetChatRoomGroupSummary_Response as GroupProto
     from .state import ConnectionState
     from .user import User
 
@@ -84,9 +82,7 @@ class Group:
 
     async def __ainit__(self):
         self.owner = await self._state.client.fetch_user(self.owner)
-        self.top_members: List["BaseUser"] = await self._state.client.fetch_users(
-            self.top_members
-        )
+        self.top_members: List["BaseUser"] = await self._state.client.fetch_users(self.top_members)
 
     def _from_proto(self, proto: "GroupProto"):
         self.id = int(proto.chat_group_id)
@@ -110,9 +106,7 @@ class Group:
         for channel in proto.chat_rooms:
             channel = GroupChannel(state=self._state, group=self, channel=channel)
             self.channels.append(channel)
-        self.default_channel = [
-            c for c in self.channels if c.id == int(proto.default_chat_id)
-        ][0]
+        self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
 
     def __repr__(self):
         attrs = ("name", "id", "owner")

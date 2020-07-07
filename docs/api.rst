@@ -126,18 +126,14 @@ Then some functions from discord.py
 .. code-block:: python3
 
     bff = steam.utils.get(client.users, name="Gobot1234")
-    trade = steam.utils.get(
-        client.trades, state=ETradeOfferState.Active, partner=ctx.author
-    )
+    trade = steam.utils.get(client.trades, state=ETradeOfferState.Active, partner=ctx.author)
     # multiple attributes are also accepted
 
 .. autofunction:: steam.utils.find
 
 .. code-block:: python3
 
-    first_active_offer = steam.utils.find(
-        lambda trade: trade.state == ETradeOfferState.Active, client.trades
-    )
+    first_active_offer = steam.utils.find(lambda trade: trade.state == ETradeOfferState.Active, client.trades)
     # how to get an object using a conditional
 
 Enumerations

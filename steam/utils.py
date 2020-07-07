@@ -120,11 +120,7 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
 
         # textual input e.g. [g:1:4]
         else:
-            result = (
-                steam2_to_tuple(value)
-                or steam3_to_tuple(value)
-                or invite_code_to_tuple(value)
-            )
+            result = steam2_to_tuple(value) or steam3_to_tuple(value) or invite_code_to_tuple(value)
 
             if result:
                 id, etype, universe, instance = result
@@ -171,9 +167,7 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EnumValue, EnumValue, int
     .. note::
         The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
     """
-    match = re.match(
-        r"STEAM_(?P<universe>\d+)" r":(?P<reminder>[0-1])" r":(?P<id>\d+)", value
-    )
+    match = re.match(r"STEAM_(?P<universe>\d+)" r":(?P<reminder>[0-1])" r":(?P<id>\d+)", value)
 
     if not match:
         return None
@@ -247,9 +241,7 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EnumValue, EnumValue,
         e.g. (account_id, type, universe, instance) or ``None``.
     """
     match = re.match(
-        rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))"
-        rf"|(?P<code2>[\-{_INVITE_VALID}]+)",
-        code,
+        rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))" rf"|(?P<code2>[\-{_INVITE_VALID}]+)", code,
     )
     if not match:
         return None
@@ -265,9 +257,7 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EnumValue, EnumValue,
         return steam_32, EType(1), EUniverse.Public, 1
 
 
-async def steam64_from_url(
-    url: str, session: aiohttp.ClientSession = None, timeout: float = 30
-) -> Optional[int]:
+async def steam64_from_url(url: str, session: aiohttp.ClientSession = None, timeout: float = 30) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or None
 
     .. note::
@@ -352,8 +342,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
         The found token or ``None`` if the URL doesn't match the regex.
     """
     search = re.search(
-        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+"
-        r"&token=(?P<token>[\w-]{7,})",
+        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+" r"&token=(?P<token>[\w-]{7,})",
         replace_steam_code(url),
     )
     if search:
@@ -427,9 +416,7 @@ def get(iterable: Iterable[T], **attrs) -> Optional[T]:
                 return elem
         return None
 
-    converted = [
-        (attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()
-    ]
+    converted = [(attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()]
 
     for elem in iterable:
         if _all(pred(elem) == value for pred, value in converted):
@@ -437,9 +424,7 @@ def get(iterable: Iterable[T], **attrs) -> Optional[T]:
     return None
 
 
-async def maybe_coroutine(
-    func: Callable[..., Union[Any, Awaitable]], *args, **kwargs
-) -> Any:
+async def maybe_coroutine(func: Callable[..., Union[Any, Awaitable]], *args, **kwargs) -> Any:
     value = func(*args, **kwargs)
     if isawaitable(value):
         return await value

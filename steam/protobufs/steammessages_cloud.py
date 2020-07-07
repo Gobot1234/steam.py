@@ -37,9 +37,7 @@ class CCloud_BeginHTTPUpload_Response(betterproto.Message):
     url_host: str = betterproto.string_field(3)
     url_path: str = betterproto.string_field(4)
     use_https: bool = betterproto.bool_field(5)
-    request_headers: List[
-        "CCloud_BeginHTTPUpload_ResponseHTTPHeaders"
-    ] = betterproto.message_field(6)
+    request_headers: List["CCloud_BeginHTTPUpload_ResponseHTTPHeaders"] = betterproto.message_field(6)
 
 
 @dataclass
@@ -170,9 +168,7 @@ class ClientCloudFileUploadBlockDetails(betterproto.Message):
     url_path: str = betterproto.string_field(2)
     use_https: bool = betterproto.bool_field(3)
     http_method: int = betterproto.int32_field(4)
-    request_headers: List[
-        "ClientCloudFileUploadBlockDetailsHTTPHeaders"
-    ] = betterproto.message_field(5)
+    request_headers: List["ClientCloudFileUploadBlockDetailsHTTPHeaders"] = betterproto.message_field(5)
     block_offset: int = betterproto.uint64_field(6)
     block_length: int = betterproto.uint32_field(7)
     explicit_body_data: bytes = betterproto.bytes_field(8)
@@ -188,9 +184,7 @@ class ClientCloudFileUploadBlockDetailsHTTPHeaders(betterproto.Message):
 @dataclass
 class CCloud_ClientBeginFileUpload_Response(betterproto.Message):
     encrypt_file: bool = betterproto.bool_field(1)
-    block_requests: List[
-        "ClientCloudFileUploadBlockDetails"
-    ] = betterproto.message_field(2)
+    block_requests: List["ClientCloudFileUploadBlockDetails"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -224,9 +218,7 @@ class CCloud_ClientFileDownload_Response(betterproto.Message):
     url_host: str = betterproto.string_field(7)
     url_path: str = betterproto.string_field(8)
     use_https: bool = betterproto.bool_field(9)
-    request_headers: List[
-        "CCloud_ClientFileDownload_ResponseHTTPHeaders"
-    ] = betterproto.message_field(10)
+    request_headers: List["CCloud_ClientFileDownload_ResponseHTTPHeaders"] = betterproto.message_field(10)
     encrypted: bool = betterproto.bool_field(11)
 
 

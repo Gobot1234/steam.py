@@ -154,9 +154,7 @@ class Clan(SteamID):
         self.url = f"{URL.COMMUNITY}/gid/{id}"
         self._state = state
 
-    async def __ainit__(
-        self, clan_proto: Union["ReceivedResponse", "FetchedResponse"]
-    ) -> None:
+    async def __ainit__(self, clan_proto: Union["ReceivedResponse", "FetchedResponse"]) -> None:
         resp = await self._state.request("GET", self.url)
         search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
         if search is None:
@@ -171,12 +169,8 @@ class Clan(SteamID):
         self.chat_id = proto.chat_group_id
 
         soup = BeautifulSoup(resp, "html.parser")
-        self.name = soup.find("title").text.replace(
-            "Steam Community :: Group :: ", "", 1
-        )
-        self.description = soup.find("meta", attrs={"property": "og:description"})[
-            "content"
-        ]
+        self.name = soup.find("title").text.replace("Steam Community :: Group :: ", "", 1)
+        self.description = soup.find("meta", attrs={"property": "og:description"})["content"]
         self.tagline = proto.chat_group_tagline or None
         self.icon_url = soup.find("link", attrs={"rel": "image_src"})["href"]
         stats = soup.find("div", attrs={"class": "grouppage_resp_stats"})
@@ -193,17 +187,11 @@ class Clan(SteamID):
 
         for count in stats.find_all("div", attrs={"class": "membercount"}):
             if "MEMBERS" in count.text:
-                self.member_count = int(
-                    count.text.split("MEMBERS")[0].strip().replace(",", "")
-                )
+                self.member_count = int(count.text.split("MEMBERS")[0].strip().replace(",", ""))
             if "IN-GAME" in count.text:
-                self.in_game_count = int(
-                    count.text.split("IN-GAME")[0].strip().replace(",", "")
-                )
+                self.in_game_count = int(count.text.split("IN-GAME")[0].strip().replace(",", ""))
             if "ONLINE" in count.text:
-                self.online_count = int(
-                    count.text.split("ONLINE")[0].strip().replace(",", "")
-                )
+                self.online_count = int(count.text.split("ONLINE")[0].strip().replace(",", ""))
         self.active_member_count = proto.active_member_count
         self.game = Game(proto.appid)
 
@@ -221,9 +209,7 @@ class Clan(SteamID):
                     mods.append(officer)
                     is_admins = False
                 try:
-                    account_id = fields.find_all(
-                        "div", attrs={"class": "playerAvatar"}
-                    )[idx]["data-miniprofile"]
+                    account_id = fields.find_all("div", attrs={"class": "playerAvatar"})[idx]["data-miniprofile"]
                 except IndexError:
                     break
                 else:
@@ -232,9 +218,7 @@ class Clan(SteamID):
                     else:
                         mods.append(account_id)
 
-        self.owner = await self._state.fetch_user(
-            utils.make_steam64(proto.accountid_owner)
-        )
+        self.owner = await self._state.fetch_user(utils.make_steam64(proto.accountid_owner))
         self.admins = await self._state.client.fetch_users(*admins)
         self.mods = await self._state.client.fetch_users(*mods)
         self.top_members = await self._state.client.fetch_users(proto.top_members)
@@ -243,9 +227,7 @@ class Clan(SteamID):
         for role in proto.role_actions:
             self.roles.append(Role(role))
         try:
-            self.default_role = [
-                r for r in self.roles if r.id == int(proto.default_role_id)
-            ][0]
+            self.default_role = [r for r in self.roles if r.id == int(proto.default_role_id)][0]
         except IndexError:
             self.default_role = None
 
@@ -265,9 +247,7 @@ class Clan(SteamID):
                 for key, value in channel.__dict__.items():
                     if value:
                         old_channel.__dict__[key] = value
-        self.default_channel = [
-            c for c in self.channels if c.id == int(proto.default_chat_id)
-        ][0]
+        self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
 
     def __repr__(self):
         attrs = ("name", "id", "chat_id", "type", "universe", "instance")
@@ -292,9 +272,7 @@ class Clan(SteamID):
             the rate limits on this endpoint.
         """
         ret = []
-        resp = await self._state.request(
-            "GET", f"{self.url}/members?p=1&content_only=true"
-        )
+        resp = await self._state.request("GET", f"{self.url}/members?p=1&content_only=true")
         soup = BeautifulSoup(resp, "html.parser")
         pages = int(soup.find_all("a", attrs={"class": "pagelink"}).pop().text)
 
@@ -338,9 +316,7 @@ class Clan(SteamID):
         user: :class:`~steam.User`
             The user to invite to the clan.
         """
-        await self._state.http.invite_user_to_clan(
-            user_id64=user.id64, clan_id=self.id64
-        )
+        await self._state.http.invite_user_to_clan(user_id64=user.id64, clan_id=self.id64)
 
     async def comment(self, content: str) -> Comment:
         """|coro|
@@ -360,19 +336,12 @@ class Clan(SteamID):
         id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
         timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
         comment = Comment(
-            state=self._state,
-            id=id,
-            owner=self,
-            timestamp=timestamp,
-            content=content,
-            author=self._state.client.user,
+            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user,
         )
         self._state.dispatch("comment", comment)
         return comment
 
-    def comments(
-        self, limit=None, before: datetime = None, after: datetime = None
-    ) -> CommentsIterator:
+    def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
         :class:`~steam.Clan`'s :class:`~steam.Comment` objects.
 
@@ -406,6 +375,4 @@ class Clan(SteamID):
         :class:`~steam.Comment`
             The comment with the comment information parsed.
         """
-        return CommentsIterator(
-            state=self._state, owner=self, limit=limit, before=before, after=after
-        )
+        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)

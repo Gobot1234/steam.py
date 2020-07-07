@@ -104,12 +104,7 @@ def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 class ClientEventTask(asyncio.Task):
     def __init__(
-        self,
-        original_coro: EventType,
-        event_name: str,
-        coro: Awaitable[None],
-        *,
-        loop: asyncio.AbstractEventLoop,
+        self, original_coro: EventType, event_name: str, coro: Awaitable[None], *, loop: asyncio.AbstractEventLoop,
     ):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
@@ -150,9 +145,7 @@ class Client:
         self.loop = loop or asyncio.get_event_loop()
 
         self.http = HTTPClient(loop=self.loop, client=self)
-        self._connection = ConnectionState(
-            loop=self.loop, client=self, http=self.http, **options
-        )
+        self._connection = ConnectionState(loop=self.loop, client=self, http=self.http, **options)
         self.ws: Optional[SteamWebSocket] = None
 
         self.username = None
@@ -240,9 +233,7 @@ class Client:
         log.debug(f"{coro.__name__} has successfully been registered as an event")
         return coro
 
-    async def _run_event(
-        self, coro: EventType, event_name: str, *args, **kwargs
-    ) -> None:
+    async def _run_event(self, coro: EventType, event_name: str, *args, **kwargs) -> None:
         try:
             await coro(*args, **kwargs)
         except asyncio.CancelledError:
@@ -253,14 +244,10 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(
-        self, coro: EventType, event_name: str, *args, **kwargs
-    ) -> ClientEventTask:
+    def _schedule_event(self, coro: EventType, event_name: str, *args, **kwargs) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
-        return ClientEventTask(
-            original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop
-        )
+        return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
 
     def dispatch(self, event: str, *args, **kwargs) -> None:
         method = f"on_{event}"
@@ -361,13 +348,7 @@ class Client:
         if not future.cancelled():
             return future.result()
 
-    async def login(
-        self,
-        username: str,
-        password: str,
-        api_key: str = None,
-        shared_secret: str = None,
-    ) -> None:
+    async def login(self, username: str, password: str, api_key: str = None, shared_secret: str = None,) -> None:
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
 
@@ -404,10 +385,7 @@ class Client:
         self.shared_secret = shared_secret
 
         await self.http.login(
-            username=username,
-            password=password,
-            api_key=api_key,
-            shared_secret=shared_secret,
+            username=username, password=password, api_key=api_key, shared_secret=shared_secret,
         )
 
     async def close(self) -> None:
@@ -458,20 +436,14 @@ class Client:
         self.identity_secret = identity_secret = kwargs.pop("identity_secret", None)
 
         if identity_secret is None:
-            log.info(
-                "Trades will not be automatically accepted when sent as no"
-                " identity_secret was passed."
-            )
+            log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
         if not (username or password):
             raise errors.LoginError("one or more required login detail is missing")
         if kwargs:
             raise TypeError(f"unexpected keyword argument(s) {list(kwargs.keys())}")
 
         await self.login(
-            username=username,
-            password=password,
-            api_key=api_key,
-            shared_secret=shared_secret,
+            username=username, password=password, api_key=api_key, shared_secret=shared_secret,
         )
         self.loop.create_task(self._connection.__ainit__())
         self._closed = False
@@ -480,9 +452,7 @@ class Client:
     async def _connect(self) -> None:
         resp = await self.http.request("GET", url=f"{URL.COMMUNITY}/chat/clientjstoken")
         if not resp["logged_in"]:  # we got logged out :(
-            await self.login(
-                self.username, self.password, self.api_key, self.shared_secret
-            )
+            await self.login(self.username, self.password, self.api_key, self.shared_secret)
             await self._connect()
         self.token = resp["token"]
         coro = SteamWebSocket.from_client(self, cms=self._cm_list)
@@ -586,9 +556,7 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        steam_id = await SteamID.from_url(
-            f"{URL.COMMUNITY}/id/{name}", self.http._session
-        )
+        steam_id = await SteamID.from_url(f"{URL.COMMUNITY}/id/{name}", self.http._session)
         if not steam_id:
             return None
         return await self.fetch_user(id=steam_id.id64)
@@ -690,19 +658,13 @@ class Client:
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        steam_id = await SteamID.from_url(
-            f"{URL.COMMUNITY}/clans/{name}", self.http._session
-        )
+        steam_id = await SteamID.from_url(f"{URL.COMMUNITY}/clans/{name}", self.http._session)
         if not steam_id:
             return None
         return await self._connection.fetch_clan(steam_id.id64)
 
     def trade_history(
-        self,
-        limit: Optional[int] = 100,
-        before: datetime = None,
-        after: datetime = None,
-        active_only: bool = False,
+        self, limit: Optional[int] = 100, before: datetime = None, after: datetime = None, active_only: bool = False,
     ) -> TradesIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
         :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
@@ -742,13 +704,7 @@ class Client:
         ---------
         :class:`~steam.TradeOffer`
         """
-        return TradesIterator(
-            state=self._connection,
-            limit=limit,
-            before=before,
-            after=after,
-            active_only=active_only,
-        )
+        return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only,)
 
     # misc
 
@@ -786,9 +742,7 @@ class Client:
         games = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games.append(game.to_dict())
-        await self.ws.change_presence(
-            games=games, state=state, ui_mode=ui_mode, force_kick=force_kick
-        )
+        await self.ws.change_presence(games=games, state=state, ui_mode=ui_mode, force_kick=force_kick)
 
     async def wait_until_ready(self) -> None:
         """|coro|
@@ -796,9 +750,7 @@ class Client:
         """
         await self._ready.wait()
 
-    def wait_for(
-        self, event: str, *, check: Callable[..., bool] = None, timeout: float = None
-    ) -> Awaitable[Any]:
+    def wait_for(self, event: str, *, check: Callable[..., bool] = None, timeout: float = None) -> Awaitable[Any]:
         """|coro|
         Waits for an event to be dispatched.
 
@@ -920,9 +872,7 @@ class Client:
             The key-word arguments associated with the event.
         """
         print(f"Ignoring exception in {event}", file=sys.stderr)
-        traceback.print_exception(
-            type(error), error, error.__traceback__, file=sys.stderr
-        )
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     async def on_message(self, message: "steam.Message"):
         """|coro|

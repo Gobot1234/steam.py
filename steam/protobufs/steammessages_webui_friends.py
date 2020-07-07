@@ -35,9 +35,7 @@ class CCommunity_GetAppRichPresenceLocalization_Request(betterproto.Message):
 @dataclass
 class CCommunity_GetAppRichPresenceLocalization_Response(betterproto.Message):
     appid: int = betterproto.int32_field(1)
-    token_lists: List[
-        "CCommunity_GetAppRichPresenceLocalization_Response_TokenList"
-    ] = betterproto.message_field(2)
+    token_lists: List["CCommunity_GetAppRichPresenceLocalization_Response_TokenList"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -49,9 +47,7 @@ class CCommunity_GetAppRichPresenceLocalization_Response_Token(betterproto.Messa
 @dataclass
 class CCommunity_GetAppRichPresenceLocalization_Response_TokenList(betterproto.Message):
     language: str = betterproto.string_field(1)
-    tokens: List[
-        "CCommunity_GetAppRichPresenceLocalization_Response_Token"
-    ] = betterproto.message_field(2)
+    tokens: List["CCommunity_GetAppRichPresenceLocalization_Response_Token"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -170,9 +166,7 @@ class CCommunity_PartnerEventsAppPriority(betterproto.Message):
 
 @dataclass
 class CCommunity_GetUserPartnerEventsAppPriorities_Response(betterproto.Message):
-    priorities: List["CCommunity_PartnerEventsAppPriority"] = betterproto.message_field(
-        1
-    )
+    priorities: List["CCommunity_PartnerEventsAppPriority"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -191,9 +185,7 @@ class CCommunity_PartnerEventsShowLessForApp_Response(betterproto.Message):
 
 
 @dataclass
-class CCommunity_MarkPartnerEventsForUser_Request_PartnerEventMarking(
-    betterproto.Message
-):
+class CCommunity_MarkPartnerEventsForUser_Request_PartnerEventMarking(betterproto.Message):
     clanid: int = betterproto.uint32_field(1)
     event_gid: float = betterproto.fixed64_field(2)
     display_location: int = betterproto.int32_field(3)
@@ -208,15 +200,11 @@ class CCommunity_MarkPartnerEventsForUser_Response(betterproto.Message):
 
 @dataclass
 class CCommunity_GetUserPartnerEventViewStatus_Response(betterproto.Message):
-    events: List[
-        "CCommunity_GetUserPartnerEventViewStatus_Response_PartnerEvent"
-    ] = betterproto.message_field(1)
+    events: List["CCommunity_GetUserPartnerEventViewStatus_Response_PartnerEvent"] = betterproto.message_field(1)
 
 
 @dataclass
-class CCommunity_GetUserPartnerEventViewStatus_Response_PartnerEvent(
-    betterproto.Message
-):
+class CCommunity_GetUserPartnerEventViewStatus_Response_PartnerEvent(betterproto.Message):
     event_gid: float = betterproto.fixed64_field(1)
     last_shown_time: int = betterproto.uint32_field(2)
     last_read_time: int = betterproto.uint32_field(3)
@@ -323,9 +311,7 @@ class CWebRTC_WebRTCUpdateRemoteDescription_Notification(betterproto.Message):
 
 
 @dataclass
-class CWebRTC_WebRTCUpdateRemoteDescription_Notification_CSSRCToAccountIDMapping(
-    betterproto.Message
-):
+class CWebRTC_WebRTCUpdateRemoteDescription_Notification_CSSRCToAccountIDMapping(betterproto.Message):
     ssrc: int = betterproto.uint32_field(1)
     accountid: int = betterproto.uint32_field(2)
 
@@ -424,9 +410,7 @@ class CVoiceChat_UserVoiceStatus_Notification(betterproto.Message):
 @dataclass
 class CVoiceChat_AllMembersStatus_Notification(betterproto.Message):
     voice_chatid: float = betterproto.fixed64_field(1)
-    users: List["CVoiceChat_UserVoiceStatus_Notification"] = betterproto.message_field(
-        2
-    )
+    users: List["CVoiceChat_UserVoiceStatus_Notification"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -520,9 +504,7 @@ class CSteamTV_SetBroadcastChannelImage_Response(betterproto.Message):
 
 @dataclass
 class CSteamTV_GetBroadcastChannelImages_Response(betterproto.Message):
-    images: List[
-        "CSteamTV_GetBroadcastChannelImages_Response_Images"
-    ] = betterproto.message_field(1)
+    images: List["CSteamTV_GetBroadcastChannelImages_Response_Images"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -534,9 +516,7 @@ class CSteamTV_GetBroadcastChannelImages_Response_Images(betterproto.Message):
 
 @dataclass
 class CSteamTV_GetBroadcastChannelLinks_Response(betterproto.Message):
-    links: List[
-        "CSteamTV_GetBroadcastChannelLinks_Response_Links"
-    ] = betterproto.message_field(1)
+    links: List["CSteamTV_GetBroadcastChannelLinks_Response_Links"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -659,15 +639,11 @@ class CSteamTV_GetChannels_Response(betterproto.Message):
 
 @dataclass
 class CSteamTV_GetBroadcastChannelBroadcasters_Response(betterproto.Message):
-    broadcasters: List[
-        "CSteamTV_GetBroadcastChannelBroadcasters_Response_Broadcaster"
-    ] = betterproto.message_field(1)
+    broadcasters: List["CSteamTV_GetBroadcastChannelBroadcasters_Response_Broadcaster"] = betterproto.message_field(1)
 
 
 @dataclass
-class CSteamTV_GetBroadcastChannelBroadcasters_Response_Broadcaster(
-    betterproto.Message
-):
+class CSteamTV_GetBroadcastChannelBroadcasters_Response_Broadcaster(betterproto.Message):
     steamid: float = betterproto.fixed64_field(1)
     name: str = betterproto.string_field(2)
     rtmp_token: str = betterproto.string_field(3)
@@ -833,12 +809,8 @@ class CSteamTV_HomePageContentRow(betterproto.Message):
     takeover: "CSteamTV_HomePageTemplate_Takeover" = betterproto.message_field(2)
     single_game: "CSteamTV_HomePageTemplate_SingleGame" = betterproto.message_field(3)
     game_list: "CSteamTV_HomePageTemplate_GameList" = betterproto.message_field(4)
-    quick_explore: "CSteamTV_HomePageTemplate_QuickExplore" = betterproto.message_field(
-        5
-    )
-    conveyor_belt: "CSteamTV_HomePageTemplate_ConveyorBelt" = betterproto.message_field(
-        6
-    )
+    quick_explore: "CSteamTV_HomePageTemplate_QuickExplore" = betterproto.message_field(5)
+    conveyor_belt: "CSteamTV_HomePageTemplate_ConveyorBelt" = betterproto.message_field(6)
     watch_party: "CSteamTV_HomePageTemplate_WatchParty" = betterproto.message_field(7)
     developer: "CSteamTV_HomePageTemplate_Developer" = betterproto.message_field(8)
     event: "CSteamTV_HomePageTemplate_Event" = betterproto.message_field(9)
@@ -940,9 +912,7 @@ class CClan_RespondToClanInvite_Response(betterproto.Message):
 
 @dataclass
 class CProductImpressionsFromClient_Notification(betterproto.Message):
-    impressions: List[
-        "CProductImpressionsFromClient_Notification_Impression"
-    ] = betterproto.message_field(1)
+    impressions: List["CProductImpressionsFromClient_Notification_Impression"] = betterproto.message_field(1)
 
 
 @dataclass

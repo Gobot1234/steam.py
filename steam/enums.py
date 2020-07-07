@@ -53,9 +53,7 @@ EnumValues = Union["EnumValue", "IntEnumValue"]
 
 
 def _is_descriptor(obj: Any) -> bool:
-    return (
-        hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
-    )
+    return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
 @dataclass()
@@ -170,9 +168,7 @@ class EnumMeta(type):
         return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
 
     def __reversed__(cls: T) -> Iterable[EnumValues]:
-        return (
-            cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_)
-        )
+        return (cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_))
 
     def __len__(cls: T):
         return len(cls._enum_member_names_)
@@ -204,9 +200,7 @@ class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates enum.Enum."""
 
     @classmethod
-    def try_value(
-        cls: T, value: Union["Enum", int, str]
-    ) -> Union[EnumValues, int, str]:
+    def try_value(cls: T, value: Union["Enum", int, str]) -> Union[EnumValues, int, str]:
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):

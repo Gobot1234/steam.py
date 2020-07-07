@@ -95,9 +95,7 @@ class CGameNotifications_EnumerateSessions_Response(betterproto.Message):
 
 @dataclass
 class CGameNotifications_GetSessionDetails_Request(betterproto.Message):
-    sessions: List[
-        "CGameNotifications_GetSessionDetails_RequestRequestedSession"
-    ] = betterproto.message_field(1)
+    sessions: List["CGameNotifications_GetSessionDetails_RequestRequestedSession"] = betterproto.message_field(1)
     appid: int = betterproto.uint32_field(2)
     language: str = betterproto.string_field(3)
 
@@ -121,9 +119,7 @@ class GameNotificationSettings(betterproto.Message):
 
 @dataclass
 class CGameNotifications_UpdateNotificationSettings_Request(betterproto.Message):
-    game_notification_settings: List[
-        "GameNotificationSettings"
-    ] = betterproto.message_field(1)
+    game_notification_settings: List["GameNotificationSettings"] = betterproto.message_field(1)
 
 
 @dataclass

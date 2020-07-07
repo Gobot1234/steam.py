@@ -333,9 +333,7 @@ class CMsgClientLBSGetLBEntries(betterproto.Message):
 class CMsgClientLBSGetLBEntriesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     leaderboard_entry_count: int = betterproto.int32_field(2)
-    entries: List["CMsgClientLBSGetLBEntriesResponseEntry"] = betterproto.message_field(
-        3
-    )
+    entries: List["CMsgClientLBSGetLBEntriesResponseEntry"] = betterproto.message_field(3)
 
 
 @dataclass
@@ -349,9 +347,7 @@ class CMsgClientLBSGetLBEntriesResponseEntry(betterproto.Message):
 
 @dataclass
 class CMsgClientAppMinutesPlayedData(betterproto.Message):
-    minutes_played: List[
-        "CMsgClientAppMinutesPlayedDataAppMinutesPlayedData"
-    ] = betterproto.message_field(1)
+    minutes_played: List["CMsgClientAppMinutesPlayedDataAppMinutesPlayedData"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -371,9 +367,7 @@ class CMsgClientIsLimitedAccount(betterproto.Message):
 
 @dataclass
 class CMsgClientRequestedClientStats(betterproto.Message):
-    stats_to_send: List[
-        "CMsgClientRequestedClientStatsStatsToSend"
-    ] = betterproto.message_field(1)
+    stats_to_send: List["CMsgClientRequestedClientStatsStatsToSend"] = betterproto.message_field(1)
 
 
 @dataclass
@@ -487,9 +481,7 @@ class CMsgClientMMSGetLobbyListFilter(betterproto.Message):
 class CMsgClientMMSGetLobbyListResponse(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     eresult: int = betterproto.int32_field(3)
-    lobbies: List["CMsgClientMMSGetLobbyListResponseLobby"] = betterproto.message_field(
-        4
-    )
+    lobbies: List["CMsgClientMMSGetLobbyListResponseLobby"] = betterproto.message_field(4)
 
 
 @dataclass
@@ -716,9 +708,7 @@ class CMsgClientConnectionStatsStats_VConn(betterproto.Message):
 
 @dataclass
 class CMsgClientServersAvailable(betterproto.Message):
-    server_types_available: List[
-        "CMsgClientServersAvailableServer_Types_Available"
-    ] = betterproto.message_field(1)
+    server_types_available: List["CMsgClientServersAvailableServer_Types_Available"] = betterproto.message_field(1)
     server_type_for_auth_services: int = betterproto.uint32_field(2)
 
 
@@ -743,9 +733,7 @@ class CMsgClientGetUserStatsResponse(betterproto.Message):
     crc_stats: int = betterproto.uint32_field(3)
     schema: bytes = betterproto.bytes_field(4)
     stats: List["CMsgClientGetUserStatsResponseStats"] = betterproto.message_field(5)
-    achievement_blocks: List[
-        "CMsgClientGetUserStatsResponseAchievement_Blocks"
-    ] = betterproto.message_field(6)
+    achievement_blocks: List["CMsgClientGetUserStatsResponseAchievement_Blocks"] = betterproto.message_field(6)
 
 
 @dataclass
@@ -798,9 +786,7 @@ class CMsgClientStatsUpdated(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     game_id: float = betterproto.fixed64_field(2)
     crc_stats: int = betterproto.uint32_field(3)
-    updated_stats: List[
-        "CMsgClientStatsUpdatedUpdated_Stats"
-    ] = betterproto.message_field(4)
+    updated_stats: List["CMsgClientStatsUpdatedUpdated_Stats"] = betterproto.message_field(4)
 
 
 @dataclass
@@ -813,9 +799,7 @@ class CMsgClientStatsUpdatedUpdated_Stats(betterproto.Message):
 class CMsgClientStoreUserStats(betterproto.Message):
     game_id: float = betterproto.fixed64_field(1)
     explicit_reset: bool = betterproto.bool_field(2)
-    stats_to_store: List[
-        "CMsgClientStoreUserStatsStats_To_Store"
-    ] = betterproto.message_field(3)
+    stats_to_store: List["CMsgClientStoreUserStatsStats_To_Store"] = betterproto.message_field(3)
 
 
 @dataclass
@@ -843,9 +827,7 @@ class CMsgClientGetClientDetailsResponse(betterproto.Message):
     ip_public: str = betterproto.string_field(4)
     ip_private: str = betterproto.string_field(5)
     bytes_available: int = betterproto.uint64_field(7)
-    games_running: List[
-        "CMsgClientGetClientDetailsResponseGame"
-    ] = betterproto.message_field(6)
+    games_running: List["CMsgClientGetClientDetailsResponseGame"] = betterproto.message_field(6)
 
 
 @dataclass
@@ -887,9 +869,7 @@ class CMsgClientGetClientAppListResponseApp(betterproto.Message):
     num_paused: int = betterproto.uint32_field(13)
     changing: bool = betterproto.bool_field(14)
     available_on_platform: bool = betterproto.bool_field(15)
-    dlcs: List["CMsgClientGetClientAppListResponseAppDLC"] = betterproto.message_field(
-        9
-    )
+    dlcs: List["CMsgClientGetClientAppListResponseAppDLC"] = betterproto.message_field(9)
 
 
 @dataclass
@@ -1020,9 +1000,7 @@ class CMsgClientUFSGetFileListForApp(betterproto.Message):
 
 @dataclass
 class CMsgClientUFSGetFileListForAppResponse(betterproto.Message):
-    files: List[
-        "CMsgClientUFSGetFileListForAppResponseFile"
-    ] = betterproto.message_field(1)
+    files: List["CMsgClientUFSGetFileListForAppResponseFile"] = betterproto.message_field(1)
     path_prefixes: List[str] = betterproto.string_field(2)
 
 
@@ -1138,9 +1116,7 @@ class CMsgClientPackageInfoRequest(betterproto.Message):
 
 @dataclass
 class CMsgClientPackageInfoResponse(betterproto.Message):
-    packages: List["CMsgClientPackageInfoResponsePackage"] = betterproto.message_field(
-        1
-    )
+    packages: List["CMsgClientPackageInfoResponsePackage"] = betterproto.message_field(1)
     packages_unknown: List[int] = betterproto.uint32_field(2)
     packages_pending: int = betterproto.uint32_field(3)
 
@@ -1167,12 +1143,8 @@ class CMsgClientPICSChangesSinceResponse(betterproto.Message):
     current_change_number: int = betterproto.uint32_field(1)
     since_change_number: int = betterproto.uint32_field(2)
     force_full_update: bool = betterproto.bool_field(3)
-    package_changes: List[
-        "CMsgClientPICSChangesSinceResponsePackageChange"
-    ] = betterproto.message_field(4)
-    app_changes: List[
-        "CMsgClientPICSChangesSinceResponseAppChange"
-    ] = betterproto.message_field(5)
+    package_changes: List["CMsgClientPICSChangesSinceResponsePackageChange"] = betterproto.message_field(4)
+    app_changes: List["CMsgClientPICSChangesSinceResponseAppChange"] = betterproto.message_field(5)
     force_full_app_update: bool = betterproto.bool_field(6)
     force_full_package_update: bool = betterproto.bool_field(7)
 
@@ -1193,9 +1165,7 @@ class CMsgClientPICSChangesSinceResponseAppChange(betterproto.Message):
 
 @dataclass
 class CMsgClientPICSProductInfoRequest(betterproto.Message):
-    packages: List[
-        "CMsgClientPICSProductInfoRequestPackageInfo"
-    ] = betterproto.message_field(1)
+    packages: List["CMsgClientPICSProductInfoRequestPackageInfo"] = betterproto.message_field(1)
     apps: List["CMsgClientPICSProductInfoRequestAppInfo"] = betterproto.message_field(2)
     meta_data_only: bool = betterproto.bool_field(3)
     num_prev_failed: int = betterproto.uint32_field(4)
@@ -1217,13 +1187,9 @@ class CMsgClientPICSProductInfoRequestPackageInfo(betterproto.Message):
 
 @dataclass
 class CMsgClientPICSProductInfoResponse(betterproto.Message):
-    apps: List["CMsgClientPICSProductInfoResponseAppInfo"] = betterproto.message_field(
-        1
-    )
+    apps: List["CMsgClientPICSProductInfoResponseAppInfo"] = betterproto.message_field(1)
     unknown_appids: List[int] = betterproto.uint32_field(2)
-    packages: List[
-        "CMsgClientPICSProductInfoResponsePackageInfo"
-    ] = betterproto.message_field(3)
+    packages: List["CMsgClientPICSProductInfoResponsePackageInfo"] = betterproto.message_field(3)
     unknown_packageids: List[int] = betterproto.uint32_field(4)
     meta_data_only: bool = betterproto.bool_field(5)
     response_pending: bool = betterproto.bool_field(6)
@@ -1260,13 +1226,9 @@ class CMsgClientPICSAccessTokenRequest(betterproto.Message):
 
 @dataclass
 class CMsgClientPICSAccessTokenResponse(betterproto.Message):
-    package_access_tokens: List[
-        "CMsgClientPICSAccessTokenResponsePackageToken"
-    ] = betterproto.message_field(1)
+    package_access_tokens: List["CMsgClientPICSAccessTokenResponsePackageToken"] = betterproto.message_field(1)
     package_denied_tokens: List[int] = betterproto.uint32_field(2)
-    app_access_tokens: List[
-        "CMsgClientPICSAccessTokenResponseAppToken"
-    ] = betterproto.message_field(3)
+    app_access_tokens: List["CMsgClientPICSAccessTokenResponseAppToken"] = betterproto.message_field(3)
     app_denied_tokens: List[int] = betterproto.uint32_field(4)
 
 
@@ -1344,9 +1306,7 @@ class CMsgClientAMGetClanOfficersResponse(betterproto.Message):
 @dataclass
 class CMsgClientAMGetPersonaNameHistory(betterproto.Message):
     id_count: int = betterproto.int32_field(1)
-    ids: List[
-        "CMsgClientAMGetPersonaNameHistoryIdInstance"
-    ] = betterproto.message_field(2)
+    ids: List["CMsgClientAMGetPersonaNameHistoryIdInstance"] = betterproto.message_field(2)
 
 
 @dataclass
@@ -1356,24 +1316,18 @@ class CMsgClientAMGetPersonaNameHistoryIdInstance(betterproto.Message):
 
 @dataclass
 class CMsgClientAMGetPersonaNameHistoryResponse(betterproto.Message):
-    responses: List[
-        "CMsgClientAMGetPersonaNameHistoryResponseNameTableInstance"
-    ] = betterproto.message_field(2)
+    responses: List["CMsgClientAMGetPersonaNameHistoryResponseNameTableInstance"] = betterproto.message_field(2)
 
 
 @dataclass
 class CMsgClientAMGetPersonaNameHistoryResponseNameTableInstance(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     steamid: float = betterproto.fixed64_field(2)
-    names: List[
-        "CMsgClientAMGetPersonaNameHistoryResponseNameTableInstanceNameInstance"
-    ] = betterproto.message_field(3)
+    names: List["CMsgClientAMGetPersonaNameHistoryResponseNameTableInstanceNameInstance"] = betterproto.message_field(3)
 
 
 @dataclass
-class CMsgClientAMGetPersonaNameHistoryResponseNameTableInstanceNameInstance(
-    betterproto.Message
-):
+class CMsgClientAMGetPersonaNameHistoryResponseNameTableInstanceNameInstance(betterproto.Message):
     name_since: float = betterproto.fixed32_field(1)
     name: str = betterproto.string_field(2)
 

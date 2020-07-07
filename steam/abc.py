@@ -283,9 +283,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(
-        cls, url: str, session: "ClientSession" = None, timeout: float = 30
-    ) -> Optional["SteamID"]:
+    async def from_url(cls, url: str, session: "ClientSession" = None, timeout: float = 30) -> Optional["SteamID"]:
         """Takes Steam community url and returns a SteamID instance or ``None``.
         See :func:`steam64_from_url` for details.
 
@@ -404,26 +402,16 @@ class BaseUser(SteamID):
         self.avatar_url = data.get("avatarfull") or self.avatar_url
         self.trade_url = f"{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}"
 
-        self.primary_clan = (
-            SteamID(data["primaryclanid"])
-            if "primaryclanid" in data
-            else None or self.primary_clan
-        )
+        self.primary_clan = SteamID(data["primaryclanid"]) if "primaryclanid" in data else None or self.primary_clan
         self.country = data.get("loccountrycode") or self.country
         self.created_at = (
-            datetime.utcfromtimestamp(data["timecreated"])
-            if "timecreated" in data
-            else None or self.created_at
+            datetime.utcfromtimestamp(data["timecreated"]) if "timecreated" in data else None or self.created_at
         )
         self.last_logoff = (
-            datetime.utcfromtimestamp(data["lastlogoff"])
-            if "lastlogoff" in data
-            else None or self.last_logoff
+            datetime.utcfromtimestamp(data["lastlogoff"]) if "lastlogoff" in data else None or self.last_logoff
         )
         self.last_logon = (
-            datetime.utcfromtimestamp(data["last_logon"])
-            if "last_logon" in data
-            else None or self.last_logon
+            datetime.utcfromtimestamp(data["last_logon"]) if "last_logon" in data else None or self.last_logon
         )
         self.last_seen_online = (
             datetime.utcfromtimestamp(data["last_seen_online"])
@@ -431,14 +419,10 @@ class BaseUser(SteamID):
             else None or self.last_seen_online
         )
         self.game = (
-            Game(title=data.get("gameextrainfo"), app_id=data["gameid"])
-            if "gameid" in data
-            else None or self.game
+            Game(title=data.get("gameextrainfo"), app_id=data["gameid"]) if "gameid" in data else None or self.game
         )
         self.state = EPersonaState(data.get("personastate", 0)) or self.state
-        self.flags = (
-            EPersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
-        )
+        self.flags = EPersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
 
     async def comment(self, content: str) -> Comment:
         """|coro|
@@ -458,12 +442,7 @@ class BaseUser(SteamID):
         id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
         timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
         comment = Comment(
-            state=self._state,
-            id=id,
-            owner=self,
-            timestamp=timestamp,
-            content=content,
-            author=self._state.client.user,
+            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user,
         )
         self._state.dispatch("comment", comment)
         return comment
@@ -487,9 +466,7 @@ class BaseUser(SteamID):
         :class:`Inventory`
             The user's inventory.
         """
-        resp = await self._state.http.get_user_inventory(
-            self.id64, game.app_id, game.context_id
-        )
+        resp = await self._state.http.get_user_inventory(self.id64, game.app_id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
     async def friends(self) -> List["User"]:
@@ -613,10 +590,7 @@ class BaseUser(SteamID):
         return bans.is_banned()
 
     def comments(
-        self,
-        limit: Optional[int] = None,
-        before: datetime = None,
-        after: datetime = None,
+        self, limit: Optional[int] = None, before: datetime = None, after: datetime = None,
     ) -> CommentsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
         :class:`~steam.User`'s :class:`~steam.Comment` objects.
@@ -651,9 +625,7 @@ class BaseUser(SteamID):
         :class:`~steam.Comment`
             The comment with the comment information parsed.
         """
-        return CommentsIterator(
-            state=self._state, owner=self, limit=limit, before=before, after=after
-        )
+        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
 _get_x_endpoint_return = Tuple[Tuple[int, ...], Callable[..., Awaitable[None]]]

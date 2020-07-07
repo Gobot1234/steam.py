@@ -96,9 +96,7 @@ log = logging.getLogger(__name__)
 class Registerer:
     __slots__ = ("func", "emsg")
 
-    def __init__(
-        self, func: Callable[["ConnectionState", "MsgProto"], None], emsg: EMsg
-    ):
+    def __init__(self, func: Callable[["ConnectionState", "MsgProto"], None], emsg: EMsg):
         self.func = func
         self.emsg = emsg
 
@@ -146,11 +144,7 @@ class ConnectionState:
     )
 
     def __init__(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        client: "Client",
-        http: "HTTPClient",
-        **kwargs,
+        self, loop: asyncio.AbstractEventLoop, client: "Client", http: "HTTPClient", **kwargs,
     ):
         self.loop = loop
         self.http = http
@@ -251,10 +245,7 @@ class ConnectionState:
         )
         try:
             msg: MsgProto["FetchGroupResponse"] = await asyncio.wait_for(
-                self.client.ws.wait_for(
-                    EMsg.ServiceMethodResponse,
-                    lambda m: int(m.header.job_id_target) == job_id,
-                ),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -287,10 +278,7 @@ class ConnectionState:
             log.info(f'Received trade #{data["tradeofferid"]}')
             trade = await TradeOffer._from_api(state=self, data=data)
             self._trades[trade.id] = trade
-            if trade.state not in (
-                ETradeOfferState.Active,
-                ETradeOfferState.ConfirmationNeed,
-            ):
+            if trade.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed,):
                 return trade
             if trade.is_our_offer():
                 self.dispatch("trade_send", trade)
@@ -300,9 +288,7 @@ class ConnectionState:
         else:
             if data["trade_offer_state"] != trade.state:
                 trade.state = ETradeOfferState(data["trade_offer_state"])
-                log.info(
-                    f"Trade #{trade.id} has updated its trade state to {trade.state}"
-                )
+                log.info(f"Trade #{trade.id} has updated its trade state to {trade.state}")
                 states = {
                     ETradeOfferState.Accepted: "accept",
                     ETradeOfferState.Countered: "counter",
@@ -320,23 +306,15 @@ class ConnectionState:
                     self._trades_to_watch.remove(trade.id)
         return trade
 
-    async def _process_trades(
-        self, trades: List[dict], descriptions: List[dict]
-    ) -> List[TradeOffer]:
+    async def _process_trades(self, trades: List[dict], descriptions: List[dict]) -> List[TradeOffer]:
         ret = []
         for trade in trades:
             for item in descriptions:
                 for asset in trade.get("items_to_receive", []):
-                    if (
-                        item["classid"] == asset["classid"]
-                        and item["instanceid"] == asset["instanceid"]
-                    ):
+                    if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
                         asset.update(item)
                 for asset in trade.get("items_to_give", []):
-                    if (
-                        item["classid"] == asset["classid"]
-                        and item["instanceid"] == asset["instanceid"]
-                    ):
+                    if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
                         asset.update(item)
             ret.append(await self._store_trade(trade))
         return ret
@@ -348,17 +326,9 @@ class ConnectionState:
         trades_received = trades.get("trade_offers_received", [])
         trades_sent = trades.get("trade_offers_sent", [])
 
-        new_received_trades = [
-            trade
-            for trade in trades_received
-            if trade not in self._trades_received_cache
-        ]
-        new_sent_trades = [
-            trade for trade in trades_sent if trade not in self._trades_sent_cache
-        ]
-        new_descriptions = [
-            item for item in descriptions if item not in self._descriptions_cache
-        ]
+        new_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
+        new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
+        new_descriptions = [item for item in descriptions if item not in self._descriptions_cache]
         await self._process_trades(new_received_trades, new_descriptions)
         await self._process_trades(new_sent_trades, new_descriptions)
         self._trades_received_cache = trades_received
@@ -368,14 +338,10 @@ class ConnectionState:
     async def _parse_comment(self) -> Optional["Comment"]:
         # this isn't very efficient but I'm not sure if it can be done better
         resp = await self.request("GET", f"{URL.COMMUNITY}/my/commentnotifications")
-        search = re.search(
-            r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp
-        )
+        search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         if search is None:
             return
-        steam_id = await SteamID.from_url(
-            f"{URL.COMMUNITY}{_URL(search.group(1)).path}", self.http._session
-        )
+        steam_id = await SteamID.from_url(f"{URL.COMMUNITY}{_URL(search.group(1)).path}", self.http._session)
         if steam_id is None:
             return
         if steam_id.type == EType.Clan:
@@ -409,9 +375,7 @@ class ConnectionState:
     async def _fetch_confirmations(self) -> Optional[dict]:
         params = self._create_confirmation_params("conf")
         headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
-        resp = await self.request(
-            "GET", f"{URL.COMMUNITY}/mobileconf/conf", params=params, headers=headers
-        )
+        resp = await self.request("GET", f"{URL.COMMUNITY}/mobileconf/conf", params=params, headers=headers)
 
         if "incorrect Steam Guard codes." in resp:
             raise InvalidCredentials("identity_secret is incorrect")
@@ -426,9 +390,7 @@ class ConnectionState:
             confid = confirmation["data-confid"]
             key = confirmation["data-key"]
             trade_id = int(confirmation.get("data-creator", 0))
-            self._confirmations[trade_id] = Confirmation(
-                self, id, confid, key, trade_id
-            )
+            self._confirmations[trade_id] = Confirmation(self, id, confid, key, trade_id)
         return self._confirmations
 
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:
@@ -436,9 +398,7 @@ class ConnectionState:
 
     async def get_and_confirm_confirmation(self, trade_id: int) -> bool:
         if self.client.identity_secret:
-            confirmation = self.get_confirmation(
-                trade_id
-            ) or await self.fetch_confirmation(trade_id)
+            confirmation = self.get_confirmation(trade_id) or await self.fetch_confirmation(trade_id)
             if confirmation is not None:
                 await confirmation.confirm()
                 return True
@@ -463,10 +423,7 @@ class ConnectionState:
         )
         try:
             msg = await asyncio.wait_for(
-                self.client.ws.wait_for(
-                    EMsg.ServiceMethodResponse,
-                    lambda m: int(m.header.job_id_target) == job_id,
-                ),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -477,10 +434,7 @@ class ConnectionState:
             raise WSException(msg)
 
         proto = UserMessageNotification(
-            steamid_friend=0.0,
-            chat_entry_type=1,
-            message=content,
-            rtime32_server_timestamp=time(),
+            steamid_friend=0.0, chat_entry_type=1, message=content, rtime32_server_timestamp=time(),
         )
         channel = DMChannel(state=self, participant=self.get_user(user_id64))
         message = UserMessage(proto=proto, channel=channel)
@@ -490,28 +444,18 @@ class ConnectionState:
 
     async def send_user_typing(self, user: "User") -> None:
         await self.client.ws.send_um(
-            "FriendMessages.SendMessage#1_Request",
-            steamid=str(user.id64),
-            chat_entry_type=EChatEntryType.Typing,
+            "FriendMessages.SendMessage#1_Request", steamid=str(user.id64), chat_entry_type=EChatEntryType.Typing,
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
 
-    async def send_group_message(
-        self, destination: Tuple[int, int], content: str
-    ) -> None:
+    async def send_group_message(self, destination: Tuple[int, int], content: str) -> None:
         chat_id, group_id = destination
         job_id = await self.client.ws.send_um(
-            "ChatRoom.SendChatMessage#1_Request",
-            chat_id=chat_id,
-            chat_group_id=group_id,
-            message=content,
+            "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content,
         )
         try:
             msg = await asyncio.wait_for(
-                self.client.ws.wait_for(
-                    EMsg.ServiceMethodResponse,
-                    lambda m: int(m.header.job_id_target) == job_id,
-                ),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -524,11 +468,7 @@ class ConnectionState:
             raise WSException(msg)
 
         proto = GroupMessageNotification(
-            chat_id=chat_id,
-            chat_group_id=group_id,
-            steamid_sender=0.0,
-            message=content,
-            timestamp=int(time()),
+            chat_id=chat_id, chat_group_id=group_id, steamid_sender=0.0, message=content, timestamp=int(time()),
         )
         endpoint = self._combined.get(group_id)
         if endpoint is None:
@@ -538,24 +478,17 @@ class ConnectionState:
             message = ClanMessage(proto=proto, channel=channel, author=self.client.user)
         else:
             channel = GroupChannel(state=self, channel=proto, group=endpoint)
-            message = GroupMessage(
-                proto=proto, channel=channel, author=self.client.user
-            )
+            message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
         self._messages.append(message)
         self.dispatch("message", message)
 
     async def join_chat(self, chat_id: int, invite_code: str = None) -> None:
         job_id = await self.client.ws.send_um(
-            "ChatRoom.JoinChatRoomGroup#1_Request",
-            chat_group_id=chat_id,
-            invite_code=invite_code or "",
+            "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or "",
         )
         try:
             msg = await asyncio.wait_for(
-                self.client.ws.wait_for(
-                    EMsg.ServiceMethodResponse,
-                    lambda m: int(m.header.job_id_target) == job_id,
-                ),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -566,15 +499,10 @@ class ConnectionState:
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
-        job_id = await self.client.ws.send_um(
-            "ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id
-        )
+        job_id = await self.client.ws.send_um("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
         try:
             msg = await asyncio.wait_for(
-                self.client.ws.wait_for(
-                    EMsg.ServiceMethodResponse,
-                    lambda m: int(m.header.job_id_target) == job_id,
-                ),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -621,10 +549,7 @@ class ConnectionState:
             self._messages.append(message)
             self.dispatch("message", message)
 
-        if (
-            msg.header.job_name_target
-            == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1"
-        ):  # group update
+        if msg.header.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
             msg: MsgProto["GroupStateUpdate"]
             destination = self._combined.get(int(msg.body.header_state.chat_group_id))
             if destination is None:
@@ -635,10 +560,7 @@ class ConnectionState:
             else:
                 destination._from_proto(msg.body.header_state)
 
-        if (
-            msg.header.job_name_target
-            == "ChatRoomClient.NotifyChatGroupUserStateChanged#1"
-        ):
+        if msg.header.job_name_target == "ChatRoomClient.NotifyChatGroupUserStateChanged#1":
             msg: MsgProto["GroupAction"]
             if msg.body.user_action == "Joined":  # join group
                 if msg.body.group_summary.clanid:
@@ -689,9 +611,7 @@ class ConnectionState:
         # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)
-    async def parse_persona_state_update(
-        self, msg: MsgProto["CMsgClientPersonaState"]
-    ) -> None:
+    async def parse_persona_state_update(self, msg: MsgProto["CMsgClientPersonaState"]) -> None:
         for friend in msg.body.friends:
             data = friend.to_dict(snakecase)
             if not data:
@@ -716,9 +636,7 @@ class ConnectionState:
             if old != new:
                 self.dispatch("user_update", before, after)
 
-    def patch_user_from_ws(
-        self, data: dict, friend: "CMsgClientPersonaStateFriend"
-    ) -> dict:
+    def patch_user_from_ws(self, data: dict, friend: "CMsgClientPersonaStateFriend") -> dict:
         data["personaname"] = friend.player_name
         hash = (
             friend.avatar_hash.hex()
@@ -726,8 +644,7 @@ class ConnectionState:
             else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
         )
         data["avatarfull"] = (
-            "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/"
-            f"{hash[:2]}/{hash}_full.jpg"
+            f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
         )
 
         if friend.last_logoff:
@@ -767,9 +684,7 @@ class ConnectionState:
                     self.invites.append(invitee)
                     self.dispatch("user_invite", invite)
                 if steam_id.type == EType.Clan:
-                    resp = await self.request(
-                        "GET", f"{URL.COMMUNITY}/my/groups/pending?ajax=1"
-                    )
+                    resp = await self.request("GET", f"{URL.COMMUNITY}/my/groups/pending?ajax=1")
                     soup = BeautifulSoup(resp, "html.parser")
                     elements = soup.find_all("a", attrs={"class": "linkStandard"})
                     invitee_id = 0
@@ -777,16 +692,8 @@ class ConnectionState:
                         if str(steam_id.id64) in str(element):
                             invitee_id = elements[idx + 1]["data-miniprofile"]
                             break
-                    invitee = (
-                        self.get_user(invitee_id)
-                        or await self.fetch_user(invitee_id)
-                        or SteamID(invitee_id)
-                    )
-                    clan = (
-                        self.get_clan(steam_id.id64)
-                        or await self.client.fetch_clan(steam_id.id64)
-                        or steam_id
-                    )
+                    invitee = self.get_user(invitee_id) or await self.fetch_user(invitee_id) or SteamID(invitee_id)
+                    clan = self.get_clan(steam_id.id64) or await self.client.fetch_clan(steam_id.id64) or steam_id
                     invite = ClanInvite(state=self, invitee=invitee, clan=clan)
                     self.dispatch("clan_invite", invite)
                     self.invites.append(clan)
@@ -809,9 +716,7 @@ class ConnectionState:
             """
 
     @register(EMsg.ClientCommentNotifications)
-    async def handle_comments(
-        self, msg: MsgProto["CMsgClientCommentNotifications"]
-    ) -> None:
+    async def handle_comments(self, msg: MsgProto["CMsgClientCommentNotifications"]) -> None:
         for _ in range(msg.body.count_new_comments):
             comment = await self._parse_comment()
             if comment is not None:
@@ -820,9 +725,7 @@ class ConnectionState:
         await self.http.clear_notifications()
 
     @register(EMsg.ClientUserNotifications)
-    async def parse_notification(
-        self, msg: MsgProto["CMsgClientUserNotifications"]
-    ) -> None:
+    async def parse_notification(self, msg: MsgProto["CMsgClientUserNotifications"]) -> None:
         for notification in msg.body.notifications:
             if notification.type == 1:  # received a trade offer
 
@@ -836,9 +739,7 @@ class ConnectionState:
 
                 if self._trades_task is None or self._trades_task.done():
                     await self._poll_trades()
-                    self._trades_task = self.loop.create_task(
-                        poll_trades()
-                    )  # watch trades for changes
+                    self._trades_task = self.loop.create_task(poll_trades())  # watch trades for changes
         if msg.body:
             await self.http.clear_notifications()
 

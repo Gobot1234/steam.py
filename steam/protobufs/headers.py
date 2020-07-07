@@ -209,10 +209,7 @@ class MsgHdrProtoBuf:
 
     def __bytes__(self):
         proto_data = bytes(self.body)
-        return (
-            struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data))
-            + proto_data
-        )
+        return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
 
     def parse(self, data: bytes) -> None:
         """Parse the header.
@@ -299,16 +296,10 @@ class GCMsgHdr:
         return f'<GCMsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
-        return struct.pack(
-            "<Hqq", self.header_version, self.target_job_id, self.source_job_id
-        )
+        return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
 
     def parse(self, data):
-        (
-            self.header_version,
-            self.target_job_id,
-            self.source_job_id,
-        ) = struct.unpack_from("<Hqq", data)
+        (self.header_version, self.target_job_id, self.source_job_id,) = struct.unpack_from("<Hqq", data)
 
 
 class GCMsgHdrProto:
@@ -332,9 +323,7 @@ class GCMsgHdrProto:
     def __bytes__(self):
         proto_data = bytes(self.body)
         self.header_length = len(proto_data)
-        return (
-            struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
-        )
+        return struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
 
     def parse(self, data):
         msg, self.header_length = struct.unpack_from("<Ii", data)
