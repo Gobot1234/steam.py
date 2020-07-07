@@ -30,10 +30,9 @@ py -m pip install -U steamio
 Or for the development version.
 
 ```sh
-# Linux/macOS
-python3 -m pip install -U git+https://github.com/Gobot1234/steam.py
-# Windows
-py -m pip install -U git+https://github.com/Gobot1234/steam.py
+git clone https://github.com/Gobot1234/steam.py
+cd steam.py
+python3 -m pip install -U .
 ```
 
 Quick Example
