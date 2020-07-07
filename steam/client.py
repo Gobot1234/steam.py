@@ -33,15 +33,7 @@ import signal
 import sys
 import traceback
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Callable,
-    List,
-    Optional,
-    Union
-)
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional, Union
 
 import aiohttp
 

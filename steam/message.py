@@ -32,10 +32,10 @@ if TYPE_CHECKING:
     from .abc import BaseUser
     from .channel import ClanChannel, DMChannel, GroupChannel
     from .protobufs.steammessages_chat import (
-        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification
+        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
     )
     from .protobufs.steammessages_friendmessages import (
-        CFriendMessages_IncomingMessage_Notification as UserMessageNotification
+        CFriendMessages_IncomingMessage_Notification as UserMessageNotification,
     )
 
 

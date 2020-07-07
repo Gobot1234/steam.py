@@ -29,16 +29,7 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 """
 import asyncio
 import inspect
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Type,
-    Union
-)
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Type, Union
 
 import steam
 

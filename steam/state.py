@@ -32,16 +32,7 @@ from collections import deque
 from copy import copy
 from datetime import datetime
 from time import time
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Union
-)
+from typing import TYPE_CHECKING, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
@@ -50,19 +41,13 @@ from yarl import URL as _URL
 from .abc import SteamID
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
-from .enums import (
-    EChatEntryType,
-    EFriendRelationship,
-    EResult,
-    ETradeOfferState,
-    EType
-)
+from .enums import EChatEntryType, EFriendRelationship, EResult, ETradeOfferState, EType
 from .errors import (
     AuthenticatorError,
     InvalidCredentials,
     WSException,
     WSForbidden,
-    WSNotFound
+    WSNotFound,
 )
 from .group import Group
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
@@ -73,10 +58,10 @@ from .models import URL
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_chat import (
     CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
-    CClanChatRooms_GetClanChatRoomInfo_Response as FetchGroupResponse
+    CClanChatRooms_GetClanChatRoomInfo_Response as FetchGroupResponse,
 )
 from .protobufs.steammessages_friendmessages import (
-    CFriendMessages_IncomingMessage_Notification as UserMessageNotification
+    CFriendMessages_IncomingMessage_Notification as UserMessageNotification,
 )
 from .trade import TradeOffer
 from .user import User
@@ -88,21 +73,21 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_chat import (
         CChatRoom_ChatRoomHeaderState_Notification as GroupStateUpdate,
         CChatRoom_GetMyChatRoomGroups_Response as MyChatRooms,
-        ChatRoomClient_NotifyChatGroupUserStateChanged_Notification as GroupAction
+        ChatRoomClient_NotifyChatGroupUserStateChanged_Notification as GroupAction,
     )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
     from .protobufs.steammessages_clientserver_2 import (
         CMsgClientCommentNotifications,
-        CMsgClientUserNotifications
+        CMsgClientUserNotifications,
     )
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientFriendsList,
         CMsgClientPersonaState,
-        CMsgClientPersonaStateFriend
+        CMsgClientPersonaStateFriend,
     )
     from .protobufs.steammessages_clientserver_login import (
         CMsgClientAccountInfo,
-        CMsgClientLoggedOff
+        CMsgClientLoggedOff,
     )
 
 log = logging.getLogger(__name__)

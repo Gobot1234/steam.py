@@ -35,7 +35,7 @@ from typing import (
     List,
     Optional,
     TypeVar,
-    Union
+    Union,
 )
 
 from bs4 import BeautifulSoup

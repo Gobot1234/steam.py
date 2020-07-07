@@ -46,7 +46,7 @@ from typing import (
     Mapping,
     Optional,
     Type,
-    Union
+    Union,
 )
 
 from ... import utils

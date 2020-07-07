@@ -49,7 +49,7 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
-    Union
+    Union,
 )
 
 import aiohttp
@@ -64,9 +64,7 @@ if TYPE_CHECKING:
     from .client import Client
     from .enums import EUIMode
     from .protobufs.steammessages_base import CMsgMulti
-    from .protobufs.steammessages_clientserver_login import (
-        CMsgClientLogonResponse
-    )
+    from .protobufs.steammessages_clientserver_login import CMsgClientLogonResponse
     from .state import ConnectionState
 
 

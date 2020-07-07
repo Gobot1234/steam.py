@@ -4,7 +4,7 @@ from . import (
     steammessages_clientserver,
     steammessages_clientserver_2,
     steammessages_clientserver_friends,
-    steammessages_clientserver_login
+    steammessages_clientserver_login,
 )
 from .emsg import *
 

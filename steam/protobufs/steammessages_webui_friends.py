@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from .steammessages_base import (
         CCDDBAppDetailCommon,
         CClanMatchEventByRange,
-        CMsgIPAddress
+        CMsgIPAddress,
     )
     from .steammessages_clientserver_friends import CMsgClientFriendsList
 

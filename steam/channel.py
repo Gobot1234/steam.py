@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_chat import (
         CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
         CChatRoomState,
-        CUserChatRoomState
+        CUserChatRoomState,
     )
     from .state import ConnectionState
     from .trade import TradeOffer

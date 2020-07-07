@@ -41,7 +41,7 @@ from .enums import (
     EPersonaStateFlag,
     EType,
     ETypeChar,
-    EUniverse
+    EUniverse,
 )
 from .errors import HTTPException
 from .game import Game

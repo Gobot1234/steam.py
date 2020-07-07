@@ -17,4 +17,4 @@ jobs:
       - name: Install dependencies
         run: pip install isort
       - name: Check formatting
-        run: isort . --multi-line=VERTICAL_HANGING_INDENT --combine-as --atomic --diff --include_trailing_comma=True --line_length=88
+        run: isort . --multi-line=VERTICAL_HANGING_INDENT --combine-as --atomic --diff --tc --line-length=88

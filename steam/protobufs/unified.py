@@ -7,7 +7,7 @@ from . import (
     steammessages_gameservers,
     steammessages_player,
     steammessages_twofactor,
-    steammessages_useraccount
+    steammessages_useraccount,
 )
 
 __all__ = ("UMS",)

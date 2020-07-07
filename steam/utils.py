@@ -29,16 +29,7 @@ import json
 import re
 from inspect import isawaitable
 from operator import attrgetter
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Iterable,
-    Optional,
-    T,
-    Tuple,
-    Union
-)
+from typing import Any, Awaitable, Callable, Iterable, Optional, T, Tuple, Union
 
 import aiohttp
 
