@@ -1,10 +1,9 @@
 import inspect as _inspect
 from typing import Any
 
-import sphinx.util.inspect as inspect
+from sphinx.util import inspect as inspect
 
 from steam import Enum
-
 
 # we can monkey patch in the enum checks to get them to be documented properly
 

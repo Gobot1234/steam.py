@@ -114,18 +114,21 @@ How can I wait for an event?
 
     @client.event
     async def on_message(message):
-        if message.content.startswith('?trade'):
+        if message.content.startswith("?trade"):
+
             def check(trade):
                 return trade.partner == message.author
 
-            await message.channel.send('Send me a trade!')
+            await message.channel.send("Send me a trade!")
             try:
-                offer = await bot.wait_for('trade_receive', timeout=60, check=check)
+                offer = await bot.wait_for("trade_receive", timeout=60, check=check)
             except asyncio.TimeoutError:
-                await message.channel.send('You took too long to send the offer')
+                await message.channel.send("You took too long to send the offer")
             else:
-                await message.channel.send(f'You were going to send {len(offer.items_to_receive)} items\n'
-                                           f'You were going to receive {len(offer.items_to_send)} items')
+                await message.channel.send(
+                    f"You were going to send {len(offer.items_to_receive)} items\n"
+                    f"You were going to receive {len(offer.items_to_send)} items"
+                )
                 await offer.decline()
 
 The final interaction will end up looking something like this:
@@ -164,12 +167,15 @@ method on the User that you want to send the offer to.
     their_inventory = await user.inventory(game)
 
     # we need to get the items to be included in the trade
-    keys = my_inventory.filter_items('Mann Co. Supply Crate Key', limit=3)
-    earbuds = their_inventory.get_item('Earbuds')
+    keys = my_inventory.filter_items("Mann Co. Supply Crate Key", limit=3)
+    earbuds = their_inventory.get_item("Earbuds")
 
     # finally construct the trade
-    trade = TradeOffer(items_to_send=keys, items_to_receive=[earbuds],
-                       message='This trade was made using steam.py')
+    trade = TradeOffer(
+        items_to_send=keys,
+        items_to_receive=[earbuds],
+        message="This trade was made using steam.py",
+    )
     await user.send(trade=trade)
     # you don't need to confirm the trade manually, the client will handle that for you
 
