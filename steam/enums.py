@@ -30,7 +30,7 @@ Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.p
 """
 
 from types import MappingProxyType
-from typing import Any, Dict, Iterable, List, Mapping, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Mapping, NamedTuple, NoReturn, Tuple, TypeVar, Union
 
 __all__ = (
     "Enum",
@@ -49,7 +49,7 @@ __all__ = (
     "EUIMode",
 )
 
-T = TypeVar("T", bound="Enum")
+T = TypeVar("T", bound="EnumMeta")
 EnumValues = Union["EnumValue", "IntEnumValue"]
 
 
@@ -57,54 +57,54 @@ def _is_descriptor(obj: Any) -> bool:
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
-@dataclass()
-class EnumValue:
+class BaseEnumValue(NamedTuple):  # need to support assignment to values
     name: str
     value: Any
 
+
+class EnumValue(BaseEnumValue):
     def __repr__(self: T):
         return f"<{self._actual_enum_cls_.__name__}.{self.name}: {repr(self.value)}>"
 
     def __str__(self: T):
         return f"{self._actual_enum_cls_.__name__}.{self.name}"
 
-    def __hash__(self):
+    def __hash__(self: T):
         return hash((self.name, self.value))
 
-    def __eq__(self, other: Any):
+    def __eq__(self: T, other: Any):
         if isinstance(other, self.__class__):
             return self.name == other.name and self.value == other.value
         return NotImplemented
 
-    def __ne__(self, other: Any):
+    def __ne__(self: T, other: Any):
         return not self == other
 
 
-@dataclass(repr=False)
 class IntEnumValue(EnumValue):
     value: int
 
-    def __hash__(self):
+    def __hash__(self: T):
         return super().__hash__()  # Guido mean
 
-    def __eq__(self, other: Any):
+    def __eq__(self: T, other: Any):
         if isinstance(other, int):
             return self.value == other
         return super().__eq__(other)
 
-    def __lt__(self, x: Any):
+    def __lt__(self: T, x: Any):
         return int(self) < int(x)
 
-    def __le__(self, x: Any):
+    def __le__(self: T, x: Any):
         return self < x or self == x
 
-    def __gt__(self, x: Any):
+    def __gt__(self: T, x: Any):
         return int(self) > int(x)
 
-    def __ge__(self, x: Any):
+    def __ge__(self: T, x: Any):
         return self > x or self == x
 
-    def __int__(self):
+    def __int__(self: T):
         if type(self.value) is IntEnumValue:  # return the most base value
             ret = int(self.value)
             while type(ret) is IntEnumValue:
@@ -114,7 +114,7 @@ class IntEnumValue(EnumValue):
 
 
 class EnumMeta(type):
-    def __new__(mcs: T, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]):
+    def __new__(mcs: T, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]) -> "Enum":
         value_mapping: Dict[Any, EnumValue] = {}
         member_mapping: Dict[str, EnumValue] = {}
         member_names: List[str] = []
@@ -177,10 +177,10 @@ class EnumMeta(type):
     def __getitem__(cls: T, key: Any) -> EnumValues:
         return cls._enum_member_map_[key]
 
-    def __setattr__(cls: T, name: str, value: Any) -> None:
+    def __setattr__(cls: T, name: str, value: Any) -> NoReturn:
         raise TypeError("Enums are immutable.")
 
-    def __delattr__(cls: T, attr: Any) -> None:
+    def __delattr__(cls: T, attr: Any) -> NoReturn:
         raise TypeError("Enums are immutable")
 
     def __instancecheck__(self, instance: Any):
