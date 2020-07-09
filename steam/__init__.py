@@ -5,7 +5,7 @@ steam.py
 ~~~~~~~~~~~~~
 A basic wrapper for the Steam API and its Community Managers.
 
-:copyright: (c) 2020 Gobot1234.
+:copyright: (c) 2020 James.
 :license: MIT, see LICENSE for more details.
 """
 

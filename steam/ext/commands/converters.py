@@ -23,6 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 from typing import TYPE_CHECKING
 
 from ... import utils
@@ -93,8 +94,8 @@ class Converter:
             await bot.edit(avatar=avatar)
         await ctx.send('👌')
 
-    # invoked as
-    # !set_avatar "my image url"
+        # invoked as
+        # !set_avatar "my image url"
     """
 
     async def convert(self, ctx: "commands.Context", argument: str):

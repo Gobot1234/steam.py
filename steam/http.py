@@ -23,6 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 import asyncio
 import json
 import logging
@@ -148,7 +149,7 @@ class HTTPClient:
                             raise errors.HTTPException(r, data)
                         if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
                             # time to fetch a new key
-                            self.api_key = kwargs["key"] = await self.get_api_key()
+                            self._client.api_key = self.api_key = kwargs["key"] = await self.get_api_key()
                             continue
                             # retry with our new key
 

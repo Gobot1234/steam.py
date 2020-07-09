@@ -23,10 +23,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from bs4 import BeautifulSoup
 
@@ -44,6 +45,7 @@ from .protobufs.steammessages_chat import (
 )
 
 if TYPE_CHECKING:
+    from .abc import BaseChannel
     from .state import ConnectionState
     from .user import User
 
@@ -120,8 +122,6 @@ class Clan(SteamID):
         The clan's default_channel.
     """
 
-    # TODO more docs
-
     __slots__ = (
         "url",
         "_state",
@@ -151,27 +151,31 @@ class Clan(SteamID):
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/clans.js
 
     def __init__(self, state: "ConnectionState", id: int):
+        self._BASE = 0
         self.url = f"{URL.COMMUNITY}/gid/{id}"
         self._state = state
+        self.name: Optional[str] = None
+        self.chat_id: Optional[int] = None
+        self.tagline: Optional[str] = None
+        self.game: Optional["Game"] = None
+        self.owner: Optional["User"] = None
+        self.active_member_count: Optional[int] = None
+        self.top_members: List["User"] = []
+        self.roles: List["Role"] = []
+        self.default_role: Optional["Role"] = None
+        self.channels: List["BaseChannel"] = []
+        self.default_channel: Optional["BaseChannel"] = None
 
-    async def __ainit__(self, clan_proto: Union["ReceivedResponse", "FetchedResponse"]) -> None:
+    async def __ainit__(self) -> None:
         resp = await self._state.request("GET", self.url)
         search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
         if search is None:
             return
         super().__init__(search.group(1))
 
-        if isinstance(clan_proto, ReceivedResponse):
-            proto = clan_proto.group_summary
-        else:
-            proto = clan_proto.chat_group_summary
-
-        self.chat_id = proto.chat_group_id
-
         soup = BeautifulSoup(resp, "html.parser")
         self.name = soup.find("title").text.replace("Steam Community :: Group :: ", "", 1)
         self.description = soup.find("meta", attrs={"property": "og:description"})["content"]
-        self.tagline = proto.chat_group_tagline or None
         self.icon_url = soup.find("link", attrs={"rel": "image_src"})["href"]
         stats = soup.find("div", attrs={"class": "grouppage_resp_stats"})
         for stat in stats.find_all("div", attrs={"class": "groupstat"}):
@@ -192,8 +196,6 @@ class Clan(SteamID):
                 self.in_game_count = int(count.text.split("IN-GAME")[0].strip().replace(",", ""))
             if "ONLINE" in count.text:
                 self.online_count = int(count.text.split("ONLINE")[0].strip().replace(",", ""))
-        self.active_member_count = proto.active_member_count
-        self.game = Game(proto.appid)
 
         admins = []
         mods = []
@@ -218,9 +220,28 @@ class Clan(SteamID):
                     else:
                         mods.append(account_id)
 
-        self.owner = await self._state.fetch_user(utils.make_steam64(proto.accountid_owner))
         self.admins = await self._state.client.fetch_users(*admins)
         self.mods = await self._state.client.fetch_users(*mods)
+
+    @classmethod
+    async def _from_proto(cls, state, clan_proto: Union["ReceivedResponse", "FetchedResponse"]) -> "Clan":
+        if isinstance(clan_proto, ReceivedResponse):
+            id = clan_proto.group_summary.clanid
+        else:
+            id = clan_proto.chat_group_summary.clanid
+        self = cls(state, id)
+        await self.__ainit__()
+        if isinstance(clan_proto, ReceivedResponse):
+            proto = clan_proto.group_summary
+        else:
+            proto = clan_proto.chat_group_summary
+
+        self.chat_id = proto.chat_group_id
+        self.tagline = proto.chat_group_tagline or None
+        self.active_member_count = proto.active_member_count
+        self.game = Game(proto.appid)
+
+        self.owner = await self._state.fetch_user(utils.make_steam64(proto.accountid_owner))
         self.top_members = await self._state.client.fetch_users(proto.top_members)
 
         self.roles = []
@@ -229,14 +250,14 @@ class Clan(SteamID):
         try:
             self.default_role = [r for r in self.roles if r.id == int(proto.default_role_id)][0]
         except IndexError:
-            self.default_role = None
+            pass
 
         self.channels = []
         self.default_channel = None
         if isinstance(clan_proto, ReceivedResponse):
             channels = clan_proto.user_chat_group_state.user_chat_room_state
         else:
-            return
+            return self
         for channel in channels:
             channel = ClanChannel(state=self._state, clan=self, channel=channel)
             if channel not in self.channels:
@@ -248,6 +269,7 @@ class Clan(SteamID):
                     if value:
                         old_channel.__dict__[key] = value
         self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
+        return self
 
     def __repr__(self):
         attrs = ("name", "id", "chat_id", "type", "universe", "instance")

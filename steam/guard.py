@@ -5,6 +5,7 @@ The MIT License (MIT)
 
 Copyright (c) 2016 Michał Bukowski gigibukson@gmail.com
 Copyright (c) 2017 Nate the great
+Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +27,7 @@ SOFTWARE.
 
 This contains a copy of
 https://github.com/bukson/steampy/blob/master/steampy/guard.py
-and
-https://github.com/Zwork101/steam-trade/blob/master/pytrade/confirmations.py
+and https://github.com/Zwork101/steam-trade/blob/master/pytrade/confirmations.py
 with extra doc-strings and performance improvements.
 """
 

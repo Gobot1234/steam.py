@@ -23,6 +23,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 import asyncio
 import gc
 import logging
@@ -42,13 +43,7 @@ from .abc import SteamID
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
 from .enums import EChatEntryType, EFriendRelationship, EResult, ETradeOfferState, EType
-from .errors import (
-    AuthenticatorError,
-    InvalidCredentials,
-    WSException,
-    WSForbidden,
-    WSNotFound,
-)
+from .errors import AuthenticatorError, InvalidCredentials, WSException, WSForbidden, WSNotFound
 from .group import Group
 from .guard import Confirmation, generate_confirmation_code, generate_device_id
 from .invite import ClanInvite, UserInvite
@@ -76,19 +71,13 @@ if TYPE_CHECKING:
         ChatRoomClient_NotifyChatGroupUserStateChanged_Notification as GroupAction,
     )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
-    from .protobufs.steammessages_clientserver_2 import (
-        CMsgClientCommentNotifications,
-        CMsgClientUserNotifications,
-    )
+    from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications, CMsgClientUserNotifications
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientFriendsList,
         CMsgClientPersonaState,
         CMsgClientPersonaStateFriend,
     )
-    from .protobufs.steammessages_clientserver_login import (
-        CMsgClientAccountInfo,
-        CMsgClientLoggedOff,
-    )
+    from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo, CMsgClientLoggedOff
 
 log = logging.getLogger(__name__)
 
@@ -255,9 +244,7 @@ class ConnectionState:
         if msg.header.eresult != EResult.OK:
             raise WSException(msg)
 
-        clan = Clan(self, int(msg.body.chat_group_summary.clanid))
-        await clan.__ainit__(msg.body)
-        return clan
+        return await Clan._from_proto(self, msg.body)
 
     def get_trade(self, id: int) -> Optional[TradeOffer]:
         return self._trades.get(id)
@@ -556,7 +543,7 @@ class ConnectionState:
                 return
 
             if isinstance(destination, Clan):
-                await destination.__ainit__(msg.body.header_state)
+                await destination._from_proto(self, msg.body.header_state)
             else:
                 destination._from_proto(msg.body.header_state)
 
@@ -564,8 +551,7 @@ class ConnectionState:
             msg: MsgProto["GroupAction"]
             if msg.body.user_action == "Joined":  # join group
                 if msg.body.group_summary.clanid:
-                    clan = Clan(state=self, id=msg.body.group_summary.clanid)
-                    await clan.__ainit__(msg.body.group_summary)
+                    clan = await Clan._from_proto(self, msg.body.group_summary)
                     self._clans[clan.id] = clan
                     self.dispatch("clan_join", clan)
                 else:
@@ -589,8 +575,7 @@ class ConnectionState:
             msg: MsgProto["MyChatRooms"]
             for group in msg.body.chat_room_groups:
                 if group.group_summary.clanid:  # received a clan
-                    clan = Clan(state=self, id=group.group_summary.clanid)
-                    await clan.__ainit__(group)
+                    clan = await Clan._from_proto(self, group)
                     self._clans[clan.id] = clan
                 else:  # else it's a group
                     group = Group(state=self, proto=group.group_summary)

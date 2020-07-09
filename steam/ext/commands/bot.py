@@ -27,6 +27,7 @@ SOFTWARE.
 Heavily inspired by
 https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/bot.py
 """
+
 import asyncio
 import importlib
 import inspect
@@ -35,19 +36,7 @@ import traceback
 from copy import copy
 from shlex import shlex as Shlex
 from types import MappingProxyType
-from typing import (
-    TYPE_CHECKING,
-    Awaitable,
-    Callable,
-    Collection,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Awaitable, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Type, Union
 
 from ... import utils
 from ...client import Client, EventType
