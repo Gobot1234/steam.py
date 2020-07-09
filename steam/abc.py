@@ -27,6 +27,7 @@ SOFTWARE.
 This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
+
 import abc
 import asyncio
 import re
@@ -39,11 +40,12 @@ from .enums import (
     EInstanceFlag,
     EPersonaState,
     EPersonaStateFlag,
+    EResult,
     EType,
     ETypeChar,
     EUniverse,
 )
-from .errors import HTTPException
+from .errors import WSException
 from .game import Game
 from .iterators import CommentsIterator
 from .models import URL, Ban
@@ -53,7 +55,6 @@ from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
-    from .clan import Clan
     from .group import Group
     from .image import Image
     from .state import ConnectionState
@@ -80,9 +81,6 @@ class SteamID(metaclass=abc.ABCMeta):
         return f"<SteamID {' '.join(resolved)}>"
 
     def __int__(self):
-        # I moved away from a direct implementation of this
-        # due to not being able to use __slots__ for an int subclass
-        # this is currently the best implementation I can think of
         return self._BASE
 
     def __bool__(self):
@@ -507,18 +505,19 @@ class BaseUser(SteamID):
         """
         clans = []
 
-        async def getter(gid: str):
+        async def getter(gid: int):
             try:
                 clan = await self._state.client.fetch_clan(gid)
-            except HTTPException:
-                await asyncio.sleep(20)
-                await getter(gid)
+            except WSException as exc:
+                if exc.code == (EResult.LimitExceeded, EResult.RateLimitExceeded):
+                    await asyncio.sleep(20)
+                    await getter(gid)
             else:
                 clans.append(clan)
 
         resp = await self._state.http.get_user_clans(self.id64)
         for clan in resp["response"]["groups"]:
-            await getter(clan["gid"])
+            await getter(int(clan["gid"]))
         return clans
 
     async def bans(self) -> Ban:
