@@ -36,15 +36,7 @@ from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, Tuple
 
 from .badge import UserBadges
 from .comment import Comment
-from .enums import (
-    EInstanceFlag,
-    EPersonaState,
-    EPersonaStateFlag,
-    EResult,
-    EType,
-    ETypeChar,
-    EUniverse,
-)
+from .enums import EInstanceFlag, EPersonaState, EPersonaStateFlag, EResult, EType, ETypeChar, EUniverse
 from .errors import WSException
 from .game import Game
 from .iterators import CommentsIterator
@@ -55,6 +47,7 @@ from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
+    from .clan import Clan
     from .group import Group
     from .image import Image
     from .state import ConnectionState
