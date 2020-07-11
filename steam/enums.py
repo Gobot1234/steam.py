@@ -50,7 +50,7 @@ __all__ = (
 )
 
 T = TypeVar("T", bound="EnumMeta")
-EnumValues = Union["EnumValue", "IntEnumMember"]
+EnumValues = Union["EnumMember", "IntEnumMember"]
 
 
 def _is_descriptor(obj: Any) -> bool:
@@ -338,7 +338,7 @@ class EType(IntEnum):
         return self.name
 
 
-'''class ETypeChar(IntEnum):
+class ETypeChar(IntEnum):
     I: IntEnumMember = EType.Invalid
     U: IntEnumMember = EType.Individual
     M: IntEnumMember = EType.Multiseat
@@ -354,8 +354,6 @@ class EType(IntEnum):
 
     def __str__(self):
         return self.name
-
-'''
 
 
 class EInstanceFlag(IntEnum):
