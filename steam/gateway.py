@@ -47,7 +47,7 @@ from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, Optional, Tu
 import aiohttp
 
 from . import utils
-from .enums import EPersonaState, EResult, IntEnumValue
+from .enums import EPersonaState, EResult
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .protobufs import EMsg, Msg, MsgProto
@@ -327,7 +327,7 @@ class SteamWebSocket:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: Union[EMsg, IntEnumValue], predicate: Callable[..., bool] = None) -> asyncio.Future:
+    def wait_for(self, emsg: EMsg, predicate: Callable[..., bool] = None) -> asyncio.Future:
         future = self.loop.create_future()
         entry = EventListener(emsg=emsg, predicate=predicate or return_true, future=future)
         self.listeners.append(entry)
