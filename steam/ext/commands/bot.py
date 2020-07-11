@@ -382,7 +382,8 @@ class Bot(Client):
         message: :class:`~steam.Message`
             The message that was received.
         """
-        await self.process_commands(message)
+        if message.author != self.user:
+            await self.process_commands(message)
 
     async def process_commands(self, message: "Message"):
         """|coro|
