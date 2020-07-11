@@ -76,9 +76,6 @@ class EnumMember:
     def __repr__(self):
         return f"<{self._actual_enum_cls_.__name__}.{self.name}: {self.value!r}>"
 
-    def __bool__(self):
-        return True
-
 
 class IntEnumMember(int, EnumMember):
     value: int
@@ -98,6 +95,9 @@ class IntEnumMember(int, EnumMember):
 
     def __repr__(self):
         return EnumMember.__repr__(self)
+
+    def __bool__(self):
+        return True
 
 
 class EnumMeta(type):
