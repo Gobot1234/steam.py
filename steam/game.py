@@ -24,14 +24,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-# TODO rename to activity for UI mode and Persona States
-
 __all__ = (
     "TF2",
     "Game",
     "CSGO",
     "DOTA2",
     "STEAM",
+    "CUSTOM_GAME",
 )
 
 APP_ID_MAX = 2 ** 32
@@ -181,3 +180,18 @@ TF2 = Game(title="Team Fortress 2", app_id=440)
 DOTA2 = Game(title="DOTA 2", app_id=570)
 CSGO = Game(title="Counter Strike Global-Offensive", app_id=730)
 STEAM = Game(title="Steam", app_id=753, context_id=6)
+
+
+def CUSTOM_GAME(title: str):
+    """Create a custom game instance
+    for :meth:`~steam.Client.change_presence`.
+
+    Examples: ::
+        await client.change_presence(game=steam.CUSTOM_GAME('my cool game'))
+
+    Parameters
+    ----------
+    title: :class:`str`
+        The name of the game to set your playing status to
+    """
+    return Game(title=title, app_id=15190414816125648896, context_id=0)
