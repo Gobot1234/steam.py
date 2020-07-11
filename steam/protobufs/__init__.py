@@ -6,12 +6,12 @@ MIT License
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
@@ -26,12 +26,13 @@ SOFTWARE.
 
 This is an updated version of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
+
 from dataclasses import dataclass
 from typing import Generic, Optional, Type, TypeVar, Union
 
 import betterproto
 
-from ..enums import EnumValue
+from ..enums import EnumMember
 from .emsg import *
 from .headers import *
 from .protobufs import *
@@ -80,7 +81,7 @@ def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
 class MsgBase(Generic[T]):
     __slots__ = ("header", "proto", "body", "payload", "skip")
 
-    def __init__(self, msg: Union[EMsg, IntEnumValue], data: bytes, parse: bool, **kwargs):
+    def __init__(self, msg: EMsg, data: bytes, parse: bool, **kwargs):
         self.msg = EMsg.try_value(msg)
         self.body: Optional[T] = None
         self.payload: Optional[bytes] = None
@@ -92,7 +93,7 @@ class MsgBase(Generic[T]):
             self.parse()
         if kwargs:
             for (key, value) in kwargs.items():
-                if isinstance(value, EnumValue):
+                if isinstance(value, EnumMember):
                     kwargs[key] = value.value
             self.body.from_dict(kwargs)
 
@@ -194,7 +195,7 @@ class Msg(MsgBase[T]):
     """
 
     def __init__(
-        self, msg: Union[EMsg, IntEnumValue], data: bytes = None, extended: bool = False, parse: bool = True, **kwargs,
+        self, msg: EMsg, data: bytes = None, extended: bool = False, parse: bool = True, **kwargs,
     ):
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.proto = False
@@ -258,7 +259,7 @@ class MsgProto(MsgBase[T]):
     __slots__ = ("um_name",)
 
     def __init__(
-        self, msg: Union[EMsg, EnumValue], data: bytes = None, parse: bool = True, um_name: str = None, **kwargs,
+        self, msg: EMsg, data: bytes = None, parse: bool = True, um_name: str = None, **kwargs,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size
