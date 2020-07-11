@@ -311,7 +311,7 @@ Users
 Data-Classes
 ---------------
 
-There are a few classes that can be constructed by the user, these include
+There are a few classes that can be constructed by the user, these include.
 
 Game
 ~~~~~~~~~~~~~~~
@@ -342,6 +342,9 @@ Games can be manually constructed using there app id eg:
     # a game title is not required for this
     # but it is for setting in game statuses
     # if the game isn't a Steam game.
+
+.. autofunction:: steam.CUSTOM_GAME
+
 
 Steam IDs
 ~~~~~~~~~~~~~~~
