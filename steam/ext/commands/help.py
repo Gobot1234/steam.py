@@ -69,7 +69,7 @@ class HelpCommand(Command):
             mapping = self.get_bot_mapping()
             return await self.send_help(mapping)
         # Check if it's a cog
-        cog = bot.get_cog(command)
+        cog = bot.get_cog(command.capitalize())
         if cog is not None:
             return await self.send_cog_help(cog)
         command_ = bot.get_command(command)
