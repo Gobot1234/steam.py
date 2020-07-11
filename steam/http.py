@@ -92,12 +92,14 @@ class HTTPClient:
         self.password = None
         self.api_key = None
         self.shared_secret = None
-        self._one_time_code = None
+        self._one_time_code = ""
+        self._captcha_id = "-1"
+        self._captcha_text = ""
+        self._steam_id = ""
 
         self.session_id = None
         self.user: Optional[ClientUser] = None
         self.logged_in = False
-        self._steam_id = None
         self.user_agent = (
             f"steam.py/{__version__} client (https://github.com/Gobot1234/steam.py), "
             f"Python/{version_info[0]}.{version_info[1]}, aiohttp/{aiohttp.__version__}"
@@ -124,12 +126,17 @@ class HTTPClient:
                     data = await json_or_text(r)
 
                     # the request was successful so just return the text/json
-                    if 300 > r.status >= 200:
+                    if 200 <= r.status < 300:
                         log.debug(f"{method} {url} has received {data}")
                         return data
 
+                    if 300 <= r.status <= 399 and "/login" in r.headers.get("location", ""):  # been logged out
+                        log.debug("Logged out of session re-logging in")
+                        await self.login(self.username, self.password, self.api_key, self.shared_secret)
+                        continue
+
                     # we are being rate limited
-                    if r.status == 429:
+                    elif r.status == 429:
                         # I haven't been able to get any X-Retry-After headers
                         # from the API but we should probably still handle it
                         try:
@@ -139,11 +146,11 @@ class HTTPClient:
                         continue
 
                     # we've received a 500 or 502, an unconditional retry
-                    if r.status in {500, 502}:
+                    elif r.status in {500, 502}:
                         await asyncio.sleep(1 + tries * 3)
                         continue
 
-                    if r.status == 401:
+                    elif r.status == 401:
                         # api key either got revoked or it was never valid
                         if not data:
                             raise errors.HTTPException(r, data)
@@ -154,9 +161,9 @@ class HTTPClient:
                             # retry with our new key
 
                     # the usual error cases
-                    if r.status == 403:
+                    elif r.status == 403:
                         raise errors.Forbidden(r, data)
-                    if r.status == 404:
+                    elif r.status == 404:
                         raise errors.NotFound(r, data)
                     else:
                         raise errors.HTTPException(r, data)
@@ -175,22 +182,26 @@ class HTTPClient:
 
         self._session = aiohttp.ClientSession()
 
-        login_response = await self._send_login_request()
+        resp = await self._send_login_request()
 
-        if "captcha_needed" in login_response:
-            raise errors.LoginError("A captcha code is required, please try again later")
-        if not login_response["success"]:
-            raise errors.InvalidCredentials(login_response["message"])
+        if "captcha_needed" in resp:
+            self._captcha_id = resp["captcha_gid"]
+            self._captcha_text = await utils.ainput(
+                "Please enter the captcha text at"
+                f" https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
+            )
+            await self.login(username, password, api_key, shared_secret)
+        if not resp["success"]:
+            raise errors.InvalidCredentials(resp["message"])
 
-        data = login_response.get("transfer_parameters")
+        data = resp.get("transfer_parameters")
         if data is None:
             raise errors.LoginError(
-                "Cannot perform redirects after login. The Steam API likely is down, please try again later."
+                "Cannot perform redirects after login. Steam is likely down, please try again later."
             )
 
-        for url in login_response["transfer_urls"]:
+        for url in resp["transfer_urls"]:
             await self.request("POST", url=url, data=data)
-        self.logged_in = True
 
         if api_key is None:
             self.api_key = self._client.api_key = await self.get_api_key()
@@ -199,11 +210,11 @@ class HTTPClient:
         cookies = self._session.cookie_jar.filter_cookies(_URL(URL.COMMUNITY))
         self.session_id = cookies["sessionid"].value
 
-        id64 = login_response["transfer_parameters"]["steamid"]
-        resp = await self.get_user(id64)
+        resp = await self.get_user(resp["transfer_parameters"]["steamid"])
         data = resp["response"]["players"][0]
         self.user = ClientUser(state=self._client._connection, data=data)
         self._client._connection._users[self.user.id64] = self.user
+        self.logged_in = True
         self._client.dispatch("login")
 
     async def logout(self) -> None:
@@ -213,7 +224,7 @@ class HTTPClient:
         self.logged_in = False
         self._client.dispatch("logout")
 
-    async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple[rsa.PublicKey, int]:
+    async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple[bytes, int]:
         payload = {"username": self.username, "donotcache": int(time() * 1000)}
         try:
             key_response = await self.request("POST", CRoute("/login/getrsakey"), data=payload)
@@ -226,34 +237,37 @@ class HTTPClient:
         except KeyError:
             if current_repetitions < 5:
                 return await self._get_rsa_params(current_repetitions + 1)
-            raise ValueError("could not obtain rsa-key")
+            raise ValueError("Could not obtain rsa-key")
         else:
-            return rsa.PublicKey(rsa_mod, rsa_exp), rsa_timestamp
+            return b64encode(rsa.encrypt(self.password.encode("utf-8"), rsa.PublicKey(rsa_mod, rsa_exp))), rsa_timestamp
 
     async def _send_login_request(self) -> dict:
-        rsa_key, timestamp = await self._get_rsa_params()
-        encrypted_password = b64encode(rsa.encrypt(self.password.encode("utf-8"), rsa_key))
+        password, timestamp = await self._get_rsa_params()
         payload = {
             "username": self.username,
-            "password": encrypted_password.decode(),
-            "emailauth": "",
-            "emailsteamid": "",
-            "twofactorcode": self._one_time_code or "",
-            "captchagid": "-1",
-            "captcha_text": "",
+            "password": password.decode(),
+            "emailauth": self._one_time_code,
+            "emailsteamid": self._steam_id,
+            "twofactorcode": self._one_time_code,
+            "captchagid": self._captcha_id,
+            "captcha_text": self._captcha_text,
             "loginfriendlyname": self.user_agent,
             "rsatimestamp": timestamp,
             "remember_login": True,
-            "donotcache": int(time() * 1000),
+            "donotcache": int(time() * 100000),
         }
         try:
-            login_response = await self.request("POST", CRoute("/login/dologin"), data=payload)
-            if login_response["requires_twofactor"]:
+            resp = await self.request("POST", CRoute("/login/dologin"), data=payload)
+            if resp.get("requires_twofactor") or resp.get("emailauth_needed"):
+                try:
+                    self._steam_id = resp["emailsteamid"]
+                except KeyError:
+                    pass
                 self._one_time_code = await self._client.code()
                 return await self._send_login_request()
-            return login_response
-        except Exception as e:
-            raise errors.LoginError from e
+            return resp
+        except Exception as exc:
+            raise errors.LoginError from exc
 
     def get_user(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamids": user_id64}
