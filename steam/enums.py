@@ -76,6 +76,9 @@ class EnumMember:
     def __repr__(self):
         return f"<{self._actual_enum_cls_.__name__}.{self.name}: {self.value!r}>"
 
+    def __bool__(self):
+        return True
+
 
 class IntEnumMember(int, EnumMember):
     value: int
@@ -493,6 +496,3 @@ class EUserBadge(IntEnum):
     Summer2019TeamPig: IntEnumMember                 = 42
     SteamAwards2019Nominations: IntEnumMember        = 43
     WinterSaleEvent2019: IntEnumMember               = 44
-
-
-print(repr(EInstanceFlag.Clan))
