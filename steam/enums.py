@@ -25,12 +25,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-EnumMeta and Enum from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
+EnumMeta from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
 Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
 from types import MappingProxyType
-from typing import Any, Dict, Iterable, List, Mapping, NamedTuple, NoReturn, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Tuple, TypeVar, Union
 
 __all__ = (
     "Enum",
@@ -50,81 +50,65 @@ __all__ = (
 )
 
 T = TypeVar("T", bound="EnumMeta")
-EnumValues = Union["EnumValue", "IntEnumValue"]
+EnumValues = Union["EnumValue", "IntEnumMember"]
 
 
 def _is_descriptor(obj: Any) -> bool:
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
-class BaseEnumValue(NamedTuple):  # need to support assignment to values
+class EnumMember:
     name: str
     value: Any
 
+    def __new__(cls, **kwargs) -> "EnumMember":
+        try:
+            cls.name = kwargs["name"]
+            cls.value = kwargs["value"]
+        except KeyError:
+            pass
+        finally:
+            return super().__new__(cls)
 
-class EnumValue(BaseEnumValue):
-    def __repr__(self: T):
-        return f"<{self._actual_enum_cls_.__name__}.{self.name}: {repr(self.value)}>"
-
-    def __str__(self: T):
+    def __str__(self):
         return f"{self._actual_enum_cls_.__name__}.{self.name}"
 
-    def __hash__(self: T):
-        return hash((self.name, self.value))
-
-    def __eq__(self: T, other: Any):
-        if isinstance(other, self.__class__):
-            return self.name == other.name and self.value == other.value
-        return NotImplemented
-
-    def __ne__(self: T, other: Any):
-        return not self == other
+    def __repr__(self):
+        return f"<{self._actual_enum_cls_.__name__}.{self.name}: {self.value!r}>"
 
 
-class IntEnumValue(EnumValue):
+class IntEnumMember(int, EnumMember):
     value: int
 
-    def __hash__(self: T):
-        return super().__hash__()  # Guido mean
+    def __new__(cls, **kwargs) -> "IntEnumMember":
+        try:
+            value = kwargs["value"]
+            self = super().__new__(cls, value)
+            self.name = kwargs["name"]
+            self.value = value
+            return self
+        except KeyError:
+            return super().__new__(cls)
 
-    def __eq__(self: T, other: Any):
-        if isinstance(other, int):
-            return self.value == other
-        return super().__eq__(other)
+    def __str__(self):
+        return EnumMember.__str__(self)
 
-    def __lt__(self: T, x: Any):
-        return int(self) < int(x)
-
-    def __le__(self: T, x: Any):
-        return self < x or self == x
-
-    def __gt__(self: T, x: Any):
-        return int(self) > int(x)
-
-    def __ge__(self: T, x: Any):
-        return self > x or self == x
-
-    def __int__(self: T):
-        if type(self.value) is IntEnumValue:  # return the most base value
-            ret = int(self.value)
-            while type(ret) is IntEnumValue:
-                ret = int(ret.value)
-            return ret
-        return self.value
+    def __repr__(self):
+        return EnumMember.__repr__(self)
 
 
 class EnumMeta(type):
     def __new__(mcs: T, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]) -> "Enum":
-        value_mapping: Dict[Any, EnumValue] = {}
-        member_mapping: Dict[str, EnumValue] = {}
+        value_mapping: Dict[Any, EnumMember] = {}
+        member_mapping: Dict[str, EnumMember] = {}
         member_names: List[str] = []
 
         try:
-            value_cls = IntEnumValue if IntEnum in bases else EnumValue
+            value_cls = IntEnumMember if IntEnum in bases else EnumMember
         except NameError:
-            value_cls = EnumValue
+            value_cls = EnumMember
 
-        for key, value in list(attrs.items()):
+        for key, value in tuple(attrs.items()):
             is_descriptor = _is_descriptor(value)
             if key[0] == "_" and not is_descriptor:
                 continue
@@ -208,168 +192,170 @@ class Enum(metaclass=EnumMeta):
             return value
 
 
-class IntEnum(int, Enum):
+class IntEnum(Enum):
     """An enumeration where all the values are integers, emulates enum.IntEnum."""
 
 
 # fmt: off
 
 class EResult(IntEnum):
-    Invalid: IntEnumValue                         = 0
-    OK: IntEnumValue                              = 1  #: Success
-    Fail: IntEnumValue                            = 2  #: Generic failure
-    NoConnection: IntEnumValue                    = 3  #: No/failed network connection
-    InvalidPassword: IntEnumValue                 = 5  #: Password/ticket is invalid
-    LoggedInElsewhere: IntEnumValue               = 6  #: Same user logged in elsewhere
-    InvalidProtocolVersion: IntEnumValue          = 7
-    InvalidParameter: IntEnumValue                = 8
-    FileNotFound: IntEnumValue                    = 9
-    Busy: IntEnumValue                            = 10  #: Called method busy - action not taken
-    InvalidState: IntEnumValue                    = 11  #: Called object was in an invalid state
-    InvalidName: IntEnumValue                     = 12
-    InvalidEmail: IntEnumValue                    = 13
-    DuplicateName: IntEnumValue                   = 14
-    AccessDenied: IntEnumValue                    = 15
-    Timeout: IntEnumValue                         = 16
-    Banned: IntEnumValue                          = 17  #: VAC2 banned
-    AccountNotFound: IntEnumValue                 = 18
-    InvalidSteamID: IntEnumValue                  = 19
-    ServiceUnavailable: IntEnumValue              = 20  #: The requested service is currently unavailable
-    NotLoggedOn: IntEnumValue                     = 21
-    Pending: IntEnumValue                         = 22  #: Request is pending (may be in process, or waiting on third party)
-    EncryptionFailure: IntEnumValue               = 23
-    InsufficientPrivilege: IntEnumValue           = 24
-    LimitExceeded: IntEnumValue                   = 25  #: Too much of a good thing
-    Revoked: IntEnumValue                         = 26  #: Access has been revoked (used for revoked guest passes)
-    Expired: IntEnumValue                         = 27  #: License/Guest pass the user is trying to access is expired
-    AlreadyRedeemed: IntEnumValue                 = 28  #: Guest pass has already been redeemed by account, cannot be acked again
-    DuplicateRequest: IntEnumValue                = 29
-    AlreadyOwned: IntEnumValue                    = 30  #: All the games in guest pass redemption request are already owned by the user
-    IPNotFound: IntEnumValue                      = 31
-    PersistFailed: IntEnumValue                   = 32  #: Failed to write change to the data store
-    LockingFailed: IntEnumValue                   = 33  #: Failed to acquire access lock for this operation
-    LogonSessionReplaced: IntEnumValue            = 34
-    ConnectFailed: IntEnumValue                   = 35
-    HandshakeFailed: IntEnumValue                 = 36
-    IOFailure: IntEnumValue                       = 37
-    RemoteDisconnect: IntEnumValue                = 38
-    ShoppingCartNotFound: IntEnumValue            = 39
-    Blocked: IntEnumValue                         = 40
-    Ignored: IntEnumValue                         = 41
-    NoMatch: IntEnumValue                         = 42
-    AccountDisabled: IntEnumValue                 = 43
-    ServiceReadOnly: IntEnumValue                 = 44
-    AccountNotFeatured: IntEnumValue              = 45  #: Account doesn't have value, so this feature isn't available
-    AdministratorOK: IntEnumValue                 = 46  #: Allowed to take this action, but only because requester is admin
-    ContentVersion: IntEnumValue                  = 47  #: A Version mismatch in content transmitted within the Steam protocol
-    TryAnotherCM: IntEnumValue                    = 48  #: The current CM can't service the user making a request, should try another
-    PasswordRequiredToKickSession: IntEnumValue   = 49  #: You are already logged in elsewhere, this cached credential login has failed
-    AlreadyLoggedInElsewhere: IntEnumValue        = 50  #: You are already logged in elsewhere, you must wait
-    Suspended: IntEnumValue                       = 51  #: Long running operation (content download) suspended/paused
-    Cancelled: IntEnumValue                       = 52  #: Operation canceled (typically by user content download)
-    DataCorruption: IntEnumValue                  = 53  #: Operation canceled because data is ill formed or unrecoverable
-    DiskFull: IntEnumValue                        = 54  #: Operation canceled - not enough disk space.
-    RemoteCallFailed: IntEnumValue                = 55  #: An remote call or IPC call failed
-    ExternalAccountUnlinked: IntEnumValue         = 57  #: External account (PSN, Facebook...) is not linked to a Steam account
-    PSNTicketInvalid: IntEnumValue                = 58  #: PSN ticket was invalid
-    ExternalAccountAlreadyLinked: IntEnumValue    = 59  #: External account (PSN, Facebook...) is already linked to some other account
-    RemoteFileConflict: IntEnumValue              = 60  #: The sync cannot resume due to a conflict between the local and remote files
-    IllegalPassword: IntEnumValue                 = 61  #: The requested new password is not legal
-    SameAsPreviousValue: IntEnumValue             = 62  #: New value is the same as the old one (secret question and answer)
-    AccountLogonDenied: IntEnumValue              = 63  #: Account login denied due to 2nd factor authentication failure
-    CannotUseOldPassword: IntEnumValue            = 64  #: The requested new password is not legal
-    InvalidLoginAuthCode: IntEnumValue            = 65  #: Account login denied due to auth code invalid
-    HardwareNotCapableOfIPT: IntEnumValue         = 67
-    IPTInitError: IntEnumValue                    = 68
-    ParentalControlRestricted: IntEnumValue       = 69  #: Operation failed due to parental control restrictions for current user
-    FacebookQueryError: IntEnumValue              = 70
-    ExpiredLoginAuthCode: IntEnumValue            = 71  #: Account login denied due to auth code expired
-    IPLoginRestrictionFailed: IntEnumValue        = 72
-    VerifiedEmailRequired: IntEnumValue           = 74
-    NoMatchingURL: IntEnumValue                   = 75
-    BadResponse: IntEnumValue                     = 76  #: Parse failure, missing field, etc.
-    RequirePasswordReEntry: IntEnumValue          = 77  #: The user cannot complete the action until they re-enter their password
-    ValueOutOfRange: IntEnumValue                 = 78  #: The value entered is outside the acceptable range
-    UnexpectedError: IntEnumValue                 = 79  #: Something happened that we didn't expect to ever happen
-    Disabled: IntEnumValue                        = 80  #: The requested service has been configured to be unavailable
-    InvalidCEGSubmission: IntEnumValue            = 81  #: The set of files submitted to the CEG server are not valid!
-    RestrictedDevice: IntEnumValue                = 82  #: The device being used is not allowed to perform this action
-    RegionLocked: IntEnumValue                    = 83  #: The action could not be complete because it is region restricted
-    RateLimitExceeded: IntEnumValue               = 84  #: Temporary rate limit exceeded. different from k_EResultLimitExceeded
-    LoginDeniedNeedTwoFactor: IntEnumValue        = 85  #: Need two-factor code to login
-    ItemDeleted: IntEnumValue                     = 86  #: The thing we're trying to access has been deleted
-    AccountLoginDeniedThrottle: IntEnumValue      = 87  #: Login attempt failed, try to throttle response to possible attacker
-    TwoFactorCodeMismatch: IntEnumValue           = 88  #: Two factor code mismatch
-    TwoFactorActivationCodeMismatch: IntEnumValue = 89  #: Activation code for two-factor didn't match
-    NotModified: IntEnumValue                     = 91  #: Data not modified
-    TimeNotSynced: IntEnumValue                   = 93  #: The time presented is out of range or tolerance
-    SMSCodeFailed: IntEnumValue                   = 94  #: SMS code failure (no match, none pending, etc.)
-    AccountActivityLimitExceeded: IntEnumValue    = 96  #: Too many changes to this account
-    PhoneActivityLimitExceeded: IntEnumValue      = 97  #: Too many changes to this phone
-    RefundToWallet: IntEnumValue                  = 98  #: Cannot refund to payment method, must use wallet
-    EmailSendFailure: IntEnumValue                = 99  #: Cannot send an email
-    NotSettled: IntEnumValue                      = 100  #: Can't perform operation till payment has settled
-    NeedCaptcha: IntEnumValue                     = 101  #: Needs to provide a valid captcha
-    GSLTDenied: IntEnumValue                      = 102  #: A game server login token owned by this token's owner has been banned
-    GSOwnerDenied: IntEnumValue                   = 103  #: Game server owner is denied for other reason
-    InvalidItemType: IntEnumValue                 = 104  #: The type of thing we were requested to act on is invalid
-    IPBanned: IntEnumValue                        = 105  #: The ip address has been banned from taking this action
-    GSLTExpired: IntEnumValue                     = 106  #: This token has expired from disuse; can be reset for use
-    InsufficientFunds: IntEnumValue               = 107  #: User doesn't have enough wallet funds to complete the action
-    TooManyPending: IntEnumValue                  = 108  #: There are too many of this thing pending already
-    NoSiteLicensesFound: IntEnumValue             = 109  #: No site licenses found
-    WGNetworkSendExceeded: IntEnumValue           = 110  #: The WG couldn't send a response because we exceeded max network send size
-    AccountNotFriends: IntEnumValue               = 111
-    LimitedUserAccount: IntEnumValue              = 112
-    CantRemoveItem: IntEnumValue                  = 113
+    Invalid: IntEnumMember                         = 0
+    OK: IntEnumMember                              = 1  #: Success
+    Fail: IntEnumMember                            = 2  #: Generic failure
+    NoConnection: IntEnumMember                    = 3  #: No/failed network connection
+    InvalidPassword: IntEnumMember                 = 5  #: Password/ticket is invalid
+    LoggedInElsewhere: IntEnumMember               = 6  #: Same user logged in elsewhere
+    InvalidProtocolVersion: IntEnumMember          = 7
+    InvalidParameter: IntEnumMember                = 8
+    FileNotFound: IntEnumMember                    = 9
+    Busy: IntEnumMember                            = 10  #: Called method busy - action not taken
+    InvalidState: IntEnumMember                    = 11  #: Called object was in an invalid state
+    InvalidName: IntEnumMember                     = 12
+    InvalidEmail: IntEnumMember                    = 13
+    DuplicateName: IntEnumMember                   = 14
+    AccessDenied: IntEnumMember                    = 15
+    Timeout: IntEnumMember                         = 16
+    Banned: IntEnumMember                          = 17  #: VAC2 banned
+    AccountNotFound: IntEnumMember                 = 18
+    InvalidSteamID: IntEnumMember                  = 19
+    ServiceUnavailable: IntEnumMember              = 20  #: The requested service is currently unavailable
+    NotLoggedOn: IntEnumMember                     = 21
+    Pending: IntEnumMember                         = 22  #: Request is pending (may be in process, or waiting on third party)
+    EncryptionFailure: IntEnumMember               = 23
+    InsufficientPrivilege: IntEnumMember           = 24
+    LimitExceeded: IntEnumMember                   = 25  #: Too much of a good thing
+    Revoked: IntEnumMember                         = 26  #: Access has been revoked (used for revoked guest passes)
+    Expired: IntEnumMember                         = 27  #: License/Guest pass the user is trying to access is expired
+    AlreadyRedeemed: IntEnumMember                 = 28  #: Guest pass has already been redeemed by account, cannot be acked again
+    DuplicateRequest: IntEnumMember                = 29
+    AlreadyOwned: IntEnumMember                    = 30  #: All the games in guest pass redemption request are already owned by the user
+    IPNotFound: IntEnumMember                      = 31
+    PersistFailed: IntEnumMember                   = 32  #: Failed to write change to the data store
+    LockingFailed: IntEnumMember                   = 33  #: Failed to acquire access lock for this operation
+    LogonSessionReplaced: IntEnumMember            = 34
+    ConnectFailed: IntEnumMember                   = 35
+    HandshakeFailed: IntEnumMember                 = 36
+    IOFailure: IntEnumMember                       = 37
+    RemoteDisconnect: IntEnumMember                = 38
+    ShoppingCartNotFound: IntEnumMember            = 39
+    Blocked: IntEnumMember                         = 40
+    Ignored: IntEnumMember                         = 41
+    NoMatch: IntEnumMember                         = 42
+    AccountDisabled: IntEnumMember                 = 43
+    ServiceReadOnly: IntEnumMember                 = 44
+    AccountNotFeatured: IntEnumMember              = 45  #: Account doesn't have value, so this feature isn't available
+    AdministratorOK: IntEnumMember                 = 46  #: Allowed to take this action, but only because requester is admin
+    ContentVersion: IntEnumMember                  = 47  #: A Version mismatch in content transmitted within the Steam protocol
+    TryAnotherCM: IntEnumMember                    = 48  #: The current CM can't service the user making a request, should try another
+    PasswordRequiredToKickSession: IntEnumMember   = 49  #: You are already logged in elsewhere, this cached credential login has failed
+    AlreadyLoggedInElsewhere: IntEnumMember        = 50  #: You are already logged in elsewhere, you must wait
+    Suspended: IntEnumMember                       = 51  #: Long running operation (content download) suspended/paused
+    Cancelled: IntEnumMember                       = 52  #: Operation canceled (typically by user content download)
+    DataCorruption: IntEnumMember                  = 53  #: Operation canceled because data is ill formed or unrecoverable
+    DiskFull: IntEnumMember                        = 54  #: Operation canceled - not enough disk space.
+    RemoteCallFailed: IntEnumMember                = 55  #: An remote call or IPC call failed
+    ExternalAccountUnlinked: IntEnumMember         = 57  #: External account (PSN, Facebook...) is not linked to a Steam account
+    PSNTicketInvalid: IntEnumMember                = 58  #: PSN ticket was invalid
+    ExternalAccountAlreadyLinked: IntEnumMember    = 59  #: External account (PSN, Facebook...) is already linked to some other account
+    RemoteFileConflict: IntEnumMember              = 60  #: The sync cannot resume due to a conflict between the local and remote files
+    IllegalPassword: IntEnumMember                 = 61  #: The requested new password is not legal
+    SameAsPreviousValue: IntEnumMember             = 62  #: New value is the same as the old one (secret question and answer)
+    AccountLogonDenied: IntEnumMember              = 63  #: Account login denied due to 2nd factor authentication failure
+    CannotUseOldPassword: IntEnumMember            = 64  #: The requested new password is not legal
+    InvalidLoginAuthCode: IntEnumMember            = 65  #: Account login denied due to auth code invalid
+    HardwareNotCapableOfIPT: IntEnumMember         = 67
+    IPTInitError: IntEnumMember                    = 68
+    ParentalControlRestricted: IntEnumMember       = 69  #: Operation failed due to parental control restrictions for current user
+    FacebookQueryError: IntEnumMember              = 70
+    ExpiredLoginAuthCode: IntEnumMember            = 71  #: Account login denied due to auth code expired
+    IPLoginRestrictionFailed: IntEnumMember        = 72
+    VerifiedEmailRequired: IntEnumMember           = 74
+    NoMatchingURL: IntEnumMember                   = 75
+    BadResponse: IntEnumMember                     = 76  #: Parse failure, missing field, etc.
+    RequirePasswordReEntry: IntEnumMember          = 77  #: The user cannot complete the action until they re-enter their password
+    ValueOutOfRange: IntEnumMember                 = 78  #: The value entered is outside the acceptable range
+    UnexpectedError: IntEnumMember                 = 79  #: Something happened that we didn't expect to ever happen
+    Disabled: IntEnumMember                        = 80  #: The requested service has been configured to be unavailable
+    InvalidCEGSubmission: IntEnumMember            = 81  #: The set of files submitted to the CEG server are not valid!
+    RestrictedDevice: IntEnumMember                = 82  #: The device being used is not allowed to perform this action
+    RegionLocked: IntEnumMember                    = 83  #: The action could not be complete because it is region restricted
+    RateLimitExceeded: IntEnumMember               = 84  #: Temporary rate limit exceeded. different from k_EResultLimitExceeded
+    LoginDeniedNeedTwoFactor: IntEnumMember        = 85  #: Need two-factor code to login
+    ItemDeleted: IntEnumMember                     = 86  #: The thing we're trying to access has been deleted
+    AccountLoginDeniedThrottle: IntEnumMember      = 87  #: Login attempt failed, try to throttle response to possible attacker
+    TwoFactorCodeMismatch: IntEnumMember           = 88  #: Two factor code mismatch
+    TwoFactorActivationCodeMismatch: IntEnumMember = 89  #: Activation code for two-factor didn't match
+    NotModified: IntEnumMember                     = 91  #: Data not modified
+    TimeNotSynced: IntEnumMember                   = 93  #: The time presented is out of range or tolerance
+    SMSCodeFailed: IntEnumMember                   = 94  #: SMS code failure (no match, none pending, etc.)
+    AccountActivityLimitExceeded: IntEnumMember    = 96  #: Too many changes to this account
+    PhoneActivityLimitExceeded: IntEnumMember      = 97  #: Too many changes to this phone
+    RefundToWallet: IntEnumMember                  = 98  #: Cannot refund to payment method, must use wallet
+    EmailSendFailure: IntEnumMember                = 99  #: Cannot send an email
+    NotSettled: IntEnumMember                      = 100  #: Can't perform operation till payment has settled
+    NeedCaptcha: IntEnumMember                     = 101  #: Needs to provide a valid captcha
+    GSLTDenied: IntEnumMember                      = 102  #: A game server login token owned by this token's owner has been banned
+    GSOwnerDenied: IntEnumMember                   = 103  #: Game server owner is denied for other reason
+    InvalidItemType: IntEnumMember                 = 104  #: The type of thing we were requested to act on is invalid
+    IPBanned: IntEnumMember                        = 105  #: The ip address has been banned from taking this action
+    GSLTExpired: IntEnumMember                     = 106  #: This token has expired from disuse; can be reset for use
+    InsufficientFunds: IntEnumMember               = 107  #: User doesn't have enough wallet funds to complete the action
+    TooManyPending: IntEnumMember                  = 108  #: There are too many of this thing pending already
+    NoSiteLicensesFound: IntEnumMember             = 109  #: No site licenses found
+    WGNetworkSendExceeded: IntEnumMember           = 110  #: The WG couldn't send a response because we exceeded max network send size
+    AccountNotFriends: IntEnumMember               = 111
+    LimitedUserAccount: IntEnumMember              = 112
+    CantRemoveItem: IntEnumMember                  = 113
 
 
 class EUniverse(IntEnum):
-    Invalid: IntEnumValue  = 0
-    Public: IntEnumValue   = 1
-    Beta: IntEnumValue     = 2
-    Internal: IntEnumValue = 3
-    Dev: IntEnumValue      = 4
-    Max: IntEnumValue      = 6
+    Invalid: IntEnumMember  = 0
+    Public: IntEnumMember   = 1
+    Beta: IntEnumMember     = 2
+    Internal: IntEnumMember = 3
+    Dev: IntEnumMember      = 4
+    Max: IntEnumMember      = 6
 
     def __str__(self):
         return self.name
 
 
 class EType(IntEnum):
-    Invalid: IntEnumValue        = 0
-    Individual: IntEnumValue     = 1  #: Single user account
-    Multiseat: IntEnumValue      = 2  #: Multiseat (e.g. cybercafe) account
-    GameServer: IntEnumValue     = 3  #: Game server account
-    AnonGameServer: IntEnumValue = 4  #: Anonymous game server account
-    Pending: IntEnumValue        = 5
-    ContentServer: IntEnumValue  = 6  #: Content server
-    Clan: IntEnumValue           = 7
-    Chat: IntEnumValue           = 8
-    ConsoleUser: IntEnumValue    = 9  #: Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
-    AnonUser: IntEnumValue       = 10
-    Max: IntEnumValue            = 11
+    Invalid: IntEnumMember        = 0
+    Individual: IntEnumMember     = 1  #: Single user account
+    Multiseat: IntEnumMember      = 2  #: Multiseat (e.g. cybercafe) account
+    GameServer: IntEnumMember     = 3  #: Game server account
+    AnonGameServer: IntEnumMember = 4  #: Anonymous game server account
+    Pending: IntEnumMember        = 5
+    ContentServer: IntEnumMember  = 6  #: Content server
+    Clan: IntEnumMember           = 7
+    Chat: IntEnumMember           = 8
+    ConsoleUser: IntEnumMember    = 9  #: Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
+    AnonUser: IntEnumMember       = 10
+    Max: IntEnumMember            = 11
 
     def __str__(self):
         return self.name
 
 
-class ETypeChar(IntEnum):
-    I: IntEnumValue = EType.Invalid
-    U: IntEnumValue = EType.Individual
-    M: IntEnumValue = EType.Multiseat
-    G: IntEnumValue = EType.GameServer
-    A: IntEnumValue = EType.AnonGameServer
-    P: IntEnumValue = EType.Pending
-    C: IntEnumValue = EType.ContentServer
-    g: IntEnumValue = EType.Clan
-    T: IntEnumValue = EType.Chat
-    L: IntEnumValue = EType.Chat  #: Lobby/group chat, 'c' for clan chat
-    c: IntEnumValue = EType.Chat  #: Clan chat
-    a: IntEnumValue = EType.AnonUser
+'''class ETypeChar(IntEnum):
+    I: IntEnumMember = EType.Invalid
+    U: IntEnumMember = EType.Individual
+    M: IntEnumMember = EType.Multiseat
+    G: IntEnumMember = EType.GameServer
+    A: IntEnumMember = EType.AnonGameServer
+    P: IntEnumMember = EType.Pending
+    C: IntEnumMember = EType.ContentServer
+    g: IntEnumMember = EType.Clan
+    T: IntEnumMember = EType.Chat
+    L: IntEnumMember = EType.Chat  #: Lobby/group chat, 'c' for clan chat
+    c: IntEnumMember = EType.Chat  #: Clan chat
+    a: IntEnumMember = EType.AnonUser
 
     def __str__(self):
         return self.name
+
+'''
 
 
 class EInstanceFlag(IntEnum):
@@ -379,133 +365,136 @@ class EInstanceFlag(IntEnum):
 
 
 class EFriendRelationship(IntEnum):
-    NONE: IntEnumValue             = 0
-    Blocked: IntEnumValue          = 1
-    RequestRecipient: IntEnumValue = 2
-    Friend: IntEnumValue           = 3
-    RequestInitiator: IntEnumValue = 4
-    Ignored: IntEnumValue          = 5
-    IgnoredFriend: IntEnumValue    = 6
-    SuggestedFriend: IntEnumValue  = 7
-    Max: IntEnumValue              = 8
+    NONE: IntEnumMember             = 0
+    Blocked: IntEnumMember          = 1
+    RequestRecipient: IntEnumMember = 2
+    Friend: IntEnumMember           = 3
+    RequestInitiator: IntEnumMember = 4
+    Ignored: IntEnumMember          = 5
+    IgnoredFriend: IntEnumMember    = 6
+    SuggestedFriend: IntEnumMember  = 7
+    Max: IntEnumMember              = 8
 
 
 class EPersonaState(IntEnum):
-    Offline: IntEnumValue        = 0
-    Online: IntEnumValue         = 1
-    Busy: IntEnumValue           = 2
-    Away: IntEnumValue           = 3
-    Snooze: IntEnumValue         = 4
-    LookingToTrade: IntEnumValue = 5
-    LookingToPlay: IntEnumValue  = 6
-    Max: IntEnumValue            = 7
+    Offline: IntEnumMember        = 0
+    Online: IntEnumMember         = 1
+    Busy: IntEnumMember           = 2
+    Away: IntEnumMember           = 3
+    Snooze: IntEnumMember         = 4
+    LookingToTrade: IntEnumMember = 5
+    LookingToPlay: IntEnumMember  = 6
+    Max: IntEnumMember            = 7
 
     def __str__(self):
         return self.name
 
 
 class EPersonaStateFlag(IntEnum):
-    NONE: IntEnumValue                 = 0
-    HasRichPresence: IntEnumValue      = 1
-    InJoinableGame: IntEnumValue       = 2
-    Golden: IntEnumValue               = 4
-    RemotePlayTogether: IntEnumValue   = 8
-    ClientTypeWeb: IntEnumValue        = 256
-    ClientTypeMobile: IntEnumValue     = 512
-    ClientTypeTenfoot: IntEnumValue    = 1024
-    ClientTypeVR: IntEnumValue         = 2048
-    LaunchTypeGamepad: IntEnumValue    = 4096
-    LaunchTypeCompatTool: IntEnumValue = 8192
+    NONE: IntEnumMember                 = 0
+    HasRichPresence: IntEnumMember      = 1
+    InJoinableGame: IntEnumMember       = 2
+    Golden: IntEnumMember               = 4
+    RemotePlayTogether: IntEnumMember   = 8
+    ClientTypeWeb: IntEnumMember        = 256
+    ClientTypeMobile: IntEnumMember     = 512
+    ClientTypeTenfoot: IntEnumMember    = 1024
+    ClientTypeVR: IntEnumMember         = 2048
+    LaunchTypeGamepad: IntEnumMember    = 4096
+    LaunchTypeCompatTool: IntEnumMember = 8192
 
     def __str__(self):
         return self.name
 
 
 class ECommunityVisibilityState(IntEnum):
-    NONE: IntEnumValue        = 0
-    Private: IntEnumValue     = 1
-    FriendsOnly: IntEnumValue = 2
-    Public: IntEnumValue      = 3
+    NONE: IntEnumMember        = 0
+    Private: IntEnumMember     = 1
+    FriendsOnly: IntEnumMember = 2
+    Public: IntEnumMember      = 3
 
 
 class ETradeOfferState(IntEnum):
-    Invalid: IntEnumValue                   = 1
-    Active: IntEnumValue                    = 2
-    Accepted: IntEnumValue                  = 3
-    Countered: IntEnumValue                 = 4
-    Expired: IntEnumValue                   = 5
-    Canceled: IntEnumValue                  = 6
-    Declined: IntEnumValue                  = 7
-    InvalidItems: IntEnumValue              = 8
-    ConfirmationNeed: IntEnumValue          = 9
-    CanceledBySecondaryFactor: IntEnumValue = 10
-    StateInEscrow: IntEnumValue             = 11
+    Invalid: IntEnumMember                   = 1
+    Active: IntEnumMember                    = 2
+    Accepted: IntEnumMember                  = 3
+    Countered: IntEnumMember                 = 4
+    Expired: IntEnumMember                   = 5
+    Canceled: IntEnumMember                  = 6
+    Declined: IntEnumMember                  = 7
+    InvalidItems: IntEnumMember              = 8
+    ConfirmationNeed: IntEnumMember          = 9
+    CanceledBySecondaryFactor: IntEnumMember = 10
+    StateInEscrow: IntEnumMember             = 11
 
 
 class EChatEntryType(IntEnum):
-    Invalid: IntEnumValue          = 0
-    ChatMsg: IntEnumValue          = 1  #: Normal text message from another user
-    Typing: IntEnumValue           = 2  #: Another user is typing (not used in multi-user chat)
-    InviteGame: IntEnumValue       = 3  #: Invite from other user into that users current game
-    LeftConversation: IntEnumValue = 6  #: user has left the conversation ( closed chat window )
-    Entered: IntEnumValue          = 7  #: User has entered the conversation (used in multi-user chat and group chat)
-    WasKicked: IntEnumValue        = 8  #: user was kicked (data: 64-bit steamid of actor performing the kick)
-    WasBanned: IntEnumValue        = 9  #: user was banned (data: 64-bit steamid of actor performing the ban)
-    Disconnected: IntEnumValue     = 10  #: user disconnected
-    HistoricalChat: IntEnumValue   = 11  #: a chat message from user's chat history or offline message
-    LinkBlocked: IntEnumValue      = 14  #: a link was removed by the chat filter.
+    Invalid: IntEnumMember          = 0
+    ChatMsg: IntEnumMember          = 1  #: Normal text message from another user
+    Typing: IntEnumMember           = 2  #: Another user is typing (not used in multi-user chat)
+    InviteGame: IntEnumMember       = 3  #: Invite from other user into that users current game
+    LeftConversation: IntEnumMember = 6  #: user has left the conversation ( closed chat window )
+    Entered: IntEnumMember          = 7  #: User has entered the conversation (used in multi-user chat and group chat)
+    WasKicked: IntEnumMember        = 8  #: user was kicked (data: 64-bit steamid of actor performing the kick)
+    WasBanned: IntEnumMember        = 9  #: user was banned (data: 64-bit steamid of actor performing the ban)
+    Disconnected: IntEnumMember     = 10  #: user disconnected
+    HistoricalChat: IntEnumMember   = 11  #: a chat message from user's chat history or offline message
+    LinkBlocked: IntEnumMember      = 14  #: a link was removed by the chat filter.
 
 
 class EUIMode(IntEnum):
-    Desktop: IntEnumValue    = 0
-    BigPicture: IntEnumValue = 1
-    Mobile: IntEnumValue     = 2
-    Web: IntEnumValue        = 3
+    Desktop: IntEnumMember    = 0
+    BigPicture: IntEnumMember = 1
+    Mobile: IntEnumMember     = 2
+    Web: IntEnumMember        = 3
 
 
 class EUserBadge(IntEnum):
-    Invalid: IntEnumValue                           = 0
-    YearsOfService: IntEnumValue                    = 1
-    Community: IntEnumValue                         = 2
-    Portal2PotatoARG: IntEnumValue                  = 3
-    TreasureHunt: IntEnumValue                      = 4
-    SummerSale2011: IntEnumValue                    = 5
-    WinterSale2011: IntEnumValue                    = 6
-    SummerSale2012: IntEnumValue                    = 7
-    WinterSale2012: IntEnumValue                    = 8
-    CommunityTranslator: IntEnumValue               = 9
-    CommunityModerator: IntEnumValue                = 10
-    ValveEmployee: IntEnumValue                     = 11
-    GameDeveloper: IntEnumValue                     = 12
-    GameCollector: IntEnumValue                     = 13
-    TradingCardBetaParticipant: IntEnumValue        = 14
-    SteamBoxBeta: IntEnumValue                      = 15
-    Summer2014RedTeam: IntEnumValue                 = 16
-    Summer2014BlueTeam: IntEnumValue                = 17
-    Summer2014PinkTeam: IntEnumValue                = 18
-    Summer2014GreenTeam: IntEnumValue               = 19
-    Summer2014PurpleTeam: IntEnumValue              = 20
-    Auction2014: IntEnumValue                       = 21
-    GoldenProfile2014: IntEnumValue                 = 22
-    TowerAttackMiniGame: IntEnumValue               = 23
-    Winter2015ARG_RedHerring: IntEnumValue          = 24
-    SteamAwards2016Nominations: IntEnumValue        = 25
-    StickerCompletionist2017: IntEnumValue          = 26
-    SteamAwards2017Nominations: IntEnumValue        = 27
-    SpringCleaning2018: IntEnumValue                = 28
-    Salien: IntEnumValue                            = 29
-    RetiredModerator: IntEnumValue                  = 30
-    SteamAwards2018Nominations: IntEnumValue        = 31
-    ValveModerator: IntEnumValue                    = 32
-    WinterSale2018: IntEnumValue                    = 33
-    LunarNewYearSale2019: IntEnumValue              = 34
-    LunarNewYearSale2019GoldenProfile: IntEnumValue = 35
-    SpringCleaning2019: IntEnumValue                = 36
-    Summer2019: IntEnumValue                        = 37
-    Summer2019TeamHare: IntEnumValue                = 38
-    Summer2019TeamTortoise: IntEnumValue            = 39
-    Summer2019TeamCorgi: IntEnumValue               = 40
-    Summer2019TeamCockatiel: IntEnumValue           = 41
-    Summer2019TeamPig: IntEnumValue                 = 42
-    SteamAwards2019Nominations: IntEnumValue        = 43
-    WinterSaleEvent2019: IntEnumValue               = 44
+    Invalid: IntEnumMember                           = 0
+    YearsOfService: IntEnumMember                    = 1
+    Community: IntEnumMember                         = 2
+    Portal2PotatoARG: IntEnumMember                  = 3
+    TreasureHunt: IntEnumMember                      = 4
+    SummerSale2011: IntEnumMember                    = 5
+    WinterSale2011: IntEnumMember                    = 6
+    SummerSale2012: IntEnumMember                    = 7
+    WinterSale2012: IntEnumMember                    = 8
+    CommunityTranslator: IntEnumMember               = 9
+    CommunityModerator: IntEnumMember                = 10
+    ValveEmployee: IntEnumMember                     = 11
+    GameDeveloper: IntEnumMember                     = 12
+    GameCollector: IntEnumMember                     = 13
+    TradingCardBetaParticipant: IntEnumMember        = 14
+    SteamBoxBeta: IntEnumMember                      = 15
+    Summer2014RedTeam: IntEnumMember                 = 16
+    Summer2014BlueTeam: IntEnumMember                = 17
+    Summer2014PinkTeam: IntEnumMember                = 18
+    Summer2014GreenTeam: IntEnumMember               = 19
+    Summer2014PurpleTeam: IntEnumMember              = 20
+    Auction2014: IntEnumMember                       = 21
+    GoldenProfile2014: IntEnumMember                 = 22
+    TowerAttackMiniGame: IntEnumMember               = 23
+    Winter2015ARG_RedHerring: IntEnumMember          = 24
+    SteamAwards2016Nominations: IntEnumMember        = 25
+    StickerCompletionist2017: IntEnumMember          = 26
+    SteamAwards2017Nominations: IntEnumMember        = 27
+    SpringCleaning2018: IntEnumMember                = 28
+    Salien: IntEnumMember                            = 29
+    RetiredModerator: IntEnumMember                  = 30
+    SteamAwards2018Nominations: IntEnumMember        = 31
+    ValveModerator: IntEnumMember                    = 32
+    WinterSale2018: IntEnumMember                    = 33
+    LunarNewYearSale2019: IntEnumMember              = 34
+    LunarNewYearSale2019GoldenProfile: IntEnumMember = 35
+    SpringCleaning2019: IntEnumMember                = 36
+    Summer2019: IntEnumMember                        = 37
+    Summer2019TeamHare: IntEnumMember                = 38
+    Summer2019TeamTortoise: IntEnumMember            = 39
+    Summer2019TeamCorgi: IntEnumMember               = 40
+    Summer2019TeamCockatiel: IntEnumMember           = 41
+    Summer2019TeamPig: IntEnumMember                 = 42
+    SteamAwards2019Nominations: IntEnumMember        = 43
+    WinterSaleEvent2019: IntEnumMember               = 44
+
+
+print(repr(EInstanceFlag.Clan))
