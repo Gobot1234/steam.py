@@ -627,7 +627,9 @@ class Messageable(metaclass=abc.ABCMeta):
     The following classes implement this ABC:
 
         - :class:`~steam.User`
-        - :class:`BaseChannel`
+        - :class:`~steam.ClanChannel`
+        - :class:`~steam.GroupChannel`
+        - :class:`~steam.DMChannel`
     """
 
     __slots__ = ()
@@ -683,6 +685,12 @@ class BaseChannel(Messageable):
 class Message:
     """Represents a message from a :class:`~steam.User`
     This is a base class from which all messages inherit.
+
+    The following classes implement this ABC:
+
+        - :class:`~steam.UserMessage`
+        - :class:`~steam.GroupMessage`
+        - :class:`~steam.ClanMessage`
 
     Attributes
     ----------

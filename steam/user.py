@@ -314,7 +314,7 @@ class ClientUser(BaseUser):
             The avatar you wish to use.
 
             .. note::
-                This needs to be atleast 184px x 184px.
+                This needs to be at least 184px x 184px.
 
         Raises
         -------
