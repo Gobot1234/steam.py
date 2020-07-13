@@ -5,3 +5,4 @@
 venv
 .venv
 .idea
+.mypy_cache
