@@ -29,7 +29,7 @@ import inspect
 import sys
 import traceback
 from types import ModuleType
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .command import Command
 
@@ -88,30 +88,33 @@ class Cog:
         Can be set in subclass e.g. ::
 
             MyBrokenCog(commands.Cog, command_attrs=dict(enabled=False)):
-                pass
-
-    help: Optional[:class:`str`]
-        The cleaned up docstring for the class
+                # all the commands would now be disabled
     """
 
     __commands__: Dict[str, Command] = dict()
     __listeners__: Dict[str, List["EventType"]] = dict()
+    command_attrs: Dict[str, Any]
+    qualified_name: str
 
     def __init_subclass__(cls, *args, **kwargs):
         cls.qualified_name = kwargs.get("name") or cls.__name__
         cls.command_attrs = kwargs.get("command_attrs", dict())
-        help_doc = cls.__doc__
-        if help_doc is not None:
-            help_doc = inspect.cleandoc(help_doc)
-        else:
-            help_doc = inspect.getdoc(cls)
-            if isinstance(help_doc, bytes):
-                help_doc = help_doc.decode("utf-8")
-
-        cls.help = help_doc
         for name, attr in inspect.getmembers(cls):
             if isinstance(attr, Command):
                 cls.__commands__[name] = attr
+
+    @property
+    def description(self) -> Optional[str]:
+        """Optional[:class:`str`]: The cleaned up docstring for the class"""
+        help_doc = self.__doc__
+        if help_doc is not None:
+            help_doc = inspect.cleandoc(help_doc)
+        else:
+            help_doc = inspect.getdoc(self)
+            if isinstance(help_doc, bytes):
+                help_doc = help_doc.decode("utf-8")
+
+        return help_doc
 
     @classmethod
     def listener(cls, name: str = None):
