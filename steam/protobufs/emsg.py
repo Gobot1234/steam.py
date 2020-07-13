@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 __all__ = ("EMsg",)
 
 
+# fmt: off
+
 class EMsg(IntEnumBase):
     Invalid: "IntEnum"                                                  = 0
     Multi: "IntEnum"                                                    = 1
