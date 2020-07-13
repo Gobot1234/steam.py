@@ -33,7 +33,7 @@ from collections import deque
 from copy import copy
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Callable, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Awaitable, TYPE_CHECKING, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
@@ -80,12 +80,13 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo, CMsgClientLoggedOff
 
 log = logging.getLogger(__name__)
+EventParser = Callable[["ConnectionState", "MsgProto"], Optional[Awaitable[None]]]
 
 
 class Registerer:
     __slots__ = ("func", "emsg")
 
-    def __init__(self, func: Callable[["ConnectionState", "MsgProto"], None], emsg: EMsg):
+    def __init__(self, func: EventParser, emsg: EMsg):
         self.func = func
         self.emsg = emsg
 
@@ -94,14 +95,14 @@ class Registerer:
 
 
 def register(emsg: EMsg):
-    def decorator(func):
+    def decorator(func: EventParser):
         return Registerer(func, emsg)
 
     return decorator
 
 
 class ConnectionState:
-    parsers: Dict[EMsg, Callable[["ConnectionState", "MsgProto"], None]] = dict()
+    parsers: Dict[EMsg, EventParser] = dict()
     # we need this outside __init__ for @register
 
     __slots__ = (
@@ -238,7 +239,7 @@ class ConnectionState:
                 timeout=5,
             )
         except asyncio.TimeoutError:
-            return
+            return None
         if msg.header.eresult == EResult.Busy:
             raise WSNotFound(msg)
         if msg.header.eresult != EResult.OK:
@@ -273,8 +274,9 @@ class ConnectionState:
                 self.dispatch("trade_receive", trade)
             self._trades_to_watch.append(trade.id)
         else:
-            if data["trade_offer_state"] != trade.state:
-                trade.state = ETradeOfferState(data["trade_offer_state"])
+            before_state = copy(trade.state)
+            trade._update(data)
+            if data["trade_offer_state"] != before_state:
                 log.info(f"Trade #{trade.id} has updated its trade state to {trade.state}")
                 states = {
                     ETradeOfferState.Accepted: "accept",
@@ -327,16 +329,16 @@ class ConnectionState:
         resp = await self.request("GET", f"{URL.COMMUNITY}/my/commentnotifications")
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         if search is None:
-            return
+            return None
         steam_id = await SteamID.from_url(f"{URL.COMMUNITY}{_URL(search.group(1)).path}", self.http._session)
         if steam_id is None:
-            return
+            return None
         if steam_id.type == EType.Clan:
             obj = await self.fetch_clan(steam_id.id64)
         else:
             obj = await self.fetch_user(steam_id.id64)
         if obj is None:
-            return
+            return None
 
         if self._obj == obj:
             self._previous_iteration += 1

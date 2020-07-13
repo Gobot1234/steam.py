@@ -35,7 +35,7 @@ from typing import (
     Generic,
     List,
     Optional,
-    TypeVar,
+    T,
     Union,
 )
 
@@ -51,7 +51,6 @@ if TYPE_CHECKING:
     from .state import ConnectionState
     from .trade import TradeOffer
 
-T = TypeVar("T")
 MaybeCoro = Callable[..., Union[bool, Awaitable[bool]]]
 
 
@@ -262,7 +261,7 @@ class CommentsIterator(AsyncIterator["Comment"]):
                     comment.author = author
 
 
-class TradesIterator(AsyncIterator):
+class TradesIterator(AsyncIterator["TradeOffer"]):
     __slots__ = ("_active_only",)
 
     def __init__(

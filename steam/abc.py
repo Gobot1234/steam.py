@@ -32,7 +32,7 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, Tuple, Union
 
 from .badge import UserBadges
 from .comment import Comment
@@ -47,6 +47,7 @@ from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
+    from .client import EventType
     from .clan import Clan
     from .group import Group
     from .image import Image
@@ -174,7 +175,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
         This is used for more recent games.
         """
-        typechar = str(ETypeChar(self.type))
+        typechar = ETypeChar(self.type).name
         instance = None
 
         if self.type in (EType.AnonGameServer, EType.Multiseat):
@@ -242,8 +243,6 @@ class SteamID(metaclass=abc.ABCMeta):
         }
         if self.type in suffix:
             return f"https://steamcommunity.com/{suffix[self.type]}/{self.id64}"
-
-        return None
 
     def is_valid(self) -> bool:
         """:class:`bool`: Check whether this SteamID is valid.
@@ -364,18 +363,18 @@ class BaseUser(SteamID):
     def __init__(self, state: "ConnectionState", data: dict):
         super().__init__(data["steamid"])
         self._state = state
-        self.name = None
-        self.real_name = None
-        self.avatar_url = None
-        self.primary_clan = None
-        self.country = None
-        self.created_at = None
-        self.last_logoff = None
-        self.last_logon = None
-        self.last_seen_online = None
-        self.state = None
-        self.flags = None
-        self.game = None
+        self.name: Optional[str] = None
+        self.real_name: Optional[str] = None
+        self.avatar_url: Optional[str] = None
+        self.primary_clan: Optional[SteamID] = None
+        self.country: Optional[str] = None
+        self.created_at: Optional[datetime] = None
+        self.last_logoff: Optional[datetime] = None
+        self.last_logon: Optional[datetime] = None
+        self.last_seen_online: Optional[datetime] = None
+        self.state: Optional[EPersonaState] = None
+        self.flags: Optional[EPersonaStateFlag] = None
+        self.game: Optional[Game] = None
         self._update(data)
 
     def __repr__(self):
@@ -620,7 +619,7 @@ class BaseUser(SteamID):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-_get_x_endpoint_return = Tuple[Tuple[int, ...], Callable[..., Awaitable[None]]]
+_EndPointReturnType = Tuple[Union[Tuple[int, int], int], "EventType"]
 
 
 class Messageable(metaclass=abc.ABCMeta):
@@ -633,10 +632,10 @@ class Messageable(metaclass=abc.ABCMeta):
 
     __slots__ = ()
 
-    def _get_message_endpoint(self) -> _get_x_endpoint_return:
+    def _get_message_endpoint(self) -> _EndPointReturnType:
         pass
 
-    def _get_image_endpoint(self) -> _get_x_endpoint_return:
+    def _get_image_endpoint(self) -> _EndPointReturnType:
         pass
 
     async def send(self, content: str = None, image: "Image" = None):

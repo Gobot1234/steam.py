@@ -86,18 +86,17 @@ class HTTPClient:
         self._loop = loop
         self._session: Optional[aiohttp.ClientSession] = None  # filled in login
         self._client = client
-        self._lock = asyncio.Lock()
 
-        self.username = None
-        self.password = None
-        self.api_key = None
-        self.shared_secret = None
+        self.username: Optional[str] = None
+        self.password: Optional[str] = None
+        self.api_key: Optional[str] = None
+        self.shared_secret: Optional[str] = None
         self._one_time_code = ""
         self._captcha_id = "-1"
         self._captcha_text = ""
         self._steam_id = ""
 
-        self.session_id = None
+        self.session_id: Optional[str] = None
         self.user: Optional[ClientUser] = None
         self.logged_in = False
         self.user_agent = (
@@ -114,62 +113,61 @@ class HTTPClient:
     ) -> Optional[Any]:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
 
-        async with self._lock:
-            for tries in range(5):
-                async with self._session.request(method, str(url), **kwargs) as r:
-                    payload = kwargs.get("data")
-                    log.debug(
-                        self.REQUEST_LOG.format(method=method, url=url, payload=f"PAYLOAD: {payload}", status=r.status,)
-                    )
+        for tries in range(5):
+            async with self._session.request(method, str(url), **kwargs) as r:
+                payload = kwargs.get("data")
+                log.debug(
+                    self.REQUEST_LOG.format(method=method, url=r.url, payload=f"PAYLOAD: {payload}", status=r.status,)
+                )
 
-                    # even errors have text involved in them so this is safe to call
-                    data = await json_or_text(r)
+                # even errors have text involved in them so this is safe to call
+                data = await json_or_text(r)
 
-                    # the request was successful so just return the text/json
-                    if 200 <= r.status < 300:
-                        log.debug(f"{method} {url} has received {data}")
-                        return data
+                # the request was successful so just return the text/json
+                if 200 <= r.status < 300:
+                    log.debug(f"{method} {r.url} has received {data}")
+                    return data
 
-                    if 300 <= r.status <= 399 and "/login" in r.headers.get("location", ""):  # been logged out
-                        log.debug("Logged out of session re-logging in")
-                        await self.login(self.username, self.password, self.api_key, self.shared_secret)
-                        continue
+                if 300 <= r.status <= 399 and "/login" in r.headers.get("location", ""):  # been logged out
+                    log.debug("Logged out of session re-logging in")
+                    await self.login(self.username, self.password, self.api_key, self.shared_secret)
+                    continue
 
-                    # we are being rate limited
-                    elif r.status == 429:
-                        # I haven't been able to get any X-Retry-After headers
-                        # from the API but we should probably still handle it
-                        try:
-                            await asyncio.sleep(float(r.headers["X-Retry-After"]))
-                        except KeyError:  # steam being un-helpful as usual
-                            await asyncio.sleep(2 ** tries)
-                        continue
+                # we are being rate limited
+                elif r.status == 429:
+                    # I haven't been able to get any X-Retry-After headers
+                    # from the API but we should probably still handle it
+                    try:
+                        await asyncio.sleep(float(r.headers["X-Retry-After"]))
+                    except KeyError:  # steam being un-helpful as usual
+                        await asyncio.sleep(2 ** tries)
+                    continue
 
-                    # we've received a 500 or 502, an unconditional retry
-                    elif r.status in {500, 502}:
-                        await asyncio.sleep(1 + tries * 3)
-                        continue
+                # we've received a 500 or 502, an unconditional retry
+                elif r.status in {500, 502}:
+                    await asyncio.sleep(1 + tries * 3)
+                    continue
 
-                    elif r.status == 401:
-                        # api key either got revoked or it was never valid
-                        if not data:
-                            raise errors.HTTPException(r, data)
-                        if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
-                            # time to fetch a new key
-                            self._client.api_key = self.api_key = kwargs["key"] = await self.get_api_key()
-                            continue
-                            # retry with our new key
-
-                    # the usual error cases
-                    elif r.status == 403:
-                        raise errors.Forbidden(r, data)
-                    elif r.status == 404:
-                        raise errors.NotFound(r, data)
-                    else:
+                elif r.status == 401:
+                    # api key either got revoked or it was never valid
+                    if not data:
                         raise errors.HTTPException(r, data)
+                    if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
+                        # time to fetch a new key
+                        self._client.api_key = self.api_key = kwargs["key"] = await self.get_api_key()
+                        continue
+                        # retry with our new key
 
-            # we've run out of retries, raise
-            raise errors.HTTPException(r, data)
+                # the usual error cases
+                elif r.status == 403:
+                    raise errors.Forbidden(r, data)
+                elif r.status == 404:
+                    raise errors.NotFound(r, data)
+                else:
+                    raise errors.HTTPException(r, data)
+
+        # we've run out of retries, raise
+        raise errors.HTTPException(r, data)
 
     def connect_to_cm(self, cm: str) -> Awaitable:
         headers = {"User-Agent": self.user_agent}
@@ -186,10 +184,12 @@ class HTTPClient:
 
         if "captcha_needed" in resp:
             self._captcha_id = resp["captcha_gid"]
-            self._captcha_text = await utils.ainput(
-                "Please enter the captcha text at"
-                f" https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
-            )
+            self._captcha_text = (
+                await utils.ainput(
+                    "Please enter the captcha text at"
+                    f" https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
+                )
+            ).strip()
             await self.login(username, password, api_key, shared_secret)
         if not resp["success"]:
             raise errors.InvalidCredentials(resp["message"])

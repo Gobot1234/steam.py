@@ -35,7 +35,7 @@ from typing import Any, Awaitable, Callable, Iterable, Optional, T, Tuple, Union
 
 import aiohttp
 
-from .enums import EInstanceFlag, EnumMember, EType, ETypeChar, EUniverse
+from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 
 __all__ = (
     "get",
@@ -155,7 +155,7 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
     return int(universe) << 56 | int(etype) << 52 | int(instance) << 32 | id
 
 
-def steam2_to_tuple(value: str) -> Optional[Tuple[int, EnumMember, EnumMember, int]]:
+def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     """
     Parameters
     ----------
@@ -185,7 +185,7 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EnumMember, EnumMember, i
     return steam_32, EType(1), EUniverse(universe), 1
 
 
-def steam3_to_tuple(value: str) -> Optional[Tuple[int, EnumMember, EnumMember, int]]:
+def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     """
     Parameters
     ----------
@@ -231,7 +231,7 @@ def steam3_to_tuple(value: str) -> Optional[Tuple[int, EnumMember, EnumMember, i
     return steam_32, etype, universe, instance
 
 
-def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EnumMember, EnumMember, int]]:
+def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     """
     Parameters
     ----------

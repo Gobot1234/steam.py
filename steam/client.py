@@ -34,7 +34,7 @@ import signal
 import sys
 import traceback
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
 
 import aiohttp
 
@@ -142,24 +142,24 @@ class Client:
         to the connected CM.
     """
 
-    def __init__(self, loop: asyncio.AbstractEventLoop = None, **options):
+    def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options):
         self.loop = loop or asyncio.get_event_loop()
 
         self.http = HTTPClient(loop=self.loop, client=self)
         self._connection = ConnectionState(loop=self.loop, client=self, http=self.http, **options)
         self.ws: Optional[SteamWebSocket] = None
 
-        self.username = None
-        self.api_key = None
-        self.password = None
-        self.shared_secret = None
-        self.identity_secret = None
-        self.shared_secret = None
-        self.token = None
+        self.username: Optional[str] = None
+        self.api_key: Optional[str] = None
+        self.password: Optional[str] = None
+        self.shared_secret: Optional[str] = None
+        self.identity_secret: Optional[str] = None
+        self.shared_secret: Optional[str] = None
+        self.token: Optional[str] = None
 
         self._closed = True
-        self._cm_list = None
-        self._listeners = {}
+        self._cm_list: Optional["CMServerList"] = None
+        self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
     @property
@@ -268,7 +268,7 @@ class Client:
         log.debug(f"Dispatching event {event}")
 
         if listeners:
-            removed = []
+            removed: List[int] = []
             for i, (future, condition) in enumerate(listeners):
                 if future.cancelled():
                     removed.append(i)
@@ -349,7 +349,9 @@ class Client:
         if not future.cancelled():
             return future.result()
 
-    async def login(self, username: str, password: str, api_key: str = None, shared_secret: str = None,) -> None:
+    async def login(
+        self, username: str, password: str, api_key: Optional[str] = None, shared_secret: Optional[str] = None,
+    ) -> None:
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
 
@@ -379,7 +381,7 @@ class Client:
         :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """
-        log.info(f"Logging in as {username}")
+        log.info(f"Logging in to steamcommunity.com")
         self.api_key = api_key
         self.username = username
         self.password = password
@@ -667,7 +669,11 @@ class Client:
         return await self._connection.fetch_clan(steam_id.id64)
 
     def trade_history(
-        self, limit: Optional[int] = 100, before: datetime = None, after: datetime = None, active_only: bool = False,
+        self,
+        limit: Optional[int] = 100,
+        before: Optional[datetime] = None,
+        after: Optional[datetime] = None,
+        active_only: bool = False,
     ) -> TradesIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
         :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
@@ -714,10 +720,10 @@ class Client:
     async def change_presence(
         self,
         *,
-        game: "Game" = None,
-        games: List["Game"] = None,
-        state: "EPersonaState" = None,
-        ui_mode: "EUIMode" = None,
+        game: Optional["Game"] = None,
+        games: Optional[List["Game"]] = None,
+        state: Optional["EPersonaState"] = None,
+        ui_mode: Optional["EUIMode"] = None,
         force_kick: bool = False,
     ) -> None:
         """|coro|
@@ -753,7 +759,9 @@ class Client:
         """
         await self._ready.wait()
 
-    def wait_for(self, event: str, *, check: Callable[..., bool] = None, timeout: float = None) -> Awaitable[Any]:
+    def wait_for(
+        self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
+    ) -> Awaitable[Any]:
         """|coro|
         Waits for an event to be dispatched.
 
