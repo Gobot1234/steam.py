@@ -9,10 +9,12 @@ with open("requirements.txt") as f:
     f.close()
 
 with open("steam/__init__.py") as f:
-    version = re.search(r"^__version__\s*=\s*'([^']*)'", f.read(), re.MULTILINE).group(1)
+    search = re.search(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)
 
-if version is None:
+if search is None:
     raise RuntimeError("Version is not set")
+
+version = search.group(1)
 
 if version.endswith(("a", "b")) or "rc" in version:
     # try to find out the commit hash if checked out from git, and append
@@ -33,13 +35,7 @@ if version.endswith(("a", "b")) or "rc" in version:
 with open("README.md") as f:
     readme = f.read()
 
-extras_require = {
-    "docs": [
-        "sphinx==3.0.1",
-        "sphinxcontrib_trio==1.1.1",
-        "sphinxcontrib-websupport",
-    ]
-}
+extras_require = {"docs": ["sphinx==3.0.1", "sphinxcontrib_trio==1.1.1", "sphinxcontrib-websupport",]}
 
 setup(
     name="steamio",
