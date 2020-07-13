@@ -88,19 +88,22 @@ class EnumMember:
             return NotImplemented
 
 
-class IntEnumMember(int, EnumMember):
+class IntEnumMember(EnumMember, int):
     _enum_cls_: "IntEnum"
     value: int
 
     def __new__(cls, **kwargs) -> "IntEnumMember":
         try:
             value = kwargs["value"]
-            self = super().__new__(cls, value)
+            self = int.__new__(cls, value)
             self.name = kwargs["name"]
             self.value = value
             return self
         except KeyError:
-            return super().__new__(cls)
+            return int.__new__(cls)
+
+    def __bool__(self):
+        return True
 
 
 class EnumMeta(type):
