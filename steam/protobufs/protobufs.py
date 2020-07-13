@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from . import (
     steammessages_base,
     steammessages_clientserver,
@@ -75,8 +76,6 @@ PROTOBUFS = {
     EMsg.AMClientCreateFriendsGroupResponse: steammessages_clientserver_friends.CMsgClientCreateFriendsGroupResponse,
     EMsg.AMClientDeleteFriendsGroup: steammessages_clientserver_friends.CMsgClientDeleteFriendsGroup,
     EMsg.AMClientDeleteFriendsGroupResponse: steammessages_clientserver_friends.CMsgClientDeleteFriendsGroupResponse,
-    EMsg.AMClientRenameFriendsGroup: steammessages_clientserver_friends.CMsgClientManageFriendsGroup,
-    EMsg.AMClientRenameFriendsGroupResponse: steammessages_clientserver_friends.CMsgClientManageFriendsGroupResponse,
     EMsg.AMClientAddFriendToGroup: steammessages_clientserver_friends.CMsgClientAddFriendToGroup,
     EMsg.AMClientAddFriendToGroupResponse: steammessages_clientserver_friends.CMsgClientAddFriendToGroupResponse,
     EMsg.AMClientRemoveFriendFromGroup: steammessages_clientserver_friends.CMsgClientRemoveFriendFromGroup,

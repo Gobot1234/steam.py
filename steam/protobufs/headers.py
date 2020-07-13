@@ -26,6 +26,7 @@ DEALINGS IN THE SOFTWARE.
 This is an updated copy of
 https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 """
+
 import struct
 
 from stringcase import snakecase
