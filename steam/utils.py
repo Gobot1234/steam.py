@@ -76,6 +76,7 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
 
         make_steam64()  # invalid steam_id
         make_steam64(12345)  # account_id
+        make_steam64(12345, is_clan=True)  # makes the account_id into a clan id
         make_steam64('12345')
         make_steam64(id=12345, type='Invalid', universe='Invalid', instance=0)
         make_steam64(103582791429521412)  # steam64
@@ -98,7 +99,7 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
     etype = EType.Invalid
     universe = EUniverse.Invalid
     instance = None
-    is_group = kwargs.pop("is_group", False)
+    is_clan = kwargs.pop("is_clan", False)
 
     if len(args) == 0 and len(kwargs) == 0:
         value = str(id)
@@ -110,7 +111,7 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
             # 32 bit account id
             if 0 < value < 2 ** 32:
                 id = value
-                etype = EType.Individual if not is_group else EType.Clan
+                etype = EType.Individual if not is_clan else EType.Clan
                 universe = EUniverse.Public
             # 64 bit
             elif value < 2 ** 64:

@@ -119,7 +119,7 @@ class ClientEventTask(asyncio.Task):
         ]
         if self._exception is not None:
             info.append(("exception", repr(self._exception)))
-        return f'<ClientEventTask {" ".join(f"{t}={t}" for t in info)}>'
+        return f'<ClientEventTask {" ".join(f"{t}={t!r}" for t in info)}>'
 
 
 class Client:
@@ -625,7 +625,7 @@ class Client:
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        kwargs["is_group"] = True
+        kwargs["is_clan"] = True
         steam_id = SteamID(*args, **kwargs)
         return self._connection.get_clan(steam_id.id)
 
@@ -645,7 +645,7 @@ class Client:
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        kwargs["is_group"] = True
+        kwargs["is_clan"] = True
         steam_id = SteamID(*args, **kwargs)
         return await self._connection.fetch_clan(steam_id.id64)
 
