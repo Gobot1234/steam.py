@@ -346,7 +346,10 @@ class ConnectionState:
             self._obj = obj
             self._previous_iteration = 0
         comments = await obj.comments(limit=self._previous_iteration + 1).flatten()
-        return comments[self._previous_iteration]
+        try:
+            return comments[self._previous_iteration]
+        except KeyError:
+            return None
 
     # confirmations
 
