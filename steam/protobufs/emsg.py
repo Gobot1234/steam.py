@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-
 from typing import TYPE_CHECKING
 
 from ..enums import IntEnum as IntEnumBase
-
 
 if TYPE_CHECKING:
     from enum import IntEnum
