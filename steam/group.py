@@ -31,7 +31,7 @@ from .models import Role
 
 if TYPE_CHECKING:
     from .abc import BaseUser
-    from .protobufs.steammessages_chat import CChatRoom_GetChatRoomGroupSummary_Response as GroupProto
+    from .protobufs.steammessages_chat import CChatRoomGetChatRoomGroupSummaryResponse as GroupProto
     from .state import ConnectionState
     from .user import User
 

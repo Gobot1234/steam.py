@@ -91,7 +91,7 @@ class WebSocketClosure(Exception):
     """An exception to make up for the fact that aiohttp doesn't signal closure."""
 
 
-class CMServerList(AsyncIterator):
+class CMServerList(AsyncIterator[str]):
     GOOD = 1
     BAD = 2
     __slots__ = ("dict", "cell_id", "best_cms", "_state")

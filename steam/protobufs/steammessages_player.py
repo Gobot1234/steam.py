@@ -15,46 +15,87 @@ class ENotificationSetting(betterproto.Enum):
 
 
 @dataclass
-class CPlayer_GetMutualFriendsForIncomingInvites_Request(betterproto.Message):
+class CPlayerGetMutualFriendsForIncomingInvitesRequest(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_IncomingInviteMutualFriendList(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CPlayerIncomingInviteMutualFriendList(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
     mutual_friend_account_ids: List[int] = betterproto.uint32_field(2)
 
 
 @dataclass
-class CPlayer_GetMutualFriendsForIncomingInvites_Response(betterproto.Message):
-    incoming_invite_mutual_friends_lists: List["CPlayer_IncomingInviteMutualFriendList"] = betterproto.message_field(1)
+class CPlayerGetMutualFriendsForIncomingInvitesResponse(betterproto.Message):
+    incoming_invite_mutual_friends_lists: List["CPlayerIncomingInviteMutualFriendList"] = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_GetFriendsGameplayInfo_Request(betterproto.Message):
+class CPlayerGetOwnedGamesRequest(betterproto.Message):
+    steamid: int = betterproto.uint64_field(1)
+    include_appinfo: bool = betterproto.bool_field(2)
+    include_played_free_games: bool = betterproto.bool_field(3)
+    appids_filter: List[int] = betterproto.uint32_field(4)
+    include_free_sub: bool = betterproto.bool_field(5)
+
+
+@dataclass
+class CPlayerGetOwnedGamesResponse(betterproto.Message):
+    game_count: int = betterproto.uint32_field(1)
+    games: List["CPlayerGetOwnedGamesResponseGame"] = betterproto.message_field(2)
+
+
+@dataclass
+class CPlayerGetOwnedGamesResponseGame(betterproto.Message):
+    appid: int = betterproto.int32_field(1)
+    name: str = betterproto.string_field(2)
+    playtime_2_weeks: int = betterproto.int32_field(3)
+    playtime_forever: int = betterproto.int32_field(4)
+    img_icon_url: str = betterproto.string_field(5)
+    img_logo_url: str = betterproto.string_field(6)
+    has_community_visible_stats: bool = betterproto.bool_field(7)
+    playtime_windows_forever: int = betterproto.int32_field(8)
+    playtime_mac_forever: int = betterproto.int32_field(9)
+    playtime_linux_forever: int = betterproto.int32_field(10)
+
+
+@dataclass
+class CPlayerGetPlayNextRequest(betterproto.Message):
+    max_age_seconds: int = betterproto.uint32_field(1)
+    ignore_appids: List[int] = betterproto.uint32_field(2)
+
+
+@dataclass
+class CPlayerGetPlayNextResponse(betterproto.Message):
+    last_update_time: int = betterproto.uint32_field(1)
+    appids: List[int] = betterproto.uint32_field(2)
+
+
+@dataclass
+class CPlayerGetFriendsGameplayInfoRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
 
 
 @dataclass
-class CPlayer_GetFriendsGameplayInfo_Response(betterproto.Message):
-    your_info: "CPlayer_GetFriendsGameplayInfo_ResponseOwnGameplayInfo" = betterproto.message_field(1)
-    in_game: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(2)
-    played_recently: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(3)
-    played_ever: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(4)
-    owns: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(5)
-    in_wishlist: List["CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo"] = betterproto.message_field(6)
+class CPlayerGetFriendsGameplayInfoResponse(betterproto.Message):
+    your_info: "CPlayerGetFriendsGameplayInfoResponseOwnGameplayInfo" = betterproto.message_field(1)
+    in_game: List["CPlayerGetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(2)
+    played_recently: List["CPlayerGetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(3)
+    played_ever: List["CPlayerGetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(4)
+    owns: List["CPlayerGetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(5)
+    in_wishlist: List["CPlayerGetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(6)
 
 
 @dataclass
-class CPlayer_GetFriendsGameplayInfo_ResponseFriendsGameplayInfo(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CPlayerGetFriendsGameplayInfoResponseFriendsGameplayInfo(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
     minutes_played: int = betterproto.uint32_field(2)
     minutes_played_forever: int = betterproto.uint32_field(3)
 
 
 @dataclass
-class CPlayer_GetFriendsGameplayInfo_ResponseOwnGameplayInfo(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CPlayerGetFriendsGameplayInfoResponseOwnGameplayInfo(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
     minutes_played: int = betterproto.uint32_field(2)
     minutes_played_forever: int = betterproto.uint32_field(3)
     in_wishlist: bool = betterproto.bool_field(4)
@@ -62,27 +103,27 @@ class CPlayer_GetFriendsGameplayInfo_ResponseOwnGameplayInfo(betterproto.Message
 
 
 @dataclass
-class CPlayer_GetFriendsAppsActivity_Request(betterproto.Message):
+class CPlayerGetFriendsAppsActivityRequest(betterproto.Message):
     news_language: str = betterproto.string_field(1)
     request_flags: int = betterproto.uint32_field(2)
 
 
 @dataclass
-class CPlayer_GetFriendsAppsActivity_Response(betterproto.Message):
-    trending: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(1)
-    recent_purchases: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(2)
-    unowned: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(3)
-    popular: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(4)
-    dont_forget: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(5)
-    being_discussed: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(6)
-    new_to_group: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(7)
-    returned_to_group: List["CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo"] = betterproto.message_field(8)
+class CPlayerGetFriendsAppsActivityResponse(betterproto.Message):
+    trending: List["CPlayerGetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(1)
+    recent_purchases: List["CPlayerGetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(2)
+    unowned: List["CPlayerGetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(3)
+    popular: List["CPlayerGetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(4)
+    dont_forget: List["CPlayerGetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(5)
+    being_discussed: List["CPlayerGetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(6)
+    new_to_group: List["CPlayerGetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(7)
+    returned_to_group: List["CPlayerGetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(8)
     active_friend_count: int = betterproto.uint32_field(9)
 
 
 @dataclass
-class CPlayer_GetFriendsAppsActivity_ResponseFriendPlayTime(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CPlayerGetFriendsAppsActivityResponseFriendPlayTime(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
     minutes_played_this_week: int = betterproto.uint32_field(2)
     minutes_played_two_weeks: int = betterproto.uint32_field(3)
     minutes_played_forever: int = betterproto.uint32_field(4)
@@ -90,42 +131,182 @@ class CPlayer_GetFriendsAppsActivity_ResponseFriendPlayTime(betterproto.Message)
 
 
 @dataclass
-class CPlayer_GetFriendsAppsActivity_ResponseAppFriendsInfo(betterproto.Message):
+class CPlayerGetFriendsAppsActivityResponseAppFriendsInfo(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    friends: List["CPlayer_GetFriendsAppsActivity_ResponseFriendPlayTime"] = betterproto.message_field(2)
+    friends: List["CPlayerGetFriendsAppsActivityResponseFriendPlayTime"] = betterproto.message_field(2)
     display_order: int = betterproto.uint32_field(3)
 
 
 @dataclass
-class CPlayer_GetGameBadgeLevels_Request(betterproto.Message):
+class CPlayerGetGameBadgeLevelsRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
 
 
 @dataclass
-class CPlayer_GetGameBadgeLevels_Response(betterproto.Message):
+class CPlayerGetGameBadgeLevelsResponse(betterproto.Message):
     player_level: int = betterproto.uint32_field(1)
-    badges: List["CPlayer_GetGameBadgeLevels_ResponseBadge"] = betterproto.message_field(2)
+    badges: List["CPlayerGetGameBadgeLevelsResponseBadge"] = betterproto.message_field(2)
 
 
 @dataclass
-class CPlayer_GetGameBadgeLevels_ResponseBadge(betterproto.Message):
+class CPlayerGetGameBadgeLevelsResponseBadge(betterproto.Message):
     level: int = betterproto.int32_field(1)
     series: int = betterproto.int32_field(2)
     border_color: int = betterproto.uint32_field(3)
 
 
 @dataclass
-class CPlayer_GetEmoticonList_Request(betterproto.Message):
+class CPlayerGetProfileBackgroundRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+    language: str = betterproto.string_field(2)
+
+
+@dataclass
+class ProfileItem(betterproto.Message):
+    communityitemid: int = betterproto.uint64_field(1)
+    image_small: str = betterproto.string_field(2)
+    image_large: str = betterproto.string_field(3)
+    name: str = betterproto.string_field(4)
+    item_title: str = betterproto.string_field(5)
+    item_description: str = betterproto.string_field(6)
+    appid: int = betterproto.uint32_field(7)
+    item_type: int = betterproto.uint32_field(8)
+    item_class: int = betterproto.uint32_field(9)
+    movie_webm: str = betterproto.string_field(10)
+    movie_mp4: str = betterproto.string_field(11)
+    equipped_flags: int = betterproto.uint32_field(12)
+
+
+@dataclass
+class CPlayerGetProfileBackgroundResponse(betterproto.Message):
+    profile_background: "ProfileItem" = betterproto.message_field(1)
+
+
+@dataclass
+class CPlayerSetProfileBackgroundRequest(betterproto.Message):
+    communityitemid: int = betterproto.uint64_field(1)
+
+
+@dataclass
+class CPlayerSetProfileBackgroundResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_GetEmoticonList_Response(betterproto.Message):
-    emoticons: List["CPlayer_GetEmoticonList_ResponseEmoticon"] = betterproto.message_field(1)
+class CPlayerGetMiniProfileBackgroundRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+    language: str = betterproto.string_field(2)
 
 
 @dataclass
-class CPlayer_GetEmoticonList_ResponseEmoticon(betterproto.Message):
+class CPlayerGetMiniProfileBackgroundResponse(betterproto.Message):
+    profile_background: "ProfileItem" = betterproto.message_field(1)
+
+
+@dataclass
+class CPlayerSetMiniProfileBackgroundRequest(betterproto.Message):
+    communityitemid: int = betterproto.uint64_field(1)
+
+
+@dataclass
+class CPlayerSetMiniProfileBackgroundResponse(betterproto.Message):
+    pass
+
+
+@dataclass
+class CPlayerGetAvatarFrameRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+    language: str = betterproto.string_field(2)
+
+
+@dataclass
+class CPlayerGetAvatarFrameResponse(betterproto.Message):
+    avatar_frame: "ProfileItem" = betterproto.message_field(1)
+
+
+@dataclass
+class CPlayerSetAvatarFrameRequest(betterproto.Message):
+    communityitemid: int = betterproto.uint64_field(1)
+
+
+@dataclass
+class CPlayerSetAvatarFrameResponse(betterproto.Message):
+    pass
+
+
+@dataclass
+class CPlayerGetAnimatedAvatarRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+    language: str = betterproto.string_field(2)
+
+
+@dataclass
+class CPlayerGetAnimatedAvatarResponse(betterproto.Message):
+    avatar: "ProfileItem" = betterproto.message_field(1)
+
+
+@dataclass
+class CPlayerSetAnimatedAvatarRequest(betterproto.Message):
+    communityitemid: int = betterproto.uint64_field(1)
+
+
+@dataclass
+class CPlayerSetAnimatedAvatarResponse(betterproto.Message):
+    pass
+
+
+@dataclass
+class CPlayerGetProfileItemsOwnedRequest(betterproto.Message):
+    language: str = betterproto.string_field(1)
+
+
+@dataclass
+class CPlayerGetProfileItemsOwnedResponse(betterproto.Message):
+    profile_backgrounds: List["ProfileItem"] = betterproto.message_field(1)
+    mini_profile_backgrounds: List["ProfileItem"] = betterproto.message_field(2)
+    avatar_frames: List["ProfileItem"] = betterproto.message_field(3)
+    animated_avatars: List["ProfileItem"] = betterproto.message_field(4)
+    profile_modifiers: List["ProfileItem"] = betterproto.message_field(5)
+
+
+@dataclass
+class CPlayerGetProfileItemsEquippedRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+    language: str = betterproto.string_field(2)
+
+
+@dataclass
+class CPlayerGetProfileItemsEquippedResponse(betterproto.Message):
+    profile_background: "ProfileItem" = betterproto.message_field(1)
+    mini_profile_background: "ProfileItem" = betterproto.message_field(2)
+    avatar_frame: "ProfileItem" = betterproto.message_field(3)
+    animated_avatar: "ProfileItem" = betterproto.message_field(4)
+    profile_modifier: "ProfileItem" = betterproto.message_field(5)
+
+
+@dataclass
+class CPlayerSetEquippedProfileItemFlagsRequest(betterproto.Message):
+    communityitemid: int = betterproto.uint64_field(1)
+    flags: int = betterproto.uint32_field(2)
+
+
+@dataclass
+class CPlayerSetEquippedProfileItemFlagsResponse(betterproto.Message):
+    pass
+
+
+@dataclass
+class CPlayerGetEmoticonListRequest(betterproto.Message):
+    pass
+
+
+@dataclass
+class CPlayerGetEmoticonListResponse(betterproto.Message):
+    emoticons: List["CPlayerGetEmoticonListResponseEmoticon"] = betterproto.message_field(1)
+
+
+@dataclass
+class CPlayerGetEmoticonListResponseEmoticon(betterproto.Message):
     name: str = betterproto.string_field(1)
     count: int = betterproto.int32_field(2)
     time_last_used: int = betterproto.uint32_field(3)
@@ -134,21 +315,21 @@ class CPlayer_GetEmoticonList_ResponseEmoticon(betterproto.Message):
 
 
 @dataclass
-class CPlayer_GetAchievementsProgress_Request(betterproto.Message):
+class CPlayerGetAchievementsProgressRequest(betterproto.Message):
     steamid: int = betterproto.uint64_field(1)
     language: str = betterproto.string_field(2)
     appids: List[int] = betterproto.uint32_field(3)
 
 
 @dataclass
-class CPlayer_GetAchievementsProgress_Response(betterproto.Message):
-    achievement_progress: List[
-        "CPlayer_GetAchievementsProgress_ResponseAchievementProgress"
-    ] = betterproto.message_field(1)
+class CPlayerGetAchievementsProgressResponse(betterproto.Message):
+    achievement_progress: List["CPlayerGetAchievementsProgressResponseAchievementProgress"] = betterproto.message_field(
+        1
+    )
 
 
 @dataclass
-class CPlayer_GetAchievementsProgress_ResponseAchievementProgress(betterproto.Message):
+class CPlayerGetAchievementsProgressResponseAchievementProgress(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     unlocked: int = betterproto.uint32_field(2)
     total: int = betterproto.uint32_field(3)
@@ -158,24 +339,24 @@ class CPlayer_GetAchievementsProgress_ResponseAchievementProgress(betterproto.Me
 
 
 @dataclass
-class CPlayer_PostStatusToFriends_Request(betterproto.Message):
+class CPlayerPostStatusToFriendsRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     status_text: str = betterproto.string_field(2)
 
 
 @dataclass
-class CPlayer_PostStatusToFriends_Response(betterproto.Message):
+class CPlayerPostStatusToFriendsResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_GetPostedStatus_Request(betterproto.Message):
+class CPlayerGetPostedStatusRequest(betterproto.Message):
     steamid: int = betterproto.uint64_field(1)
     postid: int = betterproto.uint64_field(2)
 
 
 @dataclass
-class CPlayer_GetPostedStatus_Response(betterproto.Message):
+class CPlayerGetPostedStatusResponse(betterproto.Message):
     accountid: int = betterproto.uint32_field(1)
     postid: int = betterproto.uint64_field(2)
     status_text: str = betterproto.string_field(3)
@@ -184,30 +365,30 @@ class CPlayer_GetPostedStatus_Response(betterproto.Message):
 
 
 @dataclass
-class CPlayer_DeletePostedStatus_Request(betterproto.Message):
+class CPlayerDeletePostedStatusRequest(betterproto.Message):
     postid: int = betterproto.uint64_field(1)
 
 
 @dataclass
-class CPlayer_DeletePostedStatus_Response(betterproto.Message):
+class CPlayerDeletePostedStatusResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_GetLastPlayedTimes_Request(betterproto.Message):
+class CPlayerGetLastPlayedTimesRequest(betterproto.Message):
     min_last_played: int = betterproto.uint32_field(1)
 
 
 @dataclass
-class CPlayer_GetLastPlayedTimes_Response(betterproto.Message):
-    games: List["CPlayer_GetLastPlayedTimes_ResponseGame"] = betterproto.message_field(1)
+class CPlayerGetLastPlayedTimesResponse(betterproto.Message):
+    games: List["CPlayerGetLastPlayedTimesResponseGame"] = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_GetLastPlayedTimes_ResponseGame(betterproto.Message):
+class CPlayerGetLastPlayedTimesResponseGame(betterproto.Message):
     appid: int = betterproto.int32_field(1)
     last_playtime: int = betterproto.uint32_field(2)
-    playtime_2weeks: int = betterproto.int32_field(3)
+    playtime_2_weeks: int = betterproto.int32_field(3)
     playtime_forever: int = betterproto.int32_field(4)
     first_playtime: int = betterproto.uint32_field(5)
     playtime_windows_forever: int = betterproto.int32_field(6)
@@ -222,39 +403,39 @@ class CPlayer_GetLastPlayedTimes_ResponseGame(betterproto.Message):
 
 
 @dataclass
-class CPlayer_AcceptSSA_Request(betterproto.Message):
+class CPlayerAcceptSsaRequest(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_AcceptSSA_Response(betterproto.Message):
+class CPlayerAcceptSsaResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_GetNicknameList_Request(betterproto.Message):
+class CPlayerGetNicknameListRequest(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_GetNicknameList_Response(betterproto.Message):
-    nicknames: List["CPlayer_GetNicknameList_ResponsePlayerNickname"] = betterproto.message_field(1)
+class CPlayerGetNicknameListResponse(betterproto.Message):
+    nicknames: List["CPlayerGetNicknameListResponsePlayerNickname"] = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_GetNicknameList_ResponsePlayerNickname(betterproto.Message):
-    accountid: float = betterproto.fixed32_field(1)
+class CPlayerGetNicknameListResponsePlayerNickname(betterproto.Message):
+    accountid: int = betterproto.fixed32_field(1)
     nickname: str = betterproto.string_field(2)
 
 
 @dataclass
-class CPlayer_GetPerFriendPreferences_Request(betterproto.Message):
+class CPlayerGetPerFriendPreferencesRequest(betterproto.Message):
     pass
 
 
 @dataclass
 class PerFriendPreferences(betterproto.Message):
-    accountid: float = betterproto.fixed32_field(1)
+    accountid: int = betterproto.fixed32_field(1)
     nickname: str = betterproto.string_field(2)
     notifications_showingame: "ENotificationSetting" = betterproto.enum_field(3)
     notifications_showonline: "ENotificationSetting" = betterproto.enum_field(4)
@@ -266,60 +447,60 @@ class PerFriendPreferences(betterproto.Message):
 
 
 @dataclass
-class CPlayer_GetPerFriendPreferences_Response(betterproto.Message):
+class CPlayerGetPerFriendPreferencesResponse(betterproto.Message):
     preferences: List["PerFriendPreferences"] = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_SetPerFriendPreferences_Request(betterproto.Message):
+class CPlayerSetPerFriendPreferencesRequest(betterproto.Message):
     preferences: "PerFriendPreferences" = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_SetPerFriendPreferences_Response(betterproto.Message):
+class CPlayerSetPerFriendPreferencesResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_AddFriend_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CPlayerAddFriendRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
 
 
 @dataclass
-class CPlayer_AddFriend_Response(betterproto.Message):
+class CPlayerAddFriendResponse(betterproto.Message):
     invite_sent: bool = betterproto.bool_field(1)
     friend_relationship: int = betterproto.uint32_field(2)
     result: int = betterproto.int32_field(3)
 
 
 @dataclass
-class CPlayer_RemoveFriend_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CPlayerRemoveFriendRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
 
 
 @dataclass
-class CPlayer_RemoveFriend_Response(betterproto.Message):
+class CPlayerRemoveFriendResponse(betterproto.Message):
     friend_relationship: int = betterproto.uint32_field(1)
 
 
 @dataclass
-class CPlayer_IgnoreFriend_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CPlayerIgnoreFriendRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
     unignore: bool = betterproto.bool_field(2)
 
 
 @dataclass
-class CPlayer_IgnoreFriend_Response(betterproto.Message):
+class CPlayerIgnoreFriendResponse(betterproto.Message):
     friend_relationship: int = betterproto.uint32_field(1)
 
 
 @dataclass
-class CPlayer_GetCommunityPreferences_Request(betterproto.Message):
+class CPlayerGetCommunityPreferencesRequest(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_CommunityPreferences(betterproto.Message):
+class CPlayerCommunityPreferences(betterproto.Message):
     hide_adult_content_violence: bool = betterproto.bool_field(1)
     hide_adult_content_sex: bool = betterproto.bool_field(2)
     parenthesize_nicknames: bool = betterproto.bool_field(4)
@@ -327,27 +508,27 @@ class CPlayer_CommunityPreferences(betterproto.Message):
 
 
 @dataclass
-class CPlayer_GetCommunityPreferences_Response(betterproto.Message):
-    preferences: "CPlayer_CommunityPreferences" = betterproto.message_field(1)
+class CPlayerGetCommunityPreferencesResponse(betterproto.Message):
+    preferences: "CPlayerCommunityPreferences" = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_SetCommunityPreferences_Request(betterproto.Message):
-    preferences: "CPlayer_CommunityPreferences" = betterproto.message_field(1)
+class CPlayerSetCommunityPreferencesRequest(betterproto.Message):
+    preferences: "CPlayerCommunityPreferences" = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_SetCommunityPreferences_Response(betterproto.Message):
+class CPlayerSetCommunityPreferencesResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_GetNewSteamAnnouncementState_Request(betterproto.Message):
+class CPlayerGetNewSteamAnnouncementStateRequest(betterproto.Message):
     language: int = betterproto.int32_field(1)
 
 
 @dataclass
-class CPlayer_GetNewSteamAnnouncementState_Response(betterproto.Message):
+class CPlayerGetNewSteamAnnouncementStateResponse(betterproto.Message):
     state: int = betterproto.int32_field(1)
     announcement_headline: str = betterproto.string_field(2)
     announcement_url: str = betterproto.string_field(3)
@@ -356,18 +537,18 @@ class CPlayer_GetNewSteamAnnouncementState_Response(betterproto.Message):
 
 
 @dataclass
-class CPlayer_UpdateSteamAnnouncementLastRead_Request(betterproto.Message):
+class CPlayerUpdateSteamAnnouncementLastReadRequest(betterproto.Message):
     announcement_gid: int = betterproto.uint64_field(1)
     time_posted: int = betterproto.uint32_field(2)
 
 
 @dataclass
-class CPlayer_UpdateSteamAnnouncementLastRead_Response(betterproto.Message):
+class CPlayerUpdateSteamAnnouncementLastReadResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CPlayer_GetPrivacySettings_Request(betterproto.Message):
+class CPlayerGetPrivacySettingsRequest(betterproto.Message):
     pass
 
 
@@ -382,38 +563,44 @@ class CPrivacySettings(betterproto.Message):
 
 
 @dataclass
-class CPlayer_GetPrivacySettings_Response(betterproto.Message):
+class CPlayerGetPrivacySettingsResponse(betterproto.Message):
     privacy_settings: "CPrivacySettings" = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_GetDurationControl_Request(betterproto.Message):
+class CPlayerGetDurationControlRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
 
 
 @dataclass
-class CPlayer_GetDurationControl_Response(betterproto.Message):
+class CPlayerGetDurationControlResponse(betterproto.Message):
     is_enabled: bool = betterproto.bool_field(1)
     seconds: int = betterproto.int32_field(2)
     seconds_today: int = betterproto.int32_field(3)
     is_steamchina_account: bool = betterproto.bool_field(4)
     is_age_verified: bool = betterproto.bool_field(5)
+    seconds_allowed_today: int = betterproto.uint32_field(6)
 
 
 @dataclass
-class CPlayer_LastPlayedTimes_Notification(betterproto.Message):
-    games: List["CPlayer_GetLastPlayedTimes_ResponseGame"] = betterproto.message_field(1)
+class CPlayerLastPlayedTimesNotification(betterproto.Message):
+    games: List["CPlayerGetLastPlayedTimesResponseGame"] = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_FriendNicknameChanged_Notification(betterproto.Message):
-    accountid: float = betterproto.fixed32_field(1)
+class CPlayerFriendNicknameChangedNotification(betterproto.Message):
+    accountid: int = betterproto.fixed32_field(1)
     nickname: str = betterproto.string_field(2)
     is_echo_to_self: bool = betterproto.bool_field(3)
 
 
 @dataclass
-class CPlayer_NewSteamAnnouncementState_Notification(betterproto.Message):
+class CPlayerFriendEquippedProfileItemsChangedNotification(betterproto.Message):
+    accountid: int = betterproto.fixed32_field(1)
+
+
+@dataclass
+class CPlayerNewSteamAnnouncementStateNotification(betterproto.Message):
     state: int = betterproto.int32_field(1)
     announcement_headline: str = betterproto.string_field(2)
     announcement_url: str = betterproto.string_field(3)
@@ -422,16 +609,16 @@ class CPlayer_NewSteamAnnouncementState_Notification(betterproto.Message):
 
 
 @dataclass
-class CPlayer_CommunityPreferencesChanged_Notification(betterproto.Message):
-    preferences: "CPlayer_CommunityPreferences" = betterproto.message_field(1)
+class CPlayerCommunityPreferencesChangedNotification(betterproto.Message):
+    preferences: "CPlayerCommunityPreferences" = betterproto.message_field(1)
 
 
 @dataclass
-class CPlayer_PerFriendPreferencesChanged_Notification(betterproto.Message):
-    accountid: float = betterproto.fixed32_field(1)
+class CPlayerPerFriendPreferencesChangedNotification(betterproto.Message):
+    accountid: int = betterproto.fixed32_field(1)
     preferences: "PerFriendPreferences" = betterproto.message_field(2)
 
 
 @dataclass
-class CPlayer_PrivacySettingsChanged_Notification(betterproto.Message):
+class CPlayerPrivacySettingsChangedNotification(betterproto.Message):
     privacy_settings: "CPrivacySettings" = betterproto.message_field(1)

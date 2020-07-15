@@ -46,32 +46,25 @@ class EProtoClanEventType(betterproto.Enum):
     InGameEventGeneral = 35
 
 
-class PartnerEventNotificationType(betterproto.Enum):
-    Start = 0
-    BroadcastStart = 1
-    MatchStart = 2
-    PartnerMaxType = 3
-
-
 @dataclass
-class CMsgIPAddress(betterproto.Message):
-    v4: float = betterproto.fixed32_field(1, group="ip")
+class CMsgIpAddress(betterproto.Message):
+    v4: int = betterproto.fixed32_field(1, group="ip")
     v6: bytes = betterproto.bytes_field(2, group="ip")
 
 
 @dataclass
-class CMsgIPAddressBucket(betterproto.Message):
-    original_ip_address: "CMsgIPAddress" = betterproto.message_field(1)
-    bucket: float = betterproto.fixed64_field(2)
+class CMsgIpAddressBucket(betterproto.Message):
+    original_ip_address: "CMsgIpAddress" = betterproto.message_field(1)
+    bucket: int = betterproto.fixed64_field(2)
 
 
 @dataclass
 class CMsgProtoBufHeader(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+    steamid: int = betterproto.fixed64_field(1)
     client_sessionid: int = betterproto.int32_field(2)
     routing_appid: int = betterproto.uint32_field(3)
-    jobid_source: float = betterproto.fixed64_field(10)
-    jobid_target: float = betterproto.fixed64_field(11)
+    jobid_source: int = betterproto.fixed64_field(10)
+    jobid_target: int = betterproto.fixed64_field(11)
     target_job_name: str = betterproto.string_field(12)
     seq_num: int = betterproto.int32_field(24)
     eresult: int = betterproto.int32_field(13)
@@ -110,15 +103,15 @@ class CMsgProtobufWrapped(betterproto.Message):
 class CMsgAuthTicket(betterproto.Message):
     estate: int = betterproto.uint32_field(1)
     eresult: int = betterproto.uint32_field(2)
-    steamid: float = betterproto.fixed64_field(3)
-    gameid: float = betterproto.fixed64_field(4)
+    steamid: int = betterproto.fixed64_field(3)
+    gameid: int = betterproto.fixed64_field(4)
     h_steam_pipe: int = betterproto.uint32_field(5)
     ticket_crc: int = betterproto.uint32_field(6)
     ticket: bytes = betterproto.bytes_field(7)
 
 
 @dataclass
-class CCDDBAppDetailCommon(betterproto.Message):
+class CcddbAppDetailCommon(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     name: str = betterproto.string_field(2)
     icon: str = betterproto.string_field(3)
@@ -150,6 +143,7 @@ class CMsgAppRights(betterproto.Message):
     economy_support_supervisor: bool = betterproto.bool_field(13)
     manage_pricing: bool = betterproto.bool_field(14)
     broadcast_live: bool = betterproto.bool_field(15)
+    view_marketing_traffic: bool = betterproto.bool_field(16)
 
 
 @dataclass
@@ -179,8 +173,8 @@ class CLocalizationToken(betterproto.Message):
 @dataclass
 class CClanEventUserNewsTuple(betterproto.Message):
     clanid: int = betterproto.uint32_field(1)
-    event_gid: float = betterproto.fixed64_field(2)
-    announcement_gid: float = betterproto.fixed64_field(3)
+    event_gid: int = betterproto.fixed64_field(2)
+    announcement_gid: int = betterproto.fixed64_field(3)
     rtime_start: int = betterproto.uint32_field(4)
     rtime_end: int = betterproto.uint32_field(5)
     priority_score: int = betterproto.uint32_field(6)
@@ -199,7 +193,7 @@ class CClanMatchEventByRange(betterproto.Message):
 
 
 @dataclass
-class CCommunity_ClanAnnouncementInfo(betterproto.Message):
+class CCommunityClanAnnouncementInfo(betterproto.Message):
     gid: int = betterproto.uint64_field(1)
     clanid: int = betterproto.uint64_field(2)
     posterid: int = betterproto.uint64_field(3)
@@ -211,16 +205,16 @@ class CCommunity_ClanAnnouncementInfo(betterproto.Message):
     tags: List[str] = betterproto.string_field(9)
     language: int = betterproto.int32_field(10)
     hidden: bool = betterproto.bool_field(11)
-    forum_topic_id: float = betterproto.fixed64_field(12)
-    event_gid: float = betterproto.fixed64_field(13)
+    forum_topic_id: int = betterproto.fixed64_field(12)
+    event_gid: int = betterproto.fixed64_field(13)
     voteupcount: int = betterproto.int32_field(14)
     votedowncount: int = betterproto.int32_field(15)
 
 
 @dataclass
 class CClanEventData(betterproto.Message):
-    gid: float = betterproto.fixed64_field(1)
-    clan_steamid: float = betterproto.fixed64_field(2)
+    gid: int = betterproto.fixed64_field(1)
+    clan_steamid: int = betterproto.fixed64_field(2)
     event_name: str = betterproto.string_field(3)
     event_type: "EProtoClanEventType" = betterproto.enum_field(4)
     appid: int = betterproto.uint32_field(5)
@@ -229,11 +223,11 @@ class CClanEventData(betterproto.Message):
     rtime32_start_time: int = betterproto.uint32_field(8)
     rtime32_end_time: int = betterproto.uint32_field(9)
     comment_count: int = betterproto.int32_field(10)
-    creator_steamid: float = betterproto.fixed64_field(11)
-    last_update_steamid: float = betterproto.fixed64_field(12)
+    creator_steamid: int = betterproto.fixed64_field(11)
+    last_update_steamid: int = betterproto.fixed64_field(12)
     event_notes: str = betterproto.string_field(13)
     jsondata: str = betterproto.string_field(14)
-    announcement_body: "CCommunity_ClanAnnouncementInfo" = betterproto.message_field(15)
+    announcement_body: "CCommunityClanAnnouncementInfo" = betterproto.message_field(15)
     published: bool = betterproto.bool_field(16)
     hidden: bool = betterproto.bool_field(17)
     rtime32_visibility_start: int = betterproto.uint32_field(18)
@@ -241,12 +235,14 @@ class CClanEventData(betterproto.Message):
     broadcaster_accountid: int = betterproto.uint32_field(20)
     follower_count: int = betterproto.uint32_field(21)
     ignore_count: int = betterproto.uint32_field(22)
-    forum_topic_id: float = betterproto.fixed64_field(23)
+    forum_topic_id: int = betterproto.fixed64_field(23)
     rtime32_last_modified: int = betterproto.uint32_field(24)
+    news_post_gid: int = betterproto.fixed64_field(25)
+    rtime_mod_reviewed: int = betterproto.uint32_field(26)
 
 
 @dataclass
-class CBilling_Address(betterproto.Message):
+class CBillingAddress(betterproto.Message):
     first_name: str = betterproto.string_field(1)
     last_name: str = betterproto.string_field(2)
     address1: str = betterproto.string_field(3)

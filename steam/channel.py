@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from .group import Group
     from .image import Image
     from .protobufs.steammessages_chat import (
-        CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
+        CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
         CChatRoomState,
         CUserChatRoomState,
     )

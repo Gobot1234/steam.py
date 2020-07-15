@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import betterproto
 
-from .steammessages_base import CMsgIPAddress
+from .steammessages_base import CMsgIpAddress
 
 
 @dataclass
@@ -30,7 +30,7 @@ class CMsgClientSecret(betterproto.Message):
     version: int = betterproto.uint32_field(1)
     appid: int = betterproto.uint32_field(2)
     deviceid: int = betterproto.uint32_field(3)
-    nonce: float = betterproto.fixed64_field(4)
+    nonce: int = betterproto.fixed64_field(4)
     hmac: bytes = betterproto.bytes_field(5)
 
 
@@ -46,25 +46,25 @@ class CMsgClientLogon(betterproto.Message):
     should_remember_password: bool = betterproto.bool_field(8)
     wine_version: str = betterproto.string_field(9)
     deprecated_10: int = betterproto.uint32_field(10)
-    obfuscated_private_ip: "CMsgIPAddress" = betterproto.message_field(11)
+    obfuscated_private_ip: "CMsgIpAddress" = betterproto.message_field(11)
     deprecated_public_ip: int = betterproto.uint32_field(20)
     qos_level: int = betterproto.uint32_field(21)
-    client_supplied_steam_id: float = betterproto.fixed64_field(22)
-    public_ip: "CMsgIPAddress" = betterproto.message_field(23)
+    client_supplied_steam_id: int = betterproto.fixed64_field(22)
+    public_ip: "CMsgIpAddress" = betterproto.message_field(23)
     machine_id: bytes = betterproto.bytes_field(30)
     launcher_type: int = betterproto.uint32_field(31)
     ui_mode: int = betterproto.uint32_field(32)
     chat_mode: int = betterproto.uint32_field(33)
     steam2_auth_ticket: bytes = betterproto.bytes_field(41)
     email_address: str = betterproto.string_field(42)
-    rtime32_account_creation: float = betterproto.fixed32_field(43)
+    rtime32_account_creation: int = betterproto.fixed32_field(43)
     account_name: str = betterproto.string_field(50)
     password: str = betterproto.string_field(51)
     game_server_token: str = betterproto.string_field(52)
     login_key: str = betterproto.string_field(60)
     was_converted_deprecated_msg: bool = betterproto.bool_field(70)
     anon_user_target_account_name: str = betterproto.string_field(80)
-    resolved_user_steam_id: float = betterproto.fixed64_field(81)
+    resolved_user_steam_id: int = betterproto.fixed64_field(81)
     eresult_sentryfile: int = betterproto.int32_field(82)
     sha_sentryfile: bytes = betterproto.bytes_field(83)
     auth_code: str = betterproto.string_field(84)
@@ -88,6 +88,7 @@ class CMsgClientLogon(betterproto.Message):
     web_logon_nonce: str = betterproto.string_field(103)
     priority_reason: int = betterproto.int32_field(104)
     embedded_client_secret: "CMsgClientSecret" = betterproto.message_field(105)
+    disable_partner_autogrants: bool = betterproto.bool_field(106)
 
 
 @dataclass
@@ -96,7 +97,7 @@ class CMsgClientLogonResponse(betterproto.Message):
     out_of_game_heartbeat_seconds: int = betterproto.int32_field(2)
     in_game_heartbeat_seconds: int = betterproto.int32_field(3)
     deprecated_public_ip: int = betterproto.uint32_field(4)
-    rtime32_server_time: float = betterproto.fixed32_field(5)
+    rtime32_server_time: int = betterproto.fixed32_field(5)
     account_flags: int = betterproto.uint32_field(6)
     cell_id: int = betterproto.uint32_field(7)
     email_domain: str = betterproto.string_field(8)
@@ -104,10 +105,10 @@ class CMsgClientLogonResponse(betterproto.Message):
     eresult_extended: int = betterproto.int32_field(10)
     webapi_authenticate_user_nonce: str = betterproto.string_field(11)
     cell_id_ping_threshold: int = betterproto.uint32_field(12)
-    use_pics: bool = betterproto.bool_field(13)
+    deprecated_use_pics: bool = betterproto.bool_field(13)
     vanity_url: str = betterproto.string_field(14)
-    public_ip: "CMsgIPAddress" = betterproto.message_field(15)
-    client_supplied_steamid: float = betterproto.fixed64_field(20)
+    public_ip: "CMsgIpAddress" = betterproto.message_field(15)
+    client_supplied_steamid: int = betterproto.fixed64_field(20)
     ip_country_code: str = betterproto.string_field(21)
     parental_settings: bytes = betterproto.bytes_field(22)
     parental_setting_signature: bytes = betterproto.bytes_field(23)
@@ -119,12 +120,12 @@ class CMsgClientLogonResponse(betterproto.Message):
 
 
 @dataclass
-class CMsgClientRequestWebAPIAuthenticateUserNonce(betterproto.Message):
+class CMsgClientRequestWebApiAuthenticateUserNonce(betterproto.Message):
     token_type: int = betterproto.int32_field(1)
 
 
 @dataclass
-class CMsgClientRequestWebAPIAuthenticateUserNonceResponse(betterproto.Message):
+class CMsgClientRequestWebApiAuthenticateUserNonceResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     webapi_authenticate_user_nonce: str = betterproto.string_field(11)
     token_type: int = betterproto.int32_field(3)
@@ -169,9 +170,9 @@ class CMsgClientAccountInfo(betterproto.Message):
 
 @dataclass
 class CMsgClientChallengeRequest(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+    steamid: int = betterproto.fixed64_field(1)
 
 
 @dataclass
 class CMsgClientChallengeResponse(betterproto.Message):
-    challenge: float = betterproto.fixed64_field(1)
+    challenge: int = betterproto.fixed64_field(1)

@@ -9,12 +9,12 @@ import betterproto
 
 
 @dataclass
-class CTwoFactor_Status_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CTwoFactorStatusRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
 
 
 @dataclass
-class CTwoFactor_Status_Response(betterproto.Message):
+class CTwoFactorStatusResponse(betterproto.Message):
     state: int = betterproto.uint32_field(1)
     inactivation_reason: int = betterproto.uint32_field(2)
     authenticator_type: int = betterproto.uint32_field(3)
@@ -31,10 +31,10 @@ class CTwoFactor_Status_Response(betterproto.Message):
 
 
 @dataclass
-class CTwoFactor_AddAuthenticator_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CTwoFactorAddAuthenticatorRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
     authenticator_time: int = betterproto.uint64_field(2)
-    serial_number: float = betterproto.fixed64_field(3)
+    serial_number: int = betterproto.fixed64_field(3)
     authenticator_type: int = betterproto.uint32_field(4)
     device_identifier: str = betterproto.string_field(5)
     sms_phone_id: str = betterproto.string_field(6)
@@ -42,9 +42,9 @@ class CTwoFactor_AddAuthenticator_Request(betterproto.Message):
 
 
 @dataclass
-class CTwoFactor_AddAuthenticator_Response(betterproto.Message):
+class CTwoFactorAddAuthenticatorResponse(betterproto.Message):
     shared_secret: bytes = betterproto.bytes_field(1)
-    serial_number: float = betterproto.fixed64_field(2)
+    serial_number: int = betterproto.fixed64_field(2)
     revocation_code: str = betterproto.string_field(3)
     uri: str = betterproto.string_field(4)
     server_time: int = betterproto.uint64_field(5)
@@ -56,20 +56,20 @@ class CTwoFactor_AddAuthenticator_Response(betterproto.Message):
 
 
 @dataclass
-class CTwoFactor_SendEmail_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CTwoFactorSendEmailRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
     email_type: int = betterproto.uint32_field(2)
     include_activation_code: bool = betterproto.bool_field(3)
 
 
 @dataclass
-class CTwoFactor_SendEmail_Response(betterproto.Message):
+class CTwoFactorSendEmailResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CTwoFactor_FinalizeAddAuthenticator_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CTwoFactorFinalizeAddAuthenticatorRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
     authenticator_code: str = betterproto.string_field(2)
     authenticator_time: int = betterproto.uint64_field(3)
     activation_code: str = betterproto.string_field(4)
@@ -77,7 +77,7 @@ class CTwoFactor_FinalizeAddAuthenticator_Request(betterproto.Message):
 
 
 @dataclass
-class CTwoFactor_FinalizeAddAuthenticator_Response(betterproto.Message):
+class CTwoFactorFinalizeAddAuthenticatorResponse(betterproto.Message):
     success: bool = betterproto.bool_field(1)
     want_more: bool = betterproto.bool_field(2)
     server_time: int = betterproto.uint64_field(3)
@@ -85,7 +85,7 @@ class CTwoFactor_FinalizeAddAuthenticator_Response(betterproto.Message):
 
 
 @dataclass
-class CTwoFactor_RemoveAuthenticator_Request(betterproto.Message):
+class CTwoFactorRemoveAuthenticatorRequest(betterproto.Message):
     revocation_code: str = betterproto.string_field(2)
     revocation_reason: int = betterproto.uint32_field(5)
     steamguard_scheme: int = betterproto.uint32_field(6)
@@ -93,37 +93,37 @@ class CTwoFactor_RemoveAuthenticator_Request(betterproto.Message):
 
 
 @dataclass
-class CTwoFactor_RemoveAuthenticator_Response(betterproto.Message):
+class CTwoFactorRemoveAuthenticatorResponse(betterproto.Message):
     success: bool = betterproto.bool_field(1)
     server_time: int = betterproto.uint64_field(3)
     revocation_attempts_remaining: int = betterproto.uint32_field(5)
 
 
 @dataclass
-class CTwoFactor_CreateEmergencyCodes_Request(betterproto.Message):
+class CTwoFactorCreateEmergencyCodesRequest(betterproto.Message):
     code: str = betterproto.string_field(1)
 
 
 @dataclass
-class CTwoFactor_CreateEmergencyCodes_Response(betterproto.Message):
+class CTwoFactorCreateEmergencyCodesResponse(betterproto.Message):
     codes: List[str] = betterproto.string_field(1)
 
 
 @dataclass
-class CTwoFactor_DestroyEmergencyCodes_Request(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+class CTwoFactorDestroyEmergencyCodesRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
 
 
 @dataclass
-class CTwoFactor_DestroyEmergencyCodes_Response(betterproto.Message):
+class CTwoFactorDestroyEmergencyCodesResponse(betterproto.Message):
     pass
 
 
 @dataclass
-class CTwoFactor_ValidateToken_Request(betterproto.Message):
+class CTwoFactorValidateTokenRequest(betterproto.Message):
     code: str = betterproto.string_field(1)
 
 
 @dataclass
-class CTwoFactor_ValidateToken_Response(betterproto.Message):
+class CTwoFactorValidateTokenResponse(betterproto.Message):
     valid: bool = betterproto.bool_field(1)

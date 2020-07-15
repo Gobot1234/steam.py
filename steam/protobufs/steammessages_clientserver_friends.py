@@ -10,43 +10,43 @@ import betterproto
 
 @dataclass
 class CMsgClientFriendMsg(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+    steamid: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)
     message: bytes = betterproto.bytes_field(3)
-    rtime32_server_timestamp: float = betterproto.fixed32_field(4)
+    rtime32_server_timestamp: int = betterproto.fixed32_field(4)
     echo_to_sender: bool = betterproto.bool_field(5)
 
 
 @dataclass
 class CMsgClientFriendMsgIncoming(betterproto.Message):
-    steamid_from: float = betterproto.fixed64_field(1)
+    steamid_from: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)
     from_limited_account: bool = betterproto.bool_field(3)
     message: bytes = betterproto.bytes_field(4)
-    rtime32_server_timestamp: float = betterproto.fixed32_field(5)
+    rtime32_server_timestamp: int = betterproto.fixed32_field(5)
 
 
 @dataclass
 class CMsgClientAddFriend(betterproto.Message):
-    steamid_to_add: float = betterproto.fixed64_field(1)
+    steamid_to_add: int = betterproto.fixed64_field(1)
     accountname_or_email_to_add: str = betterproto.string_field(2)
 
 
 @dataclass
 class CMsgClientAddFriendResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    steam_id_added: float = betterproto.fixed64_field(2)
+    steam_id_added: int = betterproto.fixed64_field(2)
     persona_name_added: str = betterproto.string_field(3)
 
 
 @dataclass
 class CMsgClientRemoveFriend(betterproto.Message):
-    friendid: float = betterproto.fixed64_field(1)
+    friendid: int = betterproto.fixed64_field(1)
 
 
 @dataclass
 class CMsgClientHideFriend(betterproto.Message):
-    friendid: float = betterproto.fixed64_field(1)
+    friendid: int = betterproto.fixed64_field(1)
     hide: bool = betterproto.bool_field(2)
 
 
@@ -61,7 +61,7 @@ class CMsgClientFriendsList(betterproto.Message):
 
 @dataclass
 class CMsgClientFriendsListFriend(betterproto.Message):
-    ulfriendid: float = betterproto.fixed64_field(1)
+    ulfriendid: int = betterproto.fixed64_field(1)
     efriendrelationship: int = betterproto.uint32_field(2)
 
 
@@ -75,14 +75,14 @@ class CMsgClientFriendsGroupsList(betterproto.Message):
 
 @dataclass
 class CMsgClientFriendsGroupsListFriendGroup(betterproto.Message):
-    group_id: int = betterproto.int32_field(1)
-    group_name: str = betterproto.string_field(2)
+    n_group_id: int = betterproto.int32_field(1)
+    str_group_name: str = betterproto.string_field(2)
 
 
 @dataclass
 class CMsgClientFriendsGroupsListFriendGroupsMembership(betterproto.Message):
-    steam_id: float = betterproto.fixed64_field(1)
-    group_id: int = betterproto.int32_field(2)
+    ul_steam_id: int = betterproto.fixed64_field(1)
+    n_group_id: int = betterproto.int32_field(2)
 
 
 @dataclass
@@ -94,13 +94,13 @@ class CMsgClientPlayerNicknameList(betterproto.Message):
 
 @dataclass
 class CMsgClientPlayerNicknameListPlayerNickname(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+    steamid: int = betterproto.fixed64_field(1)
     nickname: str = betterproto.string_field(3)
 
 
 @dataclass
 class CMsgClientSetPlayerNickname(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+    steamid: int = betterproto.fixed64_field(1)
     nickname: str = betterproto.string_field(2)
 
 
@@ -112,7 +112,7 @@ class CMsgClientSetPlayerNicknameResponse(betterproto.Message):
 @dataclass
 class CMsgClientRequestFriendData(betterproto.Message):
     persona_state_requested: int = betterproto.uint32_field(1)
-    friends: List[float] = betterproto.fixed64_field(2)
+    friends: List[int] = betterproto.fixed64_field(2)
 
 
 @dataclass
@@ -141,7 +141,7 @@ class CMsgClientPersonaState(betterproto.Message):
 
 @dataclass
 class CMsgClientPersonaStateFriend(betterproto.Message):
-    friendid: float = betterproto.fixed64_field(1)
+    friendid: int = betterproto.fixed64_field(1)
     persona_state: int = betterproto.uint32_field(2)
     game_played_app_id: int = betterproto.uint32_field(3)
     game_server_ip: int = betterproto.uint32_field(4)
@@ -151,20 +151,20 @@ class CMsgClientPersonaStateFriend(betterproto.Message):
     persona_set_by_user: bool = betterproto.bool_field(10)
     player_name: str = betterproto.string_field(15)
     query_port: int = betterproto.uint32_field(20)
-    steamid_source: float = betterproto.fixed64_field(25)
+    steamid_source: int = betterproto.fixed64_field(25)
     avatar_hash: bytes = betterproto.bytes_field(31)
     last_logoff: int = betterproto.uint32_field(45)
     last_logon: int = betterproto.uint32_field(46)
     last_seen_online: int = betterproto.uint32_field(47)
     clan_rank: int = betterproto.uint32_field(50)
     game_name: str = betterproto.string_field(55)
-    gameid: float = betterproto.fixed64_field(56)
+    gameid: int = betterproto.fixed64_field(56)
     game_data_blob: bytes = betterproto.bytes_field(60)
     clan_data: "CMsgClientPersonaStateFriendClanData" = betterproto.message_field(64)
     clan_tag: str = betterproto.string_field(65)
-    rich_presence: List["CMsgClientPersonaStateFriendKV"] = betterproto.message_field(71)
-    broadcast_id: float = betterproto.fixed64_field(72)
-    game_lobby_id: float = betterproto.fixed64_field(73)
+    rich_presence: List["CMsgClientPersonaStateFriendKv"] = betterproto.message_field(71)
+    broadcast_id: int = betterproto.fixed64_field(72)
+    game_lobby_id: int = betterproto.fixed64_field(73)
     watching_broadcast_accountid: int = betterproto.uint32_field(74)
     watching_broadcast_appid: int = betterproto.uint32_field(75)
     watching_broadcast_viewers: int = betterproto.uint32_field(76)
@@ -178,20 +178,20 @@ class CMsgClientPersonaStateFriendClanData(betterproto.Message):
 
 
 @dataclass
-class CMsgClientPersonaStateFriendKV(betterproto.Message):
+class CMsgClientPersonaStateFriendKv(betterproto.Message):
     key: str = betterproto.string_field(1)
     value: str = betterproto.string_field(2)
 
 
 @dataclass
 class CMsgClientFriendProfileInfo(betterproto.Message):
-    steamid_friend: float = betterproto.fixed64_field(1)
+    steamid_friend: int = betterproto.fixed64_field(1)
 
 
 @dataclass
 class CMsgClientFriendProfileInfoResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    steamid_friend: float = betterproto.fixed64_field(2)
+    steamid_friend: int = betterproto.fixed64_field(2)
     time_created: int = betterproto.uint32_field(3)
     real_name: str = betterproto.string_field(4)
     city_name: str = betterproto.string_field(5)
@@ -203,9 +203,9 @@ class CMsgClientFriendProfileInfoResponse(betterproto.Message):
 
 @dataclass
 class CMsgClientCreateFriendsGroup(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+    steamid: int = betterproto.fixed64_field(1)
     groupname: str = betterproto.string_field(2)
-    steamid_friends: List[float] = betterproto.fixed64_field(3)
+    steamid_friends: List[int] = betterproto.fixed64_field(3)
 
 
 @dataclass
@@ -216,7 +216,7 @@ class CMsgClientCreateFriendsGroupResponse(betterproto.Message):
 
 @dataclass
 class CMsgClientDeleteFriendsGroup(betterproto.Message):
-    steamid: float = betterproto.fixed64_field(1)
+    steamid: int = betterproto.fixed64_field(1)
     groupid: int = betterproto.int32_field(2)
 
 
@@ -229,8 +229,8 @@ class CMsgClientDeleteFriendsGroupResponse(betterproto.Message):
 class CMsgClientManageFriendsGroup(betterproto.Message):
     groupid: int = betterproto.int32_field(1)
     groupname: str = betterproto.string_field(2)
-    steamid_friends_added: List[float] = betterproto.fixed64_field(3)
-    steamid_friends_removed: List[float] = betterproto.fixed64_field(4)
+    steamid_friends_added: List[int] = betterproto.fixed64_field(3)
+    steamid_friends_removed: List[int] = betterproto.fixed64_field(4)
 
 
 @dataclass
@@ -241,7 +241,7 @@ class CMsgClientManageFriendsGroupResponse(betterproto.Message):
 @dataclass
 class CMsgClientAddFriendToGroup(betterproto.Message):
     groupid: int = betterproto.int32_field(1)
-    steamiduser: float = betterproto.fixed64_field(2)
+    steamid: int = betterproto.fixed64_field(2)
 
 
 @dataclass
@@ -252,7 +252,7 @@ class CMsgClientAddFriendToGroupResponse(betterproto.Message):
 @dataclass
 class CMsgClientRemoveFriendFromGroup(betterproto.Message):
     groupid: int = betterproto.int32_field(1)
-    steamiduser: float = betterproto.fixed64_field(2)
+    steamid: int = betterproto.fixed64_field(2)
 
 
 @dataclass

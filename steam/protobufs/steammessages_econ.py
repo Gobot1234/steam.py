@@ -9,40 +9,40 @@ import betterproto
 
 
 @dataclass
-class CEcon_GetTradeOfferAccessToken_Request(betterproto.Message):
+class CEconGetTradeOfferAccessTokenRequest(betterproto.Message):
     generate_new_token: bool = betterproto.bool_field(1)
 
 
 @dataclass
-class CEcon_GetTradeOfferAccessToken_Response(betterproto.Message):
+class CEconGetTradeOfferAccessTokenResponse(betterproto.Message):
     trade_offer_access_token: str = betterproto.string_field(1)
 
 
 @dataclass
-class CEcon_ClientGetItemShopOverlayAuthURL_Request(betterproto.Message):
+class CEconClientGetItemShopOverlayAuthUrlRequest(betterproto.Message):
     return_url: str = betterproto.string_field(1)
 
 
 @dataclass
-class CEcon_ClientGetItemShopOverlayAuthURL_Response(betterproto.Message):
+class CEconClientGetItemShopOverlayAuthUrlResponse(betterproto.Message):
     url: str = betterproto.string_field(1)
 
 
 @dataclass
-class CEcon_GetAssetClassInfo_Request(betterproto.Message):
+class CEconGetAssetClassInfoRequest(betterproto.Message):
     language: str = betterproto.string_field(1)
     appid: int = betterproto.uint32_field(2)
-    classes: List["CEcon_GetAssetClassInfo_RequestClass"] = betterproto.message_field(3)
+    classes: List["CEconGetAssetClassInfoRequestClass"] = betterproto.message_field(3)
 
 
 @dataclass
-class CEcon_GetAssetClassInfo_RequestClass(betterproto.Message):
+class CEconGetAssetClassInfoRequestClass(betterproto.Message):
     classid: int = betterproto.uint64_field(1)
     instanceid: int = betterproto.uint64_field(2)
 
 
 @dataclass
-class CEconItem_DescriptionLine(betterproto.Message):
+class CEconItemDescriptionLine(betterproto.Message):
     type: str = betterproto.string_field(1)
     value: str = betterproto.string_field(2)
     color: str = betterproto.string_field(3)
@@ -50,13 +50,13 @@ class CEconItem_DescriptionLine(betterproto.Message):
 
 
 @dataclass
-class CEconItem_Action(betterproto.Message):
+class CEconItemAction(betterproto.Message):
     link: str = betterproto.string_field(1)
     name: str = betterproto.string_field(2)
 
 
 @dataclass
-class CEconItem_Description(betterproto.Message):
+class CEconItemDescription(betterproto.Message):
     appid: int = betterproto.int32_field(1)
     classid: int = betterproto.uint64_field(2)
     instanceid: int = betterproto.uint64_field(3)
@@ -64,11 +64,11 @@ class CEconItem_Description(betterproto.Message):
     background_color: str = betterproto.string_field(5)
     icon_url: str = betterproto.string_field(6)
     icon_url_large: str = betterproto.string_field(7)
-    descriptions: List["CEconItem_DescriptionLine"] = betterproto.message_field(8)
+    descriptions: List["CEconItemDescriptionLine"] = betterproto.message_field(8)
     tradable: bool = betterproto.bool_field(9)
-    actions: List["CEconItem_Action"] = betterproto.message_field(10)
-    owner_descriptions: List["CEconItem_DescriptionLine"] = betterproto.message_field(11)
-    owner_actions: List["CEconItem_Action"] = betterproto.message_field(12)
+    actions: List["CEconItemAction"] = betterproto.message_field(10)
+    owner_descriptions: List["CEconItemDescriptionLine"] = betterproto.message_field(11)
+    owner_actions: List["CEconItemAction"] = betterproto.message_field(12)
     fraudwarnings: List[str] = betterproto.string_field(13)
     name: str = betterproto.string_field(14)
     name_color: str = betterproto.string_field(15)
@@ -77,20 +77,20 @@ class CEconItem_Description(betterproto.Message):
     market_hash_name: str = betterproto.string_field(18)
     market_fee: str = betterproto.string_field(19)
     market_fee_app: int = betterproto.int32_field(28)
-    contained_item: "CEconItem_Description" = betterproto.message_field(20)
-    market_actions: List["CEconItem_Action"] = betterproto.message_field(21)
+    contained_item: "CEconItemDescription" = betterproto.message_field(20)
+    market_actions: List["CEconItemAction"] = betterproto.message_field(21)
     commodity: bool = betterproto.bool_field(22)
     market_tradable_restriction: int = betterproto.int32_field(23)
     market_marketable_restriction: int = betterproto.int32_field(24)
     marketable: bool = betterproto.bool_field(25)
-    tags: List["CEconItem_Tag"] = betterproto.message_field(26)
+    tags: List["CEconItemTag"] = betterproto.message_field(26)
     item_expiration: str = betterproto.string_field(27)
     market_buy_country_restriction: str = betterproto.string_field(30)
     market_sell_country_restriction: str = betterproto.string_field(31)
 
 
 @dataclass
-class CEconItem_Tag(betterproto.Message):
+class CEconItemTag(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     category: str = betterproto.string_field(2)
     internal_name: str = betterproto.string_field(3)
@@ -100,5 +100,5 @@ class CEconItem_Tag(betterproto.Message):
 
 
 @dataclass
-class CEcon_GetAssetClassInfo_Response(betterproto.Message):
-    descriptions: List["CEconItem_Description"] = betterproto.message_field(1)
+class CEconGetAssetClassInfoResponse(betterproto.Message):
+    descriptions: List["CEconItemDescription"] = betterproto.message_field(1)

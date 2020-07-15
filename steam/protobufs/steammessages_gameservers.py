@@ -9,22 +9,22 @@ import betterproto
 
 
 @dataclass
-class CGameServers_GetServerList_Request(betterproto.Message):
+class CGameServersGetServerListRequest(betterproto.Message):
     filter: str = betterproto.string_field(1)
     limit: int = betterproto.uint32_field(2)
 
 
 @dataclass
-class CGameServers_GetServerList_Response(betterproto.Message):
-    servers: List["CGameServers_GetServerList_ResponseServer"] = betterproto.message_field(1)
+class CGameServersGetServerListResponse(betterproto.Message):
+    servers: List["CGameServersGetServerListResponseServer"] = betterproto.message_field(1)
 
 
 @dataclass
-class CGameServers_GetServerList_ResponseServer(betterproto.Message):
+class CGameServersGetServerListResponseServer(betterproto.Message):
     addr: str = betterproto.string_field(1)
     gameport: int = betterproto.uint32_field(2)
     specport: int = betterproto.uint32_field(3)
-    steamid: float = betterproto.fixed64_field(4)
+    steamid: int = betterproto.fixed64_field(4)
     name: str = betterproto.string_field(5)
     appid: int = betterproto.uint32_field(6)
     gamedir: str = betterproto.string_field(7)
@@ -42,21 +42,21 @@ class CGameServers_GetServerList_ResponseServer(betterproto.Message):
 
 
 @dataclass
-class CGameServers_GetServerSteamIDsByIP_Request(betterproto.Message):
+class CGameServersGetServerSteamIDsByIpRequest(betterproto.Message):
     server_ips: List[str] = betterproto.string_field(1)
 
 
 @dataclass
-class CGameServers_IPsWithSteamIDs_Response(betterproto.Message):
-    servers: List["CGameServers_IPsWithSteamIDs_ResponseServer"] = betterproto.message_field(1)
+class CGameServersIPsWithSteamIDsResponse(betterproto.Message):
+    servers: List["CGameServersIPsWithSteamIDsResponseServer"] = betterproto.message_field(1)
 
 
 @dataclass
-class CGameServers_IPsWithSteamIDs_ResponseServer(betterproto.Message):
+class CGameServersIPsWithSteamIDsResponseServer(betterproto.Message):
     addr: str = betterproto.string_field(1)
-    steamid: float = betterproto.fixed64_field(2)
+    steamid: int = betterproto.fixed64_field(2)
 
 
 @dataclass
-class CGameServers_GetServerIPsBySteamID_Request(betterproto.Message):
-    server_steamids: List[float] = betterproto.fixed64_field(1)
+class CGameServersGetServerIPsBySteamIDRequest(betterproto.Message):
+    server_steamids: List[int] = betterproto.fixed64_field(1)

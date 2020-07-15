@@ -52,11 +52,11 @@ from .message import ClanMessage
 from .models import URL
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_chat import (
-    CChatRoom_IncomingChatMessage_Notification as GroupMessageNotification,
-    CClanChatRooms_GetClanChatRoomInfo_Response as FetchGroupResponse,
+    CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
+    CClanChatRoomsGetClanChatRoomInfoResponse as FetchGroupResponse,
 )
 from .protobufs.steammessages_friendmessages import (
-    CFriendMessages_IncomingMessage_Notification as UserMessageNotification,
+    CFriendMessagesIncomingMessageNotification as UserMessageNotification,
 )
 from .trade import TradeOffer
 from .user import User
@@ -66,9 +66,9 @@ if TYPE_CHECKING:
     from .comment import Comment
     from .http import HTTPClient
     from .protobufs.steammessages_chat import (
-        CChatRoom_ChatRoomHeaderState_Notification as GroupStateUpdate,
-        CChatRoom_GetMyChatRoomGroups_Response as MyChatRooms,
-        ChatRoomClient_NotifyChatGroupUserStateChanged_Notification as GroupAction,
+        CChatRoomChatRoomHeaderStateNotification as GroupStateUpdate,
+        CChatRoomGetMyChatRoomGroupsResponse as MyChatRooms,
+        ChatRoomClientNotifyChatGroupUserStateChangedNotification as GroupAction,
     )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
     from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications, CMsgClientUserNotifications
@@ -77,7 +77,7 @@ if TYPE_CHECKING:
         CMsgClientPersonaState,
         CMsgClientPersonaStateFriend,
     )
-    from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo, CMsgClientLoggedOff
+    from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo
 
 log = logging.getLogger(__name__)
 EventParser = Callable[["ConnectionState", "MsgProto"], Optional[Awaitable[None]]]
@@ -739,11 +739,3 @@ class ConnectionState:
             before = copy(self.client.user)
             self.client.user.name = msg.body.persona_name
             self.dispatch("user_update", before, self.client.user)
-
-    @register(EMsg.ClientLoggedOff)
-    async def parse_logoff(self, msg: MsgProto["CMsgClientLoggedOff"]):
-        # TODO
-        try:
-            await self.client.ws.handle_close()
-        except Exception:
-            pass

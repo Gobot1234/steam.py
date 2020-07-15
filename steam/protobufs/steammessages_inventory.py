@@ -9,13 +9,13 @@ import betterproto
 
 
 @dataclass
-class CInventory_GetInventory_Request(betterproto.Message):
+class CInventoryGetInventoryRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     steamid: int = betterproto.uint64_field(2)
 
 
 @dataclass
-class CInventory_Response(betterproto.Message):
+class CInventoryResponse(betterproto.Message):
     etag: str = betterproto.string_field(1)
     removeditemids: List[int] = betterproto.uint64_field(2)
     item_json: str = betterproto.string_field(3)
@@ -25,7 +25,7 @@ class CInventory_Response(betterproto.Message):
 
 
 @dataclass
-class CInventory_ExchangeItem_Request(betterproto.Message):
+class CInventoryExchangeItemRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     steamid: int = betterproto.uint64_field(2)
     materialsitemid: List[int] = betterproto.uint64_field(3)
@@ -34,18 +34,18 @@ class CInventory_ExchangeItem_Request(betterproto.Message):
 
 
 @dataclass
-class CInventory_GetEligiblePromoItemDefIDs_Request(betterproto.Message):
+class CInventoryGetEligiblePromoItemDefIDsRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     steamid: int = betterproto.uint64_field(2)
 
 
 @dataclass
-class CInventory_GetEligiblePromoItemDefIDs_Response(betterproto.Message):
+class CInventoryGetEligiblePromoItemDefIDsResponse(betterproto.Message):
     itemdefids: List[int] = betterproto.uint64_field(1)
 
 
 @dataclass
-class CInventory_AddItem_Request(betterproto.Message):
+class CInventoryAddItemRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     itemdefid: List[int] = betterproto.uint64_field(2)
     itempropsjson: List[str] = betterproto.string_field(3)
@@ -57,15 +57,15 @@ class CInventory_AddItem_Request(betterproto.Message):
 
 
 @dataclass
-class CInventory_ModifyItems_Request(betterproto.Message):
+class CInventoryModifyItemsRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     steamid: int = betterproto.uint64_field(2)
-    updates: List["CInventory_ModifyItems_RequestItemPropertyUpdate"] = betterproto.message_field(3)
+    updates: List["CInventoryModifyItemsRequestItemPropertyUpdate"] = betterproto.message_field(3)
     timestamp: int = betterproto.uint32_field(4)
 
 
 @dataclass
-class CInventory_ModifyItems_RequestItemPropertyUpdate(betterproto.Message):
+class CInventoryModifyItemsRequestItemPropertyUpdate(betterproto.Message):
     itemid: int = betterproto.uint64_field(1)
     remove_property: bool = betterproto.bool_field(2)
     property_name: str = betterproto.string_field(3)
@@ -76,13 +76,13 @@ class CInventory_ModifyItems_RequestItemPropertyUpdate(betterproto.Message):
 
 
 @dataclass
-class CInventory_ConsumePlaytime_Request(betterproto.Message):
+class CInventoryConsumePlaytimeRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     itemdefid: int = betterproto.uint64_field(2)
 
 
 @dataclass
-class CInventory_ConsumeItem_Request(betterproto.Message):
+class CInventoryConsumeItemRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     itemid: int = betterproto.uint64_field(2)
     quantity: int = betterproto.uint32_field(3)
@@ -92,75 +92,84 @@ class CInventory_ConsumeItem_Request(betterproto.Message):
 
 
 @dataclass
-class CInventory_DevSetNextDrop_Request(betterproto.Message):
+class CInventoryDevSetNextDropRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     itemdefid: int = betterproto.uint64_field(2)
     droptime: str = betterproto.string_field(3)
 
 
 @dataclass
-class CInventory_SplitItemStack_Request(betterproto.Message):
+class CInventorySplitItemStackRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     itemid: int = betterproto.uint64_field(2)
     quantity: int = betterproto.uint32_field(3)
+    steamid: int = betterproto.uint64_field(5)
 
 
 @dataclass
-class CInventory_CombineItemStacks_Request(betterproto.Message):
+class CInventoryCombineItemStacksRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     fromitemid: int = betterproto.uint64_field(2)
     destitemid: int = betterproto.uint64_field(3)
     quantity: int = betterproto.uint32_field(4)
+    steamid: int = betterproto.fixed64_field(7)
 
 
 @dataclass
-class CInventory_GetItemDefMeta_Request(betterproto.Message):
+class CInventoryGetItemDefMetaRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
 
 
 @dataclass
-class CInventory_GetItemDefMeta_Response(betterproto.Message):
+class CInventoryGetItemDefMetaResponse(betterproto.Message):
     modified: int = betterproto.uint32_field(1)
     digest: str = betterproto.string_field(2)
 
 
 @dataclass
-class CInventory_GetUserPurchaseInfo_Request(betterproto.Message):
+class CInventoryGetUserPurchaseInfoRequest(betterproto.Message):
     pass
 
 
 @dataclass
-class CInventory_GetUserPurchaseInfo_Response(betterproto.Message):
+class CInventoryGetUserPurchaseInfoResponse(betterproto.Message):
     ecurrency: int = betterproto.int32_field(1)
 
 
 @dataclass
-class CInventory_PurchaseInit_Request(betterproto.Message):
+class CInventoryPurchaseInitRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     language: int = betterproto.int32_field(2)
-    line_items: List["CInventory_PurchaseInit_RequestLineItem"] = betterproto.message_field(3)
+    line_items: List["CInventoryPurchaseInitRequestLineItem"] = betterproto.message_field(3)
 
 
 @dataclass
-class CInventory_PurchaseInit_RequestLineItem(betterproto.Message):
+class CInventoryPurchaseInitRequestLineItem(betterproto.Message):
     itemdefid: int = betterproto.uint64_field(1)
     quantity: int = betterproto.uint32_field(2)
 
 
 @dataclass
-class CInventory_PurchaseInit_Response(betterproto.Message):
+class CInventoryPurchaseInitResponse(betterproto.Message):
     orderid: int = betterproto.uint64_field(1)
     transid: int = betterproto.uint64_field(2)
 
 
 @dataclass
-class CInventory_PurchaseFinalize_Request(betterproto.Message):
+class CInventoryPurchaseFinalizeRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     language: int = betterproto.int32_field(2)
     orderid: int = betterproto.uint64_field(3)
 
 
 @dataclass
-class CInventoryClient_NewItems_Notification(betterproto.Message):
+class CInventoryInspectItemRequest(betterproto.Message):
+    itemdefid: int = betterproto.uint64_field(1)
+    itemid: int = betterproto.fixed64_field(2)
+    tags: str = betterproto.string_field(3)
+
+
+@dataclass
+class CInventoryClientNewItemsNotification(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    inventory_response: "CInventory_Response" = betterproto.message_field(2)
+    inventory_response: "CInventoryResponse" = betterproto.message_field(2)

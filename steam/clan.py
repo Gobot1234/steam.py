@@ -41,7 +41,7 @@ from .iterators import CommentsIterator
 from .models import URL, Role
 from .protobufs.steammessages_chat import (
     CChatRoomSummaryPair as ReceivedResponse,
-    CClanChatRooms_GetClanChatRoomInfo_Response as FetchedResponse,
+    CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
 )
 
 if TYPE_CHECKING:
