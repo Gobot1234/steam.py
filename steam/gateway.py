@@ -70,7 +70,7 @@ log = logging.getLogger(__name__)
 EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 
 
-def return_true(*_):
+def return_true(*_) -> bool:
     return True
 
 
@@ -279,20 +279,23 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
 
 class SteamWebSocket:
-    ___slots___ = (
-        "socket ",
-        "loop ",
-        "_connection ",
-        "cm_list ",
-        "_dispatch ",
-        "cm ",
-        "thread_id ",
-        "listeners ",
-        "connected ",
-        "steam_id ",
-        "handlers ",
-        "_current_job_id ",
-        "_parsers ",
+    __slots__ = (
+        "socket",
+        "loop",
+        "cm_list",
+        "cell_id",
+        "cm",
+        "session_id",
+        "thread_id",
+        "listeners",
+        "connected",
+        "steam_id",
+        "handlers",
+        "_connection",
+        "_dispatch",
+        "_current_job_id",
+        "_parsers",
+        "_keep_alive",
     )
 
     def __init__(
@@ -399,10 +402,8 @@ class SteamWebSocket:
             else:
                 msg = Msg(emsg, message, extended=True)
             log.debug(f"Socket has received {repr(msg)} from the websocket.")
-        except Exception as e:
-            log.fatal(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
-            if emsg != EMsg.ServiceMethodResponse:  # the repr likely failed so just ignore it
-                return log.exception(e)
+        except Exception:
+            return log.critical(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
 
         self._dispatch("socket_receive", msg)
 
@@ -415,27 +416,27 @@ class SteamWebSocket:
 
         # remove the dispatched listener
         removed = []
-        for index, entry in enumerate(self.listeners):
+        for idx, entry in enumerate(self.listeners):
             if entry.emsg != emsg:
                 continue
 
             future = entry.future
             if future.cancelled():
-                removed.append(index)
+                removed.append(idx)
                 continue
 
             try:
                 valid = entry.predicate(msg)
             except Exception as exc:
                 future.set_exception(exc)
-                removed.append(index)
+                removed.append(idx)
             else:
                 if valid:
                     future.set_result(msg)
-                    removed.append(index)
+                    removed.append(idx)
 
-        for index in reversed(removed):
-            del self.listeners[index]
+        for idx in reversed(removed):
+            del self.listeners[idx]
 
     async def send(self, data: bytes) -> None:
         self._dispatch("socket_raw_send", data)
@@ -484,7 +485,7 @@ class SteamWebSocket:
         else:
             if msg.body.eresult == EResult.InvalidPassword:
                 await asyncio.sleep(60)
-            raise ConnectionClosed(self.cm, self.cm_list)
+            await self.handle_close()
 
     async def handle_multi(self, msg: MsgProto["CMsgMulti"]) -> None:
         log.debug("Received a multi, unpacking")
@@ -511,21 +512,21 @@ class SteamWebSocket:
         return self._current_job_id
 
     async def change_presence(
-        self, *, games: List[dict], state: EPersonaState, ui_mode: "EUIMode", force_kick: bool,
+        self, *, games: List[dict], state: Optional[EPersonaState], ui_mode: Optional["EUIMode"], force_kick: bool,
     ) -> None:
-        if force_kick:
+        if force_kick is not None:
             kick = MsgProto(EMsg.ClientKickPlayingSession)
             log.debug("Kicking any currently playing sessions")
             await self.send_as_proto(kick)
-        if games:
+        if games is not None:
             activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug(f"Sending {activity} to change activity")
             await self.send_as_proto(activity)
-        if state:
+        if state is not None:
             state = MsgProto(EMsg.ClientPersonaState, status_flags=state)
             log.debug(f"Sending {state} to change state")
             await self.send_as_proto(state)
-        if ui_mode:
+        if ui_mode is not None:
             ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
             log.debug(f"Sending {ui_mode} to change UI mode")
             await self.send_as_proto(ui_mode)
