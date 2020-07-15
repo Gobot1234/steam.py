@@ -44,12 +44,11 @@ import steam
 
 class MyClient(steam.Client):
     async def on_ready(self):
-        print('Logged on as', self.user)
+        print('Logged in as', self.user)
 
     async def on_trade_receive(self, trade):
         print(f'Received trade: #{trade.id}')
         print('Trade partner is:', trade.partner.name)
-        print('We are going to send:')
         print('We would send:', len(trade.items_to_send), 'items')
         print('We would receive:', len(trade.items_to_receive), 'items')
 
