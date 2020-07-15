@@ -27,12 +27,10 @@ SOFTWARE.
 import time as _time
 from typing import TYPE_CHECKING, List, Tuple
 
-from ...enums import IntEnum as IntEnumBase
+from ...enums import IntEnum
 from .errors import CommandOnCooldown
 
 if TYPE_CHECKING:
-    from enum import IntEnum
-
     from .context import Context
 
 
@@ -42,14 +40,14 @@ __all__ = (
 )
 
 
-class BucketType(IntEnumBase):
-    User: "IntEnum" = 1
-    Member: "IntEnum" = 2
-    Group: "IntEnum" = 3
-    Clan: "IntEnum" = 4
-    Role: "IntEnum" = 5
-    Channel: "IntEnum" = 6
-    Officer: "IntEnum" = 7
+class BucketType(IntEnum):
+    User: "BucketType" = 1
+    Member: "BucketType" = 2
+    Group: "BucketType" = 3
+    Clan: "BucketType" = 4
+    Role: "BucketType" = 5
+    Channel: "BucketType" = 6
+    Officer: "BucketType" = 7
 
     def get_bucket(self, ctx: "Context"):
         if self == self.User:
@@ -74,13 +72,13 @@ class Cooldown:
         self._per = per
         self.bucket = bucket
         self._last_update = 0
-        self._last_called_by: List[Tuple[int, int]] = []
+        self._last_called_by: List[Tuple[BucketType, float]] = []
 
     def reset(self):
         self._last_update = 0
         self._last_called_by = []
 
-    def __call__(self, bucket):
+    def __call__(self, bucket: "BucketType"):
         now = _time.time()
 
         for (_, time) in self._last_called_by:
