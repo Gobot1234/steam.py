@@ -29,7 +29,7 @@ EnumMeta from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
 Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
-from enum import EnumMeta as _EnumMeta, _is_dunder, _is_descriptor
+from enum import EnumMeta as _EnumMeta, _is_descriptor, _is_dunder
 from types import MappingProxyType
 from typing import Any, Dict, List, Tuple
 

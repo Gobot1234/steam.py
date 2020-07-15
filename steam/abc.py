@@ -47,8 +47,8 @@ from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
-    from .client import EventType
     from .clan import Clan
+    from .client import EventType
     from .group import Group
     from .image import Image
     from .state import ConnectionState

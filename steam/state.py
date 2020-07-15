@@ -33,7 +33,7 @@ from collections import deque
 from copy import copy
 from datetime import datetime
 from time import time
-from typing import Awaitable, TYPE_CHECKING, Callable, Dict, List, Mapping, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
@@ -94,7 +94,7 @@ class Registerer:
         state.parsers[self.emsg] = self.func
 
 
-def register(emsg: EMsg):
+def register(emsg: EMsg) -> Callable[[EventParser], Registerer]:
     def decorator(func: EventParser):
         return Registerer(func, emsg)
 
