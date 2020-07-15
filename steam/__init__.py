@@ -12,7 +12,7 @@ A basic wrapper for the Steam API and its Community Managers.
 __title__ = "steam"
 __author__ = "Gobot1234"
 __license__ = "MIT"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 
 import logging
