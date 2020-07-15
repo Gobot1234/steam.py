@@ -7,7 +7,7 @@ from typing import List
 
 import betterproto
 
-from .steammessages_base import CClanMatchEventByRange, CcddbAppDetailCommon
+from .steammessages_base import CClanMatchEventByRange, CcddbAppDetailCommon, CMsgIpAddress
 from .steammessages_clientserver_friends import CMsgClientFriendsList
 
 
