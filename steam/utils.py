@@ -347,7 +347,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     """
     search = re.search(
         r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+" r"&token=(?P<token>[\w-]{7,})",
-        replace_steam_code(url),
+        replace_html_code(url),
     )
     if search:
         return search.group("token")
@@ -435,13 +435,13 @@ async def maybe_coroutine(func: Callable[..., Union[Any, Awaitable]], *args, **k
     return value
 
 
-def replace_steam_code(s: str) -> str:
-    steam_code = [  # TODO try and find a list for these?
+def replace_html_code(s: str) -> str:
+    html_code = [  # TODO try and find a list for these?
         ("&quot;", '"'),
         ("&gt;", ">"),
         ("&lt;", "<"),
         ("&amp;", "&"),
     ]
-    for code in steam_code:
+    for code in html_code:
         s = s.replace(*code)
     return s

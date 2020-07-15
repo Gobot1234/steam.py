@@ -544,9 +544,7 @@ class HTTPClient:
             resp = await self.request("GET", url=CRoute("/my/edit"))
             soup = BeautifulSoup(resp, "html.parser")
             edit_config = str(soup.find("div", attrs={"id": "profile_edit_config"}))
-            value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', utils.replace_steam_code(edit_config), flags=re.S,)[
-                0
-            ]
+            value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', utils.replace_html_code(edit_config), flags=re.S,)[0]
             loadable = value.replace("\r", "\\r").replace("\n", "\\n")
             profile = json.loads(f'{"{"}{loadable}{"}}"}')
             for key, value in profile.items():
