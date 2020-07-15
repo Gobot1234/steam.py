@@ -2,7 +2,6 @@
 
 from . import (
     steammessages_chat,
-    steammessages_credentials,
     steammessages_econ,
     steammessages_friendmessages,
     steammessages_gameservers,
@@ -29,12 +28,6 @@ UMS = {
     "TwoFactor.SendEmail#1_Response": steammessages_twofactor.CTwoFactor_SendEmail_Response,
     "TwoFactor.RemoveAuthenticator#1_Request": steammessages_twofactor.CTwoFactor_RemoveAuthenticator_Request,
     "TwoFactor.RemoveAuthenticator#1_Response": steammessages_twofactor.CTwoFactor_RemoveAuthenticator_Response,
-    "Credentials.GetSteamGuardDetails#1_Request": steammessages_credentials.CCredentials_GetSteamGuardDetails_Request,
-    "Credentials.GetSteamGuardDetails#1_Response": steammessages_credentials.CCredentials_GetSteamGuardDetails_Response,
-    "Credentials.GetAccountAuthSecret#1_Request": steammessages_credentials.CCredentials_GetAccountAuthSecret_Request,
-    "Credentials.GetAccountAuthSecret#1_Response": steammessages_credentials.CCredentials_GetAccountAuthSecret_Response,
-    "Credentials.GetCredentialChangeTimeDetails#1_Request": steammessages_credentials.CCredentials_LastCredentialChangeTime_Request,
-    "Credentials.GetCredentialChangeTimeDetails#1_Response": steammessages_credentials.CCredentials_LastCredentialChangeTime_Response,
     "Player.GetGameBadgeLevels#1_Request": steammessages_player.CPlayer_GetGameBadgeLevels_Request,
     "Player.GetGameBadgeLevels#1_Response": steammessages_player.CPlayer_GetGameBadgeLevels_Response,
     "Player.GetNicknameList#1_Request": steammessages_player.CPlayer_GetNicknameList_Request,
