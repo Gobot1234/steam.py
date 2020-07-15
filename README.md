@@ -44,22 +44,22 @@ import steam
 
 class MyClient(steam.Client):
     async def on_ready(self):
-        print('Logged in as', self.user)
+        print("Logged in as", self.user)
 
     async def on_trade_receive(self, trade):
         await trade.partner.send("Thank you for your trade")
-        print(f'Received trade: #{trade.id}')
-        print('Trade partner is:', trade.partner.name)
-        print('We would send:', len(trade.items_to_send), 'items')
-        print('We would receive:', len(trade.items_to_receive), 'items')
+        print(f"Received trade: #{trade.id}")
+        print("Trade partner is:", trade.partner)
+        print("We would send:", len(trade.items_to_send), "items")
+        print("We would receive:", len(trade.items_to_receive), "items")
 
         if trade.is_gift():
-            print('Accepting the trade as it is a gift')
+            print("Accepting the trade as it is a gift")
             await trade.accept()
 
 
 client = MyClient()
-client.run('username', 'password')
+client.run("username", "password")
 ```
 
 Links
@@ -68,4 +68,4 @@ Links
   - [Documentation](https://steampy.rtfd.io/en/latest/index.html)
   - [Official Discord Server](https://discord.gg/MQ68WUS)
 
-##### Please note this repo is under going rapid development, if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new)
+##### Please note this repo is under going rapid development, if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new).
