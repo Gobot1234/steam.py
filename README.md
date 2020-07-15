@@ -47,6 +47,7 @@ class MyClient(steam.Client):
         print('Logged in as', self.user)
 
     async def on_trade_receive(self, trade):
+        await trade.partner.send("Thank you for your trade")
         print(f'Received trade: #{trade.id}')
         print('Trade partner is:', trade.partner.name)
         print('We would send:', len(trade.items_to_send), 'items')
