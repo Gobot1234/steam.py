@@ -157,7 +157,7 @@ class CMsgGSPlayerListPlayer(betterproto.Message):
     steam_id: int = betterproto.uint64_field(1)
     deprecated_public_ip: int = betterproto.uint32_field(2)
     token: bytes = betterproto.bytes_field(3)
-    public_ip: "CMsgIPAddress" = betterproto.message_field(4)
+    public_ip: "CMsgIpAddress" = betterproto.message_field(4)
 
 
 @dataclass
@@ -165,7 +165,7 @@ class CMsgGSUserPlaying(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     deprecated_public_ip: int = betterproto.uint32_field(2)
     token: bytes = betterproto.bytes_field(3)
-    public_ip: "CMsgIPAddress" = betterproto.message_field(4)
+    public_ip: "CMsgIpAddress" = betterproto.message_field(4)
 
 
 @dataclass
@@ -204,7 +204,7 @@ class CMsgClientGamesPlayedGamePlayed(betterproto.Message):
     controller_workshop_file_id: int = betterproto.uint64_field(20)
     launch_source: int = betterproto.uint32_field(21)
     vr_hmd_runtime: int = betterproto.uint32_field(22)
-    game_ip_address: "CMsgIPAddress" = betterproto.message_field(23)
+    game_ip_address: "CMsgIpAddress" = betterproto.message_field(23)
     controller_connection_type: int = betterproto.uint32_field(24)
 
 
@@ -410,7 +410,7 @@ class CMsgClientMMSCreateLobby(betterproto.Message):
     deprecated_public_ip: int = betterproto.uint32_field(6)
     metadata: bytes = betterproto.bytes_field(7)
     persona_name_owner: str = betterproto.string_field(8)
-    public_ip: "CMsgIPAddress" = betterproto.message_field(9)
+    public_ip: "CMsgIpAddress" = betterproto.message_field(9)
 
 
 @dataclass
@@ -467,7 +467,7 @@ class CMsgClientMMSGetLobbyList(betterproto.Message):
     cell_id: int = betterproto.uint32_field(4)
     deprecated_public_ip: int = betterproto.uint32_field(5)
     filters: List["CMsgClientMMSGetLobbyListFilter"] = betterproto.message_field(6)
-    public_ip: "CMsgIPAddress" = betterproto.message_field(7)
+    public_ip: "CMsgIpAddress" = betterproto.message_field(7)
 
 
 @dataclass
@@ -587,7 +587,7 @@ class CMsgClientMMSSetLobbyGameServer(betterproto.Message):
     deprecated_game_server_ip: int = betterproto.uint32_field(3)
     game_server_port: int = betterproto.uint32_field(4)
     game_server_steam_id: float = betterproto.fixed64_field(5)
-    game_server_ip: "CMsgIPAddress" = betterproto.message_field(6)
+    game_server_ip: "CMsgIpAddress" = betterproto.message_field(6)
 
 
 @dataclass
@@ -597,7 +597,7 @@ class CMsgClientMMSLobbyGameServerSet(betterproto.Message):
     deprecated_game_server_ip: int = betterproto.uint32_field(3)
     game_server_port: int = betterproto.uint32_field(4)
     game_server_steam_id: float = betterproto.fixed64_field(5)
-    game_server_ip: "CMsgIPAddress" = betterproto.message_field(6)
+    game_server_ip: "CMsgIpAddress" = betterproto.message_field(6)
 
 
 @dataclass
