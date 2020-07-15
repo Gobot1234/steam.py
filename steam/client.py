@@ -461,11 +461,13 @@ class Client:
         coro = SteamWebSocket.from_client(self, cms=self._cm_list)
         self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
         while 1:
+            if not self.ws:
+                break
             await self.ws.poll_event()
 
     async def connect(self) -> None:
         """|coro|
-        Initialize a connection to a Steam CM.
+        Initialize a connection to a Steam CM after logging in.
         """
         while not self.is_closed():
             try:
