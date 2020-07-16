@@ -111,20 +111,20 @@ class ConnectionState:
         "request",
         "client",
         "dispatch",
-        "_obj",
-        "_previous_iteration",
         "handled_friends",
         "handled_groups",
         "user_slots",
+        "invites",
+        "max_messages",
         "_users",
         "_trades",
         "_groups",
         "_clans",
         "_confirmations",
-        "invites",
+        "_obj",
+        "_previous_iteration",
         "_trades_task",
         "_trades_to_watch",
-        "max_messages",
         "_trades_received_cache",
         "_trades_sent_cache",
         "_descriptions_cache",
@@ -235,7 +235,7 @@ class ConnectionState:
         )
         try:
             msg: MsgProto["FetchGroupResponse"] = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -415,7 +415,7 @@ class ConnectionState:
         )
         try:
             msg = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -447,7 +447,7 @@ class ConnectionState:
         )
         try:
             msg = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -460,16 +460,14 @@ class ConnectionState:
             raise WSException(msg)
 
         proto = GroupMessageNotification(
-            chat_id=chat_id, chat_group_id=group_id, steamid_sender=0.0, message=content, timestamp=int(time()),
+            chat_id=chat_id, chat_group_id=group_id, steamid_sender=0, message=content, timestamp=int(time()),
         )
-        endpoint = self._combined.get(group_id)
-        if endpoint is None:
-            return
-        if isinstance(endpoint, Clan):
-            channel = ClanChannel(state=self, channel=proto, clan=endpoint)
+        destination = self._combined.get(group_id)
+        if isinstance(destination, Clan):
+            channel = ClanChannel(state=self, channel=proto, clan=destination)
             message = ClanMessage(proto=proto, channel=channel, author=self.client.user)
         else:
-            channel = GroupChannel(state=self, channel=proto, group=endpoint)
+            channel = GroupChannel(state=self, channel=proto, group=destination)
             message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
         self._messages.append(message)
         self.dispatch("message", message)
@@ -480,7 +478,7 @@ class ConnectionState:
         )
         try:
             msg = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -494,7 +492,7 @@ class ConnectionState:
         job_id = await self.client.ws.send_um("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
         try:
             msg = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: int(m.header.job_id_target) == job_id,),
+                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
                 timeout=5,
             )
         except asyncio.TimeoutError:
@@ -510,8 +508,10 @@ class ConnectionState:
     async def parse_service_method(self, msg: MsgProto) -> None:
         if msg.header.job_name_target == "FriendMessagesClient.IncomingMessage#1":
             msg: MsgProto["UserMessageNotification"]
-            user_id64 = int(msg.body.steamid_friend)
+            user_id64 = msg.body.steamid_friend
             author = self.get_user(user_id64) or await self.fetch_user(user_id64)
+            if author is None:
+                author = SteamID(user_id64)
 
             if msg.body.chat_entry_type == EChatEntryType.ChatMsg:
                 channel = DMChannel(state=self, participant=author)
@@ -525,17 +525,17 @@ class ConnectionState:
 
         if msg.header.job_name_target == "ChatRoomClient.NotifyIncomingChatMessage#1":
             msg: MsgProto["GroupMessageNotification"]
-            destination = self._combined.get(int(msg.body.chat_group_id))
+            destination = self._combined.get(msg.body.chat_group_id)
             if destination is None:
                 return
             if isinstance(destination, Clan):
                 channel = ClanChannel(state=self, channel=msg.body, clan=destination)
-                user_id64 = int(msg.body.steamid_sender)
+                user_id64 = msg.body.steamid_sender
                 author = self.get_user(user_id64) or await self.fetch_user(user_id64)
                 message = ClanMessage(proto=msg.body, channel=channel, author=author)
             else:
                 channel = GroupChannel(state=self, channel=msg.body, group=destination)
-                user_id64 = int(msg.body.steamid_sender)
+                user_id64 = msg.body.steamid_sender
                 author = self.get_user(user_id64) or await self.fetch_user(user_id64)
                 message = GroupMessage(proto=msg.body, channel=channel, author=author)
             self._messages.append(message)
@@ -543,7 +543,7 @@ class ConnectionState:
 
         if msg.header.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
             msg: MsgProto["GroupStateUpdate"]
-            destination = self._combined.get(int(msg.body.header_state.chat_group_id))
+            destination = self._combined.get(msg.body.header_state.chat_group_id)
             if destination is None:
                 return
 
@@ -565,7 +565,7 @@ class ConnectionState:
                     self.dispatch("group_join", group)
 
             if msg.body.user_action == "Parted":  # leave group
-                left = self._combined.pop(int(msg.body.chat_group_id), None)
+                left = self._combined.pop(msg.body.chat_group_id, None)
                 if left is None:
                     return
 
@@ -606,7 +606,7 @@ class ConnectionState:
             data = friend.to_dict(snakecase)
             if not data:
                 continue
-            user_id64 = int(friend.friendid)
+            user_id64 = friend.friendid
             after = self.get_user(user_id64)
             before = copy(after)
             if after is None:  # they're private
@@ -649,10 +649,10 @@ class ConnectionState:
         if not self.handled_friends.is_set():
             self.client.user.friends = await self.fetch_users(
                 [
-                    int(friend.ulfriendid)
+                    friend.ulfriendid
                     for friend in msg.body.friends
                     if friend.efriendrelationship == EFriendRelationship.Friend
-                    and (int(friend.ulfriendid) >> 52) & 0xF != EType.Clan
+                    and (friend.ulfriendid >> 52) & 0xF != EType.Clan
                 ]
             )
             for friend in self.client.user.friends:
