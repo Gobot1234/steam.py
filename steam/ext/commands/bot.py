@@ -118,7 +118,7 @@ class Bot(Client):
             raise ValueError("you cannot have both owner_id and owner_ids")
         super().__init__(**options)
 
-        for attr in [getattr(self, attr) for attr in dir(self)]:
+        for attr in (getattr(self, attr) for attr in dir(self)):
             if not isinstance(attr, Command):
                 continue
 
@@ -159,13 +159,13 @@ class Bot(Client):
         Unloads any extensions, cogs and commands, then
         closes the connection to Steam CMs and logs out.
         """
-        for extension in tuple(self.__extensions__):
+        for extension in tuple(self.extensions):
             try:
                 self.unload_extension(extension)
             except Exception:
                 pass
 
-        for cog in tuple(self.__cogs__.values()):
+        for cog in tuple(self.cogs.values()):
             try:
                 self.remove_cog(cog)
             except Exception:
@@ -430,11 +430,11 @@ class Bot(Client):
 
         self.dispatch("command", ctx)
 
-        command._parse_cooldown(ctx)
+        for cooldown in command.cooldown:
+            cooldown(ctx)
         await command._parse_arguments(ctx)
-        for check in command.checks:
-            if not await check(ctx):
-                raise CheckFailure("You failed to pass one of the command checks")
+        if not await command.can_run(ctx):
+            raise CheckFailure("You failed to pass one of the command checks")
         try:
             await command.callback(*ctx.args, **ctx.kwargs)
         except Exception as exc:
