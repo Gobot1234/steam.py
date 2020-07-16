@@ -52,7 +52,7 @@ class HelpCommand(Command):
         except (IndexError, AttributeError):
             return ""
 
-    async def _parse_arguments(self, ctx):
+    async def _parse_arguments(self, ctx: "Context"):
         # Make the parser think we don't have a cog so it doesn't
         # inject the parameter into `ctx.args`.
         original_cog = self.cog
