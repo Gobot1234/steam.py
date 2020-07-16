@@ -686,7 +686,7 @@ class Message:
     """Represents a message from a :class:`~steam.User`
     This is a base class from which all messages inherit.
 
-    The following classes implement this ABC:
+    The following classes implement this:
 
         - :class:`~steam.UserMessage`
         - :class:`~steam.GroupMessage`
