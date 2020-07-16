@@ -137,6 +137,12 @@ class Bot(Client):
         return list(self.__commands__.values())
 
     @property
+    def cogs(self) -> Mapping[str, Cog]:
+        """Mapping[:class:`str`, :class:`.Cog`]:
+        A read only mapping of any loaded cogs."""
+        return MappingProxyType(self.__cogs__)
+
+    @property
     def extensions(self) -> Mapping[str, "ExtensionType"]:
         """Mapping[:class:`str`, :class:`ExtensionType`]:
         A read only mapping of any loaded extensions."""
