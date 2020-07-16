@@ -29,6 +29,7 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 """
 
 import asyncio
+import functools
 import inspect
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Type, Union
 
@@ -37,7 +38,7 @@ import steam
 from ...errors import ClientException
 from . import converters
 from .cooldown import BucketType, Cooldown
-from .errors import BadArgument, MissingRequiredArgument
+from .errors import BadArgument, MissingRequiredArgument, NotOwner
 
 if TYPE_CHECKING:
     from ...client import EventType
@@ -47,9 +48,13 @@ if TYPE_CHECKING:
 __all__ = (
     "Command",
     "command",
+    "check",
+    "is_owner",
+    "cooldown",
 )
 
 CommandFuncType = Callable[["Context"], Awaitable[None]]
+MaybeCommand = Union[Callable[..., "Command"], CommandFuncType]
 
 
 def to_bool(argument: str):
@@ -68,8 +73,22 @@ class Command:
             raise TypeError("Callback must be a coroutine.")
 
         self.callback = func
-        self.checks: List[Callable[..., Awaitable[bool]]] = []
-        self._cooldowns: List[Cooldown] = []
+
+        try:
+            checks = func.__commands_checks__
+            checks.reverse()
+        except AttributeError:
+            checks = kwargs.get("checks", [])
+        finally:
+            self.checks: List[Callable[["Context"], Awaitable[bool]]] = checks
+
+        try:
+            cooldown = func.__commands_cooldown__
+        except AttributeError:
+            cooldown = kwargs.get("cooldown", [])
+        finally:
+            self.cooldown: List[Cooldown] = cooldown
+
         self.params = inspect.signature(func).parameters
         self.name = kwargs.get("name") or func.__name__
         if not isinstance(self.name, str):
@@ -162,7 +181,7 @@ class Command:
                 if argument is None:
                     transformed = await self._get_default(ctx, param)
                 else:
-                    transformed = await self.transform(ctx, param, argument)
+                    transformed = await self._transform(ctx, param, argument)
                 args.append(transformed)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
@@ -170,7 +189,7 @@ class Command:
                 if not arg:
                     kwargs[name] = await self._get_default(ctx, param)
                 else:
-                    kwargs[name] = await self.transform(ctx, param, arg)
+                    kwargs[name] = await self._transform(ctx, param, arg)
                 break
             elif param.kind == param.VAR_KEYWORD:
                 # we have received **kwargs
@@ -195,13 +214,13 @@ class Command:
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
                 for arg in shlex:
-                    transformed = await self.transform(ctx, param, arg)
+                    transformed = await self._transform(ctx, param, arg)
                     args.append(transformed)
                 break
         ctx.args = tuple(args)
         ctx.kwargs = kwargs
 
-    def transform(self, ctx, param: inspect.Parameter, argument: str) -> Awaitable[Any]:
+    def _transform(self, ctx, param: inspect.Parameter, argument: str) -> Awaitable[Any]:
         param_type = param.annotation if param.annotation is not param.empty else str
         converter = self._get_converter(param_type)
         return self._convert(ctx, converter, argument)
@@ -245,10 +264,10 @@ class Command:
                 return await param.default.default(param.default, ctx)
         return param.default
 
-    def _parse_cooldown(self, ctx: "Context"):
-        for cooldown in self._cooldowns:
-            bucket = cooldown.bucket.get_bucket(ctx)
-            cooldown(bucket)
+    async def can_run(self, ctx: "Context") -> bool:
+        for check in self.checks:
+            await check(ctx)
+        return True
 
 
 def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..., Command]:
@@ -276,7 +295,43 @@ def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..
     return decorator
 
 
-def cooldown(rate: int, per: float, bucket: BucketType) -> Callable[..., None]:
+def check(predicate: Callable[["Context"], Awaitable[bool]]) -> Callable[..., MaybeCommand]:
+    def decorator(func: MaybeCommand) -> MaybeCommand:
+        if isinstance(func, Command):
+            func.checks.append(predicate)
+        else:
+            if not hasattr(func, "__commands_checks__"):
+                func.__commands_checks__ = []
+
+            func.__commands_checks__.append(predicate)
+
+        return func
+
+    if inspect.iscoroutinefunction(predicate):
+        decorator.predicate = predicate
+    else:
+
+        @functools.wraps(predicate)
+        async def wrapper(ctx):
+            return predicate(ctx)
+
+        decorator.predicate = wrapper
+
+    return decorator
+
+
+def is_owner() -> Callable[["Context"], MaybeCommand]:
+    async def predicate(ctx: "Context") -> bool:
+        if ctx.bot.owner_id:
+            return ctx.author.id64 == ctx.bot.owner_id
+        elif ctx.bot.owner_ids:
+            return ctx.author.id64 in ctx.bot.owner_ids
+        raise NotOwner()
+
+    return check(predicate)
+
+
+def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Callable[..., MaybeCommand]:
     """Mark a :class:`Command`'s cooldown.
 
     Parameters
@@ -286,12 +341,17 @@ def cooldown(rate: int, per: float, bucket: BucketType) -> Callable[..., None]:
         before being put on cooldown.
     per: :class:`float`
         The amount of time to wait between cooldowns.
-    bucket:
-        The :class:`.BucketType` that the cooldown applies
-        to.
+    type: :class:`.BucketType`
+        The :class:`.BucketType` that the cooldown applies to.
     """
 
-    def decorator(func: "Command") -> None:
-        func._cooldowns.append(Cooldown(rate, per, bucket))
+    def decorator(func: MaybeCommand) -> MaybeCommand:
+        if isinstance(func, Command):
+            func.cooldowns.append(Cooldown(rate, per, type))
+        else:
+            if not hasattr(func, "__commands_cooldown__"):
+                func.__commands_cooldown__ = []
+            func.__commands_cooldown__.append(Cooldown(rate, per, type))
+        return func
 
     return decorator
