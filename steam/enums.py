@@ -56,19 +56,11 @@ class EnumMember:
     name: str
     value: Any
 
-    def __new__(cls, **kwargs) -> "EnumMember":
+    def __new__(cls, *, name, value) -> "EnumMember":
         self = super().__new__(cls)
-        try:
-            self.name = kwargs["name"]
-            self.value = kwargs["value"]
-        except KeyError:
-            pass
-        finally:
-            return self
-
-    @classmethod
-    def __call__(cls, *, name, value):
-        return cls.__new__(cls, name=name, value=value)
+        self.name = name
+        self.value = value
+        return self
 
     def __repr__(self):
         return f"<{self._enum_cls_.__name__}.{self.name}: {self.value!r}>"
@@ -92,15 +84,11 @@ class IntEnumMember(EnumMember, int):
     _enum_cls_: "IntEnum"
     value: int
 
-    def __new__(cls, **kwargs) -> "IntEnumMember":
-        try:
-            value = kwargs["value"]
-            self = int.__new__(cls, value)
-            self.name = kwargs["name"]
-            self.value = value
-            return self
-        except KeyError:
-            return int.__new__(cls)
+    def __new__(cls, *, name, value) -> "IntEnumMember":
+        self = int.__new__(cls, value)
+        self.name = name
+        self.value = value
+        return self
 
     def __bool__(self):
         return True
@@ -113,9 +101,9 @@ class EnumMeta(type):
         member_names: List[str] = []
 
         try:
-            value_cls = IntEnumMember(name=name) if IntEnum in bases else EnumMember(name=name)
+            value_cls = IntEnumMember if IntEnum in bases else EnumMember
         except NameError:
-            value_cls = EnumMember(name=name)
+            value_cls = EnumMember
 
         for key, value in tuple(attrs.items()):
             is_descriptor = _is_descriptor(value)
@@ -475,7 +463,7 @@ class ETradeOfferState(IntEnum):
 
 class EChatEntryType(IntEnum):
     Invalid          = 0
-    ChatMsg          = 1  #: Normal text message from another user
+    Text             = 1  #: Normal text message from another user
     Typing           = 2  #: Another user is typing (not used in multi-user chat)
     InviteGame       = 3  #: Invite from other user into that users current game
     LeftConversation = 6  #: user has left the conversation ( closed chat window )
