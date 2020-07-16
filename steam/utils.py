@@ -346,10 +346,10 @@ def parse_trade_url_token(url: str) -> Optional[str]:
         The found token or ``None`` if the URL doesn't match the regex.
     """
     search = re.search(
-        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+" r"&token=(?P<token>[\w-]{7,})",
+        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+&token=(?P<token>[\w-]{7,})",
         replace_html_code(url),
     )
-    if search:
+    if search is not None:
         return search.group("token")
     return None
 
@@ -357,6 +357,37 @@ def parse_trade_url_token(url: str) -> Optional[str]:
 def ainput(prompt: str = "") -> Awaitable[str]:
     loop = asyncio.get_running_loop()
     return loop.run_in_executor(None, input, prompt)
+
+
+def replace_html_code(string: str) -> str:
+    html_code = [  # TODO try and find a list for these?
+        ("&quot;", '"'),
+        ("&gt;", ">"),
+        ("&lt;", "<"),
+        ("&amp;", "&"),
+    ]
+    for code in html_code:
+        string = string.replace(*code)
+    return string
+
+
+def contains_bbcode(string: str) -> bool:
+    bbcodes = [  # TODO is tradeoffer in this?
+        "me",
+        "code",
+        "pre",
+        "giphy",
+        "spoiler",
+        "quote",
+        "random",
+        "flip",
+        "store",
+    ]
+    for bbcode in bbcodes:
+        if string.startswith(f"/{bbcode}"):
+            return True
+
+    return False
 
 
 # everything below here is directly from discord.py's utils
@@ -433,15 +464,3 @@ async def maybe_coroutine(func: Callable[..., Union[Any, Awaitable]], *args, **k
     if isawaitable(value):
         return await value
     return value
-
-
-def replace_html_code(s: str) -> str:
-    html_code = [  # TODO try and find a list for these?
-        ("&quot;", '"'),
-        ("&gt;", ">"),
-        ("&lt;", "<"),
-        ("&amp;", "&"),
-    ]
-    for code in html_code:
-        s = s.replace(*code)
-    return s
