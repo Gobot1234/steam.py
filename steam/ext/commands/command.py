@@ -132,7 +132,7 @@ class Command:
                 print(f'{ctx.command.name} raised an exception {error}')
         """
         if not asyncio.iscoroutinefunction(func):
-            raise TypeError("callback must be a coroutine.")
+            raise TypeError("Callback must be a coroutine.")
         self.on_error = func
         return func
 

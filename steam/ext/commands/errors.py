@@ -78,7 +78,7 @@ class MissingRequiredArgument(CommandError):
 
 
 class CheckFailure(CommandError):
-    """Exception raised when a check fails.
+    """Base Exception raised when a check fails.
 
     Subclass of :exc:`CommandError`."""
 

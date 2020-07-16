@@ -30,6 +30,7 @@ from .cog import Cog
 from .command import Command
 
 if TYPE_CHECKING:
+    from steam.ext import commands
     from .context import Context
 
 __all__ = ("HelpCommand",)
@@ -84,7 +85,7 @@ class HelpCommand(Command):
         mapping[None] = [c for c in bot.commands if c not in mapping.values()]
         return mapping
 
-    async def send_help(self, mapping: Dict[Optional["Cog"], Command]):
+    async def send_help(self, mapping: Dict[Optional["commands.Cog"], "commands.Command"]):
         message = []
         for name, commands in sorted(mapping.items()):
             if name is not None:
@@ -95,13 +96,13 @@ class HelpCommand(Command):
                 message.append(f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
-    async def send_cog_help(self, cog: "Cog"):
+    async def send_cog_help(self, cog: "commands.Cog"):
         message = [f"--= {cog.qualified_name}'s commands =--"]
         for name, command in sorted(cog.__commands__.items()):
             message.append(f'{name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
-    async def send_command_help(self, command: "Command"):
+    async def send_command_help(self, command: "commands.Command"):
         await self.context.send(f"Help with {command.name}:\n\n{command.help}")
 
     async def command_not_found(self, command: str):

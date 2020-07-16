@@ -72,7 +72,7 @@ class Bot(Client):
     Parameters
     ----------
     command_prefix
-        What the message content must contain initially to have a command invoked.
+        What the message content must initially contain to have a command invoked.
 
         Can be any one of:
             - :class:`str`
@@ -133,7 +133,7 @@ class Bot(Client):
 
     @property
     def commands(self) -> List[Command]:
-        """List[:class:`.Command`]: A list of loaded commands."""
+        """List[:class:`.Command`]: A list of the loaded commands."""
         return list(self.__commands__.values())
 
     @property
@@ -184,7 +184,7 @@ class Bot(Client):
         else:
             del module
             del sys.modules[extension]
-            raise ImportError(f"extension {extension} is missing a setup function")
+            raise ImportError(f"Extension {extension} is missing a setup function")
 
         self.__extensions__[extension] = module
 
@@ -197,7 +197,7 @@ class Bot(Client):
             The name of the extension to unload.
         """
         if extension not in self.__extensions__:
-            raise ModuleNotFoundError(f"extension {extension} was not found")
+            raise ModuleNotFoundError(f"Extension {extension} was not found")
 
         module: "ExtensionType" = self.__extensions__[extension]
         for attr in (getattr(module, attr) for attr in dir(module)):
@@ -416,7 +416,7 @@ class Bot(Client):
         if not ctx.prefix:
             return
         if ctx.command is None:
-            raise CommandNotFound(f"the command {ctx.invoked_with} was not found")
+            raise CommandNotFound(f"The command {ctx.invoked_with} was not found")
 
         command = ctx.command
         if not command.enabled:
@@ -433,8 +433,8 @@ class Bot(Client):
             await command.callback(*ctx.args, **ctx.kwargs)
         except Exception as exc:
             await self.on_command_error(ctx, exc)
-            return
-        self.dispatch("command_completion", ctx)
+        else:
+            self.dispatch("command_completion", ctx)
 
     async def get_context(self, message: "Message", *, cls: Type[Context] = Context) -> Context:
         r"""|coro|
