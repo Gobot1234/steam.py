@@ -27,6 +27,8 @@ SOFTWARE.
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from yarl import URL
+
 if TYPE_CHECKING:
     from .protobufs.steammessages_chat import CChatRoleActions as RoleProto
 
@@ -38,9 +40,9 @@ __all__ = (
 
 
 class URL:
-    API = "https://api.steampowered.com"
-    COMMUNITY = "https://steamcommunity.com"
-    STORE = "https://store.steampowered.com"
+    API = URL("https://api.steampowered.com")
+    COMMUNITY = URL("https://steamcommunity.com")
+    STORE = URL("https://store.steampowered.com")
 
 
 class Ban:
