@@ -36,6 +36,7 @@ __all__ = (
     "CommandError",
     "BadArgument",
     "CheckFailure",
+    "NotOwner",
     "CommandNotFound",
     "MissingRequiredArgument",
     "CommandOnCooldown",
@@ -81,6 +82,15 @@ class CheckFailure(CommandError):
     """Base Exception raised when a check fails.
 
     Subclass of :exc:`CommandError`."""
+
+
+class NotOwner(CheckFailure):
+    """Exception raised the user does not own the bot.
+
+    Subclass of :exc:`CheckFailure`."""
+
+    def __init__(self):
+        super().__init__("You do not own this bot")
 
 
 class CommandOnCooldown(CommandError):
