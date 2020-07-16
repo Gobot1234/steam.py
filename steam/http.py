@@ -42,8 +42,6 @@ from .models import URL
 from .user import ClientUser
 
 if TYPE_CHECKING:
-    from yarl import URL as _URL
-
     from .client import Client
     from .image import Image
 
@@ -59,9 +57,9 @@ async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
 
 
 class Route:
-    BASE: "_URL"
+    BASE: "URL"
 
-    def __new__(cls, path: str) -> "_URL":
+    def __new__(cls, path: str):
         return cls.BASE / path
 
 
@@ -126,11 +124,6 @@ class HTTPClient:
                     log.debug(f"{method} {r.url} has received {data}")
                     return data
 
-                if 300 <= r.status <= 399 and "login" in r.headers.get("location", ""):  # been logged out
-                    log.debug("Logged out of session re-logging in")
-                    await self.login(self.username, self.password, self.shared_secret)
-                    continue
-
                 # we are being rate limited
                 elif r.status == 429:
                     # I haven't been able to get any X-Retry-After headers
@@ -144,6 +137,11 @@ class HTTPClient:
                 # we've received a 500 or 502, an unconditional retry
                 elif r.status in {500, 502}:
                     await asyncio.sleep(1 + tries * 3)
+                    continue
+
+                elif 300 <= r.status <= 399 and "login" in r.headers.get("location", ""):  # been logged out
+                    log.debug("Logged out of session re-logging in")
+                    await self.login(self.username, self.password, self.shared_secret)
                     continue
 
                 elif r.status == 401:
@@ -182,13 +180,12 @@ class HTTPClient:
 
         if "captcha_needed" in resp:
             self._captcha_id = resp["captcha_gid"]
-            self._captcha_text = (
-                await utils.ainput(
-                    "Please enter the captcha text at"
-                    f" https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
-                )
-            ).strip()
-            await self.login(username, password, shared_secret)
+            print(
+                "Please enter the captcha text at"
+                f" https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
+            )
+            self._captcha_text = (await utils.ainput(">>> ")).strip()
+            return await self.login(username, password, shared_secret)
         if not resp["success"]:
             raise errors.InvalidCredentials(resp["message"])
 
