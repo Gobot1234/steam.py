@@ -39,6 +39,7 @@ from bs4 import BeautifulSoup
 from stringcase import snakecase
 from yarl import URL as _URL
 
+from . import utils
 from .abc import SteamID
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
@@ -411,7 +412,8 @@ class ConnectionState:
             "FriendMessages.SendMessage#1_Request",
             steamid=str(user_id64),
             message=content,
-            chat_entry_type=EChatEntryType.ChatMsg,
+            chat_entry_type=EChatEntryType.Text,
+            contains_bbcode=utils.contains_bbcode(content),
         )
         try:
             msg = await asyncio.wait_for(
@@ -426,7 +428,10 @@ class ConnectionState:
             raise WSException(msg)
 
         proto = UserMessageNotification(
-            steamid_friend=0.0, chat_entry_type=1, message=content, rtime32_server_timestamp=time(),
+            steamid_friend=0,
+            chat_entry_type=EChatEntryType.Text,
+            message=content,
+            rtime32_server_timestamp=int(time()),
         )
         channel = DMChannel(state=self, participant=self.get_user(user_id64))
         message = UserMessage(proto=proto, channel=channel)
@@ -513,7 +518,7 @@ class ConnectionState:
             if author is None:
                 author = SteamID(user_id64)
 
-            if msg.body.chat_entry_type == EChatEntryType.ChatMsg:
+            if msg.body.chat_entry_type == EChatEntryType.Text:
                 channel = DMChannel(state=self, participant=author)
                 message = UserMessage(proto=msg.body, channel=channel)
                 self._messages.append(message)
