@@ -349,9 +349,7 @@ class Client:
         if not future.cancelled():
             return future.result()
 
-    async def login(
-        self, username: str, password: str, api_key: Optional[str] = None, shared_secret: Optional[str] = None,
-    ) -> None:
+    async def login(self, username: str, password: str, shared_secret: Optional[str] = None) -> None:
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
 
@@ -361,10 +359,6 @@ class Client:
             The username of the user's account.
         password: :class:`str`
             The password of the user's account.
-        api_key: Optional[:class:`str`]
-            The accounts api key for fetching info about the account.
-            This can be left and the library will fetch it for you.
-            If ``None`` is passed, one will be generated.
         shared_secret: Optional[:class:`str`]
             The shared_secret of the desired Steam account,
             used to generate the 2FA code for login. If ``None`` is passed,
@@ -375,21 +369,18 @@ class Client:
         :exc:`TypeError`
             Unexpected keyword arguments were received.
         :exc:`.InvalidCredentials`
-            The wrong credentials are passed.
+            Invaild credentials were passed.
         :exc:`.HTTPException`
             An unknown HTTP related error occurred.
         :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """
         log.info(f"Logging in to steamcommunity.com")
-        self.api_key = api_key
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
 
-        await self.http.login(
-            username=username, password=password, api_key=api_key, shared_secret=shared_secret,
-        )
+        await self.http.login(username=username, password=password, shared_secret=shared_secret)
 
     async def close(self) -> None:
         """|coro|
@@ -423,7 +414,7 @@ class Client:
 
         Raises
         ------
-        TypeError
+        :exc:`TypeError`
             Unexpected keyword arguments were received.
         :exc:`.InvalidCredentials`
             The wrong credentials are passed.
@@ -434,7 +425,6 @@ class Client:
         """
         self.username = username = kwargs.pop("username", None) or args[0]
         self.password = password = kwargs.pop("password", None) or args[1]
-        self.api_key = api_key = kwargs.pop("api_key", None)
         self.shared_secret = shared_secret = kwargs.pop("shared_secret", None)
         self.identity_secret = identity_secret = kwargs.pop("identity_secret", None)
 
@@ -445,9 +435,7 @@ class Client:
         if kwargs:
             raise TypeError(f"unexpected keyword argument(s) {list(kwargs.keys())}")
 
-        await self.login(
-            username=username, password=password, api_key=api_key, shared_secret=shared_secret,
-        )
+        await self.login(username=username, password=password, shared_secret=shared_secret)
         self.loop.create_task(self._connection.__ainit__())
         self._closed = False
         await self.connect()
@@ -455,7 +443,7 @@ class Client:
     async def _connect(self) -> None:
         resp = await self.http.request("GET", url=f"{URL.COMMUNITY}/chat/clientjstoken")
         if not resp["logged_in"]:  # we got logged out :(
-            await self.login(self.username, self.password, self.api_key, self.shared_secret)
+            await self.login(self.username, self.password, self.shared_secret)
             await self._connect()
         self.token = resp["token"]
         coro = SteamWebSocket.from_client(self, cms=self._cm_list)

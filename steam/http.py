@@ -128,7 +128,7 @@ class HTTPClient:
 
                 if 300 <= r.status <= 399 and "login" in r.headers.get("location", ""):  # been logged out
                     log.debug("Logged out of session re-logging in")
-                    await self.login(self.username, self.password, self.api_key, self.shared_secret)
+                    await self.login(self.username, self.password, self.shared_secret)
                     continue
 
                 # we are being rate limited
@@ -171,7 +171,7 @@ class HTTPClient:
         headers = {"User-Agent": self.user_agent}
         return self._session.ws_connect(f"wss://{cm}/cmsocket/", timeout=60, headers=headers)
 
-    async def login(self, username: str, password: str, api_key: str, shared_secret: str = None) -> None:
+    async def login(self, username: str, password: str, shared_secret: Optional[str]) -> None:
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
@@ -188,7 +188,7 @@ class HTTPClient:
                     f" https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
                 )
             ).strip()
-            await self.login(username, password, api_key, shared_secret)
+            await self.login(username, password, shared_secret)
         if not resp["success"]:
             raise errors.InvalidCredentials(resp["message"])
 
@@ -201,11 +201,8 @@ class HTTPClient:
         for url in resp["transfer_urls"]:
             await self.request("POST", url=url, data=data)
 
-        if api_key is None:
-            self.api_key = self._client.api_key = await self.get_api_key()
-        else:
-            self.api_key = self._client.api_key = api_key
-        cookies = self._session.cookie_jar.filter_cookies(_URL(URL.COMMUNITY))
+        self.api_key = self._client.api_key = await self.get_api_key()
+        cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
         self.session_id = cookies["sessionid"].value
 
         resp = await self.get_user(resp["transfer_parameters"]["steamid"])
