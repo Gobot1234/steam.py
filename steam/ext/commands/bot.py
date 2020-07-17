@@ -106,7 +106,7 @@ class Bot(Client):
     __extensions__: Dict[str, "ExtensionType"] = dict()
 
     def __init__(
-        self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand, **options,
+        self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options,
     ):
         self.command_prefix = command_prefix
         self.owner_id = utils.make_steam64(options.get("owner_id", 0))
@@ -125,9 +125,8 @@ class Bot(Client):
             self.add_command(attr)
             attr.cog = self
             attr.cog.cog_command_error = self.on_command_error
-        if callable(help_command):
-            help_command = help_command()
-
+        if not isinstance(help_command, HelpCommand):
+            raise TypeError("help_command should derive from commands.HelpCommand")
         self.add_command(help_command)
         self.help_command = help_command
 
