@@ -273,7 +273,9 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(cls, url: str, session: Optional["ClientSession"] = None, timeout: float = 30) -> Optional["SteamID"]:
+    async def from_url(
+        cls, url: str, session: Optional["ClientSession"] = None, timeout: float = 30
+    ) -> Optional["SteamID"]:
         """Takes Steam community url and returns a SteamID instance or ``None``.
         See :func:`steam64_from_url` for details.
 

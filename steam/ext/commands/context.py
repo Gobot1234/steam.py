@@ -67,7 +67,13 @@ class Context(Messageable):
     """
 
     def __init__(
-        self, bot: "Bot", message: Message, prefix: str, command: Optional["Command"] = None, shlex: Optional["Shlex"] = None, **attrs
+        self,
+        bot: "Bot",
+        message: Message,
+        prefix: str,
+        command: Optional["Command"] = None,
+        shlex: Optional["Shlex"] = None,
+        **attrs,
     ):
         self.bot = bot
         self.message = message
