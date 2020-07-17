@@ -44,9 +44,7 @@ __all__ = ("Cog",)
 
 
 class InjectedListener:
-    """Injects the cog's "self" parameter into every event call
-    auto-magically.
-    """
+    """Injects the cog's "self" parameter into every event call auto-magically."""
 
     __slots__ = ("func", "cog")
 
@@ -56,6 +54,8 @@ class InjectedListener:
 
     def __call__(self, *args, **kwargs):
         return self.func(self.cog, *args, **kwargs)
+
+    # TODO this needs a proper proper eq
 
 
 # for a bit of type hinting
@@ -91,28 +91,33 @@ class Cog:
                 # all the commands would now be disabled
     """
 
-    __commands__: Dict[str, Command] = dict()
-    __listeners__: Dict[str, List["EventType"]] = dict()
+    __commands__: Dict[str, Command]
+    __listeners__: Dict[str, List["EventType"]]
     command_attrs: Dict[str, Any]
     qualified_name: str
 
     def __init_subclass__(cls, *args, **kwargs):
         cls.qualified_name = kwargs.get("name") or cls.__name__
         cls.command_attrs = kwargs.get("command_attrs", dict())
+
+        cls.__listeners__ = dict()
+        cls.__commands__ = dict()
         for name, attr in inspect.getmembers(cls):
             if isinstance(attr, Command):
                 cls.__commands__[name] = attr
+                # TODO modify the command attrs so works like expected
+            if hasattr(attr, "__is_listener__"):
+                try:
+                    cls.__listeners__[attr.__event_name__].append(attr)
+                except KeyError:
+                    cls.__listeners__[attr.__event_name__] = [attr]
 
     @property
     def description(self) -> Optional[str]:
-        """Optional[:class:`str`]: The cleaned up docstring for the class"""
-        help_doc = self.__doc__
-        if help_doc is not None:
-            help_doc = inspect.cleandoc(help_doc)
-        else:
-            help_doc = inspect.getdoc(self)
-            if isinstance(help_doc, bytes):
-                help_doc = help_doc.decode("utf-8")
+        """Optional[:class:`str`]: The cleaned up docstring for the class."""
+        help_doc = inspect.getdoc(self)
+        if isinstance(help_doc, bytes):
+            return help_doc.decode("utf-8")
 
         return help_doc
 
@@ -129,20 +134,17 @@ class Cog:
         """
 
         def decorator(func: "EventType"):
-            name_ = name or func.__name__
             if not asyncio.iscoroutinefunction(func):
-                raise TypeError(f"listeners must be coroutines, {name_} is {type(func).__name__}")
-
-            if name_ in cls.__listeners__:
-                cls.__listeners__[name_].append(func)
-            else:
-                cls.__listeners__[name_] = [func]
+                raise TypeError(f"Listeners must be coroutines, {func.__name__} is {type(func).__name__}")
+            func.__is_listener__ = True
+            func.__event_name__ = name or func.__name__
+            return func
 
         return decorator
 
     async def cog_command_error(self, ctx: "commands.Context", error: Exception):
         """|coro|
-        A special method that is called whenever an error
+        A special method that is called when an error
         is dispatched inside this cog. This is similar to
         :func:`~commands.Bot.on_command_error` except only applying
         to the commands inside this cog.
@@ -181,24 +183,31 @@ class Cog:
         """
 
     def _inject(self, bot: "Bot"):
-        for command in self.__commands__.values():
-            for (name, value) in self.command_attrs.items():
+        for idx, command in enumerate(self.__commands__.values()):
+            for name, value in self.command_attrs.items():
                 setattr(command, name, value)
             command.cog = self
             command.checks.append(self.cog_check)
-            bot.add_command(command)
+            try:
+                bot.add_command(command)
+            except Exception:
+                # undo our additions
+                for to_undo in tuple(self.__commands__.values())[:idx]:
+                    bot.remove_command(to_undo)
+                raise
 
-        for (name, listeners) in self.__listeners__.items():
+        for name, listeners in self.__listeners__.items():
             for listener in listeners:
-                if not isinstance(listener, staticmethod):
-                    # we need to manually inject the "self" parameter then
-                    listener = InjectedListener(self, listener)
+                # we need to manually inject the "self" parameter
+                listener = InjectedListener(self, listener)
                 bot.add_listener(listener, name)
 
     def _eject(self, bot: "Bot"):
-        self.cog_unload()
         for command in self.__commands__.values():
             bot.remove_command(command)
 
-        for (name, listener) in self.__listeners__.items():
-            bot.remove_listener(listener, name)
+        for name, listeners in self.__listeners__.items():
+            for listener in listeners:
+                bot.remove_listener(listener, name)
+
+        self.cog_unload()
