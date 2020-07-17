@@ -202,7 +202,7 @@ class Bot(Client):
             The name of the extension to unload.
         """
         if extension not in self.__extensions__:
-            raise ModuleNotFoundError(f"Extension {extension} was not found")
+            raise ModuleNotFoundError(f"The extension {extension} was not found")
 
         module: "ExtensionType" = self.__extensions__[extension]
         for attr in (getattr(module, attr) for attr in dir(module)):
@@ -226,7 +226,9 @@ class Bot(Client):
         extension: :class:`str`
             The name of the extension to reload.
         """
-        previous = self.__extensions__[extension]
+        previous = self.__extensions__.get(extension)
+        if previous is None:
+            raise ModuleNotFoundError(f"The extension {extension} was not found")
 
         try:
             self.unload_extension(extension)
@@ -262,7 +264,7 @@ class Bot(Client):
         cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: EventType, name: Optional[str] = None):
+    def add_listener(self, func: Union[EventType, InjectedListener], name: Optional[str] = None):
         """Add a function from the internal listeners list.
 
         Parameters
@@ -283,7 +285,7 @@ class Bot(Client):
         except KeyError:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: "EventType", name: Optional[str] = None):
+    def remove_listener(self, func: Union[EventType, InjectedListener], name: Optional[str] = None):
         """Remove a function from the internal listeners list.
 
         Parameters
@@ -420,7 +422,7 @@ class Bot(Client):
         if not ctx.prefix:
             return
         if ctx.command is None:
-            raise CommandNotFound(f"The command {ctx.invoked_with} was not found")
+            raise CommandNotFound(f"The command {ctx.invoked_with} was not found") from None
 
         command = ctx.command
         if not command.enabled:
@@ -432,7 +434,7 @@ class Bot(Client):
             cooldown(ctx)
         await command._parse_arguments(ctx)
         if not await command.can_run(ctx):
-            raise CheckFailure("You failed to pass one of the command checks")
+            raise CheckFailure("You failed to pass one of the command checks") from None
         try:
             await command.callback(*ctx.args, **ctx.kwargs)
         except Exception as exc:

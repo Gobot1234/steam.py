@@ -46,7 +46,7 @@ __all__ = ("Cog",)
 class InjectedListener:
     """Injects the cog's "self" parameter into every event call auto-magically."""
 
-    __slots__ = ("func", "cog")
+    __slots__ = ("func", "cog", "index")
 
     def __init__(self, cog: "Cog", func: "EventType"):
         self.func = func
@@ -54,8 +54,6 @@ class InjectedListener:
 
     def __call__(self, *args, **kwargs):
         return self.func(self.cog, *args, **kwargs)
-
-    # TODO this needs a proper proper eq
 
 
 # for a bit of type hinting
@@ -92,7 +90,7 @@ class Cog:
     """
 
     __commands__: Dict[str, Command]
-    __listeners__: Dict[str, List["EventType"]]
+    __listeners__: Dict[str, List["InjectedListener"]]
     command_attrs: Dict[str, Any]
     qualified_name: str
 
@@ -102,10 +100,10 @@ class Cog:
 
         cls.__listeners__ = dict()
         cls.__commands__ = dict()
-        for name, attr in inspect.getmembers(cls):
+        for idx, (name, attr) in enumerate(inspect.getmembers(cls)):
             if isinstance(attr, Command):
                 cls.__commands__[name] = attr
-            elif hasattr(attr, "__is_listener__"):
+            elif hasattr(attr, "__event_name__"):
                 try:
                     cls.__listeners__[attr.__event_name__].append(attr)
                 except KeyError:
@@ -135,7 +133,6 @@ class Cog:
         def decorator(func: "EventType"):
             if not asyncio.iscoroutinefunction(func):
                 raise TypeError(f"Listeners must be coroutines, {func.__name__} is {type(func).__name__}")
-            func.__is_listener__ = True
             func.__event_name__ = name or func.__name__
             return func
 
@@ -198,9 +195,10 @@ class Cog:
                 raise
 
         for name, listeners in self.__listeners__.items():
-            for listener in listeners:
+            for idx, listener in enumerate(listeners):
                 # we need to manually inject the "self" parameter
                 listener = InjectedListener(self, listener)
+                self.__listeners__[name][idx] = listener  # edit the original
                 bot.add_listener(listener, name)
 
     def _eject(self, bot: "Bot") -> None:
