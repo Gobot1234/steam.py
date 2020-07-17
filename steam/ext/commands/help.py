@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from .cog import Cog
 from .command import Command
@@ -80,13 +80,13 @@ class HelpCommand(Command):
 
         await self.command_not_found(command)
 
-    def get_bot_mapping(self) -> Dict[Optional["Cog"], Command]:
+    def get_bot_mapping(self) -> Dict[Optional["Cog"], List[Command]]:
         bot = self.context.bot
         mapping = {name: cog.__commands__ for (name, cog) in bot.__cogs__.items()}
         mapping[None] = [c for c in bot.commands if c not in mapping.values()]
         return mapping
 
-    async def send_help(self, mapping: Dict[Optional["commands.Cog"], "commands.Command"]):
+    async def send_help(self, mapping: Dict[Optional["commands.Cog"], List["commands.Command"]]):
         message = []
         for name, commands in mapping.items():
             if name is not None:

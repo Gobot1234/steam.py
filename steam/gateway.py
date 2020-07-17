@@ -173,7 +173,7 @@ class CMServerList(AsyncIterator[str]):
         if len(self) > total:
             log.debug(f"Added {len(self) - total} new CM server addresses.")
 
-    async def ping_cms(self, hosts: List[str], to_ping: int = 10) -> None:
+    async def ping_cms(self, hosts: Optional[List[str]] = None, to_ping: int = 10) -> None:
         hosts = list(self.dict.keys()) if hosts is None else hosts
         for host in hosts[:to_ping]:  # only ping the first 10 cms (by default)
             # TODO dynamically make sure we get good ones
