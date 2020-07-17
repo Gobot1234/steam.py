@@ -363,7 +363,9 @@ class Clan(SteamID):
         self._state.dispatch("comment", comment)
         return comment
 
-    def comments(self, limit=None, before: datetime = None, after: datetime = None) -> CommentsIterator:
+    def comments(
+        self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None
+    ) -> CommentsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
         :class:`~steam.Clan`'s :class:`~steam.Comment` objects.
 

@@ -261,7 +261,9 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
         return steam_32, EType(1), EUniverse.Public, 1
 
 
-async def steam64_from_url(url: str, session: aiohttp.ClientSession = None, timeout: float = 30) -> Optional[int]:
+async def steam64_from_url(
+    url: Optional[str], session: Optional[aiohttp.ClientSession] = None, timeout: float = 30
+) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or None
 
     .. note::

@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from .channel import GroupChannel
 from .models import Role
@@ -77,13 +77,24 @@ class Group:
         "_state",
     )
 
+    owner: Optional["BaseUser"]
+    top_members: Optional[List["BaseUser"]]
+    id: Optional[int]
+    name: Optional[str]
+    active_member_count: Optional[int]
+    roles: Optional[List[Role]]
+    default_role: Optional[Role]
+    channels: Optional[List[GroupChannel]]
+    default_channel: Optional[GroupChannel]
+    roles: Optional[List[Role]]
+
     def __init__(self, state: "ConnectionState", proto: "GroupProto"):
         self._state = state
         self._from_proto(proto)
 
     async def __ainit__(self):
         self.owner = await self._state.client.fetch_user(self.owner)
-        self.top_members: List["BaseUser"] = await self._state.client.fetch_users(self.top_members)
+        self.top_members = await self._state.client.fetch_users(self.top_members)
 
     def _from_proto(self, proto: "GroupProto"):
         self.id = int(proto.chat_group_id)
@@ -92,7 +103,8 @@ class Group:
 
         self.active_member_count = proto.active_member_count
         self.top_members = proto.top_members
-        self.roles = []
+        self.roles: List[Role] = []
+        self.default_role: Optional[Role]
 
         for role in proto.role_actions:
             self.roles.append(Role(role))
@@ -102,12 +114,12 @@ class Group:
             self.default_role = default_role[0]
         else:
             self.default_role = None
-        self.default_channel = int(proto.default_chat_id)
+        default_channel = int(proto.default_chat_id)
         self.channels = []
         for channel in proto.chat_rooms:
             channel = GroupChannel(state=self._state, group=self, channel=channel)
             self.channels.append(channel)
-        self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
+        self.default_channel = [c for c in self.channels if c.id == default_channel][0]
 
     def __repr__(self):
         attrs = ("name", "id", "owner")
@@ -121,6 +133,7 @@ class Group:
         """|coro|
         Leaves the :class:`Group`.
         """
+        await self._state.leave_chat(self.id)
 
     async def invite(self, user: "User"):
         """|coro|

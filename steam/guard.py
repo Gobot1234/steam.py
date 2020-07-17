@@ -36,7 +36,7 @@ import hmac
 import struct
 from hashlib import sha1
 from time import time
-from typing import TYPE_CHECKING, Awaitable
+from typing import TYPE_CHECKING, Awaitable, Optional
 
 from .models import URL
 
@@ -52,7 +52,7 @@ __all__ = (
 )
 
 
-def generate_one_time_code(shared_secret: str, timestamp: int = None) -> str:
+def generate_one_time_code(shared_secret: str, timestamp: Optional[int] = None) -> str:
     """Generate a Steam Guard code for signing in.
 
     Parameters
@@ -80,7 +80,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int = None) -> str:
     return code  # faster than string concatenation
 
 
-def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int = None) -> str:
+def generate_confirmation_code(identity_secret: str, tag: str, timestamp: Optional[int] = None) -> str:
     """Generate a trade confirmation code.
 
     Parameters
@@ -139,7 +139,7 @@ class Confirmation:
         self.trade_id = trade_id
 
     def __repr__(self):
-        return f"<Confirmation id={self.id} trade_id={self.trade_id}>"
+        return f"<Confirmation id={self.id} trade_id={self.trade_id!r}>"
 
     def _confirm_params(self, tag) -> dict:
         timestamp = int(time())

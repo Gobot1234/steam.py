@@ -20,8 +20,6 @@ class Enum(Enum):
 
 class IntEnum(int, Enum): ...
 
-# fmt: off
-
 class EResult(IntEnum):
     Invalid: EResult
     OK: EResult
@@ -127,10 +125,9 @@ class EResult(IntEnum):
     TooManyPending: EResult
     NoSiteLicensesFound: EResult
     WGNetworkSendExceeded: EResult
-    AccountNotFriends:  EResult
+    AccountNotFriends: EResult
     LimitedUserAccount: EResult
     CantRemoveItem: EResult
-
 
 class EUniverse(IntEnum):
     Invalid: EUniverse
@@ -139,10 +136,7 @@ class EUniverse(IntEnum):
     Internal: EUniverse
     Dev: EUniverse
     Max: EUniverse
-
-    def __str__(self):
-        return self.name
-
+    def __str__(self): ...
 
 class EType(IntEnum):
     Invalid: EType
@@ -157,10 +151,7 @@ class EType(IntEnum):
     ConsoleUser: EType
     AnonUser: EType
     Max: EType
-
-    def __str__(self):
-        return self.name
-
+    def __str__(self): ...
 
 class ETypeChar(IntEnum):
     I: ETypeChar = EType.Invalid
@@ -175,16 +166,12 @@ class ETypeChar(IntEnum):
     L: ETypeChar = EType.Chat
     c: ETypeChar = EType.Chat
     a: ETypeChar = EType.AnonUser
-
-    def __str__(self):
-        return self.name
-
+    def __str__(self): ...
 
 class EInstanceFlag(IntEnum):
     MMSLobby: EInstanceFlag
     Lobby: EInstanceFlag
     Clan: EInstanceFlag
-
 
 class EFriendRelationship(IntEnum):
     NONE: EFriendRelationship
@@ -197,7 +184,6 @@ class EFriendRelationship(IntEnum):
     SuggestedFriend: EFriendRelationship
     Max: EFriendRelationship
 
-
 class EPersonaState(IntEnum):
     Offline: EPersonaState
     Online: EPersonaState
@@ -207,10 +193,7 @@ class EPersonaState(IntEnum):
     LookingToTrade: EPersonaState
     LookingToPlay: EPersonaState
     Max: EPersonaState
-
-    def __str__(self):
-        return self.name
-
+    def __str__(self): ...
 
 class EPersonaStateFlag(IntEnum):
     NONE: EPersonaStateFlag
@@ -224,17 +207,13 @@ class EPersonaStateFlag(IntEnum):
     ClientTypeVR: EPersonaStateFlag
     LaunchTypeGamepad: EPersonaStateFlag
     LaunchTypeCompatTool: EPersonaStateFlag
-
-    def __str__(self):
-        return self.name
-
+    def __str__(self): ...
 
 class ECommunityVisibilityState(IntEnum):
     NONE: ECommunityVisibilityState
     Private: ECommunityVisibilityState
     FriendsOnly: ECommunityVisibilityState
     Public: ECommunityVisibilityState
-
 
 class ETradeOfferState(IntEnum):
     Invalid: ETradeOfferState
@@ -249,7 +228,6 @@ class ETradeOfferState(IntEnum):
     CanceledBySecondaryFactor: ETradeOfferState
     StateInEscrow: ETradeOfferState
 
-
 class EChatEntryType(IntEnum):
     Invalid: EChatEntryType
     ChatMsg: EChatEntryType
@@ -263,13 +241,11 @@ class EChatEntryType(IntEnum):
     HistoricalChat: EChatEntryType
     LinkBlocked: EChatEntryType
 
-
 class EUIMode(IntEnum):
     Desktop: EUIMode
     BigPicture: EUIMode
     Mobile: EUIMode
     Web: EUIMode
-
 
 class EUserBadge(IntEnum):
     Invalid: EUserBadge

@@ -2,7 +2,6 @@
 
 from ..enums import IntEnum as IntEnum
 
-
 __all__ = ("EMsg",)
 
 

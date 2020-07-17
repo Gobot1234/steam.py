@@ -31,7 +31,7 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 import asyncio
 import functools
 import inspect
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Type, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Type, Union
 
 import steam
 
@@ -270,7 +270,7 @@ class Command:
         return True
 
 
-def command(name: str = None, cls: Type[Command] = None, **attrs) -> Callable[..., Command]:
+def command(name: Optional[str] = None, cls: Optional[Type[Command]] = None, **attrs) -> Callable[..., Command]:
     r"""Register a coroutine as a :class:`~commands.Command`.
 
     Parameters

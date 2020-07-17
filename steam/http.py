@@ -176,10 +176,11 @@ class HTTPClient:
                 "Please enter the captcha text at"
                 f" https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
             )
-            self._captcha_text = (await utils.ainput(">>> ")).strip()
+            captcha_text = await utils.ainput(">>> ")
+            self._captcha_text = captcha_text.strip()
             return await self.login(username, password, shared_secret)
         if not resp["success"]:
-            raise errors.InvalidCredentials(resp.get("message", "An unexpected error occured"))
+            raise errors.InvalidCredentials(resp.get("message", "An unexpected error occurred"))
 
         data = resp.get("transfer_parameters")
         if data is None:
@@ -428,7 +429,7 @@ class HTTPClient:
         params = {"cellid": cell_id}
         return self.request("GET", api_route("ISteamDirectory/GetCMList"), params=params)
 
-    def get_comments(self, id64: int, comment_type: str, limit: int = None) -> Awaitable:
+    def get_comments(self, id64: int, comment_type: str, limit: Optional[int] = None) -> Awaitable:
         params = {"start": 0, "totalcount": 9999999999}
         if limit is None:
             params["count"] = 9999999999

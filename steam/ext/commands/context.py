@@ -67,7 +67,7 @@ class Context(Messageable):
     """
 
     def __init__(
-        self, bot: "Bot", message: Message, prefix: str, command: "Command" = None, shlex: "Shlex" = None, **attrs
+        self, bot: "Bot", message: Message, prefix: str, command: Optional["Command"] = None, shlex: Optional["Shlex"] = None, **attrs
     ):
         self.bot = bot
         self.message = message
@@ -87,5 +87,5 @@ class Context(Messageable):
         self.args: Optional[List] = None
         self.kwargs: Optional[Dict[str, Any]] = None
 
-    async def send(self, content: str = None, *, image: "Image" = None):
+    async def send(self, content: Optional[str] = None, *, image: Optional["Image"] = None):
         return await self.channel.send(content=content, image=image)

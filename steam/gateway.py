@@ -61,9 +61,9 @@ if TYPE_CHECKING:
 
 
 __all__ = (
-    "SteamWebSocket",
     "ConnectionClosed",
-    "WebSocketClosure",
+    "CMServerList",
+    "SteamWebSocket",
 )
 
 log = logging.getLogger(__name__)
@@ -173,7 +173,7 @@ class CMServerList(AsyncIterator[str]):
         if len(self) > total:
             log.debug(f"Added {len(self) - total} new CM server addresses.")
 
-    async def ping_cms(self, hosts: List[str] = None, to_ping: int = 10) -> None:
+    async def ping_cms(self, hosts: List[str], to_ping: int = 10) -> None:
         hosts = list(self.dict.keys()) if hosts is None else hosts
         for host in hosts[:to_ping]:  # only ping the first 10 cms (by default)
             # TODO dynamically make sure we get good ones
@@ -330,14 +330,16 @@ class SteamWebSocket:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg, predicate: Callable[..., bool] = None) -> asyncio.Future:
+    def wait_for(self, emsg: EMsg, predicate: Optional[Callable[..., bool]] = None) -> asyncio.Future:
         future = self.loop.create_future()
         entry = EventListener(emsg=emsg, predicate=predicate or return_true, future=future)
         self.listeners.append(entry)
         return future
 
     @classmethod
-    async def from_client(cls, client: "Client", cm: str = None, cms: CMServerList = None) -> "SteamWebSocket":
+    async def from_client(
+        cls, client: "Client", cm: Optional[str] = None, cms: Optional[CMServerList] = None
+    ) -> "SteamWebSocket":
         connection = client._connection
         cm_list = cms or CMServerList(connection, cm)
         async for cm in cm_list:

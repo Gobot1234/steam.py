@@ -31,6 +31,7 @@ from .command import Command
 
 if TYPE_CHECKING:
     from steam.ext import commands
+
     from .context import Context
 
 __all__ = ("HelpCommand",)
@@ -62,7 +63,7 @@ class HelpCommand(Command):
         finally:
             self.cog = original_cog
 
-    async def command_callback(self, ctx: "Context", *, command: str = None) -> None:
+    async def command_callback(self, ctx: "Context", *, command: Optional[str] = None) -> None:
         """The actual implementation of the help command."""
         self.context = ctx
         bot = ctx.bot
@@ -81,13 +82,13 @@ class HelpCommand(Command):
 
     def get_bot_mapping(self) -> Dict[Optional["Cog"], Command]:
         bot = self.context.bot
-        mapping = {name: cog.__cog_commands__ for (name, cog) in bot.__cogs__.items()}
+        mapping = {name: cog.__commands__ for (name, cog) in bot.__cogs__.items()}
         mapping[None] = [c for c in bot.commands if c not in mapping.values()]
         return mapping
 
     async def send_help(self, mapping: Dict[Optional["commands.Cog"], "commands.Command"]):
         message = []
-        for name, commands in sorted(mapping.items()):
+        for name, commands in mapping.items():
             if name is not None:
                 message.append(f"--= {name}'s commands =--")
             else:

@@ -110,8 +110,8 @@ class UserConverter(Converter):
     type-hint passed is :class:`~steam.User`.
 
     Lookup is in the order of:
-        - steam id
-        - name
+        - Steam ID
+        - Name
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "User":
@@ -128,8 +128,8 @@ class ChannelConverter(Converter):
     type-hint passed is :class:`~steam.Channel`.
 
     Lookup is in the order of:
-        - id
-        - name
+        - ID
+        - Name
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "BaseChannel":
@@ -152,8 +152,8 @@ class ClanConverter(Converter):
     type-hint passed is :class:`~steam.Clan`.
 
     Lookup is in the order of:
-        - steam id
-        - name
+        - Steam ID
+        - Name
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "Clan":
@@ -170,8 +170,8 @@ class GroupConverter(Converter):
     type-hint passed is :class:`~steam.Group`.
 
     Lookup is in the order of:
-        - id
-        - name
+        - ID
+        - Name
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "Group":
@@ -254,7 +254,7 @@ class DefaultClan(Default):
 
 
 class DefaultGame(Default):
-    """Returns the :attr:`~steam.User.game`"""
+    """Returns the author's :attr:`~steam.User.game`"""
 
     async def default(self, ctx: "commands.Context"):
         return ctx.author.game

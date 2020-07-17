@@ -222,7 +222,8 @@ class Inventory:
     def __init__(self, state: "ConnectionState", data: dict, owner: "BaseUser"):
         self._state = state
         self.owner = owner
-        self.items = []
+        self.items: List[Item] = []
+        self.game: Optional[Game]
         self._update(data)
 
     def __repr__(self):
@@ -379,12 +380,12 @@ class TradeOffer:
     def __init__(
         self,
         *,
-        message: str = None,
-        token: str = None,
-        item_to_send: Union[Item, Asset] = None,
-        item_to_receive: Union[Item, Asset] = None,
-        items_to_send: List[Union[Item, Asset]] = None,
-        items_to_receive: List[Union[Item, Asset]] = None,
+        message: Optional[str] = None,
+        token: Optional[str] = None,
+        item_to_send: Optional[Union[Item, Asset]] = None,
+        item_to_receive: Optional[Union[Item, Asset]] = None,
+        items_to_send: Optional[List[Union[Item, Asset]]] = None,
+        items_to_receive: Optional[List[Union[Item, Asset]]] = None,
     ):
         self.items_to_receive = items_to_receive if items_to_receive else []
         self.items_to_send = items_to_send if items_to_send else []

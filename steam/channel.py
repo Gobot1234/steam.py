@@ -26,7 +26,7 @@ SOFTWARE.
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from .abc import BaseChannel
 
@@ -68,7 +68,9 @@ class DMChannel(BaseChannel):
     def __repr__(self):
         return f"<DMChannel participant={self.participant!r}>"
 
-    async def send(self, content: str = None, *, trade: "TradeOffer" = None, image: "Image" = None) -> None:
+    async def send(
+        self, content: Optional[str] = None, *, trade: Optional["TradeOffer"] = None, image: Optional["Image"] = None
+    ) -> None:
         await self.participant.send(content=content, trade=trade, image=image)
 
     def typing(self) -> "TypingContextManager":
@@ -145,6 +147,7 @@ class _GroupChannel(BaseChannel):
         super().__init__()
         self._state = state
         self.id = int(channel.chat_id)
+        self.joined_at: Optional[datetime]
         name = getattr(channel, "chat_name", "")
         if name:
             split = name.split(" | ", 1)

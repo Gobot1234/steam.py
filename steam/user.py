@@ -113,7 +113,7 @@ class User(BaseUser, Messageable):
         """
         await self._state.http.unblock_user(self.id64)
 
-    async def escrow(self, token: str = None) -> Optional[timedelta]:
+    async def escrow(self, token: Optional[str] = None) -> Optional[timedelta]:
         """|coro|
         Check how long a :class:`User`'s escrow is.
 
@@ -141,7 +141,9 @@ class User(BaseUser, Messageable):
     def _get_image_endpoint(self):
         return self.id64, self._state.http.send_user_image
 
-    async def send(self, content: str = None, *, trade: "TradeOffer" = None, image: "Image" = None) -> None:
+    async def send(
+        self, content: Optional[str] = None, *, trade: Optional["TradeOffer"] = None, image: Optional["Image"] = None
+    ) -> None:
         """|coro|
         Send a message, trade or image to an :class:`User`.
 
@@ -281,14 +283,14 @@ class ClientUser(BaseUser):
     async def edit(
         self,
         *,
-        name: str = None,
-        real_name: str = None,
-        url: str = None,
-        summary: str = None,
-        country: str = None,
-        state: str = None,
-        city: str = None,
-        avatar: "Image" = None,
+        name: Optional[str] = None,
+        real_name: Optional[str] = None,
+        url: Optional[str] = None,
+        summary: Optional[str] = None,
+        country: Optional[str] = None,
+        state: Optional[str] = None,
+        city: Optional[str] = None,
+        avatar: Optional["Image"] = None,
     ):
         """|coro|
         Edit the :class:`ClientUser`'s profile.

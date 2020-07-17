@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from typing import Optional
+
 __all__ = (
     "TF2",
     "Game",
@@ -97,7 +99,7 @@ class Game:
         "stats_visible",
     )
 
-    def __init__(self, app_id: int = None, title: str = None, *, context_id: int = 2):
+    def __init__(self, app_id: Optional[int] = None, title: Optional[str] = None, *, context_id: int = 2):
         if app_id is not None and title is None:
             try:
                 self.app_id = int(app_id)
@@ -145,13 +147,13 @@ class Game:
                 self.app_id = app_id
                 self.context_id = context_id
 
-        self.total_play_time = None
-        self.icon_url = None
-        self.logo_url = None
-        self.stats_visible = None
+        self.total_play_time: Optional[int] = None
+        self.icon_url: Optional[str] = None
+        self.logo_url: Optional[str] = None
+        self.stats_visible: Optional[bool] = None
 
     @classmethod
-    def _from_api(cls, data):
+    def _from_api(cls, data: dict) -> "Game":
         game = cls(app_id=data.get("appid"), title=data.get("name"))
         game.total_play_time = data.get("playtime_forever", 0)
         game.icon_url = data.get("img_icon_url")

@@ -273,7 +273,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(cls, url: str, session: "ClientSession" = None, timeout: float = 30) -> Optional["SteamID"]:
+    async def from_url(cls, url: str, session: Optional["ClientSession"] = None, timeout: float = 30) -> Optional["SteamID"]:
         """Takes Steam community url and returns a SteamID instance or ``None``.
         See :func:`steam64_from_url` for details.
 
@@ -581,7 +581,7 @@ class BaseUser(SteamID):
         return bans.is_banned()
 
     def comments(
-        self, limit: Optional[int] = None, before: datetime = None, after: datetime = None,
+        self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None,
     ) -> CommentsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
         :class:`~steam.User`'s :class:`~steam.Comment` objects.
@@ -640,7 +640,7 @@ class Messageable(metaclass=abc.ABCMeta):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         pass
 
-    async def send(self, content: str = None, image: "Image" = None):
+    async def send(self, content: Optional[str] = None, image: Optional["Image"] = None):
         """|coro|
         Send a message to a certain destination.
 

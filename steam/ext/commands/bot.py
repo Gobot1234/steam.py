@@ -115,7 +115,7 @@ class Bot(Client):
         for owner_id in owner_ids:
             self.owner_ids.add(utils.make_steam64(owner_id))
         if self.owner_id and self.owner_ids:
-            raise ValueError("you cannot have both owner_id and owner_ids")
+            raise ValueError("You cannot have both owner_id and owner_ids")
         super().__init__(**options)
 
         for attr in (getattr(self, attr) for attr in dir(self)):
@@ -262,7 +262,7 @@ class Bot(Client):
         cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: EventType, name: str = None):
+    def add_listener(self, func: EventType, name: Optional[str] = None):
         """Add a function from the internal listeners list.
 
         Parameters
@@ -283,7 +283,7 @@ class Bot(Client):
         except KeyError:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: "EventType", name: str = None):
+    def remove_listener(self, func: "EventType", name: Optional[str] = None):
         """Remove a function from the internal listeners list.
 
         Parameters
@@ -301,7 +301,7 @@ class Bot(Client):
         except (KeyError, ValueError):
             pass
 
-    def listen(self, name: str = None) -> Callable[..., EventType]:
+    def listen(self, name: Optional[str] = None) -> Callable[..., EventType]:
         """Register a function as a listener.
         Calls :meth:`add_listener`.
         Similar to :meth:`.Cog.listener`

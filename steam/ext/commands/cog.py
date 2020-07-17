@@ -105,8 +105,7 @@ class Cog:
         for name, attr in inspect.getmembers(cls):
             if isinstance(attr, Command):
                 cls.__commands__[name] = attr
-                # TODO modify the command attrs so works like expected
-            if hasattr(attr, "__is_listener__"):
+            elif hasattr(attr, "__is_listener__"):
                 try:
                     cls.__listeners__[attr.__event_name__].append(attr)
                 except KeyError:
@@ -122,7 +121,7 @@ class Cog:
         return help_doc
 
     @classmethod
-    def listener(cls, name: str = None):
+    def listener(cls, name: Optional[str] = None):
         """Register a function as a listener.
         Similar to :meth:`~steam.ext.commands.Bot.listen`
 
@@ -182,10 +181,12 @@ class Cog:
         This is called before :func:`teardown`.
         """
 
-    def _inject(self, bot: "Bot"):
+    def _inject(self, bot: "Bot") -> None:
         for idx, command in enumerate(self.__commands__.values()):
+            old_attrs = command.__dict__
             for name, value in self.command_attrs.items():
-                setattr(command, name, value)
+                if (name, value) not in old_attrs.items():
+                    setattr(command, name, value)
             command.cog = self
             command.checks.append(self.cog_check)
             try:
@@ -202,7 +203,7 @@ class Cog:
                 listener = InjectedListener(self, listener)
                 bot.add_listener(listener, name)
 
-    def _eject(self, bot: "Bot"):
+    def _eject(self, bot: "Bot") -> None:
         for command in self.__commands__.values():
             bot.remove_command(command)
 

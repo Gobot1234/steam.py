@@ -477,7 +477,7 @@ class ConnectionState:
         self._messages.append(message)
         self.dispatch("message", message)
 
-    async def join_chat(self, chat_id: int, invite_code: str = None) -> None:
+    async def join_chat(self, chat_id: int, invite_code: Optional[str] = None) -> None:
         job_id = await self.client.ws.send_um(
             "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or "",
         )
