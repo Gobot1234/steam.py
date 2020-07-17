@@ -269,16 +269,16 @@ class Client:
 
         if listeners:
             removed: List[int] = []
-            for i, (future, condition) in enumerate(listeners):
+            for idx, (future, condition) in enumerate(listeners):
                 if future.cancelled():
-                    removed.append(i)
+                    removed.append(idx)
                     continue
 
                 try:
                     result = condition(*args)
                 except Exception as exc:
                     future.set_exception(exc)
-                    removed.append(i)
+                    removed.append(idx)
                 else:
                     if result:
                         if len(args) == 0:
@@ -287,7 +287,7 @@ class Client:
                             future.set_result(args[0])
                         else:
                             future.set_result(args)
-                        removed.append(i)
+                        removed.append(idx)
 
             if len(removed) == len(listeners):
                 self._listeners.pop(event)

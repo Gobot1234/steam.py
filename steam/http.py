@@ -56,22 +56,12 @@ async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
         return await r.text()
 
 
-class Route:
-    BASE: "URL"
-
-    def __new__(cls, path: str):
-        return cls.BASE / path
+def api_route(path: str) -> URL:
+    return URL.API / f'{path}{"/v1" if path[-2:] != "v2" else ""}'
 
 
-class APIRoute(Route):
-    BASE = URL.API
-
-    def __new__(cls, path: str):
-        return super().__new__(cls, f'{path}{"/v1" if not path.endswith("v2") else ""}')
-
-
-class CRoute(Route):
-    BASE = URL.COMMUNITY
+def community_route(path: str) -> URL:
+    return URL.COMMUNITY / path
 
 
 class HTTPClient:
@@ -177,8 +167,10 @@ class HTTPClient:
         self._session = aiohttp.ClientSession()
 
         resp = await self._send_login_request()
+        if "Please wait and try again later" in resp.get("message", ""):
+            raise errors.LoginError(resp["message"])
 
-        if "captcha_needed" in resp:
+        if resp.get("captcha_needed"):
             self._captcha_id = resp["captcha_gid"]
             print(
                 "Please enter the captcha text at"
@@ -187,7 +179,7 @@ class HTTPClient:
             self._captcha_text = (await utils.ainput(">>> ")).strip()
             return await self.login(username, password, shared_secret)
         if not resp["success"]:
-            raise errors.InvalidCredentials(resp["message"])
+            raise errors.InvalidCredentials(resp.get("message", "An unexpected error occured"))
 
         data = resp.get("transfer_parameters")
         if data is None:
@@ -212,14 +204,14 @@ class HTTPClient:
     async def logout(self) -> None:
         log.debug("Logging out of session")
         payload = {"sessionid": self.session_id}
-        await self.request("POST", CRoute("login/logout"), data=payload)
+        await self.request("POST", community_route("login/logout"), data=payload)
         self.logged_in = False
         self._client.dispatch("logout")
 
     async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple[bytes, int]:
         payload = {"username": self.username, "donotcache": int(time() * 1000)}
         try:
-            key_response = await self.request("POST", CRoute("login/getrsakey"), data=payload)
+            key_response = await self.request("POST", community_route("login/getrsakey"), data=payload)
         except Exception as e:
             raise errors.LoginError from e
         try:
@@ -249,7 +241,7 @@ class HTTPClient:
             "donotcache": int(time() * 100000),
         }
         try:
-            resp = await self.request("POST", CRoute("login/dologin"), data=payload)
+            resp = await self.request("POST", community_route("login/dologin"), data=payload)
             if resp.get("requires_twofactor") or resp.get("emailauth_needed"):
                 try:
                     self._steam_id = resp["emailsteamid"]
@@ -263,7 +255,7 @@ class HTTPClient:
 
     def get_user(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamids": user_id64}
-        return self.request("GET", APIRoute("ISteamUser/GetPlayerSummaries/v2"), params=params)
+        return self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
 
     async def get_users(self, user_id64s: List[int]) -> List[dict]:
         ret = []
@@ -276,7 +268,7 @@ class HTTPClient:
             for _ in sublist:
                 params = {"key": self.api_key, "steamids": ",".join(map(str, sublist))}
 
-            full_resp = await self.request("GET", APIRoute("ISteamUser/GetPlayerSummaries/v2"), params=params)
+            full_resp = await self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
             ret.extend(full_resp["response"]["players"])
         return ret
 
@@ -286,22 +278,22 @@ class HTTPClient:
             "steamid": user_id64,
             "accept_invite": 0,
         }
-        return self.request("POST", CRoute("actions/AddFriendAjax"), data=payload)
+        return self.request("POST", community_route("actions/AddFriendAjax"), data=payload)
 
     def remove_user(self, user_id64: int) -> Awaitable:
         payload = {
             "sessionID": self.session_id,
             "steamid": user_id64,
         }
-        return self.request("POST", CRoute("actions/RemoveFriendAjax"), data=payload)
+        return self.request("POST", community_route("actions/RemoveFriendAjax"), data=payload)
 
     def block_user(self, user_id64: int) -> Awaitable:
         payload = {"sessionID": self.session_id, "steamid": user_id64, "block": 1}
-        return self.request("POST", CRoute("actions/BlockUserAjax"), data=payload)
+        return self.request("POST", community_route("actions/BlockUserAjax"), data=payload)
 
     def unblock_user(self, user_id64: int) -> Awaitable:
         payload = {"sessionID": self.session_id, "steamid": user_id64, "block": 0}
-        return self.request("POST", CRoute("actions/BlockUserAjax"), data=payload)
+        return self.request("POST", community_route("actions/BlockUserAjax"), data=payload)
 
     def accept_user_invite(self, user_id64: int) -> Awaitable:
         payload = {
@@ -309,7 +301,7 @@ class HTTPClient:
             "steamid": user_id64,
             "accept_invite": 1,
         }
-        return self.request("POST", CRoute("actions/AddFriendAjax"), data=payload)
+        return self.request("POST", community_route("actions/AddFriendAjax"), data=payload)
 
     def decline_user_invite(self, user_id64: int) -> Awaitable:
         payload = {
@@ -317,7 +309,7 @@ class HTTPClient:
             "steamid": user_id64,
             "accept_invite": 0,
         }
-        return self.request("POST", CRoute("actions/IgnoreFriendInviteAjax"), data=payload)
+        return self.request("POST", community_route("actions/IgnoreFriendInviteAjax"), data=payload)
 
     def get_user_games(self, user_id64: int) -> Awaitable:
         params = {
@@ -326,13 +318,13 @@ class HTTPClient:
             "include_appinfo": 1,
             "include_played_free_games": 1,
         }
-        return self.request("GET", APIRoute("IPlayerService/GetOwnedGames"), params=params)
+        return self.request("GET", api_route("IPlayerService/GetOwnedGames"), params=params)
 
     def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> Awaitable:
         params = {
             "count": 5000,
         }
-        return self.request("GET", CRoute(f"inventory/{user_id64}/{app_id}/{context_id}"), params=params,)
+        return self.request("GET", community_route(f"inventory/{user_id64}/{app_id}/{context_id}"), params=params,)
 
     def get_user_escrow(self, user_id64: int, token: Optional[str]) -> Awaitable:
         params = {
@@ -340,11 +332,11 @@ class HTTPClient:
             "steamid_target": user_id64,
             "trade_offer_access_token": token if token is not None else "",
         }
-        return self.request("GET", APIRoute("IEconService/GetTradeHoldDurations"), params=params)
+        return self.request("GET", api_route("IEconService/GetTradeHoldDurations"), params=params)
 
     async def get_friends(self, user_id64: int) -> List[dict]:
         params = {"key": self.api_key, "steamid": user_id64, "relationship": "friend"}
-        friends = await self.request("GET", APIRoute("ISteamUser/GetFriendList"), params=params)
+        friends = await self.request("GET", api_route("ISteamUser/GetFriendList"), params=params)
         return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])
 
     def get_trade_offers(self, active_only: bool = True, sent: bool = True, received: bool = True) -> Awaitable:
@@ -355,7 +347,7 @@ class HTTPClient:
             "get_descriptions": 1,
             "get_received_offers": int(received),
         }
-        return self.request("GET", APIRoute("IEconService/GetTradeOffers"), params=params)
+        return self.request("GET", api_route("IEconService/GetTradeOffers"), params=params)
 
     def get_trade_history(self, limit: int, previous_time: int) -> Awaitable:
         params = {
@@ -365,11 +357,11 @@ class HTTPClient:
             "include_total": 1,
             "start_after_time": previous_time or 0,
         }
-        return self.request("GET", APIRoute("IEconService/GetTradeHistory"), params=params)
+        return self.request("GET", api_route("IEconService/GetTradeHistory"), params=params)
 
     def get_trade(self, trade_id: int) -> Awaitable:
         params = {"key": self.api_key, "tradeofferid": trade_id, "get_descriptions": 1}
-        return self.request("GET", APIRoute("IEconService/GetTradeOffer"), params=params)
+        return self.request("GET", api_route("IEconService/GetTradeOffer"), params=params)
 
     def accept_user_trade(self, user_id64: int, trade_id: int) -> Awaitable:
         payload = {
@@ -380,15 +372,15 @@ class HTTPClient:
             "captcha": "",
         }
         headers = {"Referer": f"{URL.COMMUNITY}/tradeoffer/{trade_id}"}
-        return self.request("POST", CRoute(f"tradeoffer/{trade_id}/accept"), data=payload, headers=headers,)
+        return self.request("POST", community_route(f"tradeoffer/{trade_id}/accept"), data=payload, headers=headers,)
 
     def decline_user_trade(self, trade_id: int) -> Awaitable:
         payload = {"key": self.api_key, "tradeofferid": trade_id}
-        return self.request("POST", APIRoute("IEconService/DeclineTradeOffer"), data=payload)
+        return self.request("POST", api_route("IEconService/DeclineTradeOffer"), data=payload)
 
     def cancel_user_trade(self, trade_id: int) -> Awaitable:
         payload = {"key": self.api_key, "tradeofferid": trade_id}
-        return self.request("POST", APIRoute("IEconService/CancelTradeOffer"), data=payload)
+        return self.request("POST", api_route("IEconService/CancelTradeOffer"), data=payload)
 
     def send_trade_offer(
         self,
@@ -418,7 +410,7 @@ class HTTPClient:
         }
         payload.update(**kwargs)
         headers = {"Referer": f"{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}"}
-        return self.request("POST", CRoute("tradeoffer/new/send"), data=payload, headers=headers)
+        return self.request("POST", community_route("tradeoffer/new/send"), data=payload, headers=headers)
 
     def send_counter_trade_offer(
         self,
@@ -434,7 +426,7 @@ class HTTPClient:
 
     def get_cm_list(self, cell_id: int) -> Awaitable:
         params = {"cellid": cell_id}
-        return self.request("GET", APIRoute("ISteamDirectory/GetCMList"), params=params)
+        return self.request("GET", api_route("ISteamDirectory/GetCMList"), params=params)
 
     def get_comments(self, id64: int, comment_type: str, limit: int = None) -> Awaitable:
         params = {"start": 0, "totalcount": 9999999999}
@@ -442,25 +434,25 @@ class HTTPClient:
             params["count"] = 9999999999
         else:
             params["count"] = limit
-        return self.request("GET", CRoute(f"comment/{comment_type}/render/{id64}"), params=params)
+        return self.request("GET", community_route(f"comment/{comment_type}/render/{id64}"), params=params)
 
     def post_comment(self, id64: int, comment_type: str, content: str) -> Awaitable:
         payload = {
             "sessionid": self.session_id,
             "comment": content,
         }
-        return self.request("POST", CRoute(f"comment/{comment_type}/post/{id64}"), data=payload)
+        return self.request("POST", community_route(f"comment/{comment_type}/post/{id64}"), data=payload)
 
     def delete_comment(self, id64: int, comment_id: int, comment_type: str) -> Awaitable:
         payload = {
             "sessionid": self.session_id,
             "gidcomment": comment_id,
         }
-        return self.request("POST", CRoute(f"comment/{comment_type}/delete/{id64}"), data=payload)
+        return self.request("POST", community_route(f"comment/{comment_type}/delete/{id64}"), data=payload)
 
     def report_comment(self, id64: int, comment_id: int, comment_type: str) -> Awaitable:
         payload = {"gidcomment": comment_id, "hide": 1}
-        return self.request("POST", CRoute(f"comment/{comment_type}/hideandreport/{id64}"), data=payload,)
+        return self.request("POST", community_route(f"comment/{comment_type}/hideandreport/{id64}"), data=payload,)
 
     def accept_clan_invite(self, clan_id: int) -> Awaitable:
         payload = {
@@ -470,7 +462,7 @@ class HTTPClient:
             "action": "group_accept",
             "steamids[]": clan_id,
         }
-        return self.request("POST", CRoute("my/friends/action"), data=payload)
+        return self.request("POST", community_route("my/friends/action"), data=payload)
 
     def decline_clan_invite(self, clan_id: int) -> Awaitable:
         payload = {
@@ -480,14 +472,14 @@ class HTTPClient:
             "action": "group_ignore",
             "steamids[]": clan_id,
         }
-        return self.request("POST", CRoute("my/friends/action"), data=payload)
+        return self.request("POST", community_route("my/friends/action"), data=payload)
 
     def join_clan(self, clan_id: int) -> Awaitable:
         payload = {
             "sessionID": self.session_id,
             "action": "join",
         }
-        return self.request("POST", CRoute(f"gid/{clan_id}"), data=payload)
+        return self.request("POST", community_route(f"gid/{clan_id}"), data=payload)
 
     def leave_clan(self, clan_id: int) -> Awaitable:
         payload = {
@@ -495,7 +487,7 @@ class HTTPClient:
             "action": "leaveGroup",
             "groupId": clan_id,
         }
-        return self.request("POST", CRoute("my/home_process"), data=payload)
+        return self.request("POST", community_route("my/home_process"), data=payload)
 
     def invite_user_to_clan(self, user_id64: int, clan_id: int) -> Awaitable:
         payload = {
@@ -504,36 +496,36 @@ class HTTPClient:
             "invitee": user_id64,
             "type": "groupInvite",
         }
-        return self.request("POST", CRoute("actions/GroupInvite"), data=payload)
+        return self.request("POST", community_route("actions/GroupInvite"), data=payload)
 
     def get_user_clans(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamid": user_id64}
-        return self.request("GET", APIRoute("ISteamUser/GetUserGroupList"), params=params)
+        return self.request("GET", api_route("ISteamUser/GetUserGroupList"), params=params)
 
     def get_user_bans(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamids": user_id64}
-        return self.request("GET", APIRoute("ISteamUser/GetPlayerBans"), params=params)
+        return self.request("GET", api_route("ISteamUser/GetPlayerBans"), params=params)
 
     def get_user_level(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamid": user_id64}
-        return self.request("GET", APIRoute("IPlayerService/GetSteamLevel"), params=params)
+        return self.request("GET", api_route("IPlayerService/GetSteamLevel"), params=params)
 
     def get_user_badges(self, user_id64: int) -> Awaitable:
         params = {"key": self.api_key, "steamid": user_id64}
-        return self.request("GET", APIRoute("IPlayerService/GetBadges"), params=params)
+        return self.request("GET", api_route("IPlayerService/GetBadges"), params=params)
 
     def clear_nickname_history(self) -> Awaitable:
         payload = {"sessionid": self.session_id}
-        return self.request("POST", CRoute("my/ajaxclearaliashistory"), data=payload)
+        return self.request("POST", community_route("my/ajaxclearaliashistory"), data=payload)
 
     def clear_notifications(self) -> Awaitable:
-        return self.request("GET", CRoute("my/inventory"))
+        return self.request("GET", community_route("my/inventory"))
 
     async def edit_profile(
         self, name: str, real_name: str, url: str, summary: str, country: str, state: str, city: str, avatar: "Image",
     ) -> None:
         if any((name, real_name, url, summary, country, state, city, avatar)):
-            resp = await self.request("GET", url=CRoute("my/edit"))
+            resp = await self.request("GET", url=community_route("my/edit"))
             soup = BeautifulSoup(resp, "html.parser")
             edit_config = str(soup.find("div", attrs={"id": "profile_edit_config"}))
             value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', utils.replace_html_code(edit_config), flags=re.S,)[0]
@@ -573,7 +565,7 @@ class HTTPClient:
             payload.add_field(
                 "avatar", avatar.read(), filename=f"avatar.{avatar.type}", content_type=f"image/{avatar.type}",
             )
-            await self.request("POST", CRoute("actions/FileUploader"), data=payload)
+            await self.request("POST", community_route("actions/FileUploader"), data=payload)
 
     async def send_user_image(self, user_id64: int, image: "Image") -> None:
         payload = {
@@ -586,7 +578,7 @@ class HTTPClient:
             "file_image_height": image.height,
             "file_type": f"image/{image.type}",
         }
-        resp = await self.request("POST", CRoute("chat/beginfileupload"), data=payload)
+        resp = await self.request("POST", community_route("chat/beginfileupload"), data=payload)
 
         result = resp["result"]
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
@@ -603,7 +595,7 @@ class HTTPClient:
                 "spoiler": int(image.spoiler),
             }
         )
-        await self.request("POST", CRoute("chat/commitfileupload"), data=payload)
+        await self.request("POST", community_route("chat/commitfileupload"), data=payload)
 
     async def send_group_image(self, destination: Tuple[int, int], image: "Image") -> None:
         chat_id, channel_id = destination
@@ -617,7 +609,7 @@ class HTTPClient:
             "file_image_height": image.height,
             "file_type": f"image/{image.type}",
         }
-        resp = await self.request("POST", CRoute("chat/beginfileupload"), data=payload)
+        resp = await self.request("POST", community_route("chat/beginfileupload"), data=payload)
 
         result = resp["result"]
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
@@ -635,10 +627,10 @@ class HTTPClient:
                 "spoiler": int(image.spoiler),
             }
         )
-        await self.request("POST", CRoute("chat/commitfileupload"), data=payload)
+        await self.request("POST", community_route("chat/commitfileupload"), data=payload)
 
     async def get_api_key(self) -> str:
-        resp = await self.request("GET", CRoute("dev/apikey"))
+        resp = await self.request("GET", community_route("dev/apikey"))
         if "<h2>Access Denied</h2>" in resp:
             raise errors.LoginError(
                 "Access denied, you will need to generate a key yourself: https://steamcommunity.com/dev/apikey"
@@ -658,5 +650,5 @@ class HTTPClient:
             "sessionid": self.session_id,
             "Submit": "Register",
         }
-        resp = await self.request("POST", CRoute("dev/registerkey"), data=payload)
+        resp = await self.request("POST", community_route("dev/registerkey"), data=payload)
         return re.findall(r"<p>Key: ([0-9A-F]+)</p>", resp)[0]
