@@ -43,6 +43,7 @@ class HelpCommand(Command):
     def __init__(self):
         super().__init__(self.command_callback, name="help", help="Shows this message.")
         self.context: Optional["Context"] = None
+        self.cog: Optional["Cog"]
 
     def __repr__(self):
         return "<default help-command>"
@@ -63,27 +64,31 @@ class HelpCommand(Command):
         finally:
             self.cog = original_cog
 
-    async def command_callback(self, ctx: "Context", *, command: Optional[str] = None) -> None:
+    async def command_callback(self, ctx: "Context", *, content: Optional[str] = None) -> None:
         """The actual implementation of the help command."""
         self.context = ctx
         bot = ctx.bot
-        if command is None:
+        if content is None:
             mapping = self.get_bot_mapping()
             return await self.send_help(mapping)
         # Check if it's a cog
-        cog = bot.get_cog(command.capitalize())
+        cog = bot.get_cog(content.capitalize())
         if cog is not None:
             return await self.send_cog_help(cog)
-        command_ = bot.get_command(command)
-        if command_ is not None:
-            return await self.send_command_help(command_)
+        command = bot.get_command(content)
+        if command is not None:
+            return await self.send_command_help(command)
 
-        await self.command_not_found(command)
+        await self.command_not_found(content)
 
-    def get_bot_mapping(self) -> Dict[Optional["Cog"], List[Command]]:
+    def get_bot_mapping(self) -> Dict[Optional[str], List[Command]]:
         bot = self.context.bot
-        mapping = {name: cog.__commands__ for (name, cog) in bot.__cogs__.items()}
-        mapping[None] = [c for c in bot.commands if c not in mapping.values()]
+        mapping = {name: list(set(cog.__commands__.values())) for (name, cog) in bot.__cogs__.items()}
+        categorized_commands = []
+        for l in mapping.values():
+            for command in l:
+                categorized_commands.append(command)
+        mapping[None] = [c for c in set(bot.commands) if c not in categorized_commands]
         return mapping
 
     async def send_help(self, mapping: Dict[Optional["commands.Cog"], List["commands.Command"]]):
