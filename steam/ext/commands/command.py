@@ -115,7 +115,7 @@ class Command:
                 if not type(alias) is str:
                     raise TypeError
         except TypeError:
-            raise TypeError("aliases of a command must be an iterable containing only strings.")
+            raise TypeError("Aliases of a command must be an iterable containing only strings.")
 
         self.description = inspect.cleandoc(kwargs.get("description", ""))
         self.hidden = kwargs.get("hidden", False)

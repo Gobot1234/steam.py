@@ -244,10 +244,7 @@ class HTTPClient:
         try:
             resp = await self.request("POST", community_route("login/dologin"), data=payload)
             if resp.get("requires_twofactor") or resp.get("emailauth_needed"):
-                try:
-                    self._steam_id = resp["emailsteamid"]
-                except KeyError:
-                    pass
+                self._steam_id = resp.get("emailsteamid")
                 self._one_time_code = await self._client.code()
                 return await self._send_login_request()
             return resp
