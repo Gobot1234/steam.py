@@ -268,7 +268,7 @@ class Bot(Client):
         Parameters
         ----------
         func: Callable[..., Awaitable[None]]
-            The function to add.
+            The listener event to listen for.
         name: Optional[:class:`str`]
             The name of the event to listen for.
             Defaults to ``func.__name__``.
@@ -289,7 +289,7 @@ class Bot(Client):
         Parameters
         ----------
         func: Callable[..., Awaitable[None]]
-            The function to remove.
+            The listener to remove.
         name: Optional[:class:`str`]
             The name of the event to remove.
             Defaults to ``func.__name__``.
