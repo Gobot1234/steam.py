@@ -275,12 +275,12 @@ class Bot(Client):
         """
         name = name or func.__name__
 
-        if not (asyncio.iscoroutinefunction(func) or type(func) is InjectedListener):
-            raise TypeError(f"listeners must be coroutines, {name} is {type(func).__name__}")
+        if not (asyncio.iscoroutinefunction(func) or isinstance(func, InjectedListener)):
+            raise TypeError(f"Listeners must be coroutines, {name} is {type(func).__name__}")
 
-        if name in self.__listeners__:
+        try:
             self.__listeners__[name].append(func)
-        else:
+        except KeyError:
             self.__listeners__[name] = [func]
 
     def remove_listener(self, func: "EventType", name: str = None):
@@ -296,11 +296,10 @@ class Bot(Client):
         """
         name = name or func.__name__
 
-        if name in self.__listeners__:
-            try:
-                self.__listeners__[name].remove(func)
-            except ValueError:
-                pass
+        try:
+            self.__listeners__[name].remove(func)
+        except (KeyError, ValueError):
+            pass
 
     def listen(self, name: str = None) -> Callable[..., EventType]:
         """Register a function as a listener.
