@@ -100,7 +100,7 @@ class Cog:
 
         cls.__listeners__ = dict()
         cls.__commands__ = dict()
-        for idx, (name, attr) in enumerate(inspect.getmembers(cls)):
+        for name, attr in inspect.getmembers(cls):
             if isinstance(attr, Command):
                 cls.__commands__[name] = attr
             elif hasattr(attr, "__event_name__"):

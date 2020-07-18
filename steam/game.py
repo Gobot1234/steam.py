@@ -188,7 +188,8 @@ def CUSTOM_GAME(title: str):
     """Create a custom game instance
     for :meth:`~steam.Client.change_presence`.
 
-    Examples: ::
+    Example: ::
+
         await client.change_presence(game=steam.CUSTOM_GAME('my cool game'))
 
     Parameters
