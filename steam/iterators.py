@@ -29,7 +29,7 @@ import re
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
-    AsyncIterator,
+    AsyncIterator as _AsyncIterator,
     Awaitable,
     Callable,
     List,
@@ -54,7 +54,7 @@ T = TypeVar('T')
 MaybeCoro = Callable[[T], Union[bool, Awaitable[bool]]]
 
 
-class AsyncIterator(AsyncIterator[T]):
+class AsyncIterator(_AsyncIterator[T]):
     """A class from which async iterators (see :pep:`525`) can ben easily derived.
 
     .. container:: operations
@@ -157,7 +157,7 @@ class AsyncIterator(AsyncIterator[T]):
         Returns
         -------
         Optional[T]
-            The first element from the ``iterable``
+            The first element from the iterator
             for which the ``predicate`` returns ``True``
             or ``None`` if no matching element was found.
         """
@@ -186,6 +186,9 @@ class AsyncIterator(AsyncIterator[T]):
             A list of every element in the iterator.
         """
         return [element async for element in self]
+
+    def __aiter__(self) -> "AsyncIterator[T]":
+        return self
 
     def __anext__(self) -> T:
         return self.next()
