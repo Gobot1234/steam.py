@@ -184,9 +184,8 @@ CSGO = Game(title="Counter Strike Global-Offensive", app_id=730)
 STEAM = Game(title="Steam", app_id=753, context_id=6)
 
 
-def CUSTOM_GAME(title: str):
-    """Create a custom game instance
-    for :meth:`~steam.Client.change_presence`.
+def CUSTOM_GAME(title: str) -> Game:
+    """Create a custom game instance for :meth:`~steam.Client.change_presence`.
 
     Example: ::
 
@@ -196,5 +195,9 @@ def CUSTOM_GAME(title: str):
     ----------
     title: :class:`str`
         The name of the game to set your playing status to
+
+    Returns
+    -------
+    class:`.Game`
     """
     return Game(title=title, app_id=15190414816125648896, context_id=0)
