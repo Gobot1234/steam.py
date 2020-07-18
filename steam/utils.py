@@ -31,7 +31,7 @@ import json
 import re
 from inspect import isawaitable
 from operator import attrgetter
-from typing import Any, Awaitable, Callable, Iterable, Optional, T, Tuple, Union
+from typing import Any, Awaitable, Callable, Iterable, Optional, TypeVar, Tuple, Union
 
 import aiohttp
 
@@ -44,6 +44,7 @@ __all__ = (
     "parse_trade_url_token",
 )
 
+T = TypeVar('T')
 PROTOBUF_MASK = 0x80000000
 MAX_ASYNCIO_SECONDS = 60 * 60 * 24 * 40
 _INVITE_HEX = "0123456789abcdef"

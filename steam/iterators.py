@@ -29,13 +29,12 @@ import re
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
-    AsyncIterator as _AsyncIterator,
+    AsyncIterator,
     Awaitable,
     Callable,
-    Generic,
     List,
     Optional,
-    T,
+    TypeVar,
     Union,
 )
 
@@ -51,10 +50,11 @@ if TYPE_CHECKING:
     from .state import ConnectionState
     from .trade import TradeOffer
 
-MaybeCoro = Callable[..., Union[bool, Awaitable[bool]]]
+T = TypeVar('T')
+MaybeCoro = Callable[[T], Union[bool, Awaitable[bool]]]
 
 
-class AsyncIterator(_AsyncIterator, Generic[T]):
+class AsyncIterator(AsyncIterator[T]):
     """A class from which async iterators (see :pep:`525`) can ben easily derived.
 
     .. container:: operations
@@ -84,7 +84,7 @@ class AsyncIterator(_AsyncIterator, Generic[T]):
         self.before = before or datetime.utcnow()
         self.after = after or datetime.utcfromtimestamp(0)
         self._is_filled = False
-        self.queue: "asyncio.Queue[T]" = asyncio.Queue(maxsize=limit or 0)
+        self.queue: asyncio.Queue[T] = asyncio.Queue(maxsize=limit or 0)
         self.limit = limit
 
     def get(self, **attrs) -> Awaitable[Optional[T]]:
@@ -110,7 +110,7 @@ class AsyncIterator(_AsyncIterator, Generic[T]):
 
         Returns
         -------
-        Optional[Any]
+        Optional[T]
             The first element from the ``iterable``
             which matches all the traits passed in ``attrs``
             or ``None`` if no matching element was found.
@@ -156,7 +156,7 @@ class AsyncIterator(_AsyncIterator, Generic[T]):
 
         Returns
         -------
-        Optional[Any]
+        Optional[T]
             The first element from the ``iterable``
             for which the ``predicate`` returns ``True``
             or ``None`` if no matching element was found.
@@ -182,13 +182,13 @@ class AsyncIterator(_AsyncIterator, Generic[T]):
 
         Returns
         -------
-        List[Any]
+        List[T]
             A list of every element in the iterator.
         """
         return [element async for element in self]
 
-    async def __anext__(self) -> T:
-        return await self.next()
+    def __anext__(self) -> T:
+        return self.next()
 
     async def next(self) -> T:
         """|coro|
@@ -216,7 +216,12 @@ class CommentsIterator(AsyncIterator["Comment"]):
     __slots__ = ("owner",)
 
     def __init__(
-        self, state: "ConnectionState", before: datetime, after: datetime, limit: int, owner: Union["BaseUser", "Clan"],
+        self,
+        state: "ConnectionState",
+        limit: Optional[int],
+        before: Optional[datetime],
+        after: Optional[datetime],
+        owner: Union["BaseUser", "Clan"],
     ):
         super().__init__(state, limit, before, after)
         self.owner = owner
@@ -265,7 +270,12 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
     __slots__ = ("_active_only",)
 
     def __init__(
-        self, state: "ConnectionState", limit: int, before: datetime, after: datetime, active_only: bool,
+        self,
+        state: "ConnectionState",
+        limit: Optional[int],
+        before: Optional[datetime],
+        after: Optional[datetime],
+        active_only: bool,
     ):
         super().__init__(state, limit, before, after)
         self._active_only = active_only

@@ -114,7 +114,7 @@ class MsgBase(Generic[T]):
             if self.payload:
                 self.body = proto().parse(self.payload)
         else:
-            self.body = FailedToParse
+            self.body = FailedToParse()
 
     @property
     def msg(self) -> Union[EMsg, int]:
