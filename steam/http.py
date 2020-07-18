@@ -80,6 +80,7 @@ class HTTPClient:
         self.api_key: Optional[str] = None
         self.shared_secret: Optional[str] = None
         self._one_time_code = ""
+        self._email_code = ""
         self._captcha_id = "-1"
         self._captcha_text = ""
         self._steam_id = ""
@@ -129,15 +130,16 @@ class HTTPClient:
                     await asyncio.sleep(1 + tries * 3)
                     continue
 
-                elif 300 <= r.status <= 399 and "login" in r.headers.get("location", ""):  # been logged out
+                # been logged out
+                elif 300 <= r.status <= 399 and "login" in r.headers.get("location", ""):
                     log.debug("Logged out of session re-logging in")
                     await self.login(self.username, self.password, self.shared_secret)
                     continue
 
                 elif r.status == 401:
-                    # api key either got revoked or it was never valid
                     if not data:
                         raise errors.HTTPException(r, data)
+                    # api key either got revoked or it was never valid
                     if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
                         # time to fetch a new key
                         self._client.api_key = self.api_key = kwargs["key"] = await self.get_api_key()
@@ -213,25 +215,25 @@ class HTTPClient:
         payload = {"username": self.username, "donotcache": int(time() * 1000)}
         try:
             key_response = await self.request("POST", community_route("login/getrsakey"), data=payload)
-        except Exception as e:
-            raise errors.LoginError from e
+        except Exception as exc:
+            raise errors.LoginError("Failed to get RSA key") from exc
         try:
-            rsa_mod = int(key_response["publickey_mod"], 16)
-            rsa_exp = int(key_response["publickey_exp"], 16)
+            n = int(key_response["publickey_mod"], 16)
+            e = int(key_response["publickey_exp"], 16)
             rsa_timestamp = key_response["timestamp"]
         except KeyError:
             if current_repetitions < 5:
                 return await self._get_rsa_params(current_repetitions + 1)
             raise ValueError("Could not obtain rsa-key")
         else:
-            return b64encode(rsa.encrypt(self.password.encode("utf-8"), rsa.PublicKey(rsa_mod, rsa_exp))), rsa_timestamp
+            return b64encode(rsa.encrypt(self.password.encode("utf-8"), rsa.PublicKey(n, e))), rsa_timestamp
 
     async def _send_login_request(self) -> dict:
         password, timestamp = await self._get_rsa_params()
         payload = {
             "username": self.username,
             "password": password.decode(),
-            "emailauth": self._one_time_code,
+            "emailauth": self._email_code,
             "emailsteamid": self._steam_id,
             "twofactorcode": self._one_time_code,
             "captchagid": self._captcha_id,
@@ -239,15 +241,18 @@ class HTTPClient:
             "loginfriendlyname": self.user_agent,
             "rsatimestamp": timestamp,
             "remember_login": True,
-            "donotcache": int(time() * 100000),
+            "donotcache": int(time() * 1000),
         }
         try:
             resp = await self.request("POST", community_route("login/dologin"), data=payload)
-            if resp.get("requires_twofactor") or resp.get("emailauth_needed"):
-                self._steam_id = resp.get("emailsteamid")
+            if resp.get("requires_twofactor"):
                 self._one_time_code = await self._client.code()
-                return await self._send_login_request()
-            return resp
+            elif resp.get("emailauth_needed"):
+                self._steam_id = resp.get("emailsteamid")
+                self._email_code = await self._client.code()
+            else:
+                return resp
+            return await self._send_login_request()
         except Exception as exc:
             raise errors.LoginError from exc
 
@@ -265,9 +270,8 @@ class HTTPClient:
         for sublist in chunk():
             for _ in sublist:
                 params = {"key": self.api_key, "steamids": ",".join(map(str, sublist))}
-
-            full_resp = await self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
-            ret.extend(full_resp["response"]["players"])
+                resp = await self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
+                ret.extend(resp["response"]["players"])
         return ret
 
     def add_user(self, user_id64: int) -> Awaitable:
@@ -347,7 +351,7 @@ class HTTPClient:
         }
         return self.request("GET", api_route("IEconService/GetTradeOffers"), params=params)
 
-    def get_trade_history(self, limit: int, previous_time: int) -> Awaitable:
+    def get_trade_history(self, limit: int, previous_time: Optional[int]) -> Awaitable:
         params = {
             "key": self.api_key,
             "max_trades": limit,
