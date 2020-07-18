@@ -36,7 +36,7 @@ import traceback
 from copy import copy
 from shlex import shlex as Shlex
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Awaitable, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Type, Union
+from typing import TYPE_CHECKING, Awaitable, Callable, Dict, Iterable, List, Mapping, Optional, Type, Set, Union
 
 from ... import utils
 from ...client import Client, EventType
@@ -110,30 +110,24 @@ class Bot(Client):
     ):
         self.command_prefix = command_prefix
         self.owner_id = utils.make_steam64(options.get("owner_id", 0))
-        owner_ids: Collection[int] = options.get("owner_ids", [])
+        owner_ids: Set[int] = options.get("owner_ids", ())
         self.owner_ids = set()
         for owner_id in owner_ids:
             self.owner_ids.add(utils.make_steam64(owner_id))
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
         super().__init__(**options)
-
-        for attr in (getattr(self, attr) for attr in dir(self)):
-            if not isinstance(attr, Command):
-                continue
-
-            self.add_command(attr)
-            attr.cog = self
-            attr.cog.cog_command_error = self.on_command_error
-        if not isinstance(help_command, HelpCommand):
-            raise TypeError("help_command should derive from commands.HelpCommand")
-        self.add_command(help_command)
         self.help_command = help_command
+        for attr in (getattr(self, attr) for attr in dir(self)):
+            if isinstance(attr, Command) and not isinstance(attr, HelpCommand):
+                self.add_command(attr)
+                attr.cog = self
+                attr.cog.cog_command_error = self.on_command_error
 
     @property
-    def commands(self) -> List[Command]:
-        """List[:class:`.Command`]: A list of the loaded commands."""
-        return list(self.__commands__.values())
+    def commands(self) -> Set[Command]:
+        """Set[:class:`.Command`]: A list of the loaded commands."""
+        return set(self.__commands__.values())
 
     @property
     def cogs(self) -> Mapping[str, Cog]:
@@ -146,6 +140,17 @@ class Bot(Client):
         """Mapping[:class:`str`, :class:`ExtensionType`]:
         A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
+
+    @property
+    def help_command(self) -> HelpCommand:
+        return self._help_command
+
+    @help_command.setter
+    def help_command(self, value: HelpCommand):
+        if not isinstance(value, HelpCommand):
+            raise TypeError("help_command should derive from commands.HelpCommand")
+        self._help_command = value
+        self.add_command(value)
 
     def dispatch(self, event: str, *args, **kwargs) -> None:
         super().dispatch(event, *args, **kwargs)

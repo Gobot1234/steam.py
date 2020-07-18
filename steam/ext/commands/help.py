@@ -71,7 +71,7 @@ class HelpCommand(Command):
         if content is None:
             mapping = self.get_bot_mapping()
             return await self.send_help(mapping)
-        # Check if it's a cog
+        # check if it's a cog
         cog = bot.get_cog(content.capitalize())
         if cog is not None:
             return await self.send_cog_help(cog)
