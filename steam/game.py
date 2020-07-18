@@ -194,7 +194,7 @@ def CUSTOM_GAME(title: str) -> Game:
     Parameters
     ----------
     title: :class:`str`
-        The name of the game to set your playing status to
+        The name of the game to set your playing status to.
 
     Returns
     -------
