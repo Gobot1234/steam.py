@@ -27,6 +27,8 @@ SOFTWARE.
 """
 
 import asyncio
+import contextvars
+import functools
 import json
 import re
 from inspect import isawaitable
@@ -357,9 +359,18 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     return None
 
 
-def ainput(prompt: str = "") -> Awaitable[str]:
+# TODO make a custom cancellable Executor
+
+
+def to_thread(callable: Callable[..., _T], *args, **kwargs) -> Awaitable[_T]:  # a back port of asyncio.to_thread
     loop = asyncio.get_running_loop()
-    return loop.run_in_executor(None, input, prompt)
+    ctx = contextvars.copy_context()
+    partial = functools.partial(ctx.run, callable, *args, **kwargs)
+    return loop.run_in_executor(None, partial)
+
+
+def ainput(prompt: str = "") -> Awaitable[str]:
+    return to_thread(input, prompt)
 
 
 def replace_html_code(string: str) -> str:
