@@ -39,7 +39,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Awaitable, Callable, Dict, Iterable, List, Mapping, Optional, Type, Set, Union
 
 from ... import utils
-from ...client import Client, EventType
+from ...client import Client, EventType, log
 from ...errors import ClientException
 from .cog import Cog, ExtensionType, InjectedListener
 from .command import Command, command
@@ -155,8 +155,9 @@ class Bot(Client):
     def dispatch(self, event: str, *args, **kwargs) -> None:
         super().dispatch(event, *args, **kwargs)
         method = f"on_{event}"
-        for event in self.__listeners__.get(method, []):
-            self._schedule_event(event, method, *args, **kwargs)
+        for ev in self.__listeners__.get(method, []):
+            log.debug(f"Dispatching event {event}")
+            self._schedule_event(ev, method, *args, **kwargs)
 
     async def close(self) -> None:
         """|coro|
