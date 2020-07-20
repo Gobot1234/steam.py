@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional
 
 import aiohttp
 
-from . import errors
+from . import errors, utils
 from .abc import SteamID
 from .clan import Clan
 from .gateway import *
@@ -47,7 +47,6 @@ from .http import HTTPClient
 from .iterators import TradesIterator
 from .models import URL
 from .state import ConnectionState
-from .utils import ainput
 
 if TYPE_CHECKING:
     import steam
@@ -100,6 +99,7 @@ def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
         loop.run_until_complete(loop.shutdown_asyncgens())
     finally:
         log.info("Closing the event loop.")
+        asyncio.set_event_loop(None)
         loop.close()
 
 
@@ -203,7 +203,8 @@ class Client:
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)
-        code = await ainput("Please enter a Steam guard code\n>>> ")
+        print("Please enter a Steam guard code")
+        code = await utils.ainput(">>> ")
         return code.strip()
 
     @property

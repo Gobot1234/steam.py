@@ -179,8 +179,7 @@ class EnumMeta(type):
         super().__delattr__(attr)
 
     def __instancecheck__(self, instance):
-        # isinstance(x, Y)
-        # -> __instancecheck__(Y, x)
+        # isinstance(x, Y) -> __instancecheck__(Y, x)
         try:
             cls = instance._enum_cls_
             return cls is self or issubclass(cls, self)
@@ -351,9 +350,6 @@ class EUniverse(IntEnum):
     Dev      = 4
     Max      = 6
 
-    def __str__(self):
-        return self.name
-
 
 class EType(IntEnum):
     Invalid        = 0
@@ -369,9 +365,6 @@ class EType(IntEnum):
     AnonUser       = 10
     Max            = 11
 
-    def __str__(self):
-        return self.name
-
 
 class ETypeChar(IntEnum):
     I = EType.Invalid
@@ -386,9 +379,6 @@ class ETypeChar(IntEnum):
     L = EType.Chat  #: Lobby/group chat, 'c' for clan chat
     c = EType.Chat  #: Clan chat
     a = EType.AnonUser
-
-    def __str__(self):
-        return self.name
 
 
 class EInstanceFlag(IntEnum):
@@ -419,9 +409,6 @@ class EPersonaState(IntEnum):
     LookingToPlay  = 6
     Max            = 7
 
-    def __str__(self):
-        return self.name
-
 
 class EPersonaStateFlag(IntEnum):
     NONE                 = 0
@@ -435,9 +422,6 @@ class EPersonaStateFlag(IntEnum):
     ClientTypeVR         = 2048
     LaunchTypeGamepad    = 4096
     LaunchTypeCompatTool = 8192
-
-    def __str__(self):
-        return self.name
 
 
 class ECommunityVisibilityState(IntEnum):
