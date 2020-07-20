@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from .state import ConnectionState
     from .trade import TradeOffer
 
-T = TypeVar('T')
+T = TypeVar("T")
 MaybeCoro = Callable[[T], Union[bool, Awaitable[bool]]]
 
 
