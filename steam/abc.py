@@ -32,7 +32,7 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 from .badge import UserBadges
 from .comment import Comment
@@ -48,7 +48,6 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
 
     from .clan import Clan
-    from .client import EventType
     from .group import Group
     from .image import Image
     from .state import ConnectionState
@@ -61,33 +60,17 @@ __all__ = (
 )
 
 
-class SteamID(metaclass=abc.ABCMeta):
+class SteamID(float, metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations."""
 
     __slots__ = ("_BASE", "__weakref__")
 
     def __init__(self, *args, **kwargs):
-        self._BASE = make_steam64(*args, **kwargs)
+        id64 = make_steam64(*args, **kwargs)
+        float.__init__(id64)
 
     def __repr__(self):
-        attrs = ("id", "type", "universe", "instance")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<SteamID {' '.join(resolved)}>"
-
-    def __int__(self):
-        return self._BASE
-
-    def __bool__(self):
-        return bool(self._BASE)
-
-    def __str__(self):
-        return str(self._BASE)
-
-    def __hash__(self):
-        return hash(self._BASE)
-
-    def __eq__(self, other):
-        return self._BASE == other
+        return f"SteamID(id={self.id}, type={self.type}, universe={self.universe}, instance={self.instance})"
 
     @property
     def id(self) -> int:
