@@ -43,10 +43,10 @@ from . import utils
 from .abc import SteamID
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
-from .enums import EChatEntryType, EFriendRelationship, EResult, ETradeOfferState, EType
-from .errors import AuthenticatorError, InvalidCredentials, WSException, WSForbidden, WSNotFound
+from .enums import *
+from .errors import *
 from .group import Group
-from .guard import Confirmation, generate_confirmation_code, generate_device_id
+from .guard import *
 from .invite import ClanInvite, UserInvite
 from .message import *
 from .message import ClanMessage
@@ -114,7 +114,6 @@ class ConnectionState:
         "dispatch",
         "handled_friends",
         "handled_groups",
-        "user_slots",
         "invites",
         "max_messages",
         "_users",
@@ -123,6 +122,7 @@ class ConnectionState:
         "_clans",
         "_confirmations",
         "_obj",
+        "_user_slots",
         "_previous_iteration",
         "_trades_task",
         "_trades_to_watch",
@@ -132,6 +132,10 @@ class ConnectionState:
         "_id64",
         "_device_id",
         "_messages",
+        "_games",
+        "_state",
+        "_ui_mode",
+        "_force_kick",
     )
 
     def __init__(
@@ -144,8 +148,18 @@ class ConnectionState:
         self.dispatch = client.dispatch
 
         self.handled_friends = asyncio.Event()
-        self.user_slots = set(User.__slots__) - {"_state", "_data"}
+        self._user_slots = set(User.__slots__) - {"_state", "_data"}
         self.max_messages = kwargs.pop("max_messages", 1000)
+
+        game = kwargs.pop("game", None)
+        games = kwargs.pop("games", None)
+        games = [game.to_dict() for game in games] if games is not None else []
+        if game is not None:
+            games.append(game.to_dict())
+        self._games: List[dict] = games
+        self._state: "EPersonaState" = kwargs.pop("state", EPersonaState.Online)
+        self._ui_mode: Optional["EUIMode"] = kwargs.pop("ui_mod", None)
+        self._force_kick: bool = kwargs.pop("force_kick", False)
 
         self.clear()
 
@@ -626,8 +640,8 @@ class ConnectionState:
                 self.dispatch("user_invite", invite)
 
             after._update(data)
-            old = [getattr(before, attr) for attr in self.user_slots]
-            new = [getattr(after, attr) for attr in self.user_slots]
+            old = [getattr(before, attr) for attr in self._user_slots]
+            new = [getattr(after, attr) for attr in self._user_slots]
             if old != new:
                 self.dispatch("user_update", before, after)
 
