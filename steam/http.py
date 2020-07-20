@@ -169,8 +169,6 @@ class HTTPClient:
         self._session = aiohttp.ClientSession()
 
         resp = await self._send_login_request()
-        if "Please wait and try again later" in resp.get("message", ""):
-            raise errors.LoginError(resp["message"])
 
         if resp.get("captcha_needed"):
             self._captcha_id = resp["captcha_gid"]
@@ -262,16 +260,13 @@ class HTTPClient:
 
     async def get_users(self, user_id64s: List[int]) -> List[dict]:
         ret = []
+        if user_id64s == [0]:
+            return ret
 
-        def chunk():  # chunk the list into 100 element sub-lists for the requests
-            for i in range(0, len(user_id64s), 100):
-                yield user_id64s[i : i + 100]
-
-        for sublist in chunk():
-            for _ in sublist:
-                params = {"key": self.api_key, "steamids": ",".join(map(str, sublist))}
-                resp = await self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
-                ret.extend(resp["response"]["players"])
+        for sublist in utils.chunk(user_id64s, 100):
+            params = {"key": self.api_key, "steamids": ",".join(map(str, sublist))}
+            resp = await self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
+            ret.extend(resp["response"]["players"])
         return ret
 
     def add_user(self, user_id64: int) -> Awaitable:
