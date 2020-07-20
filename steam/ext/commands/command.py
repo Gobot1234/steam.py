@@ -236,32 +236,34 @@ class Command:
     async def _convert(
         self, ctx: "Context", converter: Union[Type[converters.Converter], type], argument: str,
     ):
-        if isinstance(converter, converters.Converter):
+        if hasattr(converter, "convert"):
             try:
-                return await converter.convert(ctx, argument)
+                if hasattr(converter.convert, "__self__"):  # instance
+                    return await converter.convert(ctx, argument)
+                else:
+                    return await converter.convert(converter, ctx, argument)
             except Exception as exc:
-                raise BadArgument(f"{argument} failed to convert to type {converter.__name__ or str}") from exc
-        if issubclass(converter, converters.Converter):
-            try:
-                return await converter.convert(converter, ctx, argument)
-            except Exception as exc:
-                raise BadArgument(f"{argument} failed to convert to type {converter.__name__ or str}") from exc
+                raise BadArgument(f"{argument} failed to convert to type {converter.__name__}") from exc
         else:
             if converter is bool:
                 return to_bool(argument)
             try:
                 return converter(argument)
             except TypeError as exc:
-                raise BadArgument(f"{argument} failed to convert to type {converter.__name__ or str}") from exc
+                raise BadArgument(f"{argument} failed to convert to type {converter.__name__}") from exc
 
     async def _get_default(self, ctx, param: inspect.Parameter):
         if param.default is param.empty:
             raise MissingRequiredArgument(param)
         if inspect.isclass(param.default):
-            if isinstance(param.default, converters.Default):
-                return await param.default.default(ctx)
-            if issubclass(param.default, converters.Default):
-                return await param.default.default(param.default, ctx)
+            default = param.default.default
+            try:
+                if hasattr("default", "__self__"):  # instance
+                    return await default(ctx)
+                else:
+                    return await default(param.default, ctx)
+            except Exception as exc:
+                raise BadArgument(f"{param.default.__name__} failed to return a default argument") from exc
         return param.default
 
     async def can_run(self, ctx: "Context") -> bool:

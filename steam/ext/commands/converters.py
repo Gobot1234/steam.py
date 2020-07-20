@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from ... import utils
 from ...game import Game
@@ -55,7 +55,7 @@ __all__ = (
 )
 
 
-class Converter:
+class Converter(Protocol):
     """A custom class from which converters can be derived.
     They should be type-hinted to a command's argument.
 
@@ -197,7 +197,7 @@ class GameConverter(Converter):
         return Game(app_id=int(argument)) if argument.isdigit() else Game(title=argument)
 
 
-class Default:
+class Default(Protocol):
     """A custom way to specify a default values for commands.
 
     Examples
@@ -222,7 +222,7 @@ class Default:
     """
 
     async def default(self, ctx: "commands.Context"):
-        raise NotImplementedError("derived classes need to implement this")
+        raise NotImplementedError("Derived classes need to implement this")
 
 
 class Author(Default):
