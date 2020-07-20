@@ -33,7 +33,7 @@ import json
 import re
 from inspect import isawaitable
 from operator import attrgetter
-from typing import Any, Awaitable, Callable, Iterable, Optional, TypeVar, Tuple, Union
+from typing import Awaitable, Callable, Generator, Iterable, List, Optional, TypeVar, Tuple, Union
 
 import aiohttp
 
@@ -46,14 +46,8 @@ __all__ = (
     "parse_trade_url_token",
 )
 
-T = TypeVar('T')
-PROTOBUF_MASK = 0x80000000
-MAX_ASYNCIO_SECONDS = 60 * 60 * 24 * 40
-_INVITE_HEX = "0123456789abcdef"
-_INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
-_INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
-_INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
-_INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
+_T = TypeVar("_T")
+_PROTOBUF_MASK = 0x80000000
 
 # from ValvePython/steam
 
@@ -61,15 +55,15 @@ ETypeChars = "".join(type_char.name for type_char in ETypeChar)
 
 
 def is_proto(emsg: int) -> bool:
-    return (int(emsg) & PROTOBUF_MASK) > 0
+    return (int(emsg) & _PROTOBUF_MASK) > 0
 
 
 def set_proto_bit(emsg: int) -> int:
-    return int(emsg) | PROTOBUF_MASK
+    return int(emsg) | _PROTOBUF_MASK
 
 
 def clear_proto_bit(emsg: int) -> int:
-    return int(emsg) & ~PROTOBUF_MASK
+    return int(emsg) & ~_PROTOBUF_MASK
 
 
 def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
@@ -159,6 +153,23 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
     return int(universe) << 56 | int(etype) << 52 | int(instance) << 32 | id
 
 
+# fmt: off
+
+
+ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<reminder>[0-1]):(?P<id>\d+)")
+ID3_REGEX = re.compile(
+    rf"\[(?P<type>[i{ETypeChars}]):"  # type char
+    r"(?P<universe>[0-4]):"           # universe
+    r"(?P<id>\d{1,10})"               # accountid
+    r"(:(?P<instance>\d+))?\]",       # instance
+)
+URL_REGEX = re.compile(
+    r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/" r"(?P<type>profiles|id|gid|groups)/(?P<value>.+))"
+)
+
+# fmt: on
+
+
 def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     """
     Parameters
@@ -168,19 +179,19 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
 
     Returns
     -------
-    Optional[:class:`tuple`]
-        e.g. (account_id, type, universe, instance) or ``None``.
+    Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+        e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
 
     .. note::
         The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
     """
-    match = re.match(r"STEAM_(?P<universe>\d+)" r":(?P<reminder>[0-1])" r":(?P<id>\d+)", value)
+    search = ID2_REGEX.search(value)
 
-    if not match:
+    if search is None:
         return None
 
-    steam_32 = (int(match.group("id")) << 1) | int(match.group("reminder"))
-    universe = int(match.group("universe"))
+    steam_32 = (int(search.group("id")) << 1) | int(search.group("reminder"))
+    universe = int(search.group("universe"))
 
     # games before orange box used to incorrectly display universe as 0, we support that
     if universe == 0:
@@ -198,24 +209,18 @@ def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
 
     Returns
     -------
-    Optional[:class:`tuple`]
-        e.g. (account_id, type, universe, instance) or ``None``.
+    Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+        e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
     """
-    match = re.match(
-        rf"\[(?P<type>[i{ETypeChars}]):"  # type char
-        r"(?P<universe>[0-4]):"  # universe
-        r"(?P<id>\d{1,10})"  # accountid
-        r"(:(?P<instance>\d+))?\]",  # instance
-        value,
-    )
-    if not match:
+    search = ID3_REGEX.search(value,)
+    if search is None:
         return None
 
-    steam_32 = int(match.group("id"))
-    universe = EUniverse(int(match.group("universe")))
-    typechar = match.group("type").replace("i", "I")
+    steam_32 = int(search.group("id"))
+    universe = EUniverse(int(search.group("universe")))
+    typechar = search.group("type").replace("i", "I")
     etype = EType(ETypeChar[typechar])
-    instance = match.group("instance")
+    instance = search.group("instance")
 
     if typechar in "gT":
         instance = 0
@@ -235,6 +240,15 @@ def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     return steam_32, etype, universe, instance
 
 
+_INVITE_HEX = "0123456789abcdef"
+_INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
+_INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
+_INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
+_INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
+
+INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))" rf"|(?P<code2>[\-{_INVITE_VALID}]+)")
+
+
 def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     """
     Parameters
@@ -244,18 +258,17 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
 
     Returns
     -------
-    Optional[:class:`tuple`]
-        e.g. (account_id, type, universe, instance) or ``None``.
+    Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+        e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
     """
-    match = re.match(
-        rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))" rf"|(?P<code2>[\-{_INVITE_VALID}]+)", code,
-    )
-    if not match:
+    search = INVITE_REGEX.search(code)
+
+    if not search:
         return None
 
-    code = (match.group("code1") or match.group("code2")).replace("-", "")
+    code = (search.group("code1") or search.group("code2")).replace("-", "")
 
-    def repl_mapper(x):
+    def repl_mapper(x: re.Match) -> str:
         return _INVITE_INVERSE_MAPPING[x.group()]
 
     steam_32 = int(re.sub(f"[{_INVITE_CUSTOM}]", repl_mapper, code), 16)
@@ -267,10 +280,10 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
 async def steam64_from_url(
     url: Optional[str], session: Optional[aiohttp.ClientSession] = None, timeout: float = 30
 ) -> Optional[int]:
-    """Takes a Steam Community url and returns steam64 or None
+    """Takes a Steam Community url and returns steam64 or ``None``.
 
     .. note::
-        Each call makes a http request to steamcommunity.com
+        Each call makes a http request to https://steamcommunity.com.
 
     .. note::
         Example URLs
@@ -291,22 +304,17 @@ async def steam64_from_url(
     url: :class:`str`
         The Steam community url.
     session: Optional[:class:`aiohttp.ClientSession`]
-        The session to make the request with. If
-        ``None`` is passed a new one is generated
+        The session to make the request with. If ``None`` is passed a new one is generated.
     timeout: Optional[:class:`float`]
         How long to wait on http request before turning ``None``.
 
     Returns
     -------
-    steam64: Optional[:class:`int`]
+    Optional[:class:`int`]
         If ``https://steamcommunity.com`` is down or no matching account is found returns ``None``
     """
 
-    search = re.search(
-        r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/"
-        r"(?P<type>profiles|id|gid|groups)/(?P<value>.+))",
-        str(url).rstrip("/"),
-    )
+    search = URL_REGEX.search(str(url).rstrip("/"),)
 
     if search is None:
         return None
@@ -404,26 +412,33 @@ def contains_bbcode(string: str) -> bool:
     return False
 
 
+def chunk(l: List[_T], size: int) -> List[List[_T]]:
+    def chunker() -> Generator[List[_T], None, None]:
+        for i in range(0, len(l), size):
+            yield l[i : i + size]
+
+    return list(chunker())
+
+
 # everything below here is directly from discord.py's utils
 # https://github.com/rapptz/discord.py/blob/master/discord/utils.py
 
 
-def find(predicate: Callable[..., bool], iterable: Iterable) -> Optional[Any]:
+def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T]:
     """A helper to return the first element found in the sequence.
 
     Parameters
     -----------
-    predicate: Callable[..., bool]
-        A function that returns a boolean.
-    iterable: Iterable
+    predicate: Callable[[T], bool]
+        A function that returns a boolean and takes an element from the ``iterable`` as its first argument.
+    iterable: Iterable[T]
         The iterable to search through.
 
     Returns
     -------
-    Optional[Any]
-        The first element from the ``iterable``
-        for which the ``predicate`` returns ``True``
-        or ``None`` if no matching element was found.
+    Optional[T]
+        The first element from the ``iterable`` for which the ``predicate`` returns ``True`` or ``None`` if no
+        matching element was found.
     """
 
     for element in iterable:
@@ -432,10 +447,9 @@ def find(predicate: Callable[..., bool], iterable: Iterable) -> Optional[Any]:
     return None
 
 
-def get(iterable: Iterable[T], **attrs) -> Optional[T]:
-    r"""A helper that returns the first element in the iterable that meets
-    all the traits passed in ``attrs``. This is an alternative for
-    :func:`utils.find`.
+def get(iterable: Iterable[_T], **attrs) -> Optional[_T]:
+    r"""A helper that returns the first element in the iterable that meets all the traits passed in ``attrs``. This
+    is an alternative for :func:`utils.find`.
 
     Parameters
     -----------
@@ -473,7 +487,7 @@ def get(iterable: Iterable[T], **attrs) -> Optional[T]:
     return None
 
 
-async def maybe_coroutine(func: Callable[..., Union[Any, Awaitable]], *args, **kwargs) -> Any:
+async def maybe_coroutine(func: Callable[..., Union[_T, Awaitable[_T]]], *args, **kwargs) -> _T:
     value = func(*args, **kwargs)
     if isawaitable(value):
         return await value
