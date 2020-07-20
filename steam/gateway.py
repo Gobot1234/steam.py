@@ -406,10 +406,10 @@ class SteamWebSocket:
             log.debug(f"Socket has received {repr(msg)} from the websocket.")
         except Exception as exc:
             log.critical(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
-            if emsg != EMsg.ServiceMethodResponse:  # the repr likely failed so just ignore it
+            # the repr likely due to a bug in betterproto failed so just ignore it
+            if emsg != EMsg.ServiceMethodResponse:
                 return log.error(exc)
 
-            # log.critical(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
             # log.error(exc)
 
         self._dispatch("socket_receive", msg)
@@ -485,13 +485,19 @@ class SteamWebSocket:
             log.debug("Heartbeat started.")
 
             await self.send_um("ChatRoom.GetMyChatRoomGroups#1_Request")
-            status = MsgProto(EMsg.ClientChangeStatus, persona_state=EPersonaState.Online)
-            await self.send_as_proto(status)
-            # setting your status to offline will stop you receiving persona updates, don't ask why.
+            await self.change_presence(
+                games=self._connection._games,
+                state=self._connection._state,
+                ui_mode=self._connection._ui_mode,
+                force_kick=self._connection._force_kick,
+            )
             await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
         else:
             if msg.body.eresult == EResult.InvalidPassword:
-                await asyncio.sleep(60)
+                # normally due to ip changing(???), so just log out and back in again
+                http = self._connection.http
+                await http.logout()
+                await http.login(http.username, http.password, shared_secret=http.shared_secret)
             await self.handle_close()
 
     async def handle_multi(self, msg: MsgProto["CMsgMulti"]) -> None:
@@ -499,9 +505,9 @@ class SteamWebSocket:
         if msg.body.size_unzipped:
             log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
             # aiofiles is overrated :P
-            bytes_io = await self.loop.run_in_executor(EXECUTOR, BytesIO, msg.body.message_body)
-            gzipped = await self.loop.run_in_executor(EXECUTOR, functools.partial(GzipFile, fileobj=bytes_io))
-            data = await self.loop.run_in_executor(EXECUTOR, gzipped.read)
+            bytes_io = await utils.to_thread(BytesIO, msg.body.message_body)
+            gzipped = await utils.to_thread(GzipFile, fileobj=bytes_io)
+            data = await utils.to_thread(gzipped.read)
             if len(data) != msg.body.size_unzipped:
                 return log.info(f"Unzipped size mismatch for multi payload {msg}, discarding")
         else:
@@ -521,16 +527,16 @@ class SteamWebSocket:
     async def change_presence(
         self, *, games: List[dict], state: Optional[EPersonaState], ui_mode: Optional["EUIMode"], force_kick: bool,
     ) -> None:
-        if force_kick is not None:
+        if force_kick:
             kick = MsgProto(EMsg.ClientKickPlayingSession)
             log.debug("Kicking any currently playing sessions")
             await self.send_as_proto(kick)
-        if games is not None:
+        if games:
             activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug(f"Sending {activity} to change activity")
             await self.send_as_proto(activity)
         if state is not None:
-            state = MsgProto(EMsg.ClientPersonaState, status_flags=state)
+            state = MsgProto(EMsg.ClientPersonaState, persona_state=state)
             log.debug(f"Sending {state} to change state")
             await self.send_as_proto(state)
         if ui_mode is not None:
