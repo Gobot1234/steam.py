@@ -17,4 +17,4 @@ jobs:
       - name: Install dependencies
         run: pip install isort
       - name: Check formatting
-        run: isort steam --multi-line=VERTICAL_HANGING_INDENT --combine-as --atomic --tc --diff --line-length=120 -n --profile black
+        run: isort steam --profile black --combine-as --atomic --diff --check-only --line-length=120 -n
