@@ -11,7 +11,7 @@ A basic commands framework for steam.py.
 
 from .bot import *
 from .cog import *
-from .command import *
+from .commands import *
 from .context import *
 from .converters import *
 from .cooldown import *

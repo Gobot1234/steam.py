@@ -26,12 +26,12 @@ SOFTWARE.
 
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from .cog import Cog
-from .command import Command
+from .commands import Command
 
 if TYPE_CHECKING:
     from steam.ext import commands
 
+    from .cog import Cog
     from .context import Context
 
 __all__ = ("HelpCommand",)

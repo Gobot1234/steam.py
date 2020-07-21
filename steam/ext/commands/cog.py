@@ -31,7 +31,7 @@ import traceback
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from .command import Command
+from .commands import Command
 
 if TYPE_CHECKING:
     from steam.ext import commands

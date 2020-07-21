@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
     from ...image import Image
     from .bot import Bot
-    from .command import Command
+    from .commands import Command
 
 
 __all__ = ("Context",)

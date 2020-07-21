@@ -42,7 +42,7 @@ from ... import utils
 from ...client import Client, EventType, log
 from ...errors import ClientException
 from .cog import Cog, ExtensionType, InjectedListener
-from .command import Command, command
+from .commands import Command, command
 from .context import Context
 from .errors import CheckFailure, CommandNotFound
 from .help import HelpCommand

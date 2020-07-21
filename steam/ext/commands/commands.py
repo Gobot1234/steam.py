@@ -272,6 +272,11 @@ class Command:
         return True
 
 
+# TODO
+# class GroupCommand(Command):
+#     pass
+
+
 def command(name: Optional[str] = None, cls: Optional[Type[Command]] = None, **attrs) -> Callable[..., Command]:
     r"""Register a coroutine as a :class:`~commands.Command`.
 
