@@ -237,10 +237,10 @@ class MsgHdrProtoBuf:
 
     @property
     def steam_id(self) -> int:
-        return int(self.body.steamid)
+        return self.body.steamid
 
     @steam_id.setter
-    def steam_id(self, value):
+    def steam_id(self, value: int):
         self.body.steamid = int(value)
 
     @property
@@ -248,7 +248,7 @@ class MsgHdrProtoBuf:
         return self.body.target_job_name
 
     @job_name_target.setter
-    def job_name_target(self, value) -> None:
+    def job_name_target(self, value: str) -> None:
         self.body.target_job_name = value
 
     @property
