@@ -34,7 +34,7 @@ import json
 import re
 from inspect import isawaitable
 from operator import attrgetter
-from typing import Awaitable, Callable, Generator, Iterable, List, Optional, TypeVar, Tuple, Union
+from typing import Awaitable, Callable, Generator, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import aiohttp
 

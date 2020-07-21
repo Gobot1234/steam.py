@@ -36,7 +36,7 @@ import traceback
 from copy import copy
 from shlex import shlex as Shlex
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Awaitable, Callable, Dict, Iterable, List, Mapping, Optional, Type, Set, Union
+from typing import TYPE_CHECKING, Awaitable, Callable, Dict, Iterable, List, Mapping, Optional, Set, Type, Union
 
 from ... import utils
 from ...client import Client, EventType, log

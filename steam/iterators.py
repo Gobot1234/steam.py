@@ -27,16 +27,7 @@ SOFTWARE.
 import asyncio
 import re
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator as _AsyncIterator,
-    Awaitable,
-    Callable,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, AsyncIterator as _AsyncIterator, Awaitable, Callable, List, Optional, TypeVar, Union
 
 from bs4 import BeautifulSoup
 
