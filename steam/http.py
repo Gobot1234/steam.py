@@ -25,6 +25,7 @@ SOFTWARE.
 """
 
 import asyncio
+import html
 import json
 import logging
 import re
@@ -170,7 +171,7 @@ class HTTPClient:
 
         resp = await self._send_login_request()
 
-        if resp.get("captcha_needed"):
+        if resp.get("captcha_needed") and resp.get("message") != "Please wait and try again later.":
             self._captcha_id = resp["captcha_gid"]
             print(
                 "Please enter the captcha text at"
@@ -197,8 +198,9 @@ class HTTPClient:
 
         resp = await self.get_user(resp["transfer_parameters"]["steamid"])
         data = resp["response"]["players"][0]
-        self.user = ClientUser(state=self._client._connection, data=data)
-        self._client._connection._users[self.user.id64] = self.user
+        state = self._client._connection
+        self.user = ClientUser(state=state, data=data)
+        state._users[self.user.id64] = self.user
         self.logged_in = True
         self._client.dispatch("login")
 
@@ -525,7 +527,7 @@ class HTTPClient:
             resp = await self.request("GET", url=community_route("my/edit"))
             soup = BeautifulSoup(resp, "html.parser")
             edit_config = str(soup.find("div", attrs={"id": "profile_edit_config"}))
-            value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', utils.replace_html_code(edit_config), flags=re.S,)[0]
+            value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', html.unescape(edit_config), flags=re.S,)[0]
             loadable = value.replace("\r", "\\r").replace("\n", "\\n")
             profile = json.loads(f'{"{"}{loadable}{"}}"}')
             for key, value in profile.items():

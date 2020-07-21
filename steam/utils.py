@@ -29,6 +29,7 @@ SOFTWARE.
 import asyncio
 import contextvars
 import functools
+import html
 import json
 import re
 from inspect import isawaitable
@@ -360,7 +361,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     """
     search = re.search(
         r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+&token=(?P<token>[\w-]{7,})",
-        replace_html_code(url),
+        html.unescape(url),
     )
     if search is not None:
         return search.group("token")
@@ -379,18 +380,6 @@ def to_thread(callable: Callable[..., _T], *args, **kwargs) -> Awaitable[_T]:  #
 
 def ainput(prompt: str = "") -> Awaitable[str]:
     return to_thread(input, prompt)
-
-
-def replace_html_code(string: str) -> str:
-    html_code = [  # TODO try and find a list for these?
-        ("&quot;", '"'),
-        ("&gt;", ">"),
-        ("&lt;", "<"),
-        ("&amp;", "&"),
-    ]
-    for code in html_code:
-        string = string.replace(*code)
-    return string
 
 
 def contains_bbcode(string: str) -> bool:
@@ -413,7 +402,7 @@ def contains_bbcode(string: str) -> bool:
 
 
 def chunk(l: List[_T], size: int) -> List[List[_T]]:
-    def chunker() -> Generator[List[_T], None, None]:
+    def chunker() -> Generator[List[List[_T]], None, None]:
         for i in range(0, len(l), size):
             yield l[i : i + size]
 
@@ -421,7 +410,7 @@ def chunk(l: List[_T], size: int) -> List[List[_T]]:
 
 
 # everything below here is directly from discord.py's utils
-# https://github.com/rapptz/discord.py/blob/master/discord/utils.py
+# https://github.com/Rapptz/discord.py/blob/master/discord/utils.py
 
 
 def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T]:
