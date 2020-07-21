@@ -494,7 +494,6 @@ class SteamWebSocket:
             await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
         else:
             if msg.body.eresult == EResult.InvalidPassword:
-                # normally due to ip changing(???), so just log out and back in again
                 http = self._connection.http
                 await http.logout()
                 await http.login(http.username, http.password, shared_secret=http.shared_secret)
@@ -536,7 +535,7 @@ class SteamWebSocket:
             log.debug(f"Sending {activity} to change activity")
             await self.send_as_proto(activity)
         if state is not None:
-            state = MsgProto(EMsg.ClientPersonaState, persona_state=state)
+            state = MsgProto(EMsg.ClientChangeStatus, persona_state=state)
             log.debug(f"Sending {state} to change state")
             await self.send_as_proto(state)
         if ui_mode is not None:

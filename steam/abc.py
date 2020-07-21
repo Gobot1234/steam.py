@@ -32,6 +32,7 @@ import abc
 import asyncio
 import re
 from datetime import datetime
+from functools import total_ordering
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 from .badge import UserBadges
@@ -47,6 +48,7 @@ from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
+    from .client import EventType
     from .clan import Clan
     from .group import Group
     from .image import Image
@@ -60,14 +62,33 @@ __all__ = (
 )
 
 
-class SteamID(float, metaclass=abc.ABCMeta):
+@total_ordering
+class SteamID(metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations."""
 
-    __slots__ = ("_BASE", "__weakref__")
+    __slots__ = (
+        "_BASE",
+        "__weakref__",
+    )
 
     def __init__(self, *args, **kwargs):
-        id64 = make_steam64(*args, **kwargs)
-        float.__init__(id64)
+        self._BASE = make_steam64(*args, **kwargs)
+
+    def __eq__(self, other):
+        if isinstance(other, SteamID):
+            return self._BASE == other._BASE
+        return self._BASE == other
+
+    def __lt__(self, other):
+        if isinstance(other, SteamID):
+            return self._BASE < other._BASE
+        return self._BASE < other
+
+    def __int__(self):
+        return self._BASE
+
+    def __str__(self):
+        return str(int(self))
 
     def __repr__(self):
         return f"SteamID(id={self.id}, type={self.type}, universe={self.universe}, instance={self.instance})"
