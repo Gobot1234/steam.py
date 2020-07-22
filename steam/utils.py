@@ -52,8 +52,6 @@ _PROTOBUF_MASK = 0x80000000
 
 # from ValvePython/steam
 
-ETypeChars = "".join(type_char.name for type_char in ETypeChar)
-
 
 def is_proto(emsg: int) -> bool:
     return (int(emsg) & _PROTOBUF_MASK) > 0
@@ -154,21 +152,16 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
     return int(universe) << 56 | int(etype) << 52 | int(instance) << 32 | id
 
 
-# fmt: off
-
-
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<reminder>[0-1]):(?P<id>\d+)")
 ID3_REGEX = re.compile(
-    rf"\[(?P<type>[i{ETypeChars}]):"  # type char
-    r"(?P<universe>[0-4]):"           # universe
-    r"(?P<id>\d{1,10})"               # accountid
-    r"(:(?P<instance>\d+))?\]",       # instance
+    rf"\[(?P<type>[i{''.join(type_char.name for type_char in ETypeChar)}]):"
+    r"(?P<universe>[0-4]):"
+    r"(?P<id>\d{1,10})"
+    r"(:(?P<instance>\d+))?\]",
 )
 URL_REGEX = re.compile(
-    r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/" r"(?P<type>profiles|id|gid|groups)/(?P<value>.+))"
+    r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/(?P<type>profiles|id|gid|groups)/(?P<value>.+))"
 )
-
-# fmt: on
 
 
 def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
