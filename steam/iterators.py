@@ -75,7 +75,7 @@ class AsyncIterator(_AsyncIterator[T]):
         self.before = before or datetime.utcnow()
         self.after = after or datetime.utcfromtimestamp(0)
         self._is_filled = False
-        self.queue: asyncio.Queue[T] = asyncio.Queue(maxsize=limit or 0)
+        self.queue: "asyncio.Queue[T]" = asyncio.Queue(maxsize=limit or 0)
         self.limit = limit
 
     def get(self, **attrs) -> Awaitable[Optional[T]]:
