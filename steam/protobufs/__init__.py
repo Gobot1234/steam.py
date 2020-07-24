@@ -58,7 +58,8 @@ def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
 
     Returns
     -------
-    The uninitialized protobuf.
+    Optional[Type[:class:`betterproto.Message`]]
+        The uninitialized protobuf.
     """
     return PROTOBUFS.get(EMsg.try_value(emsg))
 
@@ -73,7 +74,8 @@ def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
 
     Returns
     -------
-    The uninitialized protobuf.
+    Optional[Type[:class:`betterproto.Message`]]
+        The uninitialized protobuf.
     """
     return UMS.get(method_name)
 
@@ -81,7 +83,7 @@ def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
 class MsgBase(Generic[T]):
     __slots__ = ("header", "proto", "body", "payload", "skip")
 
-    def __init__(self, msg: EMsg, data: bytes, parse: bool, **kwargs):
+    def __init__(self, msg: EMsg, data: Optional[bytes], **kwargs):
         self.msg = EMsg.try_value(msg)
         self.body: Optional[T] = None
         self.payload: Optional[bytes] = None
@@ -89,8 +91,8 @@ class MsgBase(Generic[T]):
 
         if data:
             self.payload = data[self.skip :]
-        if parse:
-            self.parse()
+
+        self.parse()
         if kwargs:
             for (key, value) in kwargs.items():
                 if isinstance(value, EnumMember):
@@ -112,13 +114,13 @@ class MsgBase(Generic[T]):
         if proto:
             self.body = proto()
             if self.payload:
-                self.body = proto().parse(self.payload)
+                self.body = self.body.parse(self.payload)
         else:
             self.body = FailedToParse()
 
     @property
     def msg(self) -> Union[EMsg, int]:
-        """Union[:class:`EMsg`, :class:`int`]: The :attr:`header`'s EMsg."""
+        """Union[:class:`.EMsg`, :class:`int`]: The :attr:`header.msg`."""
         return self.header.msg
 
     @msg.setter
@@ -177,8 +179,6 @@ class Msg(MsgBase[T]):
     extended: :class:`bool`
         Which header type to use, ``True`` uses
         :class:`.ExtendedMsgHdr` else it's :class:`.MsgHdr`.
-    parse: :class:`bool`
-        Whether or not to parse the data into a constructed protobuf.
     \*\*kwargs
         Any keyword-arguments to construct the :attr:`body` with.
 
@@ -186,21 +186,21 @@ class Msg(MsgBase[T]):
     ----------
     header: Union[:class:`.ExtendedMsgHdr`, :class:`.MsgHdr`]
         The message's header.
-    msg: :class:`EMsg`
+    msg: :class:`.EMsg`
         The emsg for the message.
-    body
+    body: :class:`betterproto.Message`
         The instance of the protobuf.
     payload: :class:`bytes`
         The raw data for the message.
     """
 
     def __init__(
-        self, msg: EMsg, data: bytes = None, extended: bool = False, parse: bool = True, **kwargs,
+        self, msg: EMsg, data: Optional[bytes] = None, extended: bool = False, **kwargs,
     ):
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.proto = False
         self.skip = self.header.SIZE
-        super().__init__(msg, data, parse, **kwargs)
+        super().__init__(msg, data, **kwargs)
 
     def __repr__(self):
         return f"<Msg {super().__repr__()}>"
@@ -233,14 +233,13 @@ class MsgProto(MsgBase[T]):
 
     Parameters
     ----------
-    msg: :class:`EMsg`
+    msg: :class:`.EMsg`
         The emsg for the message.
     data: Optional[:class:`bytes`]
         The raw data for the message.
     um_name: Optional[:class:`str`]
         The name of the Unified Message the protobuf is associated.
-    parse: :class:`bool`
-        Whether or not to parse the data into a constructed protobuf.
+        You shouldn't use this argument yourself, to send UMs you should always use ``ws.send_um``.
     \*\*kwargs
         Any keyword-arguments to construct the :attr:`body` with.
 
@@ -248,24 +247,22 @@ class MsgProto(MsgBase[T]):
     ----------
     header: Union[:class:`.ExtendedMsgHdr`, :class:`.MsgHdr`]
         The message's header.
-    msg: :class:`EMsg`
+    msg: :class:`.EMsg`
         The emsg for the message.
-    body
+    body: :class:`betterproto.Message`
         The instance of the protobuf.
     payload: :class:`bytes`
         The raw data for the message.
     """
 
-    __slots__ = ("um_name",)
-
     def __init__(
-        self, msg: EMsg, data: bytes = None, parse: bool = True, um_name: str = None, **kwargs,
+        self, msg: EMsg, data: Optional[bytes] = None, um_name: str = None, **kwargs,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size
         self.proto = True
         self.um_name = um_name
-        super().__init__(msg, data, parse, **kwargs)
+        super().__init__(msg, data, **kwargs)
 
     def __repr__(self):
         return f"<MsgProto {super().__repr__()}>"
