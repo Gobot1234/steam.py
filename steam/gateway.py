@@ -417,7 +417,7 @@ class SteamWebSocket:
         try:
             func = self._parsers[emsg]
         except KeyError:
-            log.debug(f"Ignoring event {repr(msg)}")
+            log.debug(f"Ignoring event {msg!r}")
         else:
             await utils.maybe_coroutine(func, self._connection, msg)
 

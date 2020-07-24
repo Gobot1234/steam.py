@@ -45,6 +45,7 @@ from .user import ClientUser
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
+    from .user import User
 
 log = logging.getLogger(__name__)
 StrOrURL = Union[str, URL]
@@ -383,8 +384,7 @@ class HTTPClient:
 
     def send_trade_offer(
         self,
-        user_id64: int,
-        user_id: int,
+        user: "User",
         to_send: List[dict],
         to_receive: List[dict],
         token: Optional[str],
@@ -394,7 +394,7 @@ class HTTPClient:
         payload = {
             "sessionid": self.session_id,
             "serverid": 1,
-            "partner": user_id64,
+            "partner": user.id64,
             "tradeoffermessage": offer_message,
             "json_tradeoffer": json.dumps(
                 {
@@ -408,20 +408,19 @@ class HTTPClient:
             "trade_offer_create_params": json.dumps({"trade_offer_access_token": token}) if token is not None else {},
         }
         payload.update(**kwargs)
-        headers = {"Referer": f"{URL.COMMUNITY}/tradeoffer/new/?partner={user_id}"}
+        headers = {"Referer": f"{URL.COMMUNITY}/tradeoffer/new/?partner={user.id}"}
         return self.request("POST", community_route("tradeoffer/new/send"), data=payload, headers=headers)
 
     def send_counter_trade_offer(
         self,
         trade_id: int,
-        user_id64: int,
-        user_id: int,
+        user: "User",
         to_send: List[dict],
         to_receive: List[dict],
         token: Optional[str],
         offer_message: str,
     ) -> Awaitable:
-        return self.send_trade_offer(user_id64, user_id, to_send, to_receive, token, offer_message, trade_id=trade_id,)
+        return self.send_trade_offer(user, to_send, to_receive, token, offer_message, trade_id=trade_id,)
 
     def get_cm_list(self, cell_id: int) -> Awaitable:
         params = {"cellid": cell_id}

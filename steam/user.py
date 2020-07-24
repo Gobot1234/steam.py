@@ -266,7 +266,7 @@ class ClientUser(BaseUser):
 
     async def setup_profile(self) -> None:
         """|coro|
-        Set up your profile if possible
+        Set up your profile if possible.
         """
         if self.has_setup_profile():
             return
@@ -320,7 +320,7 @@ class ClientUser(BaseUser):
 
         Raises
         -------
-        :exc:`HTTPException`
+        :exc:`~steam.HTTPException`
             Editing your profile failed.
         """
         await self._state.http.edit_profile(name, real_name, url, summary, country, state, city, avatar)
