@@ -32,7 +32,6 @@ and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 
 import asyncio
 import concurrent.futures
-import functools
 import logging
 import random
 import struct
