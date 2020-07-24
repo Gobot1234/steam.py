@@ -31,7 +31,7 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 import asyncio
 import functools
 import inspect
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, Iterable, List, Optional, Type, Union
 
 import steam
 
@@ -54,10 +54,12 @@ __all__ = (
 )
 
 CommandFuncType = Callable[["Context"], Awaitable[None]]
+CheckType = Callable[["Context"], Awaitable[bool]]
 MaybeCommand = Union[Callable[..., "Command"], CommandFuncType]
+CommandDeco = Callable[[MaybeCommand], MaybeCommand]
 
 
-def to_bool(argument: str):
+def to_bool(argument: str) -> bool:
     lowered = argument.lower()
     if lowered in ("yes", "y", "true", "t", "1", "enable", "on"):
         return True
@@ -80,7 +82,7 @@ class Command:
         except AttributeError:
             checks = kwargs.get("checks", [])
         finally:
-            self.checks: List[Callable[["Context"], Awaitable[bool]]] = checks
+            self.checks: List[CheckType] = checks
 
         try:
             cooldown = func.__commands_cooldown__
@@ -94,8 +96,6 @@ class Command:
         if not isinstance(self.name, str):
             raise TypeError("Name of a command must be a string.")
 
-        self.enabled = kwargs.get("enabled", True)
-
         help_doc = kwargs.get("help")
         if help_doc is not None:
             help_doc = inspect.cleandoc(help_doc)
@@ -104,11 +104,14 @@ class Command:
             if isinstance(help_doc, bytes):
                 help_doc = help_doc.decode("utf-8")
 
-        self.help = help_doc
-
-        self.brief = kwargs.get("brief")
-        self.usage = kwargs.get("usage")
-        self.aliases = kwargs.get("aliases", [])
+        self.help: Optional[str] = help_doc
+        self.enabled = kwargs.get("enabled", True)
+        self.brief: Optional[str] = kwargs.get("brief")
+        self.usage: Optional[str] = kwargs.get("usage")
+        self.cog: Optional["Cog"] = kwargs.get("cog")
+        self.description: str = inspect.cleandoc(kwargs.get("description", ""))
+        self.hidden = kwargs.get("hidden", False)
+        self.aliases: Iterable[str] = kwargs.get("aliases", [])
 
         try:
             for alias in self.aliases:
@@ -116,10 +119,6 @@ class Command:
                     raise TypeError
         except TypeError:
             raise TypeError("Aliases of a command must be an iterable containing only strings.")
-
-        self.description = inspect.cleandoc(kwargs.get("description", ""))
-        self.hidden = kwargs.get("hidden", False)
-        self.cog: "Cog" = kwargs.get("cog")
 
     def __call__(self, *args, **kwargs):
         """|coro|
@@ -277,7 +276,9 @@ class Command:
 #     pass
 
 
-def command(name: Optional[str] = None, cls: Optional[Type[Command]] = None, **attrs) -> Callable[..., Command]:
+def command(
+    name: Optional[str] = None, cls: Optional[Type[Command]] = None, **attrs
+) -> Callable[[CommandFuncType], Command]:
     r"""Register a coroutine as a :class:`~commands.Command`.
 
     Parameters
@@ -302,7 +303,7 @@ def command(name: Optional[str] = None, cls: Optional[Type[Command]] = None, **a
     return decorator
 
 
-def check(predicate: Callable[["Context"], Awaitable[bool]]) -> Callable[..., MaybeCommand]:
+def check(predicate: CheckType) -> CommandDeco:
     def decorator(func: MaybeCommand) -> MaybeCommand:
         if isinstance(func, Command):
             func.checks.append(predicate)
@@ -327,7 +328,7 @@ def check(predicate: Callable[["Context"], Awaitable[bool]]) -> Callable[..., Ma
     return decorator
 
 
-def is_owner() -> Callable[["Context"], MaybeCommand]:
+def is_owner() -> Callable[[CheckType], CommandDeco]:
     async def predicate(ctx: "Context") -> bool:
         if ctx.bot.owner_id:
             return ctx.author.id64 == ctx.bot.owner_id
@@ -338,7 +339,7 @@ def is_owner() -> Callable[["Context"], MaybeCommand]:
     return check(predicate)
 
 
-def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Callable[..., MaybeCommand]:
+def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> CommandDeco:
     """Mark a :class:`Command`'s cooldown.
 
     Parameters
@@ -354,7 +355,7 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Ca
 
     def decorator(func: MaybeCommand) -> MaybeCommand:
         if isinstance(func, Command):
-            func.cooldowns.append(Cooldown(rate, per, type))
+            func.cooldown.append(Cooldown(rate, per, type))
         else:
             if not hasattr(func, "__commands_cooldown__"):
                 func.__commands_cooldown__ = []
