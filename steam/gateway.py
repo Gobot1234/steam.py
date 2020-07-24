@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     from .enums import EUIMode
     from .protobufs.steammessages_base import CMsgMulti
     from .protobufs.steammessages_clientserver_login import CMsgClientLogonResponse
-    from .state import ConnectionState
+    from .state import ConnectionState, EventParser
 
 
 __all__ = (
@@ -66,7 +66,6 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
-EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 
 
 def return_true(*_) -> bool:
@@ -306,13 +305,13 @@ class SteamWebSocket:
         self._connection: Optional["ConnectionState"] = None
         self.cm_list: Optional[CMServerList] = None
         self._keep_alive: Optional[KeepAliveHandler] = None
-        self._dispatch = lambda *args: None
+        self._dispatch = return_true  # in practice the same same as lambda *args: None
         self.cm: Optional[str] = None
         self.cell_id = 0
         self.thread_id = threading.get_ident()
 
         self.listeners: List[EventListener] = []
-        self._parsers: Dict[EMsg, Callable[["ConnectionState", "MsgProto"], None]] = dict()
+        self._parsers: Dict[EMsg, EventParser] = dict()
 
         self.connected = False
         self.session_id = 0
