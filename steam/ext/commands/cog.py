@@ -29,7 +29,7 @@ import inspect
 import sys
 import traceback
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Dict, List, Optional
 
 from .commands import Command
 
@@ -46,24 +46,24 @@ __all__ = ("Cog",)
 class InjectedListener:
     """Injects the cog's "self" parameter into every event call auto-magically."""
 
-    __slots__ = ("func", "cog", "index")
+    __slots__ = ("func", "cog")
 
     def __init__(self, cog: "Cog", func: "EventType"):
         self.func = func
         self.cog = cog
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Awaitable[None]:
         return self.func(self.cog, *args, **kwargs)
 
 
 # for a bit of type hinting
 class ExtensionType(ModuleType):
     @staticmethod
-    def setup(bot: "Bot"):
+    def setup(bot: "Bot") -> None:
         pass
 
     @staticmethod
-    def teardown(bot: "Bot"):
+    def teardown(bot: "Bot") -> None:
         pass
 
 
@@ -74,14 +74,14 @@ class Cog:
     Attributes
     ----------
     qualified_name: :class:`str`
-        The name of the cog. Can be set in subclass e.g. ::
+        The name of the cog. Can be set in a subclass e.g. ::
 
             MyCog(commands.Cog, name='SpecialCogName'):
                 pass
 
-        Defaults to ``MyCog.__name__``.
+        Defaults to ``Cog.__name__``.
 
-    command_attrs: :class:`Dict[str, Any]`
+    command_attrs: Dict[str, Any]
         Attributes to pass to every command registered in the cog.
         Can be set in subclass e.g. ::
 
@@ -100,14 +100,17 @@ class Cog:
 
         cls.__listeners__ = dict()
         cls.__commands__ = dict()
-        for name, attr in inspect.getmembers(cls):
-            if isinstance(attr, Command):
-                cls.__commands__[name] = attr
-            elif hasattr(attr, "__event_name__"):
-                try:
-                    cls.__listeners__[attr.__event_name__].append(attr)
-                except KeyError:
-                    cls.__listeners__[attr.__event_name__] = [attr]
+        for base in reversed(cls.__mro__):
+            for name, attr in inspect.getmembers(base):
+                if name in cls.__commands__:
+                    del cls.__commands__[name]
+                if isinstance(attr, Command):
+                    cls.__commands__[name] = attr
+                elif hasattr(attr, "__event_name__"):
+                    try:
+                        cls.__listeners__[attr.__event_name__].append(attr)
+                    except KeyError:
+                        cls.__listeners__[attr.__event_name__] = [attr]
 
     @property
     def description(self) -> Optional[str]:

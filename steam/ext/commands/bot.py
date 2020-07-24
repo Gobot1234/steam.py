@@ -104,6 +104,7 @@ class Bot(Client):
     __commands__: Dict[str, Command] = dict()
     __listeners__: Dict[str, List[EventType]] = dict()
     __extensions__: Dict[str, "ExtensionType"] = dict()
+    __inline_commands__: Dict[str, Command] = dict()
 
     def __init__(
         self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options,
@@ -118,11 +119,19 @@ class Bot(Client):
             raise ValueError("You cannot have both owner_id and owner_ids")
         super().__init__(**options)
         self.help_command = help_command
-        for attr in (getattr(self, attr) for attr in dir(self)):
-            if isinstance(attr, Command) and not isinstance(attr, HelpCommand):
-                self.add_command(attr)
-                attr.cog = self
-                attr.cog.cog_command_error = self.on_command_error
+
+        for command in self.__inline_commands__.values():
+            command.cog = self
+            command.cog.cog_command_error = self.on_command_error
+            self.add_command(command)
+
+    def __init_subclass__(cls, **kwargs):
+        for base in reversed(cls.__mro__):
+            for name, attr in inspect.getmembers(base):
+                if name in cls.__inline_commands__:
+                    del cls.__inline_commands__[name]
+                if isinstance(attr, Command):
+                    cls.__inline_commands__[name] = attr
 
     @property
     def commands(self) -> Set[Command]:
