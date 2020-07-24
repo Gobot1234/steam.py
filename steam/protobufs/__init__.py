@@ -40,6 +40,7 @@ from .unified import *
 
 T = TypeVar("T", bound=betterproto.Message)
 AllowedHeaders = (ExtendedMsgHdr, MsgHdrProtoBuf)
+GetProtoType = Optional[Type[betterproto.Message]]
 betterproto.Message.__bool__ = lambda self: bool(self.to_dict(include_default_values=False))
 
 
@@ -48,7 +49,7 @@ class FailedToParse(betterproto.Message):
     body: str = "!!! Failed To Parse !!!"
 
 
-def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
+def get_cmsg(emsg: Union[EMsg, int]) -> GetProtoType:
     """Get a protobuf from its EMsg.
 
     Parameters
@@ -64,12 +65,12 @@ def get_cmsg(emsg: Union[EMsg, int]) -> Optional[Type[betterproto.Message]]:
     return PROTOBUFS.get(EMsg.try_value(emsg))
 
 
-def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
+def get_um(name: str) -> GetProtoType:
     """Get the protobuf for a certain Unified Message.
 
     Parameters
     ----------
-    method_name: :class:`str`
+    name: :class:`str`
         The name of the UM.
 
     Returns
@@ -77,7 +78,7 @@ def get_um(method_name: str) -> Optional[Type[betterproto.Message]]:
     Optional[Type[:class:`betterproto.Message`]]
         The uninitialized protobuf.
     """
-    return UMS.get(method_name)
+    return UMS.get(name)
 
 
 class MsgBase(Generic[T]):
@@ -112,7 +113,7 @@ class MsgBase(Generic[T]):
     def parse(self, proto: Type[T]) -> None:
         """Parse the payload/data into a protobuf."""
         if proto:
-            self.body = proto()
+            self.body: T = proto()
             if self.payload:
                 self.body = self.body.parse(self.payload)
         else:
@@ -237,9 +238,6 @@ class MsgProto(MsgBase[T]):
         The emsg for the message.
     data: Optional[:class:`bytes`]
         The raw data for the message.
-    um_name: Optional[:class:`str`]
-        The name of the Unified Message the protobuf is associated.
-        You shouldn't use this argument yourself, to send UMs you should always use ``ws.send_um``.
     \*\*kwargs
         Any keyword-arguments to construct the :attr:`body` with.
 
@@ -256,12 +254,12 @@ class MsgProto(MsgBase[T]):
     """
 
     def __init__(
-        self, msg: EMsg, data: Optional[bytes] = None, um_name: str = None, **kwargs,
+        self, msg: EMsg, data: Optional[bytes] = None, __um_name: Optional[str] = None, **kwargs,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size
         self.proto = True
-        self.um_name = um_name
+        self.um_name = __um_name
         super().__init__(msg, data, **kwargs)
 
     def __repr__(self):

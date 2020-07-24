@@ -516,7 +516,7 @@ class SteamWebSocket:
             data = data[4 + size :]
 
     async def send_um(self, name: str, **kwargs) -> int:
-        msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
+        msg = MsgProto(EMsg.ServiceMethodCallFromClient, __um_name=name, **kwargs)
         msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
         return self._current_job_id
