@@ -40,7 +40,7 @@ __all__ = ("Context",)
 
 
 class Context(Messageable):
-    """Represents the context of a message.
+    """Represents the context of a command.
 
     Attributes
     ----------
