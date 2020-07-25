@@ -282,6 +282,10 @@ Message
     :members:
     :inherited-members:
 
+.. autoclass:: ClanMessage()
+    :members:
+    :inherited-members:
+
 Trading
 ~~~~~~~~~~~~~~~
 

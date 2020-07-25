@@ -204,12 +204,12 @@ class Inventory:
         .. describe:: y in x
 
             Determines if an item is in the inventory based off of
-            its class_id and instance_id
+            its class_id and instance_id.
 
 
     Attributes
     -------------
-    items: List[Union[:class:`Item`, :class:`Asset`]
+    items: List[Union[:class:`Item`, :class:`Asset`]]
         A list of the inventory's items.
     owner: :class:`~steam.User`
         The owner of the inventory.
@@ -237,7 +237,7 @@ class Inventory:
     def __iter__(self) -> Iterable[Item]:
         return (item for item in self.items)
 
-    def __contains__(self, item):
+    def __contains__(self, item: Asset):
         if isinstance(item, Asset):
             return item in self.items
         return NotImplemented
