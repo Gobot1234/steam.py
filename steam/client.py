@@ -817,7 +817,7 @@ class Client:
             `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
         """
         future = self.loop.create_future()
-        check = check if check is not None else lambda *_: True
+        check = check or return_true
 
         event_lower = event.lower()
         try:
