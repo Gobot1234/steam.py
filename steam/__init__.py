@@ -12,7 +12,7 @@ A basic wrapper for the Steam API and its Community Managers.
 __title__ = "steam"
 __author__ = "Gobot1234"
 __license__ = "MIT"
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 
 import logging
@@ -44,6 +44,6 @@ class VersionInfo(NamedTuple):
     releaselevel: str
 
 
-version_info = VersionInfo(major=0, minor=3, macro=2, releaselevel="full")
+version_info = VersionInfo(major=0, minor=3, macro=3, releaselevel="full")
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
