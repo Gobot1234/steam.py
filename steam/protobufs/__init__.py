@@ -254,12 +254,12 @@ class MsgProto(MsgBase[T]):
     """
 
     def __init__(
-        self, msg: EMsg, data: Optional[bytes] = None, __um_name: Optional[str] = None, **kwargs,
+        self, msg: EMsg, data: Optional[bytes] = None, _um_name: Optional[str] = None, **kwargs,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size
         self.proto = True
-        self.um_name = __um_name
+        self.um_name = _um_name
         super().__init__(msg, data, **kwargs)
 
     def __repr__(self):

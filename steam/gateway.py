@@ -114,7 +114,7 @@ class CMServerList(AsyncIterator[str]):
         if len(good_servers) == 0:
             log.debug("No good servers left. Resetting...")
             self.reset_all()
-            return
+            return await self.fill()
 
         random.shuffle(good_servers)
         await self.ping_cms(good_servers)
@@ -132,14 +132,12 @@ class CMServerList(AsyncIterator[str]):
         try:
             resp = await self._state.http.get_cm_list(cell_id)
         except Exception as e:
-            log.error(f"WebAPI fetch request failed with result: {repr(e)}")
+            log.error(f"WebAPI fetch request failed with result: {e!r}")
             return False
 
         resp = resp["response"]
         if resp["result"] != EResult.OK:
-            log.error(
-                f'Fetching the CMList failed with Result: {EResult(resp["result"])} Message: {repr(resp["message"])}'
-            )
+            log.error(f'Fetching the CMList failed with Result: {EResult(resp["result"])} Message: {resp["message"]!r}')
             return False
 
         websockets_list = resp["serverlist_websockets"]
@@ -341,8 +339,8 @@ class SteamWebSocket:
         connection = client._connection
         cm_list = cms or CMServerList(connection, cm)
         async for cm in cm_list:
-            log.info(f"Creating a websocket connection to: {cm}")
-            socket = await client.http.connect_to_cm(cm)
+            log.info(f"Attempting to create a websocket connection to: {cm}")
+            socket: aiohttp.ClientWebSocketResponse = await client.http.connect_to_cm(cm)
             log.debug(f"Connected to {cm}")
             payload = MsgProto(
                 EMsg.ClientLogon,
@@ -395,15 +393,15 @@ class SteamWebSocket:
             return await self.handlers[emsg](msg)
 
         if not self.connected:
-            return log.debug(f"Dropped unexpected message: {repr(emsg)} {repr(message)}")
+            return log.debug(f"Dropped unexpected message: {emsg} {message}")
         try:
             if utils.is_proto(emsg_value):
                 msg = MsgProto(emsg, message)
             else:
                 msg = Msg(emsg, message, extended=True)
-            log.debug(f"Socket has received {repr(msg)} from the websocket.")
+            log.debug(f"Socket has received {msg!r} from the websocket.")
         except Exception as exc:
-            log.critical(f"Failed to deserialize message: {repr(emsg)}, {repr(message)}")
+            log.critical(f"Failed to deserialize message: {emsg!r}, {message}")
             # the repr likely due to a bug in betterproto failed so just ignore it
             if emsg != EMsg.ServiceMethodResponse:
                 return log.error(exc)
@@ -516,7 +514,7 @@ class SteamWebSocket:
             data = data[4 + size :]
 
     async def send_um(self, name: str, **kwargs) -> int:
-        msg = MsgProto(EMsg.ServiceMethodCallFromClient, __um_name=name, **kwargs)
+        msg = MsgProto(EMsg.ServiceMethodCallFromClient, _um_name=name, **kwargs)
         msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
         return self._current_job_id
