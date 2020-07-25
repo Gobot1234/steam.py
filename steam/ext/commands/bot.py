@@ -125,13 +125,24 @@ class Bot(Client):
             command.cog.cog_command_error = self.on_command_error
             self.add_command(command)
 
-    def __init_subclass__(cls, **kwargs):
+    def __new__(cls, *args, **kwargs):
         for base in reversed(cls.__mro__):
-            for name, attr in inspect.getmembers(base):
-                if name in cls.__inline_commands__:
-                    del cls.__inline_commands__[name]
+            for name, attr in tuple(base.__dict__.items()):
                 if isinstance(attr, Command):
                     cls.__inline_commands__[name] = attr
+                    continue
+                if name[:3] != "on_":  # not an event
+                    continue
+                if "error" in name:  # an error handler, we shouldn't delete these
+                    continue
+                if name == "on_message":
+                    continue
+                try:
+                    if attr.__code__.co_filename == getattr(Bot, name, None).__code__.co_filename:
+                        delattr(base, name)
+                except AttributeError:
+                    pass
+        return object.__new__(cls)  # bypass Client.__new__
 
     @property
     def commands(self) -> Set[Command]:

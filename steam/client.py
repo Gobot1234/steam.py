@@ -162,6 +162,20 @@ class Client:
         self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
+    def __new__(cls, *args, **kwargs):  # delete un-subclassed events at run time
+        for base in reversed(cls.__mro__):
+            for name, attr in tuple(base.__dict__.items()):
+                if name[:3] != "on_":  # not an event
+                    continue
+                if "error" in name:  # an error event, we shouldn't delete these
+                    continue
+                try:
+                    if attr.__code__.co_filename == getattr(Client, name, None).__code__.co_filename:
+                        delattr(base, name)
+                except AttributeError:
+                    pass
+        return super().__new__(cls)
+
     @property
     def user(self) -> Optional["ClientUser"]:
         """Optional[:class:`~steam.ClientUser`]: Represents the connected client.
@@ -252,22 +266,10 @@ class Client:
         return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped, loop=self.loop)
 
     def dispatch(self, event: str, *args, **kwargs) -> None:
+        log.debug(f"Dispatching event {event}")
         method = f"on_{event}"
 
-        try:
-            coro = getattr(self, method)
-        except AttributeError:
-            return
-        else:
-            listeners = self._listeners.get(event)
-            if listeners or event == "error":
-                pass
-            elif coro is None or coro.__code__.co_filename == __file__:
-                # ignore events in this file that haven't been subclassed
-                return
-
-        log.debug(f"Dispatching event {event}")
-
+        listeners = self._listeners.get(event)
         if listeners:
             removed: List[int] = []
             for idx, (future, condition) in enumerate(listeners):
@@ -296,7 +298,12 @@ class Client:
                 for idx in reversed(removed):
                     del listeners[idx]
 
-        self._schedule_event(coro, method, *args, **kwargs)
+        try:
+            coro = getattr(self, method)
+        except AttributeError:
+            pass
+        else:
+            self._schedule_event(coro, method, *args, **kwargs)
 
     def _handle_ready(self) -> None:
         self._ready.set()
