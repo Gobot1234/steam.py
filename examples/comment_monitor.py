@@ -8,7 +8,7 @@ async def on_ready():
     print("Ready")
     async for comment in client.user.comments():  # check our comments since we last logged in
         if comment.author in client.user.friends:  # ignore messages from friends
-            return
+            continue
 
         if "https://" in comment.content:  # there is a url in the comment's content
             await comment.delete()  # delete the comment
