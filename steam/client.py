@@ -132,6 +132,22 @@ class Client:
         The :class:`asyncio.AbstractEventLoop` used for asynchronous operations.
         Defaults to ``None``, in which case the default event loop is used via
         :func:`asyncio.get_event_loop()`.
+    game: :class:`~steam.Game`
+        A games to set your status as on connect.
+    games: List[:class:`~steam.Game`]
+        A list of games to set your status to on connect.
+    state: :class:`~steam.EPersonaState`
+        The state to show your account as on connect.
+
+        .. note::
+            Setting your status to :attr:`~steam.EPersonaState.Offline`,
+            will stop you receiving persona state updates and by extension
+            :meth:`on_user_update` will stop being dispatched.
+
+    ui_mode: :class:`~steam.EUIMode`
+        The UI mode to set your status to on connect.
+    force_kick: :class:`bool`
+        Whether or not to forcefully kick any other playing sessions on connect.
 
     Attributes
     -----------

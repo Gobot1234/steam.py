@@ -98,6 +98,35 @@ class Bot(Client):
     owner_ids: Set[:class:`int`]
         The Steam IDs of the owners, these are converted to their 64 bit ID
         representation upon initialization.
+
+    loop: Optional[:class:`asyncio.AbstractEventLoop`]
+        The :class:`asyncio.AbstractEventLoop` used for asynchronous operations.
+        Defaults to ``None``, in which case the default event loop is used via
+        :func:`asyncio.get_event_loop()`.
+    game: :class:`~steam.Game`
+        A games to set your status as on connect.
+    games: List[:class:`~steam.Game`]
+        A list of games to set your status to on connect.
+    state: :class:`~steam.EPersonaState`
+        The state to show your account as on connect.
+
+        .. note::
+            Setting your status to :attr:`~steam.EPersonaState.Offline`,
+            will stop you receiving persona state updates and by extension
+            :meth:`on_user_update` will stop being dispatched.
+
+    ui_mode: :class:`~steam.EUIMode`
+        The UI mode to set your status to on connect.
+    force_kick: :class:`bool`
+        Whether or not to forcefully kick any other playing sessions on connect.
+
+    Attributes
+    -----------
+    loop: :class:`asyncio.AbstractEventLoop`
+        The event loop that the client uses for HTTP requests.
+    ws:
+        The connected websocket, this can be used to directly send messages
+        to the connected CM.
     """
 
     __cogs__: Dict[str, Cog] = dict()
@@ -137,7 +166,7 @@ class Bot(Client):
                     continue
                 if name == "on_message":
                     continue
-                try:
+                try:  # check if the functions filename is the same as this one
                     if attr.__code__.co_filename == getattr(Bot, name, None).__code__.co_filename:
                         delattr(base, name)
                 except AttributeError:
