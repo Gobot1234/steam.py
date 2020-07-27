@@ -29,12 +29,12 @@ https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 """
 
 import asyncio
+import datetime
 import logging
 import signal
 import sys
 import traceback
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, Dict, List, Optional, Tuple, TypeVar, Union
 
 import aiohttp
 
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
-EventType = Callable[..., Awaitable[None]]
+EventType = Callable[..., Coroutine[None, Any, None]]  # basic event
 
 
 def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
@@ -242,7 +242,7 @@ class Client:
         """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return float("nan") if self.ws is None else self.ws.latency
 
-    def event(self, coro: EventType) -> EventType:
+    def event(self, coro):
         """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
@@ -259,7 +259,7 @@ class Client:
             The function passed is not a coroutine.
         """
         if not asyncio.iscoroutinefunction(coro):
-            raise TypeError("Event registered must be a coroutine function")
+            raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is not")
 
         setattr(self, coro.__name__, coro)
         log.debug(f"{coro.__name__} has successfully been registered as an event")
@@ -359,19 +359,19 @@ class Client:
         def stop_loop_on_completion(_):
             loop.stop()
 
-        future = asyncio.ensure_future(runner(), loop=loop)
-        future.add_done_callback(stop_loop_on_completion)
+        task = loop.create_task(runner())
+        task.add_done_callback(stop_loop_on_completion)
         try:
             loop.run_forever()
         except KeyboardInterrupt:
             log.info("Received signal to terminate the client and event loop.")
         finally:
-            future.remove_done_callback(stop_loop_on_completion)
+            task.remove_done_callback(stop_loop_on_completion)
             log.info("Cleaning up tasks.")
             _cleanup_loop(loop)
 
-        if not future.cancelled():
-            return future.result()
+        if not task.cancelled():
+            return task.result()
 
     async def login(self, username: str, password: str, shared_secret: Optional[str] = None) -> None:
         """|coro|
@@ -685,8 +685,8 @@ class Client:
     def trade_history(
         self,
         limit: Optional[int] = 100,
-        before: Optional[datetime] = None,
-        after: Optional[datetime] = None,
+        before: Optional[datetime.datetime] = None,
+        after: Optional[datetime.datetime] = None,
         active_only: bool = False,
     ) -> TradesIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a
@@ -909,7 +909,7 @@ class Client:
             The message that was received.
         """
 
-    async def on_typing(self, user: "steam.User", when: datetime):
+    async def on_typing(self, user: "steam.User", when: "datetime.datetime"):
         """|coro|
         Called when typing is started.
 

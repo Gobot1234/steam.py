@@ -1,14 +1,60 @@
+# -*- coding: utf-8 -*-
+
+"""
+The MIT License (MIT)
+
+Copyright (c) 2020 James
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 from enum import Enum as Enum
-from typing import Any, T, Union, overload
+from typing import Any, TypeVar, Union, overload
+
+T = TypeVar("T")
 
 # makes things much nicer for linters
+
+__all__ = (
+    "Enum",
+    "IntEnum",
+    "EResult",
+    "EUniverse",
+    "EType",
+    "ETypeChar",
+    "EInstanceFlag",
+    "EFriendRelationship",
+    "EPersonaState",
+    "EPersonaStateFlag",
+    "ECommunityVisibilityState",
+    "ETradeOfferState",
+    "EChatEntryType",
+    "EUIMode",
+)
 
 # pretend these don't exist :)
 class EnumMember:
     name: str
     value: Any
 
-class IntEnumMember(EnumMember): ...
+class IntEnumMember(int, EnumMember):
+    value: int
 
 class Enum(Enum):
     @classmethod
@@ -136,7 +182,6 @@ class EUniverse(IntEnum):
     Internal: EUniverse
     Dev: EUniverse
     Max: EUniverse
-    def __str__(self): ...
 
 class EType(IntEnum):
     Invalid: EType
@@ -151,7 +196,6 @@ class EType(IntEnum):
     ConsoleUser: EType
     AnonUser: EType
     Max: EType
-    def __str__(self): ...
 
 class ETypeChar(IntEnum):
     I: ETypeChar = EType.Invalid
@@ -166,7 +210,6 @@ class ETypeChar(IntEnum):
     L: ETypeChar = EType.Chat
     c: ETypeChar = EType.Chat
     a: ETypeChar = EType.AnonUser
-    def __str__(self): ...
 
 class EInstanceFlag(IntEnum):
     MMSLobby: EInstanceFlag

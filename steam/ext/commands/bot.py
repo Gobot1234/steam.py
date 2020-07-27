@@ -131,7 +131,7 @@ class Bot(Client):
 
     __cogs__: Dict[str, Cog] = dict()
     __commands__: Dict[str, Command] = dict()
-    __listeners__: Dict[str, List[EventType]] = dict()
+    __listeners__: Dict[str, List[Union["EventType", "InjectedListener"]]] = dict()
     __extensions__: Dict[str, "ExtensionType"] = dict()
     __inline_commands__: Dict[str, Command] = dict()
 
@@ -154,9 +154,13 @@ class Bot(Client):
             command.cog.cog_command_error = self.on_command_error
             self.add_command(command)
 
-    def __new__(cls, *args, **kwargs):
+    def __init_subclass__(cls, **kwargs):
         for base in reversed(cls.__mro__):
             for name, attr in tuple(base.__dict__.items()):
+                try:
+                    del cls.__inline_commands__[name]
+                except KeyError:
+                    pass
                 if isinstance(attr, Command):
                     cls.__inline_commands__[name] = attr
                     continue
@@ -319,7 +323,7 @@ class Bot(Client):
         cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: Union[EventType, InjectedListener], name: Optional[str] = None):
+    def add_listener(self, func: Union["EventType", InjectedListener], name: Optional[str] = None) -> None:
         """Add a function from the internal listeners list.
 
         Parameters
@@ -332,7 +336,7 @@ class Bot(Client):
         """
         name = name or func.__name__
 
-        if not (asyncio.iscoroutinefunction(func) or isinstance(func, InjectedListener)):
+        if not asyncio.iscoroutinefunction(func):
             raise TypeError(f"Listeners must be coroutines, {name} is {type(func).__name__}")
 
         try:
@@ -340,7 +344,7 @@ class Bot(Client):
         except KeyError:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: Union[EventType, InjectedListener], name: Optional[str] = None):
+    def remove_listener(self, func: Union["EventType", InjectedListener], name: Optional[str] = None) -> None:
         """Remove a function from the internal listeners list.
 
         Parameters
@@ -358,7 +362,7 @@ class Bot(Client):
         except (KeyError, ValueError):
             pass
 
-    def listen(self, name: Optional[str] = None) -> Callable[..., EventType]:
+    def listen(self, name: Optional[str] = None) -> Callable[..., "EventType"]:
         """Register a function as a listener.
         Calls :meth:`add_listener`.
         Similar to :meth:`.Cog.listener`
@@ -423,7 +427,7 @@ class Bot(Client):
         and adds it to the internal command list.
         """
 
-        def decorator(func):
+        def decorator(func: Callable[["Context"], Awaitable[None]]):
             try:
                 kwargs["parent"]
             except KeyError:
@@ -443,10 +447,9 @@ class Bot(Client):
         message: :class:`~steam.Message`
             The message that was received.
         """
-        if message.author != self.user:
-            await self.process_commands(message)
+        await self.process_commands(message)
 
-    async def process_commands(self, message: "Message"):
+    async def process_commands(self, message: "Message") -> None:
         """|coro|
         A method to process commands for a message.
 
@@ -461,10 +464,11 @@ class Bot(Client):
         message: :class:`~steam.Message`
             The message to get the context for.
         """
-        ctx = await self.get_context(message)
-        await self.invoke(ctx)
+        if message.author != self.user:
+            ctx = await self.get_context(message)
+            await self.invoke(ctx)
 
-    async def invoke(self, ctx: "Context"):
+    async def invoke(self, ctx: "Context") -> None:
         """|coro|
         Invoke a command. This will parse arguments,
         checks, cooldowns etc. correctly.

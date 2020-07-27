@@ -46,11 +46,12 @@ __all__ = ("Cog",)
 class InjectedListener:
     """Injects the cog's "self" parameter into every event call auto-magically."""
 
-    __slots__ = ("func", "cog")
+    __slots__ = ("func", "cog", "_is_coroutine")
 
     def __init__(self, cog: "Cog", func: "EventType"):
         self.func = func
         self.cog = cog
+        self._is_coroutine = asyncio.coroutines._is_coroutine  # for asyncio.iscoroutinefunction
 
     def __call__(self, *args, **kwargs) -> Awaitable[None]:
         return self.func(self.cog, *args, **kwargs)
@@ -109,9 +110,11 @@ class Cog:
         cls.__listeners__ = dict()
         cls.__commands__ = dict()
         for base in reversed(cls.__mro__):
-            for name, attr in inspect.getmembers(base):
-                if name in cls.__commands__:
+            for name, attr in base.__dict__.items():
+                try:
                     del cls.__commands__[name]
+                except KeyError:
+                    pass
                 if isinstance(attr, Command):
                     cls.__commands__[name] = attr
                 elif hasattr(attr, "__event_name__"):
