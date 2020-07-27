@@ -76,8 +76,8 @@ class Cog:
     qualified_name: :class:`str`
         The name of the cog. Can be set in a subclass e.g. ::
 
-            MyCog(commands.Cog, name='SpecialCogName'):
-                pass
+            class MyCog(commands.Cog, name='SpecialCogName'):
+                ...
 
         Defaults to ``Cog.__name__``.
 
@@ -85,8 +85,16 @@ class Cog:
         Attributes to pass to every command registered in the cog.
         Can be set in subclass e.g. ::
 
-            MyBrokenCog(commands.Cog, command_attrs=dict(enabled=False)):
-                # all the commands would now be disabled
+            class MyBrokenCog(commands.Cog, command_attrs=dict(enabled=False)):
+                # all the commands by default would be disabled
+
+                @commands.command()
+                async def broken(self, ctx):  # disabled
+                    ...
+
+                @commands.command(enabled=True)
+                async def working(self, ctx):  # enabled
+                    ...
     """
 
     __commands__: Dict[str, Command]

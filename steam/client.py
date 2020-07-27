@@ -239,7 +239,7 @@ class Client:
 
     @property
     def latency(self) -> float:
-        """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
+        """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return float("nan") if self.ws is None else self.ws.latency
 
     def event(self, coro: EventType) -> EventType:
@@ -393,7 +393,7 @@ class Client:
         :exc:`TypeError`
             Unexpected keyword arguments were received.
         :exc:`.InvalidCredentials`
-            Invaild credentials were passed.
+            Invalid credentials were passed.
         :exc:`.HTTPException`
             An unknown HTTP related error occurred.
         :exc:`.NoCMsFound`
@@ -861,7 +861,7 @@ class Client:
             This function is not guaranteed to be the first event called.
             Likewise, this function is **not** guaranteed to only be called
             once. This library implements reconnection logic and will therefore
-            end up calling this event whenever a RESUME request fails.
+            end up calling this event whenever a CM disconnects.
         """
 
     async def on_login(self):
@@ -876,8 +876,8 @@ class Client:
 
         Usually when an event raises an uncaught exception, a traceback is
         printed to stderr and the exception is ignored. If you want to
-        change this behaviour and handle the exception for whatever reason
-        yourself, this event can be overridden. Which, when done, will
+        change this behaviour and handle the exception yourself,
+        this event can be overridden. Which, when done, will
         suppress the default action of printing the traceback.
 
         If you want exception to propagate out of the :class:`Client` class

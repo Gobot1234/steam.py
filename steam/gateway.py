@@ -324,7 +324,7 @@ class SteamWebSocket:
 
     @property
     def latency(self) -> float:
-        """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds."""
+        """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
 
     def wait_for(self, emsg: EMsg, predicate: Optional[Callable[..., bool]] = None) -> asyncio.Future:
