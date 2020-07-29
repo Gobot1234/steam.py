@@ -62,16 +62,19 @@ class Bot(Client):
     __listeners__: Dict[str, List[Union[EventType, InjectedListener]]] = dict()
     __extensions__: Dict[str, ExtensionType] = dict()
     __inline_commands__: Dict[str, Command] = dict()
-    help_command: HelpCommand
-    command_prefix: CommandPrefixType
-    owner_id: int
-    owner_ids: Set[int]
-    commands: Set[Command]
-    cogs: Mapping[str, Cog]
-    extensions: Mapping[str, ExtensionType]
     def __init__(
         self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options,
     ): ...
+    @property
+    def commands(self) -> Set[Command]: ...
+    @property
+    def cogs(self) -> Mapping[str, Cog]: ...
+    @property
+    def extensions(self) -> Mapping[str, ExtensionType]: ...
+    @property
+    def help_command(self) -> HelpCommand: ...
+    @help_command.setter
+    def help_command(self, value: HelpCommand):...
     @final
     def add_cog(self, cog: Cog) -> None: ...
     @final
