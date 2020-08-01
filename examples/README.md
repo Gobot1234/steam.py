@@ -1,8 +1,7 @@
 # Examples
 
-These are a specially curated collection of programs written with steam.py. It should be easy what they are doing 
-if you read their comments and have a good grasp of Python. More information any of the functions used in them 
-can be found in [the documentation](https://steampy.rtfd.io/en/latest).
+These are a specially curated collection of programs written with steam.py. More information about any of the functions 
+used can be found in [the documentation](https://steampy.rtfd.io/en/latest).
 
 More examples should be coming soon.
 
