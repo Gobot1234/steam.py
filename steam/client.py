@@ -123,15 +123,13 @@ class ClientEventTask(asyncio.Task):
 
 
 class Client:
-    """Represents a client connection that connects to Steam.
-    This class is used to interact with the Steam API and CMs.
+    """Represents a client connection that connects to Steam. This class is used to interact with the Steam API and CMs.
 
     Parameters
     ----------
     loop: Optional[:class:`asyncio.AbstractEventLoop`]
-        The :class:`asyncio.AbstractEventLoop` used for asynchronous operations.
-        Defaults to ``None``, in which case the default event loop is used via
-        :func:`asyncio.get_event_loop()`.
+        The :class:`asyncio.AbstractEventLoop` used for asynchronous operations. Defaults to ``None``, in which case the
+        default event loop is used via :func:`asyncio.get_event_loop()`.
     game: :class:`~steam.Game`
         A games to set your status as on connect.
     games: List[:class:`~steam.Game`]
@@ -140,9 +138,8 @@ class Client:
         The state to show your account as on connect.
 
         .. note::
-            Setting your status to :attr:`~steam.EPersonaState.Offline`,
-            will stop you receiving persona state updates and by extension
-            :meth:`on_user_update` will stop being dispatched.
+            Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state updates
+            and by extension :meth:`on_user_update` will stop being dispatched.
 
     ui_mode: :class:`~steam.EUIMode`
         The UI mode to set your status to on connect.
@@ -154,8 +151,7 @@ class Client:
     loop: :class:`asyncio.AbstractEventLoop`
         The event loop that the client uses for HTTP requests.
     ws:
-        The connected websocket, this can be used to directly send messages
-        to the connected CM.
+        The connected websocket/CM server, this can be used to directly send messages to said CM.
     """
 
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options):
@@ -194,8 +190,7 @@ class Client:
 
     @property
     def user(self) -> Optional["ClientUser"]:
-        """Optional[:class:`~steam.ClientUser`]: Represents the connected client.
-        ``None`` if not logged in."""
+        """Optional[:class:`~steam.ClientUser`]: Represents the connected client. ``None`` if not logged in."""
         return self.http.user
 
     @property
@@ -222,9 +217,8 @@ class Client:
         """|coro|
 
         .. warning::
-            Will wait for a Steam guard code using :func:`input` in an
-            executor if no shared_secret is passed to :meth:`run` or :meth:`start`
-            blocking exiting until one is entered.
+            Will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed to
+            :meth:`run` or :meth:`start` blocking exiting until one is entered.
 
         Returns
         -------
@@ -334,13 +328,11 @@ class Client:
         return self._closed
 
     def run(self, *args, **kwargs) -> None:
-        """
-        A blocking call that abstracts away the event loop
-        initialisation from you.
+        """A blocking call that abstracts away the event loop initialisation from you.
 
-        If you want more control over the event loop then this
-        function should not be used. Use :meth:`start` coroutine
-        or :meth:`login`.
+        If you want more control over the event loop then this function should not be used. Use :meth:`start` coroutine
+        or :meth:`login`. It is not recommended to subclass this, it is normally favourable to subclass :meth:`start`
+        or :meth:`login` as they are :ref:`coroutines <coroutine>`.
         """
         loop = self.loop
 
@@ -384,9 +376,8 @@ class Client:
         password: :class:`str`
             The password of the user's account.
         shared_secret: Optional[:class:`str`]
-            The shared_secret of the desired Steam account,
-            used to generate the 2FA code for login. If ``None`` is passed,
-            the code will need to be inputted by the user via :meth:`code`.
+            The shared_secret of the desired Steam account, used to generate the 2FA code for login. If ``None`` is
+            passed, the code will need to be inputted by the user via :meth:`code`.
 
         Raises
         ------
@@ -420,10 +411,8 @@ class Client:
         self._ready.clear()
 
     def clear(self) -> None:
-        """Clears the internal state of the bot.
-        After this, the bot can be considered "re-opened", i.e. :meth:`is_closed`
-        and :meth:`is_ready` both return ``False``. This also clears the internal
-        cache.
+        """Clears the internal state of the bot. After this, the bot can be considered "re-opened", i.e.
+        :meth:`is_closed` and :meth:`is_ready` both return ``False``. This also clears the internal cache.
         """
         self._closed = False
         self._ready.clear()
@@ -432,9 +421,24 @@ class Client:
 
     async def start(self, *args, **kwargs) -> None:
         """|coro|
-        A shorthand coroutine for :meth:`login` and :meth:`connect`.
-        If no shared_secret is passed, you will have to manually
-        enter a Steam guard code.
+        A shorthand coroutine for :meth:`login` and :meth:`connect`. If no shared_secret is passed, you will have to
+        manually enter a Steam guard code.
+
+        Parameters
+        -----------
+        username: :class:`str`
+            The username of the account to login to.
+        password: :class:`str`
+            The password of the account to login to.
+
+        Other Parameters
+        ----------------
+        These parameters are keyword only:
+
+        shared_secret: Optional[:class:`str`]
+            The shared secret for the account to login to.
+        identity_secret: Optional[:class:`str`]
+            The identity secret for the account to login to.
 
         Raises
         ------
@@ -504,13 +508,13 @@ class Client:
     # state stuff
 
     def get_user(self, *args, **kwargs) -> Optional["User"]:
-        r"""Returns a user from cache with a matching ID.
+        """Returns a user from cache with a matching ID.
 
         Parameters
         ----------
-        \*args
+        *args
             The arguments to pass to :meth:`~steam.utils.make_steam64`.
-        \*\*kwargs
+        **kwargs
             The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
@@ -522,14 +526,14 @@ class Client:
         return self._connection.get_user(steam_id.id64)
 
     async def fetch_user(self, *args, **kwargs) -> Optional["User"]:
-        r"""|coro|
+        """|coro|
         Fetches a user from the API with a matching ID.
 
         Parameters
         ----------
-        \*args
+        *args
             The arguments to pass to :meth:`~steam.utils.make_steam64`.
-        \*\*kwargs
+        **kwargs
             The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
@@ -541,14 +545,13 @@ class Client:
         return await self._connection.fetch_user(steam_id.id64)
 
     async def fetch_users(self, *ids: List[int]) -> List[Optional["User"]]:
-        r"""|coro|
-        Fetches a list of :class:`~steam.User` from their IDs
-        from the API with a matching ID. The :class:`~steam.User` objects returned
-        are unlikely to retain the order they were originally in.
+        """|coro|
+        Fetches a list of :class:`~steam.User` from their IDs from the API with a matching ID. The
+        :class:`~steam.User` objects returned are unlikely to retain the order they were originally in.
 
         Parameters
         ----------
-        \*ids: List[:class:`int`]
+        *ids: List[:class:`int`]
             The user's IDs.
 
         Returns
@@ -629,9 +632,9 @@ class Client:
 
         Parameters
         ----------
-        \*args
+        *args
             The arguments to pass to :meth:`~steam.utils.make_steam64`.
-        \*\*kwargs
+        **kwargs
             The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
@@ -644,14 +647,14 @@ class Client:
         return self._connection.get_clan(steam_id.id)
 
     async def fetch_clan(self, *args, **kwargs) -> Optional["Clan"]:
-        r"""|coro|
+        """|coro|
         Fetches a clan from the websocket with a matching ID.
 
         Parameters
         ----------
-        \*args
+        *args
             The arguments to pass to :meth:`~steam.utils.make_steam64`.
-        \*\*kwargs
+        **kwargs
             The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
 
         Returns
@@ -689,8 +692,8 @@ class Client:
         after: Optional[datetime.datetime] = None,
         active_only: bool = False,
     ) -> TradesIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a
-        :class:`ClientUser`'s :class:`~steam.TradeOffer` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`
+        objects.
 
         Examples
         -----------
@@ -712,10 +715,8 @@ class Client:
         Parameters
         ----------
         limit: Optional[:class:`int`]
-            The maximum number of trades to search through.
-            Default is 100 which will fetch the first 100 trades.
-            Setting this to ``None`` will fetch all of the user's trades,
-            but this will be a very slow operation.
+            The maximum number of trades to search through. Default is 100 which will fetch the first 100 trades.
+            Setting this to ``None`` will fetch all of the user's trades, but this will be a very slow operation.
         before: Optional[:class:`datetime.datetime`]
             A time to search for trades before.
         after: Optional[:class:`datetime.datetime`]
@@ -753,9 +754,8 @@ class Client:
             The state to show your account as.
 
             .. note::
-                Setting your status to :attr:`~steam.EPersonaState.Offline`,
-                will stop you receiving persona state updates and by extension
-                :meth:`on_user_update` will stop being dispatched.
+                Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state
+                updates and by extension :meth:`on_user_update` will stop being dispatched.
 
         ui_mode: :class:`~steam.EUIMode`
             The UI mode to set your status to.
@@ -773,48 +773,30 @@ class Client:
         """
         await self._ready.wait()
 
-    def wait_for(
-        self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
-    ) -> Awaitable[Any]:
+    # events to be subclassed
+
+    async def on_error(self, event: str, error: Exception, *args, **kwargs):
         """|coro|
-        Waits for an event to be dispatched.
+        The default error handler provided by the client.
 
-        The ``timeout`` parameter is passed to :func:`asyncio.wait_for`. By default,
-        it does not timeout. Note that this does propagate the :exc:`asyncio.TimeoutError`
-        for you in case of timeout and is provided for ease of use.
-        In case the event returns multiple arguments, a :class:`tuple` containing those
-        arguments is returned instead. Please check the
-        `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_
-        for a list of events and their parameters.
+        Usually when an event raises an uncaught exception, a traceback is printed to :attr:`sys.stderr` and the
+        exception is ignored. If you want to change this behaviour and handle the exception yourself, this event can
+        be overridden. Which, when done, will suppress the default action of printing the traceback.
 
-        .. note::
-            This function returns the **first event that meets the requirements**.
+        If you want exception to propagate out of the :class:`Client` class you can define an ``on_error`` handler
+        consisting of a single empty :ref:`py:raise`. Exceptions raised by ``on_error`` will not be handled in any
+        way by :class:`Client`.
 
         Parameters
-        ------------
+        ----------
         event: :class:`str`
-            The event name, similar to the
-            `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
-            but without the ``on_`` prefix, to wait for.
-        check: Optional[Callable[..., :class:`bool`]]
-            A predicate to check what to wait for. The arguments must meet the
-            parameters of the event being waited for.
-            The check **MUST** return a :class:`bool`.
-        timeout: Optional[:class:`float`]
-            The number of seconds to wait before timing out and raising
-            :exc:`asyncio.TimeoutError`.
-
-        Raises
-        -------
-        asyncio.TimeoutError
-            If the provided timeout was reached.
-
-        Returns
-        --------
-        Any
-            Returns no arguments, a single argument, or a :class:`tuple` of multiple
-            arguments that mirrors the parameters passed in the
-            `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
+            The name of the event that errored.
+        error: :exc:`Exception`
+            The error that was raised.
+        *args:
+            The positional arguments associated with the event.
+        **kwargs:
+            The key-word arguments associated with the event.
         """
         future = self.loop.create_future()
         check = check or return_true

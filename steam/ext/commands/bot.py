@@ -214,8 +214,7 @@ class Bot(Client):
 
     async def close(self) -> None:
         """|coro|
-        Unloads any extensions, cogs and commands, then
-        closes the connection to Steam CMs and logs out.
+        Unloads any extensions, cogs and commands, then closes the connection to Steam CMs and logs out.
         """
         for extension in tuple(self.extensions):
             try:
@@ -276,9 +275,8 @@ class Bot(Client):
         del self.__extensions__[extension]
 
     def reload_extension(self, extension: str) -> None:
-        """Atomically reload an extension.
-        If any error occurs during the reload the
-        extension will be reverted to its original state.
+        """Atomically reload an extension. If any error occurs during the reload the extension will be reverted to its
+        original state.
 
         Parameters
         ----------
@@ -331,8 +329,7 @@ class Bot(Client):
         func: Callable[..., Awaitable[None]]
             The listener event to listen for.
         name: Optional[:class:`str`]
-            The name of the event to listen for.
-            Defaults to ``func.__name__``.
+            The name of the event to listen for. Defaults to ``func.__name__``.
         """
         name = name or func.__name__
 

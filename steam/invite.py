@@ -56,7 +56,7 @@ class Invite:
 
 
 class UserInvite(Invite):
-    """Represents a invite from a user.
+    """Represents a invite from a user to become their friend.
 
     Attributes
     ----------
@@ -84,7 +84,7 @@ class UserInvite(Invite):
 
 
 class ClanInvite(Invite):
-    """Represents a invite from a user.
+    """Represents a invite to join a :class:`~steam.Clan` from a user.
 
     Attributes
     ----------

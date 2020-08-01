@@ -74,8 +74,7 @@ class DMChannel(BaseChannel):
         await self.participant.send(content=content, trade=trade, image=image)
 
     def typing(self) -> "TypingContextManager":
-        """Send a typing indicator continuously to the channel while
-        in the context manager.
+        """Send a typing indicator continuously to the channel while in the context manager.
 
         .. note::
 
@@ -86,10 +85,10 @@ class DMChannel(BaseChannel):
             async with ctx.channel.typing():
                 # do your expensive operations
 
+            # or
+
             with ctx.channel.typing():
                 # do your expensive operations
-
-            # these do the same thing
         """
         return TypingContextManager(self.participant)
 
