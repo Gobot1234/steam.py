@@ -101,9 +101,6 @@ class Converter(Protocol):
     async def convert(self, ctx: "commands.Context", argument: str):
         raise NotImplementedError("Derived classes must implement this")
 
-    def __repr__(self):
-        return self.__class__.__name__
-
 
 class UserConverter(Converter):
     """The converter that is used when the
@@ -133,17 +130,20 @@ class ChannelConverter(Converter):
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "BaseChannel":
+        channel = None
         if argument.isdigit():
-            channel = ctx.bot._connection._combined.get(int(argument))
+            groups = ctx.bot._connection._combined.values()
+            for group in groups:
+                channels = [c for c in group.channels if c.id == int(argument)]
+                if channels:
+                    return channels[0]
         else:
             if ctx.clan:
                 channel = utils.get(ctx.clan.channels, name=argument)
             elif ctx.group:
                 channel = utils.get(ctx.group.channels, name=argument)
-            else:
-                channel = None
         if channel is None:
-            raise BadArgument(f'Failed to convert "{argument}" to a Steam group')
+            raise BadArgument(f'Failed to convert "{argument}" to a channel')
         return channel
 
 
