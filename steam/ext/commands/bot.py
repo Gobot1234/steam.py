@@ -519,13 +519,23 @@ class Bot(Client):
             return cls(message=message, prefix=prefix, bot=self)
 
         content = message.content[len(prefix) :].strip()
-        lex = Shlex(content, posix=True)
+        if not content:
+            return cls(message=message, prefix=prefix, bot=self)
+
+        for i in range(len(content.split())):
+            command = self.get_command(content.rsplit(maxsplit=i)[0])
+            if command is not None:
+                break
+
+        if command is None:
+            return cls(message=message, prefix=prefix, bot=self, invoked_with=content.split()[0])
+
+        command_name = " ".join(content.split(maxsplit=i + 1)[: i + 1])  # account for aliases
+        lex = Shlex(content[len(command_name) :].strip(), posix=True)
         lex.commenters = ""
         lex.quotes = '"'
         lex.whitespace = " "
         lex.whitespace_split = True
-        command_name = lex.get_token().strip()  # skip the command name
-        command = self.__commands__.get(command_name)
         return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix, invoked_with=command_name,)
 
     async def get_prefix(self, message: "Message") -> Optional[str]:

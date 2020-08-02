@@ -271,14 +271,141 @@ class Command:
         return True
 
 
-# TODO
-# class GroupCommand(Command):
-#     pass
+class GroupMixin:
+    def __init__(self, *args, **kwargs):
+        self.case_insensitive = kwargs.get("case_insensitive", False)
+        self.__commands__: Dict[str, Command] = CaseInsensitiveDict() if self.case_insensitive else dict()
+        super().__init__(*args, **kwargs)
+
+    @property
+    def commands(self) -> Set[Command]:
+        """Set[:class:`.Command`]: A list of the loaded commands."""
+        return set(self.__commands__.values())
+
+    def add_command(self, command: "Command") -> None:
+        """Add a command to the internal commands list.
+
+        Parameters
+        ----------
+        command: :class:`.Command`
+            The command to register.
+        """
+        if not isinstance(command, Command):
+            raise TypeError("Commands should derive from commands.Command")
+
+        if command.name in self.__commands__:
+            raise ClientException(f"The command {command.name} is already registered.")
+
+        if isinstance(self, Command):
+            command.parent = self
+
+        if isinstance(command.parent, GroupCommand):
+            if command.parent is not self:
+                return command.parent.add_command(command)
+
+        self.__commands__[command.name] = command
+        for alias in command.aliases:
+            if alias in self.__commands__:
+                self.remove_command(command.name)
+                raise ClientException(f"{alias} is already an existing command or alias.")
+            self.__commands__[alias] = command
+
+    def remove_command(self, name: str) -> Optional[Command]:
+        """Removes a command from the internal commands list.
+
+        Parameters
+        ----------
+        name: :class:`str`
+            The name of the command to remove.
+
+        Returns
+        --------
+        Optional[:class:`Command`]
+            The removed command.
+        """
+        command = self.__commands__.get(name)
+        if command is None:
+            return None
+
+        for alias in command.aliases:
+            del self.__commands__[alias]
+        return command
+
+    def get_command(self, name: str) -> Optional[Command]:
+        """Get a command.
+
+        Parameters
+        ----------
+        name: :class:`str`
+            The name of the command.
+
+        Returns
+        -------
+        Optional[:class:`.Command`]
+            The found command or ``None``.
+        """
+        if " " not in name:
+            return self.__commands__.get(name)
+
+        names = name.split()
+        if not names:
+            return None
+        command = self.__commands__.get(names[0])
+        if not isinstance(command, GroupMixin):
+            return command
+
+        return command.get_command(" ".join(names[1:]))
+
+    def command(self, *args, **kwargs) -> Callable[["CommandType"], Command]:
+        """A shortcut decorator that invokes :func:`.command` and adds it to the internal command list."""
+
+        def decorator(func: "CommandType"):
+            try:
+                kwargs["parent"]
+            except KeyError:
+                kwargs["parent"] = self
+            result = command(*args, **kwargs)(func)
+            self.add_command(result)
+            return result
+
+        return decorator
+
+    def group(self, *args, **kwargs):
+        def decorator(func: "CommandType"):
+            try:
+                kwargs["parent"]
+            except KeyError:
+                kwargs["parent"] = self
+            result = group(*args, **kwargs)(func)
+            self.add_command(result)
+            return result
+
+        return decorator
 
 
-def command(
-    name: Optional[str] = None, cls: Optional[Type[Command]] = None, **attrs
-) -> Callable[[CommandFuncType], Command]:
+class GroupCommand(GroupMixin, Command):
+    def __init__(self, func: "CommandType", **kwargs):
+        super().__init__(func, **kwargs)
+
+    @property
+    def children(self) -> typing.Generator["Command", None, None]:
+        for command in self.commands:
+            yield command
+            if isinstance(command, GroupCommand):
+                yield from command.children
+
+    def recursively_remove_all_commands(self):
+        for command in self.commands:
+            if isinstance(command, GroupCommand):
+                command.recursively_remove_all_commands()
+            self.remove_command(command.name)
+
+    async def _parse_arguments(self, ctx: "Context") -> None:
+        ctx.command.invoked_without_command = bool(list(self.children))
+        await super()._parse_arguments(ctx)
+
+
+def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -> Callable[["CommandType"], Command]:
     r"""Register a coroutine as a :class:`~commands.Command`.
 
     Parameters
@@ -295,7 +422,25 @@ def command(
     if cls is None:
         cls = Command
 
-    def decorator(func: CommandFuncType) -> Command:
+    return decorator
+
+
+def group(
+    name: Optional[str] = None, cls: Type[GroupCommand] = GroupCommand, **attrs
+) -> Callable[["CommandType"], GroupCommand]:
+    """Register a coroutine as a :class:`~commands.GroupCommand`.
+
+    Parameters
+    ----------
+    name: :class:`str`
+        The name of the command. Will default to ``func.__name__``.
+    cls: Type[:class:`GroupCommand`]
+        The class to construct the command from. Defaults to :class:`GroupCommand`.
+    **attrs:
+        The attributes to pass to the command's ``__init__``.
+    """
+
+    def decorator(func: "CommandType") -> GroupCommand:
         if isinstance(func, Command):
             raise TypeError("Callback is already a command.")
         return cls(func, name=name, **attrs)
