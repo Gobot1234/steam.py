@@ -411,6 +411,11 @@ class BaseUser(SteamID):
         self.state = EPersonaState(data.get("personastate", 0)) or self.state
         self.flags = EPersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
 
+    @property
+    def mention(self) -> str:
+        """:class:`str`: The string used to mention the user."""
+        return f"[mention={self.id}]@{self.name}[/mention]"
+
     async def comment(self, content: str) -> Comment:
         """|coro|
         Post a comment to an :class:`User`'s profile.
