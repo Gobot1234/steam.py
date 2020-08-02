@@ -9,11 +9,12 @@ A basic wrapper for the Steam API and its Community Managers.
 :license: MIT, see LICENSE for more details.
 """
 
-__title__ = "steam"
-__author__ = "Gobot1234"
-__license__ = "MIT"
-__version__ = "0.3.3"
+from typing_extensions import Final
 
+__title__: Final[str] = "steam"
+__author__: Final[str] = "Gobot1234"
+__license__: Final[str] = "MIT"
+__version__: Final[str] = "0.4.0"
 
 import logging
 from typing import NamedTuple
@@ -40,10 +41,10 @@ from .user import *
 class VersionInfo(NamedTuple):
     major: int
     minor: int
-    macro: int
+    micro: int
     releaselevel: str
 
 
-version_info = VersionInfo(major=0, minor=3, macro=3, releaselevel="full")
+version_info = VersionInfo(major=0, minor=4, micro=0, releaselevel="full")
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
