@@ -151,6 +151,65 @@ class Command:
         except TypeError:
             raise TypeError("Aliases of a command must be an iterable containing only strings.")
 
+    @property
+    def callback(self) -> "CommandType":
+        """The internal callback the command holds."""
+        return self._callback
+
+    @callback.setter
+    def callback(self, function: "CommandType"):
+        # using get_type_hints allows for postponed annotations (type hints in quotes)
+        # for more info see pep 563 https://www.python.org/dev/peps/pep-0563.
+        module = sys.modules[function.__module__]
+        globals = module.__dict__
+        try:
+            annotations = get_type_hints(function, globals)
+        except NameError:
+            if not (typing in globals.values() or not getattr(module, "TYPE_CHECKING", True)):
+                raise
+            # hacky time, try and get any imports in TYPE_CHECKING
+            with open(module.__file__) as f:
+                src = f.read()  # read the source file
+            if isinstance(src, bytes):
+                src = src.decode("utf-8")
+
+            search = re.search(r"if .*TYPE_CHECKING.*:", src)
+            if search is None:
+                raise
+            end = search.end()
+            cut = src[end:]
+            lines = cut.splitlines()
+            imports = []
+            # find the relevant lines
+            for line in lines:
+                if re.match(r"^\S", line):
+                    break  # un-tabbed, break
+                if re.match(r"^\s*(import|from .* import .+)", line):
+                    imports.append(line.strip())
+            exec(f"\n".join(imports), globals)
+            annotations = get_type_hints(function, globals)
+
+        # replace the function's annotations
+        if isinstance(function, MethodType):
+            function.__func__.__annotations__ = annotations
+        else:
+            function.__annotations__ = annotations
+        self.params = inspect.signature(function).parameters
+        self._callback = function
+
+    @property
+    def qualified_name(self) -> str:
+        return " ".join(c.name for c in reversed(list(self.parents)))
+
+    @property
+    def parents(self) -> typing.Generator["Command", None, None]:
+        def recursive_iter(command: Command) -> typing.Generator["Command", None, None]:
+            yield command
+            if isinstance(command.parent, GroupCommand):
+                yield from recursive_iter(command.parent)
+
+        return recursive_iter(self)
+
     def __call__(self, *args, **kwargs):
         """|coro|
         Calls the internal callback that the command holds.
