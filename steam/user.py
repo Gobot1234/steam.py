@@ -99,7 +99,16 @@ class User(BaseUser, Messageable):
         Remove an :class:`User` from your friends list.
         """
         await self._state.http.remove_user(self.id64)
-        self._state.client.user.friends.remove(self)
+        try:
+            self._state.client.user.friends.remove(self)
+        except ValueError:
+            pass
+
+    async def cancel_invite(self):
+        """|coro|
+        Cancels an invite sent to an :class:`User`. This effectively does the same thing as :meth:`remove`.
+        """
+        await self._state.http.remove_user(self.id64)
 
     async def block(self) -> None:
         """|coro|
