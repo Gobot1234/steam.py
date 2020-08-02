@@ -30,7 +30,6 @@ from .channel import GroupChannel
 from .models import Role
 
 if TYPE_CHECKING:
-    from .abc import BaseUser
     from .protobufs.steammessages_chat import CChatRoomGetChatRoomGroupSummaryResponse as GroupProto
     from .state import ConnectionState
     from .user import User
@@ -77,17 +76,6 @@ class Group:
         "_state",
     )
 
-    owner: Optional["BaseUser"]
-    top_members: Optional[List["BaseUser"]]
-    id: Optional[int]
-    name: Optional[str]
-    active_member_count: Optional[int]
-    roles: Optional[List[Role]]
-    default_role: Optional[Role]
-    channels: Optional[List[GroupChannel]]
-    default_channel: Optional[GroupChannel]
-    roles: Optional[List[Role]]
-
     def __init__(self, state: "ConnectionState", proto: "GroupProto"):
         self._state = state
         self._from_proto(proto)
@@ -98,11 +86,11 @@ class Group:
 
     def _from_proto(self, proto: "GroupProto"):
         self.id = int(proto.chat_group_id)
-        self.owner = proto.accountid_owner
-        self.name = proto.chat_group_name or None
+        self.owner: "User" = proto.accountid_owner
+        self.name: Optional[str] = proto.chat_group_name or None
 
         self.active_member_count = proto.active_member_count
-        self.top_members = proto.top_members
+        self.top_members: List["User"] = proto.top_members
         self.roles: List[Role] = []
         self.default_role: Optional[Role]
 
@@ -114,12 +102,12 @@ class Group:
             self.default_role = default_role[0]
         else:
             self.default_role = None
-        default_channel = int(proto.default_chat_id)
-        self.channels = []
+        self.channels: List[GroupChannel] = []
+        default_channel: GroupChannel
         for channel in proto.chat_rooms:
             channel = GroupChannel(state=self._state, group=self, channel=channel)
             self.channels.append(channel)
-        self.default_channel = [c for c in self.channels if c.id == default_channel][0]
+        self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
 
     def __repr__(self):
         attrs = ("name", "id", "owner")

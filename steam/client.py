@@ -213,6 +213,11 @@ class Client:
         """List[:class:`~steam.Clan`]: Returns a list of all the clans the connected client is in."""
         return self._connection.clans
 
+    @property
+    def latency(self) -> float:
+        """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
+        return float("nan") if self.ws is None else self.ws.latency
+
     async def code(self) -> str:
         """|coro|
 
@@ -231,12 +236,15 @@ class Client:
         code = await utils.ainput(">>> ")
         return code.strip()
 
-    @property
-    def latency(self) -> float:
-        """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
-        return float("nan") if self.ws is None else self.ws.latency
+    def is_ready(self) -> bool:
+        """:class:`bool`: Specifies if the client's internal cache is ready for use."""
+        return self._ready.is_set()
 
-    def event(self, coro):
+    def is_closed(self) -> bool:
+        """:class:`bool`: Indicates if connection is closed to the API or CMs."""
+        return self._closed
+
+    def event(self, coro: EventType) -> EventType:
         """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
@@ -318,14 +326,6 @@ class Client:
     def _handle_ready(self) -> None:
         self._ready.set()
         self.dispatch("ready")
-
-    def is_ready(self) -> bool:
-        """Specifies if the client's internal cache is ready for use."""
-        return self._ready.is_set()
-
-    def is_closed(self) -> bool:
-        """Indicates if connection is closed to the API or CMs."""
-        return self._closed
 
     def run(self, *args, **kwargs) -> None:
         """A blocking call that abstracts away the event loop initialisation from you.
@@ -463,7 +463,7 @@ class Client:
         if kwargs:
             raise TypeError(f"unexpected keyword argument(s) {list(kwargs.keys())}")
 
-        await self.login(username=username, password=password, shared_secret=shared_secret)
+        await self.login(username, password, shared_secret=shared_secret)
         self.loop.create_task(self._connection.__ainit__())
         self._closed = False
         await self.connect()
@@ -798,15 +798,8 @@ class Client:
         **kwargs:
             The key-word arguments associated with the event.
         """
-        future = self.loop.create_future()
-        check = check or return_true
-
-        event_lower = event.lower()
-        try:
-            listeners = self._listeners[event_lower]
-        except KeyError:
-            listeners = []
-            self._listeners[event_lower] = listeners
+        print(f"Ignoring exception in {event}", file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     if TYPE_CHECKING:
 

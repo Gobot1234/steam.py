@@ -397,25 +397,17 @@ class BaseUser(SteamID):
         self.avatar_url = data.get("avatarfull") or self.avatar_url
         self.trade_url = f"{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}"
 
-        self.primary_clan = SteamID(data["primaryclanid"]) if "primaryclanid" in data else None or self.primary_clan
+        self.primary_clan = SteamID(data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan
         self.country = data.get("loccountrycode") or self.country
         self.created_at = (
             datetime.utcfromtimestamp(data["timecreated"]) if "timecreated" in data else None or self.created_at
         )
-        self.last_logoff = (
-            datetime.utcfromtimestamp(data["lastlogoff"]) if "lastlogoff" in data else None or self.last_logoff
-        )
-        self.last_logon = (
-            datetime.utcfromtimestamp(data["last_logon"]) if "last_logon" in data else None or self.last_logon
-        )
+        self.last_logoff = datetime.utcfromtimestamp(data["lastlogoff"]) if "lastlogoff" in data else self.last_logoff
+        self.last_logon = datetime.utcfromtimestamp(data["last_logon"]) if "last_logon" in data else self.last_logon
         self.last_seen_online = (
-            datetime.utcfromtimestamp(data["last_seen_online"])
-            if "last_seen_online" in data
-            else None or self.last_seen_online
+            datetime.utcfromtimestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
         )
-        self.game = (
-            Game(title=data.get("gameextrainfo"), app_id=data["gameid"]) if "gameid" in data else None or self.game
-        )
+        self.game = Game(title=data.get("gameextrainfo"), app_id=data["gameid"]) if "gameid" in data else self.game
         self.state = EPersonaState(data.get("personastate", 0)) or self.state
         self.flags = EPersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
 
@@ -676,7 +668,7 @@ class BaseChannel(Messageable):
 
     def __init__(self):
         self._state: "ConnectionState"
-        self.participant: Optional["BaseUser"] = None
+        self.participant: Optional["User"] = None
         self.clan: Optional["Clan"] = None
         self.group: Optional["Group"] = None
 
@@ -723,7 +715,7 @@ class Message:
         self._state: "ConnectionState" = channel._state
         self.channel = channel
         self.content: Optional[str] = None
-        self.author: Optional[BaseUser] = None
+        self.author: Optional["User"] = None
         self.created_at: Optional[datetime] = None
         self.group = channel.group
         self.clan = channel.clan

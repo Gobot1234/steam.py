@@ -27,12 +27,12 @@ SOFTWARE.
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from .commands import Command
+from .context import Context
 
 if TYPE_CHECKING:
     from steam.ext import commands
 
     from .cog import Cog
-    from .context import Context
 
 __all__ = ("HelpCommand",)
 
@@ -91,7 +91,7 @@ class HelpCommand(Command):
         mapping[None] = [c for c in set(bot.commands) if c not in categorized_commands]
         return mapping
 
-    async def send_help(self, mapping: Dict[Optional["commands.Cog"], List["commands.Command"]]):
+    async def send_help(self, mapping: Dict[Optional["commands.Cog"], List["commands.Command"]]) -> None:
         message = []
         for name, commands in mapping.items():
             if name is not None:

@@ -64,9 +64,11 @@ __all__ = (
     "CMServerList",
     "SteamWebSocket",
     "return_true",
+    "Msgs",
 )
 
 log = logging.getLogger(__name__)
+Msgs = Union[MsgProto, Msg]
 
 
 def return_true(*_) -> bool:
@@ -173,8 +175,7 @@ class CMServerList(AsyncIterator[str]):
     async def ping_cms(self, hosts: Optional[List[str]] = None, to_ping: int = 10) -> None:
         hosts = list(self.dict.keys()) if hosts is None else hosts
         for host in hosts[:to_ping]:  # only ping the first 10 cms (by default)
-            # TODO dynamically make sure we get good ones
-            # by checking len and stuff
+            # TODO dynamically make sure we get good ones by checking len and stuff
             start = time.perf_counter()
             try:
                 resp = await self._state.http._session.get(f"https://{host}/cmping/", timeout=5)
@@ -331,7 +332,7 @@ class SteamWebSocket:
         """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg, predicate: Optional[Callable[..., bool]] = None) -> asyncio.Future:
+    def wait_for(self, emsg: EMsg, predicate: Optional[Callable[[Msgs], bool]] = None) -> asyncio.Future:
         future = self.loop.create_future()
         entry = EventListener(emsg=emsg, predicate=predicate or return_true, future=future)
         self.listeners.append(entry)
@@ -465,11 +466,12 @@ class SteamWebSocket:
         await self.socket.close(code=code)
 
     async def handle_close(self):
-        try:
+        if not self.socket.closed:
             await self.close()
-        except Exception:
-            pass
-        self.cm_list.queue.get_nowait()  # pop the disconnected cm
+            self.cm_list.queue.get_nowait()  # pop the disconnected cm
+        if self._keep_alive:
+            self._keep_alive.stop()
+            self._keep_alive = None
         log.info(f"Websocket closed, cannot reconnect.")
         raise ConnectionClosed(self.cm, self.cm_list)
 

@@ -220,14 +220,14 @@ class IntEnum(int, Enum):
     """An enumeration where all the values are integers, emulates enum.IntEnum."""
 
 
-def patched_instance_check(mcs: _EnumMeta, instance: Any) -> bool:
+def _patched_instance_check(mcs: _EnumMeta, instance: Any) -> bool:
     if isinstance(instance, (EnumMeta, EnumMember)):
         return True
 
     return type.__instancecheck__(mcs, instance)
 
 
-_EnumMeta.__instancecheck__ = patched_instance_check  # fake it till you make it
+_EnumMeta.__instancecheck__ = _patched_instance_check  # fake it till you make it
 
 
 # fmt: off

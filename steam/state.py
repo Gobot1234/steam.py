@@ -417,7 +417,7 @@ class ConnectionState:
     @property
     def _combined(self) -> Dict[int, Union["Group", "Clan"]]:
         return {
-            **{group.id: group for group in self.groups},
+            **self._groups,
             **{clan.chat_id: clan for clan in self.clans},
         }
 

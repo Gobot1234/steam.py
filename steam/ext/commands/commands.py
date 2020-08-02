@@ -31,7 +31,27 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 import asyncio
 import functools
 import inspect
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, Iterable, List, Optional, Type, Union
+import sys
+import typing
+import re
+from types import FunctionType, MethodType
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+    get_type_hints,
+    overload,
+)
 
 import steam
 
@@ -42,21 +62,25 @@ from .errors import BadArgument, MissingRequiredArgument, NotOwner
 
 if TYPE_CHECKING:
     from ...client import EventType
+    from .bot import CommandType
     from .cog import Cog
     from .context import Context
 
 __all__ = (
     "Command",
     "command",
+    "GroupCommand",
+    "group",
     "check",
     "is_owner",
     "cooldown",
 )
 
-CommandFuncType = Callable[["Context"], Awaitable[None]]
 CheckType = Callable[["Context"], Awaitable[bool]]
-MaybeCommand = Union[Callable[..., "Command"], CommandFuncType]
+MaybeCommand = Union[Callable[..., "Command"], "CommandType"]
 CommandDeco = Callable[[MaybeCommand], MaybeCommand]
+T = TypeVar("T")
+VT = TypeVar("VT")
 
 
 def to_bool(argument: str) -> bool:
@@ -65,8 +89,7 @@ def to_bool(argument: str) -> bool:
         return True
     elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
         return False
-    else:
-        raise BadArgument(f'"{lowered}" is not a recognised boolean option')
+    raise BadArgument(f'"{lowered}" is not a recognised boolean option')
 
 
 class CaseInsensitiveDict(dict, Generic[VT]):
@@ -101,7 +124,7 @@ class CaseInsensitiveDict(dict, Generic[VT]):
 
 
 class Command:
-    def __init__(self, func: CommandFuncType, **kwargs):
+    def __init__(self, func: "CommandType", **kwargs):
         if not asyncio.iscoroutinefunction(func):
             raise TypeError("Callback must be a coroutine.")
 
@@ -122,8 +145,7 @@ class Command:
         finally:
             self.cooldown: List[Cooldown] = cooldown
 
-        self.params = inspect.signature(func).parameters
-        self.name = kwargs.get("name") or func.__name__
+        self.name: str = kwargs.get("name") or func.__name__
         if not isinstance(self.name, str):
             raise TypeError("Name of a command must be a string.")
 
@@ -140,6 +162,7 @@ class Command:
         self.brief: Optional[str] = kwargs.get("brief")
         self.usage: Optional[str] = kwargs.get("usage")
         self.cog: Optional["Cog"] = kwargs.get("cog")
+        self.parent: Optional["Command"] = kwargs.get("parent")
         self.description: str = inspect.cleandoc(kwargs.get("description", ""))
         self.hidden = kwargs.get("hidden", False)
         self.aliases: Iterable[str] = kwargs.get("aliases", [])
@@ -239,7 +262,7 @@ class Command:
                 print(f'{ctx.command.name} raised an exception {error}')
         """
         if not asyncio.iscoroutinefunction(func):
-            raise TypeError("Callback must be a coroutine.")
+            raise TypeError(f"Error handler for {self.name} must be a coroutine")
         self.on_error = func
         return func
 
@@ -283,9 +306,10 @@ class Command:
                 arguments = list(shlex)
                 if not arguments:
                     kwargs[name] = await self._get_default(ctx, param)
+                    break
 
                 annotation = param.annotation
-                if annotation is inspect.Parameter.empty or annotation is dict:
+                if annotation is param.empty or annotation is dict:
                     annotation = Dict[str, str]  # default to {str: str}
 
                 key_converter = self._get_converter(annotation.__args__[0])
@@ -293,7 +317,9 @@ class Command:
 
                 kv_pairs = [arg.split("=") for arg in arguments]
                 kwargs[name] = {
-                    await self._convert(ctx, key_converter, key): await self._convert(ctx, value_converter, value)
+                    await self._convert(ctx, key_converter, key.strip()): await self._convert(
+                        ctx, value_converter, value.strip()
+                    )
                     for (key, value) in kv_pairs
                 }
                 break
@@ -313,7 +339,7 @@ class Command:
         return self._convert(ctx, converter, argument)
 
     def _get_converter(self, param_type: type) -> Union[converters.Converter, type]:
-        if param_type.__name__ in dir(steam):  # find a converter
+        if sys.modules[param_type.__module__] is steam:  # find a converter
             converter = getattr(converters, f"{param_type.__name__}Converter", None)
             if converter is None:
                 raise NotImplementedError(f"{param_type.__name__} does not have an associated converter")
@@ -321,7 +347,7 @@ class Command:
         return param_type
 
     async def _convert(
-        self, ctx: "Context", converter: Union[Type[converters.Converter], type], argument: str,
+        self, ctx: "Context", converter: Union[Type[converters.Converter], type, FunctionType], argument: str,
     ):
         if hasattr(converter, "convert"):
             try:
@@ -330,16 +356,25 @@ class Command:
                 else:
                     return await converter.convert(converter, ctx, argument)
             except Exception as exc:
-                raise BadArgument(f"{argument} failed to convert to type {converter.__name__}") from exc
+                raise BadArgument(f"{argument} failed to convert to {converter.__name__}") from exc
         else:
             if converter is bool:
                 return to_bool(argument)
+            if hasattr(converter, "__origin__"):
+                for converter in converter.__args__:
+                    if converter is type(None):
+                        raise BadArgument(f"Failed to convert {argument} to anything")  # don't think this is possible?
+                    try:
+                        return converter(argument)
+                    except TypeError as exc:
+                        raise BadArgument(f"{argument} failed to convert to {converter.__name__}") from exc
+
             try:
                 return converter(argument)
             except TypeError as exc:
-                raise BadArgument(f"{argument} failed to convert to type {converter.__name__}") from exc
+                raise BadArgument(f"{argument} failed to convert to {converter.__name__}") from exc
 
-    async def _get_default(self, ctx, param: inspect.Parameter):
+    async def _get_default(self, ctx: "Context", param: inspect.Parameter):
         if param.default is param.empty:
             raise MissingRequiredArgument(param)
         if inspect.isclass(param.default):
@@ -506,8 +541,11 @@ def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -
     **attrs:
         The attributes to pass to the command's ``__init__``.
     """
-    if cls is None:
-        cls = Command
+
+    def decorator(func: "CommandType") -> Command:
+        if isinstance(func, Command):
+            raise TypeError("Callback is already a command.")
+        return cls(func, name=name, **attrs)
 
     return decorator
 
@@ -560,7 +598,7 @@ def check(predicate: CheckType) -> CommandDeco:
     return decorator
 
 
-def is_owner() -> Callable[[CheckType], CommandDeco]:
+def is_owner() -> CommandDeco:
     async def predicate(ctx: "Context") -> bool:
         if ctx.bot.owner_id:
             return ctx.author.id64 == ctx.bot.owner_id

@@ -147,14 +147,13 @@ class _GroupChannel(BaseChannel):
         self._state = state
         self.id = int(channel.chat_id)
         self.joined_at: Optional[datetime]
-        name = getattr(channel, "chat_name", "")
-        if name:
-            split = name.split(" | ", 1)
+        if hasattr(channel, "chat_name"):
+            split = channel.chat_name.split(" | ", 1)
             self.name = split[1] if len(split) != 1 else split[0]
         else:
             self.name = None
         if hasattr(channel, "time_joined"):
-            self.joined_at = datetime.utcfromtimestamp(channel.time_joined)
+            self.joined_at = datetime.utcfromtimestamp(int(channel.time_joined))
         else:
             self.joined_at = None
 
@@ -163,10 +162,10 @@ class _GroupChannel(BaseChannel):
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<GroupChannel {' '.join(resolved)}>"
 
-    def _get_message_endpoint(self):
+    def _get_message_endpoint(self) -> _MessageEndpointReturnType:
         return (self.id, self.group.id), self._state.send_group_message
 
-    def _get_image_endpoint(self):
+    def _get_image_endpoint(self) -> _MessageEndpointReturnType:
         return (self.id, self.group.id), self._state.http.send_group_image
 
 
@@ -219,8 +218,8 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClanChannel {' '.join(resolved)}>"
 
-    def _get_message_endpoint(self):
+    def _get_message_endpoint(self) -> _MessageEndpointReturnType:
         return (self.id, self.clan.chat_id), self._state.send_group_message
 
-    def _get_image_endpoint(self):
+    def _get_image_endpoint(self) -> _MessageEndpointReturnType:
         return (self.id, self.clan.chat_id), self._state.http.send_group_image

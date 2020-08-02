@@ -198,18 +198,18 @@ class EType(IntEnum):
     Max: EType
 
 class ETypeChar(IntEnum):
-    I: ETypeChar = EType.Invalid
-    U: ETypeChar = EType.Individual
-    M: ETypeChar = EType.Multiseat
-    G: ETypeChar = EType.GameServer
-    A: ETypeChar = EType.AnonGameServer
-    P: ETypeChar = EType.Pending
-    C: ETypeChar = EType.ContentServer
-    g: ETypeChar = EType.Clan
-    T: ETypeChar = EType.Chat
-    L: ETypeChar = EType.Chat
-    c: ETypeChar = EType.Chat
-    a: ETypeChar = EType.AnonUser
+    I: ETypeChar
+    U: ETypeChar
+    M: ETypeChar
+    G: ETypeChar
+    A: ETypeChar
+    P: ETypeChar
+    C: ETypeChar
+    g: ETypeChar
+    T: ETypeChar
+    L: ETypeChar
+    c: ETypeChar
+    a: ETypeChar
 
 class EInstanceFlag(IntEnum):
     MMSLobby: EInstanceFlag
@@ -236,7 +236,6 @@ class EPersonaState(IntEnum):
     LookingToTrade: EPersonaState
     LookingToPlay: EPersonaState
     Max: EPersonaState
-    def __str__(self): ...
 
 class EPersonaStateFlag(IntEnum):
     NONE: EPersonaStateFlag
@@ -250,7 +249,6 @@ class EPersonaStateFlag(IntEnum):
     ClientTypeVR: EPersonaStateFlag
     LaunchTypeGamepad: EPersonaStateFlag
     LaunchTypeCompatTool: EPersonaStateFlag
-    def __str__(self): ...
 
 class ECommunityVisibilityState(IntEnum):
     NONE: ECommunityVisibilityState
