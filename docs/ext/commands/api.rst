@@ -91,7 +91,7 @@ Default Values
 
 .. autoclass:: steam.ext.commands.Default
 
-.. autoclass:: steam.ext.commands.Author
+.. autoclass:: steam.ext.commands.DefaultAuthor
 
 .. autoclass:: steam.ext.commands.DefaultChannel
 

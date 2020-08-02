@@ -47,7 +47,7 @@ __all__ = (
     "GroupConverter",
     "GameConverter",
     "Default",
-    "Author",
+    "DefaultAuthor",
     "DefaultChannel",
     "DefaultClan",
     "DefaultGroup",
@@ -205,7 +205,7 @@ class Default(Protocol):
     Builtin: ::
 
         @bot.command()
-        async def info(ctx, user: steam.User = Author):
+        async def info(ctx, user: steam.User = DefaultAuthor):
             # if no user is passed it will be ctx.author
 
     A custom default: ::
@@ -227,7 +227,7 @@ class Default(Protocol):
         raise NotImplementedError("Derived classes need to implement this")
 
 
-class Author(Default):
+class DefaultAuthor(Default):
     """Returns the :attr:`.Context.author`"""
 
     async def default(self, ctx: "commands.Context"):
