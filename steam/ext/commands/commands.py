@@ -31,9 +31,9 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 import asyncio
 import functools
 import inspect
+import re
 import sys
 import typing
-import re
 from types import FunctionType, MethodType
 from typing import (
     TYPE_CHECKING,

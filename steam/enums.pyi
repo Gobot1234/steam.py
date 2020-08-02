@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from enum import Enum as Enum
+from enum import Enum
 from typing import Any, TypeVar, Union, overload
 
 T = TypeVar("T")

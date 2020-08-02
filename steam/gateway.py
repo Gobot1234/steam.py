@@ -44,6 +44,7 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import aiohttp
+from typing_extensions import Literal
 
 from . import utils
 from .enums import EPersonaState, EResult
@@ -71,7 +72,7 @@ log = logging.getLogger(__name__)
 Msgs = Union[MsgProto, Msg]
 
 
-def return_true(*_) -> bool:
+def return_true(*_, **__) -> Literal[True]:
     return True
 
 

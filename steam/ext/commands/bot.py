@@ -35,10 +35,10 @@ import sys
 import traceback
 from copy import copy
 from shlex import shlex as Shlex
-from types import MappingProxyType, FunctionType
+from types import FunctionType, MappingProxyType
 from typing import (
-    Any,
     TYPE_CHECKING,
+    Any,
     Awaitable,
     Callable,
     Dict,
@@ -51,6 +51,7 @@ from typing import (
     Type,
     Union,
 )
+
 from typing_extensions import Literal, overload
 
 from ... import utils
@@ -67,10 +68,10 @@ if TYPE_CHECKING:
     import steam
     from steam.ext import commands
 
-    from ...message import Message
-    from ...gateway import Msgs
     from ...comment import Comment
+    from ...gateway import Msgs
     from ...invite import ClanInvite, UserInvite
+    from ...message import Message
     from ...trade import TradeOffer
     from ...user import User
 

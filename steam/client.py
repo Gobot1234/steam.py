@@ -34,9 +34,10 @@ import logging
 import signal
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, Dict, List, Optional, Tuple, Union
 
 import aiohttp
+from typing_extensions import Literal, overload
 
 from . import errors, utils
 from .abc import SteamID
@@ -49,13 +50,15 @@ from .models import URL
 from .state import ConnectionState
 
 if TYPE_CHECKING:
+    from types import FunctionType
+
     import steam
 
     from .comment import Comment
     from .enums import EPersonaState, EUIMode
     from .game import Game
     from .group import Group
-    from .invite import Invite
+    from .invite import ClanInvite, Invite, UserInvite
     from .protobufs import Msg, MsgProto
     from .trade import TradeOffer
     from .user import ClientUser, User
@@ -64,7 +67,10 @@ if TYPE_CHECKING:
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
-EventType = Callable[..., Coroutine[None, Any, None]]  # basic event
+EV = Union[
+    Callable[..., Coroutine[None, Any, None]], "FunctionType"
+]  # basic event, shouldn't yield or return anything, mixes in FunctionType for better typings
+EventType: EV = EV
 
 
 def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:

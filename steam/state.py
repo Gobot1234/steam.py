@@ -63,6 +63,8 @@ from .trade import TradeOffer
 from .user import User
 
 if TYPE_CHECKING:
+    from types import FunctionType
+
     from .client import Client
     from .comment import Comment
     from .http import HTTPClient
@@ -81,7 +83,8 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo
 
 log = logging.getLogger(__name__)
-EventParser = Callable[["ConnectionState", "MsgProto"], Optional[Awaitable[None]]]
+EV = Union[Callable[["ConnectionState", "MsgProto"], Optional[Awaitable[None]]], "FunctionType"]
+EventParser: EV = EV
 
 
 class Registerer:
