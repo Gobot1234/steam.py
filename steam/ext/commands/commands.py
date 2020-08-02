@@ -69,6 +69,37 @@ def to_bool(argument: str) -> bool:
         raise BadArgument(f'"{lowered}" is not a recognised boolean option')
 
 
+class CaseInsensitiveDict(dict, Generic[VT]):
+    def __init__(self, **kwargs: VT):
+        super().__init__(**{k.lower(): v for k, v in kwargs.items()})
+
+    def __repr__(self) -> str:
+        return f"CaseInsensitiveDict({', '.join(f'{k}={v!r}' for k, v in self.items())})"
+
+    def __contains__(self, key: str) -> bool:
+        return super().__contains__(key.lower())
+
+    def __delitem__(self, key: str) -> None:
+        super().__delitem__(key.lower())
+
+    def __getitem__(self, key: str) -> VT:
+        return super().__getitem__(key.lower())
+
+    def __setitem__(self, key: str, value: VT) -> None:
+        super().__setitem__(key.lower(), value)
+
+    @overload
+    def get(self, k: str) -> Optional[VT]:
+        ...
+
+    @overload
+    def get(self, k: str, default: Optional[T] = None) -> Optional[Union[VT, T]]:
+        ...
+
+    def get(self, k: str, default=None):
+        return super().get(k.lower(), default)
+
+
 class Command:
     def __init__(self, func: CommandFuncType, **kwargs):
         if not asyncio.iscoroutinefunction(func):
