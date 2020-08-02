@@ -35,34 +35,58 @@ import sys
 import traceback
 from copy import copy
 from shlex import shlex as Shlex
-from types import MappingProxyType
-from typing import TYPE_CHECKING, Awaitable, Callable, Dict, Iterable, List, Mapping, Optional, Set, Type, Union
+from types import MappingProxyType, FunctionType
+from typing import (
+    Any,
+    TYPE_CHECKING,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
+from typing_extensions import Literal, overload
 
 from ... import utils
 from ...client import Client, EventType, log
-from ...errors import ClientException
 from .cog import Cog, ExtensionType, InjectedListener
-from .commands import Command, command
+from .commands import Command, GroupCommand, GroupMixin
 from .context import Context
 from .errors import CheckFailure, CommandNotFound
 from .help import HelpCommand
 
 if TYPE_CHECKING:
+    import datetime
+
     import steam
     from steam.ext import commands
 
     from ...message import Message
+    from ...gateway import Msgs
+    from ...comment import Comment
+    from ...invite import ClanInvite, UserInvite
+    from ...trade import TradeOffer
+    from ...user import User
 
 __all__ = ("Bot",)
 
 
-StrOrIterStr = Union[str, Iterable[str]]
-CommandPrefixType = Union[
+StrOrIterStr: Union[str, Iterable[str]] = Union[str, Iterable[str]]
+CPT = Union[
     StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]],
 ]
+CT = Union[Callable[["Context"], Awaitable[None]], FunctionType]
+CommandPrefixType: CPT = CPT
+CommandType: CT = CT
 
 
-class Bot(Client):
+class Bot(GroupMixin, Client):
     """Represents a Steam bot.
 
     This class is a subclass of :class:`~steam.Client` and as a
@@ -127,10 +151,8 @@ class Bot(Client):
     """
 
     __cogs__: Dict[str, Cog] = dict()
-    __commands__: Dict[str, Command] = dict()
     __listeners__: Dict[str, List[Union["EventType", "InjectedListener"]]] = dict()
     __extensions__: Dict[str, "ExtensionType"] = dict()
-    __inline_commands__: Dict[str, Command] = dict()
 
     def __init__(
         self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options,
@@ -183,8 +205,8 @@ class Bot(Client):
     def help_command(self, value: HelpCommand):
         if not isinstance(value, HelpCommand):
             raise TypeError("help_command should derive from commands.HelpCommand")
-        self._help_command = value
         self.add_command(value)
+        self._help_command = value
 
     def dispatch(self, event: str, *args, **kwargs) -> None:
         super().dispatch(event, *args, **kwargs)
@@ -250,7 +272,10 @@ class Bot(Client):
                 self.remove_cog(cog)
 
         if hasattr(module, "teardown"):
-            module.teardown(self)
+            try:
+                module.teardown(self)
+            except Exception:
+                pass
 
         del sys.modules[extension]
         del self.__extensions__[extension]
@@ -286,7 +311,7 @@ class Bot(Client):
             The cog to add.
         """
         if not isinstance(cog, Cog):
-            raise TypeError("cogs must derive from Cog")
+            raise TypeError("Cogs must derive from commands.Cog")
 
         cog._inject(self)
         self.__cogs__[cog.qualified_name] = cog
@@ -351,64 +376,6 @@ class Bot(Client):
         def decorator(func: "EventType"):
             self.add_listener(func, name)
             return func
-
-        return decorator
-
-    def add_command(self, command: "Command") -> None:
-        """Add a command to the internal commands list.
-
-        Parameters
-        ----------
-        command: :class:`.Command`
-            The command to register.
-        """
-        if not isinstance(command, Command):
-            raise TypeError("the command passed must be a subclass of Command")
-
-        if isinstance(self, Command):
-            command.parent = self
-
-        if command.name in self.__commands__:
-            raise ClientException(f"command {command.name} is already registered.")
-
-        self.__commands__[command.name] = command
-        if not command.aliases:
-            return
-
-        for alias in command.aliases:
-            if alias in self.__commands__:
-                del self.__commands__[command.name]
-                raise ClientException(f"{alias} is already an existing command or alias.")
-            self.__commands__[alias] = command
-
-    def remove_command(self, command: "Command") -> None:
-        """Removes a command from the internal commands list.
-
-        Parameters
-        ----------
-        command: :class:`.Command`
-            The command to remove.
-        """
-        for name, c in tuple(self.__commands__.items()):
-            if name == command.name:
-                if c.aliases:
-                    for alias in c.aliases:
-                        del self.__commands__[alias]
-                del self.__commands__[command.name]
-
-    def command(self, *args, **kwargs) -> Callable[..., Command]:
-        """A shortcut decorator that invokes :func:`.command`
-        and adds it to the internal command list.
-        """
-
-        def decorator(func: Callable[["Context"], Awaitable[None]]):
-            try:
-                kwargs["parent"]
-            except KeyError:
-                kwargs["parent"] = self
-            result = command(*args, **kwargs)(func)
-            self.add_command(result)
-            return result
 
         return decorator
 
@@ -542,21 +509,6 @@ class Bot(Client):
             if message.content.startswith(prefix):
                 return prefix
         return None
-
-    def get_command(self, name) -> Optional[Command]:
-        """Get a command.
-
-        Parameters
-        ----------
-        name: :class:`str`
-            The name of the command.
-
-        Returns
-        -------
-        Optional[:class:`.Command`]
-            The found command or ``None``.
-        """
-        return self.__commands__.get(name)
 
     def get_cog(self, name: str) -> Optional[Cog]:
         """Get a loaded cog.
