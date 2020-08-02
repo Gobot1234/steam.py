@@ -71,14 +71,6 @@ class EnumMember:
     def __hash__(self):
         return hash((self.name, self.value))
 
-    def __eq__(self, other):
-        try:
-            if other._enum_cls_ is self._enum_cls_:
-                return self.value == other.value
-            return False
-        except AttributeError:
-            return NotImplemented
-
 
 class IntEnumMember(EnumMember, int):
     _enum_cls_: "IntEnum"
@@ -169,14 +161,20 @@ class EnumMeta(type):
             raise AttributeError(name) from None
 
     def __setattr__(cls, name, value):
-        if name in cls._enum_member_map_:
+        if name in cls._enum_member_names_:
             raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
+        if _is_dunder(name):
+            for value in cls._enum_member_map_:
+                setattr(value, name, value)
         super().__setattr__(name, value)
 
-    def __delattr__(cls, attr):
-        if attr in cls._enum_member_map_:
+    def __delattr__(cls, name):
+        if name in cls._enum_member_names_:
             raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
-        super().__delattr__(attr)
+        if _is_dunder(name):
+            for value in cls._enum_member_map_:
+                delattr(value, name)
+        super().__delattr__(name)
 
     def __instancecheck__(self, instance):
         # isinstance(x, Y) -> __instancecheck__(Y, x)

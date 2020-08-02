@@ -69,7 +69,8 @@ class DMChannel(BaseChannel):
         return f"<DMChannel participant={self.participant!r}>"
 
     async def send(
-        self, content: Optional[str] = None, *, trade: Optional["TradeOffer"] = None, image: Optional["Image"] = None
+            self, content: Optional[str] = None, *, trade: Optional["TradeOffer"] = None,
+            image: Optional["Image"] = None
     ) -> None:
         await self.participant.send(content=content, trade=trade, image=image)
 

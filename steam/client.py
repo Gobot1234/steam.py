@@ -180,20 +180,6 @@ class Client:
         self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
-    def __new__(cls, *args, **kwargs):  # delete un-subclassed events at run time
-        for base in reversed(cls.__mro__):
-            for name, attr in tuple(base.__dict__.items()):
-                if name[:3] != "on_":  # not an event
-                    continue
-                if "error" in name:  # an error event, we shouldn't delete these
-                    continue
-                try:
-                    if attr.__code__.co_filename == getattr(Client, name, None).__code__.co_filename:
-                        delattr(base, name)
-                except AttributeError:
-                    pass
-        return super().__new__(cls)
-
     @property
     def user(self) -> Optional["ClientUser"]:
         """Optional[:class:`~steam.ClientUser`]: Represents the connected client. ``None`` if not logged in."""
