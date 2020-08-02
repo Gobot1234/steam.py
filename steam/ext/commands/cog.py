@@ -31,7 +31,7 @@ import traceback
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Awaitable, Dict, List, Optional
 
-from .commands import Command
+from .commands import Command, GroupCommand
 
 if TYPE_CHECKING:
     from steam.ext import commands
@@ -40,7 +40,10 @@ if TYPE_CHECKING:
     from .bot import Bot
     from .context import Context
 
-__all__ = ("Cog",)
+__all__ = (
+    "Cog",
+    "ExtensionType",
+)
 
 
 class InjectedListener:
@@ -110,11 +113,11 @@ class Cog:
         cls.__commands__ = dict()
         for base in reversed(cls.__mro__):
             for name, attr in base.__dict__.items():
-                try:
+                if name in cls.__commands__:
                     del cls.__commands__[name]
-                except KeyError:
-                    pass
                 if isinstance(attr, Command):
+                    if attr.parent:  # ungrouped commands have no parent
+                        continue
                     cls.__commands__[name] = attr
                 elif hasattr(attr, "__event_name__"):
                     try:
@@ -193,17 +196,21 @@ class Cog:
 
     def _inject(self, bot: "Bot") -> None:
         for idx, command in enumerate(self.__commands__.values()):
-            old_attrs = command.__dict__
-            for name, value in self.command_attrs.items():
-                if (name, value) not in old_attrs.items():
-                    setattr(command, name, value)
             command.cog = self
             command.checks.append(self.cog_check)
+            old_attrs = command.__dict__.items()
+            setattr(self, command.callback.__name__, command)
+            for name, value in self.command_attrs.items():
+                if (name, value) not in old_attrs:
+                    setattr(command, name, value)
+            if isinstance(command, GroupCommand):
+                for child in command.children:
+                    child.cog = self
             try:
                 bot.add_command(command)
             except Exception:
                 # undo our additions
-                for to_undo in tuple(self.__commands__.values())[:idx]:
+                for to_undo in tuple(self.__commands__)[:idx]:
                     bot.remove_command(to_undo)
                 raise
 
@@ -215,7 +222,9 @@ class Cog:
                 bot.add_listener(listener, name)
 
     def _eject(self, bot: "Bot") -> None:
-        for command in self.__commands__.values():
+        for command in self.__commands__:
+            if isinstance(command, GroupCommand):
+                command.recursively_remove_all_commands()
             bot.remove_command(command)
 
         for name, listeners in self.__listeners__.items():

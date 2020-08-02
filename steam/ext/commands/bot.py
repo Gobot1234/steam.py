@@ -135,6 +135,7 @@ class Bot(Client):
     def __init__(
         self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options,
     ):
+        super().__init__(**options)
         self.command_prefix = command_prefix
         self.owner_id = utils.make_steam64(options.get("owner_id", 0))
         owner_ids: Set[int] = options.get("owner_ids", ())
@@ -143,41 +144,24 @@ class Bot(Client):
             self.owner_ids.add(utils.make_steam64(owner_id))
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
-        super().__init__(**options)
-        self.help_command = help_command
 
-        for command in self.__inline_commands__.values():
-            command.cog = self
-            command.cog.cog_command_error = self.on_command_error
-            self.add_command(command)
-
-    def __init_subclass__(cls, **kwargs):
-        for base in reversed(cls.__mro__):
-            for name, attr in tuple(base.__dict__.items()):
-                try:
-                    del cls.__inline_commands__[name]
-                except KeyError:
-                    pass
+        commands: Dict[str, Command] = {}
+        for base in reversed(self.__class__.__mro__):
+            for name, attr in base.__dict__.items():
+                if name in self.__commands__:
+                    del commands[name]
                 if isinstance(attr, Command):
-                    cls.__inline_commands__[name] = attr
-                    continue
-                if name[:3] != "on_":  # not an event
-                    continue
-                if "error" in name:  # an error handler, we shouldn't delete these
-                    continue
-                if name == "on_message":
-                    continue
-                try:  # check if the functions filename is the same as this one
-                    if attr.__code__.co_filename == getattr(Bot, name, None).__code__.co_filename:
-                        delattr(base, name)
-                except AttributeError:
-                    pass
-        return object.__new__(cls)  # bypass Client.__new__
-
-    @property
-    def commands(self) -> Set[Command]:
-        """Set[:class:`.Command`]: A list of the loaded commands."""
-        return set(self.__commands__.values())
+                    if attr.parent:  # ungrouped commands have no parent
+                        continue
+                    commands[name] = attr
+        for command in commands.values():
+            setattr(self, command.callback.__name__, command)
+            if isinstance(command, GroupCommand):
+                for child in command.children:
+                    child.cog = self
+            command.cog = self
+            self.add_command(command)
+        self.help_command = help_command
 
     @property
     def cogs(self) -> Mapping[str, Cog]:
