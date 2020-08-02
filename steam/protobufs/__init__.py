@@ -110,8 +110,7 @@ class MsgBase(Generic[T]):
             resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
         return " ".join(resolved)
 
-    def parse(self, proto: Type[T]) -> None:
-        """Parse the payload/data into a protobuf."""
+    def _parse(self, proto: Optional[Type[T]]) -> None:
         if proto:
             self.body: T = proto()
             if self.payload:
@@ -153,7 +152,7 @@ class MsgBase(Generic[T]):
 
 
 class Msg(MsgBase[T]):
-    r"""A wrapper around received protobuf messages.
+    """A wrapper around received protobuf messages.
 
     .. container:: operations
 
@@ -167,7 +166,6 @@ class Msg(MsgBase[T]):
             body. e.g.::
 
                 async def handle_multi(self, msg: MsgProto['CMsgMulti']) -> None:
-                    log.debug('Received a multi, unpacking')
                     if msg.body.size_unzipped:  # this is now properly typed
                         ...
 
@@ -180,7 +178,7 @@ class Msg(MsgBase[T]):
     extended: :class:`bool`
         Which header type to use, ``True`` uses
         :class:`.ExtendedMsgHdr` else it's :class:`.MsgHdr`.
-    \*\*kwargs
+    **kwargs
         Any keyword-arguments to construct the :attr:`body` with.
 
     Attributes
@@ -210,11 +208,11 @@ class Msg(MsgBase[T]):
         """Parse the payload/data into a protobuf."""
         if self.body is None:
             proto = get_cmsg(self.msg)
-            super().parse(proto)
+            self._parse(proto)
 
 
 class MsgProto(MsgBase[T]):
-    r"""A wrapper around received protobuf messages.
+    """A wrapper around received protobuf messages.
 
     .. container:: operations
 
@@ -224,8 +222,8 @@ class MsgProto(MsgBase[T]):
 
         .. describe:: x[y]
 
-            Allows for type hinting of the messages
-            body. e.g.::
+            Allows for type hinting of the messages body.
+            e.g.::
 
                 async def handle_multi(self, msg: MsgProto['CMsgMulti']) -> None:
                     log.debug('Received a multi, unpacking')
@@ -238,7 +236,7 @@ class MsgProto(MsgBase[T]):
         The emsg for the message.
     data: Optional[:class:`bytes`]
         The raw data for the message.
-    \*\*kwargs
+    **kwargs
         Any keyword-arguments to construct the :attr:`body` with.
 
     Attributes
@@ -284,4 +282,4 @@ class MsgProto(MsgBase[T]):
             else:
                 proto = get_cmsg(self.msg)
 
-            super().parse(proto)
+            self._parse(proto)
