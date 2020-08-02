@@ -48,7 +48,7 @@ class Context(Messageable):
         The message the context was generated from.
     prefix: :class:`str`
         The prefix of the message the context was generated from
-    author: :class:`~steam.abc.BaseUser`
+    author: :class:`~steam.User`
         The author of the message.
     channel: :class:`~steam.abc.BaseChannel`
         The channel the message was sent in.

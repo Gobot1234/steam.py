@@ -81,6 +81,7 @@ class Bot(Client):
             - Callable[[:class:`Bot`, :class:`~steam.Message`], Awaitable[Union[:class:`str`, Iterable[:class:`str`]]]
 
         .. note::
+
             The first prefix matched when getting context will always be returned,
             ensure that no prefix matches a longer prefix later in the sequence.
             e.g. ::
@@ -93,16 +94,13 @@ class Bot(Client):
             it should always be last as no prefix after it will be matched.
 
     owner_id: :class:`int`
-        The Steam ID of the owner, this is converted to their 64 bit ID
-        representation upon initialization.
+        The Steam ID of the owner, this is converted to their 64 bit ID representation upon initialization.
     owner_ids: Set[:class:`int`]
-        The Steam IDs of the owners, these are converted to their 64 bit ID
-        representation upon initialization.
+        The Steam IDs of the owners, these are converted to their 64 bit ID representations upon initialization.
 
     loop: Optional[:class:`asyncio.AbstractEventLoop`]
-        The :class:`asyncio.AbstractEventLoop` used for asynchronous operations.
-        Defaults to ``None``, in which case the default event loop is used via
-        :func:`asyncio.get_event_loop()`.
+        The :class:`asyncio.AbstractEventLoop` used for asynchronous operations. Defaults to ``None``, in which case the
+        default event loop is used via :func:`asyncio.get_event_loop()`.
     game: :class:`~steam.Game`
         A games to set your status as on connect.
     games: List[:class:`~steam.Game`]
@@ -111,9 +109,8 @@ class Bot(Client):
         The state to show your account as on connect.
 
         .. note::
-            Setting your status to :attr:`~steam.EPersonaState.Offline`,
-            will stop you receiving persona state updates and by extension
-            :meth:`on_user_update` will stop being dispatched.
+            Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state
+            updates and by extension :meth:`on_user_update` will stop being dispatched.
 
     ui_mode: :class:`~steam.EUIMode`
         The UI mode to set your status to on connect.
@@ -349,8 +346,7 @@ class Bot(Client):
         func: Callable[..., Awaitable[None]]
             The listener to remove.
         name: Optional[:class:`str`]
-            The name of the event to remove.
-            Defaults to ``func.__name__``.
+            The name of the event to remove. Defaults to ``func.__name__``.
         """
         name = name or func.__name__
 
@@ -360,15 +356,12 @@ class Bot(Client):
             pass
 
     def listen(self, name: Optional[str] = None) -> Callable[..., "EventType"]:
-        """Register a function as a listener.
-        Calls :meth:`add_listener`.
-        Similar to :meth:`.Cog.listener`
+        """Register a function as a listener. Calls :meth:`add_listener`. Similar to :meth:`.Cog.listener`
 
         Parameters
         ----------
         name: Optional[:class:`str`]
-            The name of the event to listen for.
-            Will default to ``func.__name__``.
+            The name of the event to listen for. Will default to ``func.__name__``.
         """
 
         def decorator(func: "EventType"):
@@ -451,10 +444,9 @@ class Bot(Client):
         A method to process commands for a message.
 
         .. warning::
-            This is vital for commands to function.
-            If you have an :meth:`on_message` as a registered
-            event using :meth:`event` commands will not be dispatched.
-            Remember to add a call to this in your :meth:`on_message` event.
+            This is vital for commands to function. If you have an :meth:`on_message` as a registered event using
+            :meth:`event` commands will not be dispatched. Remember to add a call to this in your :meth:`on_message`
+            event.
 
         Parameters
         ----------
@@ -467,8 +459,7 @@ class Bot(Client):
 
     async def invoke(self, ctx: "Context") -> None:
         """|coro|
-        Invoke a command. This will parse arguments,
-        checks, cooldowns etc. correctly.
+        Invoke a command. This will parse arguments, checks, cooldowns etc. correctly.
 
         Parameters
         ----------
@@ -499,7 +490,7 @@ class Bot(Client):
             self.dispatch("command_completion", ctx)
 
     async def get_context(self, message: "Message", *, cls: Type[Context] = Context) -> Context:
-        r"""|coro|
+        """|coro|
         Get context for a certain message.
 
         Parameters
@@ -615,8 +606,8 @@ class Bot(Client):
 
     async def on_command_error(self, ctx: "commands.Context", error: Exception):
         """|coro|
-        The default command error handler provided by the bot.
-        This only fires if you do not specify any listeners for command error.
+        The default command error handler provided by the bot. This only fires if you do not specify any listeners for
+        command error.
 
         Parameters
         ----------

@@ -72,7 +72,7 @@ class Converter(Protocol):
             # this will end up making the user variable a `User` object.
 
         # invoked as
-        # !command 80528701850124288
+        # !command 76561198248053954
         # or !command "Gobot1234"
 
     A custom converter: ::
@@ -219,6 +219,8 @@ class Default(Protocol):
         @bot.command()
         async def source(ctx, command=CurrentCommand):
             # command would now be source
+
+        # this could also be mixed in with a converter to convert a string to a command.
     """
 
     async def default(self, ctx: "commands.Context"):

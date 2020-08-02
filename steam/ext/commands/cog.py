@@ -69,8 +69,7 @@ class ExtensionType(ModuleType):
 
 
 class Cog:
-    """A class from which Cogs can be created.
-    These are used to separate commands and listeners into separate files.
+    """A class from which Cogs can be created. These are used to separate commands and listeners into separate files.
 
     Attributes
     ----------
@@ -94,7 +93,7 @@ class Cog:
                     ...
 
                 @commands.command(enabled=True)
-                async def working(self, ctx):  # enabled
+                async def working(self, ctx):  # still enabled
                     ...
     """
 

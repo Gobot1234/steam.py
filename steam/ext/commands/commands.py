@@ -135,8 +135,7 @@ class Command:
             return self.callback(*args, **kwargs)
 
     def error(self, func: "EventType") -> "EventType":
-        """Register an event to handle a commands
-        ``on_error`` function.
+        """Register an event to handle a commands ``on_error`` function.
 
         Example: ::
 
@@ -162,8 +161,7 @@ class Command:
         iterator = iter(self.params.items())
 
         if self.cog is not None:
-            # we have 'self' as the first parameter so just advance
-            # the iterator and resume parsing
+            # we have 'self' as the first parameter so just advance the iterator and resume parsing
             try:
                 next(iterator)
             except StopIteration:
@@ -414,9 +412,8 @@ def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -
         The name of the command.
         Will default to ``func.__name__``.
     cls: Type[:class:`Command`]
-        The class to construct the command from. Defaults to
-        :class:`Command`.
-    \*\*attrs:
+        The class to construct the command from. Defaults to :class:`Command`.
+    **attrs:
         The attributes to pass to the command's ``__init__``.
     """
     if cls is None:

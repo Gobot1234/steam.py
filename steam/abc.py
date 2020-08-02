@@ -288,10 +288,9 @@ class SteamID(metaclass=abc.ABCMeta):
         url: :class:`str`
             The Steam community url.
         session: Optional[:class:`aiohttp.ClientSession`]
-            The session to make the request with. If
-            ``None`` is passed a new one is generated.
+            The session to make the request with. If ``None`` is passed a new one is generated.
         timeout: Optional[:class:`float`]
-            How long to wait on http request before turning ``None``.
+            How long to wait on http request before returning ``None``.
 
         Returns
         -------
@@ -330,8 +329,8 @@ class BaseUser(SteamID):
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
-        The Game instance attached to the user. Is None if the user
-        isn't in a game or one that is recognised by the api.
+        The Game instance attached to the user. Is ``None`` if the user isn't in a game or one that is recognised by the
+        api.
     primary_clan: Optional[:class:`SteamID`]
         The primary clan the User displays on their profile.
     avatar_url: :class:`str`
@@ -704,7 +703,7 @@ class Message:
         The channel the message was sent in.
     content: :class:`str`
         The message's content.
-    author: :class:`steam.abc.BaseUser`
+    author: :class:`steam.`User`
         The message's author.
     created_at: :class:`datetime.datetime`
         The time the message was sent at.

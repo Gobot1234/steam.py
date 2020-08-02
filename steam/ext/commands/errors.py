@@ -81,13 +81,15 @@ class MissingRequiredArgument(CommandError):
 class CheckFailure(CommandError):
     """Base Exception raised when a check fails.
 
-    Subclass of :exc:`CommandError`."""
+    Subclass of :exc:`CommandError`.
+    """
 
 
 class NotOwner(CheckFailure):
     """Exception raised the user does not own the bot.
 
-    Subclass of :exc:`CheckFailure`."""
+    Subclass of :exc:`CheckFailure`.
+    """
 
     def __init__(self):
         super().__init__("You do not own this bot")
@@ -101,8 +103,7 @@ class CommandOnCooldown(CommandError):
     Attributes
     ----------
     retry_after: :class:`float`
-        The time in seconds at which that the next command can
-        successfully be executed.
+        The time in seconds at which that the next command can successfully be executed.
     """
 
     def __init__(self, retry_after: float):

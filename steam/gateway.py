@@ -301,14 +301,18 @@ class SteamWebSocket:
         self.socket = socket
         self.loop = loop
 
+        # state stuff
         self._connection: Optional["ConnectionState"] = None
         self.cm_list: Optional[CMServerList] = None
+        # the keep alive
         self._keep_alive: Optional[KeepAliveHandler] = None
-        self._dispatch = return_true  # in practice the same same as lambda *args: None
+        # an empty dispatcher to prevent crashes
+        self._dispatch = return_true  # in practice this is the same as lambda *args: None
         self.cm: Optional[str] = None
         self.cell_id = 0
         self.thread_id = threading.get_ident()
 
+        # ws related stuff
         self.listeners: List[EventListener] = []
         self._parsers: Dict[EMsg, EventParser] = dict()
 

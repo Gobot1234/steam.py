@@ -178,8 +178,7 @@ class GroupChannel(_GroupChannel):
     id: :class:`int`
         The ID of the channel.
     name: Optional[:class:`str`]
-        The name of the channel, this could be the same
-        as the :attr:`~steam.Group.name` if it's the main channel.
+        The name of the channel, this could be the same as the :attr:`~steam.Group.name` if it's the main channel.
     group: :class:`~steam.Group`
         The group to which messages are sent.
     joined_at: Optional[:class:`datetime.datetime`]
