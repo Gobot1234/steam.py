@@ -639,7 +639,7 @@ class ConnectionState:
             except (KeyError, TypeError):
                 steam_id = SteamID(user_id64)
                 invitee = await self.fetch_user(steam_id.id64) or steam_id
-                invite = UserInvite(self, invitee)
+                invite = UserInvite(self, invitee, None)
                 self.dispatch("user_invite", invite)
 
             after._update(data)
@@ -690,9 +690,10 @@ class ConnectionState:
                 EFriendRelationship.RequestRecipient,
             ):
                 steam_id = SteamID(user.ulfriendid)
+                relationship = EFriendRelationship(user.efriendrelationship)
                 if steam_id.type == EType.Individual:
                     invitee = await self.fetch_user(steam_id.id64) or steam_id
-                    invite = UserInvite(self, invitee)
+                    invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
                     self.invites.append(invitee)
                     self.dispatch("user_invite", invite)
                 if steam_id.type == EType.Clan:
@@ -706,7 +707,7 @@ class ConnectionState:
                             break
                     invitee = self.get_user(invitee_id) or await self.fetch_user(invitee_id) or SteamID(invitee_id)
                     clan = self.get_clan(steam_id.id64) or await self.client.fetch_clan(steam_id.id64) or steam_id
-                    invite = ClanInvite(state=self, invitee=invitee, clan=clan)
+                    invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
                     self.dispatch("clan_invite", invite)
                     self.invites.append(clan)
 

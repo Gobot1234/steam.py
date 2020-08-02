@@ -24,10 +24,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .clan import Clan
+    from .enums import EFriendRelationship
     from .state import ConnectionState
     from .user import User
 
@@ -46,13 +47,16 @@ class Invite:
     ----------
     invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The user who sent the invite.
+    relationship: Optional[:class:`~steam.EFriendRelationship`]
+        The relationship you have with the invitee.
     """
 
-    __slots__ = ("invitee", "_state")
+    __slots__ = ("invitee", "relationship", "_state")
 
-    def __init__(self, state: "ConnectionState", invitee: "User"):
+    def __init__(self, state: "ConnectionState", invitee: "User", relationship: Optional["EFriendRelationship"]):
         self._state = state
         self.invitee = invitee
+        self.relationship = relationship
 
 
 class UserInvite(Invite):
@@ -62,6 +66,8 @@ class UserInvite(Invite):
     ----------
     invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The user who sent the invite.
+    relationship: Optional[:class:`~steam.EFriendRelationship`]
+        The relationship you have with the invitee. This is only ``None``
     """
 
     def __repr__(self):
@@ -92,19 +98,20 @@ class ClanInvite(Invite):
         The clan to join.
     invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The user who sent the invite.
+    relationship: :class:`~steam.EFriendRelationship`
+        The relationship you have with the clan.
     """
 
     __slots__ = ("clan",)
 
-    def __init__(self, state: "ConnectionState", invitee: "User", clan: "Clan"):
-        super().__init__(state, invitee)
+    def __init__(
+        self, state: "ConnectionState", invitee: "User", clan: "Clan", relationship: Optional["EFriendRelationship"]
+    ):
+        super().__init__(state, invitee, relationship)
         self.clan = clan
 
     def __repr__(self):
-        attrs = (
-            "invitee",
-            "clan",
-        )
+        attrs = ("invitee", "clan")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClanInvite {' '.join(resolved)}>"
 
