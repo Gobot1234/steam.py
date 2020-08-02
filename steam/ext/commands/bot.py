@@ -631,24 +631,306 @@ class Bot(Client):
         print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    async def on_command(self, ctx: "commands.Context"):
+    if TYPE_CHECKING:  # don't use these at run time
+
+        async def on_command(self, ctx: "commands.Context"):
+            """|coro|
+            A method that is called every time a command is dispatched.
+
+            Parameters
+            ----------
+            ctx: :class:`.Context`
+                The invocation context.
+            """
+
+        async def on_command_completion(self, ctx: "commands.Context"):
+            """|coro|
+            A method that is called every time a command is dispatched and completed without error.
+
+            Parameters
+            ----------
+            ctx: :class:`.Context`
+                The invocation context.
+            """
+
+    @overload
+    def wait_for(
+        self, __event: str, *, check: Optional[Callable[..., bool]] = ..., timeout: Optional[float] = ...
+    ) -> Awaitable[None]:
+        ...
+
+    @overload
+    def wait_for(
+        self, __event: Literal["connect"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
+    ) -> Awaitable[None]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["disconnect"],
+        *,
+        check: Optional[Callable[[], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[None]:
+        ...
+
+    @overload  # don't know why you'd do this
+    def wait_for(
+        self, __event: Literal["ready"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
+    ) -> Awaitable[None]:
+        ...
+
+    @overload
+    def wait_for(
+        self, __event: Literal["login"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
+    ) -> Awaitable[None]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["error"],
+        *,
+        check: Optional[Callable[[str, Exception, Any, Any], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[Tuple[str, Exception, Any, Any]]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["message"],
+        *,
+        check: Optional[Callable[["steam.Message"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["steam.Message"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["comment"],
+        *,
+        check: Optional[Callable[["Comment"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["Comment"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["user_update"],
+        *,
+        check: Optional[Callable[["User", "User"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[Tuple["User", "User"]]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["typing"],
+        *,
+        check: Optional[Callable[["User", "datetime.datetime"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[Tuple["User", "datetime.datetime"]]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["trade_receive"],
+        *,
+        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["TradeOffer"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["trade_send"],
+        *,
+        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["TradeOffer"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["trade_accept"],
+        *,
+        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["TradeOffer"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["trade_decline"],
+        *,
+        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["TradeOffer"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["trade_cancel"],
+        *,
+        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["TradeOffer"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["trade_expire"],
+        *,
+        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["TradeOffer"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["trade_counter"],
+        *,
+        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["TradeOffer"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["user_invite"],
+        *,
+        check: Optional[Callable[["UserInvite"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["UserInvite"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["clan_invite"],
+        *,
+        check: Optional[Callable[["ClanInvite"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["ClanInvite"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["socket_receive"],
+        *,
+        check: Optional[Callable[["Msgs"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["Msgs"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["socket_raw_receive"],
+        *,
+        check: Optional[Callable[[bytes], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[bytes]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["socket_send"],
+        *,
+        check: Optional[Callable[["Msgs"], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable["Msgs"]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["socket_raw_send"],
+        *,
+        check: Optional[Callable[[bytes], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[bytes]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["command_error"],
+        *,
+        check: Optional[Callable[[Context, Exception], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[Tuple[Context, Exception]]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["command"],
+        *,
+        check: Optional[Callable[[Context], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[Context]:
+        ...
+
+    @overload
+    def wait_for(
+        self,
+        __event: Literal["command_completion"],
+        *,
+        check: Optional[Callable[[Context], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> Awaitable[Context]:
+        ...
+
+    def wait_for(
+        self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
+    ) -> Awaitable[Any]:
         """|coro|
-        A method that is called every time a command is
-        dispatched.
+        Waits for an event to be dispatched.
+
+        In case the event returns multiple arguments, a :class:`tuple` containing those arguments is returned instead.
+        Please check the `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_ for a list of
+        events and their parameters.
+
+        .. note::
+            This function returns the **first event that meets the requirements**.
 
         Parameters
-        ----------
-        ctx: :class:`.Context`
-            The invocation context.
-        """
+        ------------
+        event: :class:`str`
+            The event name from the `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
+            but without the ``on_`` prefix, to wait for.
+        check: Optional[Callable[..., :class:`bool`]]
+            A predicate to check what to wait for. The arguments must meet the parameters of the event being waited for.
+            The check **MUST** return a :class:`bool`.
+        timeout: Optional[:class:`float`]
+            The number of seconds to wait before timing out and raising :exc:`asyncio.TimeoutError`. This is passed to
+            :func:`asyncio.wait_for`. By default, it does not timeout. Note that this does propagate the
+            :exc:`asyncio.TimeoutError` for you in case of timeout and is provided for ease of use.
 
-    async def on_command_completion(self, ctx: "commands.Context"):
-        """|coro|
-        A method that is called every time a command is
-        dispatched and completed without error.
+        Raises
+        -------
+        asyncio.TimeoutError
+            If the provided timeout was reached.
 
-        Parameters
-        ----------
-        ctx: :class:`.Context`
-            The invocation context.
+        Returns
+        --------
+        Returns no arguments, a single argument, or a :class:`tuple` of multiple arguments that mirrors the
+        parameters passed in the `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
         """
+        return super().wait_for(event, check=check, timeout=timeout)
