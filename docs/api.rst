@@ -15,8 +15,7 @@ Version Related Info
 
 .. data:: __version__
 
-    A string representation of the version. e.g. ``'0.1.3'``. This is based
-    off of :pep:`440`.
+    A string representation of the version. e.g. ``'0.1.3'``. This is based off of :pep:`440`.
 
 Client
 ---------------

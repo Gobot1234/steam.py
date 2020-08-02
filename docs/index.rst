@@ -15,6 +15,7 @@ and borrowing functionality from `ValvePython/steam <https://github.com/ValvePyt
 - Modern Pythonic API using ``async``/``await`` syntax
 - Command extension to aid with bot creation
 - Easy to use with an object oriented design
+- Fully typed
 
 
 Documentation Contents

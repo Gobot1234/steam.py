@@ -12,6 +12,7 @@ Key Features
 - Modern Pythonic API using ``async``/``await`` syntax
 - Command extension to aid with bot creation
 - Easy to use with an object oriented design
+- Fully typed
 
 Installation
 --------------
