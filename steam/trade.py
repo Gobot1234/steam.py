@@ -342,24 +342,21 @@ class TradeOffer:
     Attributes
     -------------
     partner: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
-        The trade offer partner. This should only ever be a :class:`~steam.SteamID`
-        if the partner's profile is private.
+        The trade offer partner. This should only ever be a :class:`~steam.SteamID` if the partner's profile is private.
     items_to_send: Union[List[:class:`Item`], List[:class:`Asset`]]
         A list of items to send to the partner.
     items_to_receive: Union[List[:class:`Item`], List[:class:`Asset`]]
         A list of items to receive from the partner.
     state: :class:`~steam.ETradeOfferState`
-        The offer state of the trade for the possible types see
-        :class:`~steam.ETradeOfferState`.
+        The offer state of the trade for the possible types see :class:`~steam.ETradeOfferState`.
     message: :class:`str`
         The message included with the trade offer.
     id: :class:`int`
-        The trade offer id of the trade.
+        The trade's offer ID.
     expires: :class:`datetime.datetime`
         The time at which the trade automatically expires.
     escrow: Optional[:class:`datetime.datetime`]
-        The time at which the escrow will end. Can be None
-        if there is no escrow on the trade.
+        The time at which the escrow will end. Can be ``None`` if there is no escrow on the trade.
     """
 
     __slots__ = (

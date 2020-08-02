@@ -125,8 +125,8 @@ class User(BaseUser, Messageable):
         Returns
         --------
         Optional[:class:`datetime.timedelta`]
-            The time at which any items sent/received would arrive
-            ``None`` if the :class:`User` has no escrow or has a private inventory.
+            The time at which any items sent/received would arrive ``None`` if the :class:`User` has no escrow or has a
+            private inventory.
         """
         resp = await self._state.http.get_user_escrow(self.id64, token)
         their_escrow = resp["response"].get("their_escrow")
@@ -158,9 +158,9 @@ class User(BaseUser, Messageable):
 
         Raises
         ------
-        :exc:~steam.HTTPException
+        :exc:`~steam.HTTPException`
             Sending the message failed.
-        :exc:~steam.Forbidden
+        :exc:`~steam.Forbidden`
             You do not have permission to send the message.
         """
 
