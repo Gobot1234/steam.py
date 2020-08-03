@@ -80,8 +80,13 @@ class User(BaseUser, Messageable):
         The user's primary group.
     created_at: Optional[:class:`datetime.datetime`]
         The time at which the user's account was created. Could be ``None``.
+    last_logon: Optional[:class:`datetime.datetime`]
+        The last time the user logged into steam. This is only ``None`` if user hasn't been updated from the websocket.
     last_logoff: Optional[:class:`datetime.datetime`]
-        The last time the user logged into steam. Could be ``None`` (e.g. if they are currently online).
+        The last time the user logged off from steam. Could be ``None`` (e.g. if they are currently online).
+    last_seen_online: Optional[:class:`datetime.datetime`]
+        The last time the user could be seen online. This is only ``None`` if user hasn't been updated from the
+        websocket.
     country: Optional[:class:`str`]
         The country code of the account. Could be ``None``.
     flags: :class:`~steam.EPersonaStateFlag`
@@ -240,8 +245,8 @@ class ClientUser(BaseUser):
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
-        The Game instance attached to the user. Is ``None`` if the user
-        isn't in a game or one that is recognised by the api.
+        The Game instance attached to the user. Is ``None`` if the user isn't in a game or one that is recognised by
+        the api.
     avatar_url: :class:`str`
         The avatar url of the user. Uses the large (184x184 px) image url.
     real_name: Optional[:class:`str`]
@@ -250,8 +255,13 @@ class ClientUser(BaseUser):
         The user's primary group. Could be ``None``
     created_at: Optional[:class:`datetime.datetime`]
         The time at which the user's account was created. Could be ``None``.
+    last_logon: Optional[:class:`datetime.datetime`]
+        The last time the user logged into steam. This is only ``None`` if user hasn't been updated from the websocket.
     last_logoff: Optional[:class:`datetime.datetime`]
-        The last time the user logged into steam. Could be ``None`` (e.g. if they are currently online).
+        The last time the user logged off from steam. Could be ``None`` (e.g. if they are currently online).
+    last_seen_online: Optional[:class:`datetime.datetime`]
+        The last time the user could be seen online. This is only ``None`` if user hasn't been updated from the
+        websocket.
     country: Optional[:class:`str`]
         The country code of the account. Could be ``None``.
     flags: Union[:class:`~steam.EPersonaStateFlag`, :class:`int`]

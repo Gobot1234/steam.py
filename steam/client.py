@@ -979,9 +979,9 @@ class Client:
             - :attr:`~steam.User.name`
             - :attr:`~steam.User.state`
             - :attr:`~steam.User.flags`
-            - :attr:`~steam.User.avatar`
+            - :attr:`~steam.User.avatar_url`
             - :attr:`~steam.User.last_logon`
-            - :attr:`~steam.User.last_logout`
+            - :attr:`~steam.User.last_logoff`
             - :attr:`~steam.User.last_seen_online`
             - :attr:`~steam.User.game`
 
