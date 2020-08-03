@@ -157,7 +157,7 @@ ID3_REGEX = re.compile(
     rf"\[(?P<type>[i{''.join(type_char.name for type_char in ETypeChar)}]):"
     r"(?P<universe>[0-4]):"
     r"(?P<id>\d{1,10})"
-    r"(:(?P<instance>\d+))?\]",
+    r"(:(?P<instance>\d+))?]",
 )
 URL_REGEX = re.compile(
     r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/(?P<type>profiles|id|gid|groups)/(?P<value>.+))"
