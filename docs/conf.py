@@ -7,7 +7,6 @@
 import os
 import re
 import sys
-import typing
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -15,7 +14,6 @@ import typing
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.append(os.path.abspath("extensions"))
 
-typing.TYPE_CHECKING = True
 
 # -- General configuration ------------------------------------------------
 
