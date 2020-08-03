@@ -180,8 +180,7 @@ class Client:
         self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
-    def __new__(cls, **kwargs):
-        cls.to_check = []
+    def __init_subclass__(cls, **kwargs):
         for base in reversed(cls.__mro__):
             for name, attr in tuple(base.__dict__.items()):
                 if name[:3] != "on_":  # not an event
@@ -189,11 +188,10 @@ class Client:
                 if "error" in name:  # an error event, we shouldn't delete these
                     continue
                 try:
-                    if attr.__code__.co_filename == getattr(Client, name, None).__code__.co_filename:
+                    if attr.__code__.co_filename == getattr(Client, name).__code__.co_filename:
                         delattr(base, name)
                 except AttributeError:
-                    cls.to_check.append((name, attr))
-        return super().__new__(cls)
+                    pass
 
     @property
     def user(self) -> Optional["ClientUser"]:

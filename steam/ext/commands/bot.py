@@ -176,27 +176,27 @@ class Bot(GroupMixin, Client):
             command.cog = self
             self.add_command(command)
         self.help_command = help_command
-
-    def __new__(cls, **kwargs):
-        self = super().__new__(cls)
-        self.inline_commands = dict()
-        for name, attr in inspect.getmembers(cls):
-            if name in commands:
-                del self.inline_commands[name]
-            if isinstance(attr, Command):
-                if attr.parent:  # ungrouped commands have no parent
-                    continue
-                self.inline_commands[name] = attr
-
-        for name, attr in self.to_check:
-            try:
-                if attr.__code__.co_filename == getattr(Bot, name, None).__code__.co_filename:
-                    delattr(cls, name)
-            except AttributeError:
-                pass
         del self.inline_commands
-        del self.to_check
-        return self
+
+    def __init_subclass__(cls, **kwargs):
+        cls.inline_commands = dict()
+        for base in reversed(cls.__mro__):
+            for name, attr in tuple(base.__dict__.items()):
+                if name in cls.inline_commands:
+                    del cls.inline_commands[name]
+                if isinstance(attr, Command):
+                    if attr.parent:  # sub-command don't add it to the global commands
+                        continue
+                    cls.inline_commands[name] = attr
+                if name[:3] != "on_":  # not an event
+                    continue
+                if "error" in name or name == "on_message":
+                    continue
+                try:
+                    if attr.__code__.co_filename == getattr(Bot, name).__code__.co_filename:
+                        delattr(base, name)
+                except AttributeError:
+                    pass
 
     @property
     def cogs(self) -> Mapping[str, Cog]:
