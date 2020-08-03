@@ -162,6 +162,10 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: EFriendRelationship
+    :members:
+    :undoc-members:
+
 
 Guard
 ---------------
@@ -233,6 +237,10 @@ Channel
     :inherited-members:
 
 .. autoclass:: GroupChannel()
+    :members:
+    :inherited-members:
+
+.. autoclass:: ClanChannel()
     :members:
     :inherited-members:
 

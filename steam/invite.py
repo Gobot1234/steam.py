@@ -67,7 +67,7 @@ class UserInvite(Invite):
     invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The user who sent the invite.
     relationship: Optional[:class:`~steam.EFriendRelationship`]
-        The relationship you have with the invitee. This is only ``None``
+        The relationship you have with the invitee. This ``None`` if the invite was sent while the bot is online.
     """
 
     def __repr__(self):
