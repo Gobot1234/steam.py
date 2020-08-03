@@ -9,12 +9,10 @@ A basic wrapper for the Steam API and its Community Managers.
 :license: MIT, see LICENSE for more details.
 """
 
-from typing_extensions import Final
-
-__title__: Final[str] = "steam"
-__author__: Final[str] = "Gobot1234"
-__license__: Final[str] = "MIT"
-__version__: Final[str] = "0.4.0"
+__title__ = "steam"
+__author__ = "Gobot1234"
+__license__ = "MIT"
+__version__ = "0.4.0"
 
 import logging
 from typing import NamedTuple
