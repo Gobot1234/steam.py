@@ -111,19 +111,16 @@ class Cog:
 
         cls.__listeners__ = dict()
         cls.__commands__ = dict()
-        for base in reversed(cls.__mro__):
-            for name, attr in base.__dict__.items():
-                if name in cls.__commands__:
-                    del cls.__commands__[name]
-                if isinstance(attr, Command):
-                    if attr.parent:  # ungrouped commands have no parent
-                        continue
-                    cls.__commands__[name] = attr
-                elif hasattr(attr, "__event_name__"):
-                    try:
-                        cls.__listeners__[attr.__event_name__].append(attr)
-                    except KeyError:
-                        cls.__listeners__[attr.__event_name__] = [attr]
+        for name, attr in inspect.getmembers(cls):
+            if isinstance(attr, Command):
+                if attr.parent:  # ungrouped commands have no parent
+                    continue
+                cls.__commands__[name] = attr
+            elif hasattr(attr, "__event_name__"):
+                try:
+                    cls.__listeners__[attr.__event_name__].append(attr)
+                except KeyError:
+                    cls.__listeners__[attr.__event_name__] = [attr]
 
     @property
     def description(self) -> Optional[str]:

@@ -168,16 +168,7 @@ class Bot(GroupMixin, Client):
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
 
-        commands: Dict[str, Command] = {}
-        for base in reversed(self.__class__.__mro__):
-            for name, attr in base.__dict__.items():
-                if name in self.__commands__:
-                    del commands[name]
-                if isinstance(attr, Command):
-                    if attr.parent:  # ungrouped commands have no parent
-                        continue
-                    commands[name] = attr
-        for command in commands.values():
+        for command in self.inline_commands.values():
             setattr(self, command.callback.__name__, command)
             if isinstance(command, GroupCommand):
                 for child in command.children:
@@ -185,6 +176,27 @@ class Bot(GroupMixin, Client):
             command.cog = self
             self.add_command(command)
         self.help_command = help_command
+
+    def __new__(cls, **kwargs):
+        self = super().__new__(cls)
+        self.inline_commands = dict()
+        for name, attr in inspect.getmembers(cls):
+            if name in commands:
+                del self.inline_commands[name]
+            if isinstance(attr, Command):
+                if attr.parent:  # ungrouped commands have no parent
+                    continue
+                self.inline_commands[name] = attr
+
+        for name, attr in self.to_check:
+            try:
+                if attr.__code__.co_filename == getattr(Bot, name, None).__code__.co_filename:
+                    delattr(cls, name)
+            except AttributeError:
+                pass
+        del self.inline_commands
+        del self.to_check
+        return self
 
     @property
     def cogs(self) -> Mapping[str, Cog]:
@@ -568,27 +580,25 @@ class Bot(GroupMixin, Client):
         print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    if TYPE_CHECKING:  # don't use these at run time
+    async def on_command(self, ctx: "commands.Context"):
+        """|coro|
+        A method that is called every time a command is dispatched.
 
-        async def on_command(self, ctx: "commands.Context"):
-            """|coro|
-            A method that is called every time a command is dispatched.
+        Parameters
+        ----------
+        ctx: :class:`.Context`
+            The invocation context.
+        """
 
-            Parameters
-            ----------
-            ctx: :class:`.Context`
-                The invocation context.
-            """
+    async def on_command_completion(self, ctx: "commands.Context"):
+        """|coro|
+        A method that is called every time a command is dispatched and completed without error.
 
-        async def on_command_completion(self, ctx: "commands.Context"):
-            """|coro|
-            A method that is called every time a command is dispatched and completed without error.
-
-            Parameters
-            ----------
-            ctx: :class:`.Context`
-                The invocation context.
-            """
+        Parameters
+        ----------
+        ctx: :class:`.Context`
+            The invocation context.
+        """
 
     @overload
     def wait_for(
