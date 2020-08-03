@@ -50,7 +50,7 @@ class AsyncIterator(_AsyncIterator[T]):
 
     .. container:: operations
 
-        .. describe:: async for x in y
+        .. describe:: async for y in x
 
             Iterates over the contents of the async iterator.
 
@@ -62,7 +62,7 @@ class AsyncIterator(_AsyncIterator[T]):
         When to find objects after.
     limit: Optional[:class:`int`]
         The maximum size of the :attr:`AsyncIterator.queue`.
-    queue: :class:`asyncio.Queue`
+    queue: :class:`asyncio.Queue[T]`
         The queue containing the elements of the iterator.
     """
 
@@ -80,8 +80,7 @@ class AsyncIterator(_AsyncIterator[T]):
 
     def get(self, **attrs) -> Awaitable[Optional[T]]:
         r"""|coro|
-        A helper function which is similar to :func:`~steam.utils.get`
-        except it runs over the :class:`AsyncIterator`.
+        A helper function which is similar to :func:`~steam.utils.get` except it runs over the :class:`AsyncIterator`.
 
         This is roughly equipment to: ::
 
@@ -102,9 +101,8 @@ class AsyncIterator(_AsyncIterator[T]):
         Returns
         -------
         Optional[T]
-            The first element from the ``iterable``
-            which matches all the traits passed in ``attrs``
-            or ``None`` if no matching element was found.
+            The first element from the ``iterable`` which matches all the traits passed in ``attrs`` or ``None`` if no
+            matching element was found.
         """
 
         def predicate(elem):
@@ -122,9 +120,8 @@ class AsyncIterator(_AsyncIterator[T]):
 
     async def find(self, predicate: MaybeCoro) -> Optional[T]:
         """|coro|
-        A helper function which is similar to :func:`~steam.utils.find`
-        except it runs over the :class:`AsyncIterator`. However unlike
-        :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
+        A helper function which is similar to :func:`~steam.utils.find` except it runs over the :class:`AsyncIterator`.
+        However unlike :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
 
         This is roughly equivalent to: ::
 
@@ -142,7 +139,7 @@ class AsyncIterator(_AsyncIterator[T]):
 
         Parameters
         ----------
-        predicate: Callable[..., Union[:class:`bool`, Awaitable[:class:`bool`]]]
+        predicate: Callable[[T], Union[:class:`bool`, Awaitable[:class:`bool`]]]
             A callable/coroutine that returns a boolean.
 
         Returns
@@ -190,7 +187,7 @@ class AsyncIterator(_AsyncIterator[T]):
 
         Raises
         --------
-        :exc:`StopAsyncIteration`:
+        :exc:`StopAsyncIteration`
             There are no more elements in the iterator.
         """
         if self.queue.empty():

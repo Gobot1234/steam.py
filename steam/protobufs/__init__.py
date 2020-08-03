@@ -162,8 +162,8 @@ class Msg(MsgBase[T]):
 
         .. describe:: x[y]
 
-            Allows for type hinting of the messages
-            body. e.g.::
+            Allows for type hinting of the messages body.
+            e.g.::
 
                 async def handle_multi(self, msg: MsgProto['CMsgMulti']) -> None:
                     if msg.body.size_unzipped:  # this is now properly typed

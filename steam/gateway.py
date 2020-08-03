@@ -175,7 +175,7 @@ class CMServerList(AsyncIterator[str]):
 
     async def ping_cms(self, hosts: Optional[List[str]] = None, to_ping: int = 10) -> None:
         hosts = list(self.dict.keys()) if hosts is None else hosts
-        for host in hosts[:to_ping]:  # only ping the first 10 cms (by default)
+        for host in hosts[:to_ping]:
             # TODO dynamically make sure we get good ones by checking len and stuff
             start = time.perf_counter()
             try:

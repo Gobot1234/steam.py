@@ -90,9 +90,8 @@ CommandType: CT = CT
 class Bot(GroupMixin, Client):
     """Represents a Steam bot.
 
-    This class is a subclass of :class:`~steam.Client` and as a
-    result anything that you can do with :class:`~steam.Client`
-    you can do with Bot.
+    This class is a subclass of :class:`~steam.Client` and as a result anything that you can do with
+    :class:`~steam.Client` you can do with Bot.
 
     Parameters
     ----------
@@ -176,7 +175,6 @@ class Bot(GroupMixin, Client):
             command.cog = self
             self.add_command(command)
         self.help_command = help_command
-        del self.inline_commands
 
     def __init_subclass__(cls, **kwargs):
         cls.inline_commands = dict()
