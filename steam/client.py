@@ -46,7 +46,7 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .models import URL
+from .models import community_route
 from .state import ConnectionState
 
 if TYPE_CHECKING:
@@ -474,7 +474,7 @@ class Client:
         await self.connect()
 
     async def _connect(self) -> None:
-        resp = await self.http.request("GET", url=f"{URL.COMMUNITY}/chat/clientjstoken")
+        resp = await self.http.request("GET", url=community_route("chat/clientjstoken"))
         if not resp["logged_in"]:  # we got logged out :(
             await self.login(self.username, self.password, self.shared_secret)
             await self._connect()
@@ -581,7 +581,7 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        steam_id = await SteamID.from_url(f"{URL.COMMUNITY}/id/{name}", self.http._session)
+        steam_id = await SteamID.from_url(community_route(f"id/{name}"), self.http._session)
         if not steam_id:
             return None
         return await self.fetch_user(id=steam_id.id64)
@@ -685,7 +685,7 @@ class Client:
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        steam_id = await SteamID.from_url(f"{URL.COMMUNITY}/clans/{name}", self.http._session)
+        steam_id = await SteamID.from_url(community_route(f"clans/{name}"), self.http._session)
         if steam_id is None:
             return None
         return await self._connection.fetch_clan(steam_id.id64)

@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from .abc import BaseUser, Messageable
 from .errors import ConfirmationError
-from .models import URL
+from .models import community_route
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -289,7 +289,7 @@ class ClientUser(BaseUser):
             return
 
         params = {"welcomed": 1}
-        await self._state.request("GET", url=f"{URL.COMMUNITY}/me/edit", params=params)
+        await self._state.request("GET", community_route("/me/edit"), params=params)
 
     async def clear_nicks(self) -> None:
         """|coro|

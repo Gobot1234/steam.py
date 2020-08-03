@@ -50,7 +50,7 @@ from .guard import *
 from .invite import ClanInvite, UserInvite
 from .message import *
 from .message import ClanMessage
-from .models import URL
+from .models import community_route
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_chat import (
     CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
@@ -343,12 +343,11 @@ class ConnectionState:
         self._descriptions_cache = descriptions
 
     async def _parse_comment(self) -> Optional["Comment"]:
-        # this isn't very efficient but I'm not sure if it can be done better
-        resp = await self.request("GET", f"{URL.COMMUNITY}/my/commentnotifications")
+        resp = await self.request("GET", community_route("my/commentnotifications"))
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         if search is None:
             return None
-        steam_id = await SteamID.from_url(f"{URL.COMMUNITY}{_URL(search.group(1)).path}", self.http._session)
+        steam_id = await SteamID.from_url(search.group(1), self.http._session)
         if steam_id is None:
             return None
         if steam_id.type == EType.Clan:
@@ -385,7 +384,7 @@ class ConnectionState:
     async def _fetch_confirmations(self) -> Optional[dict]:
         params = self._create_confirmation_params("conf")
         headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
-        resp = await self.request("GET", f"{URL.COMMUNITY}/mobileconf/conf", params=params, headers=headers)
+        resp = await self.request("GET", community_route("mobileconf/conf"), params=params, headers=headers)
 
         if "incorrect Steam Guard codes." in resp:
             raise InvalidCredentials("identity_secret is incorrect")
@@ -697,7 +696,7 @@ class ConnectionState:
                     self.invites.append(invitee)
                     self.dispatch("user_invite", invite)
                 if steam_id.type == EType.Clan:
-                    resp = await self.request("GET", f"{URL.COMMUNITY}/my/groups/pending?ajax=1")
+                    resp = await self.request("GET", community_route("my/groups/pending?ajax=1"))
                     soup = BeautifulSoup(resp, "html.parser")
                     elements = soup.find_all("a", attrs={"class": "linkStandard"})
                     invitee_id = 0

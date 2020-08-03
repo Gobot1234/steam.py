@@ -38,7 +38,7 @@ from hashlib import sha1
 from time import time
 from typing import TYPE_CHECKING, Awaitable, Optional
 
-from .models import URL
+from .models import community_route
 
 if TYPE_CHECKING:
     from .state import ConnectionState
@@ -139,7 +139,7 @@ class Confirmation:
         self.trade_id = trade_id
 
     def __repr__(self):
-        return f"<Confirmation id={self.id} trade_id={self.trade_id!r}>"
+        return f"<Confirmation id={self.id!r} trade_id={self.trade_id}>"
 
     def _confirm_params(self, tag) -> dict:
         timestamp = int(time())
@@ -157,15 +157,15 @@ class Confirmation:
         params["op"] = "allow"
         params["cid"] = self.data_confid
         params["ck"] = self.data_key
-        return self._state.request("GET", f"{URL.COMMUNITY}/mobileconf/ajaxop", params=params)
+        return self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
 
     def cancel(self) -> Awaitable:
         params = self._confirm_params("cancel")
         params["op"] = "cancel"
         params["cid"] = self.data_confid
         params["ck"] = self.data_key
-        return self._state.request("GET", f"{URL.COMMUNITY}/mobileconf/ajaxop", params=params)
+        return self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
 
     def details(self) -> Awaitable:  # need to do ['html'] for the good stuff
         params = self._confirm_params(self.tag)
-        return self._state.request("GET", f"{URL.COMMUNITY}/mobileconf/details/{self.id}", params=params)
+        return self._state.request("GET", community_route(f"mobileconf/details/{self.id}"), params=params)

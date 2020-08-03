@@ -32,14 +32,14 @@ import re
 from base64 import b64encode
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Awaitable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Awaitable, List, Optional, Tuple
 
 import aiohttp
 import rsa
 from bs4 import BeautifulSoup
 
 from . import __version__, errors, utils
-from .models import URL
+from .models import URL, api_route, community_route
 from .user import ClientUser
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from .user import User
 
 log = logging.getLogger(__name__)
-StrOrURL = Union[str, URL]
+StrOrURL = aiohttp.client.StrOrURL
 
 
 async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
@@ -56,14 +56,6 @@ async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
         return await r.json()
     except aiohttp.ContentTypeError:  # steam is too inconsistent to do this properly
         return await r.text()
-
-
-def api_route(path: str) -> URL:
-    return URL.API / f'{path}{"/v1" if path[-2:] != "v2" else ""}'
-
-
-def community_route(path: str) -> URL:
-    return URL.COMMUNITY / path
 
 
 class HTTPClient:
@@ -371,7 +363,7 @@ class HTTPClient:
             "partner": user_id64,
             "captcha": "",
         }
-        headers = {"Referer": f"{URL.COMMUNITY}/tradeoffer/{trade_id}"}
+        headers = {"Referer": community_route(f"/tradeoffer/{trade_id}")}
         return self.request("POST", community_route(f"tradeoffer/{trade_id}/accept"), data=payload, headers=headers,)
 
     def decline_user_trade(self, trade_id: int) -> Awaitable:
@@ -408,7 +400,7 @@ class HTTPClient:
             "trade_offer_create_params": json.dumps({"trade_offer_access_token": token}) if token is not None else {},
         }
         payload.update(**kwargs)
-        headers = {"Referer": f"{URL.COMMUNITY}/tradeoffer/new/?partner={user.id}"}
+        headers = {"Referer": community_route(f"tradeoffer/new/?partner={user.id}")}
         return self.request("POST", community_route("tradeoffer/new/send"), data=payload, headers=headers)
 
     def send_counter_trade_offer(

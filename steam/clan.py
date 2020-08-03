@@ -38,7 +38,7 @@ from .comment import Comment
 from .errors import HTTPException
 from .game import Game
 from .iterators import CommentsIterator
-from .models import URL, Role
+from .models import Role, community_route
 from .protobufs.steammessages_chat import (
     CChatRoomSummaryPair as ReceivedResponse,
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
@@ -152,7 +152,7 @@ class Clan(SteamID):
 
     def __init__(self, state: "ConnectionState", id: int):
         self._BASE = 0
-        self.url = f"{URL.COMMUNITY}/gid/{id}"
+        self.url = community_route(f"gid/{id}")
         self._state = state
         self.name: Optional[str] = None
         self.chat_id: Optional[int] = None

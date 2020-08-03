@@ -41,7 +41,7 @@ from .enums import EInstanceFlag, EPersonaState, EPersonaStateFlag, EResult, ETy
 from .errors import WSException
 from .game import Game
 from .iterators import CommentsIterator
-from .models import URL, Ban
+from .models import Ban, community_route
 from .trade import Inventory
 from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
 
@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .client import EventType
     from .group import Group
+    from .http import StrOrURL
     from .image import Image
     from .state import ConnectionState
     from .user import User
@@ -278,14 +279,14 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @classmethod
     async def from_url(
-        cls, url: str, session: Optional["ClientSession"] = None, timeout: float = 30
+        cls, url: "StrOrURL", session: Optional["ClientSession"] = None, timeout: float = 30
     ) -> Optional["SteamID"]:
         """Takes Steam community url and returns a SteamID instance or ``None``.
         See :func:`steam64_from_url` for details.
 
         Parameters
         ----------
-        url: :class:`str`
+        url: Union[:class:`str`, :class:`yarl.URL`]
             The Steam community url.
         session: Optional[:class:`aiohttp.ClientSession`]
             The session to make the request with. If ``None`` is passed a new one is generated.
@@ -395,13 +396,11 @@ class BaseUser(SteamID):
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
         self.avatar_url = data.get("avatarfull") or self.avatar_url
-        self.trade_url = f"{URL.COMMUNITY}/tradeoffer/new/?partner={self.id}"
+        self.trade_url = community_route("tradeoffer/new/?partner={self.id}")
 
         self.primary_clan = SteamID(data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan
         self.country = data.get("loccountrycode") or self.country
-        self.created_at = (
-            datetime.utcfromtimestamp(data["timecreated"]) if "timecreated" in data else None or self.created_at
-        )
+        self.created_at = datetime.utcfromtimestamp(data["timecreated"]) if "timecreated" in data else self.created_at
         self.last_logoff = datetime.utcfromtimestamp(data["lastlogoff"]) if "lastlogoff" in data else self.last_logoff
         self.last_logon = datetime.utcfromtimestamp(data["last_logon"]) if "last_logon" in data else self.last_logon
         self.last_seen_online = (

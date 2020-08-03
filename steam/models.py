@@ -39,6 +39,21 @@ __all__ = (
 )
 
 
+def api_route(path: str) -> URL:
+    """Format an API URL for usage with HTTPClient.request"""
+    return URL.API / f'{path}{"/v1" if path[-2:] != "v2" else ""}'
+
+
+def community_route(path: str) -> URL:
+    """Format a Steam Community URL for usage with HTTPClient.request"""
+    return URL.COMMUNITY / path
+
+
+def store_route(path: str) -> URL:
+    """Format a Steam store URL for usage with HTTPClient.request"""
+    return URL.STORE / path
+
+
 class URL:
     API = URL("https://api.steampowered.com")
     COMMUNITY = URL("https://steamcommunity.com")
