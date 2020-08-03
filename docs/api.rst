@@ -142,7 +142,23 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: EUniverse
+    :members:
+    :undoc-members:
+
 .. autoclass:: EType
+    :members:
+    :undoc-members:
+
+.. autoclass:: ETypeChar
+    :members:
+    :undoc-members:
+
+.. autoclass:: EInstanceFlag
+    :members:
+    :undoc-members:
+
+.. autoclass:: EFriendRelationship
     :members:
     :undoc-members:
 
@@ -150,11 +166,19 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: EPersonaStateFlag
+    :members:
+    :undoc-members:
+
+.. autoclass:: ECommunityVisibilityState
+    :members:
+    :undoc-members:
+
 .. autoclass:: ETradeOfferState
     :members:
     :undoc-members:
 
-.. autoclass:: EPersonaStateFlag
+.. autoclass:: EChatEntryType
     :members:
     :undoc-members:
 
@@ -162,7 +186,7 @@ Enumerations
     :members:
     :undoc-members:
 
-.. autoclass:: EFriendRelationship
+.. autoclass:: EUserBadge
     :members:
     :undoc-members:
 

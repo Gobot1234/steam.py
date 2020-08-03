@@ -46,6 +46,7 @@ __all__ = (
     "ETradeOfferState",
     "EChatEntryType",
     "EUIMode",
+    "EUserBadge",
 )
 
 # pretend these don't exist :)
@@ -313,7 +314,7 @@ class EUserBadge(IntEnum):
     Auction2014: EUserBadge
     GoldenProfile2014: EUserBadge
     TowerAttackMiniGame: EUserBadge
-    Winter2015ARG_RedHerring: EUserBadge
+    Winter2015ARGRedHerring: EUserBadge
     SteamAwards2016Nominations: EUserBadge
     StickerCompletionist2017: EUserBadge
     SteamAwards2017Nominations: EUserBadge
