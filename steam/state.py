@@ -58,6 +58,7 @@ from .protobufs.steammessages_chat import (
 )
 from .protobufs.steammessages_friendmessages import (
     CFriendMessagesIncomingMessageNotification as UserMessageNotification,
+    CFriendMessagesSendMessageResponse as SendUserMessageResponse,
 )
 from .trade import TradeOffer
 from .user import User
@@ -106,8 +107,7 @@ def register(emsg: EMsg) -> Callable[[EventParser], Registerer]:
 
 
 class ConnectionState:
-    parsers: Dict[EMsg, EventParser] = dict()
-    # we need this outside __init__ for @register
+    parsers: Dict[EMsg, EventParser] = dict()  # for @register
 
     __slots__ = (
         "loop",
@@ -248,13 +248,9 @@ class ConnectionState:
         return self._clans.get(id)
 
     async def fetch_clan(self, id64: int) -> Optional["Clan"]:
-        job_id = await self.client.ws.send_um(
-            "ClanChatRooms.GetClanChatRoomInfo#1_Request", steamid=id64, autocreate=True
-        )
         try:
-            msg: MsgProto["FetchGroupResponse"] = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
-                timeout=5,
+            msg: MsgProto["FetchGroupResponse"] = await self.client.ws.send_um_and_wait(
+                "ClanChatRooms.GetClanChatRoomInfo#1_Request", steamid=id64, autocreate=True
             )
         except asyncio.TimeoutError:
             return None
@@ -424,17 +420,13 @@ class ConnectionState:
         }
 
     async def send_user_message(self, user_id64: int, content: str) -> None:
-        job_id = await self.client.ws.send_um(
-            "FriendMessages.SendMessage#1_Request",
-            steamid=str(user_id64),
-            message=content,
-            chat_entry_type=EChatEntryType.Text,
-            contains_bbcode=utils.contains_bbcode(content),
-        )
         try:
-            msg = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
-                timeout=5,
+            msg: MsgProto["SendUserMessageResponse"] = await self.client.ws.send_um_and_wait(
+                "FriendMessages.SendMessage#1_Request",
+                steamid=str(user_id64),
+                message=content,
+                chat_entry_type=EChatEntryType.Text,
+                contains_bbcode=utils.contains_bbcode(content),
             )
         except asyncio.TimeoutError:
             return
@@ -448,6 +440,7 @@ class ConnectionState:
             chat_entry_type=EChatEntryType.Text,
             message=content,
             rtime32_server_timestamp=int(time()),
+            message_no_bbcode=msg.body.message_without_bb_code,
         )
         channel = DMChannel(state=self, participant=self.get_user(user_id64))
         message = UserMessage(proto=proto, channel=channel)
@@ -463,13 +456,9 @@ class ConnectionState:
 
     async def send_group_message(self, destination: Tuple[int, int], content: str) -> None:
         chat_id, group_id = destination
-        job_id = await self.client.ws.send_um(
-            "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content,
-        )
         try:
-            msg = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
-                timeout=5,
+            msg = await self.client.ws.send_um_and_wait(
+                "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content,
             )
         except asyncio.TimeoutError:
             return
@@ -494,13 +483,9 @@ class ConnectionState:
         self.dispatch("message", message)
 
     async def join_chat(self, chat_id: int, invite_code: Optional[str] = None) -> None:
-        job_id = await self.client.ws.send_um(
-            "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or "",
-        )
         try:
-            msg = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
-                timeout=5,
+            msg = await self.client.ws.send_um_and_wait(
+                "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or "",
             )
         except asyncio.TimeoutError:
             return
@@ -510,12 +495,8 @@ class ConnectionState:
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
-        job_id = await self.client.ws.send_um("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
         try:
-            msg = await asyncio.wait_for(
-                self.client.ws.wait_for(EMsg.ServiceMethodResponse, lambda m: m.header.job_id_target == job_id,),
-                timeout=5,
-            )
+            msg = await self.client.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
         except asyncio.TimeoutError:
             return
         if msg.header.eresult == EResult.InvalidParameter:

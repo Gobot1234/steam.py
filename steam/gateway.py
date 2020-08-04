@@ -76,9 +76,14 @@ def return_true(*_, **__) -> Literal[True]:
     return True
 
 
+def default_check(job_id: int):
+    exec(f"def check(msg: Msgs): return msg.header.job_id_target == {job_id}")
+    return globals()["check"]
+
+
 class EventListener(NamedTuple):
     emsg: EMsg
-    predicate: Callable[..., bool]
+    predicate: Callable[[Msgs], bool]
     future: asyncio.Future
 
 
@@ -520,7 +525,15 @@ class SteamWebSocket:
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, _um_name=name, **kwargs)
         msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
-        return self._current_job_id
+        return msg.header.job_id_source
+
+    async def send_um_and_wait(
+        self, name: str, check: Optional[Callable[[Msgs], bool]] = None, timeout: float = 5.0, **kwargs
+    ) -> Msgs:
+        job_id = await self.send_um(name, **kwargs)
+        if check is None:
+            check = default_check(job_id)
+        return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, predicate=check), timeout=timeout)
 
     async def change_presence(
         self, *, games: List[dict], state: Optional[EPersonaState], ui_mode: Optional["EUIMode"], force_kick: bool,
