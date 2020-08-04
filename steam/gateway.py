@@ -189,9 +189,8 @@ class CMServerList(AsyncIterator[str]):
                 latency = time.perf_counter() - start
                 score = (int(load) * 2) + latency
                 self.best_cms.append((host, score))
-                self.best_cms = sorted(self.best_cms, key=lambda x: x[1])
                 self.mark_good(host, score)
-
+        self.best_cms = sorted(self.best_cms, key=lambda x: x[1])
         log.debug("Finished pinging CMs")
 
 
