@@ -122,6 +122,9 @@ class CaseInsensitiveDict(dict, Generic[VT]):
     def get(self, k: str, default=None):
         return super().get(k.lower(), default)
 
+    def pop(self, k: str) -> VT:
+        return super().pop(k.lower())
+
 
 class Command:
     def __init__(self, func: "CommandType", **kwargs):
@@ -446,8 +449,9 @@ class GroupMixin:
         Optional[:class:`Command`]
             The removed command.
         """
-        command = self.__commands__.get(name)
-        if command is None:
+        try:
+            command = self.__commands__.pop(name)
+        except ValueError:
             return None
 
         for alias in command.aliases:

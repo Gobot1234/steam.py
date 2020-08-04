@@ -196,10 +196,10 @@ class Cog:
             command.cog = self
             command.checks.append(self.cog_check)
             old_attrs = command.__dict__.items()
-            setattr(self, command.callback.__name__, command)
             for name, value in self.command_attrs.items():
                 if (name, value) not in old_attrs:
                     setattr(command, name, value)
+            setattr(self, command.callback.__name__, command)
             if isinstance(command, GroupCommand):
                 for child in command.children:
                     child.cog = self
@@ -219,10 +219,10 @@ class Cog:
                 bot.add_listener(listener, name)
 
     def _eject(self, bot: "Bot") -> None:
-        for command in self.__commands__:
+        for command in self.__commands__.values():
             if isinstance(command, GroupCommand):
                 command.recursively_remove_all_commands()
-            bot.remove_command(command)
+            bot.remove_command(command.name)
 
         for name, listeners in self.__listeners__.items():
             for listener in listeners:
