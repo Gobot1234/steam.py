@@ -569,7 +569,7 @@ class Client:
 
     async def fetch_user_named(self, name: str) -> Optional["User"]:
         """|coro|
-        Fetches a user from https://steamcommunity.com with a matching name.
+        Fetches a user from https://steamcommunity.com from there community URL name.
 
         Parameters
         ----------
