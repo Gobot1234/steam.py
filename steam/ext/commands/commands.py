@@ -241,9 +241,8 @@ class Command:
         Calls the internal callback that the command holds.
 
         .. note::
-            This bypasses all mechanisms -- including checks, converters,
-            invoke hooks, cooldowns, etc. You must take care to pass
-            the proper arguments and types to this function.
+            This bypasses all mechanisms -- including checks, converters, invoke hooks, cooldowns, etc. You must take
+            care to pass the proper arguments and types to this function.
         """
         if self.cog is not None:
             return self.callback(self.cog, *args, **kwargs)
@@ -251,7 +250,8 @@ class Command:
             return self.callback(*args, **kwargs)
 
     def error(self, func: "EventType") -> "EventType":
-        """Register an event to handle a commands ``on_error`` function.
+        """Register an event to handle a commands ``on_error`` functionality similarly to
+        :meth:`steam.ext.commands.Bot.on_command_error`.
 
         Example: ::
 
