@@ -37,7 +37,6 @@ from typing import TYPE_CHECKING, Awaitable, Callable, Dict, List, Mapping, Opti
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
-from yarl import URL as _URL
 
 from . import utils
 from .abc import SteamID
