@@ -549,14 +549,14 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return await self._connection.fetch_user(steam_id.id64)
 
-    async def fetch_users(self, *ids: List[int]) -> List[Optional["User"]]:
+    async def fetch_users(self, *ids: int) -> List[Optional["User"]]:
         """|coro|
         Fetches a list of :class:`~steam.User` from their IDs from the API with a matching ID. The
         :class:`~steam.User` objects returned are unlikely to retain the order they were originally in.
 
         Parameters
         ----------
-        *ids: List[:class:`int`]
+        *ids: :class:`int`
             The user's IDs.
 
         Returns
@@ -1258,8 +1258,8 @@ class Client:
         Waits for an event to be dispatched.
 
         In case the event returns multiple arguments, a :class:`tuple` containing those arguments is returned instead.
-        Please check the `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_
-        for a list of events and their parameters.
+        Please check the `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_ for a list of
+        events and their parameters.
 
         .. note::
             This function returns the **first event that meets the requirements**.
@@ -1267,9 +1267,8 @@ class Client:
         Parameters
         ------------
         event: :class:`str`
-            The event name from the
-            `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_, but without the ``on_``
-            prefix, to wait for.
+            The event name from the `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
+            but without the ``on_`` prefix, to wait for.
         check: Optional[Callable[..., :class:`bool`]]
             A predicate to check what to wait for. The arguments must meet the parameters of the event being waited for.
             The check **MUST** return a :class:`bool`.
