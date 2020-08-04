@@ -64,8 +64,7 @@ class HTTPClient:
     SUCCESS_LOG = "{method} {url} has received {text}"
     REQUEST_LOG = "{method} {url} with {payload} has returned {status}"
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, client: "Client"):
-        self._loop = loop
+    def __init__(self, client: "Client"):
         self._session: Optional[aiohttp.ClientSession] = None  # filled in login
         self._client = client
 
