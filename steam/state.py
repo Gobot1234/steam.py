@@ -287,20 +287,19 @@ class ConnectionState:
                 self.dispatch("trade_receive", trade)
             self._trades_to_watch.append(trade.id)
         else:
-            before_state = copy(trade.state)
+            before_state = trade.state
             trade._update(data)
-            if data["trade_offer_state"] != before_state:
+            if trade.state != before_state:
                 log.info(f"Trade #{trade.id} has updated its trade state to {trade.state}")
-                states = {
-                    ETradeOfferState.Accepted: "accept",
-                    ETradeOfferState.Countered: "counter",
-                    ETradeOfferState.Expired: "expire",
-                    ETradeOfferState.Canceled: "cancel",
-                    ETradeOfferState.Declined: "decline",
-                    ETradeOfferState.CanceledBySecondaryFactor: "cancel",
-                }
                 try:
-                    event_name = states[trade.state]
+                    event_name = {
+                        ETradeOfferState.Accepted: "accept",
+                        ETradeOfferState.Countered: "counter",
+                        ETradeOfferState.Expired: "expire",
+                        ETradeOfferState.Canceled: "cancel",
+                        ETradeOfferState.Declined: "decline",
+                        ETradeOfferState.CanceledBySecondaryFactor: "cancel",
+                    }[trade.state]
                 except KeyError:
                     pass
                 else:
@@ -634,9 +633,9 @@ class ConnectionState:
             if data["avatar_hash"] != "\x00" * 20
             else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
         )
-        data["avatarfull"] = (
-            f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
-        )
+        data[
+            "avatarfull"
+        ] = f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
 
         if friend.last_logoff:
             data["lastlogoff"] = friend.last_logoff
