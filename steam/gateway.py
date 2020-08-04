@@ -412,8 +412,12 @@ class SteamWebSocket:
                 msg = Msg(emsg, message, extended=True)
             log.debug(f"Socket has received {msg!r} from the websocket.")
         except Exception as exc:
-            log.critical(f"Failed to deserialize message: {emsg!r}, {message}")
-            return log.error(exc)
+            try:
+                if msg.msg != EMsg.ServiceMethodResponse:
+                    pass
+            except Exception:
+                log.critical(f"Failed to deserialize message: {emsg!r}, {message}")
+                return log.error(exc)
 
         self._dispatch("socket_receive", msg)
 
