@@ -408,11 +408,7 @@ class SteamWebSocket:
             log.debug(f"Socket has received {msg!r} from the websocket.")
         except Exception as exc:
             log.critical(f"Failed to deserialize message: {emsg!r}, {message}")
-            # the repr likely due to a bug in betterproto failed so just ignore it
-            if emsg != EMsg.ServiceMethodResponse:
-                return log.error(exc)
-
-            # log.error(exc)
+            return log.error(exc)
 
         self._dispatch("socket_receive", msg)
 
