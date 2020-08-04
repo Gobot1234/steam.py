@@ -960,14 +960,34 @@ class Client:
             The invite received.
         """
 
+    async def on_user_invite_accept(self, invite: "steam.UserInvite"):
+        """|coro|
+        Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
+
+        Parameters
+        ----------
+        invite: :class:`~steam.UserInvite`
+            The invite that was accepted.
+        """
+
     async def on_clan_invite(self, invite: "steam.ClanInvite"):
         """|coro|
-        Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a Clan.
+        Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a :class:`~steam.Clan`.
 
         Parameters
         ----------
         invite: :class:`~steam.ClanInvite`
             The invite received.
+        """
+
+    async def on_clan_invite_accept(self, invite: "steam.ClanInvite"):
+        """|coro|
+        Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
+
+        Parameters
+        ----------
+        invite: :class:`~steam.ClanInvite`
+            The invite that was accepted.
         """
 
     async def on_user_update(self, before: "steam.User", after: "steam.User"):
