@@ -172,7 +172,7 @@ class ConnectionState:
         self._clans: Dict[int, Clan] = dict()
         self._confirmations: Dict[int, Confirmation] = dict()
         self._messages = self.max_messages and deque(maxlen=self.max_messages)
-        self.invites: List[Union[User, Clan]] = []
+        self.invites: Dict[int, Union[UserInvite, ClanInvite]] = dict()
 
         self._trades_task: Optional[asyncio.Task] = None
         self._trades_to_watch: List[int] = []
@@ -673,7 +673,7 @@ class ConnectionState:
                 if steam_id.type == EType.Individual:
                     invitee = await self.fetch_user(steam_id.id64) or steam_id
                     invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
-                    self.invites.append(invitee)
+                    self.invites[invitee.id64] = invite
                     self.dispatch("user_invite", invite)
                 if steam_id.type == EType.Clan:
                     resp = await self.request("GET", community_route("my/groups/pending?ajax=1"))
@@ -688,24 +688,19 @@ class ConnectionState:
                     clan = self.get_clan(steam_id.id64) or await self.client.fetch_clan(steam_id.id64) or steam_id
                     invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
                     self.dispatch("clan_invite", invite)
-                    self.invites.append(clan)
+                    self.invites[clan.id64] = invite
 
-            # TODO
-            """ 
-            async def fetch_invites() -> None:  # we dont want to spend ages waiting for invites
-                if user.efriendrelationship == EFriendRelationship.Friend:
-                    steam_id = SteamID(user.ulfriendid)
+            if user.efriendrelationship == EFriendRelationship.Friend:
+                steam_id = SteamID(user.ulfriendid)
+                try:
+                    invite = self.invites.pop(steam_id.id64)
+                except KeyError:
+                    pass
+                else:
                     if steam_id.type == EType.Individual:
-                        invitee = self.get_user(steam_id.id64) or await self.fetch_user(steam_id.id64) or steam_id
-                        if invitee in self.invites:
-                            self.dispatch('user_invite_accept', invitee)
-                    if steam_id.type == EType.Clan:
-                        clan = self.get_clan(steam_id.id) or await self.client.fetch_clan(steam_id.id64) or steam_id
-                        if clan in self.invites:
-                            self.dispatch('clan_invite_accept', clan)
-
-            self.loop.create_task(fetch_invites())
-            """
+                        self.dispatch("user_invite_accept", invite)
+                    else:
+                        self.dispatch("clan_invite_accept", invite)
 
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, msg: MsgProto["CMsgClientCommentNotifications"]) -> None:
