@@ -99,16 +99,6 @@ def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
             )
 
 
-def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
-    try:
-        _cancel_tasks(loop)
-        loop.run_until_complete(loop.shutdown_asyncgens())
-    finally:
-        log.info("Closing the event loop.")
-        asyncio.set_event_loop(None)
-        loop.close()
-
-
 class ClientEventTask(asyncio.Task):
     def __init__(
         self, original_coro: EventType, event_name: str, coro: Awaitable[None], *, loop: asyncio.AbstractEventLoop,
@@ -335,9 +325,18 @@ class Client:
     def run(self, *args, **kwargs) -> None:
         """A blocking call that abstracts away the event loop initialisation from you.
 
-        If you want more control over the event loop then this function should not be used. Use :meth:`start` coroutine
-        or :meth:`login`. It is not recommended to subclass this, it is normally favourable to subclass :meth:`start`
-        or :meth:`login` as they are :ref:`coroutines <coroutine>`.
+        This is roughly equivalent to::
+
+            coro = Client.start(username, password, shared_secret, identity_secret)
+            asyncio.run(coro)
+
+        If you want more control over the event loop then this function should not be used. It is not recommended to
+        subclass this, it is normally favourable to subclass :meth:`start` or :meth:`login` as they are
+        :ref:`coroutines <coroutine>`.
+
+        .. note::
+
+            This takes the same arguments as :meth:`start`.
         """
         loop = self.loop
 
@@ -353,22 +352,18 @@ class Client:
             finally:
                 await self.close()
 
-        def stop_loop_on_completion(_):
-            loop.stop()
-
-        task = loop.create_task(runner())
-        task.add_done_callback(stop_loop_on_completion)
         try:
-            loop.run_forever()
+            loop.run_until_complete(runner())
         except KeyboardInterrupt:
             log.info("Received signal to terminate the client and event loop.")
         finally:
-            task.remove_done_callback(stop_loop_on_completion)
             log.info("Cleaning up tasks.")
-            _cleanup_loop(loop)
-
-        if not task.cancelled():
-            return task.result()
+            try:
+                _cancel_tasks(loop)
+                loop.run_until_complete(loop.shutdown_asyncgens())
+            finally:
+                log.info("Closing the event loop.")
+                loop.close()
 
     async def login(self, username: str, password: str, shared_secret: Optional[str] = None) -> None:
         """|coro|
