@@ -77,8 +77,8 @@ def return_true(*_, **__) -> Literal[True]:
 
 
 def default_check(job_id: int):
-    exec(f"def check(msg: Msgs): return msg.header.job_id_target == {job_id}")
-    return globals()["check"]
+    exec(f"def check(msg): return msg.header.job_id_target == {job_id}")
+    return locals()["check"]
 
 
 class EventListener(NamedTuple):
