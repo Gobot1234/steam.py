@@ -30,6 +30,7 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 
 import asyncio
 import functools
+import importlib
 import inspect
 import sys
 import typing
@@ -166,15 +167,12 @@ class Command:
         self.cog: Optional["Cog"] = kwargs.get("cog")
         self.parent: Optional["Command"] = kwargs.get("parent")
         self.description: str = inspect.cleandoc(kwargs.get("description", ""))
-        self.hidden = kwargs.get("hidden", False)
+        self.hidden: bool = kwargs.get("hidden", False)
         self.aliases: Iterable[str] = kwargs.get("aliases", [])
 
-        try:
-            for alias in self.aliases:
-                if not type(alias) is str:
-                    raise TypeError
-        except TypeError:
-            raise TypeError("Aliases of a command must be an iterable containing only strings.")
+        for alias in self.aliases:
+            if not isinstance(alias, str):
+                raise TypeError('A commands aliases should be an iterable only containing strings')
 
     @property
     def callback(self) -> "CommandType":
@@ -183,18 +181,19 @@ class Command:
 
     @callback.setter
     def callback(self, function: "CommandType"):
-        # using get_type_hints allows for postponed annotations (type hints in quotes)
-        # for more info see pep 563 https://www.python.org/dev/peps/pep-0563.
+        # using get_type_hints allows for postponed annotations (type hints in quotes) for more info see pep 563
+        # https://www.python.org/dev/peps/pep-0563.
         module = sys.modules[function.__module__]
         globals = module.__dict__
         try:
             annotations = get_type_hints(function, globals)
-        except NameError:  # likely have imports in a TYPE_CHECKING block
+        except NameError:
             if not (typing in globals.values() or not getattr(module, "TYPE_CHECKING", True)):
                 raise
-            import importlib
+            # WARNING: very hacky, the user likely has imports that haven't been loaded in a TYPE_CHECKING block, we are
+            # going to attempt to fetch these ourselves and add them to the modules __dict__.
 
-            # hacky time, try and get any imports in TYPE_CHECKING
+            # NOTE: this doesn't run into circular import errors due to the way importlib.reload works.
             typing.TYPE_CHECKING = True
             importlib.reload(module)
             typing.TYPE_CHECKING = False
