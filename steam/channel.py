@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 __all__ = (
     "DMChannel",
     "GroupChannel",
+    "ClanChannel",
 )
 
 

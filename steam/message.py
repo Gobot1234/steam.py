@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 __all__ = (
     "UserMessage",
     "GroupMessage",
+    "ClanMessage",
 )
 
 
