@@ -54,9 +54,8 @@ class Game:
 
     .. note::
 
-        This class can be defined by users using the above parameters, or
-        it can be from an API call this is when :meth:`~steam.User.fetch_games`
-        is called.
+        This class can be defined by users using the above parameters, or it can be from an API call this is when
+        :meth:`~steam.User.fetch_games` is called.
 
     Parameters
     ----------
@@ -65,7 +64,7 @@ class Game:
     app_id: Optional[:class:`int`]
         The game's app_id.
     context_id: Optional[:class:`int`]
-        The games's context ID by default 2.
+        The game's context ID by default 2.
 
     Attributes
     -----------
@@ -203,5 +202,6 @@ def CUSTOM_GAME(title: str) -> Game:
     Returns
     -------
     class:`.Game`
+        The created custom game.
     """
     return Game(title=title, app_id=15190414816125648896, context_id=0)
