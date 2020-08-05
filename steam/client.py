@@ -339,12 +339,6 @@ class Client:
         """
         loop = self.loop
 
-        try:
-            loop.add_signal_handler(signal.SIGINT, loop.stop)
-            loop.add_signal_handler(signal.SIGTERM, loop.stop)
-        except NotImplementedError:
-            pass
-
         async def runner():
             try:
                 await self.start(*args, **kwargs)
