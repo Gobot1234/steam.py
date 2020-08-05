@@ -196,11 +196,16 @@ class HTTPClient:
         self.logged_in = True
         self._client.dispatch("login")
 
+    async def close(self) -> None:
+        await self.logout()
+        await self._session.close()
+
     async def logout(self) -> None:
         log.debug("Logging out of session")
         payload = {"sessionid": self.session_id}
         await self.request("POST", community_route("login/logout"), data=payload)
         self.logged_in = False
+        self.user = None
         self._client.dispatch("logout")
 
     async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple[bytes, int]:
@@ -254,7 +259,7 @@ class HTTPClient:
 
     async def get_users(self, user_id64s: List[int]) -> List[dict]:
         ret = []
-        if user_id64s == [0]:
+        if user_id64s == [0]:  # FIXME bandaid
             return ret
 
         for sublist in utils.chunk(user_id64s, 100):
