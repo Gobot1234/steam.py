@@ -327,8 +327,7 @@ class Client:
 
         This is roughly equivalent to::
 
-            coro = Client.start(username, password, shared_secret, identity_secret)
-            asyncio.run(coro)
+            asyncio.run(client.start(username, password))
 
         If you want more control over the event loop then this function should not be used. It is not recommended to
         subclass this, it is normally favourable to subclass :meth:`start` or :meth:`login` as they are
