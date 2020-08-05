@@ -364,7 +364,7 @@ class Client:
                 log.info("Closing the event loop.")
                 loop.close()
 
-    async def login(self, username: str, password: str, shared_secret: Optional[str] = None) -> None:
+    async def login(self, username: str, password: str, *, shared_secret: Optional[str] = None) -> None:
         """|coro|
         Logs in a Steam account and the Steam API with the specified credentials.
 
@@ -394,7 +394,7 @@ class Client:
         self.password = password
         self.shared_secret = shared_secret
 
-        await self.http.login(username=username, password=password, shared_secret=shared_secret)
+        await self.http.login(username, password, shared_secret=shared_secret)
         self._closed = False
         self.loop.create_task(self._connection.__ainit__())
 
