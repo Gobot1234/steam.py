@@ -25,6 +25,7 @@ SOFTWARE.
 """
 
 from datetime import datetime
+from typing import List
 
 from .enums import EUserBadge
 from .game import Game
@@ -40,12 +41,12 @@ class Badge:
 
     Attributes
     ----------
-    id: Union[.EUserBadge, :class:`int`]
+    id: Union[:class:`.EUserBadge`, :class:`int`]
         The badge's ID.
     level: :class:`int`
         The badge's level.
     xp: :class:`int`
-        The badges's XP.
+        The badge's XP.
     completion_time: :class:`datetime.datetime`
         The time the badge was completed at.
     scarcity: :class:`int`
@@ -58,10 +59,10 @@ class Badge:
 
     def __init__(self, data: dict):
         self.id = EUserBadge.try_value(data["badgeid"])
-        self.level = data["level"]
-        self.xp = data["xp"]
+        self.level: int = data["level"]
+        self.xp: int = data["xp"]
         self.completion_time = datetime.utcfromtimestamp(data["completion_time"])
-        self.scarcity = data["scarcity"]
+        self.scarcity: int = data["scarcity"]
         self.game = Game(data["appid"]) if "appid" in data else None
 
     def __repr__(self):
@@ -78,12 +79,11 @@ class UserBadges:
     level: :class:`int`
         The badge's level.
     xp: :class:`int`
-        The badges's XP.
+        The badge's XP.
     xp_needed_to_level_up: :class:`int`
         The amount of XP the user needs to level up.
     xp_needed_for_current_level: :class:`int`
-        The amount of XP the user's current level requires
-        to achieve.
+        The amount of XP the user's current level requires to achieve.
     badges: List[:class:`Badge`]
         A list of the user's badges.
     """
@@ -97,11 +97,11 @@ class UserBadges:
     )
 
     def __init__(self, data: dict):
-        self.level = data["player_level"]
-        self.xp = data["player_xp"]
-        self.xp_needed_to_level_up = data["player_xp_needed_to_level_up"]
-        self.xp_needed_for_current_level = data["player_xp_needed_current_level"]
-        self.badges = [Badge(data) for data in data["badges"]]
+        self.level: int = data["player_level"]
+        self.xp: int = data["player_xp"]
+        self.xp_needed_to_level_up: int = data["player_xp_needed_to_level_up"]
+        self.xp_needed_for_current_level: int = data["player_xp_needed_current_level"]
+        self.badges: List[Badge] = [Badge(data) for data in data["badges"]]
 
     def __repr__(self):
         attrs = ("level", "xp")
