@@ -153,14 +153,6 @@ class EnumMeta(type):
     def __getitem__(cls, key):
         return cls._enum_member_map_[key]
 
-    def __getattr__(cls, name):
-        if _is_dunder(name):
-            raise AttributeError(name)
-        try:
-            return cls._enum_value_map_[name]
-        except KeyError:
-            raise AttributeError(name) from None
-
     def __setattr__(cls, name, value):
         if name in cls._enum_member_names_:
             raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
