@@ -76,7 +76,7 @@ def return_true(*_, **__) -> Literal[True]:
     return True
 
 
-def default_check(job_id: int):
+def check_job_id(job_id: int):
     exec(f"def check(msg): return msg.header.job_id_target == {job_id}")
     return locals()["check"]
 
@@ -536,7 +536,7 @@ class SteamWebSocket:
     ) -> Msgs:
         job_id = await self.send_um(name, **kwargs)
         if check is None:
-            check = default_check(job_id)
+            check = check_job_id(job_id)
         return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, predicate=check), timeout=timeout)
 
     async def change_presence(
