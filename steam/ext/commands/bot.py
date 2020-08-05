@@ -121,6 +121,8 @@ class Bot(GroupMixin, Client):
         The Steam ID of the owner, this is converted to their 64 bit ID representation upon initialization.
     owner_ids: Set[:class:`int`]
         The Steam IDs of the owners, these are converted to their 64 bit ID representations upon initialization.
+    case_insensitive: :class:`bool`
+        Whether or not to use CaseInsensitiveDict for registering commands.
 
     loop: Optional[:class:`asyncio.AbstractEventLoop`]
         The :class:`asyncio.AbstractEventLoop` used for asynchronous operations. Defaults to ``None``, in which case the
@@ -166,26 +168,15 @@ class Bot(GroupMixin, Client):
             self.owner_ids.add(utils.make_steam64(owner_id))
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
-
-        for command in self.inline_commands.values():
-            setattr(self, command.callback.__name__, command)
-            if isinstance(command, GroupCommand):
-                for child in command.children:
-                    child.cog = self
-            command.cog = self
-            self.add_command(command)
-        self.help_command = help_command
-
-    def __init_subclass__(cls, **kwargs):
-        cls.inline_commands = dict()
-        for base in reversed(cls.__mro__):
+        inline_commands = dict()
+        for base in reversed(self.__class__.__mro__):
             for name, attr in tuple(base.__dict__.items()):
-                if name in cls.inline_commands:
-                    del cls.inline_commands[name]
+                if name in inline_commands:
+                    del inline_commands[name]
                 if isinstance(attr, Command):
                     if attr.parent:  # sub-command don't add it to the global commands
                         continue
-                    cls.inline_commands[name] = attr
+                    inline_commands[name] = attr
                 if name[:3] != "on_":  # not an event
                     continue
                 if "error" in name or name == "on_message":
@@ -195,6 +186,15 @@ class Bot(GroupMixin, Client):
                         delattr(base, name)
                 except AttributeError:
                     pass
+
+        for command in inline_commands.values():
+            setattr(self, command.callback.__name__, command)
+            if isinstance(command, GroupCommand):
+                for child in command.children:
+                    child.cog = self
+            command.cog = self
+            self.add_command(command)
+        self.help_command = help_command
 
     @property
     def cogs(self) -> Mapping[str, Cog]:
@@ -277,7 +277,7 @@ class Bot(GroupMixin, Client):
             raise ModuleNotFoundError(f"The extension {extension} was not found")
 
         module: "ExtensionType" = self.__extensions__[extension]
-        for attr in (getattr(module, attr) for attr in dir(module)):
+        for attr in tuple(module.__dict__.values()):
             if inspect.isclass(attr) and issubclass(attr, Cog):
                 cog = self.get_cog(attr.qualified_name)
                 self.remove_cog(cog)

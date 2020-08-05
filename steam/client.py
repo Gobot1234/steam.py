@@ -170,8 +170,7 @@ class Client:
         self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
-    def __init_subclass__(cls, **kwargs):
-        for base in reversed(cls.__mro__):
+        for base in reversed(self.__class__.__mro__):
             for name, attr in tuple(base.__dict__.items()):
                 if name[:3] != "on_":  # not an event
                     continue
