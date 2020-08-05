@@ -64,7 +64,7 @@ class HelpCommand(Command):
         finally:
             self.cog = original_cog
 
-    async def command_callback(self, ctx: "Context", *, content: Optional[str] = None) -> None:
+    async def command_callback(self, ctx: Context, *, content: Optional[str] = None) -> None:
         """The actual implementation of the help command."""
         self.context = ctx
         bot = ctx.bot
