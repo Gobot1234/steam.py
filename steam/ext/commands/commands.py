@@ -31,7 +31,6 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 import asyncio
 import functools
 import inspect
-import re
 import sys
 import typing
 from types import FunctionType, MethodType
@@ -193,26 +192,12 @@ class Command:
         except NameError:
             if not (typing in globals.values() or not getattr(module, "TYPE_CHECKING", True)):
                 raise
-            # hacky time, try and get any imports in TYPE_CHECKING
-            with open(module.__file__) as f:
-                src = f.read()  # read the source file
-            if isinstance(src, bytes):
-                src = src.decode("utf-8")
+            import importlib
 
-            search = re.search(r"if .*TYPE_CHECKING.*:", src)
-            if search is None:
-                raise
-            end = search.end()
-            cut = src[end:]
-            lines = cut.splitlines()
-            imports = []
-            # find the relevant lines
-            for line in lines:
-                if re.match(r"^\S", line):
-                    break  # un-tabbed, break
-                if re.match(r"^\s*(import|from .* import .+)", line):
-                    imports.append(line.strip())
-            exec(f"\n".join(imports), globals)
+            # hacky time, try and get any imports in TYPE_CHECKING
+            typing.TYPE_CHECKING = True
+            importlib.reload(module)
+            typing.TYPE_CHECKING = False
             annotations = get_type_hints(function, globals)
 
         # replace the function's annotations
