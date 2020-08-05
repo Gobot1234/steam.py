@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from ..enums import IntEnum as IntEnum
+from ..enums import IntEnum
 
 __all__ = ("EMsg",)
 
@@ -30,7 +30,6 @@ class EMsg(IntEnum):
     ClientSessionStart: "EMsg"                                       = 135
     ClientSessionEnd: "EMsg"                                         = 136
     ClientSessionUpdate: "EMsg"                                      = 137
-    StatsDeprecated: "EMsg"                                          = 138
     Ping: "EMsg"                                                     = 139
     PingResponse: "EMsg"                                             = 140
     Stats: "EMsg"                                                    = 141
@@ -69,10 +68,6 @@ class EMsg(IntEnum):
     ShellCheckWindowsUpdatesResponse: "EMsg"                         = 238
     TestFlushDelayedSQL: "EMsg"                                      = 240
     TestFlushDelayedSQLResponse: "EMsg"                              = 241
-    EnsureExecuteScheduledTask_TEST: "EMsg"                          = 242
-    EnsureExecuteScheduledTaskResponse_TEST: "EMsg"                  = 243
-    UpdateScheduledTaskEnableState_TEST: "EMsg"                      = 244
-    UpdateScheduledTaskEnableStateResponse_TEST: "EMsg"              = 245
     ContentDescriptionDeltaUpdate: "EMsg"                            = 246
 
     Heartbeat: "EMsg"                                                = 300
@@ -324,7 +319,6 @@ class EMsg(IntEnum):
     GSStatus: "EMsg"                                                 = 903
     GSUserPlaying: "EMsg"                                            = 905
     GSStatus2: "EMsg"                                                = 906
-    GSStatusUpdate_Unused: "EMsg"                                    = 907
     GSServerType: "EMsg"                                             = 908
     GSPlayerList: "EMsg"                                             = 909
     GSGetUserAchievementStatus: "EMsg"                               = 910
@@ -1437,12 +1431,12 @@ class EMsg(IntEnum):
     DRMSFetchVersionSetResponse: "EMsg"                              = 7607
 
     EconBase: "EMsg"                                                 = 7700
-    EconTrading_InitiateTradeRequest: "EMsg"                         = 7701
-    EconTrading_InitiateTradeProposed: "EMsg"                        = 7702
-    EconTrading_InitiateTradeResponse: "EMsg"                        = 7703
-    EconTrading_InitiateTradeResult: "EMsg"                          = 7704
-    EconTrading_StartSession: "EMsg"                                 = 7705
-    EconTrading_CancelTradeRequest: "EMsg"                           = 7706
+    EconTradingInitiateTradeRequest: "EMsg"                          = 7701
+    EconTradingInitiateTradeProposed: "EMsg"                         = 7702
+    EconTradingInitiateTradeResponse: "EMsg"                         = 7703
+    EconTradingInitiateTradeResult: "EMsg"                           = 7704
+    EconTradingStartSession: "EMsg"                                  = 7705
+    EconTradingCancelTradeRequest: "EMsg"                            = 7706
     EconFlushInventoryCache: "EMsg"                                  = 7707
     EconFlushInventoryCacheResponse: "EMsg"                          = 7708
     EconCDKeyProcessTransaction: "EMsg"                              = 7711
@@ -1581,9 +1575,7 @@ class EMsg(IntEnum):
     SLCOwnerLibraryChanged: "EMsg"                                   = 9407
     SLCSharedLibraryChanged: "EMsg"                                  = 9408
 
-    RemoteClientAuth_OBSOLETE: "EMsg"                                = 9500
     RemoteClientBase: "EMsg"                                         = 9500
-    RemoteClientAuthResponse_OBSOLETE: "EMsg"                        = 9501
     RemoteClientAppStatus: "EMsg"                                    = 9502
     RemoteClientStartStream: "EMsg"                                  = 9503
     RemoteClientStartStreamResponse: "EMsg"                          = 9504
