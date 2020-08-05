@@ -34,7 +34,7 @@ import json
 import re
 from inspect import isawaitable
 from operator import attrgetter
-from typing import Awaitable, Callable, Generator, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Awaitable, Callable, Generator, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import aiohttp
 
@@ -361,14 +361,41 @@ def parse_trade_url_token(url: str) -> Optional[str]:
     return None
 
 
+# some backports
+
+
 # TODO make a custom cancellable Executor
-
-
-def to_thread(callable: Callable[..., _T], *args, **kwargs) -> Awaitable[_T]:  # a back port of asyncio.to_thread
+def to_thread(callable: Callable[..., _T], *args, **kwargs) -> Awaitable[_T]:  # asyncio.to_thread
     loop = asyncio.get_running_loop()
     ctx = contextvars.copy_context()
     partial = functools.partial(ctx.run, callable, *args, **kwargs)
     return loop.run_in_executor(None, partial)
+
+
+_NOT_FOUND = object()
+
+
+class cached_property:  # functools.cached_property
+    __slots__ = ("func", "attr_name", "__doc__")
+
+    def __init__(self, func: Callable[[Any], _T]):
+        self.func = func
+        self.attr_name: Optional[str] = None
+        self.__doc__ = func.__doc__
+
+    def __set_name__(self, _, name: str) -> None:
+        if self.attr_name is None:
+            self.attr_name = name
+
+    def __get__(self, instance: Optional[Any], _) -> Union[_T, "cached_property"]:
+        if instance is None:
+            return self
+        cache = instance.__dict__  # errors here for classes with slots
+        value = cache.get(self.attr_name, _NOT_FOUND)
+        if value is _NOT_FOUND:
+            value = self.func(instance)
+            cache[self.attr_name] = value
+        return value
 
 
 def ainput(prompt: str = "") -> Awaitable[str]:
