@@ -396,6 +396,8 @@ class Client:
         self.shared_secret = shared_secret
 
         await self.http.login(username=username, password=password, shared_secret=shared_secret)
+        self._closed = False
+        self.loop.create_task(self._connection.__ainit__())
 
     async def close(self) -> None:
         """|coro|
@@ -419,10 +421,12 @@ class Client:
         self._connection.clear()
         self.http.recreate()
 
-    async def start(self, *args, **kwargs) -> None:
+    async def start(
+        self, username, password, *, shared_secret: Optional[str] = None, identity_secret: Optional[str] = None,
+    ) -> None:
         """|coro|
-        A shorthand coroutine for :meth:`login` and :meth:`connect`. If no shared_secret is passed, you will have to
-        manually enter a Steam guard code.
+        A shorthand coroutine for :meth:`login` and :meth:`connect`. If no ``shared_secret`` is passed, you will have to
+        manually enter a Steam guard code using :meth:`code`.
 
         Parameters
         -----------
@@ -430,11 +434,6 @@ class Client:
             The username of the account to login to.
         password: :class:`str`
             The password of the account to login to.
-
-        Other Parameters
-        ----------------
-        These parameters are keyword only:
-
         shared_secret: Optional[:class:`str`]
             The shared secret for the account to login to.
         identity_secret: Optional[:class:`str`]
@@ -451,21 +450,15 @@ class Client:
         :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """
-        self.username = username = kwargs.pop("username", None) or args[0]
-        self.password = password = kwargs.pop("password", None) or args[1]
-        self.shared_secret = shared_secret = kwargs.pop("shared_secret", None)
-        self.identity_secret = identity_secret = kwargs.pop("identity_secret", None)
+        self.username = username
+        self.password = password
+        self.shared_secret = shared_secret
+        self.identity_secret = identity_secret
 
         if identity_secret is None:
             log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
-        if not (username or password):
-            raise errors.LoginError("one or more required login detail is missing")
-        if kwargs:
-            raise TypeError(f"unexpected keyword argument(s) {list(kwargs.keys())}")
 
         await self.login(username, password, shared_secret=shared_secret)
-        self.loop.create_task(self._connection.__ainit__())
-        self._closed = False
         await self.connect()
 
     async def _connect(self) -> None:
