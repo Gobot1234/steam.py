@@ -189,7 +189,7 @@ class Command:
         globals = module.__dict__
         try:
             annotations = get_type_hints(function, globals)
-        except NameError:
+        except NameError:  # likely have imports in a TYPE_CHECKING block
             if not (typing in globals.values() or not getattr(module, "TYPE_CHECKING", True)):
                 raise
             import importlib
