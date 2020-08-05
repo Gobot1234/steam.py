@@ -68,6 +68,7 @@ if TYPE_CHECKING:
     from .client import Client
     from .comment import Comment
     from .http import HTTPClient
+    from .gateway import SteamWebSocket
     from .protobufs.steammessages_chat import (
         CChatRoomChatRoomHeaderStateNotification as GroupStateUpdate,
         CChatRoomGetMyChatRoomGroupsResponse as MyChatRooms,
@@ -194,6 +195,10 @@ class ConnectionState:
         await self._poll_trades()
 
     @property
+    def ws(self) -> "SteamWebSocket":
+        return self.client.ws
+
+    @property
     def users(self) -> List[User]:
         return list(self._users.values())
 
@@ -248,7 +253,7 @@ class ConnectionState:
 
     async def fetch_clan(self, id64: int) -> Optional["Clan"]:
         try:
-            msg: MsgProto["FetchGroupResponse"] = await self.client.ws.send_um_and_wait(
+            msg: MsgProto["FetchGroupResponse"] = await self.ws.send_um_and_wait(
                 "ClanChatRooms.GetClanChatRoomInfo#1_Request", steamid=id64, autocreate=True
             )
         except asyncio.TimeoutError:
@@ -351,7 +356,7 @@ class ConnectionState:
         if obj is None:
             return None
 
-        if self._obj == obj:
+        if self._obj is obj:
             self._previous_iteration += 1
         else:
             self._obj = obj
@@ -419,7 +424,7 @@ class ConnectionState:
 
     async def send_user_message(self, user_id64: int, content: str) -> None:
         try:
-            msg: MsgProto["SendUserMessageResponse"] = await self.client.ws.send_um_and_wait(
+            msg: MsgProto["SendUserMessageResponse"] = await self.ws.send_um_and_wait(
                 "FriendMessages.SendMessage#1_Request",
                 steamid=str(user_id64),
                 message=content,
@@ -447,7 +452,7 @@ class ConnectionState:
         self.dispatch("message", message)
 
     async def send_user_typing(self, user: "User") -> None:
-        await self.client.ws.send_um(
+        await self.ws.send_um(
             "FriendMessages.SendMessage#1_Request", steamid=str(user.id64), chat_entry_type=EChatEntryType.Typing,
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
@@ -455,7 +460,7 @@ class ConnectionState:
     async def send_group_message(self, destination: Tuple[int, int], content: str) -> None:
         chat_id, group_id = destination
         try:
-            msg = await self.client.ws.send_um_and_wait(
+            msg = await self.ws.send_um_and_wait(
                 "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content,
             )
         except asyncio.TimeoutError:
@@ -482,7 +487,7 @@ class ConnectionState:
 
     async def join_chat(self, chat_id: int, invite_code: Optional[str] = None) -> None:
         try:
-            msg = await self.client.ws.send_um_and_wait(
+            msg = await self.ws.send_um_and_wait(
                 "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or "",
             )
         except asyncio.TimeoutError:
@@ -494,7 +499,7 @@ class ConnectionState:
 
     async def leave_chat(self, chat_id: int) -> None:
         try:
-            msg = await self.client.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
+            msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
         except asyncio.TimeoutError:
             return
         if msg.header.eresult == EResult.InvalidParameter:
@@ -595,9 +600,9 @@ class ConnectionState:
     def parse_cm_list_update(self, msg: MsgProto["CMsgClientCMList"]) -> None:
         log.debug("Updating CM list")
         cms = msg.body.cm_websocket_addresses
-        self.client.ws.cm_list.clear()
-        self.client.ws.cm_list.merge_list(cms)
-        self.loop.create_task(self.client.ws.cm_list.ping_cms(to_ping=len(cms)))
+        self.ws.cm_list.clear()
+        self.ws.cm_list.merge_list(cms)
+        self.loop.create_task(self.ws.cm_list.ping_cms(to_ping=len(cms)))
         # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)
@@ -633,9 +638,9 @@ class ConnectionState:
             if data["avatar_hash"] != "\x00" * 20
             else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
         )
-        data[
-            "avatarfull"
-        ] = f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
+        data["avatarfull"] = (
+            f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
+        )
 
         if friend.last_logoff:
             data["lastlogoff"] = friend.last_logoff
