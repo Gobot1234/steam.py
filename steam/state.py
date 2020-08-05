@@ -67,8 +67,8 @@ if TYPE_CHECKING:
 
     from .client import Client
     from .comment import Comment
-    from .http import HTTPClient
     from .gateway import SteamWebSocket
+    from .http import HTTPClient
     from .protobufs.steammessages_chat import (
         CChatRoomChatRoomHeaderStateNotification as GroupStateUpdate,
         CChatRoomGetMyChatRoomGroupsResponse as MyChatRooms,
