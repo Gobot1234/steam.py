@@ -203,8 +203,7 @@ class Inventory:
 
         .. describe:: y in x
 
-            Determines if an item is in the inventory based off of
-            its class_id and instance_id.
+            Determines if an item is in the inventory based off of its class_id and instance_id.
 
 
     Attributes
@@ -213,7 +212,7 @@ class Inventory:
         A list of the inventory's items.
     owner: :class:`~steam.User`
         The owner of the inventory.
-    game: :class:`steam.Game`
+    game: Optional[:class:`steam.Game`]
         The game the inventory the game belongs to.
     """
 
@@ -334,8 +333,7 @@ class TradeOffer:
     items_to_receive: Optional[List[Union[:class:`steam.Item`, :class:`steam.Asset`]]]
         The items you are sending to the other user.
     token: Optional[:class:`str`]
-        The the trade token used to send trades to users who aren't
-        on the ClientUser's friend's list.
+        The the trade token used to send trades to users who aren't on the ClientUser's friend's list.
     message: Optional[:class:`str`]
          The offer message to send with the trade.
 

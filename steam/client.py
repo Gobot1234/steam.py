@@ -746,7 +746,7 @@ class Client:
         state: :class:`~steam.EPersonaState`
             The state to show your account as.
 
-            .. note::
+            .. warning::
                 Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state
                 updates and by extension :meth:`on_user_update` will stop being dispatched.
 
