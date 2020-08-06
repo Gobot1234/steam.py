@@ -127,8 +127,8 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
             else:
                 id = 0
 
-    elif len(args) > 0:
-        length = len(args)
+    length = len(args)
+    if length > 0:
         if length == 1:
             etype = args
         elif length == 2:
@@ -422,7 +422,7 @@ def contains_bbcode(string: str) -> bool:
 
 
 def chunk(l: List[_T], size: int) -> List[List[_T]]:
-    def chunker() -> Generator[List[List[_T]], None, None]:
+    def chunker() -> Generator[List[_T], None, None]:
         for i in range(0, len(l), size):
             yield l[i : i + size]
 
