@@ -31,11 +31,14 @@ import imghdr
 import io
 import struct
 from time import time
-from typing import Union
-
-import aiohttp
+from typing import TYPE_CHECKING, Union
 
 __all__ = ("Image",)
+
+if TYPE_CHECKING:
+    from os import PathLike
+
+AnyPath = Union[str, bytes, "PathLike[str]", "PathLike[bytes]"]
 
 
 class Image:
@@ -43,7 +46,7 @@ class Image:
 
     Parameters
     ----------
-    fp: Union[:class:`io.BufferedIOBase`, :class:`aiohttp.StreamReader`, :class:`str`]
+    fp: Union[:class:`io.BufferedIOBase`, :class:`str`]
         An image or path-like to pass to :func:`open`.
     spoiler: :class:`bool`
         Whether or not to mark the image as a spoiler.
@@ -60,21 +63,14 @@ class Image:
 
     __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash")
 
-    def __init__(self, fp: Union[io.IOBase, aiohttp.StreamReader, str], *, spoiler: bool = False):
-        self.fp = fp
-        self.spoiler = spoiler
-
+    def __init__(self, fp: Union[io.IOBase, AnyPath], *, spoiler: bool = False):
         if isinstance(fp, io.IOBase):
-            if not (fp.seekable() and fp.readable()):
-                raise ValueError(f"File buffer {fp!r} must be seekable and readable")
-            self.fp = fp
-        elif isinstance(fp, aiohttp.StreamReader):
-            exc = fp.exception()
-            if exc is not None:
-                raise ValueError("aiohttp.StreamReader cannot be read due to an exception") from exc
             self.fp = fp
         else:
-            self.fp = open(fp, "rb")
+            self.fp: io.BufferedReader = open(fp, "rb")
+
+        if not (self.fp.seekable() and self.fp.readable()):
+            raise ValueError(f"File buffer {fp!r} must be seekable and readable")
 
         if len(self) > 10485760:
             raise ValueError("file is too large to upload")
@@ -110,6 +106,7 @@ class Image:
                 raise ValueError from exc
         else:
             raise TypeError("Unsupported file type passed")
+        self.spoiler = spoiler
         self.width = width
         self.height = height
         self.hash = hashlib.sha1(self.read()).hexdigest()
