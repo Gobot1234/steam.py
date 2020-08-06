@@ -31,10 +31,9 @@ https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 import asyncio
 import datetime
 import logging
-import signal
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
 
 import aiohttp
 from typing_extensions import Literal, Protocol, overload
@@ -168,7 +167,6 @@ class Client:
         self.password: Optional[str] = None
         self.shared_secret: Optional[str] = None
         self.identity_secret: Optional[str] = None
-        self.shared_secret: Optional[str] = None
         self.token: Optional[str] = None
 
         self._closed = True
@@ -419,7 +417,12 @@ class Client:
         self.http.recreate()
 
     async def start(
-        self, username, password, *, shared_secret: Optional[str] = None, identity_secret: Optional[str] = None,
+        self,
+        username: str,
+        password: str,
+        *,
+        shared_secret: Optional[str] = None,
+        identity_secret: Optional[str] = None,
     ) -> None:
         """|coro|
         A shorthand coroutine for :meth:`login` and :meth:`connect`. If no ``shared_secret`` is passed, you will have to
@@ -461,7 +464,7 @@ class Client:
     async def _connect(self) -> None:
         resp = await self.http.request("GET", url=community_route("chat/clientjstoken"))
         if not resp["logged_in"]:  # we got logged out :(
-            await self.login(self.username, self.password, self.shared_secret)
+            await self.login(self.username, self.password, shared_secret=self.shared_secret)
             await self._connect()
         self.token = resp["token"]
         coro = SteamWebSocket.from_client(self, cms=self._cm_list)

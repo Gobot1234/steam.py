@@ -27,7 +27,8 @@ SOFTWARE.
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from yarl import URL
+from typing_extensions import Final
+from yarl import URL as _URL
 
 if TYPE_CHECKING:
     from .protobufs.steammessages_chat import CChatRoleActions as RoleProto
@@ -39,25 +40,25 @@ __all__ = (
 )
 
 
-def api_route(path: str) -> URL:
+def api_route(path: str) -> _URL:
     """Format an API URL for usage with HTTPClient.request"""
     return URL.API / f'{path}{"/v1" if path[-2:] != "v2" else ""}'
 
 
-def community_route(path: str) -> URL:
+def community_route(path: str) -> _URL:
     """Format a Steam Community URL for usage with HTTPClient.request"""
     return URL.COMMUNITY / path
 
 
-def store_route(path: str) -> URL:
+def store_route(path: str) -> _URL:
     """Format a Steam store URL for usage with HTTPClient.request"""
     return URL.STORE / path
 
 
 class URL:
-    API = URL("https://api.steampowered.com")
-    COMMUNITY = URL("https://steamcommunity.com")
-    STORE = URL("https://store.steampowered.com")
+    API: Final[_URL] = _URL("https://api.steampowered.com")
+    COMMUNITY: Final[_URL] = _URL("https://steamcommunity.com")
+    STORE: Final[_URL] = _URL("https://store.steampowered.com")
 
 
 class Ban:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Dict, Type
 
 from . import (
     steammessages_base,
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 __all__ = ("PROTOBUFS",)
 
 
-PROTOBUFS: Dict[EMsg, "betterproto.Message"] = {
+PROTOBUFS: Dict[EMsg, Type["betterproto.Message"]] = {
     EMsg.Multi: steammessages_base.CMsgMulti,
     EMsg.ClientHeartBeat: steammessages_clientserver_login.CMsgClientHeartBeat,
     EMsg.ClientServerTimestampRequest: steammessages_clientserver_login.CMsgClientServerTimestampRequest,

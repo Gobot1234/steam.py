@@ -26,7 +26,7 @@ SOFTWARE.
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Generator, List, Optional, Union
 
 from .enums import ETradeOfferState
 from .errors import ClientException, ConfirmationError
@@ -222,7 +222,7 @@ class Inventory:
     def __init__(self, state: "ConnectionState", data: dict, owner: "BaseUser"):
         self._state = state
         self.owner = owner
-        self.items: List[Item] = []
+        self.items: List[Union[Item, Asset]] = []
         self.game: Optional[Game]
         self._update(data)
 
@@ -234,7 +234,7 @@ class Inventory:
     def __len__(self):
         return self._total_inventory_count
 
-    def __iter__(self) -> Iterable[Item]:
+    def __iter__(self) -> Generator[Item, None, None]:
         return (item for item in self.items)
 
     def __contains__(self, item: Asset):
@@ -242,7 +242,7 @@ class Inventory:
             return item in self.items
         return NotImplemented
 
-    def _update(self, data) -> None:
+    def _update(self, data: dict) -> None:
         try:
             self.game = Game(app_id=int(data["assets"][0]["appid"]))
         except KeyError:  # they don't have an inventory in this game

@@ -178,7 +178,7 @@ class AsyncIterator(_AsyncIterator[T]):
     def __aiter__(self) -> "AsyncIterator[T]":
         return self
 
-    def __anext__(self) -> T:
+    def __anext__(self) -> Awaitable[T]:
         return self.next()
 
     async def next(self) -> T:

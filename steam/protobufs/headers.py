@@ -61,18 +61,20 @@ class MsgHdr:
     job_id_source: :class:`int`
     """
 
-    __slots__ = ("msg", "job_id_target", "job_id_source")
+    __slots__ = ("msg", "eresult", "job_name_target", "job_id_target", "job_id_source")
     SIZE = 20
 
     def __init__(self, data: bytes = None):
         self.msg = EMsg.Invalid
+        self.eresult = EResult.Invalid
+        self.job_name_target = None
         self.job_id_target = -1
         self.job_id_source = -1
         if data:
             self.parse(data)
 
     def __repr__(self):
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in ("msg", "job_id_target", "job_id_source")]
         return f'<MsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self):
@@ -117,6 +119,7 @@ class ExtendedMsgHdr:
         "header_size",
         "header_version",
         "header_canary",
+        "job_name_target",
         "job_id_target",
         "job_id_source",
     )
@@ -126,6 +129,7 @@ class ExtendedMsgHdr:
         self.msg = EMsg.Invalid
         self.header_size = 36
         self.header_version = 2
+        self.job_name_target = None
         self.job_id_target = -1
         self.job_id_source = -1
         self.header_canary = 239

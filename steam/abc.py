@@ -33,7 +33,7 @@ import asyncio
 import re
 from datetime import datetime
 from functools import total_ordering
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Awaitable, List, Optional, Tuple, Union
 
 from .badge import UserBadges
 from .comment import Comment
@@ -49,7 +49,6 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
 
     from .clan import Clan
-    from .client import EventType
     from .group import Group
     from .http import StrOrURL
     from .image import Image
@@ -620,7 +619,7 @@ class BaseUser(SteamID):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-_EndPointReturnType = Tuple[Union[Tuple[int, int], int], "EventType"]
+_EndPointReturnType = Tuple[Union[Tuple[int, int], int], Awaitable[None]]
 
 
 class Messageable(metaclass=abc.ABCMeta):

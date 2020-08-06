@@ -33,7 +33,7 @@ from collections import deque
 from copy import copy
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Awaitable, Callable, Dict, List, Mapping, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Awaitable, Callable, Dict, List, MutableMapping, Optional, Tuple, Union
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
@@ -171,7 +171,7 @@ class ConnectionState:
         self.clear()
 
     def clear(self) -> None:
-        self._users: Mapping[int, User] = weakref.WeakValueDictionary()
+        self._users: MutableMapping[int, User] = weakref.WeakValueDictionary()
         self._trades: Dict[int, TradeOffer] = dict()
         self._groups: Dict[int, Group] = dict()
         self._clans: Dict[int, Clan] = dict()

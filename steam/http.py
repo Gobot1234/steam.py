@@ -150,7 +150,7 @@ class HTTPClient:
         # we've run out of retries, raise
         raise errors.HTTPException(r, data)
 
-    def connect_to_cm(self, cm: str) -> Awaitable:
+    def connect_to_cm(self, cm: str) -> Awaitable[aiohttp.ClientWebSocketResponse]:
         headers = {"User-Agent": self.user_agent}
         return self._session.ws_connect(f"wss://{cm}/cmsocket/", timeout=60, headers=headers)
 
@@ -258,7 +258,7 @@ class HTTPClient:
         return self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
 
     async def get_users(self, user_id64s: List[int]) -> List[dict]:
-        ret = []
+        ret: List[dict] = []
         if user_id64s == [0]:  # FIXME bandaid
             return ret
 
@@ -516,7 +516,15 @@ class HTTPClient:
         return self.request("GET", community_route("my/inventory"))
 
     async def edit_profile(
-        self, name: str, real_name: str, url: str, summary: str, country: str, state: str, city: str, avatar: "Image",
+        self,
+        name: Optional[str],
+        real_name: Optional[str],
+        url: Optional[str],
+        summary: Optional[str],
+        country: Optional[str],
+        state: Optional[str],
+        city: Optional[str],
+        avatar: Optional["Image"],
     ) -> None:
         if any((name, real_name, url, summary, country, state, city, avatar)):
             resp = await self.request("GET", url=community_route("my/edit"))

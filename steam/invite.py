@@ -24,9 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 if TYPE_CHECKING:
+    from .abc import SteamID
     from .clan import Clan
     from .enums import EFriendRelationship
     from .state import ConnectionState
@@ -53,7 +54,9 @@ class Invite:
 
     __slots__ = ("invitee", "relationship", "_state")
 
-    def __init__(self, state: "ConnectionState", invitee: "User", relationship: Optional["EFriendRelationship"]):
+    def __init__(
+        self, state: "ConnectionState", invitee: Union["User", "SteamID"], relationship: Optional["EFriendRelationship"]
+    ):
         self._state = state
         self.invitee = invitee
         self.relationship = relationship
@@ -105,7 +108,11 @@ class ClanInvite(Invite):
     __slots__ = ("clan",)
 
     def __init__(
-        self, state: "ConnectionState", invitee: "User", clan: "Clan", relationship: Optional["EFriendRelationship"]
+        self,
+        state: "ConnectionState",
+        invitee: Union["User", "SteamID"],
+        clan: Union["Clan", "SteamID"],
+        relationship: Optional["EFriendRelationship"],
     ):
         super().__init__(state, invitee, relationship)
         self.clan = clan

@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from enum import Enum
+from enum import Enum as _Enum
 from typing import Any, TypeVar, Union, overload
 
 T = TypeVar("T")
@@ -57,13 +57,13 @@ class EnumMember:
 class IntEnumMember(int, EnumMember):
     value: int
 
-class Enum(Enum):
+class Enum(_Enum):
     @classmethod
     @overload
-    def try_value(cls, value: Enum) -> Enum: ...
+    def try_value(cls, value: _Enum) -> _Enum: ...
     @classmethod
     @overload
-    def try_value(cls, value: T) -> Union[Enum, T]: ...
+    def try_value(cls, value: T) -> Union[_Enum, T]: ...
 
 class IntEnum(int, Enum): ...
 
@@ -132,12 +132,14 @@ class EResult(IntEnum):
     AccountLogonDenied: EResult
     CannotUseOldPassword: EResult
     InvalidLoginAuthCode: EResult
+    AccountLogonDeniedNoMail: EResult
     HardwareNotCapableOfIPT: EResult
     IPTInitError: EResult
     ParentalControlRestricted: EResult
     FacebookQueryError: EResult
     ExpiredLoginAuthCode: EResult
     IPLoginRestrictionFailed: EResult
+    AccountLockedDown: EResult
     VerifiedEmailRequired: EResult
     NoMatchingURL: EResult
     BadResponse: EResult
@@ -272,7 +274,7 @@ class ETradeOfferState(IntEnum):
 
 class EChatEntryType(IntEnum):
     Invalid: EChatEntryType
-    ChatMsg: EChatEntryType
+    Text: EChatEntryType
     Typing: EChatEntryType
     InviteGame: EChatEntryType
     LeftConversation: EChatEntryType
