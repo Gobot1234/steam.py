@@ -172,7 +172,7 @@ class Command:
 
         for alias in self.aliases:
             if not isinstance(alias, str):
-                raise TypeError('A commands aliases should be an iterable only containing strings')
+                raise TypeError("A commands aliases should be an iterable only containing strings")
 
     @property
     def callback(self) -> "CommandType":
@@ -180,8 +180,8 @@ class Command:
         return self._callback
 
     @callback.setter
-    def callback(self, function: "CommandType"):
-        # using get_type_hints allows for postponed annotations (type hints in quotes) for more info see pep 563
+    def callback(self, function: "CommandType") -> None:
+        # using get_type_hints allows for postponed annotations (type hints in quotes) for more info see PEP 563
         # https://www.python.org/dev/peps/pep-0563.
         module = sys.modules[function.__module__]
         globals = module.__dict__
