@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING, Awaitable, Callable, Dict, List, Mapping, Opti
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
+from typing_extensions import Protocol
 
 from . import utils
 from .abc import SteamID
@@ -84,8 +85,11 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo
 
 log = logging.getLogger(__name__)
-EV = Union[Callable[["ConnectionState", "MsgProto"], Optional[Awaitable[None]]], "FunctionType"]
-EventParser: EV = EV
+
+
+class EventParser(Protocol):
+    def __call__(self: "ConnectionState", msg: "MsgProto") -> Optional[Awaitable[None]]:
+        ...
 
 
 class Registerer:

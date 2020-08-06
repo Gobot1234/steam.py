@@ -37,7 +37,7 @@ import traceback
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, Dict, List, Optional, Tuple, Union
 
 import aiohttp
-from typing_extensions import Literal, overload
+from typing_extensions import Literal, Protocol, overload
 
 from . import errors, utils
 from .abc import SteamID
@@ -50,7 +50,7 @@ from .models import community_route
 from .state import ConnectionState
 
 if TYPE_CHECKING:
-    from types import FunctionType
+    from types import CodeType
 
     import steam
 
@@ -67,10 +67,16 @@ if TYPE_CHECKING:
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
-EV = Union[
-    Callable[..., Coroutine[None, Any, None]], "FunctionType"
-]  # basic event, shouldn't yield or return anything, mixes in FunctionType for better typings
-EventType: EV = EV
+
+
+class EventType(Protocol):
+    # would be a FunctionType subclass to make things nicer, but alas "type 'function' is not an acceptable base type"
+    __code__: "CodeType"
+    __annotations__: Dict[str, Any]
+    __name__: str
+
+    async def __call__(self, *args, **kwargs) -> None:
+        ...
 
 
 def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:

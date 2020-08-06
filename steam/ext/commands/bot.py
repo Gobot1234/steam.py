@@ -35,7 +35,7 @@ import sys
 import traceback
 from copy import copy
 from shlex import shlex as Shlex
-from types import FunctionType, MappingProxyType
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -52,7 +52,7 @@ from typing import (
     Union,
 )
 
-from typing_extensions import Literal, overload
+from typing_extensions import Literal, Protocol, overload
 
 from ... import utils
 from ...client import Client, EventType, log
@@ -82,9 +82,12 @@ StrOrIterStr: Union[str, Iterable[str]] = Union[str, Iterable[str]]
 CPT = Union[
     StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]],
 ]
-CT = Union[Callable[["Context"], Awaitable[None]], FunctionType]
 CommandPrefixType: CPT = CPT
-CommandType: CT = CT
+
+
+class CommandType(Protocol):
+    async def __call__(self, context: "Context", *args, **kwargs) -> None:
+        ...
 
 
 class Bot(GroupMixin, Client):
