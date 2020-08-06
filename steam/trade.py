@@ -46,7 +46,8 @@ __all__ = (
 
 
 class Asset:
-    """A striped down version of an item.
+    """Base most version of an item. This class should only be received when Steam fails to find a matching item for
+    its class and instance IDs.
 
     .. container:: operations
 
@@ -273,12 +274,12 @@ class Inventory:
         self._update(data)
         return self
 
-    def filter_items(self, item_name: str, *, limit: int = None) -> List[Item]:
-        """Filters items by name into a list of one type of item.
+    def filter_items(self, name: str, *, limit: int = None) -> List[Item]:
+        """A helper function that filters and removes items by name from the inventory.
 
         Parameters
         ------------
-        item_name: :class:`str`
+        name: :class:`str`
             The item's name to filter for.
         limit: Optional[:class:`int`]
             The maximum amount of items to filter.
@@ -286,36 +287,29 @@ class Inventory:
         Returns
         ---------
         List[:class:`Item`]
-            List of :class:`Item`.
-            Could be an empty if no matching items are found.
-            This also removes the item from the inventory, if possible.
+            The removed matching items.
         """
-        items = [item for item in self if item.name == item_name]
+        items = [item for item in self if item.name == name]
         items = items if limit is None else items[:limit]
         for item in items:
             self.items.remove(item)
         return items
 
-    def get_item(self, item_name: str) -> Optional[Item]:
-        """Get an item by name from a :class:`Inventory`.
+    def get_item(self, name: str) -> Optional[Item]:
+        """A helper function that gets and removes an item by name from the inventory.
 
         Parameters
         ----------
-        item_name: :class:`str`
+        name: :class:`str`
             The item to get from the inventory.
 
         Returns
         -------
         Optional[:class:`Item`]
-            Returns the first found item with a matching name.
-            Can be ``None`` if no matching item is found.
-            This also removes the item from the inventory, if possible.
+            Returns the first item found with a matching name. Could be ``None`` if no matching item is found.
         """
-        item = [item for item in self if item.name == item_name]
-        if item:
-            self.items.remove(item[0])
-            return item[0]
-        return None
+        item = self.filter_items(name, limit=1)
+        return item[0] if item else None
 
 
 class TradeOffer:
