@@ -29,7 +29,7 @@ from typing import Any, TypeVar, Union, overload
 
 T = TypeVar("T")
 
-# makes things much nicer for linters
+# pretending these are enum.IntEnum subclasses makes things much nicer for linters
 
 __all__ = (
     "Enum",

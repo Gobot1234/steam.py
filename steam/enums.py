@@ -4,7 +4,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2015-2020 Rapptz
-Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,7 +25,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 EnumMeta from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
-Enums from https://github.com/ValvePython/steam/blob/master/steam/enums/common.py
 """
 
 from enum import EnumMeta as _EnumMeta, _is_descriptor, _is_dunder
@@ -438,7 +436,7 @@ class ETradeOfferState(IntEnum):
 
 
 class EChatEntryType(IntEnum):
-    Invalid          = 0
+    Invalid          = 0   #: An Invalid Chat entry.
     Text             = 1   #: A Normal text message from another user.
     Typing           = 2   #: Another user is typing (not used in multi-user chat).
     InviteGame       = 3   #: An Invite from other user into that users current game.
