@@ -86,7 +86,12 @@ CommandPrefixType: CPT = CPT
 
 
 class CommandType(Protocol):
-    async def __call__(self, context: "Context", *args, **kwargs) -> None:
+    @overload
+    async def __call__(self, ctx: "Context", *args, **kwargs) -> None:
+        ...
+
+    @overload
+    async def __call__(self, cog: "Cog", ctx: "Context", *args, **kwargs) -> None:
         ...
 
 
