@@ -151,7 +151,7 @@ class Clan(SteamID):
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/clans.js
 
     def __init__(self, state: "ConnectionState", id: int):
-        self._BASE = 0
+        self._SteamID__BASE = 0
         self.url = community_route(f"gid/{id}")
         self._state = state
         self.name: Optional[str] = None
@@ -174,7 +174,7 @@ class Clan(SteamID):
         super().__init__(search.group(1))
 
         soup = BeautifulSoup(resp, "html.parser")
-        self.name = soup.find("title").text.replace("Steam Community :: Group :: ", "", 1)
+        self.name = soup.find("title").text[28:]
         self.description = soup.find("meta", attrs={"property": "og:description"})["content"]
         self.icon_url = soup.find("link", attrs={"rel": "image_src"})["href"]
         stats = soup.find("div", attrs={"class": "grouppage_resp_stats"})

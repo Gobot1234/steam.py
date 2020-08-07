@@ -619,7 +619,7 @@ class BaseUser(SteamID):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-_EndPointReturnType = Tuple[Union[Tuple[int, int], int], Awaitable[None]]
+_EndPointReturnType = Tuple[Union[Tuple[int, int], int], Callable[..., Awaitable[None]]]
 
 
 class Messageable(metaclass=abc.ABCMeta):
@@ -634,11 +634,13 @@ class Messageable(metaclass=abc.ABCMeta):
 
     __slots__ = ()
 
+    @abc.abstractmethod
     def _get_message_endpoint(self) -> _EndPointReturnType:
-        pass
+        raise NotImplementedError
 
+    @abc.abstractmethod
     def _get_image_endpoint(self) -> _EndPointReturnType:
-        pass
+        raise NotImplementedError
 
     async def send(self, content: Optional[str] = None, image: Optional["Image"] = None):
         """|coro|
@@ -667,19 +669,25 @@ class Messageable(metaclass=abc.ABCMeta):
 
 
 class BaseChannel(Messageable):
-    __slots__ = ("_state", "participant", "clan", "group")
+    __slots__ = ("clan", "group", "_state")
+
+    _state: "ConnectionState"
 
     def __init__(self):
-        self._state: "ConnectionState"
-        self.participant: Optional["User"] = None
         self.clan: Optional["Clan"] = None
         self.group: Optional["Group"] = None
 
+    @abc.abstractmethod
     def typing(self):
-        pass
+        raise NotImplementedError
 
+    @abc.abstractmethod
     async def trigger_typing(self):
-        pass
+        raise NotImplementedError
+
+
+def _clean_up_content(content: str) -> str:
+    return content.replace("\[", "[").replace("\\\\", "\\")
 
 
 class Message:
@@ -694,31 +702,44 @@ class Message:
 
     Attributes
     ----------
-    channel: :class:`steam.abc.BaseChannel`
+    channel: :class:`BaseChannel`
         The channel the message was sent in.
     content: :class:`str`
         The message's content.
+    clean_content: :class:`str`
+        The message's clean content without bbcode.
     author: :class:`steam.`User`
         The message's author.
     created_at: :class:`datetime.datetime`
         The time the message was sent at.
+    group: Optional[:class:`~steam.Group`]
+        The group the message was sent in. Will be ``None`` if the message wasn't sent in a :class:`~steam.Group`.
+    clan: Optional[:class:`~steam.Clan`]
+        The clan the message was sent in. Will be ``None`` if the message wasn't sent in a :class:`~steam.Clan`.
     """
 
     __slots__ = (
         "author",
         "content",
         "channel",
+        "clean_content",
         "created_at",
         "group",
         "clan",
         "_state",
     )
 
-    def __init__(self, channel: "BaseChannel"):
+    def __init__(self, channel: "BaseChannel", proto):
         self._state: "ConnectionState" = channel._state
         self.channel = channel
-        self.content: Optional[str] = None
-        self.author: Optional["User"] = None
-        self.created_at: Optional[datetime] = None
-        self.group = channel.group
-        self.clan = channel.clan
+        self.group: Optional["Group"] = channel.group
+        self.clan: Optional["Clan"] = channel.clan
+        self.content: str = _clean_up_content(proto.message)
+        self.clean_content: str = proto.message_no_bbcode or self.content
+        self.author: "User"
+        self.created_at: datetime
+
+    def __repr__(self):
+        attrs = ("author", "channel")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"

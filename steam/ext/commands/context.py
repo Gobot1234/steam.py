@@ -31,7 +31,6 @@ from ...abc import Message, Messageable
 if TYPE_CHECKING:
     from shlex import shlex as Shlex
 
-    from ...image import Image
     from .bot import Bot
     from .commands import Command
 
@@ -93,5 +92,8 @@ class Context(Messageable):
         self.args: Optional[List] = None
         self.kwargs: Optional[Dict[str, Any]] = None
 
-    async def send(self, content: Optional[str] = None, *, image: Optional["Image"] = None):
-        return await self.channel.send(content=content, image=image)
+    def _get_message_endpoint(self):
+        return self.channel._get_message_endpoint()
+
+    def _get_image_endpoint(self):
+        return self.channel._get_image_endpoint()

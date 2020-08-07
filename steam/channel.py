@@ -59,15 +59,22 @@ class DMChannel(BaseChannel):
         The recipient of any messages sent.
     """
 
-    __slots__ = ("participant", "_state")
+    __slots__ = ("participant",)
 
     def __init__(self, state: "ConnectionState", participant: "User"):
-        super().__init__()
         self._state = state
         self.participant = participant
+        self.clan = None
+        self.group = None
 
     def __repr__(self):
         return f"<DMChannel participant={self.participant!r}>"
+
+    def _get_message_endpoint(self):
+        return self.participant._get_message_endpoint()
+
+    def _get_image_endpoint(self):
+        return self.participant._get_image_endpoint()
 
     async def send(
         self, content: Optional[str] = None, *, trade: Optional["TradeOffer"] = None, image: Optional["Image"] = None
@@ -144,7 +151,7 @@ _MessageEndpointReturnType = Tuple[Tuple[int, int], Callable[[Tuple[int, int]], 
 
 
 class _GroupChannel(BaseChannel):
-    __slots__ = ("id", "joined_at", "name", "_state")
+    __slots__ = ("id", "joined_at", "name")
 
     def __init__(self, state: "ConnectionState", channel):
         super().__init__()
@@ -160,6 +167,12 @@ class _GroupChannel(BaseChannel):
             self.joined_at = datetime.utcfromtimestamp(int(channel.time_joined))
         else:
             self.joined_at = None
+
+    def typing(self):
+        raise NotImplementedError
+
+    async def trigger_typing(self):
+        raise NotImplementedError
 
     def __repr__(self):
         attrs = ("id", "group")

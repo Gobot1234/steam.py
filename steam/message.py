@@ -45,38 +45,20 @@ __all__ = (
 )
 
 
-def _clean_up_content(content: str) -> str:
-    return content.replace("\[", "[").replace("\\\\", "\\")
-
-
 class UserMessage(Message):
     """Represents a message from a User."""
 
     def __init__(self, proto: "UserMessageNotification", channel: "DMChannel"):
-        super().__init__(channel)
+        super().__init__(channel, proto)
         self.author = channel.participant
-        self.content = _clean_up_content(proto.message)
         self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
-        self.clean_content = proto.message_no_bbcode or self.content
-
-    def __repr__(self):
-        attrs = ("author", "channel")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<UserMessage {' '.join(resolved)}>"
 
 
 class _GroupMessage(Message):
     def __init__(self, proto: "GroupMessageNotification", channel, author: "User"):
-        super().__init__(channel)
+        super().__init__(channel, proto)
         self.author = author
-        self.content = _clean_up_content(proto.message)
         self.created_at = datetime.utcfromtimestamp(proto.timestamp)
-        self.clean_content = proto.message_no_bbcode or self.content
-
-    def __repr__(self):
-        attrs = ("author", "channel")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
 class GroupMessage(_GroupMessage):
