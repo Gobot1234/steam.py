@@ -193,8 +193,14 @@ class Command:
             if not (typing in globals.values() or not getattr(module, "TYPE_CHECKING", True)):
                 raise
             # WARNING: very hacky, the user likely has imports that haven't been loaded in a TYPE_CHECKING block, we are
-            # going to attempt to fetch these ourselves and add them to the modules __dict__.
-
+            # going to attempt to fetch these ourselves and add them to the modules __dict__. If a user wants to have
+            # this be avoided you can use something similar to:
+            #
+            # if TYPE_CHECKING:
+            #    from expensive_module import expensive_type
+            # else:
+            #    expensive_type = str
+            #
             # NOTE: this doesn't run into circular import errors due to the way importlib.reload works.
             typing.TYPE_CHECKING = True
             importlib.reload(module)
@@ -211,10 +217,13 @@ class Command:
 
     @property
     def qualified_name(self) -> str:
+        """:class:`str`: The full name of the command, this takes into account subcommands etc."""
         return " ".join(c.name for c in reversed(list(self.parents)))
 
     @property
     def parents(self) -> typing.Generator["Command", None, None]:
+        """typing.Iterator[:class:`Command`]: A generator returning the command's parents."""
+
         def recursive_iter(command: Command) -> typing.Generator["Command", None, None]:
             yield command
             if isinstance(command.parent, GroupCommand):
@@ -222,7 +231,7 @@ class Command:
 
         return recursive_iter(self)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Awaitable[None]:
         """|coro|
         Calls the internal callback that the command holds.
 
@@ -394,7 +403,7 @@ class GroupMixin:
 
     @property
     def commands(self) -> Set[Command]:
-        """Set[:class:`.Command`]: A list of the loaded commands."""
+        """Set[:class:`Command`]: A list of the loaded commands."""
         return set(self.__commands__.values())
 
     def add_command(self, command: "Command") -> None:
@@ -402,7 +411,7 @@ class GroupMixin:
 
         Parameters
         ----------
-        command: :class:`.Command`
+        command: :class:`Command`
             The command to register.
         """
         if not isinstance(command, Command):
@@ -457,7 +466,7 @@ class GroupMixin:
 
         Returns
         -------
-        Optional[:class:`.Command`]
+        Optional[:class:`Command`]
             The found command or ``None``.
         """
         if " " not in name:
@@ -473,7 +482,7 @@ class GroupMixin:
         return command.get_command(" ".join(names[1:]))
 
     def command(self, *args, **kwargs) -> Callable[["CommandType"], Command]:
-        """A shortcut decorator that invokes :func:`.command` and adds it to the internal command list."""
+        """A shortcut decorator that invokes :func:`command` and adds it to the internal command list."""
 
         def decorator(func: "CommandType"):
             try:
@@ -487,6 +496,8 @@ class GroupMixin:
         return decorator
 
     def group(self, *args, **kwargs):
+        """A shortcut decorator that invokes :func:`group` and adds it to the internal command list."""
+
         def decorator(func: "CommandType"):
             try:
                 kwargs["parent"]
@@ -522,7 +533,7 @@ class GroupCommand(GroupMixin, Command):
 
 
 def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -> Callable[["CommandType"], Command]:
-    r"""Register a coroutine as a :class:`~commands.Command`.
+    """Register a coroutine as a :class:`Command`.
 
     Parameters
     ----------
@@ -546,7 +557,7 @@ def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -
 def group(
     name: Optional[str] = None, cls: Type[GroupCommand] = GroupCommand, **attrs
 ) -> Callable[["CommandType"], GroupCommand]:
-    """Register a coroutine as a :class:`~commands.GroupCommand`.
+    """Register a coroutine as a :class:`GroupCommand`.
 
     Parameters
     ----------
