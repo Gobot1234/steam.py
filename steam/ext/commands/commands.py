@@ -53,6 +53,8 @@ from typing import (
     overload,
 )
 
+from typing_extensions import Literal
+
 import steam
 
 from ...errors import ClientException
@@ -320,7 +322,7 @@ class Command:
         ctx.args = tuple(args)
         ctx.kwargs = kwargs
 
-    def _transform(self, ctx, param: inspect.Parameter, argument: str) -> Awaitable[Any]:
+    def _transform(self, ctx, param: inspect.Parameter, argument: str) -> Awaitable:
         param_type = param.annotation if param.annotation is not param.empty else str
         converter = self._get_converter(param_type)
         return self._convert(ctx, converter, argument)
@@ -334,8 +336,11 @@ class Command:
         return param_type
 
     async def _convert(
-        self, ctx: "Context", converter: Union[Type[converters.Converter], type, FunctionType], argument: str,
-    ):
+        self,
+        ctx: "Context",
+        converter: Union[Type[converters.Converter], converters.Converter, type, FunctionType],
+        argument: str,
+    ) -> Any:
         if hasattr(converter, "convert"):
             try:
                 if hasattr(converter.convert, "__self__"):  # instance
@@ -361,7 +366,7 @@ class Command:
             except TypeError as exc:
                 raise BadArgument(f"{argument} failed to convert to {converter.__name__}") from exc
 
-    async def _get_default(self, ctx: "Context", param: inspect.Parameter):
+    async def _get_default(self, ctx: "Context", param: inspect.Parameter) -> Any:
         if param.default is param.empty:
             raise MissingRequiredArgument(param)
         if inspect.isclass(param.default):
@@ -375,7 +380,7 @@ class Command:
                 raise BadArgument(f"{param.default.__name__} failed to return a default argument") from exc
         return param.default
 
-    async def can_run(self, ctx: "Context") -> bool:
+    async def can_run(self, ctx: "Context") -> Literal[True]:
         for check in self.checks:
             await check(ctx)
         return True
@@ -561,7 +566,24 @@ def group(
     return decorator
 
 
-def check(predicate: CheckType) -> CommandDeco:
+def check(predicate: CheckType) -> CommandDeco:  # TODO
+    """
+    A decorator that registers a function that *could be a* |coroutine_link|_. to a command.
+
+    They should take a singular argument representing the :class:`~steam.ext.commands.Context` for the message.
+
+    Examples
+    ---------
+
+    def is_mod(ctx):
+        return ctx.author in ctx.clan.mods
+
+    @commands.check(is_mod)
+    @bot.command()
+    async def kick(ctx, user: steam.User):
+        # implementation here
+    """
+
     def decorator(func: MaybeCommand) -> MaybeCommand:
         if isinstance(func, Command):
             func.checks.append(predicate)
@@ -587,7 +609,12 @@ def check(predicate: CheckType) -> CommandDeco:
 
 
 def is_owner() -> CommandDeco:
-    async def predicate(ctx: "Context") -> bool:
+    """
+    A decorator that will only allow the bot's owner to invoke the command, relies on
+    :attr:`~steam.ext.commands.Bot.owner_id` or :attr:`~steam.ext.commands.Bot.owner_ids`.
+    """
+
+    def predicate(ctx: "Context") -> bool:
         if ctx.bot.owner_id:
             return ctx.author.id64 == ctx.bot.owner_id
         elif ctx.bot.owner_ids:
