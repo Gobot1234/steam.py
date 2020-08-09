@@ -268,22 +268,30 @@ class Inventory:
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
         self._update(data)
 
-    def filter_items(self, name: str, *, limit: int = None) -> List[Item]:
+    def filter_items(self, *names: str, **kwargs) -> List[Item]:
         """A helper function that filters and removes items by name from the inventory.
 
         Parameters
         ------------
-        name: :class:`str`
-            The item's name to filter for.
+        *names: :class:`str`
+            The names of the items to filter for.
         limit: Optional[:class:`int`]
-            The maximum amount of items to filter.
+            The maximum amount of items to return. Checks from the front of the items.
+
+        Raises
+        -------
+        :exc:`ValueError`
+            You passed a limit and multiple item names.
 
         Returns
         ---------
         List[:class:`Item`]
             The removed matching items.
         """
-        items = [item for item in self if item.name == name]
+        limit: int = kwargs.get("limit")
+        if limit and len(names):
+            raise ValueError('Cannot pass a limit with multiple items')
+        items = [item for item in self if item.name in names]
         items = items if limit is None else items[:limit]
         for item in items:
             self.items.remove(item)
