@@ -402,7 +402,10 @@ class Client:
         if self._closed:
             return
         if self.ws is not None:
-            await self.ws.handle_close()
+            try:
+                await self.ws.handle_close()
+            except ConnectionClosed:
+                pass
         await self.http.close()
         self._closed = True
         self._ready.clear()
