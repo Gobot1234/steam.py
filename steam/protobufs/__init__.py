@@ -98,7 +98,7 @@ class MsgBase(Generic[T]):
         self.msg = EMsg.try_value(msg)
         self.body: Optional[T] = None
         self.payload: Optional[bytes] = None
-        self.header: Union[AllowedHeaders, MsgHdr]
+        self.header: Union[ExtendedMsgHdr, MsgHdrProtoBuf, MsgHdr]
 
         if data:
             self.payload = data[self.skip :]
