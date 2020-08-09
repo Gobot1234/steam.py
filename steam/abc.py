@@ -33,7 +33,7 @@ import asyncio
 import re
 from datetime import datetime
 from functools import total_ordering
-from typing import TYPE_CHECKING, Awaitable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Awaitable, Callable, Final, List, Optional, SupportsInt, Tuple, Union, overload
 
 from .badge import UserBadges
 from .comment import Comment
