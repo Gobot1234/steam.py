@@ -129,9 +129,7 @@ def generate_device_id(user_id64: str) -> str:
 
 
 class Confirmation:
-    def __init__(
-        self, state: "ConnectionState", id: str, data_confid: int, data_key: str, trade_id: int, tag: str
-    ):
+    def __init__(self, state: "ConnectionState", id: str, data_confid: int, data_key: str, trade_id: int, tag: str):
         self._state = state
         self.id = id.split("conf")[1]
         self.data_confid = data_confid

@@ -189,8 +189,7 @@ class User(BaseUser, Messageable):
                     try:
                         await trade.confirm()
                     except ConfirmationError:
-                        await asyncio.sleep(tries * 2)
-                        continue
+                        break
 
     async def invite_to_group(self, group: "Group"):
         """|coro|
