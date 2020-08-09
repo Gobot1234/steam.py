@@ -286,7 +286,6 @@ class SteamWebSocket:
         "socket",
         "loop",
         "cm_list",
-        "cell_id",
         "cm",
         "session_id",
         "thread_id",
@@ -315,7 +314,6 @@ class SteamWebSocket:
         # an empty dispatcher to prevent crashes
         self._dispatch = return_true  # in practice this is the same as lambda *args: None
         self.cm: Optional[str] = None
-        self.cell_id = 0
         self.thread_id = threading.get_ident()
 
         # ws related stuff
@@ -485,7 +483,7 @@ class SteamWebSocket:
             log.debug("Logon completed")
 
             self.session_id = msg.session_id
-            self.cell_id = self.cm_list.cell_id = msg.body.cell_id
+            self.cm_list.cell_id = msg.body.cell_id
 
             interval = msg.body.out_of_game_heartbeat_seconds
             self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
