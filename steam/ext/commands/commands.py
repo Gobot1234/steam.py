@@ -78,7 +78,7 @@ __all__ = (
     "cooldown",
 )
 
-CheckType = Callable[["Context"], Awaitable[bool]]
+CheckType = Callable[["Context"], Union[bool, Awaitable[bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandType"]
 CommandDeco = Callable[[MaybeCommand], MaybeCommand]
 T = TypeVar("T")
@@ -94,7 +94,7 @@ def to_bool(argument: str) -> bool:
     raise BadArgument(f'"{lowered}" is not a recognised boolean option')
 
 
-class CaseInsensitiveDict(dict, Generic[VT]):
+class CaseInsensitiveDict(Dict[str, VT], Generic[VT]):
     def __init__(self, **kwargs: VT):
         super().__init__(**{k.lower(): v for k, v in kwargs.items()})
 
@@ -391,7 +391,7 @@ class Command:
 
     async def can_run(self, ctx: "Context") -> Literal[True]:
         for check in self.checks:
-            await check(ctx)
+            await steam.utils.maybe_coroutine(check, ctx)
         return True
 
 
