@@ -290,7 +290,7 @@ class Inventory:
         """
         limit: int = kwargs.get("limit")
         if limit and len(names):
-            raise ValueError('Cannot pass a limit with multiple items')
+            raise ValueError("Cannot pass a limit with multiple items")
         items = [item for item in self if item.name in names]
         items = items if limit is None else items[:limit]
         for item in items:
