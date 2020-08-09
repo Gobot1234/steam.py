@@ -169,11 +169,11 @@ class Bot(GroupMixin, Client):
     ):
         super().__init__(**options)
         self.command_prefix = command_prefix
-        self.owner_id = utils.make_steam64(options.get("owner_id", 0))
+        self.owner_id = utils.make_id64(options.get("owner_id", 0))
         owner_ids: Set[int] = options.get("owner_ids", ())
         self.owner_ids = set()
         for owner_id in owner_ids:
-            self.owner_ids.add(utils.make_steam64(owner_id))
+            self.owner_ids.add(utils.make_id64(owner_id))
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
         inline_commands = dict()

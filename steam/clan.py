@@ -151,7 +151,7 @@ class Clan(SteamID):
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/clans.js
 
     def __init__(self, state: "ConnectionState", id: int):
-        self._SteamID__BASE = 0
+        super().__init__()
         self.url = community_route(f"gid/{id}")
         self._state = state
         self.name: Optional[str] = None
@@ -171,7 +171,7 @@ class Clan(SteamID):
         search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
         if search is None:
             return
-        super().__init__(search.group(1))
+        super().__init__(search.group(1), type="Clan")
 
         soup = BeautifulSoup(resp, "html.parser")
         self.name = soup.find("title").text[28:]
@@ -241,8 +241,8 @@ class Clan(SteamID):
         self.active_member_count = proto.active_member_count
         self.game = Game(proto.appid)
 
-        self.owner = await self._state.fetch_user(utils.make_steam64(proto.accountid_owner))
-        self.top_members = await self._state.client.fetch_users(proto.top_members)
+        self.owner = await self._state.fetch_user(utils.make_id64(proto.accountid_owner))
+        self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
 
         self.roles = []
         for role in proto.role_actions:

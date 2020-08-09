@@ -32,7 +32,6 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from functools import total_ordering
 from typing import TYPE_CHECKING, Awaitable, Callable, Final, List, Optional, SupportsInt, Tuple, Union, overload
 
 from .badge import UserBadges
@@ -43,7 +42,16 @@ from .game import Game
 from .iterators import CommentsIterator
 from .models import Ban, community_route
 from .trade import Inventory
-from .utils import _INVITE_HEX, _INVITE_MAPPING, make_steam64, steam64_from_url
+from .utils import (
+    _INVITE_HEX,
+    _INVITE_MAPPING,
+    ETypeType,
+    EUniverseType,
+    InstanceType,
+    IntOrStr,
+    id64_from_url,
+    make_id64,
+)
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
@@ -62,124 +70,105 @@ __all__ = (
 )
 
 
-@total_ordering
 class SteamID(metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations."""
 
     __slots__ = (
-        "_BASE",
+        "__BASE",
         "__weakref__",
     )
 
+    @overload
+    def __init__(self):
+        ...
+
+    @overload
+    def __init__(self, id: IntOrStr):
+        ...
+
+    @overload
+    def __init__(self, id: IntOrStr, type: ETypeType):
+        ...
+
+    @overload
+    def __init__(self, id: IntOrStr, type: ETypeType, universe: EUniverseType):
+        ...
+
+    @overload
+    def __init__(self, id: IntOrStr, type: ETypeType, universe: EUniverseType, instance: InstanceType):
+        ...
+
     def __init__(self, *args, **kwargs):
-        self._BASE = make_steam64(*args, **kwargs)
-
-    def __eq__(self, other):
-        if isinstance(other, SteamID):
-            return self._BASE == other._BASE
-        return self._BASE == other
-
-    def __lt__(self, other):
-        if isinstance(other, SteamID):
-            return self._BASE < other._BASE
-        return self._BASE < other
+        self.__BASE: Final[int] = make_id64(*args, **kwargs)
 
     def __int__(self):
-        return self._BASE
+        return self.__BASE
+
+    def __eq__(self, other: SupportsInt):
+        try:
+            return int(self) == int(other)
+        except (TypeError, ValueError):
+            return NotImplemented
 
     def __str__(self):
         return str(int(self))
+
+    def __hash__(self):
+        return hash(self.__BASE)
 
     def __repr__(self):
         return f"SteamID(id={self.id}, type={self.type}, universe={self.universe}, instance={self.instance})"
 
     @property
-    def id(self) -> int:
-        """:class:`int`: Represents the account id.
-        This is also known as the 32 bit id.
-        """
-        return int(self) & 0xFFFFFFFF
-
-    @property
     def instance(self) -> int:
-        """:class:`int`: Returns the instance of the account."""
+        """:class:`int`: The instance of the SteamID."""
         return (int(self) >> 32) & 0xFFFFF
 
     @property
     def type(self) -> EType:
-        """:class:`~steam.EType`: Represents the Steam type of the account."""
+        """:class:`~steam.EType`: The Steam type of the SteamID."""
         return EType((int(self) >> 52) & 0xF)
 
     @property
     def universe(self) -> EUniverse:
-        """:class:`~steam.EUniverse`: Represents the Steam universe of the account."""
+        """:class:`~steam.EUniverse`: The Steam universe of the SteamID."""
         return EUniverse((int(self) >> 56) & 0xFF)
 
     @property
-    def as_32(self) -> int:
-        """:class:`int`: The account's id.
-        An alias to :attr:`SteamID.id`.
-        """
-        return self.id
-
-    @property
     def id64(self) -> int:
-        """:class:`int`: The steam 64 bit id of the account.
-        Used for community profiles along with other useful things.
-        """
+        """:class:`int`: The SteamID's 64 bit ID."""
         return int(self)
 
     @property
-    def as_64(self) -> int:
-        """:class:`int`: The steam 64 bit id of the account.
-        An alias to :attr:`id64`.
-        """
-        return self.id64
+    def id(self) -> int:
+        """:class:`int`: The SteamID's 32 bit ID."""
+        return int(self) & 0xFFFFFFFF
 
     @property
     def id2(self) -> str:
-        """:class:`str`: The Steam2 id of the account.
-            e.g ``STEAM_1:0:1234``.
+        """:class:`str`: The SteamID's ID 2.
 
-        .. note::
-            ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
-            for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :attr:`as_steam2_zero`.
+        e.g ``STEAM_1:0:1234``.
         """
         return f"STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}"
 
     @property
-    def as_steam2(self) -> str:
-        """:class:`str`: The Steam2 id of the account.
-            e.g ``STEAM_1:0:1234``.
+    def id2_zero(self) -> str:
+        """:class:`str`: The SteamID's ID 2 accounted for bugged GoldSrc and Orange Box games. In these games the
+        accounts :attr:`universe`, ``1`` for :class:`.EType.Public`, should be the ``X`` component of ``STEAM_X:0:1234``
+        however, this was bugged and the value of ``X`` was ``0``.
 
-        .. note::
-            ``STEAM_X:Y:Z``. The value of ``X`` should represent the universe, or ``1``
-            for ``Public``. However, there was a bug in GoldSrc and Orange Box games
-            and ``X`` was ``0``. If you need that format use :attr:`as_steam2_zero`.
-
-        An alias to :attr:`id2`.
+        e.g ``STEAM_0:0:1234``.
         """
-        return self.id2
-
-    @property
-    def as_steam2_zero(self) -> str:
-        """:class:`str`: The Steam2 id of the account.
-            e.g ``STEAM_0:0:1234``.
-
-        For GoldSrc and Orange Box games.
-        See :attr:`id2`.
-        """
-        return self.as_steam2.replace("_1", "_0")
+        return self.id2.replace("_1", "_0")
 
     @property
     def id3(self) -> str:
-        """:class:`str`: The Steam3 id of the account.
-            e.g ``[U:1:1234]``.
+        """:class:`str`: The SteamID's ID 3.
 
-        This is used for more recent games.
+        e.g ``[U:1:1234]``.
         """
-        typechar = ETypeChar(self.type).name
+        type_char = ETypeChar(self.type).name
         instance = None
 
         if self.type in (EType.AnonGameServer, EType.Multiseat):
@@ -189,13 +178,13 @@ class SteamID(metaclass=abc.ABCMeta):
                 instance = self.instance
         elif self.type == EType.Chat:
             if self.instance & EInstanceFlag.Clan:
-                typechar = "c"
+                type_char = "c"
             elif self.instance & EInstanceFlag.Lobby:
-                typechar = "L"
+                type_char = "L"
             else:
-                typechar = "T"
+                type_char = "T"
 
-        parts = [typechar, int(self.universe), self.id]
+        parts = [type_char, int(self.universe), self.id]
 
         if instance is not None:
             parts.append(instance)
@@ -203,20 +192,14 @@ class SteamID(metaclass=abc.ABCMeta):
         return f'[{":".join(map(str, parts))}]'
 
     @property
-    def as_steam3(self) -> str:
-        """:class:`str`: The Steam3 id of the account.
-        An alias to :attr:`id3`.
-        """
-        return self.id3
-
-    @property
     def invite_code(self) -> Optional[str]:
-        """Optional[:class:`str`]: s.team invite code format.
-        e.g. ``cv-dgb``
+        """Optional[:class:`str`]: The SteamID's invite code in the s.team invite code format.
+
+        e.g. ``cv-dgb``.
         """
         if self.type == EType.Individual and self.is_valid():
 
-            def repl_mapper(x):
+            def repl_mapper(x: re.Match):
                 return _INVITE_MAPPING[x.group()]
 
             invite_code = re.sub(f"[{_INVITE_HEX}]", repl_mapper, f"{self.id:x}")
@@ -229,8 +212,9 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def invite_url(self) -> Optional[str]:
-        """Optional[:class:`str`]: The user's full invite code URL.
-        e.g ``https://s.team/p/cv-dgb``
+        """Optional[:class:`str`]: The SteamID's full invite code URL.
+
+        e.g ``https://s.team/p/cv-dgb``.
         """
         code = self.invite_code
         if code:
@@ -238,20 +222,21 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def community_url(self) -> Optional[str]:
-        """Optional[:class:`str`]: The community url of the account
+        """Optional[:class:`str`]: The SteamID's community url.
+
         e.g https://steamcommunity.com/profiles/123456789.
         """
         suffix = {
             EType.Individual: "profiles",
             EType.Clan: "gid",
         }
-        if self.type in suffix:
+        try:
             return f"https://steamcommunity.com/{suffix[self.type]}/{self.id64}"
+        except KeyError:
+            pass
 
     def is_valid(self) -> bool:
-        """:class:`bool`: Check whether this SteamID is valid.
-        This doesn't however mean that a matching profile can be found.
-        """
+        """:class:`bool`: Whether or not the SteamID would be valid."""
         if self.type == EType.Invalid or self.type >= EType.Max:
             return False
 
@@ -280,24 +265,24 @@ class SteamID(metaclass=abc.ABCMeta):
     async def from_url(
         cls, url: "StrOrURL", session: Optional["ClientSession"] = None, timeout: float = 30
     ) -> Optional["SteamID"]:
-        """Takes Steam community url and returns a SteamID instance or ``None``.
-        See :func:`steam64_from_url` for details.
+        """|coro|
+        A helper function creates a SteamID instance from a Steam community url. See :func:`id64_from_url` for details.
 
         Parameters
         ----------
         url: Union[:class:`str`, :class:`yarl.URL`]
-            The Steam community url.
+            The Steam community url to fetch.
         session: Optional[:class:`aiohttp.ClientSession`]
             The session to make the request with. If ``None`` is passed a new one is generated.
-        timeout: Optional[:class:`float`]
-            How long to wait on http request before returning ``None``.
+        timeout: :class:`float`
+            How long to wait for a response before returning ``None``.
 
         Returns
         -------
         Optional[:class:`SteamID`]
-            `SteamID` instance or ``None``.
+            :class:`SteamID` instance or ``None``.
         """
-        id64 = await steam64_from_url(url, session, timeout)
+        id64 = await id64_from_url(url, session, timeout)
         return cls(id64) if id64 else None
 
 

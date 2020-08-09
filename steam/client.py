@@ -504,9 +504,9 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_steam64`.
+            The arguments to pass to :meth:`~steam.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
+            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
 
         Returns
         -------
@@ -523,9 +523,9 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_steam64`.
+            The arguments to pass to :meth:`~steam.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
+            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
 
         Returns
         -------
@@ -570,7 +570,7 @@ class Client:
         steam_id = await SteamID.from_url(community_route(f"id/{name}"), self.http._session)
         if not steam_id:
             return None
-        return await self.fetch_user(id=steam_id.id64)
+        return await self._connection.fetch_user(steam_id.id64)
 
     def get_trade(self, id: int) -> Optional["TradeOffer"]:
         """Get a trade from cache with a matching ID.
@@ -624,16 +624,16 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_steam64`.
+            The arguments to pass to :meth:`~steam.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
+            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
 
         Returns
         -------
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        kwargs["is_clan"] = True
+        kwargs["type"] = "Clan"
         steam_id = SteamID(*args, **kwargs)
         return self._connection.get_clan(steam_id.id)
 
@@ -644,16 +644,16 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_steam64`.
+            The arguments to pass to :meth:`~steam.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_steam64`.
+            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
 
         Returns
         -------
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        kwargs["is_clan"] = True
+        kwargs["type"] = "Clan"
         steam_id = SteamID(*args, **kwargs)
         return await self._connection.fetch_clan(steam_id.id64)
 

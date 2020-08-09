@@ -26,6 +26,7 @@ SOFTWARE.
 
 from typing import TYPE_CHECKING, List, Optional
 
+from .abc import SteamID
 from .channel import GroupChannel
 from .models import Role
 
@@ -38,13 +39,11 @@ if TYPE_CHECKING:
 __all__ = ("Group",)
 
 
-class Group:
+class Group(SteamID):
     """Represents a Steam group.
 
     Attributes
     ----------
-    id: :class:`int`
-        The group's ID.
     name: Optional[:class:`str`]
         The name of the group, could be ``None``.
     owner: :class:`~steam.abc.BaseUser`
@@ -66,7 +65,6 @@ class Group:
     __slots__ = (
         "owner",
         "top_members",
-        "id",
         "name",
         "active_member_count",
         "roles",
@@ -77,15 +75,15 @@ class Group:
     )
 
     def __init__(self, state: "ConnectionState", proto: "GroupProto"):
+        super().__init__(proto.chat_group_id, type="Chat")
         self._state = state
         self._from_proto(proto)
 
     async def __ainit__(self):
         self.owner = await self._state.client.fetch_user(self.owner)
-        self.top_members = await self._state.client.fetch_users(self.top_members)
+        self.top_members = await self._state.client.fetch_users(*self.top_members)
 
     def _from_proto(self, proto: "GroupProto"):
-        self.id = int(proto.chat_group_id)
         self.owner: "User" = proto.accountid_owner
         self.name: Optional[str] = proto.chat_group_name or None
 

@@ -34,16 +34,17 @@ import json
 import re
 from inspect import isawaitable
 from operator import attrgetter
-from typing import Any, Awaitable, Callable, Generator, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Awaitable, Callable, Generator, Iterable, List, Optional, Tuple, TypeVar, Union, overload
 
 import aiohttp
+from typing_extensions import Literal
 
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 
 __all__ = (
     "get",
     "find",
-    "make_steam64",
+    "make_id64",
     "parse_trade_url_token",
 )
 
@@ -65,39 +66,105 @@ def clear_proto_bit(emsg: int) -> int:
     return int(emsg) & ~_PROTOBUF_MASK
 
 
-def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
-    """Returns a Steam 64-bit ID from various other representations.
+# fmt: off
+IntOrStr = Union[int, str]
+ETypeType = Union[
+    EType,
+    Literal[
+        "Invalid", "Individual",
+        "Multiseat", "GameServer",
+        "AnonGameServer", "Pending",
+        "ContentServer", "Clan",
+        "Chat", "ConsoleUser",
+        "AnonUser", "Max",
+        0, 1, 2, 3, 4, 5, 6,
+        7, 8, 9, 10, 11,
+    ],
+]
+EUniverseType = Union[EUniverse, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6,]]
+InstanceType = Literal[0, 1]
+# fmt: on
 
+
+@overload
+def make_id64() -> Literal[0]:
+    ...
+
+
+@overload
+def make_id64(id: IntOrStr) -> int:
+    ...
+
+
+@overload
+def make_id64(id: IntOrStr, type: ETypeType) -> int:
+    ...
+
+
+@overload
+def make_id64(id: IntOrStr, type: ETypeType, universe: EUniverseType,) -> int:
+    ...
+
+
+@overload
+def make_id64(id: IntOrStr, type: ETypeType, universe: EUniverseType, instance: InstanceType,) -> int:
+    ...
+
+
+def make_id64(*args, **kwargs) -> int:
+    """Convert various representations of Steam IDs to its Steam 64 bit ID.
+
+    Examples
+    --------
     .. code:: python
 
-        make_steam64()  # invalid steam_id
-        make_steam64(12345)  # account_id
-        make_steam64(12345, is_clan=True)  # makes the account_id into a clan id
-        make_steam64('12345')
-        make_steam64(id=12345, type='Invalid', universe='Invalid', instance=0)
-        make_steam64(103582791429521412)  # steam64
-        make_steam64('103582791429521412')
-        make_steam64('STEAM_1:0:2')  # steam2
-        make_steam64('[g:1:4]')  # steam3
-        make_steam64('cv-dgb')  # invite code
+        make_id64()  # invalid steam_id
+        make_id64(12345)  # account_id
+        make_id64(12345, type='Clan')  # makes the account_id into a clan id
+        make_id64('12345')
+        make_id64(id=12345, type='Invalid', universe='Invalid', instance=0)
+        make_id64(103582791429521412)  # steam64
+        make_id64('103582791429521412')
+        make_id64('STEAM_1:0:2')  # steam2
+        make_id64('[g:1:4]')  # steam3
 
     Raises
     ------
     :exc:`TypeError`
         Too many arguments have been given.
+    :exc:`ValueError`
+        An argument passed invalid.
 
     Returns
     -------
     :class:`int`
-        The 64-bit Steam ID.
+        The 64 bit Steam ID.
     """
-
-    etype = EType.Invalid
-    universe = EUniverse.Invalid
+    id = 0
+    type = None
+    universe = None
     instance = None
-    is_clan = kwargs.pop("is_clan", False)
 
-    if len(args) == 0 and len(kwargs) == 0:
+    arg_len = len(args)
+    if arg_len + len(kwargs) > 4:
+        raise TypeError(f"make_steam64 expected at most 4 arguments, got {arg_len + len(kwargs)}")
+    if args:
+        if arg_len == 1:
+            (id,) = args
+        elif arg_len == 2:
+            (id, type) = args
+        elif arg_len == 3:
+            (id, type, universe) = args
+        elif arg_len == 4:
+            (id, type, universe, instance) = args
+    if kwargs:
+        id = kwargs.get("id", id)
+        type = kwargs.get("type", type)
+        universe = kwargs.get("universe", universe)
+        instance = kwargs.get("instance", instance)
+
+    # convert the id
+    if id:
         value = str(id)
 
         # numeric input
@@ -107,64 +174,50 @@ def make_steam64(id: Union[int, str] = 0, *args, **kwargs) -> int:
             # 32 bit account id
             if 0 < value < 2 ** 32:
                 id = value
-                etype = EType.Individual if not is_clan else EType.Clan
-                universe = EUniverse.Public
+                type = type or EType.Individual
+                universe = universe or EUniverse.Public
             # 64 bit
             elif value < 2 ** 64:
                 id = value & 0xFFFFFFFF
                 instance = (value >> 32) & 0xFFFFF
-                etype = (value >> 52) & 0xF
+                type = (value >> 52) & 0xF
                 universe = (value >> 56) & 0xFF
             else:
-                id = 0
-
+                raise ValueError("ID passed is too large")
         # textual input e.g. [g:1:4]
         else:
-            result = steam2_to_tuple(value) or steam3_to_tuple(value) or invite_code_to_tuple(value)
-
-            if result:
-                id, etype, universe, instance = result
+            result = id2_to_tuple(value) or id3_to_tuple(value)
+            if result is not None:
+                id, type, universe, instance = result
             else:
-                id = 0
-
-    length = len(args)
-    if length > 0:
-        if length == 1:
-            etype = args
-        elif length == 2:
-            etype, universe = args
-        elif length == 3:
-            etype, universe, instance = args
-        else:
-            raise TypeError(f"Takes at most 4 arguments ({length} given)")
-
-    if len(kwargs) > 0:
-        etype = kwargs.get("type", etype)
-        universe = kwargs.get("universe", universe)
-        instance = kwargs.get("instance", instance)
-
-    etype = EType.try_value(etype)
-    universe = EUniverse.try_value(universe)
+                raise ValueError("ID cannot be converted correctly")
+    else:
+        return 0
+    try:
+        type = EType.try_value(type) if isinstance(type, (EType, int)) else EType[type]
+    except KeyError as exc:
+        raise ValueError(f"Invalid type, {exc} passed") from None
+    else:
+        if not isinstance(type, EType):
+            raise ValueError("Invalid type passed")
+    try:
+        universe = EUniverse.try_value(universe) if isinstance(universe, (EUniverse, int)) else EUniverse[universe]
+    except KeyError as exc:
+        raise ValueError(f"Invalid universe, {exc} passed") from None
+    else:
+        if not isinstance(universe, EUniverse):
+            raise ValueError("Invalid universe passed")
 
     if instance is None:
-        instance = 1 if etype in (EType.Individual, EType.GameServer) else 0
+        instance = 1 if type in (EType.Individual, EType.GameServer) else 0
 
-    return int(universe) << 56 | int(etype) << 52 | int(instance) << 32 | id
+    return int(universe) << 56 | int(type) << 52 | int(instance) << 32 | id
 
 
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<reminder>[0-1]):(?P<id>\d+)")
-ID3_REGEX = re.compile(
-    rf"\[(?P<type>[i{''.join(type_char.name for type_char in ETypeChar)}]):"
-    r"(?P<universe>[0-4]):"
-    r"(?P<id>\d{1,10})"
-    r"(:(?P<instance>\d+))?]",
-)
-URL_REGEX = re.compile(
-    r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/(?P<type>profiles|id|gid|groups)/(?P<value>.+))"
-)
 
 
-def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+def id2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     """
     Parameters
     ----------
@@ -184,54 +237,64 @@ def steam2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     if search is None:
         return None
 
-    steam_32 = (int(search.group("id")) << 1) | int(search.group("reminder"))
+    id = (int(search.group("id")) << 1) | int(search.group("reminder"))
     universe = int(search.group("universe"))
 
     # games before orange box used to incorrectly display universe as 0, we support that
     if universe == 0:
         universe = 1
 
-    return steam_32, EType(1), EUniverse(universe), 1
+    return id, EType(1), EUniverse(universe), 1
 
 
-def steam3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
-    """
+ID3_REGEX = re.compile(
+    rf"\[(?P<type>[i{''.join(ETypeChar._enum_member_map_)}]):"
+    r"(?P<universe>[0-4]):"
+    r"(?P<id>\d{1,10})"
+    r"(:(?P<instance>\d+))?]",
+)
+
+
+def id3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+    """Convert a Steam ID3 into its component parts.
+
     Parameters
     ----------
     value: :class:`str`
-        steam3 e.g. ``[U:1:1234]``.
+        The ID3 e.g. ``[U:1:1234]``.
 
     Returns
     -------
     Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
-        e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
+        A tuple of 32 bit ID, type, universe and instance or ``None``
+        e.g. (100000, EType.Individual, EUniverse.Public, 1)
     """
     search = ID3_REGEX.search(value,)
     if search is None:
         return None
 
-    steam_32 = int(search.group("id"))
+    id = int(search.group("id"))
     universe = EUniverse(int(search.group("universe")))
-    typechar = search.group("type").replace("i", "I")
-    etype = EType(ETypeChar[typechar])
+    type_char = search.group("type").replace("i", "I")
+    type = EType(ETypeChar[type_char].value.value)
     instance = search.group("instance")
 
-    if typechar in "gT":
+    if type_char in "gT":
         instance = 0
     elif instance is not None:
         instance = int(instance)
-    elif typechar == "L":
+    elif type_char == "L":
         instance = EInstanceFlag.Lobby
-    elif typechar == "c":
+    elif type_char == "c":
         instance = EInstanceFlag.Clan
-    elif etype in (EType.Individual, EType.GameServer):
+    elif type_char in (EType.Individual, EType.GameServer):
         instance = 1
     else:
         instance = 0
 
     instance = int(instance)
 
-    return steam_32, etype, universe, instance
+    return id, type, universe, instance
 
 
 _INVITE_HEX = "0123456789abcdef"
@@ -271,7 +334,12 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
         return steam_32, EType(1), EUniverse.Public, 1
 
 
-async def steam64_from_url(
+URL_REGEX = re.compile(
+    r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/(?P<type>profiles|id|gid|groups)/(?P<value>.+))"
+)
+
+
+async def id64_from_url(
     url: Optional[str], session: Optional[aiohttp.ClientSession] = None, timeout: float = 30
 ) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or ``None``.
@@ -321,7 +389,7 @@ async def steam64_from_url(
         if search.group("type") in ("id", "profiles"):
             r = await session.get(search.group("clean_url"), timeout=timeout)
             text = await r.text()
-            data_match = re.search("g_rgProfileData\s*=\s*(?P<json>{.*?});\s*", text)
+            data_match = re.search(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*", text)
 
             if data_match:
                 data = json.loads(data_match.group("json"))

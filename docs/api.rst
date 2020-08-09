@@ -112,9 +112,9 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 Utilities
 ----------
 
-steam.py provides some utility functions for Steam related problems.
+steam.py provides some utility functions.
 
-.. autofunction:: steam.utils.make_steam64
+.. autofunction:: steam.utils.make_id64
 
 .. autofunction:: steam.utils.parse_trade_url_token
 
