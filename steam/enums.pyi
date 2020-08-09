@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from enum import Enum as _Enum
+from enum import Enum as _Enum, IntEnum as _IntEnum
 from typing import Any, TypeVar, Union, overload
 
 T = TypeVar("T")
@@ -65,7 +65,7 @@ class Enum(_Enum):
     @overload
     def try_value(cls, value: T) -> Union[_Enum, T]: ...
 
-class IntEnum(int, Enum): ...
+class IntEnum(Enum, _IntEnum): ...
 
 class EResult(IntEnum):
     Invalid: EResult
