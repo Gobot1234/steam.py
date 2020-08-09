@@ -261,18 +261,12 @@ class Inventory:
                     self.items.append(Asset(data=asset))
             self._total_inventory_count = data["total_inventory_count"]
 
-    async def update(self) -> "Inventory":
+    async def update(self) -> None:
         """|coro|
-        Re-fetches the :class:`~steam.User`'s inventory.
-
-        Returns
-        ---------
-        :class:`~steam.Inventory`
-            The refreshed inventory.
+        Re-fetches the inventory.
         """
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
         self._update(data)
-        return self
 
     def filter_items(self, name: str, *, limit: int = None) -> List[Item]:
         """A helper function that filters and removes items by name from the inventory.
