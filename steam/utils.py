@@ -316,6 +316,7 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
     Returns
     -------
     Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+        A tuple of 32 bit ID, type, universe and instance or ``None``
         e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
     """
     search = INVITE_REGEX.search(code)
