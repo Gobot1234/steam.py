@@ -26,7 +26,7 @@ SOFTWARE.
 
 from typing import TYPE_CHECKING
 
-from typing_extensions import Protocol
+from typing_extensions import Protocol, runtime_checkable
 
 from ... import utils
 from ...game import Game
@@ -57,6 +57,7 @@ __all__ = (
 )
 
 
+@runtime_checkable
 class Converter(Protocol):
     """A custom class from which converters can be derived.
     They should be type-hinted to a command's argument.
@@ -199,6 +200,7 @@ class GameConverter(Converter):
         return Game(app_id=int(argument)) if argument.isdigit() else Game(title=argument)
 
 
+@runtime_checkable
 class Default(Protocol):
     """A custom way to specify a default values for commands.
 
