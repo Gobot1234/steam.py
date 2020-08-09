@@ -377,17 +377,16 @@ class SteamWebSocket:
     async def poll_event(self) -> None:
         try:
             message = await self.socket.receive()
+            if message.type is aiohttp.WSMsgType.BINARY:
+                if message.data:  # it can sometimes be None/empty
+                    return await self.receive(message.data)
             if message.type is aiohttp.WSMsgType.ERROR:
                 log.debug(f"Received {message}")
                 raise message.data
-            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE):
+            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING):
                 log.debug(f"Received {message}")
                 raise WebSocketClosure
-
-            message = message.data
-            if not message:  # it can sometimes be None/empty
-                return
-            await self.receive(message)
+            log.debug(f"Dropped unexpected message type: {message}")
         except WebSocketClosure:
             await self.handle_close()
 
@@ -462,8 +461,6 @@ class SteamWebSocket:
         await self.send(bytes(message))
 
     async def close(self, code: int = 4000) -> None:
-        if self._keep_alive is not None:
-            self._keep_alive.stop()
         if self.connected:
             await self.send_as_proto(MsgProto(EMsg.ClientLogOff))
         await self.socket.close(code=code)
@@ -497,13 +494,12 @@ class SteamWebSocket:
                 ui_mode=self._connection._ui_mode,
                 force_kick=self._connection._force_kick,
             )
-            await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
-        else:
-            if msg.body.eresult == EResult.InvalidPassword:
-                http = self._connection.http
-                await http.logout()
-                await http.login(http.username, http.password, shared_secret=http.shared_secret)
-            await self.handle_close()
+            return await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
+        if msg.body.eresult == EResult.InvalidPassword:
+            http = self._connection.http
+            await http.logout()
+            await http.login(http.username, http.password, shared_secret=http.shared_secret)
+        await self.handle_close()
 
     async def handle_multi(self, msg: MsgProto["CMsgMulti"]) -> None:
         log.debug("Received a multi, unpacking")

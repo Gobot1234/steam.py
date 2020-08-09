@@ -33,10 +33,10 @@ import datetime
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union, overload
 
 import aiohttp
-from typing_extensions import Literal, Protocol, overload
+from typing_extensions import Literal, Protocol
 
 from . import errors, utils
 from .abc import SteamID
@@ -402,7 +402,7 @@ class Client:
         if self._closed:
             return
         if self.ws is not None:
-            await self.ws.close()
+            await self.ws.handle_close()
         await self.http.close()
         self._closed = True
         self._ready.clear()
@@ -461,26 +461,21 @@ class Client:
         await self.login(username, password, shared_secret=shared_secret)
         await self.connect()
 
-    async def _connect(self) -> None:
-        resp = await self.http.request("GET", url=community_route("chat/clientjstoken"))
-        if not resp["logged_in"]:  # we got logged out :(
-            await self.login(self.username, self.password, shared_secret=self.shared_secret)
-            await self._connect()
-        self.token = resp["token"]
-        coro = SteamWebSocket.from_client(self, cms=self._cm_list)
-        self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
-        while 1:
-            if not self.ws:
-                break
-            await self.ws.poll_event()
-
     async def connect(self) -> None:
         """|coro|
         Initialize a connection to a Steam CM after logging in.
         """
         while not self.is_closed():
             try:
-                await self._connect()
+                resp = await self.http.request("GET", url=community_route("chat/clientjstoken"))
+                if not resp["logged_in"]:  # we got logged out :(
+                    await self.http.login(self.username, self.password, shared_secret=self.shared_secret)
+                    await self.connect()
+                self.token = resp["token"]
+                coro = SteamWebSocket.from_client(self, cms=self._cm_list)
+                self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
+                while 1:
+                    await self.ws.poll_event()
             except (
                 OSError,
                 aiohttp.ClientError,
