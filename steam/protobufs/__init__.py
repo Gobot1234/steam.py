@@ -186,8 +186,7 @@ class Msg(MsgBase[T]):
     data: Optional[:class:`bytes`]
         The raw data for the message.
     extended: :class:`bool`
-        Which header type to use, ``True`` uses
-        :class:`.ExtendedMsgHdr` else it's :class:`.MsgHdr`.
+        Which header type to use, ``True`` uses :class:`.ExtendedMsgHdr` else it's :class:`.MsgHdr`.
     **kwargs
         Any keyword-arguments to construct the :attr:`body` with.
 
@@ -283,9 +282,7 @@ class MsgProto(MsgBase[T]):
                 EMsg.ServiceMethodCallFromClient,
             ):
                 name = self.header.job_name_target or self.um_name
-                proto = get_um(name)
-                if not name.endswith("_Response") and proto is None:
-                    proto = get_um(f"{name}_Response")  # assume its a response
+                proto = get_um(f"{name}_Response" if self.msg == EMsg.ServiceMethodResponse else name)
                 if name:
                     self.header.job_name_target = name.replace("_Request", "").replace("_Response", "")
 
