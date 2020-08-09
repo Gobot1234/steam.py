@@ -41,7 +41,17 @@ from .unified import *
 T = TypeVar("T", bound=betterproto.Message)
 AllowedHeaders = (ExtendedMsgHdr, MsgHdrProtoBuf)
 GetProtoType = Optional[Type[betterproto.Message]]
-betterproto.Message.__bool__ = lambda self: bool(self.to_dict(include_default_values=False))
+
+
+def _Message__bool__(self: betterproto.Message):
+    for field_name, meta in self._betterproto.meta_by_field_name.items():
+        if getattr(self, field_name):
+            return True
+
+    return False
+
+
+betterproto.Message.__bool__ = _Message__bool__
 
 
 @dataclass
