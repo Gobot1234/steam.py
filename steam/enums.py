@@ -129,8 +129,6 @@ class EnumMeta(type):
         return enum_class
 
     def __call__(cls, value):
-        if isinstance(value, cls):
-            return value
         try:
             return cls._enum_value_map_[value]
         except (KeyError, TypeError):
