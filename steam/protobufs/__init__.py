@@ -218,7 +218,7 @@ class Msg(MsgBase[T]):
         """Parse the payload/data into a protobuf."""
         if self.body is None:
             proto = get_cmsg(self.msg)
-            self._parse(proto)
+            super()._parse(proto)
 
 
 class MsgProto(MsgBase[T]):
@@ -292,4 +292,4 @@ class MsgProto(MsgBase[T]):
             else:
                 proto = get_cmsg(self.msg)
 
-            self._parse(proto)
+            super()._parse(proto)
