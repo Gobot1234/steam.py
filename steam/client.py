@@ -287,7 +287,7 @@ class Client:
 
         listeners = self._listeners.get(event)
         if listeners:
-            removed: List[int] = []
+            removed = []
             for idx, (future, condition) in enumerate(listeners):
                 if future.cancelled():
                     removed.append(idx)

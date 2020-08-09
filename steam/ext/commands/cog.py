@@ -96,7 +96,7 @@ class Cog:
                     ...
 
                 @commands.command(enabled=True)
-                async def working(self, ctx):  # still enabled
+                async def working(self, ctx):  # enabled
                     ...
     """
 

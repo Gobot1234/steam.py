@@ -538,9 +538,8 @@ def get(iterable: Iterable[_T], **attrs) -> Optional[_T]:
     Returns
     -------
     Optional[T]
-        The first element from the ``iterable``
-        which matches all the traits passed in ``attrs``
-        or ``None`` if no matching element was found.
+        The first element from the ``iterable`` which matches all the traits passed in ``attrs`` or ``None`` if no
+        matching element was found.
     """
 
     # global -> local

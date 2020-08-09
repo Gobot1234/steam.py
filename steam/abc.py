@@ -458,8 +458,7 @@ class BaseUser(SteamID):
 
     async def games(self) -> List[Game]:
         """|coro|
-        Fetches the list of :class:`~steam.Game`
-        objects the :class:`User` owns from the API.
+        Fetches the :class:`~steam.Game` objects the :class:`User` owns from the API.
 
         Returns
         -------
@@ -486,7 +485,7 @@ class BaseUser(SteamID):
             try:
                 clan = await self._state.client.fetch_clan(gid)
             except WSException as exc:
-                if exc.code == (EResult.LimitExceeded, EResult.RateLimitExceeded):
+                if exc.code == EResult.RateLimitExceeded:
                     await asyncio.sleep(20)
                     await getter(gid)
             else:
