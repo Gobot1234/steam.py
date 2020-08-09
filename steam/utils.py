@@ -328,10 +328,10 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
     def repl_mapper(x: re.Match) -> str:
         return _INVITE_INVERSE_MAPPING[x.group()]
 
-    steam_32 = int(re.sub(f"[{_INVITE_CUSTOM}]", repl_mapper, code), 16)
+    id = int(re.sub(f"[{_INVITE_CUSTOM}]", repl_mapper, code), 16)
 
-    if 0 < steam_32 < 2 ** 32:
-        return steam_32, EType(1), EUniverse.Public, 1
+    if 0 < id < 2 ** 32:
+        return id, EType(1), EUniverse.Public, 1
 
 
 URL_REGEX = re.compile(
