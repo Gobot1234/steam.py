@@ -36,8 +36,9 @@ import hmac
 import struct
 from hashlib import sha1
 from time import time
-from typing import TYPE_CHECKING, Awaitable, Optional
+from typing import TYPE_CHECKING, Optional
 
+from .errors import ConfirmationError
 from .models import community_route
 
 if TYPE_CHECKING:
@@ -129,17 +130,20 @@ def generate_device_id(user_id64: str) -> str:
 
 class Confirmation:
     def __init__(
-        self, state: "ConnectionState", id: str, data_confid: int, data_key: str, trade_id: int,
+        self, state: "ConnectionState", id: str, data_confid: int, data_key: str, trade_id: int, tag: str
     ):
         self._state = state
         self.id = id.split("conf")[1]
         self.data_confid = data_confid
         self.data_key = data_key
-        self.tag = f"details{self.id}"
-        self.trade_id = trade_id
+        self.tag = tag
+        self.trade_id = trade_id  # this isn't really always the trade ID, but for our purposes this is fine
 
     def __repr__(self):
         return f"<Confirmation id={self.id!r} trade_id={self.trade_id}>"
+
+    def __eq__(self, other: "Confirmation"):
+        return isinstance(other, Confirmation) and self.trade_id == other.trade_id and self.id == other.id
 
     def _confirm_params(self, tag) -> dict:
         timestamp = int(time())
@@ -152,20 +156,29 @@ class Confirmation:
             "tag": tag,
         }
 
-    def confirm(self) -> Awaitable:
+    def _assert_valid(self, resp: dict):
+        if not resp.get("success", False):
+            self._state._confirmations_to_ignore.append(self.id)
+            raise ConfirmationError
+
+    async def confirm(self) -> None:
         params = self._confirm_params("allow")
         params["op"] = "allow"
         params["cid"] = self.data_confid
         params["ck"] = self.data_key
-        return self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
+        resp = await self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
+        self._assert_valid(resp)
 
-    def cancel(self) -> Awaitable:
+    async def cancel(self) -> None:
         params = self._confirm_params("cancel")
         params["op"] = "cancel"
         params["cid"] = self.data_confid
         params["ck"] = self.data_key
-        return self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
+        resp = await self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
+        self._assert_valid(resp)
 
-    def details(self) -> Awaitable:  # need to do ['html'] for the good stuff
+    async def details(self) -> dict:
         params = self._confirm_params(self.tag)
-        return self._state.request("GET", community_route(f"mobileconf/details/{self.id}"), params=params)
+        resp = await self._state.request("GET", community_route(f"mobileconf/details/{self.id}"), params=params)
+        self._assert_valid(resp)
+        return resp["html"]

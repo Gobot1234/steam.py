@@ -128,6 +128,7 @@ class ConnectionState:
         "_groups",
         "_clans",
         "_confirmations",
+        "_confirmations_to_ignore",
         "_obj",
         "_user_slots",
         "_previous_iteration",
@@ -175,7 +176,8 @@ class ConnectionState:
         self._trades: Dict[int, TradeOffer] = dict()
         self._groups: Dict[int, Group] = dict()
         self._clans: Dict[int, Clan] = dict()
-        self._confirmations: Dict[int, Confirmation] = dict()
+        self._confirmations: Dict[str, Confirmation] = dict()
+        self._confirmations_to_ignore: List[str] = []
         self._messages = self.max_messages and deque(maxlen=self.max_messages)
         self.invites: Dict[int, Union[UserInvite, ClanInvite]] = dict()
 
@@ -243,11 +245,12 @@ class ConnectionState:
         return user
 
     def get_confirmation(self, id: int) -> Optional[Confirmation]:
-        return self._confirmations.get(id)
+        confirmation = [c for c in self._confirmations.values() if c.trade_id == id]
+        return confirmation[0] if confirmation else None
 
     async def fetch_confirmation(self, id: int) -> Optional[Confirmation]:
         await self._fetch_confirmations()
-        return self._confirmations.get(id)
+        return self.get_confirmation(id)
 
     def get_group(self, id: int) -> Optional["Group"]:
         return self._groups.get(id)
@@ -384,7 +387,7 @@ class ConnectionState:
             "tag": tag,
         }
 
-    async def _fetch_confirmations(self) -> Optional[dict]:
+    async def _fetch_confirmations(self) -> Dict[str, Confirmation]:
         params = self._create_confirmation_params("conf")
         headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
         resp = await self.request("GET", community_route("mobileconf/conf"), params=params, headers=headers)
@@ -396,13 +399,19 @@ class ConnectionState:
 
         soup = BeautifulSoup(resp, "html.parser")
         if soup.select("#mobileconf_empty"):
-            return None
+            return {}
         for confirmation in soup.select("#mobileconf_list .mobileconf_list_entry"):
             id = confirmation["id"]
             confid = confirmation["data-confid"]
             key = confirmation["data-key"]
             trade_id = int(confirmation.get("data-creator", 0))
-            self._confirmations[trade_id] = Confirmation(self, id, confid, key, trade_id)
+            confirmation_id = id.split("conf")[1]
+            if confirmation_id in self._confirmations_to_ignore:
+                continue
+            self._confirmations[confirmation_id] = Confirmation(self, confirmation_id, confid, key, trade_id, f"details{self.id}")
+        for confirmation_id in self._confirmations_to_ignore:
+            if confirmation_id in self._confirmations:
+                del self._confirmations[confirmation_id]
         return self._confirmations
 
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:
