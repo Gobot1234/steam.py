@@ -140,14 +140,17 @@ def make_id64(*args, **kwargs) -> int:
     :class:`int`
         The 64 bit Steam ID.
     """
+    if not (args or kwargs):
+        return 0
+    arg_len = len(args)
+    if arg_len + len(kwargs) > 4:
+        raise TypeError(f"make_id64 expected at most 4 arguments, got {arg_len + len(kwargs)}")
+
     id = 0
     type = None
     universe = None
     instance = None
 
-    arg_len = len(args)
-    if arg_len + len(kwargs) > 4:
-        raise TypeError(f"make_steam64 expected at most 4 arguments, got {arg_len + len(kwargs)}")
     if args:
         if arg_len == 1:
             (id,) = args
@@ -157,11 +160,15 @@ def make_id64(*args, **kwargs) -> int:
             (id, type, universe) = args
         elif arg_len == 4:
             (id, type, universe, instance) = args
+        else:
+            raise TypeError(f"make_id64 expected at most 4 arguments, got {arg_len}")
     if kwargs:
-        id = kwargs.get("id", id)
-        type = kwargs.get("type", type)
-        universe = kwargs.get("universe", universe)
-        instance = kwargs.get("instance", instance)
+        id = kwargs.pop("id", id)
+        type = kwargs.pop("type", type)
+        universe = kwargs.pop("universe", universe)
+        instance = kwargs.pop("instance", instance)
+        if kwargs:
+            raise TypeError(f"make_id64 got unexpected argument(s), {list(kwargs.keys())}")
 
     # convert the id
     if id:
