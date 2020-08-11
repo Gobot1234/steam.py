@@ -32,7 +32,9 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Awaitable, Callable, Final, List, Optional, SupportsInt, Tuple, Union, overload
+from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, SupportsInt, Tuple, Union, overload
+
+from typing_extensions import Final
 
 from .badge import UserBadges
 from .comment import Comment
