@@ -34,7 +34,6 @@ import inspect
 import sys
 import traceback
 from copy import copy
-from shlex import shlex as Shlex
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -61,6 +60,7 @@ from .commands import Command, GroupCommand, GroupMixin
 from .context import Context
 from .errors import CheckFailure, CommandNotFound
 from .help import HelpCommand
+from .utils import Shlex
 
 if TYPE_CHECKING:
     import datetime
@@ -492,11 +492,7 @@ class Bot(GroupMixin, Client):
             return cls(message=message, prefix=prefix, bot=self, invoked_with=content.split()[0])
 
         command_name = " ".join(content.split(maxsplit=i + 1)[: i + 1])  # account for aliases
-        lex = Shlex(content[len(command_name) :].strip(), posix=True)
-        lex.commenters = ""
-        lex.quotes = '"'
-        lex.whitespace = " "
-        lex.whitespace_split = True
+        lex = Shlex(content[len(command_name) :].strip())
         return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix, invoked_with=command_name,)
 
     async def get_prefix(self, message: "Message") -> Optional[str]:

@@ -9,6 +9,7 @@ A basic commands framework for steam.py.
 :license: MIT, see LICENSE for more details.
 """
 
+from . import utils
 from .bot import *
 from .cog import *
 from .commands import *

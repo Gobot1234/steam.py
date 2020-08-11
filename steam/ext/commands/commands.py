@@ -41,16 +41,13 @@ from typing import (
     Awaitable,
     Callable,
     Dict,
-    Generic,
     Iterable,
     List,
     Optional,
     Set,
     Type,
-    TypeVar,
     Union,
     get_type_hints,
-    overload,
 )
 
 from typing_extensions import Literal
@@ -61,6 +58,7 @@ from ...errors import ClientException
 from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import BadArgument, MissingRequiredArgument, NotOwner
+from .utils import CaseInsensitiveDict
 
 if TYPE_CHECKING:
     from ...client import EventType
@@ -81,8 +79,6 @@ __all__ = (
 CheckType = Callable[["Context"], Union[bool, Awaitable[bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandType"]
 CommandDeco = Callable[[MaybeCommand], MaybeCommand]
-T = TypeVar("T")
-VT = TypeVar("VT")
 
 
 def to_bool(argument: str) -> bool:
@@ -92,40 +88,6 @@ def to_bool(argument: str) -> bool:
     elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
         return False
     raise BadArgument(f'"{lowered}" is not a recognised boolean option')
-
-
-class CaseInsensitiveDict(Dict[str, VT], Generic[VT]):
-    def __init__(self, **kwargs: VT):
-        super().__init__(**{k.lower(): v for k, v in kwargs.items()})
-
-    def __repr__(self) -> str:
-        return f"CaseInsensitiveDict({', '.join(f'{k}={v!r}' for k, v in self.items())})"
-
-    def __contains__(self, key: str) -> bool:
-        return super().__contains__(key.lower())
-
-    def __delitem__(self, key: str) -> None:
-        super().__delitem__(key.lower())
-
-    def __getitem__(self, key: str) -> VT:
-        return super().__getitem__(key.lower())
-
-    def __setitem__(self, key: str, value: VT) -> None:
-        super().__setitem__(key.lower(), value)
-
-    @overload
-    def get(self, k: str) -> Optional[VT]:
-        ...
-
-    @overload
-    def get(self, k: str, default: Optional[T] = None) -> Optional[Union[VT, T]]:
-        ...
-
-    def get(self, k: str, default=None):
-        return super().get(k.lower(), default)
-
-    def pop(self, k: str) -> VT:
-        return super().pop(k.lower())
 
 
 class Command:

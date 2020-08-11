@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from ...abc import Message, Messageable
 
 if TYPE_CHECKING:
-    from shlex import shlex as Shlex
+    from .utils import Shlex
 
     from .bot import Bot
     from .commands import Command
