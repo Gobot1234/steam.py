@@ -92,9 +92,6 @@ def to_bool(argument: str) -> bool:
 
 class Command:
     def __init__(self, func: "CommandType", **kwargs):
-        if not asyncio.iscoroutinefunction(func):
-            raise TypeError("Callback must be a coroutine.")
-
         self.callback = func
 
         try:
@@ -145,6 +142,9 @@ class Command:
 
     @callback.setter
     def callback(self, function: "CommandType") -> None:
+        if not asyncio.iscoroutinefunction(function):
+            raise TypeError(f"Callback for command {function.__name__} must be a coroutine.")
+
         # using get_type_hints allows for postponed annotations (type hints in quotes) for more info see PEP 563
         # https://www.python.org/dev/peps/pep-0563.
         module = sys.modules[function.__module__]
@@ -223,7 +223,7 @@ class Command:
         """
         if not asyncio.iscoroutinefunction(func):
             raise TypeError(f"Error handler for {self.name} must be a coroutine")
-        self.on_error = func
+        self.on_error = func  # TODO should probably be a Protocol aswell
         return func
 
     async def _parse_arguments(self, ctx: "Context") -> None:
@@ -540,7 +540,7 @@ def group(
     return decorator
 
 
-def check(predicate: CheckType) -> CommandDeco:  # TODO
+def check(predicate: CheckType) -> CommandDeco:  # TODO better docs
     """
     A decorator that registers a function that *could be a* |coroutine_link|_. to a command.
 

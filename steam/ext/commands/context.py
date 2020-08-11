@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from ...abc import Message, Messageable
 
@@ -87,7 +87,7 @@ class Context(Messageable):
 
         if command is not None:
             self.cog = command.cog
-        self.args: Optional[List] = None
+        self.args: Optional[Tuple] = None
         self.kwargs: Optional[Dict[str, Any]] = None
 
     def _get_message_endpoint(self):
