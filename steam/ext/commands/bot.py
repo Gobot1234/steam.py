@@ -74,6 +74,8 @@ if TYPE_CHECKING:
     from ...message import Message
     from ...trade import TradeOffer
     from ...user import User
+    from .commands import CheckType
+    from .cooldown import Cooldown
 
 __all__ = ("Bot",)
 
@@ -85,7 +87,10 @@ CPT = Union[
 CommandPrefixType: CPT = CPT
 
 
-class CommandType(Protocol):
+class CommandFunctionType(Protocol):
+    __commands_checks__: List["CheckType"]
+    __commands_cooldown__: List["Cooldown"]
+
     @overload
     async def __call__(self, ctx: "Context", *args, **kwargs) -> None:
         ...

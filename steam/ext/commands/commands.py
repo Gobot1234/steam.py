@@ -62,7 +62,7 @@ from .utils import CaseInsensitiveDict
 
 if TYPE_CHECKING:
     from ...client import EventType
-    from .bot import CommandType
+    from .bot import CommandFunctionType
     from .cog import Cog
     from .context import Context
 
@@ -77,7 +77,7 @@ __all__ = (
 )
 
 CheckType = Callable[["Context"], Union[bool, Awaitable[bool]]]
-MaybeCommand = Union[Callable[..., "Command"], "CommandType"]
+MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
 CommandDeco = Callable[[MaybeCommand], MaybeCommand]
 
 
@@ -91,7 +91,7 @@ def to_bool(argument: str) -> bool:
 
 
 class Command:
-    def __init__(self, func: "CommandType", **kwargs):
+    def __init__(self, func: "CommandFunctionType", **kwargs):
         self.callback = func
 
         try:
@@ -136,12 +136,12 @@ class Command:
                 raise TypeError("A commands aliases should be an iterable only containing strings")
 
     @property
-    def callback(self) -> "CommandType":
+    def callback(self) -> "CommandFunctionType":
         """The internal callback the command holds."""
         return self._callback
 
     @callback.setter
-    def callback(self, function: "CommandType") -> None:
+    def callback(self, function: "CommandFunctionType") -> None:
         if not asyncio.iscoroutinefunction(function):
             raise TypeError(f"Callback for command {function.__name__} must be a coroutine.")
 
@@ -444,10 +444,10 @@ class GroupMixin:
 
         return command.get_command(" ".join(names[1:]))
 
-    def command(self, *args, **kwargs) -> Callable[["CommandType"], Command]:
+    def command(self, *args, **kwargs) -> Callable[["CommandFunctionType"], Command]:
         """A shortcut decorator that invokes :func:`command` and adds it to the internal command list."""
 
-        def decorator(func: "CommandType"):
+        def decorator(func: "CommandFunctionType"):
             try:
                 kwargs["parent"]
             except KeyError:
@@ -461,7 +461,7 @@ class GroupMixin:
     def group(self, *args, **kwargs):
         """A shortcut decorator that invokes :func:`group` and adds it to the internal command list."""
 
-        def decorator(func: "CommandType"):
+        def decorator(func: "CommandFunctionType"):
             try:
                 kwargs["parent"]
             except KeyError:
@@ -474,7 +474,7 @@ class GroupMixin:
 
 
 class GroupCommand(GroupMixin, Command):
-    def __init__(self, func: "CommandType", **kwargs):
+    def __init__(self, func: "CommandFunctionType", **kwargs):
         super().__init__(func, **kwargs)
 
     @property
@@ -495,7 +495,8 @@ class GroupCommand(GroupMixin, Command):
         await super()._parse_arguments(ctx)
 
 
-def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -> Callable[["CommandType"], Command]:
+def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -> Callable[[
+                                                                                               "CommandFunctionType"], Command]:
     """Register a coroutine as a :class:`Command`.
 
     Parameters
@@ -509,7 +510,7 @@ def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -
         The attributes to pass to the command's ``__init__``.
     """
 
-    def decorator(func: "CommandType") -> Command:
+    def decorator(func: "CommandFunctionType") -> Command:
         if isinstance(func, Command):
             raise TypeError("Callback is already a command.")
         return cls(func, name=name, **attrs)
@@ -519,7 +520,7 @@ def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -
 
 def group(
     name: Optional[str] = None, cls: Type[GroupCommand] = GroupCommand, **attrs
-) -> Callable[["CommandType"], GroupCommand]:
+) -> Callable[["CommandFunctionType"], GroupCommand]:
     """Register a coroutine as a :class:`GroupCommand`.
 
     Parameters
@@ -532,7 +533,7 @@ def group(
         The attributes to pass to the command's ``__init__``.
     """
 
-    def decorator(func: "CommandType") -> GroupCommand:
+    def decorator(func: "CommandFunctionType") -> GroupCommand:
         if isinstance(func, Command):
             raise TypeError("Callback is already a command.")
         return cls(func, name=name, **attrs)
