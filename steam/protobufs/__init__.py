@@ -44,7 +44,7 @@ GetProtoType = Optional[Type[betterproto.Message]]
 
 
 def _Message__bool__(self: betterproto.Message):
-    for field_name, meta in self._betterproto.meta_by_field_name.items():
+    for field_name in self._betterproto.meta_by_field_name:
         if getattr(self, field_name):
             return True
 
