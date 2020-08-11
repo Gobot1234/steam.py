@@ -50,7 +50,7 @@ from typing import (
     get_type_hints,
 )
 
-from typing_extensions import Literal
+from typing_extensions import Literal, get_args, get_origin
 
 import steam
 
@@ -323,8 +323,9 @@ class Command:
         else:
             if converter is bool:
                 return to_bool(argument)
-            if hasattr(converter, "__origin__"):
-                for converter in converter.__args__:
+            origin = get_origin(converter)
+            if origin is not None:  # TODO add Literal converter and proper support for Optionals
+                for converter in get_args(converter):
                     if converter is type(None):
                         raise BadArgument(f"Failed to convert {argument} to anything")  # don't think this is possible?
                     try:
