@@ -64,8 +64,6 @@ from .trade import TradeOffer
 from .user import User
 
 if TYPE_CHECKING:
-    from types import FunctionType
-
     from .client import Client
     from .comment import Comment
     from .gateway import SteamWebSocket
@@ -409,7 +407,7 @@ class ConnectionState:
             if confirmation_id in self._confirmations_to_ignore:
                 continue
             self._confirmations[confirmation_id] = Confirmation(
-                self, confirmation_id, confid, key, trade_id, f"details{self.id}"
+                self, confirmation_id, confid, key, trade_id, f"details{confid}"
             )
         for confirmation_id in self._confirmations_to_ignore:
             if confirmation_id in self._confirmations:

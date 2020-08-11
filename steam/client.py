@@ -156,7 +156,7 @@ class Client:
     """
 
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options):
-        self.loop = loop or asyncio.get_event_loop()
+        self.loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
 
         self.http = HTTPClient(client=self)
         self._connection = ConnectionState(loop=self.loop, client=self, http=self.http, **options)

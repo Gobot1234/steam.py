@@ -236,7 +236,7 @@ class CommentsIterator(AsyncIterator["Comment"]):
                 author_id = int(comment.find("a", attrs={"class": "commentthread_author_link"})["data-miniprofile"])
                 comment_id = int(re.findall(r"comment_([0-9]*)", str(comment))[0])
                 content = comment.find("div", attrs={"class": "commentthread_comment_text"}).get_text().strip()
-                to_fetch.append(utils.make_steam64(author_id))
+                to_fetch.append(utils.make_id64(author_id))
                 comment = Comment(
                     state=self._state,
                     id=comment_id,
