@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 from ...errors import SteamException
 
 if TYPE_CHECKING:
+    from .commands import Command
     from inspect import Parameter
 
 
@@ -83,6 +84,17 @@ class CheckFailure(CommandError):
 
     Subclass of :exc:`CommandError`.
     """
+
+
+class CommandDisabled(CheckFailure):
+    """Exception raised when a command is disabled and is attempted to be ran.
+
+    Subclass of :exc:`CheckFailure`.
+    """
+
+    def __init__(self, command: "Command"):
+        self.command = command
+        super().__init__(f"{command.name} is currently disabled")
 
 
 class NotOwner(CheckFailure):

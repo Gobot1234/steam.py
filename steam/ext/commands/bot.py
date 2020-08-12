@@ -58,7 +58,7 @@ from ...client import Client, EventType, log
 from .cog import Cog, ExtensionType, InjectedListener
 from .commands import Command, GroupCommand, GroupMixin
 from .context import Context
-from .errors import CheckFailure, CommandNotFound
+from .errors import CheckFailure, CommandDisabled, CommandNotFound
 from .help import HelpCommand
 from .utils import Shlex
 
@@ -448,7 +448,7 @@ class Bot(GroupMixin, Client):
 
         command = ctx.command
         if not command.enabled:
-            return
+            raise CommandDisabled(command)
 
         self.dispatch("command", ctx)
 
