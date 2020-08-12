@@ -5,18 +5,17 @@ on:
     types: [created]
 
 jobs:
-  testing:
+  run-tests:
     runs-on: ubuntu-latest
 
-    - name: Run test
-      if: github.event.issue.comment.body == "LGTM" && github.event.issue.comment.author == "Gobot1234"
-        steps:
-          - uses: actions/checkout@v2
-          - name: Set up Python
-          uses: actions/setup-python@v1
-          with:
-            python-version: 3.7
-          - name: Install dependencies
-            run: pip install .[dev]
-          - name: Run tests
-            run: python3 tests
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: pip install .[dev]
+      - name: Run tests
+        if: github.event.issue.comment.body == "LGTM" && github.event.issue.comment.author == "Gobot1234"
+        run: python3 tests

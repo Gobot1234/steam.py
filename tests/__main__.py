@@ -15,10 +15,10 @@ TESTS = STEAM_PY / "tests"
 WORKFLOWS = STEAM_PY / ".github" / "workflows"
 
 with open(WORKFLOWS / "blacken.yml") as f:
-    BLACK_SETTINGS = yaml.load(f, Loader=yaml.FullLoader)
+    BLACK_SETTINGS = yaml.safe_load(f)
 
 with open(WORKFLOWS / "isort.yml") as f:
-    ISORT_SETTINGS = yaml.load(f, Loader=yaml.FullLoader)
+    ISORT_SETTINGS = yaml.safe_load(f)
 
 
 def prepare_args(args: dict) -> list:
