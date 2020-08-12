@@ -200,7 +200,7 @@ class User(BaseUser, Messageable):
         group: :class:`~steam.Group`
             The group to invite the user to.
         """
-        # TODO
+        await self._state.invite_user_to_group(self.id64, group.id)
 
     async def invite_to_clan(self, clan: "Clan"):
         """|coro|

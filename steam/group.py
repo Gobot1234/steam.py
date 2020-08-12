@@ -130,3 +130,4 @@ class Group(SteamID):
         user: :class:`~steam.User`
             The user to invite to the group.
         """
+        await self._state.invite_user_to_group(user.id64, self.id)

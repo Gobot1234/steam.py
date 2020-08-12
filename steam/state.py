@@ -520,6 +520,18 @@ class ConnectionState:
         elif msg.header.eresult != EResult.OK:
             raise WSException(msg)
 
+    async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
+        try:
+            msg = await self.ws.send_um_and_wait(
+                "InviteFriendToChatRoomGroup#1_Request", chat_group_id=group_id, steamid=user_id64
+            )
+        except asyncio.TimeoutError:
+            return
+        if msg.header.eresult == EResult.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.header.eresult != EResult.OK:
+            raise WSException(msg)
+
     # parsers
 
     @register(EMsg.ServiceMethod)
