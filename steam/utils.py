@@ -234,10 +234,11 @@ def id2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
     Returns
     -------
     Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+        A tuple of 32 bit ID, type, universe and instance or ``None``
         e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
 
     .. note::
-        The universe will be always set to ``1``. See :attr:`SteamID.as_steam2`.
+        The universe will be always set to ``1``. See :attr:`SteamID.id2_zero`.
     """
     search = ID2_REGEX.search(value)
 

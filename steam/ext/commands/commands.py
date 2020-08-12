@@ -194,7 +194,7 @@ class Command:
 
     @property
     def parents(self) -> typing.Generator["Command", None, None]:
-        """typing.Iterator[:class:`Command`]: A generator returning the command's parents."""
+        """Iterator[:class:`Command`]: A generator returning the command's parents."""
 
         def recursive_iter(command: Command) -> typing.Generator["Command", None, None]:
             yield command
