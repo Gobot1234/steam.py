@@ -58,12 +58,11 @@ import steam
 from ...errors import ClientException
 from . import converters
 from .cooldown import BucketType, Cooldown
-from .errors import BadArgument, MissingRequiredArgument, NotOwner
+from .errors import BadArgument, MissingRequiredArgument, NotOwner, CheckFailure
 from .utils import CaseInsensitiveDict
 
 if TYPE_CHECKING:
-    from ...client import EventType
-    from .bot import CommandFunctionType
+    from .bot import CommandFunctionType, CommandErrorFunctionType
     from .cog import Cog
     from .context import Context
 
@@ -216,7 +215,7 @@ class Command:
         else:
             return self.callback(*args, **kwargs)
 
-    def error(self, func: "EventType") -> "EventType":
+    def error(self, func: "CommandErrorFunctionType") -> "CommandErrorFunctionType":
         """Register an event to handle a commands ``on_error`` functionality similarly to
         :meth:`steam.ext.commands.Bot.on_command_error`.
 
@@ -233,7 +232,7 @@ class Command:
         """
         if not asyncio.iscoroutinefunction(func):
             raise TypeError(f"Error handler for {self.name} must be a coroutine")
-        self.on_error = func  # TODO should probably be a Protocol aswell
+        self.on_error = func
         return func
 
     async def _parse_arguments(self, ctx: "Context") -> None:
@@ -318,10 +317,7 @@ class Command:
         return param_type
 
     async def _convert(
-        self,
-        ctx: "Context",
-        converter: Union[Type[converters.Converter], converters.Converter, type, Callable[[str], Any]],
-        argument: str,
+        self, ctx: "Context", converter: Union[converters.Converter, type, Callable[[str], Any]], argument: str,
     ) -> Any:
         if isinstance(converter, converters.Converter):
             try:
@@ -365,7 +361,8 @@ class Command:
 
     async def can_run(self, ctx: "Context") -> Literal[True]:
         for check in self.checks:
-            await steam.utils.maybe_coroutine(check, ctx)
+            if not await steam.utils.maybe_coroutine(check, ctx):
+                raise CheckFailure("You failed to pass one of the checks for this command")
         return True
 
 

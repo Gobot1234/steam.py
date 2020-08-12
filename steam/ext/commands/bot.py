@@ -81,10 +81,9 @@ __all__ = ("Bot",)
 
 
 StrOrIterStr: Union[str, Iterable[str]] = Union[str, Iterable[str]]
-CPT = Union[
+CommandPrefixType = Union[
     StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]],
 ]
-CommandPrefixType: CPT = CPT
 
 
 class CommandFunctionType(Protocol):
@@ -97,6 +96,11 @@ class CommandFunctionType(Protocol):
 
     @overload
     async def __call__(self, cog: "Cog", ctx: "Context", *args, **kwargs) -> None:
+        ...
+
+
+class CommandErrorFunctionType(Protocol):
+    async def __call__(self, ctx: "Context", error: Exception) -> None:
         ...
 
 
@@ -351,7 +355,7 @@ class Bot(GroupMixin, Client):
         cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: Union["EventType", InjectedListener], name: Optional[str] = None) -> None:
+    def add_listener(self, func: Union["EventType", "InjectedListener"], name: Optional[str] = None) -> None:
         """Add a function from the internal listeners list.
 
         Parameters
@@ -371,7 +375,7 @@ class Bot(GroupMixin, Client):
         except KeyError:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: Union["EventType", InjectedListener], name: Optional[str] = None) -> None:
+    def remove_listener(self, func: Union["EventType", "InjectedListener"], name: Optional[str] = None) -> None:
         """Remove a function from the internal listeners list.
 
         Parameters
