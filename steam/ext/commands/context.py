@@ -29,10 +29,9 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 from ...abc import Message, Messageable
 
 if TYPE_CHECKING:
-    from .utils import Shlex
-
     from .bot import Bot
     from .commands import Command
+    from .utils import Shlex
 
 
 __all__ = ("Context",)

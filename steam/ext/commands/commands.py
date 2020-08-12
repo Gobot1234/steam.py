@@ -34,7 +34,7 @@ import importlib
 import inspect
 import sys
 import typing
-from types import FunctionType, MethodType
+from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -44,6 +44,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    OrderedDict,
     Set,
     Type,
     Union,
@@ -148,6 +149,7 @@ class Command:
         # using get_type_hints allows for postponed annotations (type hints in quotes) for more info see PEP 563
         # https://www.python.org/dev/peps/pep-0563.
         module = sys.modules[function.__module__]
+        self.module = module
         globals = module.__dict__
         try:
             annotations = get_type_hints(function, globals)
@@ -453,7 +455,7 @@ class GroupMixin:
 
         return command.get_command(" ".join(names[1:]))
 
-    def command(self, *args, **kwargs) -> Callable[["CommandFunctionType"], Command]:
+    def command(self, *args, **kwargs) -> Callable[["CommandFunctionType"], "Command"]:
         """A shortcut decorator that invokes :func:`command` and adds it to the internal command list."""
 
         def decorator(func: "CommandFunctionType"):
@@ -467,7 +469,7 @@ class GroupMixin:
 
         return decorator
 
-    def group(self, *args, **kwargs):
+    def group(self, *args, **kwargs) -> Callable[["CommandFunctionType"], "GroupCommand"]:
         """A shortcut decorator that invokes :func:`group` and adds it to the internal command list."""
 
         def decorator(func: "CommandFunctionType"):
@@ -504,8 +506,9 @@ class GroupCommand(GroupMixin, Command):
         await super()._parse_arguments(ctx)
 
 
-def command(name: Optional[str] = None, cls: Type[Command] = Command, **attrs) -> Callable[[
-                                                                                               "CommandFunctionType"], Command]:
+def command(
+    name: Optional[str] = None, cls: Type[Command] = Command, **attrs
+) -> Callable[["CommandFunctionType"], Command]:
     """Register a coroutine as a :class:`Command`.
 
     Parameters
