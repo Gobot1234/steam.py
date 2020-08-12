@@ -262,7 +262,7 @@ class Command:
                     kwargs[name] = await self._transform(ctx, param, arg)
                 break
             elif param.kind == param.VAR_KEYWORD:
-                # we have received **kwargs
+                # same as **kwargs
                 arguments = list(shlex)
                 if not arguments:
                     kwargs[name] = await self._get_default(ctx, param)
@@ -272,8 +272,9 @@ class Command:
                 if annotation is param.empty or annotation is dict:
                     annotation = Dict[str, str]  # default to {str: str}
 
-                key_converter = self._get_converter(annotation.__args__[0])
-                value_converter = self._get_converter(annotation.__args__[1])
+                key, value = get_args(annotation)
+                key_converter = self._get_converter(key)
+                value_converter = self._get_converter(value)
 
                 kv_pairs = [arg.split("=") for arg in arguments]
                 kwargs[name] = {
@@ -309,10 +310,10 @@ class Command:
     async def _convert(
         self,
         ctx: "Context",
-        converter: Union[Type[converters.Converter], converters.Converter, type, FunctionType],
+        converter: Union[Type[converters.Converter], converters.Converter, type, Callable[[str], Any]],
         argument: str,
     ) -> Any:
-        if hasattr(converter, "convert"):
+        if isinstance(converter, converters.Converter):
             try:
                 if hasattr(converter.convert, "__self__"):  # instance
                     return await converter.convert(ctx, argument)
@@ -341,10 +342,10 @@ class Command:
     async def _get_default(self, ctx: "Context", param: inspect.Parameter) -> Any:
         if param.default is param.empty:
             raise MissingRequiredArgument(param)
-        if inspect.isclass(param.default):
+        if isinstance(param.default, converters.Default):
             default = param.default.default
             try:
-                if hasattr("default", "__self__"):  # instance
+                if hasattr(default, "__self__"):  # instance
                     return await default(ctx)
                 else:
                     return await default(param.default, ctx)
