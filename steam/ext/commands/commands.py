@@ -174,8 +174,16 @@ class Command:
             function.__func__.__annotations__ = annotations
         else:
             function.__annotations__ = annotations
-        self.params = inspect.signature(function).parameters
+        self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
         self._callback = function
+
+    @property
+    def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
+        params = self.params
+        if self.cog:
+            params.popitem(last=False)  # cog's "self" param
+        params.popitem(last=False)  # context param
+        return params
 
     @property
     def qualified_name(self) -> str:
