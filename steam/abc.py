@@ -382,7 +382,7 @@ class BaseUser(SteamID):
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
         self.avatar_url = data.get("avatarfull") or self.avatar_url
-        self.trade_url = community_route("tradeoffer/new/?partner={self.id}")
+        self.trade_url = community_route(f"tradeoffer/new/?partner={self.id}")
 
         self.primary_clan = SteamID(data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan
         self.country = data.get("loccountrycode") or self.country
