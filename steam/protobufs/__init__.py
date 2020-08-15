@@ -27,7 +27,6 @@ SOFTWARE.
 This is an updated version of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
-from dataclasses import dataclass
 from typing import Generic, Optional, Type, TypeVar, Union
 
 import betterproto
@@ -52,11 +51,6 @@ def _Message__bool__(self: betterproto.Message):
 
 
 betterproto.Message.__bool__ = _Message__bool__
-
-
-@dataclass
-class FailedToParse(betterproto.Message):
-    body: str = "!!! Failed To Parse !!!"
 
 
 def get_cmsg(emsg: Union[EMsg, int]) -> GetProtoType:
@@ -92,23 +86,20 @@ def get_um(name: str) -> GetProtoType:
 
 
 class MsgBase(Generic[T]):
-    __slots__ = ("header", "proto", "body", "payload", "skip")
+    __slots__ = ("header", "body", "payload", "skip")
 
     def __init__(self, msg: EMsg, data: Optional[bytes], **kwargs):
-        self.msg = EMsg.try_value(msg)
+        self.msg = msg
         self.body: Optional[T] = None
-        self.payload: Optional[bytes] = None
-        self.header: Union[ExtendedMsgHdr, MsgHdrProtoBuf, MsgHdr]
-
-        if data:
-            self.payload = data[self.skip :]
+        self.payload: Optional[bytes] = data[self.skip :] if data else None
 
         self.parse()
         if kwargs:
-            for (key, value) in kwargs.items():
+            for key, value in kwargs.items():
                 if isinstance(value, EnumMember):
                     kwargs[key] = value.value
-            self.body.from_dict(kwargs)
+            if self.body is not None:
+                self.body = self.body.from_dict(kwargs)
 
     def __repr__(self):
         attrs = (
@@ -118,15 +109,18 @@ class MsgBase(Generic[T]):
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         if isinstance(self.body, betterproto.Message):
             resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
+        else:
+            resolved.append(f"body='!!! Failed To Parse !!!'")
         return " ".join(resolved)
+
+    def __bytes__(self):
+        return bytes(self.header) + bytes(self.body)
 
     def _parse(self, proto: Optional[Type[T]]) -> None:
         if proto:
             self.body: T = proto()
             if self.payload:
                 self.body = self.body.parse(self.payload)
-        else:
-            self.body = FailedToParse()
 
     @property
     def msg(self) -> Union[EMsg, int]:
@@ -156,9 +150,6 @@ class MsgBase(Generic[T]):
     def session_id(self, value) -> None:
         if isinstance(self.header, AllowedHeaders):
             self.header.session_id = value
-
-    def __bytes__(self):
-        return bytes(self.header) + bytes(self.body)
 
 
 class Msg(MsgBase[T]):
@@ -206,7 +197,6 @@ class Msg(MsgBase[T]):
         self, msg: EMsg, data: Optional[bytes] = None, extended: bool = False, **kwargs,
     ):
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
-        self.proto = False
         self.skip = self.header.SIZE
         super().__init__(msg, data, **kwargs)
 
@@ -217,7 +207,7 @@ class Msg(MsgBase[T]):
         """Parse the payload/data into a protobuf."""
         if self.body is None:
             proto = get_cmsg(self.msg)
-            super()._parse(proto)
+            self._parse(proto)
 
 
 class MsgProto(MsgBase[T]):
@@ -260,12 +250,13 @@ class MsgProto(MsgBase[T]):
         The raw data for the message.
     """
 
+    __slots__ = ("um_name",)
+
     def __init__(
         self, msg: EMsg, data: Optional[bytes] = None, _um_name: Optional[str] = None, **kwargs,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size
-        self.proto = True
         self.um_name = _um_name
         super().__init__(msg, data, **kwargs)
 
@@ -289,4 +280,4 @@ class MsgProto(MsgBase[T]):
             else:
                 proto = get_cmsg(self.msg)
 
-            super()._parse(proto)
+            self._parse(proto)
