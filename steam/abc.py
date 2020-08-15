@@ -330,7 +330,7 @@ class BaseUser(SteamID):
         The last time the user logged into steam. Could be None (e.g. if they are currently online).
     country: Optional[:class:`str`]
         The country code of the account. Could be ``None``.
-    flags: Union[:class:`~steam.EPersonaStateFlag`, :class:`int`]
+    flags: List[:class:`~steam.EPersonaStateFlag`]
         The persona state flags of the account.
     """
 
@@ -365,7 +365,7 @@ class BaseUser(SteamID):
         self.last_logon: Optional[datetime] = None
         self.last_seen_online: Optional[datetime] = None
         self.state: Optional[EPersonaState] = None
-        self.flags: Optional[EPersonaStateFlag] = None
+        self.flags: List[EPersonaStateFlag] = []
         self.game: Optional[Game] = None
         self._update(data)
 
@@ -394,7 +394,7 @@ class BaseUser(SteamID):
         )
         self.game = Game(title=data.get("gameextrainfo"), app_id=data["gameid"]) if "gameid" in data else self.game
         self.state = EPersonaState(data.get("personastate", 0)) or self.state
-        self.flags = EPersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
+        self.flags = EPersonaStateFlag.components(data.get("personastateflags", 0)) or self.flags
 
     @property
     def mention(self) -> str:

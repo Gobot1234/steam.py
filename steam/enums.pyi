@@ -255,6 +255,8 @@ class EPersonaStateFlag(IntEnum):
     ClientTypeVR: EPersonaStateFlag
     LaunchTypeGamepad: EPersonaStateFlag
     LaunchTypeCompatTool: EPersonaStateFlag
+    @classmethod
+    def components(cls, flag: int) -> List[EPersonaStateFlag]: ...
 
 class ECommunityVisibilityState(IntEnum):
     NONE: ECommunityVisibilityState

@@ -416,6 +416,28 @@ class EPersonaStateFlag(IntEnum):
     LaunchTypeGamepad    = 4096
     LaunchTypeCompatTool = 8192
 
+    @classmethod
+    def components(cls, flag):
+        """A helper function to breakdown a flag into its component parts.
+
+        Parameters
+        ----------
+        flag: :class:`int`
+            The flag to break down.
+
+        Returns
+        -------
+        List[:class:`EPersonaStateFlag`]
+            The resolved flags.
+        """
+        flags = [enum for value, enum in cls._value_map_.items() if value & flag]
+        value = 0
+        for f in flags:
+            value |= f
+        if value != flag:
+            return []
+        return flags
+
 
 class ECommunityVisibilityState(IntEnum):
     NONE        = 0  #: The user has no community state.
