@@ -2,7 +2,8 @@
 *.py[cod]
 *.log
 *.egg-info
+
 venv
-.venv
 .idea
 .mypy_cache
+.pytest_cache

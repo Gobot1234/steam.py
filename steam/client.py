@@ -473,7 +473,7 @@ class Client:
                 resp = await self.http.request("GET", url=community_route("chat/clientjstoken"))
                 if not resp["logged_in"]:  # we got logged out :(
                     await self.http.login(self.username, self.password, shared_secret=self.shared_secret)
-                    await self.connect()
+                    continue
                 self.token = resp["token"]
                 coro = SteamWebSocket.from_client(self, cms=self._cm_list)
                 self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)

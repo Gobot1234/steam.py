@@ -381,7 +381,7 @@ async def id64_from_url(
     Returns
     -------
     Optional[:class:`int`]
-        If ``https://steamcommunity.com`` is down or no matching account is found returns ``None``
+        The found 64 bit ID or ``None`` if ``https://steamcommunity.com`` is down or no matching account is found.
     """
 
     search = URL_REGEX.search(str(url).rstrip("/"),)
@@ -522,8 +522,8 @@ def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T
     Returns
     -------
     Optional[T]
-        The first element from the ``iterable`` for which the ``predicate`` returns ``True`` or ``None`` if no
-        matching element was found.
+        The first element from the ``iterable`` for which the ``predicate`` returns ``True`` or if no matching element
+        was found returns ``None``.
     """
 
     for element in iterable:
