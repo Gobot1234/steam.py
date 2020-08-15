@@ -120,17 +120,19 @@ class EnumMeta(type):
             member_mapping[key] = new_value
             attrs[key] = new_value
 
-        attrs["_enum_value_map_"] = value_mapping
-        attrs["_enum_member_map_"] = member_mapping
-        attrs["_enum_member_names_"] = member_names
+        attrs["_value_map_"] = value_mapping
+        attrs["_member_map_"] = member_mapping
+        attrs["_member_names_"] = member_names
         enum_class: "Enum" = super().__new__(mcs, name, bases, attrs)
         for member in value_mapping.values():  # edit each value to ensure it's correct
             member._enum_cls_ = enum_class
         return enum_class
 
     def __call__(cls, value):
+        if isinstance(value, cls):
+            return value
         try:
-            return cls._enum_value_map_[value]
+            return cls._value_map_[value]
         except (KeyError, TypeError):
             raise ValueError(f"{value!r} is not a valid {cls.__name__}")
 
@@ -138,30 +140,30 @@ class EnumMeta(type):
         return f"<enum {cls.__name__!r}>"
 
     def __iter__(cls):
-        return (cls._enum_member_map_[name] for name in cls._enum_member_names_)
+        return (cls._member_map_[name] for name in cls._member_names_)
 
     def __reversed__(cls):
-        return (cls._enum_member_map_[name] for name in reversed(cls._enum_member_names_))
+        return (cls._member_map_[name] for name in reversed(cls._member_names_))
 
     def __len__(cls):
-        return len(cls._enum_member_names_)
+        return len(cls._member_names_)
 
     def __getitem__(cls, key):
-        return cls._enum_member_map_[key]
+        return cls._member_map_[key]
 
     def __setattr__(cls, name, value):
-        if name in cls._enum_member_names_:
+        if name in cls._member_names_:
             raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
         if _is_dunder(name):
-            for value in cls._enum_member_map_:
+            for value in cls._member_map_:
                 setattr(value, name, value)
         super().__setattr__(name, value)
 
     def __delattr__(cls, name):
-        if name in cls._enum_member_names_:
+        if name in cls._member_names_:
             raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
         if _is_dunder(name):
-            for value in cls._enum_member_map_:
+            for value in cls._member_map_:
                 delattr(value, name)
         super().__delattr__(name)
 
@@ -174,7 +176,7 @@ class EnumMeta(type):
             return False
 
     def __dir__(cls):
-        return ["__class__", "__doc__", "__members__", "__module__"] + cls._enum_member_names_
+        return ["__class__", "__doc__", "__members__", "__module__"] + cls._member_names_
 
     def __contains__(cls, member):
         if not isinstance(member, EnumMember):
@@ -182,14 +184,14 @@ class EnumMeta(type):
                 "unsupported operand type(s) for 'in':"
                 f" '{member.__class__.__qualname__}' and '{cls.__class__.__qualname__}'"
             )
-        return member.name in cls._enum_member_map_
+        return member.name in cls._member_map_
 
     def __bool__(self):
         return True
 
     @property
     def __members__(cls):
-        return MappingProxyType(cls._enum_member_map_)
+        return MappingProxyType(cls._member_map_)
 
 
 class Enum(metaclass=EnumMeta):
@@ -198,7 +200,7 @@ class Enum(metaclass=EnumMeta):
     @classmethod
     def try_value(cls, value):
         try:
-            return cls._enum_value_map_[value]
+            return cls._value_map_[value]
         except (KeyError, TypeError):
             return value
 

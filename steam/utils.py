@@ -256,7 +256,7 @@ def id2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
 
 
 ID3_REGEX = re.compile(
-    rf"\[(?P<type>[i{''.join(ETypeChar._enum_member_map_)}]):"
+    rf"\[(?P<type>[i{''.join(ETypeChar._member_map_)}]):"
     r"(?P<universe>[0-4]):"
     r"(?P<id>\d{1,10})"
     r"(:(?P<instance>\d+))?]",
