@@ -28,6 +28,7 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 """
 
 import struct
+from typing import Union
 
 from stringcase import snakecase
 
@@ -272,7 +273,7 @@ class MsgHdrProtoBuf:
         self.body.jobid_target = int(value)
 
     @property
-    def eresult(self) -> EResult:
+    def eresult(self) -> Union[EResult, int]:
         return EResult.try_value(self.body.eresult)
 
     @property
