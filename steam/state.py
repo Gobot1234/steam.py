@@ -638,9 +638,9 @@ class ConnectionState:
                 continue
             user_id64 = friend.friendid
             after = self.get_user(user_id64)
-            before = copy(after)
             if after is None:  # they're private
                 continue
+            before = copy(after)
 
             try:
                 data = self.patch_user_from_ws(data, friend)

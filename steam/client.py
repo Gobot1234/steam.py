@@ -181,7 +181,7 @@ class Client:
                 if "error" in name:  # an error event, we shouldn't delete these
                     continue
                 try:
-                    if attr.__code__.co_filename == getattr(Client, name).__code__.co_filename:
+                    if attr.__code__.co_filename == __file__:
                         delattr(base, name)
                 except AttributeError:
                     pass

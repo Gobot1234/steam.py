@@ -310,7 +310,6 @@ _INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
 _INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
-
 INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))" rf"|(?P<code2>[\-{_INVITE_VALID}]+)")
 
 

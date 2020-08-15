@@ -199,7 +199,7 @@ class Bot(GroupMixin, Client):
                 if "error" in name or name == "on_message":
                     continue
                 try:
-                    if attr.__code__.co_filename == getattr(Bot, name).__code__.co_filename:
+                    if attr.__code__.co_filename == __file__:
                         delattr(base, name)
                 except AttributeError:
                     pass
