@@ -331,6 +331,8 @@ class EResult(IntEnum):
     AccountNotFriends               = 111  #: Not friends with the relevant account.
     LimitedUserAccount              = 112  #: The account is limited and cannot perform this action.
     CantRemoveItem                  = 113  #: Cannot remove the item.
+    AccountHasBeenDeleted           = 114  #: The relevant account has been deleted.
+    AccountHasCancelledLicense      = 115  #: The user has a user cancelled license.
 
 
 class EUniverse(IntEnum):
@@ -397,7 +399,8 @@ class EPersonaState(IntEnum):
     Snooze         = 4  #: The user has been marked as AFK for a long period of time.
     LookingToTrade = 5  #: The user is online and wanting to trade.
     LookingToPlay  = 6  #: The user is online and wanting to play.
-    Max            = 7  #: The total number of states. Only used for looping and validation.
+    Invisible      = 7  #: The user is invisible.
+    Max            = 8  #: The total number of states. Only used for looping and validation.
 
 
 class EPersonaStateFlag(IntEnum):

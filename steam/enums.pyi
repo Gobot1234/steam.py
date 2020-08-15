@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from enum import Enum as _Enum, IntEnum as _IntEnum
-from typing import Any, TypeVar, Union, overload
+from typing import Any, List, TypeVar, Union, overload
 
 T = TypeVar("T")
 
@@ -177,6 +177,8 @@ class EResult(IntEnum):
     AccountNotFriends: EResult
     LimitedUserAccount: EResult
     CantRemoveItem: EResult
+    AccountHasBeenDeleted: EResult
+    AccountHasCancelledLicense: EResult
 
 class EUniverse(IntEnum):
     Invalid: EUniverse
@@ -238,6 +240,7 @@ class EPersonaState(IntEnum):
     Snooze: EPersonaState
     LookingToTrade: EPersonaState
     LookingToPlay: EPersonaState
+    Invisible: EPersonaState
     Max: EPersonaState
 
 class EPersonaStateFlag(IntEnum):
