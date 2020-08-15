@@ -534,7 +534,13 @@ class SteamWebSocket:
         return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, predicate=check), timeout=timeout)
 
     async def change_presence(
-        self, *, games: List[dict], state: Optional[EPersonaState], ui_mode: Optional["EUIMode"], force_kick: bool,
+        self,
+        *,
+        games: List[dict],
+        state: Optional[EPersonaState],
+        flags: int,
+        ui_mode: Optional["EUIMode"],
+        force_kick: bool,
     ) -> None:
         if force_kick:
             kick = MsgProto(EMsg.ClientKickPlayingSession)
@@ -544,8 +550,8 @@ class SteamWebSocket:
             activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug(f"Sending {activity} to change activity")
             await self.send_as_proto(activity)
-        if state is not None:
-            state = MsgProto(EMsg.ClientChangeStatus, persona_state=state)
+        if state is not None or flags:
+            state = MsgProto(EMsg.ClientChangeStatus, persona_state=state, persona_state_flags=flags)
             log.debug(f"Sending {state} to change state")
             await self.send_as_proto(state)
         if ui_mode is not None:

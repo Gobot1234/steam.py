@@ -54,7 +54,7 @@ if TYPE_CHECKING:
     import steam
 
     from .comment import Comment
-    from .enums import EPersonaState, EUIMode
+    from .enums import EPersonaState, EPersonaStateFlag, EUIMode
     from .game import Game
     from .group import Group
     from .invite import ClanInvite, Invite, UserInvite
@@ -730,6 +730,8 @@ class Client:
         games: Optional[List["Game"]] = None,
         state: Optional["EPersonaState"] = None,
         ui_mode: Optional["EUIMode"] = None,
+        flag: Optional["EPersonaStateFlag"] = None,
+        flags: Optional[List["EPersonaStateFlag"]] = None,
         force_kick: bool = False,
     ) -> None:
         """|coro|
@@ -750,13 +752,25 @@ class Client:
 
         ui_mode: :class:`~steam.EUIMode`
             The UI mode to set your status to.
+        flag: Optional[:class:`EPersonaStateFlag`]
+            The flag to update your account with.
+        flags: Optional[List[:class:`EPersonaStateFlag`]
+            The flags to update your account with.
         force_kick: :class:`bool`
             Whether or not to forcefully kick any other playing sessions.
         """
         games = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games.append(game.to_dict())
-        await self.ws.change_presence(games=games, state=state, ui_mode=ui_mode, force_kick=force_kick)
+        flags = flags or self.user.flags
+        if flag is not None:
+            flags.append(flag)
+        flag_value = 0
+        for flag in flags:
+            flag_value |= flag
+        await self.ws.change_presence(
+            games=games, state=state, flags=flag_value, ui_mode=ui_mode, force_kick=force_kick
+        )
 
     async def wait_until_ready(self) -> None:
         """|coro|
