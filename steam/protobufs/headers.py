@@ -228,7 +228,7 @@ class MsgHdrProtoBuf:
 
         self.msg = EMsg(clear_proto_bit(msg))
         self._full_size = self.SIZE + proto_length
-        self.body = self.body.parse(data[self.SIZE : self._full_size])
+        self.body.parse(data[self.SIZE : self._full_size])
 
     # allow for consistency between headers
 

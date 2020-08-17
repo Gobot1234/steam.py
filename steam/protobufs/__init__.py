@@ -99,7 +99,7 @@ class MsgBase(Generic[T]):
                 if isinstance(value, EnumMember):
                     kwargs[key] = value.value
             if self.body is not None:
-                self.body = self.body.from_dict(kwargs)
+                self.body.from_dict(kwargs)
 
     def __repr__(self):
         attrs = (
@@ -120,7 +120,7 @@ class MsgBase(Generic[T]):
         if proto:
             self.body: T = proto()
             if self.payload:
-                self.body = self.body.parse(self.payload)
+                self.body.parse(self.payload)
 
     @property
     def msg(self) -> Union[EMsg, int]:
