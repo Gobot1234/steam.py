@@ -541,6 +541,18 @@ class ConnectionState:
         elif msg.header.eresult != EResult.OK:
             raise WSException(msg)
 
+    async def edit_role(self, group_id: int, role_id: int, *, name: str):
+        try:
+            msg = await self.ws.send_um_and_wait(
+                "ChatRoom.RenameRole#1_Request", chat_group_id=group_id, role_id=role_id, name=name
+            )
+        except asyncio.TimeoutError:
+            return
+        if msg.header.eresult == EResult.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.header.eresult != EResult.OK:
+            raise WSException(msg)
+
     # parsers
 
     @register(EMsg.ServiceMethod)
@@ -597,7 +609,7 @@ class ConnectionState:
                 if msg.body.group_summary.clanid:
                     clan = await Clan._from_proto(self, msg.body.group_summary)
                     self._clans[clan.id] = clan
-                    self.dispatch("clan_join", clan)
+                    self.dispatch("clan_join", clan)  # TODO test/doc
                 else:
                     group = Group(state=self, proto=msg.body.group_summary)
                     self._groups[group.id] = group
@@ -609,7 +621,7 @@ class ConnectionState:
                     return
 
                 if isinstance(left, Clan):
-                    self.dispatch("clan_leave", left)
+                    self.dispatch("clan_leave", left)  # TODO test/doc
                 else:
                     self.dispatch("group_leave", left)
 
