@@ -375,9 +375,10 @@ class BaseUser(SteamID):
         self.last_logoff: Optional[datetime] = None
         self.last_logon: Optional[datetime] = None
         self.last_seen_online: Optional[datetime] = None
+        self.game: Optional[Game] = None
         self.state: Optional[EPersonaState] = None
         self.flags: List[EPersonaStateFlag] = []
-        self.game: Optional[Game] = None
+        self.privacy_state: Optional[ECommunityVisibilityState] = None
         self._update(data)
 
     def __repr__(self):
