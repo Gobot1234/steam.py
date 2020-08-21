@@ -37,7 +37,7 @@ with open("README.md") as f:
 
 extras_require = {
     "docs": ["sphinx==3.0.1", "sphinxcontrib_trio==1.1.1", "sphinxcontrib-websupport",],
-    "dev": ["black", "isort", "flake8", "pytest"],
+    "dev": ["black", "isort", "flake8", "pytest", "yaml"],
 }
 
 setup(
@@ -59,13 +59,14 @@ setup(
     extras_require=extras_require,
     python_requires=">=3.7",
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 5 - Production/Stable",
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Developers",
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Software Development :: Libraries",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
