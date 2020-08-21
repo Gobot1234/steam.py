@@ -2,7 +2,7 @@
 
 import os
 
-USERNAME: str = os.getenv('STEAM_USERNAME')
-PASSWORD: str = os.getenv('STEAM_PASSWORD')
-SHARED_SECRET: str = os.getenv('STEAM_SHARED_SECRET')
-IDENTITY_SECRET: str = os.getenv('STEAM_IDENTITY_SECRET')
+USERNAME: str = os.getenv("USERNAME")
+PASSWORD: str = os.getenv("PASSWORD")
+SHARED_SECRET: str = os.getenv("SHARED_SECRET")
+IDENTITY_SECRET: str = os.getenv("IDENTITY_SECRET")
