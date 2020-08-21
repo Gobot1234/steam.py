@@ -43,11 +43,14 @@ GetProtoType = Optional[Type[betterproto.Message]]
 
 
 def _Message__bool__(self: betterproto.Message):
+    return bool(self.to_dict())
+    """
     for field_name in self._betterproto.meta_by_field_name:
         if getattr(self, field_name):
             return True
 
     return False
+    """
 
 
 betterproto.Message.__bool__ = _Message__bool__
