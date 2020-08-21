@@ -34,7 +34,7 @@ import importlib
 import inspect
 import sys
 import typing
-from types import MethodType
+from types import MethodType, ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -58,11 +58,11 @@ import steam
 from ...errors import ClientException
 from . import converters
 from .cooldown import BucketType, Cooldown
-from .errors import BadArgument, MissingRequiredArgument, NotOwner, CheckFailure
+from .errors import BadArgument, CheckFailure, MissingRequiredArgument, NotOwner
 from .utils import CaseInsensitiveDict
 
 if TYPE_CHECKING:
-    from .bot import CommandFunctionType, CommandErrorFunctionType
+    from .bot import CommandFunctionType
     from .cog import Cog
     from .context import Context
 
@@ -79,6 +79,7 @@ __all__ = (
 CheckType = Callable[["Context"], Union[bool, Awaitable[bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
 CommandDeco = Callable[[MaybeCommand], MaybeCommand]
+CommandErrorFunctionType = Callable[["Context", Exception], Awaitable[None]]
 
 
 def to_bool(argument: str) -> bool:
@@ -90,9 +91,29 @@ def to_bool(argument: str) -> bool:
     raise BadArgument(f'"{lowered}" is not a recognised boolean option')
 
 
+def _reload_module_with_TYPE_CHECKING(module: ModuleType, exc: NameError):
+    if not (typing in module.__dict__.values() or not getattr(module, "TYPE_CHECKING", True)):
+        raise exc from None
+    typing.TYPE_CHECKING = True
+    importlib.reload(module)
+    typing.TYPE_CHECKING = False
+
+
 class Command:
     def __init__(self, func: "CommandFunctionType", **kwargs):
+        self.name: str = kwargs.get("name") or func.__name__
+        if not isinstance(self.name, str):
+            raise TypeError("Name of a command must be a string.")
+
         self.callback = func
+
+        help_doc = kwargs.get("help")
+        if help_doc is not None:
+            help_doc = inspect.cleandoc(help_doc)
+        else:
+            help_doc = inspect.getdoc(func)
+            if isinstance(help_doc, bytes):
+                help_doc = help_doc.decode("utf-8")
 
         try:
             checks = func.__commands_checks__
@@ -108,18 +129,6 @@ class Command:
             cooldown = kwargs.get("cooldown", [])
         finally:
             self.cooldown: List[Cooldown] = cooldown
-
-        self.name: str = kwargs.get("name") or func.__name__
-        if not isinstance(self.name, str):
-            raise TypeError("Name of a command must be a string.")
-
-        help_doc = kwargs.get("help")
-        if help_doc is not None:
-            help_doc = inspect.cleandoc(help_doc)
-        else:
-            help_doc = inspect.getdoc(func)
-            if isinstance(help_doc, bytes):
-                help_doc = help_doc.decode("utf-8")
 
         self.help: Optional[str] = help_doc
         self.enabled = kwargs.get("enabled", True)
@@ -150,11 +159,11 @@ class Command:
         module = sys.modules[function.__module__]
         self.module = module
         globals = module.__dict__
+        # TODO need to preserve user typed Optionals
         try:
             annotations = get_type_hints(function, globals)
-        except NameError:
-            if not (typing in globals.values() or not getattr(module, "TYPE_CHECKING", True)):
-                raise
+        except NameError as exc:
+            _reload_module_with_TYPE_CHECKING(module, exc)
             # WARNING: very hacky, the user likely has imports that haven't been loaded in a TYPE_CHECKING block, we are
             # going to attempt to fetch these ourselves and add them to the modules __dict__. If a user wants to have
             # this be avoided you can use something similar to:
@@ -165,12 +174,31 @@ class Command:
             #    expensive_type = str
             #
             # NOTE: this doesn't run into circular import errors due to the way importlib.reload works.
-            typing.TYPE_CHECKING = True
-            importlib.reload(module)
-            typing.TYPE_CHECKING = False
-            annotations = get_type_hints(function, globals)
+            try:
+                annotations = get_type_hints(function, globals)
+            except NameError:
+                raise exc from None
 
-        # replace the function's annotations
+        for value in annotations.values():
+            if get_origin(value) is not converters.Greedy or not isinstance(value.converter, str):
+                continue
+            # type checking for postponed Greedys
+            eval_forward = typing.ForwardRef(value.converter)._evaluate
+            try:
+                evaluated_type = eval_forward(globals, {})
+            except NameError as exc:
+                # similar hacky-ness as above
+                _reload_module_with_TYPE_CHECKING(module, exc)
+                try:
+                    evaluated_type = eval_forward(globals, {})
+                except NameError:
+                    raise exc from None
+            try:
+                converters.Greedy[evaluated_type]  # check if the type is valid
+            except TypeError as exc:
+                raise TypeError(f"{exc.args[0]} for command callback {self.name}") from None
+
+        # replace the function's old annotations
         if isinstance(function, MethodType):
             function.__func__.__annotations__ = annotations
         else:
