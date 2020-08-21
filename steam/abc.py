@@ -581,8 +581,8 @@ class BaseUser(SteamID):
     def comments(
         self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None,
     ) -> CommentsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a
-        :class:`~steam.User`'s :class:`~steam.Comment` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`~steam.User`'s :class:`~steam.Comment`
+        objects.
 
         Examples
         -----------
@@ -602,8 +602,8 @@ class BaseUser(SteamID):
         Parameters
         ----------
         limit: Optional[:class:`int`]
-            The maximum number of comments to search through.
-            Default is ``None`` which will fetch the user's entire comments section.
+            The maximum number of comments to search through. Default is ``None`` which will fetch the user's entire
+            comments section.
         before: Optional[:class:`datetime.datetime`]
             A time to search for comments before.
         after: Optional[:class:`datetime.datetime`]

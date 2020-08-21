@@ -189,6 +189,7 @@ STEAM = Game(title="Steam", app_id=753, context_id=6)
 
 def CUSTOM_GAME(title: str) -> Game:
     """Create a custom game instance for :meth:`~steam.Client.change_presence`.
+    The :attr:`Game.app_id` will be set to ``15190414816125648896`` and the :attr:`Game.context_id` to ``None``.
 
     Example: ::
 
@@ -201,7 +202,7 @@ def CUSTOM_GAME(title: str) -> Game:
 
     Returns
     -------
-    class:`.Game`
+    class:`Game`
         The created custom game.
     """
     return Game(title=title, app_id=15190414816125648896, context_id=None)

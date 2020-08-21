@@ -317,8 +317,7 @@ class Clan(SteamID):
 
     async def join(self) -> None:
         """|coro|
-        Joins the :class:`Clan`. This will also join the
-        clan's chat.
+        Joins the :class:`Clan`. This will also join the clan's chat.
         """
         await self._state.http.join_clan(self.id64)
         await self._state.join_chat(self.chat_id)

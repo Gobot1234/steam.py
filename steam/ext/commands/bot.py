@@ -80,7 +80,7 @@ if TYPE_CHECKING:
 __all__ = ("Bot",)
 
 
-StrOrIterStr: Union[str, Iterable[str]] = Union[str, Iterable[str]]
+StrOrIterStr = Union[str, Iterable[str]]
 CommandPrefixType = Union[
     StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]],
 ]
@@ -96,11 +96,6 @@ class CommandFunctionType(Protocol):
 
     @overload
     async def __call__(self, cog: "Cog", ctx: "Context", *args, **kwargs) -> None:
-        ...
-
-
-class CommandErrorFunctionType(Protocol):
-    async def __call__(self, ctx: "Context", error: Exception) -> None:
         ...
 
 
@@ -613,276 +608,270 @@ class Bot(GroupMixin, Client):
 
     @overload
     def wait_for(
-        self, __event: Literal["connect"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> Awaitable[None]:
+        self, event: Literal["connect"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["disconnect"],
+        event: Literal["disconnect"],
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[None]:
+    ) -> asyncio.Future[None]:
         ...
 
     @overload  # don't know why you'd do this
     def wait_for(
-        self, __event: Literal["ready"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> Awaitable[None]:
+        self, event: Literal["ready"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
     def wait_for(
-        self, __event: Literal["login"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> Awaitable[None]:
+        self, event: Literal["login"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["error"],
+        event: Literal["error"],
         *,
         check: Optional[Callable[[str, Exception, Any, Any], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[Tuple[str, Exception, Any, Any]]:
+    ) -> asyncio.Future[Tuple[str, Exception, Any, Any]]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["message"],
+        event: Literal["message"],
         *,
         check: Optional[Callable[["steam.Message"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["steam.Message"]:
+    ) -> asyncio.Future["steam.Message"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["comment"],
+        event: Literal["comment"],
         *,
         check: Optional[Callable[["Comment"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["Comment"]:
+    ) -> asyncio.Future["Comment"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["user_update"],
+        event: Literal["user_update"],
         *,
         check: Optional[Callable[["User", "User"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[Tuple["User", "User"]]:
+    ) -> asyncio.Future[Tuple["User", "User"]]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["typing"],
+        event: Literal["typing"],
         *,
         check: Optional[Callable[["User", "datetime.datetime"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[Tuple["User", "datetime.datetime"]]:
+    ) -> asyncio.Future[Tuple["User", "datetime.datetime"]]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["trade_receive"],
+        event: Literal["trade_receive"],
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["TradeOffer"]:
+    ) -> asyncio.Future["TradeOffer"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["trade_send"],
+        event: Literal["trade_send"],
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["TradeOffer"]:
+    ) -> asyncio.Future["TradeOffer"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["trade_accept"],
+        event: Literal["trade_accept"],
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["TradeOffer"]:
+    ) -> asyncio.Future["TradeOffer"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["trade_decline"],
+        event: Literal["trade_decline"],
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["TradeOffer"]:
+    ) -> asyncio.Future["TradeOffer"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["trade_cancel"],
+        event: Literal["trade_cancel"],
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["TradeOffer"]:
+    ) -> asyncio.Future["TradeOffer"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["trade_expire"],
+        event: Literal["trade_expire"],
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["TradeOffer"]:
+    ) -> asyncio.Future["TradeOffer"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["trade_counter"],
+        event: Literal["trade_counter"],
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["TradeOffer"]:
+    ) -> asyncio.Future["TradeOffer"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["user_invite"],
+        event: Literal["user_invite"],
         *,
         check: Optional[Callable[["UserInvite"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["UserInvite"]:
+    ) -> asyncio.Future["UserInvite"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["clan_invite"],
+        event: Literal["clan_invite"],
         *,
         check: Optional[Callable[["ClanInvite"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["ClanInvite"]:
+    ) -> asyncio.Future["ClanInvite"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["socket_receive"],
+        event: Literal["socket_receive"],
         *,
         check: Optional[Callable[["Msgs"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["Msgs"]:
+    ) -> asyncio.Future["Msgs"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["socket_raw_receive"],
+        event: Literal["socket_raw_receive"],
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[bytes]:
+    ) -> asyncio.Future[bytes]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["socket_send"],
+        event: Literal["socket_send"],
         *,
         check: Optional[Callable[["Msgs"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable["Msgs"]:
+    ) -> asyncio.Future["Msgs"]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["socket_raw_send"],
+        event: Literal["socket_raw_send"],
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[bytes]:
+    ) -> asyncio.Future[bytes]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["command_error"],
+        event: Literal["command_error"],
         *,
         check: Optional[Callable[[Context, Exception], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[Tuple[Context, Exception]]:
+    ) -> asyncio.Future[Tuple[Context, Exception]]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["command"],
+        event: Literal["command"],
         *,
         check: Optional[Callable[[Context], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[Context]:
+    ) -> asyncio.Future[Context]:
         ...
 
     @overload
     def wait_for(
         self,
-        __event: Literal["command_completion"],
+        event: Literal["command_completion"],
         *,
         check: Optional[Callable[[Context], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> Awaitable[Context]:
+    ) -> asyncio.Future[Context]:
         ...
 
     def wait_for(
         self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
-    ) -> Awaitable[Any]:
+    ) -> asyncio.Future[Any]:
         """|coro|
-        Waits for an event to be dispatched.
-
-        In case the event returns multiple arguments, a :class:`tuple` containing those arguments is returned instead.
-        Please check the `documentation <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_ for a list of
-        events and their parameters.
-
-        .. note::
-            This function returns the **first event that meets the requirements**.
+        Wait for the first event to be dispatched that meets the requirements, this by default is the first event
+        with a matching event name.
 
         Parameters
-        ------------
+        -----------
         event: :class:`str`
             The event name from the `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
             but without the ``on_`` prefix, to wait for.
         check: Optional[Callable[..., :class:`bool`]]
-            A predicate to check what to wait for. The arguments must meet the parameters of the event being waited for.
-            The check **MUST** return a :class:`bool`.
+            A callable predicate that checks the received event. The arguments must match the parameters of the
+            ``event`` being waited for and must return a :class:`bool`.
         timeout: Optional[:class:`float`]
-            The number of seconds to wait before timing out and raising :exc:`asyncio.TimeoutError`. This is passed to
-            :func:`asyncio.wait_for`. By default, it does not timeout. Note that this does propagate the
-            :exc:`asyncio.TimeoutError` for you in case of timeout and is provided for ease of use.
+            By default, :meth:`wait_for` function does not timeout, however, in the case a ``timeout`` parameter is
+            passed after the amount of seconds pass :exc:`asyncio.TimeoutError` is raised.
 
         Raises
         -------
-        asyncio.TimeoutError
+        :exc:`asyncio.TimeoutError`
             If the provided timeout was reached.
 
         Returns
         --------
-        Returns no arguments, a single argument, or a :class:`tuple` of multiple arguments that mirrors the
-        parameters passed in the `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
+        Returns ``None``, a single argument, or a :class:`tuple` of multiple arguments that mirrors the
+        parameters for the ``event`` parameter from the
+        `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
         """
         return super().wait_for(event, check=check, timeout=timeout)
