@@ -37,7 +37,7 @@ DEFAULT_REQUIREMENTS = [
 
 EXTRA_REQUIREMENTS = {
     "docs": ["sphinx==3.2.1", "sphinxcontrib_trio==1.1.2", "sphinxcontrib-websupport",],
-    "dev": ["black", "isort", "flake8", "pytest", "pytest-asyncio", "pyyaml",],
+    "dev": ["black", "isort", "flake8", "pytest", "pytest-asyncio", "pyyaml",] + DEFAULT_REQUIREMENTS,
 }
 
 setup(
