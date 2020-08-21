@@ -29,7 +29,6 @@ from typing import Any, Callable, Generic, Tuple, TypeVar, TYPE_CHECKING, Union
 
 from typing_extensions import Protocol, get_origin, runtime_checkable
 
-from ... import utils
 from ...game import Game
 from .errors import BadArgument
 
@@ -121,10 +120,10 @@ class UserConverter(Converter):
     async def convert(self, ctx: "commands.Context", argument: str) -> "User":
         user = ctx.bot.get_user(argument) or await ctx.bot.fetch_user(argument)
         if user is None:
-            user = utils.get(ctx.bot.users, name=argument)
-        if user is None:
+            user = [u for u in ctx.bot.users if u.name == argument]
+        if not user:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
-        return user
+        return user[0] if isinstance(user, list) else user
 
 
 class ChannelConverter(Converter):
@@ -141,17 +140,13 @@ class ChannelConverter(Converter):
         if argument.isdigit():
             groups = ctx.bot._connection._combined.values()
             for group in groups:
-                channels = [c for c in group.channels if c.id == int(argument)]
-                if channels:
-                    return channels[0]
+                channel = [c for c in group.channels if c.id == int(argument)]
         else:
-            if ctx.clan:
-                channel = utils.get(ctx.clan.channels, name=argument)
-            elif ctx.group:
-                channel = utils.get(ctx.group.channels, name=argument)
-        if channel is None:
+            attr = ctx.clan or ctx.group
+            channel = [c for c in attr.channels if name == argument]
+        if not channel:
             raise BadArgument(f'Failed to convert "{argument}" to a channel')
-        return channel
+        return channel[0] if isinstance(channel, list) else channel
 
 
 class ClanConverter(Converter):
@@ -166,10 +161,10 @@ class ClanConverter(Converter):
     async def convert(self, ctx: "commands.Context", argument: str) -> "Clan":
         clan = ctx.bot.get_clan(argument)
         if clan is None:
-            clan = utils.get(ctx.bot.clans, name=argument)
+            clan = [c for c in ctx.bot.clans if name == argument]
         if clan is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
-        return clan
+        return clan[0] if isinstance(clan, list) else clan
 
 
 class GroupConverter(Converter):
@@ -182,13 +177,12 @@ class GroupConverter(Converter):
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "Group":
-        if argument.isdigit():
-            group = ctx.bot.get_group(int(argument))
-        else:
-            group = utils.get(ctx.bot.clans, name=argument)
+        group = ctx.bot.get_group(argument)
+        if group is None:
+            group = [c for c in ctx.bot.groups if name == argument]
         if group is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam group')
-        return group
+        return group[0] if isinstance(group, list) else group
 
 
 class GameConverter(Converter):
