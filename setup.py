@@ -4,10 +4,6 @@ import re
 
 from setuptools import setup
 
-with open("requirements.txt") as f:
-    requirements = f.read().splitlines()
-    f.close()
-
 with open("steam/__init__.py") as f:
     search = re.search(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)
 
@@ -35,7 +31,15 @@ if version.endswith(("a", "b")) or "rc" in version:
 with open("README.md") as f:
     readme = f.read()
 
-extras_require = {
+DEFAULT_REQUIREMENTS = [
+    "aiohttp>=3.6.0,<3.7.0",
+    "beautifulsoup4>=4.9.1",
+    "rsa>=4.6",
+    "betterproto>=1.2.5",
+    "typing_extensions>=3.7.4.2",
+]
+
+EXTRA_REQUIREMENTS = {
     "docs": ["sphinx==3.2.1", "sphinxcontrib_trio==1.1.2", "sphinxcontrib-websupport",],
     "dev": ["black", "isort", "flake8", "pytest", "pytest-asyncio", "pyyaml",],
 }
@@ -55,8 +59,8 @@ setup(
     long_description=readme,
     long_description_content_type="text/markdown",
     include_package_data=True,
-    install_requires=requirements,
-    extras_require=extras_require,
+    install_requires=DEFAULT_REQUIREMENTS,
+    extras_require=EXTRA_REQUIREMENTS,
     python_requires=">=3.7",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
