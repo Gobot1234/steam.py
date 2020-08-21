@@ -24,9 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING
+from abc import abstractmethod
+from typing import Any, Callable, Generic, Tuple, TypeVar, TYPE_CHECKING, Union
 
-from typing_extensions import Protocol, runtime_checkable
+from typing_extensions import Protocol, get_origin, runtime_checkable
 
 from ... import utils
 from ...game import Game
@@ -54,7 +55,10 @@ __all__ = (
     "DefaultClan",
     "DefaultGroup",
     "DefaultGame",
+    "Greedy",
 )
+
+T = TypeVar("T", bound=type)
 
 
 @runtime_checkable
@@ -264,3 +268,51 @@ class DefaultGame(Default):
 
     async def default(self, ctx: "commands.Context"):
         return ctx.author.game
+
+
+class Greedy(Generic[T]):
+    """A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour by signaling that
+    the parser should consume as many types as possible before returning to the default parsing method.
+
+    Examples
+    --------
+    # TODO
+    """
+
+    converter: T
+
+    def __new__(cls):  # give a more helpful message than typing._BaseGenericAlias.__call__
+        raise TypeError("commands.Greedy cannot be instantiated directly")
+
+    def __class_getitem__(cls, converter: "GreedyTypes") -> "Greedy[T]":
+        if isinstance(converter, tuple):
+            if len(converter) != 1:
+                raise TypeError("commands.Greedy only accepts one argument")
+            converter = converter[0]
+        if (
+            converter in INVALID_GREEDY_TYPES
+            or get_origin(converter) is not None
+            or not isinstance(converter, (Converter, str))
+            and not callable(converter)
+        ):
+            raise TypeError(f"Cannot type-hint Greedy with class {converter!r}")
+        annotation = super().__class_getitem__(converter)
+        annotation.converter = converter
+        return annotation
+
+
+# fmt: off
+GreedyTypes = Union[
+    T,                     # a class/type
+    str,                   # should be a string with a ForwardRef to a class to be evaluated later
+    Tuple[T],              # for Greedy[int,] / Greedy[(int,)] to be valid
+    Tuple[str],            # same as above two points
+    Callable[[str], Any],  # a callable simple converter
+    Converter,             # a Converter subclass
+]
+INVALID_GREEDY_TYPES = (
+    str,                   # leads to parsing weirdness
+    None,                  # how would this work
+    type(None),            # same as above
+    Greedy,                # Greedy[Greedy[int]] makes no sense
+)
