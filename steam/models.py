@@ -89,7 +89,7 @@ class Ban:
 
     def is_banned(self) -> bool:
         """:class:`bool`: Species if the user is banned from any part of Steam."""
-        return True in (self.is_vac_banned(), self.is_community_banned(), self.is_market_banned(),)
+        return any((self.is_vac_banned(), self.is_community_banned(), self.is_market_banned()))
 
     def is_vac_banned(self) -> bool:
         """:class:`bool`: Species if the user is VAC banned."""

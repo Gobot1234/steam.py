@@ -527,7 +527,7 @@ class TradeOffer:
         to_send = [item.to_dict() for item in trade.items_to_send]
         to_receive = [item.to_dict() for item in trade.items_to_receive]
         resp = await self._state.http.send_counter_trade_offer(
-            self.id, self.partner, to_send, to_receive, trade.token, trade.message,
+            self.id, self.partner, to_send, to_receive, trade.token, trade.message
         )
         if resp.get("needs_mobile_confirmation", False):
             await self._state.get_and_confirm_confirmation(int(resp["tradeofferid"]))

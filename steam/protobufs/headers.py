@@ -305,7 +305,9 @@ class GCMsgHdr:
         return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
 
     def parse(self, data):
-        (self.header_version, self.target_job_id, self.source_job_id,) = struct.unpack_from("<Hqq", data)
+        (self.header_version, self.target_job_id, self.source_job_id,) = struct.unpack_from(
+            "<Hqq", data
+        )
 
 
 class GCMsgHdrProto:

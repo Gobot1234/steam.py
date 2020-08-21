@@ -106,7 +106,7 @@ def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
 
 class ClientEventTask(asyncio.Task):
     def __init__(
-        self, original_coro: EventType, event_name: str, coro: Awaitable[None], *, loop: asyncio.AbstractEventLoop,
+        self, original_coro: EventType, event_name: str, coro: Awaitable[None], *, loop: asyncio.AbstractEventLoop
     ):
         super().__init__(coro, loop=loop)
         self.__event_name = event_name
@@ -721,7 +721,7 @@ class Client:
         ---------
         :class:`~steam.TradeOffer`
         """
-        return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only,)
+        return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only)
 
     # misc
 

@@ -146,7 +146,7 @@ class ConnectionState:
     )
 
     def __init__(
-        self, loop: asyncio.AbstractEventLoop, client: "Client", http: "HTTPClient", **kwargs,
+        self, loop: asyncio.AbstractEventLoop, client: "Client", http: "HTTPClient", **kwargs
     ):
         self.loop = loop
         self.http = http
@@ -298,7 +298,10 @@ class ConnectionState:
             log.info(f'Received trade #{data["tradeofferid"]}')
             trade = await TradeOffer._from_api(state=self, data=data)
             self._trades[trade.id] = trade
-            if trade.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed,):
+            if trade.state not in (
+                ETradeOfferState.Active,
+                ETradeOfferState.ConfirmationNeed,
+            ):
                 return trade
             if trade.is_our_offer():
                 self.dispatch("trade_send", trade)
@@ -475,7 +478,9 @@ class ConnectionState:
 
     async def send_user_typing(self, user: "User") -> None:
         await self.ws.send_um(
-            "FriendMessages.SendMessage#1_Request", steamid=str(user.id64), chat_entry_type=EChatEntryType.Typing,
+            "FriendMessages.SendMessage#1_Request",
+            steamid=str(user.id64),
+            chat_entry_type=EChatEntryType.Typing,
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
 
@@ -483,7 +488,7 @@ class ConnectionState:
         chat_id, group_id = destination
         try:
             msg = await self.ws.send_um_and_wait(
-                "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content,
+                "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content
             )
         except asyncio.TimeoutError:
             return
@@ -495,7 +500,7 @@ class ConnectionState:
             raise WSException(msg)
 
         proto = GroupMessageNotification(
-            chat_id=chat_id, chat_group_id=group_id, steamid_sender=0, message=content, timestamp=int(time()),
+            chat_id=chat_id, chat_group_id=group_id, steamid_sender=0, message=content, timestamp=int(time())
         )
         destination = self._combined.get(group_id)
         if isinstance(destination, Clan):
@@ -510,7 +515,7 @@ class ConnectionState:
     async def join_chat(self, chat_id: int, invite_code: Optional[str] = None) -> None:
         try:
             msg = await self.ws.send_um_and_wait(
-                "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or "",
+                "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or ""
             )
         except asyncio.TimeoutError:
             return
@@ -684,9 +689,9 @@ class ConnectionState:
             if data["avatar_hash"] != "\x00" * 20
             else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
         )
-        data["avatarfull"] = (
-            f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
-        )
+        data[
+            "avatarfull"
+        ] = f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
 
         if friend.last_logoff:
             data["lastlogoff"] = friend.last_logoff

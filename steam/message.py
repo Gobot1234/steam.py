@@ -64,16 +64,12 @@ class _GroupMessage(Message):
 class GroupMessage(_GroupMessage):
     """Represents a message in a Group."""
 
-    def __init__(
-        self, proto: "GroupMessageNotification", channel: "GroupChannel", author: "User",
-    ):
+    def __init__(self, proto: "GroupMessageNotification", channel: "GroupChannel", author: "User"):
         super().__init__(proto, channel, author)
 
 
 class ClanMessage(_GroupMessage):
     """Represents a message in a Clan."""
 
-    def __init__(
-        self, proto: "GroupMessageNotification", channel: "ClanChannel", author: "User",
-    ):
+    def __init__(self, proto: "GroupMessageNotification", channel: "ClanChannel", author: "User"):
         super().__init__(proto, channel, author)

@@ -69,7 +69,7 @@ class AsyncIterator(_AsyncIterator[T]):
     __slots__ = ("before", "after", "limit", "queue", "_is_filled", "_state")
 
     def __init__(
-        self, state: "ConnectionState", limit: Optional[int], before: Optional[datetime], after: Optional[datetime],
+        self, state: "ConnectionState", limit: Optional[int], before: Optional[datetime], after: Optional[datetime]
     ):
         self._state = state
         self.before = before or datetime.utcnow()

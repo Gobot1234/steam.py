@@ -202,7 +202,7 @@ class GroupChannel(_GroupChannel):
     """
 
     def __init__(
-        self, state: "ConnectionState", group: "Group", channel: Union["GroupMessageNotification", "CChatRoomState"],
+        self, state: "ConnectionState", group: "Group", channel: Union["GroupMessageNotification", "CChatRoomState"]
     ):
         super().__init__(state, channel)
         self.group = group
@@ -225,7 +225,7 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
     """
 
     def __init__(
-        self, state: "ConnectionState", clan: "Clan", channel: Union["GroupMessageNotification", "CUserChatRoomState"],
+        self, state: "ConnectionState", clan: "Clan", channel: Union["GroupMessageNotification", "CUserChatRoomState"]
     ):
         super().__init__(state, channel)
         self.clan = clan

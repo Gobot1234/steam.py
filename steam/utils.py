@@ -104,12 +104,12 @@ def make_id64(id: IntOrStr, type: ETypeType) -> int:
 
 
 @overload
-def make_id64(id: IntOrStr, type: ETypeType, universe: EUniverseType,) -> int:
+def make_id64(id: IntOrStr, type: ETypeType, universe: EUniverseType) -> int:
     ...
 
 
 @overload
-def make_id64(id: IntOrStr, type: ETypeType, universe: EUniverseType, instance: InstanceType,) -> int:
+def make_id64(id: IntOrStr, type: ETypeType, universe: EUniverseType, instance: InstanceType) -> int:
     ...
 
 
@@ -268,7 +268,7 @@ def id3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
         A tuple of 32 bit ID, type, universe and instance or ``None``
         e.g. (100000, EType.Individual, EUniverse.Public, 1)
     """
-    search = ID3_REGEX.search(value,)
+    search = ID3_REGEX.search(value)
     if search is None:
         return None
 
@@ -375,7 +375,7 @@ async def id64_from_url(
         The found 64 bit ID or ``None`` if ``https://steamcommunity.com`` is down or no matching account is found.
     """
 
-    search = URL_REGEX.search(str(url).rstrip("/"),)
+    search = URL_REGEX.search(str(url).rstrip("/"))
 
     if search is None:
         return None

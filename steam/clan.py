@@ -358,7 +358,7 @@ class Clan(SteamID):
         id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
         timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
         comment = Comment(
-            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user,
+            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user
         )
         self._state.dispatch("comment", comment)
         return comment

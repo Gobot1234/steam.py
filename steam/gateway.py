@@ -300,9 +300,7 @@ class SteamWebSocket:
         "_keep_alive",
     )
 
-    def __init__(
-        self, socket: aiohttp.ClientWebSocketResponse, *, loop: asyncio.AbstractEventLoop,
-    ):
+    def __init__(self, socket: aiohttp.ClientWebSocketResponse, *, loop: asyncio.AbstractEventLoop):
         self.socket = socket
         self.loop = loop
 

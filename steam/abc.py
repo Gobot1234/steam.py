@@ -432,7 +432,7 @@ class BaseUser(SteamID):
         id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
         timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
         comment = Comment(
-            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user,
+            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user
         )
         self._state.dispatch("comment", comment)
         return comment
@@ -579,7 +579,7 @@ class BaseUser(SteamID):
         return bans.is_banned()
 
     def comments(
-        self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None,
+        self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None
     ) -> CommentsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`~steam.User`'s :class:`~steam.Comment`
         objects.

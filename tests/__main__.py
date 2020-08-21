@@ -37,14 +37,14 @@ def prepare_args(args: dict) -> list:
 
 @click.command()
 @click.option(
-    "-t", "--test", is_flag=True, help="Whether or not to run the tests.",
+    "-t", "--test", is_flag=True, help="Whether or not to run the tests."
 )
 @click.option(
-    "-f", "--format", is_flag=True, help="Whether or not to run the format code.",
+    "-f", "--format", is_flag=True, help="Whether or not to run the format code."
 )
 @click.pass_context
 def main(
-    ctx: click.Context, test: bool, format: bool,
+    ctx: click.Context, test: bool, format: bool
 ):
     if format:
         print("Starting formatting")

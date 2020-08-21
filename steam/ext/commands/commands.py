@@ -345,7 +345,7 @@ class Command:
         return param_type
 
     async def _convert(
-        self, ctx: "Context", converter: Union[converters.Converter, type, Callable[[str], Any]], argument: str,
+        self, ctx: "Context", converter: Union[converters.Converter, type, Callable[[str], Any]], argument: str
     ) -> Any:
         if isinstance(converter, converters.Converter):
             try:

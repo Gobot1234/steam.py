@@ -197,7 +197,11 @@ class Msg(MsgBase[T]):
     """
 
     def __init__(
-        self, msg: EMsg, data: Optional[bytes] = None, extended: bool = False, **kwargs,
+        self,
+        msg: EMsg,
+        data: Optional[bytes] = None,
+        extended: bool = False,
+        **kwargs,
     ):
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.skip = self.header.SIZE
@@ -256,7 +260,11 @@ class MsgProto(MsgBase[T]):
     __slots__ = ("um_name",)
 
     def __init__(
-        self, msg: EMsg, data: Optional[bytes] = None, _um_name: Optional[str] = None, **kwargs,
+        self,
+        msg: EMsg,
+        data: Optional[bytes] = None,
+        _um_name: Optional[str] = None,
+        **kwargs,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size

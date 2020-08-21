@@ -41,8 +41,19 @@ DEFAULT_REQUIREMENTS = [
 ]
 
 EXTRA_REQUIREMENTS = {
-    "docs": ["sphinx==3.2.1", "sphinxcontrib_trio==1.1.2", "sphinxcontrib-websupport",],
-    "dev": ["black", "isort", "flake8", "pytest", "pytest-asyncio", "pyyaml",],
+    "docs": [
+        "sphinx==3.2.1",
+        "sphinxcontrib_trio==1.1.2",
+        "sphinxcontrib-websupport",
+    ],
+    "dev": [
+        "black",
+        "isort",
+        "flake8",
+        "pytest",
+        "pytest-asyncio",
+        "pyyaml",
+    ],
 }
 
 setup(
@@ -54,7 +65,11 @@ setup(
         "Issue tracker": "https://github.com/Gobot1234/steam.py/issues",
     },
     version=version,
-    packages=["steam", "steam.protobufs", "steam.ext.commands",],
+    packages=[
+        "steam",
+        "steam.protobufs",
+        "steam.ext.commands",
+    ],
     license="MIT",
     description="A Python wrapper for the Steam API",
     long_description=readme,

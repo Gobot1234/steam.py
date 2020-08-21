@@ -97,7 +97,7 @@ class HTTPClient:
             async with self._session.request(method, url, **kwargs) as r:
                 payload = kwargs.get("data")
                 log.debug(
-                    self.REQUEST_LOG.format(method=method, url=r.url, payload=f"PAYLOAD: {payload}", status=r.status,)
+                    self.REQUEST_LOG.format(method=method, url=r.url, payload=f"PAYLOAD: {payload}", status=r.status)
                 )
 
                 # even errors have text involved in them so this is safe to call
@@ -320,7 +320,7 @@ class HTTPClient:
         params = {
             "count": 5000,
         }
-        return self.request("GET", community_route(f"inventory/{user_id64}/{app_id}/{context_id}"), params=params,)
+        return self.request("GET", community_route(f"inventory/{user_id64}/{app_id}/{context_id}"), params=params)
 
     def get_user_escrow(self, user_id64: int, token: Optional[str]) -> Awaitable:
         params = {
@@ -368,7 +368,7 @@ class HTTPClient:
             "captcha": "",
         }
         headers = {"Referer": community_route(f"/tradeoffer/{trade_id}")}
-        return self.request("POST", community_route(f"tradeoffer/{trade_id}/accept"), data=payload, headers=headers,)
+        return self.request("POST", community_route(f"tradeoffer/{trade_id}/accept"), data=payload, headers=headers)
 
     def decline_user_trade(self, trade_id: int) -> Awaitable:
         payload = {"key": self.api_key, "tradeofferid": trade_id}
@@ -416,7 +416,7 @@ class HTTPClient:
         token: Optional[str],
         offer_message: str,
     ) -> Awaitable:
-        return self.send_trade_offer(user, to_send, to_receive, token, offer_message, trade_id=trade_id,)
+        return self.send_trade_offer(user, to_send, to_receive, token, offer_message, trade_id=trade_id)
 
     def get_cm_list(self, cell_id: int) -> Awaitable:
         params = {"cellid": cell_id}
@@ -446,7 +446,7 @@ class HTTPClient:
 
     def report_comment(self, id64: int, comment_id: int, comment_type: str) -> Awaitable:
         payload = {"gidcomment": comment_id, "hide": 1}
-        return self.request("POST", community_route(f"comment/{comment_type}/hideandreport/{id64}"), data=payload,)
+        return self.request("POST", community_route(f"comment/{comment_type}/hideandreport/{id64}"), data=payload)
 
     def accept_clan_invite(self, clan_id: int) -> Awaitable:
         payload = {
@@ -530,7 +530,9 @@ class HTTPClient:
             resp = await self.request("GET", url=community_route("my/edit"))
             soup = BeautifulSoup(resp, "html.parser")
             edit_config = str(soup.find("div", attrs={"id": "profile_edit_config"}))
-            value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', html.unescape(edit_config), flags=re.S,)[0]
+            value = re.findall(r'data-profile-edit=[\'"]{(.*?)},', html.unescape(edit_config), flags=re.S,)[
+                0
+            ]
             loadable = value.replace("\r", "\\r").replace("\n", "\\n")
             profile = json.loads(f'{"{"}{loadable}{"}}"}')
             for key, value in profile.items():
@@ -565,7 +567,7 @@ class HTTPClient:
             payload.add_field("sessionid", self.session_id)
             payload.add_field("doSub", "1")
             payload.add_field(
-                "avatar", avatar.read(), filename=f"avatar.{avatar.type}", content_type=f"image/{avatar.type}",
+                "avatar", avatar.read(), filename=f"avatar.{avatar.type}", content_type=f"image/{avatar.type}"
             )
             await self.request("POST", community_route("actions/FileUploader"), data=payload)
 
