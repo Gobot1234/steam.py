@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 
+import re
+
 from setuptools import setup
 
-try:
-    from steam import __version__ as version
-except AttributeError:
+with open("steam/__init__.py") as f:
+    search = re.search(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)
+
+if search is None:
     raise RuntimeError("Version is not set")
+
+version = search.group(1)
 
 
 if version.endswith(("a", "b")) or "rc" in version:
@@ -37,7 +42,7 @@ DEFAULT_REQUIREMENTS = [
 
 EXTRA_REQUIREMENTS = {
     "docs": ["sphinx==3.2.1", "sphinxcontrib_trio==1.1.2", "sphinxcontrib-websupport",],
-    "dev": ["black", "isort", "flake8", "pytest", "pytest-asyncio", "pyyaml",] + DEFAULT_REQUIREMENTS,
+    "dev": ["black", "isort", "flake8", "pytest", "pytest-asyncio", "pyyaml",],
 }
 
 setup(
