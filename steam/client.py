@@ -838,8 +838,12 @@ class Client:
 
     async def on_login(self):
         """|coro|
-        Called when the client has logged into https://steamcommunity.com and the :attr:`user` is
-        setup along with its friends list.
+        Called when the client has logged into https://steamcommunity.com and the :attr:`user` is setup.
+        """
+
+    async def on_logout(self):
+        """|coro|
+        Called when the client has logged out of https://steamcommunity.com.
         """
 
     async def on_message(self, message: "steam.Message"):
