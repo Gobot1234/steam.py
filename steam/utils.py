@@ -301,7 +301,7 @@ _INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
 _INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
-INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))" rf"|(?P<code2>[\-{_INVITE_VALID}]+)")
+INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))|(?P<code2>[\-{_INVITE_VALID}]+)")
 
 
 def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
@@ -383,24 +383,21 @@ async def id64_from_url(
     gave_session = bool(session)
     session = session or aiohttp.ClientSession()
 
-    # user profiles
     try:
         if search.group("type") in ("id", "profiles"):
+            # user profile
             r = await session.get(search.group("clean_url"), timeout=timeout)
             text = await r.text()
             data_match = re.search(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*", text)
-
-            if data_match:
-                data = json.loads(data_match.group("json"))
-                return int(data["steamid"])
-        # group profiles
+            data = json.loads(data_match.group("json"))
         else:
+            # group profile
             r = await session.get(search.group("clean_url"), timeout=timeout)
             text = await r.text()
-            data_match = re.search(r"OpenGroupChat\(\s*'(?P<steam_id>\d+)'\s*\)", text)
-
-            if data_match:
-                return int(data_match.group("steam_id"))
+            data = re.search(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)", text)
+        return int(data["steamid"])
+    except (TypeError, AttributeError):
+        return None
     finally:
         if not gave_session:
             await session.close()
