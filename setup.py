@@ -56,6 +56,7 @@ setup(
     long_description_content_type="text/markdown",
     include_package_data=True,
     install_requires=requirements,
+    dependency_links=["https://github.com/danielgtaylor/python-betterproto",],
     extras_require=extras_require,
     python_requires=">=3.7",
     classifiers=[
