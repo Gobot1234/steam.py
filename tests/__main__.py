@@ -53,7 +53,8 @@ def main(
         black.main.invoke(black_ctx)
         print("Done running formatting")
     if test:
-        ctx.exit(pytest.main())
+        testable_files = [f.as_posix() for f in TESTS.iterdir() if "test" in f.name]
+        ctx.exit(pytest.main(testable_files))
 
 
 if __name__ == "__main__":
