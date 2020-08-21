@@ -115,9 +115,9 @@ def test_kwarg_id():
 
 
 def test_kwarg_type():
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         SteamID(id=5, type="doesn't exist")
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         SteamID(id=5, type=99999999)
 
     assert SteamID(id=5, type=1).type == EType.Individual
@@ -126,9 +126,9 @@ def test_kwarg_type():
 
 
 def test_kwarg_universe():
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         SteamID(id=5, universe="doesn't exist")
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         SteamID(id=5, universe=99999999)
 
     assert SteamID(id=5, universe=1).universe == EUniverse.Public
