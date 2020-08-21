@@ -32,7 +32,7 @@ DEFAULT_REQUIREMENTS = [
     "beautifulsoup4>=4.9.1",
     "rsa>=4.6",
     "betterproto>=1.2.5",
-    "typing_extensions>=3.7.4.2",
+    "typing-extensions>=3.7.4.2",
 ]
 
 EXTRA_REQUIREMENTS = {
