@@ -601,20 +601,24 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    def get_group(self, id: int) -> Optional["Group"]:
+    def get_group(self, *args, **kwargs) -> Optional["Group"]:
         """Get a group from cache with a matching ID.
 
         Parameters
         ----------
-        id: :class:`int`
-            The id of the group to search for from the cache.
+        *args
+            The arguments to pass to :meth:`~steam.utils.make_id64`.
+        **kwargs
+            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
 
         Returns
         -------
         Optional[:class:`~steam.Group`]
             The group or ``None`` if the group was not found.
         """
-        return self._connection.get_group(id)
+        kwargs["type"] = "Chat"
+        steam_id = SteamID(*args, **kwargs)
+        return self._connection.get_group(steam_id.id)
 
     def get_clan(self, *args, **kwargs) -> Optional["Clan"]:
         """Get a clan from cache with a matching ID.
