@@ -38,7 +38,16 @@ from typing_extensions import Final
 
 from .badge import UserBadges
 from .comment import Comment
-from .enums import EInstanceFlag, EPersonaState, EPersonaStateFlag, EResult, EType, ETypeChar, EUniverse
+from .enums import (
+    ECommunityVisibilityState,
+    EInstanceFlag,
+    EPersonaState,
+    EPersonaStateFlag,
+    EResult,
+    EType,
+    ETypeChar,
+    EUniverse,
+)
 from .errors import WSException
 from .game import Game
 from .iterators import CommentsIterator
@@ -348,8 +357,10 @@ class BaseUser(SteamID):
         "created_at",
         "last_logoff",
         "last_logon",
+        "privacy_state",
         "_state",
-        "_data",
+        "_is_commentable",
+        "_setup_profile",
     )
 
     def __init__(self, state: "ConnectionState", data: dict):
@@ -378,7 +389,6 @@ class BaseUser(SteamID):
         return self.name
 
     def _update(self, data) -> None:
-        self._data = data
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
         self.avatar_url = data.get("avatarfull") or self.avatar_url
@@ -395,6 +405,9 @@ class BaseUser(SteamID):
         self.game = Game(title=data.get("gameextrainfo"), app_id=data["gameid"]) if "gameid" in data else self.game
         self.state = EPersonaState(data.get("personastate", 0)) or self.state
         self.flags = EPersonaStateFlag.components(data.get("personastateflags", 0)) or self.flags
+        self.privacy_state = ECommunityVisibilityState(data.get("communityvisibilitystate", 0))
+        self._is_commentable = bool(data.get("commentpermission"))
+        self._setup_profile = bool(data.get("profilestate"))
 
     @property
     def mention(self) -> str:
@@ -538,16 +551,15 @@ class BaseUser(SteamID):
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
-        return bool(self._data.get("commentpermission"))
+        return self._is_commentable
 
     def is_private(self) -> bool:
         """:class:`bool`: Specifies if the user has a public profile."""
-        state = self._data.get("communityvisibilitystate", 0)
-        return state in (0, 1, 2)
+        return self.privacy_state == ECommunityVisibilityState.Private
 
     def has_setup_profile(self) -> bool:
         """:class:`bool`: Specifies if the user has a setup their profile."""
-        return bool(self._data.get("profilestate"))
+        return self._setup_profile
 
     async def is_banned(self) -> bool:
         """|coro|
