@@ -1,5 +1,5 @@
 aiohttp>=3.6.0,<3.7.0
 beautifulsoup4>=4.9.1
 rsa>=4.6
-git+git://github.com/danielgtaylor/python-betterproto@master#egg=betterproto
+git+https://github.com/danielgtaylor/python-betterproto@master#egg=betterproto
 typing_extensions>=3.7.4.2
