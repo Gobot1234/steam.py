@@ -180,7 +180,7 @@ class Command:
 
     @property
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
-        params = self.params
+        params = self.params.copy()
         if self.cog:
             params.popitem(last=False)  # cog's "self" param
         params.popitem(last=False)  # context param

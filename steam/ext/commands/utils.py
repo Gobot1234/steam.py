@@ -24,72 +24,120 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from collections import deque
-from io import StringIO
-from shlex import shlex
-from typing import Dict, Generic, Optional, TypeVar, Union, overload
+from typing import Deque, Dict, Generator, Generic, Optional, TypeVar, Union, overload
 
 __all__ = ("CaseInsensitiveDict",)
 
 
-T = TypeVar("T")
-VT = TypeVar("VT")
+_T = TypeVar("_T")
+_VT = TypeVar("_VT")
 
 
-class CaseInsensitiveDict(Dict[str, VT], Generic[VT]):
-    def __init__(self, **kwargs: VT):
+class CaseInsensitiveDict(Dict[str, _VT], Generic[_VT]):
+    """A dictionary where keys are case insensitive."""
+
+    def __init__(self, **kwargs: _VT):
         super().__init__(**{k.lower(): v for k, v in kwargs.items()})
 
     def __repr__(self) -> str:
         return f"CaseInsensitiveDict({', '.join(f'{k}={v!r}' for k, v in self.items())})"
 
-    def __contains__(self, key: str) -> bool:
-        return super().__contains__(key.lower())
+    def __contains__(self, k: str) -> bool:
+        return super().__contains__(k.lower())
 
-    def __delitem__(self, key: str) -> None:
-        super().__delitem__(key.lower())
+    def __delitem__(self, k: str) -> None:
+        super().__delitem__(k.lower())
 
-    def __getitem__(self, key: str) -> VT:
-        return super().__getitem__(key.lower())
+    def __getitem__(self, k: str) -> _VT:
+        return super().__getitem__(k.lower())
 
-    def __setitem__(self, key: str, value: VT) -> None:
-        super().__setitem__(key.lower(), value)
+    def __setitem__(self, k: str, v: _VT) -> None:
+        super().__setitem__(k.lower(), v)
 
     @overload
-    def get(self, k: str) -> Optional[VT]:
+    def get(self, k: str) -> Optional[_VT]:
         ...
 
     @overload
-    def get(self, k: str, default: Optional[T] = None) -> Optional[Union[VT, T]]:
+    def get(self, k: str, default: Optional[_T] = None) -> Optional[Union[_VT, _T]]:
         ...
 
     def get(self, k, default=None):
         return super().get(k.lower(), default)
 
-    def pop(self, k: str) -> VT:
+    def pop(self, k: str) -> _VT:
         return super().pop(k.lower())
 
 
-class Shlex(shlex):
-    def __init__(self, instream: str):
-        super().__init__(instream, posix=True)
-        self._undo_pushback = deque()
-        self.whitespace_split = True
-        self.commenters = ""
-        self.quotes = '"'
-        self.whitespace = " "
+_WHITE_SPACE = tuple(" ")
+_QUOTES = tuple('"')
 
-    def get_token(self) -> Optional[str]:
-        token = super().get_token()
-        self._undo_pushback.append(token)
+
+def _end_of_quote_finder(instream: str, location: int) -> int:
+    end_of_quote_index = instream.find('"', location)
+    if end_of_quote_index == -1:
+        raise ValueError(f"No closing quotation found")
+    if instream[end_of_quote_index - 1] == "\\":  # quote is escaped carry on searching
+        return _end_of_quote_finder(instream, end_of_quote_index + 1)
+    return end_of_quote_index
+
+
+class Shlex:
+    """A simple lexical analyser.
+    This should be a more pythonic version of :class:`shlex.shlex` in posix mode.
+    """
+
+    __slots__ = ("instream", "position", "_undo_pushback")
+
+    def __init__(self, instream: str):
+        self.instream = (
+            instream.replace("‘", '"')
+            .replace("’", '"')
+            .replace("“", '"')
+            .replace("”", '"')
+        )
+        self.position = 0
+        self._undo_pushback: Deque[int] = Deque()
+
+    def read(self) -> str:
+        token = []
+        for char in self.instream[self.position :]:
+            self.position += 1
+            if char in _WHITE_SPACE:
+                break
+            if char in _QUOTES:
+                before = self.position
+                if self.instream[before - 2] != "\\":  # quote is escaped carry on searching
+                    end_of_quote = _end_of_quote_finder(self.instream, before)
+                    token = f'"{self.instream[before : end_of_quote]}"'
+                    self.position = end_of_quote + 1
+                    break
+                token.pop()
+
+            token.append(char)
+
+        token = "".join(token)
+        if token:
+            self._undo_pushback.append(len(token))
+        if token[-1:] == '"' and token[:1] == '"':
+            token = token[1:-1]
         return token
 
     def undo(self) -> None:
-        token = self._undo_pushback.pop()
-        self.instream = StringIO(f"{token} {self.instream.read()}")
+        self.position -= self._undo_pushback.pop()
 
     def __repr__(self):
-        self.instream.seek(0)
-        read = self.instream.read()
-        self.instream.seek(0)
-        return f"Shlex({read!r})"
+        attrs = (
+            "instream",
+            "position",
+        )
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<Shlex {' '.join(resolved)}>"
+
+    def __iter__(self) -> Generator[str, None, None]:
+        if not self.instream:
+            return
+        token = self.read()
+        while token:
+            yield token
+            token = self.read()
