@@ -141,6 +141,7 @@ class ConnectionState:
         "_games",
         "_state",
         "_ui_mode",
+        "_flags",
         "_force_kick",
     )
 
@@ -157,15 +158,23 @@ class ConnectionState:
         self._user_slots = set(User.__slots__) - {"_state", "_data"}
         self.max_messages = kwargs.pop("max_messages", 1000)
 
-        game = kwargs.pop("game", None)
-        games = kwargs.pop("games", None)
+        game = kwargs.get("game")
+        games = kwargs.get("games")
         games = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games.append(game.to_dict())
         self._games: List[dict] = games
-        self._state: "EPersonaState" = kwargs.pop("state", EPersonaState.Online)
-        self._ui_mode: Optional["EUIMode"] = kwargs.pop("ui_mod", None)
-        self._force_kick: bool = kwargs.pop("force_kick", False)
+        self._state: "EPersonaState" = kwargs.get("state", EPersonaState.Online)
+        self._ui_mode: Optional["EUIMode"] = kwargs.get("ui_mode")
+        flag: int = kwargs.get("flag")
+        flags: List[int] = kwargs.get("flag", [0])
+        if flag is not None:
+            flags.append(flag)
+        flag_value = 0
+        for flag in flags:
+            flag_value |= flag
+        self._flags: int = flag_value
+        self._force_kick: bool = kwargs.get("force_kick", False)
 
         self.clear()
 

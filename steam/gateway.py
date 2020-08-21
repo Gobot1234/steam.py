@@ -492,6 +492,7 @@ class SteamWebSocket:
                 games=self._connection._games,
                 state=self._connection._state,
                 ui_mode=self._connection._ui_mode,
+                flags=self._connection._flags,
                 force_kick=self._connection._force_kick,
             )
             return await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
@@ -537,7 +538,7 @@ class SteamWebSocket:
         self,
         *,
         games: List[dict],
-        state: Optional[EPersonaState],
+        state: Optional["EPersonaState"],
         flags: int,
         ui_mode: Optional["EUIMode"],
         force_kick: bool,
