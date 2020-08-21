@@ -25,19 +25,11 @@ SOFTWARE.
 """
 
 from datetime import timedelta
-from typing import TYPE_CHECKING
 
 from typing_extensions import Final
 from yarl import URL as _URL
 
-if TYPE_CHECKING:
-    from .protobufs.steammessages_chat import CChatRoleActions as RoleProto
-
-
-__all__ = (
-    "Ban",
-    "Role",
-)
+__all__ = ("Ban",)
 
 
 def api_route(path: str) -> _URL:
@@ -112,16 +104,15 @@ class Ban:
         return self._market_banned
 
 
-class Role:
-    def __init__(self, proto: "RoleProto"):
-        self.id = int(proto.role_id)
-        self.can_kick = proto.can_kick
-        self.can_ban = proto.can_ban
-        self.can_invite = proto.can_invite
-        self.can_change_tagline_avatar_name = proto.can_change_tagline_avatar_name
-        self.can_chat = proto.can_chat
-        self.can_view_history = proto.can_view_history
-        self.can_change_group_roles = proto.can_change_group_roles
-        self.can_change_user_roles = proto.can_change_user_roles
-        self.can_mention_all = proto.can_mention_all
-        self.can_set_watching_broadcast = proto.can_set_watching_broadcast
+class Permissions:
+    def __init__(self, proto):
+        self.kick = proto.can_kick
+        self.ban_members = proto.can_ban
+        self.invite = proto.can_invite
+        self.manage_group = proto.can_change_tagline_avatar_name
+        self.send_messages = proto.can_chat
+        self.read_message_history = proto.can_view_history
+        self.change_group_roles = proto.can_change_group_roles
+        self.change_user_roles = proto.can_change_user_roles
+        self.mention_all = proto.can_mention_all
+        self.set_watching_broadcast = proto.can_set_watching_broadcast  # or this

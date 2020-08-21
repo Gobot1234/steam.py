@@ -38,11 +38,12 @@ from .comment import Comment
 from .errors import HTTPException
 from .game import Game
 from .iterators import CommentsIterator
-from .models import Role, community_route
+from .models import community_route
 from .protobufs.steammessages_chat import (
     CChatRoomSummaryPair as ReceivedResponse,
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
 )
+from .role import Role
 
 if TYPE_CHECKING:
     from .abc import BaseChannel
@@ -246,7 +247,7 @@ class Clan(SteamID):
 
         self.roles = []
         for role in proto.role_actions:
-            self.roles.append(Role(role))
+            self.roles.append(Role(self._state, self, role))
         try:
             self.default_role = [r for r in self.roles if r.id == int(proto.default_role_id)][0]
         except IndexError:

@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from .abc import SteamID
 from .channel import GroupChannel
-from .models import Role
+from .role import Role
 
 if TYPE_CHECKING:
     from .protobufs.steammessages_chat import CChatRoomGetChatRoomGroupSummaryResponse as GroupProto
@@ -93,7 +93,7 @@ class Group(SteamID):
         self.default_role: Optional[Role]
 
         for role in proto.role_actions:
-            self.roles.append(Role(role))
+            self.roles.append(Role(self._state, self, role))
 
         default_role = [r for r in self.roles if r.id == int(proto.default_role_id)]
         if default_role:
