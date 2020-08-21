@@ -685,7 +685,7 @@ class BaseChannel(Messageable):
 
 
 def _clean_up_content(content: str) -> str:
-    return content.replace("\[", "[").replace("\\\\", "\\")
+    return content.replace(r"\[", "[").replace("\\\\", "\\")
 
 
 class Message:
