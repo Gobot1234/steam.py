@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import re
-
 from setuptools import setup
 
-with open("steam/__init__.py") as f:
-    search = re.search(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)
-
-if search is None:
+try:
+    from steam import __version__ as version
+except AttributeError:
     raise RuntimeError("Version is not set")
 
-version = search.group(1)
 
 if version.endswith(("a", "b")) or "rc" in version:
     # try to find out the commit hash if checked out from git, and append
