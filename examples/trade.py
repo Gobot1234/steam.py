@@ -2,7 +2,7 @@ import steam
 
 
 class MyClient(steam.Client):
-    async def on_ready(self,):  # on_events in a subclassed client don't need the @client.event decorator
+    async def on_ready(self):  # on_events in a subclassed client don't need the @client.event decorator
         print("------------")
         print("Logged in as")
         print("Username:", self.user)

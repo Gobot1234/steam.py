@@ -81,9 +81,7 @@ __all__ = ("Bot",)
 
 
 StrOrIterStr = Union[str, Iterable[str]]
-CommandPrefixType = Union[
-    StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]],
-]
+CommandPrefixType = Union[StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]]]
 
 
 class CommandFunctionType(Protocol):
@@ -169,7 +167,11 @@ class Bot(GroupMixin, Client):
     __extensions__: Dict[str, "ExtensionType"] = dict()
 
     def __init__(
-        self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options,
+        self,
+        *,
+        command_prefix: CommandPrefixType,
+        help_command: HelpCommand = HelpCommand(),
+        **options
     ):
         super().__init__(**options)
         self.command_prefix = command_prefix
@@ -497,7 +499,7 @@ class Bot(GroupMixin, Client):
 
         command_name = " ".join(content.split(maxsplit=i + 1)[: i + 1])  # account for aliases
         lex = Shlex(content[len(command_name) :].strip())
-        return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix, invoked_with=command_name,)
+        return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix, invoked_with=command_name)
 
     async def get_prefix(self, message: "Message") -> Optional[str]:
         """|coro|

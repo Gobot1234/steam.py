@@ -145,9 +145,7 @@ class ConnectionState:
         "_force_kick",
     )
 
-    def __init__(
-        self, loop: asyncio.AbstractEventLoop, client: "Client", http: "HTTPClient", **kwargs
-    ):
+    def __init__(self, loop: asyncio.AbstractEventLoop, client: "Client", http: "HTTPClient", **kwargs):
         self.loop = loop
         self.http = http
         self.request = http.request
