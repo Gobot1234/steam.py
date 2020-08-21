@@ -36,7 +36,7 @@ with open("README.md") as f:
     readme = f.read()
 
 extras_require = {
-    "docs": ["sphinx==3.0.1", "sphinxcontrib_trio==1.1.1", "sphinxcontrib-websupport",],
+    "docs": ["sphinx==3.0.1", "sphinxcontrib_trio==1.1.2", "sphinxcontrib-websupport",],
     "dev": ["black", "isort", "flake8", "pytest", "pytest-asyncio", "pyyaml",],
 }
 
