@@ -1,18 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import os
-from . import test_steam_id
 
-"""
-USER_1_ID64: str = os.getenv()
-USERNAME_1: str = os.getenv()
-PASSWORD_1: str = os.getenv()
-SHARED_SECRET_1: str = os.getenv()
-IDENTITY_SECRET_1: str = os.getenv()
-
-USER_2_ID64: str = os.getenv()
-USERNAME_2: str = os.getenv()
-PASSWORD_2: str = os.getenv()
-SHARED_SECRET_2: str = os.getenv()
-IDENTITY_SECRET_2: str = os.getenv()
-"""
+USERNAME: str = os.getenv('STEAM_USERNAME')
+PASSWORD: str = os.getenv('STEAM_PASSWORD')
+SHARED_SECRET: str = os.getenv('STEAM_SHARED_SECRET')
+IDENTITY_SECRET: str = os.getenv('STEAM_IDENTITY_SECRET')
