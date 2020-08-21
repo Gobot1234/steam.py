@@ -104,6 +104,7 @@ class Converter(Protocol):
         # !set_avatar "my image url"
     """
 
+    @abstractmethod
     async def convert(self, ctx: "commands.Context", argument: str):
         raise NotImplementedError("Derived classes must implement this")
 
@@ -225,6 +226,7 @@ class Default(Protocol):
         # this could also be mixed in with a converter to convert a string to a command.
     """
 
+    @abstractmethod
     async def default(self, ctx: "commands.Context"):
         raise NotImplementedError("Derived classes need to implement this")
 
