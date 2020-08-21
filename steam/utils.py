@@ -46,6 +46,8 @@ __all__ = (
     "find",
     "make_id64",
     "parse_trade_url_token",
+    "cached_property",
+    "to_thread",
 )
 
 _T = TypeVar("_T")
@@ -200,20 +202,9 @@ def make_id64(*args, **kwargs) -> int:
                 raise ValueError("ID cannot be converted correctly")
     else:
         return 0
-    try:
-        type = EType.try_value(type) if isinstance(type, (EType, int)) else EType[type]
-    except KeyError as exc:
-        raise ValueError(f"Invalid type, {exc} passed") from None
-    else:
-        if not isinstance(type, EType):
-            raise ValueError("Invalid type passed")
-    try:
-        universe = EUniverse.try_value(universe) if isinstance(universe, (EUniverse, int)) else EUniverse[universe]
-    except KeyError as exc:
-        raise ValueError(f"Invalid universe, {exc} passed") from None
-    else:
-        if not isinstance(universe, EUniverse):
-            raise ValueError("Invalid universe passed")
+
+    type = EType(type) if isinstance(type, int) else EType[type]
+    universe = EUniverse(universe) if isinstance(universe, int) else EUniverse[universe]
 
     if instance is None:
         instance = 1 if type in (EType.Individual, EType.GameServer) else 0
@@ -441,7 +432,7 @@ def parse_trade_url_token(url: str) -> Optional[str]:
 
 
 # TODO make a custom cancellable Executor
-def to_thread(callable: Callable[..., _T], *args, **kwargs) -> Awaitable[_T]:  # asyncio.to_thread
+def to_thread(callable: Callable[..., _T], *args, **kwargs) -> asyncio.Future[_T]:  # asyncio.to_thread
     loop = asyncio.get_running_loop()
     ctx = contextvars.copy_context()
     partial = functools.partial(ctx.run, callable, *args, **kwargs)

@@ -98,7 +98,7 @@ class Game:
         "stats_visible",
     )
 
-    def __init__(self, app_id: Optional[int] = None, title: Optional[str] = None, *, context_id: int = 2):
+    def __init__(self, app_id: Optional[int] = None, title: Optional[str] = None, *, context_id: Optional[int] = 2):
         if app_id is not None and title is None:
             try:
                 self.app_id = int(app_id)
@@ -204,4 +204,4 @@ def CUSTOM_GAME(title: str) -> Game:
     class:`.Game`
         The created custom game.
     """
-    return Game(title=title, app_id=15190414816125648896, context_id=0)
+    return Game(title=title, app_id=15190414816125648896, context_id=None)
