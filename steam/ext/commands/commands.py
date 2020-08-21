@@ -256,7 +256,7 @@ class Command:
             raise ClientException(f'Callback for {self.name} command is missing "ctx" parameter.')
         for name, param in iterator:
             if param.kind == param.POSITIONAL_OR_KEYWORD:
-                argument = shlex.get_token()
+                argument = shlex.read()
                 if argument is None:
                     transformed = await self._get_default(ctx, param)
                 else:
