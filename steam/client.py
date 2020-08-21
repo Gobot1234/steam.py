@@ -1062,13 +1062,13 @@ class Client:
     @overload
     def wait_for(
         self, event: str, *, check: Optional[Callable[..., bool]] = ..., timeout: Optional[float] = ...
-    ) -> asyncio.Future[Any]:
+    ) -> "asyncio.Future[Any]":
         ...
 
     @overload
     def wait_for(
         self, event: Literal["connect"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> asyncio.Future[None]:
+    ) -> "asyncio.Future[None]":
         ...
 
     @overload
@@ -1078,19 +1078,19 @@ class Client:
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[None]:
+    ) -> "asyncio.Future[None]":
         ...
 
     @overload  # don't know why you'd do this
     def wait_for(
         self, event: Literal["ready"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> asyncio.Future[None]:
+    ) -> "asyncio.Future[None]":
         ...
 
     @overload
     def wait_for(
         self, event: Literal["login"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> asyncio.Future[None]:
+    ) -> "asyncio.Future[None]":
         ...
 
     @overload
@@ -1100,7 +1100,7 @@ class Client:
         *,
         check: Optional[Callable[[str, Exception, Any, Any], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[Tuple[str, Exception, Any, Any]]:
+    ) -> "asyncio.Future[Tuple[str, Exception, Any, Any]]":
         ...
 
     @overload
@@ -1110,7 +1110,7 @@ class Client:
         *,
         check: Optional[Callable[["steam.Message"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["steam.Message"]:
+    ) -> "asyncio.Future[steam.Message]":
         ...
 
     @overload
@@ -1120,7 +1120,7 @@ class Client:
         *,
         check: Optional[Callable[["Comment"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["Comment"]:
+    ) -> "asyncio.Future[Comment]":
         ...
 
     @overload
@@ -1130,7 +1130,7 @@ class Client:
         *,
         check: Optional[Callable[["User", "User"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[Tuple["User", "User"]]:
+    ) -> "asyncio.Future[Tuple[User, User]]":
         ...
 
     @overload
@@ -1140,7 +1140,7 @@ class Client:
         *,
         check: Optional[Callable[["User", datetime.datetime], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[Tuple["User", datetime.datetime]]:
+    ) -> "asyncio.Future[Tuple[User, datetime.datetime]]":
         ...
 
     @overload
@@ -1150,7 +1150,7 @@ class Client:
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["TradeOffer"]:
+    ) -> "asyncio.Future[TradeOffer]":
         ...
 
     @overload
@@ -1160,7 +1160,7 @@ class Client:
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["TradeOffer"]:
+    ) -> "asyncio.Future[TradeOffer]":
         ...
 
     @overload
@@ -1170,7 +1170,7 @@ class Client:
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["TradeOffer"]:
+    ) -> "asyncio.Future[TradeOffer]":
         ...
 
     @overload
@@ -1180,7 +1180,7 @@ class Client:
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["TradeOffer"]:
+    ) -> "asyncio.Future[TradeOffer]":
         ...
 
     @overload
@@ -1190,7 +1190,7 @@ class Client:
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["TradeOffer"]:
+    ) -> "asyncio.Future[TradeOffer]":
         ...
 
     @overload
@@ -1200,7 +1200,7 @@ class Client:
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["TradeOffer"]:
+    ) -> "asyncio.Future[TradeOffer]":
         ...
 
     @overload
@@ -1210,7 +1210,7 @@ class Client:
         *,
         check: Optional[Callable[["TradeOffer"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["TradeOffer"]:
+    ) -> "asyncio.Future[TradeOffer]":
         ...
 
     @overload
@@ -1220,7 +1220,7 @@ class Client:
         *,
         check: Optional[Callable[["UserInvite"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["UserInvite"]:
+    ) -> "asyncio.Future[UserInvite]":
         ...
 
     @overload
@@ -1230,7 +1230,7 @@ class Client:
         *,
         check: Optional[Callable[["ClanInvite"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["ClanInvite"]:
+    ) -> "asyncio.Future[ClanInvite]":
         ...
 
     @overload
@@ -1240,7 +1240,7 @@ class Client:
         *,
         check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["Msgs"]:
+    ) -> "asyncio.Future[Msgs]":
         ...
 
     @overload
@@ -1250,7 +1250,7 @@ class Client:
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[bytes]:
+    ) -> "asyncio.Future[bytes]":
         ...
 
     @overload
@@ -1260,7 +1260,7 @@ class Client:
         *,
         check: Optional[Callable[["Msgs"], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future["Msgs"]:
+    ) -> "asyncio.Future[Msgs]":
         ...
 
     @overload
@@ -1270,12 +1270,12 @@ class Client:
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[bytes]:
+    ) -> "asyncio.Future[bytes]":
         ...
 
     def wait_for(
         self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
-    ) -> asyncio.Future[Any]:
+    ) -> "asyncio.Future[Any]":
         """|coro|
         Wait for the first event to be dispatched that meets the requirements, this by default is the first event
         with a matching event name.
