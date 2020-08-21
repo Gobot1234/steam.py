@@ -37,7 +37,7 @@ with open("README.md") as f:
 
 extras_require = {
     "docs": ["sphinx==3.0.1", "sphinxcontrib_trio==1.1.1", "sphinxcontrib-websupport",],
-    "dev": ["black", "isort", "flake8", "pytest", "yaml"],
+    "dev": ["black", "isort", "flake8", "pytest", "pyyaml",],
 }
 
 setup(
