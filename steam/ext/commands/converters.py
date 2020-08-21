@@ -144,7 +144,7 @@ class ChannelConverter(Converter):
                 channel = [c for c in group.channels if c.id == int(argument)]
         else:
             attr = ctx.clan or ctx.group
-            channel = [c for c in attr.channels if name == argument]
+            channel = [c for c in attr.channels if c.name == argument]
         if not channel:
             raise BadArgument(f'Failed to convert "{argument}" to a channel')
         return channel[0] if isinstance(channel, list) else channel
@@ -162,7 +162,7 @@ class ClanConverter(Converter):
     async def convert(self, ctx: "commands.Context", argument: str) -> "Clan":
         clan = ctx.bot.get_clan(argument)
         if clan is None:
-            clan = [c for c in ctx.bot.clans if name == argument]
+            clan = [c for c in ctx.bot.clans if c.name == argument]
         if clan is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
         return clan[0] if isinstance(clan, list) else clan
@@ -180,8 +180,8 @@ class GroupConverter(Converter):
     async def convert(self, ctx: "commands.Context", argument: str) -> "Group":
         group = ctx.bot.get_group(argument)
         if group is None:
-            group = [c for c in ctx.bot.groups if name == argument]
-        if group is None:
+            group = [c for c in ctx.bot.groups if c.name == argument]
+        if not group:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam group')
         return group[0] if isinstance(group, list) else group
 
