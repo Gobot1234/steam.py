@@ -130,7 +130,6 @@ class Shlex:
         return f"<Shlex {' '.join(resolved)}>"
 
     def __iter__(self) -> Generator[str, None, None]:
-        token = self.read()
-        while token:
-            yield token
+        while self.position <= len(self.instream):
             token = self.read()
+            yield token

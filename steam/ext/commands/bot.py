@@ -166,13 +166,7 @@ class Bot(GroupMixin, Client):
     __listeners__: Dict[str, List[Union["EventType", "InjectedListener"]]] = dict()
     __extensions__: Dict[str, "ExtensionType"] = dict()
 
-    def __init__(
-        self,
-        *,
-        command_prefix: CommandPrefixType,
-        help_command: HelpCommand = HelpCommand(),
-        **options
-    ):
+    def __init__(self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options):
         super().__init__(**options)
         self.command_prefix = command_prefix
         self.owner_id = utils.make_id64(options.get("owner_id", 0))
@@ -489,6 +483,7 @@ class Bot(GroupMixin, Client):
         if not content:
             return cls(message=message, prefix=prefix, bot=self)
 
+        command = None
         for i in range(len(content.split())):
             command = self.get_command(content.rsplit(maxsplit=i)[0])
             if command is not None:
