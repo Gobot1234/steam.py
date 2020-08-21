@@ -29,8 +29,9 @@ from typing import TYPE_CHECKING
 from ...errors import SteamException
 
 if TYPE_CHECKING:
-    from .commands import Command
     from inspect import Parameter
+
+    from .commands import Command
 
 
 __all__ = (

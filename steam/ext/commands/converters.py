@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from abc import abstractmethod
-from typing import Any, Callable, Generic, Tuple, TypeVar, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, Tuple, TypeVar, Union
 
 from typing_extensions import Protocol, get_origin, runtime_checkable
 
