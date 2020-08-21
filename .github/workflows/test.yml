@@ -21,9 +21,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install ".[dev]"
     - name: Run tests
-      run: python3 tests -t
       env:
         USERNAME: ${{ secrets.STEAM_USERNAME }}
         PASSWORD: ${{ secrets.STEAM_PASSWORD }}
         SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
         IDENTITY_SECRET: ${{ secrets.STEAM_IDENTITY_SECRET }}
+      run: python3 tests -t
