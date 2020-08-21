@@ -90,12 +90,7 @@ class Shlex:
     __slots__ = ("instream", "position", "_undo_pushback")
 
     def __init__(self, instream: str):
-        self.instream = (
-            instream.replace("‘", '"')
-            .replace("’", '"')
-            .replace("“", '"')
-            .replace("”", '"')
-        )
+        self.instream = instream.replace("‘", '"').replace("’", '"').replace("“", '"').replace("”", '"')
         self.position = 0
         self._undo_pushback: Deque[int] = Deque()
 
