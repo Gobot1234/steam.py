@@ -74,11 +74,11 @@ def generate_one_time_code(shared_secret: str, timestamp: Optional[int] = None) 
     begin = ord(time_hmac[19:20]) & 0xF
     full_code = struct.unpack(">I", time_hmac[begin : begin + 4])[0] & 0x7FFFFFFF  # unpack as Big endian uint32
     chars = "23456789BCDFGHJKMNPQRTVWXY"
-    code = ""
+    code = []
     for _ in range(5):
         full_code, i = divmod(full_code, len(chars))
-        code = f"{code}{chars[i]}"
-    return code  # faster than string concatenation
+        code.append(chars[i])
+    return "".join(code)
 
 
 def generate_confirmation_code(identity_secret: str, tag: str, timestamp: Optional[int] = None) -> str:
