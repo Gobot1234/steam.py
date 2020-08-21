@@ -152,7 +152,7 @@ class HTTPClient:
 
     def connect_to_cm(self, cm: str) -> Awaitable[aiohttp.ClientWebSocketResponse]:
         headers = {"User-Agent": self.user_agent}
-        return self._session.ws_connect(f"wss://{cm}/cmsocket/", timeout=60, headers=headers)
+        return self._session.ws_connect(f"wss://{cm}/cmsocket/", headers=headers)
 
     async def login(self, username: str, password: str, shared_secret: Optional[str]) -> None:
         self.username = username
