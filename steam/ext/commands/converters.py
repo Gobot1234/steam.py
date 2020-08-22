@@ -24,9 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import typing
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, Tuple, TypeVar, Union, _type_repr
+from typing import TYPE_CHECKING, Any, Callable, Generic, Tuple, TypeVar, Union
 
 from typing_extensions import Protocol, get_origin, runtime_checkable
 
@@ -59,18 +58,6 @@ __all__ = (
 )
 
 T = TypeVar("T", bound=type)
-_OLD_TYPE_REPR = _type_repr
-
-
-def _type_repr(obj):
-    if obj is Greedy:
-        # we don't want it to show as steam.ext.commands.converters.Greedy[x]
-        # patching/setting Greedy.__repr__ doesn't work as expected
-        return "Greedy"
-    return _OLD_TYPE_REPR(obj)
-
-
-typing._type_repr = _type_repr
 
 
 @runtime_checkable
