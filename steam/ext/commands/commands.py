@@ -30,11 +30,10 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 
 import asyncio
 import functools
-import importlib
 import inspect
 import sys
 import typing
-from types import MethodType, ModuleType
+from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -48,7 +47,6 @@ from typing import (
     Set,
     Type,
     Union,
-    get_type_hints,
 )
 
 from typing_extensions import Literal, get_args, get_origin
@@ -59,7 +57,7 @@ from ...errors import ClientException
 from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import BadArgument, CheckFailure, MissingRequiredArgument, NotOwner
-from .utils import CaseInsensitiveDict
+from .utils import CaseInsensitiveDict, update_type_hints, reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .bot import CommandFunctionType
@@ -89,14 +87,6 @@ def to_bool(argument: str) -> bool:
     elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
         return False
     raise BadArgument(f'"{lowered}" is not a recognised boolean option')
-
-
-def _reload_module_with_TYPE_CHECKING(module: ModuleType, exc: NameError):
-    if not (typing in module.__dict__.values() or not getattr(module, "TYPE_CHECKING", True)):
-        raise exc from None
-    typing.TYPE_CHECKING = True
-    importlib.reload(module)
-    typing.TYPE_CHECKING = False
 
 
 class Command:
@@ -154,56 +144,22 @@ class Command:
         if not asyncio.iscoroutinefunction(function):
             raise TypeError(f"Callback for command {function.__name__} must be a coroutine.")
 
-        # using get_type_hints allows for postponed annotations (type hints in quotes) for more info see PEP 563
-        # https://www.python.org/dev/peps/pep-0563.
+        func = function.__func__ if isinstance(function, MethodType) else function
         module = sys.modules[function.__module__]
-        self.module = module
         globals = module.__dict__
-        # TODO need to preserve user typed Optionals
+
         try:
-            annotations = get_type_hints(function, globals)
+            annotations = update_type_hints(func.__annotations__, globals)
         except NameError as exc:
-            _reload_module_with_TYPE_CHECKING(module, exc)
-            # WARNING: very hacky, the user likely has imports that haven't been loaded in a TYPE_CHECKING block, we are
-            # going to attempt to fetch these ourselves and add them to the modules __dict__. If a user wants to have
-            # this be avoided you can use something similar to:
-            #
-            # if TYPE_CHECKING:
-            #    from expensive_module import expensive_type
-            # else:
-            #    expensive_type = str
-            #
-            # NOTE: this doesn't run into circular import errors due to the way importlib.reload works.
+            reload_module_with_TYPE_CHECKING(module)
             try:
-                annotations = get_type_hints(function, globals)
+                annotations = update_type_hints(func.__annotations__, globals)
             except NameError:
                 raise exc from None
 
-        for value in annotations.values():
-            if get_origin(value) is not converters.Greedy or not isinstance(value.converter, str):
-                continue
-            # type checking for postponed Greedys
-            eval_forward = typing.ForwardRef(value.converter)._evaluate
-            try:
-                evaluated_type = eval_forward(globals, {})
-            except NameError as exc:
-                # similar hacky-ness as above
-                _reload_module_with_TYPE_CHECKING(module, exc)
-                try:
-                    evaluated_type = eval_forward(globals, {})
-                except NameError:
-                    raise exc from None
-            try:
-                converters.Greedy[evaluated_type]  # check if the type is valid
-            except TypeError as exc:
-                raise TypeError(f"{exc.args[0]} for command callback {self.name}") from None
-
-        # replace the function's old annotations
-        if isinstance(function, MethodType):
-            function.__func__.__annotations__ = annotations
-        else:
-            function.__annotations__ = annotations
+        func.__annotations__ = annotations  # replace the function's old annotations for later
         self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
+        self.module = module
         self._callback = function
 
     @property

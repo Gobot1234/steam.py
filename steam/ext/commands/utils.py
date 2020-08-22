@@ -24,7 +24,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import Deque, Dict, Generator, Generic, Optional, TypeVar, Union, overload
+import importlib
+import typing
+from typing import TYPE_CHECKING, Any, Deque, Dict, ForwardRef, Generator, Generic, Optional, TypeVar, Union, overload
+
+from typing_extensions import get_args, get_origin
+
+from .converters import Greedy
+
+if TYPE_CHECKING:
+    from types import ModuleType
+
 
 __all__ = ("CaseInsensitiveDict",)
 
@@ -133,3 +143,60 @@ class Shlex:
         while self.position >= len(self.instream):
             token = self.read()
             yield token
+
+
+def reload_module_with_TYPE_CHECKING(module: "ModuleType") -> None:
+    """Reload a module with typing.TYPE_CHECKING set to ``True``.
+
+    Warnings
+    --------
+    This is very hacky and is only really for internal use.
+
+    We attempt to fetch any imports in a TYPE_CHECKING block. If a user wants to have this behaviour avoided you can use
+    something similar to ::
+
+        if TYPE_CHECKING:
+           from expensive_module import expensive_type
+        else:
+           expensive_type = str
+
+    .. note::
+        This doesn't run into circular import errors due to the way importlib.reload works.
+    """
+    if not (typing in module.__dict__.values() or not getattr(module, "TYPE_CHECKING", True)):
+        return
+
+    typing.TYPE_CHECKING = True
+    importlib.reload(module)
+    typing.TYPE_CHECKING = False
+
+
+def update_type_hints(annotations: Dict[str, Any], globals: Dict[str, Any]) -> Dict[str, Any]:
+    """A helper function loosely based off of typing's implementation of :meth:`typing.get_type_hints`.
+
+    Main purpose of this is for evaluating postponed annotations (type hints in quotes) for more info see :pep:`563`/
+    https://www.python.org/dev/peps/pep-0563
+    """
+    for key, annotation in annotations.items():
+        if isinstance(annotation, str):
+            annotation = typing.ForwardRef(annotation)
+        if isinstance(annotation, ForwardRef):
+            annotation = annotation._evaluate(globals, {})
+
+        origin = get_origin(annotation)
+        if origin is not None:
+
+            args = list(get_args(annotation))
+            for idx, arg in enumerate(args):
+                if isinstance(arg, (str, ForwardRef)):
+                    arg = update_type_hints({0: arg}, globals)[0]
+                args[idx] = arg
+
+            annotation.__args__ = tuple(args)
+
+            if origin is Greedy:
+                annotation.converter = annotation.__args__[0]  # update the old converter
+                Greedy[annotation.converter]  # check if the evaluated type is valid
+
+        annotations[key] = annotation
+    return annotations
