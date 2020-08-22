@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 
+import pathlib
 import re
 
 from setuptools import setup
 
-with open("steam/__init__.py") as f:
-    search = re.search(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)
+ROOT = pathlib.Path(__file__).parent
 
-if search is None:
+
+with open(ROOT / "steam" / "__init__.py") as f:
+    VERSION = re.findall(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)
+
+if not VERSION:
     raise RuntimeError("Version is not set")
 
-version = search.group(1)
+VERSION = VERSION[0]
 
-
-if version.endswith(("a", "b")) or "rc" in version:
+if VERSION.endswith(("a", "b")) or "rc" in VERSION:
     # try to find out the commit hash if checked out from git, and append
     # it to __version__ (since we use this value from setup.py, it gets
     # automatically propagated to an installed copy as well)
@@ -22,39 +25,24 @@ if version.endswith(("a", "b")) or "rc" in version:
 
         out = subprocess.getoutput("git rev-list --count HEAD")
         if out:
-            version = f"{version}{out.strip()}"
+            version = f"{VERSION}{out.strip()}"
         out = subprocess.getoutput("git rev-parse --short HEAD")
         if out:
-            version = f"{version}+g{out.strip()}"
+            version = f"{VERSION}+g{out.strip()}"
     except Exception:
         pass
 
-with open("README.md") as f:
-    readme = f.read()
+with open(ROOT / "README.md", encoding="utf-8") as f:
+    README = f.read()
 
-DEFAULT_REQUIREMENTS = [
-    "aiohttp>=3.6.0,<3.7.0",
-    "beautifulsoup4>=4.9.1",
-    "rsa>=4.6",
-    "betterproto>=1.2.5",
-    "typing-extensions>=3.7.4.2",
-]
+EXTRA_REQUIRES = {}
 
-EXTRA_REQUIREMENTS = {
-    "docs": [
-        "sphinx==3.2.1",
-        "sphinxcontrib_trio==1.1.2",
-        "sphinxcontrib-websupport",
-    ],
-    "dev": [
-        "black",
-        "isort",
-        "flake8",
-        "pytest",
-        "pytest-asyncio",
-        "pyyaml",
-    ],
-}
+for feature in (ROOT / "requirements").glob("*.txt"):
+    with open(feature, "r", encoding="utf-8") as f:
+        EXTRA_REQUIRES[feature.with_suffix("").name] = f.read().splitlines()
+
+REQUIREMENTS = EXTRA_REQUIRES.pop("default")
+
 
 setup(
     name="steamio",
@@ -62,9 +50,10 @@ setup(
     url="https://github.com/Gobot1234/steam.py",
     project_urls={
         "Documentation": "https://steampy.readthedocs.io/en/latest",
+        "Code": "https://github.com/Gobot1234/steam.py",
         "Issue tracker": "https://github.com/Gobot1234/steam.py/issues",
     },
-    version=version,
+    version=VERSION,
     packages=[
         "steam",
         "steam.protobufs",
@@ -72,18 +61,22 @@ setup(
     ],
     license="MIT",
     description="A Python wrapper for the Steam API",
-    long_description=readme,
+    long_description=README,
     long_description_content_type="text/markdown",
     include_package_data=True,
-    install_requires=DEFAULT_REQUIREMENTS,
-    extras_require=EXTRA_REQUIREMENTS,
-    python_requires=">=3.7",
+    install_requires=REQUIREMENTS,
+    extras_require=EXTRA_REQUIRES,
+    python_requires=">=3.7.0",
+    download_url=f"https://github.com/Gobot1234/steam.py/archive/{VERSION}.tar.gz",
+    keywords="steam.py steam steamio steam-api",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
+        "Framework :: AsyncIO",
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Developers",
         "Natural Language :: English",
         "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3 :: Only",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
