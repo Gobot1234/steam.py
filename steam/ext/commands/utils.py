@@ -178,8 +178,6 @@ def update_type_hints(annotations: Dict[str, Any], globals: Dict[str, Any]) -> D
     https://www.python.org/dev/peps/pep-0563
     """
     for key, annotation in annotations.items():
-        if isinstance(annotation, str):
-            annotation = typing.ForwardRef(annotation)
         if isinstance(annotation, ForwardRef):
             annotation = annotation._evaluate(globals, {})
 
