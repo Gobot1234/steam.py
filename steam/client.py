@@ -33,7 +33,7 @@ import datetime
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union, overload
 
 import aiohttp
 from typing_extensions import Literal, Protocol
