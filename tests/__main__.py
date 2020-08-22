@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import pathlib
-import pytest
-import click
-import black
-import isort.main
-import yaml
+
+try:
+    import black
+    import click
+    import isort.main
+    import pytest
+    import yaml
+except ImportError as exc:
+    print(f'Failed to import {exc.name} make sure you installed "steamio[dev]" to get extra dependencies.')
 
 __FILE__ = pathlib.Path(__file__)
 STEAM_PY = __FILE__.parent.parent

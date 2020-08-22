@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import pytest
+
 import steam
 
-from . import USERNAME, PASSWORD, SHARED_SECRET, IDENTITY_SECRET
+from . import IDENTITY_SECRET, PASSWORD, SHARED_SECRET, USERNAME
 
 
 class Client(steam.Client):

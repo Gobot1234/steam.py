@@ -30,7 +30,8 @@ Mostly from https://github.com/ValvePython/steam/blob/master/tests/test_steamid.
 from typing import List
 
 import pytest
-from steam import SteamID, EType, EUniverse
+
+from steam import EType, EUniverse, SteamID
 
 
 def create_id64(id: int, type: int, universe: int, instance: int) -> int:
