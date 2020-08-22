@@ -62,11 +62,9 @@ T = TypeVar("T", bound=type)
 
 @runtime_checkable
 class Converter(Protocol):
-    """A custom class from which converters can be derived.
-    They should be type-hinted to a command's argument.
+    """A custom class from which converters can be derived. They should be type-hinted to a command's argument.
 
-    Some custom types from this library can be type-hinted
-    just using their normal type (see below).
+    Some custom types from this library can be type-hinted just using their normal type (see below).
 
     Examples
     --------
@@ -110,8 +108,7 @@ class Converter(Protocol):
 
 
 class UserConverter(Converter):
-    """The converter that is used when the
-    type-hint passed is :class:`~steam.User`.
+    """The converter that is used when the type-hint passed is :class:`~steam.User`.
 
     Lookup is in the order of:
         - Steam ID
@@ -128,8 +125,7 @@ class UserConverter(Converter):
 
 
 class ChannelConverter(Converter):
-    """The converter that is used when the
-    type-hint passed is :class:`~steam.Channel`.
+    """The converter that is used when the type-hint passed is :class:`~steam.Channel`.
 
     Lookup is in the order of:
         - ID
@@ -151,8 +147,7 @@ class ChannelConverter(Converter):
 
 
 class ClanConverter(Converter):
-    """The converter that is used when the
-    type-hint passed is :class:`~steam.Clan`.
+    """The converter that is used when the type-hint passed is :class:`~steam.Clan`.
 
     Lookup is in the order of:
         - Steam ID
@@ -169,8 +164,7 @@ class ClanConverter(Converter):
 
 
 class GroupConverter(Converter):
-    """The converter that is used when the
-    type-hint passed is :class:`~steam.Group`.
+    """The converter that is used when the type-hint passed is :class:`~steam.Group`.
 
     Lookup is in the order of:
         - ID
@@ -187,12 +181,10 @@ class GroupConverter(Converter):
 
 
 class GameConverter(Converter):
-    """The converter that is used when the
-    type-hint passed is :class:`~steam.Game`.
+    """The converter that is used when the type-hint passed is :class:`~steam.Game`.
 
-    If the param is a digit it is assumed
-    that the argument is the game's app id else
-    it is assumed it is the game's title.
+    If the param is a digit it is assumed that the argument is the game's app id else it is assumed it is the game's
+    title.
     """
 
     async def convert(self, ctx: "commands.Context", argument: str):
@@ -228,7 +220,7 @@ class Default(Protocol):
 
     @abstractmethod
     async def default(self, ctx: "commands.Context"):
-        raise NotImplementedError("Derived classes need to implement this")
+        raise NotImplementedError("Derived classes must to implement this")
 
 
 class DefaultAuthor(Default):
