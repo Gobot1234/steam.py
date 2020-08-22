@@ -21,23 +21,27 @@ class Client(steam.Client):
                 raise exc
             return
 
-    async def on_login(self):
+    async def on_login(self) -> None:
         self.LOGIN = True
 
-    async def on_connect(self):
+    async def on_connect(self) -> None:
         self.CONNECT = True
 
-    async def on_ready(self):
+    async def on_ready(self) -> None:
         self.READY = True
         await self.close()
 
-    async def on_logout(self):
+    async def on_logout(self) -> None:
         self.LOGOUT = True
 
 
-def test_basic_events():
+@pytest.mark.asyncio
+async def test_basic_events():
     client = Client()
-    client.run()
+    try:
+        await client.start()
+    finally:
+        await client.close()
     assert client.LOGIN
     assert client.CONNECT
     assert client.READY
