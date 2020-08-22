@@ -9,12 +9,10 @@ ROOT = pathlib.Path(__file__).parent
 
 
 with open(ROOT / "steam" / "__init__.py") as f:
-    VERSION = re.findall(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)
-
-if not VERSION:
-    raise RuntimeError("Version is not set")
-
-VERSION = VERSION[0]
+    try:
+        VERSION = re.findall(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)[0]
+    except IndexError:
+        raise RuntimeError("Version is not set")
 
 if VERSION.endswith(("a", "b")) or "rc" in VERSION:
     # try to find out the commit hash if checked out from git, and append
