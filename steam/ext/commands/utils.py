@@ -187,7 +187,7 @@ def reload_module_with_TYPE_CHECKING(module: "ModuleType") -> None:
     typing.TYPE_CHECKING = False
 
 
-def _eval_type(type: Any, globals: Dict[str, Any]) -> tuple:
+def _eval_type(type: Any, globals: Dict[str, Any]) -> Any:
     """Evaluate all forward reverences in the given type."""
     if isinstance(type, str):
         type = ForwardRef(type)
@@ -207,13 +207,9 @@ def update_annotations(annotations: Dict[str, Any], globals: Dict[str, Any]) -> 
     """
     for key, annotation in annotations.items():
         annotation = _eval_type(annotation, globals)
-        origin = get_origin(annotation)
-        if origin is not None:
-            annotation.__args__ = _eval_type(annotation, globals)
-
-            if origin is Greedy:
-                annotation.converter = annotation.__args__[0]  # update the old converter
-                Greedy[annotation.converter]  # check if the evaluated type is valid
+        if get_origin(annotation) is Greedy:
+            annotation.converter = annotation.__args__[0]  # update the old converter
+            Greedy[annotation.converter]  # check if the evaluated type is valid
 
         annotations[key] = annotation
     return annotations
