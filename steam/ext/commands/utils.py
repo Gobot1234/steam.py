@@ -26,9 +26,22 @@ SOFTWARE.
 
 import importlib
 import typing
-from typing import TYPE_CHECKING, Any, Deque, Dict, ForwardRef, Generator, Generic, Optional, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Deque,
+    Dict,
+    ForwardRef,
+    Generator,
+    Generic,
+    _GenericAlias,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 
-from typing_extensions import get_args, get_origin
+from typing_extensions import get_origin
 
 from .converters import Greedy
 
@@ -145,6 +158,9 @@ class Shlex:
             yield token
 
 
+# various typing related functions
+
+
 def reload_module_with_TYPE_CHECKING(module: "ModuleType") -> None:
     """Reload a module with typing.TYPE_CHECKING set to ``True``.
 
@@ -171,6 +187,18 @@ def reload_module_with_TYPE_CHECKING(module: "ModuleType") -> None:
     typing.TYPE_CHECKING = False
 
 
+def _eval_type(type: Any, globals: Dict[str, Any]) -> tuple:
+    """Evaluate all forward reverences in the given type."""
+    if isinstance(type, str):
+        type = ForwardRef(type)
+    if isinstance(type, ForwardRef):
+        return type._evaluate(globals, {})
+    if isinstance(type, _GenericAlias):
+        args = tuple(_eval_type(arg, globals) for arg in type.__args__)
+        return args
+    return type
+
+
 def update_type_hints(annotations: Dict[str, Any], globals: Dict[str, Any]) -> Dict[str, Any]:
     """A helper function loosely based off of typing's implementation of :meth:`typing.get_type_hints`.
 
@@ -183,14 +211,7 @@ def update_type_hints(annotations: Dict[str, Any], globals: Dict[str, Any]) -> D
 
         origin = get_origin(annotation)
         if origin is not None:
-
-            args = list(get_args(annotation))
-            for idx, arg in enumerate(args):
-                if isinstance(arg, (str, ForwardRef)):
-                    arg = update_type_hints({0: arg}, globals)[0]
-                args[idx] = arg
-
-            annotation.__args__ = tuple(args)
+            annotation.__args__ = _eval_type(annotation, globals)
 
             if origin is Greedy:
                 annotation.converter = annotation.__args__[0]  # update the old converter
