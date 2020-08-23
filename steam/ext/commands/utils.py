@@ -34,10 +34,10 @@ from typing import (
     ForwardRef,
     Generator,
     Generic,
-    _GenericAlias,
     Optional,
     TypeVar,
     Union,
+    _GenericAlias,
     overload,
 )
 
@@ -99,7 +99,7 @@ _QUOTES = tuple('"')
 def _end_of_quote_finder(instream: str, location: int) -> int:
     end_of_quote_index = instream.find('"', location)
     if end_of_quote_index == -1:
-        raise ValueError(f"No closing quotation found")
+        raise ValueError(f"No closing quotation found after the character at position {location}")
     if instream[end_of_quote_index - 1] == "\\":  # quote is escaped carry on searching
         return _end_of_quote_finder(instream, end_of_quote_index + 1)
     return end_of_quote_index
@@ -113,7 +113,7 @@ class Shlex:
     __slots__ = ("instream", "position", "_undo_pushback")
 
     def __init__(self, instream: str):
-        self.instream = instream.replace("‘", '"').replace("’", '"').replace("“", '"').replace("”", '"')
+        self.instream = instream.replace("‘", '"').replace("’", '"').replace("“", '"').replace("”", '"').strip()
         self.position = 0
         self._undo_pushback: Deque[int] = Deque()
 
@@ -195,20 +195,18 @@ def _eval_type(type: Any, globals: Dict[str, Any]) -> tuple:
         return type._evaluate(globals, {})
     if isinstance(type, _GenericAlias):
         args = tuple(_eval_type(arg, globals) for arg in type.__args__)
-        return args
+        return get_origin(type)[args]
     return type
 
 
-def update_type_hints(annotations: Dict[str, Any], globals: Dict[str, Any]) -> Dict[str, Any]:
+def update_annotations(annotations: Dict[str, Any], globals: Dict[str, Any]) -> Dict[str, Any]:
     """A helper function loosely based off of typing's implementation of :meth:`typing.get_type_hints`.
 
     Main purpose of this is for evaluating postponed annotations (type hints in quotes) for more info see :pep:`563`/
     https://www.python.org/dev/peps/pep-0563
     """
     for key, annotation in annotations.items():
-        if isinstance(annotation, ForwardRef):
-            annotation = annotation._evaluate(globals, {})
-
+        annotation = _eval_type(annotation, globals)
         origin = get_origin(annotation)
         if origin is not None:
             annotation.__args__ = _eval_type(annotation, globals)

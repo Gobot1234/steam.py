@@ -58,7 +58,7 @@ from ...utils import cached_property
 from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import BadArgument, CheckFailure, MissingRequiredArgument, NotOwner
-from .utils import CaseInsensitiveDict, update_type_hints, reload_module_with_TYPE_CHECKING
+from .utils import CaseInsensitiveDict, reload_module_with_TYPE_CHECKING, update_annotations
 
 if TYPE_CHECKING:
     from .bot import CommandFunctionType
@@ -105,6 +105,7 @@ class Command:
             help_doc = inspect.getdoc(func)
             if isinstance(help_doc, bytes):
                 help_doc = help_doc.decode("utf-8")
+        self.help: Optional[str] = help_doc
 
         try:
             checks = func.__commands_checks__
@@ -121,7 +122,6 @@ class Command:
         finally:
             self.cooldown: List[Cooldown] = cooldown
 
-        self.help: Optional[str] = help_doc
         self.enabled = kwargs.get("enabled", True)
         self.brief: Optional[str] = kwargs.get("brief")
         self.usage: Optional[str] = kwargs.get("usage")
@@ -147,14 +147,13 @@ class Command:
 
         func = function.__func__ if isinstance(function, MethodType) else function
         module = sys.modules[function.__module__]
-        globals = module.__dict__
 
         try:
-            annotations = update_type_hints(func.__annotations__, globals)
+            annotations = update_annotations(func.__annotations__, module.__dict__)
         except NameError as exc:
             reload_module_with_TYPE_CHECKING(module)
             try:
-                annotations = update_type_hints(func.__annotations__, globals)
+                annotations = update_annotations(func.__annotations__, module.__dict__)
             except NameError:
                 raise exc from None
 
