@@ -283,7 +283,7 @@ class Greedy(Generic[T]):
             or not isinstance(converter, (Converter, str))
             and not callable(converter)
         ):
-            raise TypeError(f"Cannot type-hint Greedy with class {converter!r}")
+            raise TypeError(f"Cannot type-hint Greedy with {converter!r}")
         annotation = super().__class_getitem__(converter)
         annotation.converter = converter
         return annotation
