@@ -434,9 +434,7 @@ class EPersonaStateFlag(IntEnum):
         value = 0
         for f in flags:
             value |= f
-        if value != flag:
-            return []
-        return flags
+        return flags if value == flag else []
 
 
 class ECommunityVisibilityState(IntEnum):
