@@ -57,6 +57,9 @@ setup(
         "steam.protobufs",
         "steam.ext.commands",
     ],
+    package_data={
+      'steam': ['*.pyi', 'py.typed'],
+    },
     license="MIT",
     description="A Python wrapper for the Steam API",
     long_description=README,
