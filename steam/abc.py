@@ -34,7 +34,7 @@ import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, SupportsInt, Tuple, Union, overload
 
-from typing_extensions import Final
+from typing_extensions import Final, Literal
 
 from .badge import UserBadges
 from .comment import Comment
@@ -79,6 +79,26 @@ __all__ = (
     "SteamID",
     "Message",
 )
+
+# fmt: off
+# not sure if this a PyCharm issue but it appears that these aren't correctly recognised here
+IntOrStr = Union[int, str]
+ETypeType = Union[
+    EType,
+    Literal[
+        "Invalid", "Individual",
+        "Multiseat", "GameServer",
+        "AnonGameServer", "Pending",
+        "ContentServer", "Clan",
+        "Chat", "ConsoleUser",
+        "AnonUser", "Max",
+        0, 1, 2, 3, 4, 5, 6,
+        7, 8, 9, 10, 11,
+    ],
+]
+EUniverseType = Union[EUniverse, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6,]]
+InstanceType = Literal[0, 1]
+# fmt: on
 
 
 class SteamID(metaclass=abc.ABCMeta):
