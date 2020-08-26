@@ -4,6 +4,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
+Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -305,9 +306,11 @@ class GCMsgHdr:
         return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
 
     def parse(self, data):
-        (self.header_version, self.target_job_id, self.source_job_id,) = struct.unpack_from(
-            "<Hqq", data
-        )
+        (
+            self.header_version,
+            self.target_job_id,
+            self.source_job_id,
+        ) = struct.unpack_from("<Hqq", data)
 
 
 class GCMsgHdrProto:

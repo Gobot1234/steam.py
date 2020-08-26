@@ -799,8 +799,8 @@ class CChatRoomSetSessionActiveChatRoomGroupsResponse(betterproto.Message):
 @dataclass
 class CChatRoomSetUserChatGroupPreferencesRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
-    chat_group_preferences: "CChatRoomSetUserChatGroupPreferencesRequestChatGroupPreferences" = betterproto.message_field(
-        2
+    chat_group_preferences: "CChatRoomSetUserChatGroupPreferencesRequestChatGroupPreferences" = (
+        betterproto.message_field(2)
     )
     chat_room_preferences: List[
         "CChatRoomSetUserChatGroupPreferencesRequestChatRoomPreferences"
@@ -1075,8 +1075,8 @@ class CChatUsabilityClientUsabilityMetricsNotificationUiState(betterproto.Messag
     friend_chat_tabs_opened: int = betterproto.int32_field(9)
     chat_window_width: int = betterproto.int32_field(10)
     chat_window_height: int = betterproto.int32_field(11)
-    category_collapse: "CChatUsabilityClientUsabilityMetricsNotificationUiStateCategoryCollapseState" = betterproto.message_field(
-        12
+    category_collapse: "CChatUsabilityClientUsabilityMetricsNotificationUiStateCategoryCollapseState" = (
+        betterproto.message_field(12)
     )
     group_chat_left_col_collapsed: int = betterproto.int32_field(13)
     group_chat_right_col_collapsed: int = betterproto.int32_field(14)
