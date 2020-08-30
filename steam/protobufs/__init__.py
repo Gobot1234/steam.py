@@ -45,7 +45,8 @@ GetProtoType = Optional[Type[betterproto.Message]]
 
 def _Message__bool__(self: betterproto.Message):
     for field in dataclasses.fields(self):
-        return getattr(self, field.name)
+        if getattr(self, field.name):
+            return True
 
     return False
 
