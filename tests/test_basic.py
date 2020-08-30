@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+"""A basic integration test"""
+
 import pytest
 
 import steam
