@@ -49,6 +49,4 @@ version_info = VersionInfo(major=0, minor=4, micro=0, releaselevel="alpha")
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 # not for export
-del logging
-del NamedTuple
-del VersionInfo
+del logging, NamedTuple, VersionInfo
