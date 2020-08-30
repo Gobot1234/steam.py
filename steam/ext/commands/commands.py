@@ -239,21 +239,37 @@ class Command:
             try:
                 next(iterator)
             except StopIteration:
-                raise ClientException(f'Callback for {self.name} command is missing "self" parameter.')
+                raise ClientException(f'Callback for {self.name} command is missing a "self" parameter.')
 
         # next we have the 'ctx' as the next parameter
         try:
             next(iterator)
         except StopIteration:
-            raise ClientException(f'Callback for {self.name} command is missing "ctx" parameter.')
+            raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.')
+
         for name, param in iterator:
+            name: str
+            param: inspect.Parameter
+
             if param.kind == param.POSITIONAL_OR_KEYWORD:
-                argument = shlex.read()
-                if argument is None:
-                    transformed = await self._get_default(ctx, param)
-                else:
-                    transformed = await self._transform(ctx, param, argument)
-                args.append(transformed)
+                greedy_args = []
+                while 1:
+                    argument = shlex.read()
+                    if argument is None:
+                        transformed = await self._get_default(ctx, param)
+                    else:
+                        try:
+                            transformed = await self._transform(ctx, param, argument)
+                        except BadArgument:
+                            if param.annotation is not converters.Greedy:
+                                raise
+                            shlex.undo()  # undo last read ready for next the next argument
+                            args.append(tuple(greedy_args))
+                            break
+                    if locals().get('origin') is not converters.Greedy:
+                        args.append(transformed)
+                        break
+                    greedy_args.append(transformed)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
                 arg = " ".join(shlex)
@@ -265,6 +281,7 @@ class Command:
             elif param.kind == param.VAR_KEYWORD:
                 # same as **kwargs
                 arguments = list(shlex)
+                # TODO make injection way better, ie so you dont have to [] it to get dict values
                 if not arguments:
                     kwargs[name] = await self._get_default(ctx, param)
                     break
@@ -273,16 +290,16 @@ class Command:
                 if annotation is param.empty or annotation is dict:
                     annotation = Dict[str, str]  # default to {str: str}
 
-                key, value = get_args(annotation)
-                key_converter = self._get_converter(key)
-                value_converter = self._get_converter(value)
+                key_type, value_type = get_args(annotation)
+                key_converter = self._get_converter(key_type)
+                value_converter = self._get_converter(value_type)
 
                 kv_pairs = [arg.split("=") for arg in arguments]
                 kwargs[name] = {
-                    await self._convert(ctx, key_converter, key.strip()): await self._convert(
-                        ctx, value_converter, value.strip()
+                    await self._convert(ctx, key_converter, param, key_type.strip()): await self._convert(
+                        ctx, value_converter, param, value_type.strip()
                     )
-                    for (key, value) in kv_pairs
+                    for key_type, value_type in kv_pairs
                 }
                 break
 
@@ -295,60 +312,86 @@ class Command:
         ctx.args = tuple(args)
         ctx.kwargs = kwargs
 
-    def _transform(self, ctx, param: inspect.Parameter, argument: str) -> Awaitable:
+    def _transform(self, ctx: "Context", param: inspect.Parameter, argument: str) -> Awaitable[Any]:
         param_type = param.annotation if param.annotation is not param.empty else str
         converter = self._get_converter(param_type)
-        return self._convert(ctx, converter, argument)
+        return self._convert(ctx, converter, param, argument)
 
     def _get_converter(self, param_type: type) -> Union[converters.Converter, type]:
-        if sys.modules[param_type.__module__] is steam:  # find a converter
-            converter = getattr(converters, f"{param_type.__name__}Converter", None)
-            if converter is None:
-                raise NotImplementedError(f"{param_type.__name__} does not have an associated converter")
-            return converter
+        if get_origin(param_type) is converters.Greedy:
+            return param_type
+        try:
+            module = param_type.__module__
+        except AttributeError:
+            pass
+        else:
+            if module is not None and (module.startswith("steam.") and not module.endswith("converter")):
+                converter = getattr(converters, f"{param_type.__name__}Converter", None)
+                if converter is None:
+                    raise NotImplementedError(f"{param_type.__name__} does not have an associated converter")
+                return converter
         return param_type
 
     async def _convert(
-        self, ctx: "Context", converter: Union[converters.Converter, type, Callable[[str], Any]], argument: str
+        self,
+        ctx: "Context",
+        converter: Union[converters.Converter, type, Callable[[str], Any]],
+        param: inspect.Parameter,
+        argument: str,
     ) -> Any:
         if isinstance(converter, converters.Converter):
             try:
-                if hasattr(converter.convert, "__self__"):  # instance
-                    return await converter.convert(ctx, argument)
-                else:
-                    return await converter.convert(converter, ctx, argument)
+                converter = converter() if callable(converter) else converter
+                return await converter.convert(ctx, argument)
             except Exception as exc:
-                raise BadArgument(f"{argument} failed to convert to {converter.__name__}") from exc
+                try:
+                    name = converter.__name__
+                except AttributeError:
+                    name = converter.__class__.__name__
+                raise BadArgument(f"{argument} failed to convert to {name}") from exc
         else:
             if converter is bool:
                 return to_bool(argument)
             origin = get_origin(converter)
-            if origin is not None:  # TODO add Literal converter and proper support for Optionals
-                for converter in get_args(converter):
-                    if converter is type(None):
-                        raise BadArgument(f"Failed to convert {argument} to anything")  # don't think this is possible?
+            if origin is not None:
+                for arg in get_args(converter):
+                    converter = self._get_converter(arg)
                     try:
-                        return converter(argument)
-                    except TypeError as exc:
-                        raise BadArgument(f"{argument} failed to convert to {converter.__name__}") from exc
+                        return await self._convert(ctx, converter, argument)
+                    except BadArgument:
+                        if origin is Union:
+                            continue
+                        raise
+                else:
+                    if origin is Union and type(None) in get_args(converter):  # typing.Optional
+                        try:
+                            return self._get_default(ctx, param)  # get the default if possible
+                        except MissingRequiredArgument:
+                            return None  # fall back to None
+                    raise BadArgument(f'Failed to parse {argument} to any type')
 
             try:
                 return converter(argument)
-            except TypeError as exc:
-                raise BadArgument(f"{argument} failed to convert to {converter.__name__}") from exc
+            except Exception as exc:
+                try:
+                    name = converter.__name__
+                except AttributeError:
+                    name = converter.__class__.__name__
+                raise BadArgument(f"{argument!r} failed to convert to {name}") from exc
 
     async def _get_default(self, ctx: "Context", param: inspect.Parameter) -> Any:
         if param.default is param.empty:
             raise MissingRequiredArgument(param)
         if isinstance(param.default, converters.Default):
-            default = param.default.default
             try:
-                if hasattr(default, "__self__"):  # instance
-                    return await default(ctx)
-                else:
-                    return await default(param.default, ctx)
+                default = param.default() if callable(param.default) else param.default
+                return await default.default(ctx)
             except Exception as exc:
-                raise BadArgument(f"{param.default.__name__} failed to return a default argument") from exc
+                try:
+                    name = param.default.__name__
+                except AttributeError:
+                    name = param.default.__class__.__name__
+                raise BadArgument(f"{name} failed to return a default argument") from exc
         return param.default
 
     async def can_run(self, ctx: "Context") -> Literal[True]:
