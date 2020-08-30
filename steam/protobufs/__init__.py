@@ -27,6 +27,7 @@ SOFTWARE.
 This is an updated version of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
 
+import dataclasses
 from typing import Generic, Optional, Type, TypeVar, Union
 
 import betterproto
@@ -43,14 +44,10 @@ GetProtoType = Optional[Type[betterproto.Message]]
 
 
 def _Message__bool__(self: betterproto.Message):
-    return bool(self.to_dict())
-    """
-    for field_name in self._betterproto.meta_by_field_name:
-        if getattr(self, field_name):
-            return True
+    for field in dataclasses.fields(self):
+        return getattr(self, field.name)
 
     return False
-    """
 
 
 betterproto.Message.__bool__ = _Message__bool__
@@ -113,7 +110,7 @@ class MsgBase(Generic[T]):
         if isinstance(self.body, betterproto.Message):
             resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
         else:
-            resolved.append(f"body='!!! Failed To Parse !!!'")
+            resolved.append("body='!!! Failed To Parse !!!'")
         return " ".join(resolved)
 
     def __bytes__(self):
