@@ -62,31 +62,23 @@ class Context(Messageable):
         The cog the command is in.
     """
 
-    def __init__(
-        self,
-        bot: "Bot",
-        message: Message,
-        prefix: str,
-        command: Optional["Command"] = None,
-        shlex: Optional["Shlex"] = None,
-        **attrs,
-    ):
-        self.bot = bot
-        self.message = message
-        self.command = command
-        self.shlex = shlex
-        self.prefix = prefix
-        self.author = message.author
-        self.channel = message.channel
-        self.clan = message.clan
-        self.group = message.group
+    def __init__(self, **attrs):
+        self.bot: "Bot" = attrs.get('bot')
+        self.message: Message = attrs.get('message')
+        self.command: Optional["Command"] = attrs.get('command')
+        self.shlex: Optional["Shlex"] = attrs.get('shlex')
+        self.prefix = attrs.get('prefix')
         self.invoked_with: Optional[str] = attrs.get("invoked_with")
 
-        self._state = message._state
+        self.author = self.message.author
+        self.channel = self.message.channel
+        self.clan = self.message.clan
+        self.group = self.message.group
+        self._state = self.message._state
 
-        if command is not None:
-            self.cog = command.cog
-        self.args: Optional[Tuple] = None
+        if self.command is not None:
+            self.cog = self.command.cog
+        self.args: Optional[Tuple[Any, ...]] = None
         self.kwargs: Optional[Dict[str, Any]] = None
 
     def _get_message_endpoint(self):
