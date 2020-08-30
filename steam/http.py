@@ -61,6 +61,24 @@ async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
 class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
 
+    __slots__ = (
+        "_session",
+        "_client",
+        "username",
+        "password",
+        "api_key",
+        "shared_secret",
+        "_one_time_code",
+        "_email_code",
+        "_captcha_id",
+        "_captcha_text",
+        "_steam_id",
+        "session_id",
+        "user",
+        "logged_in",
+        "user_agent",
+    )
+
     SUCCESS_LOG = "{method} {url} has received {text}"
     REQUEST_LOG = "{method} {url} with {payload} has returned {status}"
 
