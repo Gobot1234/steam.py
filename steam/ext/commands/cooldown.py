@@ -42,6 +42,7 @@ __all__ = (
 
 
 class BucketType(IntEnum):
+    # fmt: off
     Default = 0
     User    = 1
     Member  = 2
@@ -50,6 +51,7 @@ class BucketType(IntEnum):
     Role    = 5
     Channel = 6
     Officer = 7
+    # fmt: on
 
     def get_bucket(self, message_or_context: Union["Message", "Context"]) -> Union[Tuple[int, ...], int]:
         author = message_or_context.author
@@ -65,13 +67,13 @@ class BucketType(IntEnum):
         elif self == BucketType.Group:
             return (group or author).id
         elif self == BucketType.Role:
-            return
+            raise NotImplementedError
         elif self == BucketType.Clan:
             return (clan or author).id
         elif self == BucketType.Channel:
             return (channel or author).id
         elif self == BucketType.Officer:
-            return
+            raise NotImplementedError
 
 
 class Cooldown:

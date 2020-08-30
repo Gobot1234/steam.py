@@ -31,7 +31,7 @@ from typing import List
 
 import pytest
 
-from steam import EType, EUniverse, SteamID
+from steam import EType, EUniverse, SteamID, InvalidSteamID
 
 
 def create_id64(id: int, type: int, universe: int, instance: int) -> int:
@@ -84,28 +84,28 @@ def test_arg_steam64():
 
 
 def test_arg_steam64_invalid_universe():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSteamID):
         SteamID(create_id64(1, 1, 255, 1))
 
 
 def test_arg_steam64_invalid_type():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSteamID):
         SteamID(create_id64(1, 15, 1, 1))
 
 
 def test_arg_text_invalid():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSteamID):
         SteamID("invalid_format")
 
 
 def test_arg_too_large_invalid():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSteamID):
         SteamID(111111111111111111111111111111111111111)
         SteamID("1111111111111111111111111111111111111")
 
 
 def test_too_small():
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSteamID):
         SteamID(-50)
         SteamID(id=-50)
 
@@ -116,9 +116,9 @@ def test_kwarg_id():
 
 
 def test_kwarg_type():
-    with pytest.raises(KeyError):
+    with pytest.raises(InvalidSteamID):
         SteamID(id=5, type="doesn't exist")
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSteamID):
         SteamID(id=5, type=99999999)
 
     assert SteamID(id=5, type=1).type == EType.Individual
@@ -127,9 +127,9 @@ def test_kwarg_type():
 
 
 def test_kwarg_universe():
-    with pytest.raises(KeyError):
+    with pytest.raises(InvalidSteamID):
         SteamID(id=5, universe="doesn't exist")
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidSteamID):
         SteamID(id=5, universe=99999999)
 
     assert SteamID(id=5, universe=1).universe == EUniverse.Public
@@ -153,8 +153,24 @@ def test_kwargs_invalid():
 
     compare(SteamID(), invalid)
     compare(SteamID(id=0, type=0, universe=0, instance=0), invalid)
-    compare(SteamID(id=0, type=EType.Invalid, universe=EUniverse.Invalid, instance=0,), invalid)
-    compare(SteamID(id=0, type="Invalid", universe="Invalid", instance=0,), invalid)
+    compare(
+        SteamID(
+            id=0,
+            type=EType.Invalid,
+            universe=EUniverse.Invalid,
+            instance=0,
+        ),
+        invalid,
+    )
+    compare(
+        SteamID(
+            id=0,
+            type="Invalid",
+            universe="Invalid",
+            instance=0,
+        ),
+        invalid,
+    )
 
 
 def test_is_valid():

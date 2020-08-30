@@ -63,11 +63,11 @@ class Context(Messageable):
     """
 
     def __init__(self, **attrs):
-        self.bot: "Bot" = attrs.get('bot')
-        self.message: Message = attrs.get('message')
-        self.command: Optional["Command"] = attrs.get('command')
-        self.shlex: Optional["Shlex"] = attrs.get('shlex')
-        self.prefix = attrs.get('prefix')
+        self.bot: "Bot" = attrs.get("bot")
+        self.message: Message = attrs.get("message")
+        self.command: Optional["Command"] = attrs.get("command")
+        self.shlex: Optional["Shlex"] = attrs.get("shlex")
+        self.prefix = attrs.get("prefix")
         self.invoked_with: Optional[str] = attrs.get("invoked_with")
 
         self.author = self.message.author

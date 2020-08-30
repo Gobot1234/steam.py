@@ -205,12 +205,12 @@ def make_id64(*args, **kwargs) -> int:
         return 0
     try:
         type = EType(type) if isinstance(type, int) else EType[type]
-    except KeyError:
-        raise InvalidSteamID(id, f"{type} is not a valid EType") from None
+    except (KeyError, ValueError):
+        raise InvalidSteamID(id, f"{type!r} is not a valid EType") from None
     try:
         universe = EUniverse(universe) if isinstance(universe, int) else EUniverse[universe]
-    except KeyError:
-        raise InvalidSteamID(id, f"{type} is not a valid EUniverse") from None
+    except (KeyError, ValueError):
+        raise InvalidSteamID(id, f"{type!r} is not a valid EUniverse") from None
 
     if instance is None:
         instance = 1 if type in (EType.Individual, EType.GameServer) else 0

@@ -266,7 +266,7 @@ class Command:
                             shlex.undo()  # undo last read ready for next the next argument
                             args.append(tuple(greedy_args))
                             break
-                    if locals().get('origin') is not converters.Greedy:
+                    if locals().get("origin") is not converters.Greedy:
                         args.append(transformed)
                         break
                     greedy_args.append(transformed)
@@ -368,7 +368,7 @@ class Command:
                             return self._get_default(ctx, param)  # get the default if possible
                         except MissingRequiredArgument:
                             return None  # fall back to None
-                    raise BadArgument(f'Failed to parse {argument} to any type')
+                    raise BadArgument(f"Failed to parse {argument} to any type")
 
             try:
                 return converter(argument)
@@ -546,8 +546,7 @@ def command(
     Parameters
     ----------
     name: :class:`str`
-        The name of the command.
-        Will default to ``func.__name__``.
+        The name of the command. Will default to ``func.__name__``.
     cls: Type[:class:`Command`]
         The class to construct the command from. Defaults to :class:`Command`.
     **attrs:

@@ -305,8 +305,8 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                     if not self._active_only:
                         self.queue.put_nowait(trade)
                     elif self._active_only and trade.state in (
-                            ETradeOfferState.Active,
-                            ETradeOfferState.ConfirmationNeed,
+                        ETradeOfferState.Active,
+                        ETradeOfferState.ConfirmationNeed,
                     ):
                         self.queue.put_nowait(trade)
 
