@@ -45,7 +45,7 @@ class HelpCommand(Command):
         self.context: Optional["Context"] = None
         self.cog: Optional["Cog"]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<default help-command>"
 
     def _get_doc(self, command: "Command") -> str:
@@ -64,7 +64,7 @@ class HelpCommand(Command):
         finally:
             self.cog = original_cog
 
-    async def command_callback(self, ctx: Context, *, content: Optional[str] = None) -> None:
+    async def command_callback(self, ctx: Context, *, content: str = None) -> None:
         """The actual implementation of the help command."""
         self.context = ctx
         bot = ctx.bot
