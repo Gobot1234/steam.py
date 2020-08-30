@@ -105,7 +105,7 @@ class AsyncIterator(_AsyncIterator[T]):
             matching element was found.
         """
 
-        def predicate(elem):
+        def predicate(elem: List[T]) -> bool:
             for attr, val in attrs.items():
                 nested = attr.split("__")
                 obj = elem

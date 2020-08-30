@@ -392,7 +392,7 @@ class Bot(GroupMixin, Client):
             The name of the event to listen for. Will default to ``func.__name__``.
         """
 
-        def decorator(func: "EventType"):
+        def decorator(func: "EventType") -> "EventType":
             self.add_listener(func, name)
             return func
 

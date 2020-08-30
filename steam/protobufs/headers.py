@@ -6,30 +6,30 @@ The MIT License (MIT)
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
 
-Permission is hereby granted, free of charge, to any person obtaining a
-copy of this software and associated documentation files (the "Software"),
-to deal in the Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute, sublicense,
-and/or sell copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 This is an updated copy of
 https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 """
 
 import struct
-from typing import Union
+from typing import Optional, Union
 
 from stringcase import snakecase
 
@@ -82,7 +82,7 @@ class MsgHdr:
     def __bytes__(self):
         return struct.pack("<Iqq", self.msg, self.job_id_target, self.job_id_source)
 
-    def parse(self, data: bytes):
+    def parse(self, data: bytes) -> None:
         """Parse the header.
 
         Parameters
@@ -158,7 +158,7 @@ class ExtendedMsgHdr:
             self.session_id,
         )
 
-    def parse(self, data: bytes):
+    def parse(self, data: bytes) -> None:
         """Parse the header.
 
         Parameters
@@ -286,7 +286,7 @@ class GCMsgHdr:
     __slots__ = ("msg", "body", "header_version", "target_job_id", "source_job_id")
     SIZE = 18
 
-    def __init__(self, msg, data=None):
+    def __init__(self, msg: int, data: Optional[bytes] = None):
         self.msg = clear_proto_bit(msg)
         self.body = None
         self.header_version = 1
@@ -317,7 +317,7 @@ class GCMsgHdrProto:
     __slots__ = ("msg", "body", "header_length")
     SIZE = 8
 
-    def __init__(self, msg, data=None):
+    def __init__(self, msg: int, data: Optional[bytes] = None):
         self.msg = EMsg.try_value(clear_proto_bit(msg))
         self.body = foobar.CMsgProtoBufHeader()
         self.header_length = 0
@@ -336,7 +336,7 @@ class GCMsgHdrProto:
         self.header_length = len(proto_data)
         return struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
 
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         msg, self.header_length = struct.unpack_from("<Ii", data)
 
         self.msg = EMsg(clear_proto_bit(msg))

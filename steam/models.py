@@ -115,4 +115,4 @@ class Permissions:
         self.change_group_roles = proto.can_change_group_roles
         self.change_user_roles = proto.can_change_user_roles
         self.mention_all = proto.can_mention_all
-        self.set_watching_broadcast = proto.can_set_watching_broadcast  # or this
+        self.set_watching_broadcast = proto.can_set_watching_broadcast

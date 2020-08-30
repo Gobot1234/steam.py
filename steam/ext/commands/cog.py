@@ -62,12 +62,10 @@ class InjectedListener:
 
 # for a bit of type hinting
 class ExtensionType(ModuleType):
-    @staticmethod
-    def setup(bot: "Bot") -> None:
+    def setup(self, bot: "Bot") -> None:
         pass
 
-    @staticmethod
-    def teardown(bot: "Bot") -> None:
+    def teardown(self, bot: "Bot") -> None:
         pass
 
 
@@ -139,8 +137,7 @@ class Cog:
         Parameters
         ----------
         name: Optional[:class:`str`]
-            The name of the event to listen for.
-            Defaults to ``func.__name__``.
+            The name of the event to listen for. Defaults to ``func.__name__``.
         """
 
         def decorator(func: "EventType"):
@@ -153,10 +150,8 @@ class Cog:
 
     async def cog_command_error(self, ctx: "commands.Context", error: Exception):
         """|coro|
-        A special method that is called when an error
-        is dispatched inside this cog. This is similar to
-        :func:`~commands.Bot.on_command_error` except only applying
-        to the commands inside this cog.
+        A special method that is called when an error is dispatched inside this cog. This is similar to
+        :func:`~commands.Bot.on_command_error` except it only applies to the commands inside this cog.
 
         Parameters
         -----------
@@ -170,8 +165,7 @@ class Cog:
 
     async def cog_check(self, ctx: "commands.Context"):
         """|coro|
-        A special method that registers as a :func:`commands.check`
-        for every command and subcommand in this cog.
+        A special method that registers as a :func:`commands.check` for every command and subcommand in this cog.
         This should return a boolean result.
 
         Parameters
