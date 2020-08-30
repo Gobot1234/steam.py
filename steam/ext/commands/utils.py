@@ -26,6 +26,7 @@ SOFTWARE.
 
 import importlib
 import typing
+from collections import deque
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -113,27 +114,31 @@ def _end_of_quote_finder(instream: str, location: int) -> int:
 
 class Shlex:
     """A simple lexical analyser.
-    This should be a more pythonic version of :class:`shlex.shlex` in posix mode.
+    This should be a simpler and faster version of :class:`shlex.shlex` in posix mode.
     """
 
-    __slots__ = ("instream", "position", "_undo_pushback")
+    __slots__ = ("in_stream", "position", "end", "_undo_pushback")
 
-    def __init__(self, instream: str):
-        self.instream = instream.replace("‘", '"').replace("’", '"').replace("“", '"').replace("”", '"').strip()
+    def __init__(self, in_stream: str):
+        self.in_stream = in_stream.replace("‘", '"').replace("’", '"').replace("“", '"').replace("”", '"').strip()
         self.position = 0
-        self._undo_pushback: Deque[int] = Deque()
+        self.end = len(in_stream)
+        self._undo_pushback: Deque[int] = deque()
 
-    def read(self) -> str:
+    def read(self) -> Optional[str]:
+        if self.position >= self.end:
+            return None
         token = []
-        for char in self.instream[self.position :]:
+        start = self.position
+        for char in self.in_stream[self.position :]:
             self.position += 1
             if char in _WHITE_SPACE:
                 break
             if char in _QUOTES:
                 before = self.position
-                if self.instream[before - 2] != "\\":  # quote is escaped carry on searching
-                    end_of_quote = _end_of_quote_finder(self.instream, before)
-                    token = f'"{self.instream[before : end_of_quote]}"'
+                if self.in_stream[before - 2] != "\\":  # quote is escaped carry on searching
+                    end_of_quote = _end_of_quote_finder(self.in_stream, before)
+                    token = f'"{self.in_stream[before: end_of_quote]}"'
                     self.position = end_of_quote + 1
                     break
                 token.pop()
@@ -141,27 +146,30 @@ class Shlex:
             token.append(char)
 
         token = "".join(token)
-        if token:
-            self._undo_pushback.append(len(token))
+        self._undo_pushback.append(start)
         if token[-1:] == '"' and token[:1] == '"':
             token = token[1:-1]
-        return token
+        return token.strip()
 
     def undo(self) -> None:
-        self.position -= self._undo_pushback.pop()
+        self.position = self._undo_pushback.pop()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = (
-            "instream",
+            "in_stream",
             "position",
+            "end",
         )
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Shlex {' '.join(resolved)}>"
 
     def __iter__(self) -> Generator[str, None, None]:
-        while self.position < len(self.instream):
+        while 1:
             token = self.read()
-            yield token
+            if token is not None:
+                yield token
+            else:
+                break
 
 
 # various typing related functions
