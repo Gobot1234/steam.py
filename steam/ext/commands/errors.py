@@ -77,7 +77,7 @@ class MissingRequiredArgument(CommandError):
 
     def __init__(self, param: "Parameter"):
         self.param = param
-        super().__init__(f"{param.name} is a required argument that is missing.")
+        super().__init__(f"{param.name!r} is a required argument that is missing.")
 
 
 class CheckFailure(CommandError):
