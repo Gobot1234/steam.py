@@ -33,7 +33,7 @@ Or for the development version.
 ```sh
 git clone https://github.com/Gobot1234/steam.py
 cd steam.py
-python3 -m pip install -U .
+python3 -m pip install -U ".[dev]"
 ```
 
 Quick Example
