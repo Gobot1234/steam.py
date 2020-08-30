@@ -54,7 +54,6 @@ from typing_extensions import Literal, get_args, get_origin
 import steam
 
 from ...errors import ClientException
-from ...utils import cached_property
 from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import BadArgument, CheckFailure, MissingRequiredArgument, NotOwner
@@ -165,12 +164,18 @@ class Command:
         self.module = module
         self._callback = function
 
-    @cached_property
+    @property
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
         params = self.params.copy()
-        if self.cog:
-            params.popitem(last=False)  # cog's "self" param
-        params.popitem(last=False)  # context param
+        if self.cog is not None:
+            try:
+                params.popitem(last=False)  # cog's "self" param
+            except ValueError:
+                raise ClientException(f'Callback for {self.name} command is missing a "self" parameter.') from None
+        try:
+            params.popitem(last=False)  # context param
+        except ValueError:
+            raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
         return params
 
     @property
