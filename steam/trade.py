@@ -148,14 +148,12 @@ class Item(Asset):
         "icon_url",
         "display_name",
         "descriptions",
-        "_state",
         "_is_tradable",
         "_is_marketable",
     )
 
-    def __init__(self, state: "ConnectionState", data: dict):
+    def __init__(self, data: dict):
         super().__init__(data)
-        self._state = state
         self._from_data(data)
 
     def __repr__(self):
@@ -255,7 +253,7 @@ class Inventory:
                 for item in data["descriptions"]:
                     if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                         item.update(asset)
-                        self.items.append(Item(state=self._state, data=item))
+                        self.items.append(Item(data=item))
                         found = True
                 if not found:
                     self.items.append(Asset(data=asset))
@@ -416,8 +414,8 @@ class TradeOffer:
         self.expires = datetime.utcfromtimestamp(expires) if expires else None
         self.escrow = datetime.utcfromtimestamp(escrow) if escrow else None
         self.state = ETradeOfferState(data.get("trade_offer_state", 1))
-        self.items_to_send = [Item(state=self._state, data=item) for item in data.get("items_to_give", [])]
-        self.items_to_receive = [Item(state=self._state, data=item) for item in data.get("items_to_receive", [])]
+        self.items_to_send = [Item(data=item) for item in data.get("items_to_give", [])]
+        self.items_to_receive = [Item(data=item) for item in data.get("items_to_receive", [])]
         self._is_our_offer = data.get("is_our_offer", False)
 
     def __eq__(self, other):
