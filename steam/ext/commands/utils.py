@@ -42,7 +42,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import get_origin
+from typing_extensions import get_args, get_origin
 
 from .converters import Greedy
 
@@ -208,7 +208,7 @@ def _eval_type(type: Any, globals: Dict[str, Any]) -> Any:
     if isinstance(type, ForwardRef):
         return type._evaluate(globals, {})
     if isinstance(type, _GenericAlias):
-        args = tuple(_eval_type(arg, globals) for arg in type.__args__)
+        args = tuple(_eval_type(arg, globals) for arg in get_args(type))
         return get_origin(type)[args]
     return type
 
