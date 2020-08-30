@@ -87,6 +87,12 @@ class EventListener(NamedTuple):
     future: asyncio.Future
 
 
+class CMInfo(NamedTuple):
+    url: str
+    status: int  # CMServerList.GOOD/BAD
+    score: float
+
+
 class ConnectionClosed(Exception):
     def __init__(self, cm: str, cms: "CMServerList"):
         self.cm = cm
@@ -101,39 +107,42 @@ class WebSocketClosure(Exception):
 class CMServerList(AsyncIterator[str]):
     GOOD = 1
     BAD = 2
-    __slots__ = ("dict", "cell_id", "best_cms", "_state")
+    __slots__ = ("cms", "cell_id", "_state")
 
     def __init__(self, state: "ConnectionState", first_cm_to_try: str):
         super().__init__(state, None, None, None)
-        self.dict: Dict[str, Tuple[int, float]] = dict()
-        self.best_cms: List[Tuple[str, float]] = []
+        self.cms: List[CMInfo] = []
         self.cell_id = 0
         if first_cm_to_try is not None:
             self.queue.put_nowait(first_cm_to_try)
 
-    def __len__(self):
-        return len(self.dict)
+    def __len__(self) -> int:
+        return len(self.cms)
+
+    @property
+    def best_cms(self) -> "asyncio.Task[CMInfo]":
+        good_servers = [cm for cm in self.cms if cm.status == self.GOOD]
+
+        if not good_servers:
+            log.debug("No good servers left. Resetting...")
+            self.reset_all()
+            self._state.loop.create_task(self.fill())
+            return self.best_cms
+
+        random.shuffle(good_servers)
+        return self._state.loop.create_task(self.ping_cms(good_servers))
 
     async def fill(self) -> None:
         if not await self.fetch_servers_from_api():
             raise NoCMsFound("No Community Managers could be found to connect to")
 
-        good_servers = [k for (k, v) in self.dict.items() if v[0] == self.GOOD]
-
-        if len(good_servers) == 0:
-            log.debug("No good servers left. Resetting...")
-            self.reset_all()
-            return await self.fill()
-
-        random.shuffle(good_servers)
-        await self.ping_cms(good_servers)
-        for server_address, _ in self.best_cms:
-            self.queue.put_nowait(server_address)
+        for cm in await self.best_cms:
+            self.queue.put_nowait(cm.url)
 
     def clear(self) -> None:
-        if self.dict:
+        if self.cms:
             log.debug("List cleared.")
-        self.dict.clear()
+        self.cms = []
 
     async def fetch_servers_from_api(self, cell_id: int = 0) -> bool:
         log.debug("Attempting to fetch servers from the WebAPI")
@@ -160,43 +169,44 @@ class CMServerList(AsyncIterator[str]):
 
     def reset_all(self) -> None:
         log.debug("Marking all CM servers as Good.")
-        for server in self.dict:
-            self.mark_good(server)
-        self.best_cms = []
+        for cm in self.cms:
+            self.mark_good(cm.url)
 
-    def mark_good(self, server: str, score: float = 0.0) -> None:
-        self.dict[server] = self.GOOD, score
+    def mark_good(self, url: str, score: float = 0.0) -> None:
+        self.cms.append(CMInfo(url, self.GOOD, score))
 
-    def mark_bad(self, server: str) -> None:
-        self.dict[server] = self.BAD, 0.0
+    def mark_bad(self, url: str) -> None:
+        self.cms.append(CMInfo(url, self.BAD, 0.0))
 
     def merge_list(self, hosts: List[str]) -> None:
         total = len(self)
+        urls = [cm.url for cm in self.cms]
         for host in hosts:
-            if host not in self.dict:
+            if host not in urls:
                 self.mark_good(host)
         if len(self) > total:
             log.debug(f"Added {len(self) - total} new CM server addresses.")
 
-    async def ping_cms(self, hosts: Optional[List[str]] = None, to_ping: int = 10) -> None:
-        hosts = list(self.dict.keys()) if hosts is None else hosts
-        for host in hosts[:to_ping]:
+    async def ping_cms(self, cms: Optional[List[CMInfo]] = None, to_ping: int = 10) -> List[CMInfo]:
+        cms = self.cms or cms
+        best_cms = []
+        for cm in cms[:to_ping]:
             # TODO dynamically make sure we get good ones by checking len and stuff
             start = time.perf_counter()
             try:
-                resp = await self._state.http._session.get(f"https://{host}/cmping/", timeout=5)
+                resp = await self._state.http._session.get(f"https://{cm.url}/cmping/", timeout=5)
                 if resp.status != 200:
-                    self.mark_bad(host)
+                    self.mark_bad(cm.url)
                 load = resp.headers["X-Steam-CMLoad"]
             except (KeyError, asyncio.TimeoutError):
-                self.mark_bad(host)
+                self.mark_bad(cm.url)
             else:
                 latency = time.perf_counter() - start
                 score = (int(load) * 2) + latency
-                self.best_cms.append((host, score))
-                self.mark_good(host, score)
-        self.best_cms = sorted(self.best_cms, key=lambda x: x[1])
+                best_cms.append(cm)
+                self.mark_good(cm.url, score)
         log.debug("Finished pinging CMs")
+        return sorted(best_cms, key=lambda cm: cm.score)
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool
