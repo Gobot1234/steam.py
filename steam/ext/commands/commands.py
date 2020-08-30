@@ -135,6 +135,9 @@ class Command:
             if not isinstance(alias, str):
                 raise TypeError("A commands aliases should be an iterable only containing strings")
 
+    def __str__(self):
+        return self.qualified_name
+
     @property
     def callback(self) -> "CommandFunctionType":
         """The internal callback the command holds."""
