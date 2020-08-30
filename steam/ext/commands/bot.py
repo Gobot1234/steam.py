@@ -58,7 +58,7 @@ from ...client import Client, EventType, log
 from .cog import Cog, ExtensionType, InjectedListener
 from .commands import Command, GroupCommand, GroupMixin
 from .context import Context
-from .errors import CheckFailure, CommandDisabled, CommandNotFound
+from .errors import CheckFailure, CommandDisabled, CommandNotFound, CommandOnCooldown
 from .help import HelpCommand
 from .utils import Shlex
 
@@ -436,26 +436,37 @@ class Bot(GroupMixin, Client):
         ctx: :class:`.Context`
             The invocation context.
         """
-        if not ctx.prefix:
-            return
-        if ctx.command is None:
-            raise CommandNotFound(f"The command {ctx.invoked_with} was not found") from None
-
-        command = ctx.command
-        if not command.enabled:
-            raise CommandDisabled(command)
-
-        self.dispatch("command", ctx)
-
-        for cooldown in command.cooldown:
-            cooldown(ctx)
-        await command._parse_arguments(ctx)
-        if not await command.can_run(ctx):
-            raise CheckFailure("You failed to pass one of the command checks") from None
         try:
-            await command.callback(*ctx.args, **ctx.kwargs)
-        except Exception as exc:
+            if not ctx.prefix:
+                return
+            if ctx.command is None:
+                raise CommandNotFound(f"The command {ctx.invoked_with} was not found")
+
+            command = ctx.command
+
+            if not command.enabled:
+                raise CommandDisabled(command)
+
+            self.dispatch("command", ctx)
+            for cooldown in command.cooldown:
+                cooldown(ctx)
+
+            try:
+                await command._parse_arguments(ctx)
+            except Exception as exc:
+                return await self.on_command_error(ctx, exc)
+
+            if not await command.can_run(ctx):
+                raise CheckFailure("You failed to pass one of the command checks")
+
+            try:
+                await command.callback(*ctx.args, **ctx.kwargs)
+            except Exception as exc:
+                await self.on_command_error(ctx, exc)
+
+        except (CheckFailure, CommandDisabled, CommandOnCooldown) as exc:
             await self.on_command_error(ctx, exc)
+
         else:
             self.dispatch("command_completion", ctx)
 
@@ -519,9 +530,11 @@ class Bot(GroupMixin, Client):
             try:
                 prefixes = tuple(prefixes)
             except TypeError as exc:
-                raise TypeError(f"command_prefix must return an iterable not {type(prefixes)}") from exc
+                raise TypeError(f"command_prefix must return an iterable of strings not {type(prefixes)}") from exc
 
         for prefix in prefixes:
+            if not isinstance(prefix, str):
+                raise TypeError(f"command_prefix must return an iterable of strings not {type(prefix)}")
             if message.content.startswith(prefix):
                 return prefix
         return None

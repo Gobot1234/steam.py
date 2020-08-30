@@ -272,6 +272,8 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         self._active_only = active_only
 
     async def fill(self) -> None:
+        from .trade import TradeOffer
+
         resp = await self._state.http.get_trade_history(100, None)
         resp = resp["response"]
         total = resp.get("total_trades", 0)
@@ -279,40 +281,39 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
             return
 
         descriptions = resp.get("descriptions", [])
-        try:
-            from .trade import TradeOffer
 
-            async def process_trade(data: dict, descriptions: dict):
-                if self.after.timestamp() < data["time_init"] < self.before.timestamp():
-                    for item in descriptions:
-                        for asset in data.get("assets_received", []):
-                            if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                                asset.update(item)
-                        for asset in data.get("assets_given", []):
-                            if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                                asset.update(item)
+        async def process_trade(data: dict, descriptions: dict) -> None:
+            if self.after.timestamp() < data["time_init"] < self.before.timestamp():
+                for item in descriptions:
+                    for asset in data.get("assets_received", []):
+                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
+                            asset.update(item)
+                    for asset in data.get("assets_given", []):
+                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
+                            asset.update(item)
 
-                    # patch in the attributes cause steam is cool
-                    data["tradeofferid"] = data["tradeid"]
-                    data["accountid_other"] = data["steamid_other"]
-                    data["trade_offer_state"] = data["status"]
-                    data["items_to_give"] = data.get("assets_given", [])
-                    data["items_to_receive"] = data.get("assets_received", [])
+                # patch in the attributes cause steam is cool
+                data["tradeofferid"] = data["tradeid"]
+                data["accountid_other"] = data["steamid_other"]
+                data["trade_offer_state"] = data["status"]
+                data["items_to_give"] = data.get("assets_given", [])
+                data["items_to_receive"] = data.get("assets_received", [])
 
-                    trade = await TradeOffer._from_api(state=self._state, data=data)
+                trade = await TradeOffer._from_api(state=self._state, data=data)
 
-                    try:
-                        if not self._active_only:
-                            self.queue.put_nowait(trade)
-                        elif self._active_only and trade.state in (
+                try:
+                    if not self._active_only:
+                        self.queue.put_nowait(trade)
+                    elif self._active_only and trade.state in (
                             ETradeOfferState.Active,
                             ETradeOfferState.ConfirmationNeed,
-                        ):
-                            self.queue.put_nowait(trade)
+                    ):
+                        self.queue.put_nowait(trade)
 
-                    except asyncio.QueueFull:
-                        raise StopAsyncIteration
+                except asyncio.QueueFull:
+                    raise StopAsyncIteration
 
+        try:
             for trade in resp.get("trades", []):
                 await process_trade(trade, descriptions)
 

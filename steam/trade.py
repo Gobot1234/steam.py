@@ -289,7 +289,7 @@ class Inventory:
             The removed matching items.
         """
         limit: int = kwargs.get("limit")
-        if limit and len(names):
+        if limit and names:
             raise ValueError("Cannot pass a limit with multiple items")
         items = [item for item in self if item.name in names]
         items = items if limit is None else items[:limit]
@@ -424,7 +424,7 @@ class TradeOffer:
         if isinstance(other, TradeOffer):
             if self._has_been_sent and other._has_been_sent:
                 return self.id == other.id
-        return False
+        return NotImplemented
 
     async def confirm(self) -> None:
         """|coro|
