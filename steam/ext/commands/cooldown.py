@@ -42,14 +42,14 @@ __all__ = (
 
 
 class BucketType(IntEnum):
-    Default: "BucketType" = 0
-    User: "BucketType" = 1
-    Member: "BucketType" = 2
-    Group: "BucketType" = 3
-    Clan: "BucketType" = 4
-    Role: "BucketType" = 5
-    Channel: "BucketType" = 6
-    Officer: "BucketType" = 7
+    Default = 0
+    User    = 1
+    Member  = 2
+    Group   = 3
+    Clan    = 4
+    Role    = 5
+    Channel = 6
+    Officer = 7
 
     def get_bucket(self, message_or_context: Union["Message", "Context"]) -> Union[Tuple[int, ...], int]:
         author = message_or_context.author
