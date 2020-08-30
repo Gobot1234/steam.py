@@ -96,10 +96,16 @@ _WHITE_SPACE = tuple(" ")
 _QUOTES = tuple('"')
 
 
+class MissingClosingQuotation(Exception):
+    def __init__(self, position: int):
+        self.position = position
+        super().__init__(f"No closing quotation found after the character after position {position}")
+
+
 def _end_of_quote_finder(instream: str, location: int) -> int:
     end_of_quote_index = instream.find('"', location)
     if end_of_quote_index == -1:
-        raise ValueError(f"No closing quotation found after the character at position {location}")
+        raise MissingClosingQuotation(location)
     if instream[end_of_quote_index - 1] == "\\":  # quote is escaped carry on searching
         return _end_of_quote_finder(instream, end_of_quote_index + 1)
     return end_of_quote_index
