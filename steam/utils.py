@@ -40,6 +40,7 @@ import aiohttp
 from typing_extensions import Literal
 
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
+from .errors import InvalidSteamID
 
 __all__ = (
     "get",
@@ -134,8 +135,8 @@ def make_id64(*args, **kwargs) -> int:
     ------
     :exc:`TypeError`
         Too many arguments have been given.
-    :exc:`ValueError`
-        An argument passed invalid.
+    :exc:`.InvalidSteamID`
+        The created SteamID would be invalid.
 
     Returns
     -------
@@ -192,19 +193,24 @@ def make_id64(*args, **kwargs) -> int:
                 type = (value >> 52) & 0xF
                 universe = (value >> 56) & 0xFF
             else:
-                raise ValueError("ID passed is too large")
+                raise InvalidSteamID(value, "too large")
         # textual input e.g. [g:1:4]
         else:
             result = id2_to_tuple(value) or id3_to_tuple(value)
             if result is not None:
                 id, type, universe, instance = result
             else:
-                raise ValueError("ID cannot be converted correctly")
+                raise InvalidSteamID(value, "cannot be parsed")
     else:
         return 0
-
-    type = EType(type) if isinstance(type, int) else EType[type]
-    universe = EUniverse(universe) if isinstance(universe, int) else EUniverse[universe]
+    try:
+        type = EType(type) if isinstance(type, int) else EType[type]
+    except KeyError:
+        raise InvalidSteamID(id, f"{type} is not a valid EType") from None
+    try:
+        universe = EUniverse(universe) if isinstance(universe, int) else EUniverse[universe]
+    except KeyError:
+        raise InvalidSteamID(id, f"{type} is not a valid EUniverse") from None
 
     if instance is None:
         instance = 1 if type in (EType.Individual, EType.GameServer) else 0

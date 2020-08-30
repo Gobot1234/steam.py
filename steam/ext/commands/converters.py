@@ -24,11 +24,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import re
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Generic, Tuple, TypeVar, Union
 
 from typing_extensions import Protocol, get_origin, runtime_checkable
 
+from ...errors import InvalidSteamID
 from ...game import Game
 from .errors import BadArgument
 
@@ -112,12 +114,17 @@ class UserConverter(Converter):
 
     Lookup is in the order of:
         - Steam ID
+        - Mentions
         - Name
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "User":
-        user = ctx.bot.get_user(argument) or await ctx.bot.fetch_user(argument)
-        if user is None:
+        try:
+            user = ctx.bot.get_user(argument) or await ctx.bot.fetch_user(argument)
+        except InvalidSteamID:
+            search = re.search(r"\[mention=(\d+)]@\w+\[/mention]", argument)
+            if search is not None:
+                return await self.convert(ctx, search.group(1))
             user = [u for u in ctx.bot.users if u.name == argument]
         if not user:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
@@ -155,8 +162,9 @@ class ClanConverter(Converter):
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "Clan":
-        clan = ctx.bot.get_clan(argument)
-        if clan is None:
+        try:
+            clan = ctx.bot.get_clan(argument)
+        except InvalidSteamID:
             clan = [c for c in ctx.bot.clans if c.name == argument]
         if clan is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
@@ -172,8 +180,9 @@ class GroupConverter(Converter):
     """
 
     async def convert(self, ctx: "commands.Context", argument: str) -> "Group":
-        group = ctx.bot.get_group(argument)
-        if group is None:
+        try:
+            group = ctx.bot.get_group(argument)
+        except InvalidSteamID:
             group = [c for c in ctx.bot.groups if c.name == argument]
         if not group:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam group')

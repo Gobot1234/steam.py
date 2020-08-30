@@ -452,3 +452,4 @@ Exception Hierarchy
             - :exc:`WSException`
                 - :exc:`WSForbidden`
                 - :exc:`WSNotFound`
+            - :exc:`InvalidSteamID`
