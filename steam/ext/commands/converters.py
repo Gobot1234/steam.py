@@ -278,8 +278,8 @@ class Greedy(Generic[T]):
 
     converter: T
 
-    def __new__(cls):  # give a more helpful message than typing._BaseGenericAlias.__call__
-        raise TypeError("commands.Greedy cannot be instantiated directly")
+    def __new__(cls, *args, **kwargs):  # give a more helpful message than typing._BaseGenericAlias.__call__
+        raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[converter]")
 
     def __class_getitem__(cls, converter: "GreedyTypes") -> "Greedy[T]":
         if isinstance(converter, tuple):
