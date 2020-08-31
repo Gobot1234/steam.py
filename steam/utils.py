@@ -34,7 +34,20 @@ import json
 import re
 from inspect import isawaitable
 from operator import attrgetter
-from typing import Any, Awaitable, Callable, Generator, Iterable, List, Optional, Tuple, TypeVar, Union, overload
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+    overload
+)
 
 import aiohttp
 from typing_extensions import Literal
@@ -42,14 +55,6 @@ from typing_extensions import Literal
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 from .errors import InvalidSteamID
 
-__all__ = (
-    "get",
-    "find",
-    "make_id64",
-    "parse_trade_url_token",
-    "cached_property",
-    "to_thread",
-)
 
 _T = TypeVar("_T")
 _PROTOBUF_MASK = 0x80000000
@@ -468,12 +473,52 @@ class cached_property:  # functools.cached_property
         return value
 
 
+class async_property(property):
+    """
+    A way to create async properties nicely.
+
+    class CoolClass:
+        def __init__(self, var):
+            self._read_only_var = var
+
+        @async_property:
+        async def var(self):
+            await self.process_var()
+            return self._read_only_var
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.loop = asyncio.get_event_loop()
+
+    def getter(self, fget: Callable[[Any], Awaitable[Any]]) -> "async_property":
+        return super().getter(fget)
+
+    def setter(self, fset: Callable[[Any, Any], Awaitable[None]]) -> "async_property":
+        return super().setter(fset)
+
+    def deleter(self, fdel: Callable[[Any], Awaitable[None]]) -> "async_property":
+        return super().deleter(fdel)
+
+    async def __get__(self, obj: Any, type: Optional[type] = ...) -> Any:
+        return await super().__get__(obj, type)
+
+    def __set__(self, obj: Any, value: Any) -> None:
+        if self.fset is None:
+            raise AttributeError("can't set attribute")
+        self.loop.create_task(self.fset(obj, value))
+
+    def __delete__(self, obj: Any) -> None:
+        if self.fdel is None:
+            raise AttributeError("can't delete attribute")
+        self.loop.create_task(self.fdel(obj))
+
+
 def ainput(prompt: str = "") -> Awaitable[str]:
     return to_thread(input, prompt)
 
 
 def contains_bbcode(string: str) -> bool:
-    bbcodes = [  # TODO is tradeoffer in this?
+    bbcodes = [
         "me",
         "code",
         "pre",
@@ -491,10 +536,10 @@ def contains_bbcode(string: str) -> bool:
     return False
 
 
-def chunk(l: List[_T], size: int) -> List[List[_T]]:
+def chunk(iterable: Sequence[_T], size: int) -> List[List[_T]]:
     def chunker() -> Generator[List[_T], None, None]:
-        for i in range(0, len(l), size):
-            yield l[i : i + size]
+        for i in range(0, len(iterable), size):
+            yield iterable[i : i + size]
 
     return list(chunker())
 

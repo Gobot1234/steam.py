@@ -41,7 +41,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, Optional, Union
 
 import aiohttp
 from typing_extensions import Literal
@@ -119,18 +119,18 @@ class CMServerList(AsyncIterator[str]):
     def __len__(self) -> int:
         return len(self.cms)
 
-    @property
-    def best_cms(self) -> "asyncio.Task[CMInfo]":
+    @utils.async_property
+    async def best_cms(self) -> List[CMInfo]:
         good_servers = [cm for cm in self.cms if cm.status == self.GOOD]
 
         if not good_servers:
             log.debug("No good servers left. Resetting...")
             self.reset_all()
-            self._state.loop.create_task(self.fill())
-            return self.best_cms
+            await self.fill()
+            return await self.best_cms
 
         random.shuffle(good_servers)
-        return self._state.loop.create_task(self.ping_cms(good_servers))
+        return await self.ping_cms(good_servers)
 
     async def fill(self) -> None:
         if not await self.fetch_servers_from_api():
