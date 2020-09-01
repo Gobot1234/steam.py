@@ -27,7 +27,8 @@ request_review: none
 restylers:
   - name: isort
     command:
-      - isort steam --profile black --combine-as --atomic -l120 -n
+      - isort
+    arguments: ["steam", "--profile black", "--combine-as", "--atomic", "-l120", "-n"]
     interpreters:
       - python
   - name: black
