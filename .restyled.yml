@@ -25,7 +25,7 @@ statuses:
 request_review: none
 
 restylers:
-  - name: isort
-    arguments: ["--profile black", "--combine-as", "--atomic", "-l120", "-n"]
   - name: black
     arguments: ["-l120"]
+  - name: isort
+    arguments: ["--profile black", "--combine-as", "--atomic", "-l120", "-n"]
