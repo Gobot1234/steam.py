@@ -346,7 +346,8 @@ class Client:
             try:
                 await self.start(*args, **kwargs)
             finally:
-                await self.close()
+                if not self._closed:
+                    await self.close()
 
         try:
             loop.run_until_complete(runner())
@@ -397,17 +398,20 @@ class Client:
 
     async def close(self) -> None:
         """|coro|
-        Closes the connection to Steam CMs and logs out.
+        Closes the connection to Steam.
         """
         if self._closed:
             return
+
+        await self.http.close()
+        self._closed = True
+
         if self.ws is not None:
             try:
                 await self.ws.handle_close()
             except ConnectionClosed:
                 pass
-        await self.http.close()
-        self._closed = True
+
         self._ready.clear()
 
     def clear(self) -> None:
