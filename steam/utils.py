@@ -38,6 +38,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Generator,
     Iterable,
     List,
@@ -427,7 +428,7 @@ def parse_trade_url(url: str) -> Optional["re.Match[str]"]:
 
 
 # TODO make a custom cancellable Executor
-def to_thread(callable: Callable[..., _T], *args, **kwargs) -> Awaitable[_T]:  # asyncio.to_thread
+def to_thread(callable: Callable[..., _T], *args, **kwargs) -> Coroutine[None, None, _T]:  # asyncio.to_thread
     loop = asyncio.get_running_loop()
     ctx = contextvars.copy_context()
     partial = functools.partial(ctx.run, callable, *args, **kwargs)
