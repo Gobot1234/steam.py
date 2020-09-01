@@ -27,9 +27,9 @@ request_review: none
 restylers:
   - name: isort
     include:
-      - "steam"
+      - "**/*.py"
     arguments: ["--profile black", "--combine-as", "--atomic", "-l120", "-n"]
   - name: black
     include:
-      - "."
+      - "**/*.py"
     arguments: [  "-l120"]
