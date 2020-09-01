@@ -414,10 +414,10 @@ def parse_trade_url(url: str) -> Optional[re.Match[str]]:
     Returns
     -------
     Optional[re.Match[:class:`str`]]
-        The :class:`re.Match` object with a ``token`` and ``user_id`` :meth:`re.Match.groups`.
+        The :class:`re.Match` object with a ``token`` and ``user_id`` :meth:`re.Match.group`s.
     """
     return re.search(
-        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=(?P<user_id>[\d]{,10})"
+        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=(?P<user_id>\d{,10})"
         r"&token=(?P<token>[\w-]{7,})",
         html.unescape(str(url)),
     )
