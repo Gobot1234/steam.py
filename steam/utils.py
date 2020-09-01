@@ -403,26 +403,24 @@ async def id64_from_url(
             await session.close()
 
 
-def parse_trade_url_token(url: str) -> Optional[str]:
-    """Parses a trade URL for an user's token.
+def parse_trade_url(url: str) -> Optional[re.Match[str]]:
+    """Parses a trade URL for useful information.
 
     Parameters
     -----------
     url: :class:`str`
-        The URL to search for a token.
+        The trade URL to search.
 
     Returns
     -------
-    Optional[:class:`str`]
-        The found token or ``None`` if the URL doesn't match the regex.
+    Optional[re.Match[:class:`str`]]
+        The :class:`re.Match` object with a ``token`` and ``user_id`` :meth:`re.Match.groups`.
     """
-    search = re.search(
-        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=\d+&token=(?P<token>[\w-]{7,})",
-        html.unescape(url),
+    return re.search(
+        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=(?P<user_id>[\d]{,10})"
+        r"&token=(?P<token>[\w-]{7,})",
+        html.unescape(str(url)),
     )
-    if search is not None:
-        return search.group("token")
-    return None
 
 
 # some backports
