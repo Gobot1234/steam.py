@@ -236,7 +236,7 @@ class Bot(GroupMixin, Client):
 
     async def close(self) -> None:
         """|coro|
-        Unloads any extensions, cogs and commands, then closes the connection to Steam CMs and logs out.
+        Unloads any extensions and cogs, then closes the connection to Steam.
         """
         for extension in tuple(self.extensions):
             try:

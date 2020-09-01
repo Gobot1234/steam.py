@@ -26,13 +26,7 @@ request_review: none
 
 restylers:
   - name: isort
-    command:
-      - isort
-    arguments: ["--profile black", "--combine-as", "--atomic", "-l120", "-n"]
-    include:
-      - "**/*.py"
-    interpreters:
-      - python
+      arguments: ["--profile black", "--combine-as", "--atomic", "-l120", "-n"]
   - name: black
     command:
       - black . -l120
