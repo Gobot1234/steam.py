@@ -1,0 +1,31 @@
+# See https://github.com/restyled-io/restyled.io/wiki/Configuring-Restyled
+
+enabled: true
+
+exclude:
+  - ".github/workflows/**/*" # https://github.com/restyled-io/restyler/issues/73
+
+changed_paths:
+  maximum: 1000
+  outcome: error
+
+remote_files: []
+
+auto: false
+
+pull_requests: true
+
+comments: false
+
+statuses:
+  differences: true
+  no_differences: true
+  error: true
+
+request_review: none
+
+restylers:
+  - name: isort
+    arguments: ["steam", "--profile black", "--combine-as", "--atomic", "-l120", "-n"]
+  - name: black
+      arguments: [".", "-l120"]
