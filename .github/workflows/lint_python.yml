@@ -1,7 +1,13 @@
 # This workflow will check any code for Exceptions or other inconsistencies in code.
 
 name: Lint Python.
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - '**'
 
 jobs:
   lint_python:
