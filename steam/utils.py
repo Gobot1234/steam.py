@@ -38,6 +38,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Generator,
     Iterable,
     List,
@@ -46,7 +47,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
-    overload, Coroutine,
+    overload,
 )
 
 import aiohttp
