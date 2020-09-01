@@ -28,4 +28,4 @@ restylers:
   - name: isort
     arguments: ["steam", "--profile black", "--combine-as", "--atomic", "-l120", "-n"]
   - name: black
-      arguments: [".", "-l120"]
+    arguments: [".", "-l120"]
