@@ -114,9 +114,9 @@ Utilities
 
 steam.py provides some utility functions.
 
-.. autofunction:: steam.utils.make_id64
+.. autofunction:: steam.utils.make_id64(id, type, universe, instance)
 
-.. autofunction:: steam.utils.parse_trade_url_token
+.. autofunction:: steam.utils.parse_trade_url
 
 Then some functions from discord.py
 
@@ -384,7 +384,7 @@ Games can be manually constructed using there app id eg:
 Steam IDs
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: SteamID
+.. autoclass:: SteamID(id, type, universe, instance)
     :members:
 
 TradeOffers
