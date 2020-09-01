@@ -1,7 +1,7 @@
 # This workflow will check code for import inconsistencies.
 
 name: Sort Imports.
-on: [push, pull_request]
+on: [push]
 
 jobs:
   check-formatting:
@@ -15,6 +15,6 @@ jobs:
         with:
           python-version: 3.7
       - name: Install dependencies
-        run: pip install isort
+        run: python -m pip install isort
       - name: Check formatting
-        run: isort steam --profile black --combine-as --atomic -l120 -n --diff --check-only
+        run: python -m isort steam --profile black --combine-as --atomic -l120 -n --diff --check-only

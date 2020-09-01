@@ -1,7 +1,7 @@
 # This workflow will check code for code inconsistencies.
 
 name: Blacken Code.
-on: [push, pull_request]
+on: [push]
 
 jobs:
   check-formatting:
@@ -18,11 +18,7 @@ jobs:
         run: |
           git clone https://github.com/psf/black
           cd black
-          python3 -m pip install -U .
-        # git clone https://github.com/Gobot1234/blacken-docs
-        # cd blacken-docs
-        # python3 -m pip install -U .
+          python -m pip install -U .
       - name: Check formatting
         run: |
-          black steam examples -l120 --diff --check
-        # python3 -m blacken_docs docs --check --diff -l120
+          python -m black steam examples -l120 --diff --check
