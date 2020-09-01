@@ -27,7 +27,6 @@ SOFTWARE.
 EnumMeta from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
 """
 
-from enum import EnumMeta as _EnumMeta, _is_descriptor, _is_dunder
 from types import MappingProxyType
 from typing import Any, Dict, List, Tuple
 
@@ -48,6 +47,16 @@ __all__ = (
     "EUIMode",
     "EUserBadge",
 )
+
+
+def _is_descriptor(obj: object) -> bool:
+    """Returns True if obj is a descriptor, False otherwise."""
+    return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
+
+
+def _is_dunder(name: str) -> bool:
+    """Returns True if a __dunder__ name, False otherwise."""
+    return len(name) > 4 and name[:2] == name[-2:] == "__" and name[2] != "_" and name[-3] != "_"
 
 
 class EnumMember:
@@ -209,18 +218,7 @@ class IntEnum(int, Enum):
     """An enumeration where all the values are integers, emulates enum.IntEnum."""
 
 
-def _patched_instance_check(mcs: _EnumMeta, instance: Any) -> bool:
-    if isinstance(instance, (EnumMeta, EnumMember)):
-        return True
-
-    return type.__instancecheck__(mcs, instance)
-
-
-_EnumMeta.__instancecheck__ = _patched_instance_check  # fake it till you make it
-
-
 # fmt: off
-
 class EResult(IntEnum):
     Invalid                         = 0  #: Invalid EResult.
     OK                              = 1  #: Success.
