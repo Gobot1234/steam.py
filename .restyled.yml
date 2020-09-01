@@ -26,6 +26,10 @@ request_review: none
 
 restylers:
   - name: isort
+    include:
+      - "steam"
     arguments: ["--profile black", "--combine-as", "--atomic", "-l120", "-n"]
   - name: black
-    arguments: ["-l120"]
+    include:
+      - "."
+    arguments: [  "-l120"]
