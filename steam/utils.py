@@ -46,7 +46,8 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
-    overload, Coroutine,
+    overload,
+    Coroutine,
 )
 
 import aiohttp
