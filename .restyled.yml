@@ -28,7 +28,9 @@ restylers:
   - name: isort
     command:
       - isort
-    arguments: ["steam", "--profile black", "--combine-as", "--atomic", "-l120", "-n"]
+    arguments: ["--profile black", "--combine-as", "--atomic", "-l120", "-n"]
+    include:
+      - "**/*.py"
     interpreters:
       - python
   - name: black
