@@ -403,7 +403,7 @@ async def id64_from_url(
             await session.close()
 
 
-def parse_trade_url(url: str) -> Optional[re.Match[str]]:
+def parse_trade_url(url: str) -> Optional["re.Match[str]"]:
     """Parses a trade URL for useful information.
 
     Parameters
