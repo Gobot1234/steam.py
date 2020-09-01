@@ -26,10 +26,8 @@ request_review: none
 
 restylers:
   - name: isort
-    include:
-      - "**/*.py"
-    arguments: ["--profile black", "--combine-as", "--atomic", "-l120", "-n"]
+    command:
+      - isort steam --profile black --combine-as --atomic -l120 -n
   - name: black
-    include:
-      - "**/*.py"
-    arguments: [  "-l120"]
+    command:
+      - black . -l120
