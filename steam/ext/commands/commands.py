@@ -166,6 +166,8 @@ class Command:
 
     @property
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
+        """:class:`OrderedDict[:class:`str`, :class:`inspect.Parameter`]`:
+        The command's parameters without "self" and "ctx"."""
         params = self.params.copy()
         if self.cog is not None:
             try:
@@ -232,26 +234,10 @@ class Command:
         kwargs = {}
 
         shlex = ctx.shlex
-        iterator = iter(self.params.items())
 
-        if self.cog is not None:
-            # we have 'self' as the first parameter so just advance the iterator and resume parsing
-            try:
-                next(iterator)
-            except StopIteration:
-                raise ClientException(f'Callback for {self.name} command is missing a "self" parameter.')
-
-        # next we have the 'ctx' as the next parameter
-        try:
-            next(iterator)
-        except StopIteration:
-            raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.')
-
-        for name, param in iterator:
-            name: str
-            param: inspect.Parameter
-
+        for name, param in self.clean_params.items():
             if param.kind == param.POSITIONAL_OR_KEYWORD:
+                is_greedy = get_origin(param.annotation) is converters.Greedy
                 greedy_args = []
                 while 1:
                     argument = shlex.read()
@@ -261,12 +247,12 @@ class Command:
                         try:
                             transformed = await self._transform(ctx, param, argument)
                         except BadArgument:
-                            if param.annotation is not converters.Greedy:
+                            if not is_greedy:
                                 raise
-                            shlex.undo()  # undo last read ready for next the next argument
+                            shlex.undo()  # undo last read string for the next argument
                             args.append(tuple(greedy_args))
                             break
-                    if locals().get("origin") is not converters.Greedy:
+                    if not is_greedy:
                         args.append(transformed)
                         break
                     greedy_args.append(transformed)
@@ -318,8 +304,6 @@ class Command:
         return self._convert(ctx, converter, param, argument)
 
     def _get_converter(self, param_type: type) -> Union[converters.Converter, type]:
-        if get_origin(param_type) is converters.Greedy:
-            return param_type
         try:
             module = param_type.__module__
         except AttributeError:
@@ -357,7 +341,7 @@ class Command:
                 for arg in get_args(converter):
                     converter = self._get_converter(arg)
                     try:
-                        return await self._convert(ctx, converter, argument)
+                        return await self._convert(ctx, converter, param, argument)
                     except BadArgument:
                         if origin is Union:
                             continue

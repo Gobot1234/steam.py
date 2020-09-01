@@ -110,23 +110,13 @@ class SteamID(metaclass=abc.ABCMeta):
     )
 
     @overload
-    def __init__(self):
-        ...
-
-    @overload
-    def __init__(self, id: IntOrStr):
-        ...
-
-    @overload
-    def __init__(self, id: IntOrStr, type: ETypeType):
-        ...
-
-    @overload
-    def __init__(self, id: IntOrStr, type: ETypeType, universe: EUniverseType):
-        ...
-
-    @overload
-    def __init__(self, id: IntOrStr, type: ETypeType, universe: EUniverseType, instance: InstanceType):
+    def __init__(
+        self,
+        id: Optional[IntOrStr] = None,
+        type: Optional[ETypeType] = None,
+        universe: Optional[EUniverseType] = None,
+        instance: Optional[InstanceType] = None,
+    ):
         ...
 
     def __init__(self, *args, **kwargs):
@@ -142,7 +132,7 @@ class SteamID(metaclass=abc.ABCMeta):
             return NotImplemented
 
     def __str__(self):
-        return str(int(self))
+        return str(self.__BASE)
 
     def __hash__(self):
         return hash(self.__BASE)

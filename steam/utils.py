@@ -46,7 +46,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
-    overload
+    overload,
 )
 
 import aiohttp
@@ -54,7 +54,6 @@ from typing_extensions import Literal
 
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 from .errors import InvalidSteamID
-
 
 _T = TypeVar("_T")
 _PROTOBUF_MASK = 0x80000000
@@ -100,22 +99,12 @@ def make_id64() -> Literal[0]:
 
 
 @overload
-def make_id64(id: IntOrStr) -> int:
-    ...
-
-
-@overload
-def make_id64(id: IntOrStr, type: ETypeType) -> int:
-    ...
-
-
-@overload
-def make_id64(id: IntOrStr, type: ETypeType, universe: EUniverseType) -> int:
-    ...
-
-
-@overload
-def make_id64(id: IntOrStr, type: ETypeType, universe: EUniverseType, instance: InstanceType) -> int:
+def make_id64(
+    id: Optional[IntOrStr] = None,
+    type: Optional[ETypeType] = None,
+    universe: Optional[EUniverseType] = None,
+    instance: Optional[InstanceType] = None,
+) -> int:
     ...
 
 
@@ -486,9 +475,6 @@ class async_property(property):
             await self.process_var()
             return self._read_only_var
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.loop = asyncio.get_event_loop()
 
     def getter(self, fget: Callable[[Any], Awaitable[Any]]) -> "async_property":
         return super().getter(fget)
@@ -499,18 +485,15 @@ class async_property(property):
     def deleter(self, fdel: Callable[[Any], Awaitable[None]]) -> "async_property":
         return super().deleter(fdel)
 
-    async def __get__(self, obj: Any, type: Optional[type] = ...) -> Any:
-        return await super().__get__(obj, type)
-
     def __set__(self, obj: Any, value: Any) -> None:
         if self.fset is None:
             raise AttributeError("can't set attribute")
-        self.loop.create_task(self.fset(obj, value))
+        asyncio.create_task(self.fset(obj, value))
 
     def __delete__(self, obj: Any) -> None:
         if self.fdel is None:
             raise AttributeError("can't delete attribute")
-        self.loop.create_task(self.fdel(obj))
+        asyncio.create_task(self.fdel(obj))
 
 
 def ainput(prompt: str = "") -> Awaitable[str]:
