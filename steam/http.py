@@ -422,7 +422,7 @@ class HTTPClient:
             "trade_offer_create_params": json.dumps({"trade_offer_access_token": token}) if token is not None else {},
         }
         payload.update(**kwargs)
-        headers = {"Referer": community_route(f"tradeoffer/new/?partner={user.id}")}
+        headers = {"Referer": str(community_route(f"tradeoffer/new/?partner={user.id}"))}
         return self.request("POST", community_route("tradeoffer/new/send"), data=payload, headers=headers)
 
     def send_counter_trade_offer(

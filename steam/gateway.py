@@ -198,7 +198,7 @@ class CMServerList(AsyncIterator[str]):
                 if resp.status != 200:
                     self.mark_bad(cm.url)
                 load = resp.headers["X-Steam-CMLoad"]
-            except (KeyError, asyncio.TimeoutError):
+            except (KeyError, asyncio.TimeoutError, aiohttp.ClientError):
                 self.mark_bad(cm.url)
             else:
                 latency = time.perf_counter() - start
