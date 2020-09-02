@@ -185,8 +185,8 @@ class User(BaseUser, Messageable):
             to_send = [item.to_dict() for item in trade.items_to_send]
             to_receive = [item.to_dict() for item in trade.items_to_receive]
             resp = await self._state.http.send_trade_offer(self, to_send, to_receive, trade.token, trade.message or "")
+            trade._has_been_sent = True
             if resp.get("needs_mobile_confirmation", False):
-                trade._has_been_sent = True
                 for tries in range(5):
                     try:
                         await trade.confirm()

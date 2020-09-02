@@ -146,7 +146,7 @@ def make_id64(
     if not any((type, universe, instance)) and id == 0:
         return 0
     try:
-        value = int(id)
+        id = int(id)
     except ValueError:
         id_is_int = False
     else:
@@ -155,25 +155,27 @@ def make_id64(
     # numeric input
     if id_is_int:
         # 32 bit account id
-        if 0 < value < 2 ** 32:
-            id = value
+        if 0 <= id < 2 ** 32:
             type = type or EType.Individual
             universe = universe or EUniverse.Public
         # 64 bit
-        elif 2 ** 32 < value < 2 ** 64:
-            id = value & 0xFFFFFFFF
+        elif 2 ** 32 < id < 2 ** 64:
+            value = id
+            id = id & 0xFFFFFFFF
             instance = (value >> 32) & 0xFFFFF
             type = (value >> 52) & 0xF
             universe = (value >> 56) & 0xFF
         else:
-            raise InvalidSteamID(value, "it is too large" if value > 2 ** 64 else "it is too small")
+            raise InvalidSteamID(id, "it is too large" if id > 2 ** 64 else "it is too small")
     # textual input e.g. [g:1:4]
     else:
-        result = id2_to_tuple(value) or id3_to_tuple(value)
+        result = id2_to_tuple(id) or id3_to_tuple(id)
         if result is None:
-            raise InvalidSteamID(value, "it cannot be parsed")
+            raise InvalidSteamID(id, "it cannot be parsed")
 
         id, type, universe, instance = result
+    if id == 0:
+        return 0
 
     try:
         type = EType(type) if isinstance(type, int) else EType[type]
