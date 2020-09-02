@@ -32,7 +32,7 @@ from typing import Generic, Optional, Type, TypeVar, Union
 
 import betterproto
 
-from ..enums import EnumMember
+from ..enums import EnumMember, IntEnum
 from .emsg import *
 from .headers import *
 from .protobufs import *
@@ -51,7 +51,18 @@ def _Message__bool__(self: betterproto.Message):
     return False
 
 
+class _Enum(IntEnum):
+    @classmethod
+    def from_string(cls, name: str) -> int:
+        """Return the value which corresponds to the string name."""
+        try:
+            return cls._member_map_[name]
+        except KeyError as e:
+            raise ValueError(f"Unknown value {name} for enum {cls.__name__}") from e
+
+
 betterproto.Message.__bool__ = _Message__bool__
+betterproto.Enum = _Enum
 
 
 def get_cmsg(emsg: Union[EMsg, int]) -> GetProtoType:
