@@ -166,6 +166,9 @@ class User(BaseUser, Messageable):
             The message to send to the user.
         trade: Optional[:class:`.TradeOffer`]
             The trade offer to send to the user.
+
+            .. note::
+                This will have its :attr:`~steam.TradeOffer.id` attribute updated after being sent.
         image: Optional[:class:`.Image`]
             The image to send to the user.
 
@@ -181,7 +184,7 @@ class User(BaseUser, Messageable):
         if trade is not None:
             to_send = [item.to_dict() for item in trade.items_to_send]
             to_receive = [item.to_dict() for item in trade.items_to_receive]
-            resp = await self._state.http.send_trade_offer(self, to_send, to_receive, trade.token, trade.message)
+            resp = await self._state.http.send_trade_offer(self, to_send, to_receive, trade.token, trade.message or "")
             if resp.get("needs_mobile_confirmation", False):
                 trade._has_been_sent = True
                 for tries in range(5):
@@ -189,6 +192,7 @@ class User(BaseUser, Messageable):
                         await trade.confirm()
                     except ConfirmationError:
                         break
+            trade.id = int(resp["tradeofferid"])
 
     async def invite_to_group(self, group: "Group"):
         """|coro|

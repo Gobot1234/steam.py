@@ -44,6 +44,8 @@ __all__ = (
     "TradeOffer",
 )
 
+Items = Union["Item", "Asset"]
+
 
 class Asset:
     """Base most version of an item. This class should only be received when Steam fails to find a matching item for
@@ -220,7 +222,7 @@ class Inventory:
     def __init__(self, state: "ConnectionState", data: dict, owner: "BaseUser"):
         self._state = state
         self.owner = owner
-        self.items: List[Union[Item, Asset]] = []
+        self.items: List[Items] = []
         self.game: Optional[Game]
         self._update(data)
 
@@ -371,19 +373,19 @@ class TradeOffer:
         *,
         message: Optional[str] = None,
         token: Optional[str] = None,
-        item_to_send: Optional[Union[Item, Asset]] = None,
-        item_to_receive: Optional[Union[Item, Asset]] = None,
-        items_to_send: Optional[List[Union[Item, Asset]]] = None,
-        items_to_receive: Optional[List[Union[Item, Asset]]] = None,
+        item_to_send: Optional[Items] = None,
+        item_to_receive: Optional[Items] = None,
+        items_to_send: Optional[List[Items]] = None,
+        items_to_receive: Optional[List[Items]] = None,
     ):
-        self.items_to_receive = items_to_receive if items_to_receive else []
-        self.items_to_send = items_to_send if items_to_send else []
+        self.items_to_receive: List[Items] = items_to_receive if items_to_receive else []
+        self.items_to_send: List[Items] = items_to_send if items_to_send else []
         if item_to_receive:
             self.items_to_receive.append(item_to_receive)
         if item_to_send:
             self.items_to_send.append(item_to_send)
-        self.message = message if message is not None else ""
-        self.token = token
+        self.message: str = message if message is not None else ""
+        self.token: Optional[str] = token
         self._has_been_sent = False
         self.partner: Optional["User"] = None
         self.state = ETradeOfferState.Invalid
