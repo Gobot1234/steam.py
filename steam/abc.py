@@ -80,26 +80,6 @@ __all__ = (
     "Message",
 )
 
-# fmt: off
-# not sure if this a PyCharm issue but it appears that these aren't correctly recognised here
-IntOrStr = Union[int, str]
-ETypeType = Union[
-    EType,
-    Literal[
-        "Invalid", "Individual",
-        "Multiseat", "GameServer",
-        "AnonGameServer", "Pending",
-        "ContentServer", "Clan",
-        "Chat", "ConsoleUser",
-        "AnonUser", "Max",
-        0, 1, 2, 3, 4, 5, 6,
-        7, 8, 9, 10, 11,
-    ],
-]
-EUniverseType = Union[EUniverse, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6,]]
-InstanceType = Literal[0, 1]
-# fmt: on
-
 
 class SteamID(metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations."""
@@ -110,17 +90,27 @@ class SteamID(metaclass=abc.ABCMeta):
     )
 
     @overload
+    def __init__(self):
+        ...
+
+    @overload
     def __init__(
         self,
-        id: Optional[IntOrStr] = None,
+        id: IntOrStr = 0,
         type: Optional[ETypeType] = None,
         universe: Optional[EUniverseType] = None,
         instance: Optional[InstanceType] = None,
     ):
         ...
 
-    def __init__(self, *args, **kwargs):
-        self.__BASE: Final[int] = make_id64(*args, **kwargs)
+    def __init__(
+        self,
+        id: IntOrStr = 0,
+        type: Optional[ETypeType] = None,
+        universe: Optional[EUniverseType] = None,
+        instance: Optional[InstanceType] = None,
+    ):
+        self.__BASE: Final[int] = make_id64(id, type, universe, instance)
 
     def __int__(self):
         return self.__BASE

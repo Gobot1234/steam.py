@@ -101,7 +101,7 @@ def make_id64() -> Literal[0]:
 
 @overload
 def make_id64(
-    id: Optional[IntOrStr] = None,
+    id: IntOrStr = 0,
     type: Optional[ETypeType] = None,
     universe: Optional[EUniverseType] = None,
     instance: Optional[InstanceType] = None,
@@ -109,7 +109,12 @@ def make_id64(
     ...
 
 
-def make_id64(*args, **kwargs) -> int:
+def make_id64(
+    id: IntOrStr = 0,
+    type: Optional[ETypeType] = None,
+    universe: Optional[EUniverseType] = None,
+    instance: Optional[InstanceType] = None,
+) -> int:
     """Convert various representations of Steam IDs to its Steam 64 bit ID.
 
     Examples
@@ -138,66 +143,38 @@ def make_id64(*args, **kwargs) -> int:
     :class:`int`
         The 64 bit Steam ID.
     """
-    if not (args or kwargs):
+    if not any((type, universe, instance)) and id == 0:
         return 0
-    arg_len = len(args)
-    if arg_len + len(kwargs) > 4:
-        raise TypeError(f"make_id64 expected at most 4 arguments, got {arg_len + len(kwargs)}")
-
-    id = 0
-    type = None
-    universe = None
-    instance = None
-
-    if args:
-        if arg_len == 1:
-            (id,) = args
-        elif arg_len == 2:
-            (id, type) = args
-        elif arg_len == 3:
-            (id, type, universe) = args
-        elif arg_len == 4:
-            (id, type, universe, instance) = args
-        else:
-            raise TypeError(f"make_id64 expected at most 4 arguments, got {arg_len}")
-    if kwargs:
-        id = kwargs.pop("id", id)
-        type = kwargs.pop("type", type)
-        universe = kwargs.pop("universe", universe)
-        instance = kwargs.pop("instance", instance)
-        if kwargs:
-            raise TypeError(f"make_id64 got unexpected argument(s), {list(kwargs.keys())}")
-
-    # convert the id
-    if id:
-        value = str(id)
-
-        # numeric input
-        if value.isdigit():
-            value = int(value)
-
-            # 32 bit account id
-            if 0 < value < 2 ** 32:
-                id = value
-                type = type or EType.Individual
-                universe = universe or EUniverse.Public
-            # 64 bit
-            elif value < 2 ** 64:
-                id = value & 0xFFFFFFFF
-                instance = (value >> 32) & 0xFFFFF
-                type = (value >> 52) & 0xF
-                universe = (value >> 56) & 0xFF
-            else:
-                raise InvalidSteamID(value, "too large")
-        # textual input e.g. [g:1:4]
-        else:
-            result = id2_to_tuple(value) or id3_to_tuple(value)
-            if result is not None:
-                id, type, universe, instance = result
-            else:
-                raise InvalidSteamID(value, "cannot be parsed")
+    try:
+        value = int(id)
+    except ValueError:
+        id_is_int = False
     else:
-        return 0
+        id_is_int = True
+
+    # numeric input
+    if id_is_int:
+        # 32 bit account id
+        if 0 < value < 2 ** 32:
+            id = value
+            type = type or EType.Individual
+            universe = universe or EUniverse.Public
+        # 64 bit
+        elif 2 ** 32 < value < 2 ** 64:
+            id = value & 0xFFFFFFFF
+            instance = (value >> 32) & 0xFFFFF
+            type = (value >> 52) & 0xF
+            universe = (value >> 56) & 0xFF
+        else:
+            raise InvalidSteamID(value, "it is too large" if value > 2 ** 64 else "it is too small")
+    # textual input e.g. [g:1:4]
+    else:
+        result = id2_to_tuple(value) or id3_to_tuple(value)
+        if result is None:
+            raise InvalidSteamID(value, "it cannot be parsed")
+
+        id, type, universe, instance = result
+
     try:
         type = EType(type) if isinstance(type, int) else EType[type]
     except (KeyError, ValueError):
