@@ -174,8 +174,6 @@ def make_id64(
             raise InvalidSteamID(id, "it cannot be parsed")
 
         id, type, universe, instance = result
-    if id == 0:
-        return 0
 
     try:
         type = EType(type) if isinstance(type, int) else EType[type]
