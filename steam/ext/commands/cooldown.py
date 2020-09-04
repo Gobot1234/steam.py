@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 import time as _time
-from typing import TYPE_CHECKING, List, Tuple, Union
+from typing import TYPE_CHECKING, List, Tuple, TypeVar, Union
 
 from ...enums import IntEnum
 from .errors import CommandOnCooldown
@@ -39,6 +39,7 @@ __all__ = (
     "BucketType",
     "Cooldown",
 )
+T_Bucket = TypeVar("T_Bucket", Tuple[int, ...], int)
 
 
 class BucketType(IntEnum):
@@ -53,27 +54,24 @@ class BucketType(IntEnum):
     Officer = 7
     # fmt: on
 
-    def get_bucket(self, message_or_context: Union["Message", "Context"]) -> Union[Tuple[int, ...], int]:
-        author = message_or_context.author
-        channel = message_or_context.channel
-        clan = message_or_context.clan
-        group = message_or_context.group
+    def get_bucket(self, message_or_context: Union["Message", "Context"]) -> T_Bucket:
+        ctx = message_or_context
         if self == BucketType.Default:
             return 0
-        if self == BucketType.User:
-            return author.id
+        elif self == BucketType.User:
+            return ctx.author.id
         elif self == BucketType.Member:
-            return (clan and clan.id), author.id
+            return (ctx.clan and ctx.clan.id), ctx.author.id
         elif self == BucketType.Group:
-            return (group or author).id
+            return (ctx.group or ctx.author).id
         elif self == BucketType.Role:
-            raise NotImplementedError
+            raise NotImplementedError  # soon :tm:
         elif self == BucketType.Clan:
-            return (clan or author).id
+            return (ctx.clan or ctx.author).id
         elif self == BucketType.Channel:
-            return (channel or author).id
+            return (ctx.channel or ctx.author).id
         elif self == BucketType.Officer:
-            raise NotImplementedError
+            raise NotImplementedError  # soon :tm:
 
 
 class Cooldown:
@@ -82,7 +80,7 @@ class Cooldown:
         self._per = per
         self.bucket = bucket
         self._last_update = 0.0
-        self._last_called_by: List[Tuple[Union[Tuple[int, ...], int], float]] = []
+        self._last_called_by: List[Tuple[T_Bucket, float]] = []
 
     def reset(self) -> None:
         self._last_update = 0.0
