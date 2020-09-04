@@ -857,31 +857,6 @@ class Bot(GroupMixin, Client):
     def wait_for(
         self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
     ) -> "asyncio.Future[Any]":
-        """|coro|
-        Wait for the first event to be dispatched that meets the requirements, this by default is the first event
-        with a matching event name.
-
-        Parameters
-        -----------
-        event: :class:`str`
-            The event name from the `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
-            but without the ``on_`` prefix, to wait for.
-        check: Optional[Callable[..., :class:`bool`]]
-            A callable predicate that checks the received event. The arguments must match the parameters of the
-            ``event`` being waited for and must return a :class:`bool`.
-        timeout: Optional[:class:`float`]
-            By default, :meth:`wait_for` function does not timeout, however, in the case a ``timeout`` parameter is
-            passed after the amount of seconds pass :exc:`asyncio.TimeoutError` is raised.
-
-        Raises
-        -------
-        :exc:`asyncio.TimeoutError`
-            If the provided timeout was reached.
-
-        Returns
-        --------
-        Returns ``None``, a single argument, or a :class:`tuple` of multiple arguments that mirrors the
-        parameters for the ``event`` parameter from the
-        `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
-        """
         return super().wait_for(event, check=check, timeout=timeout)
+
+    wait_for.__doc__ = Client.wait_for.__doc__

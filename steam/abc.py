@@ -707,7 +707,7 @@ class Message:
         The message's content.
     clean_content: :class:`str`
         The message's clean content without bbcode.
-    author: :class:`steam.`User`
+    author: :class:`~steam.User`
         The message's author.
     created_at: :class:`datetime.datetime`
         The time the message was sent at.

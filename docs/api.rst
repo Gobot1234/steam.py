@@ -6,9 +6,8 @@ API reference
 The following document outlines the front facing aspects of steam.py.
 
 .. note::
-    This module uses Python's logging module to debug, give information and
-    diagnose errors, it is recommended to configure this if necessary as errors or warnings
-    will not be propagated properly.
+    This module uses Python's logging module to debug, give information and diagnose errors, it is recommended to
+    configure this if necessary as errors or warnings will not be propagated properly.
 
 Version Related Info
 ---------------------
@@ -22,12 +21,11 @@ Client
 
 .. autoclass:: Client
     :members:
-    :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_error,
-                      on_message, on_typing, on_trade_receive, on_trade_send,
-                      on_trade_accept, on_trade_decline, on_trade_cancel,
-                      on_trade_expire, on_trade_counter, on_comment, on_user_invite,
-                      on_clan_invite, on_user_update, on_socket_receive,
-                      on_socket_raw_receive, on_socket_send, on_socket_raw_send
+    :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_logout, on_error, on_message, on_typing,
+                      on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline, on_trade_cancel,
+                      on_trade_expire, on_trade_counter, on_comment, on_user_invite, on_user_invite_accept,
+                      on_clan_invite, on_clan_invite_accept, on_user_update, on_socket_receive, on_socket_raw_receive,
+                      on_socket_send, on_socket_raw_send
 
 Event Reference
 ---------------
@@ -59,7 +57,7 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 
 .. warning::
 
-    All the events must be a |coroutine_link|_. If they aren't, a TypeError will be raised.
+    All the events must be a |coroutine_link|_. If they aren't, a :exc:`TypeError` will be raised.
     In order to turn a function into a coroutine they must be ``async def`` functions.
 
 .. automethod:: Client.on_connect
@@ -105,8 +103,6 @@ to handle it, which defaults to print a traceback and ignoring the exception.
 .. automethod:: Client.on_socket_send
 
 .. automethod:: Client.on_socket_raw_send
-
-
 
 
 Utilities

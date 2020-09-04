@@ -29,7 +29,7 @@ import inspect
 import sys
 import traceback
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Awaitable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Union
 
 from .commands import Command, GroupCommand
 
@@ -56,7 +56,7 @@ class InjectedListener:
         self.cog = cog
         self._is_coroutine = asyncio.coroutines._is_coroutine  # for asyncio.iscoroutinefunction
 
-    def __call__(self, *args, **kwargs) -> Awaitable[None]:
+    def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[None]:
         return self.func(self.cog, *args, **kwargs)
 
 
@@ -103,7 +103,7 @@ class Cog:
     command_attrs: Dict[str, Any]
     qualified_name: str
 
-    def __init_subclass__(cls, *args, **kwargs):
+    def __init_subclass__(cls, *args: Any, **kwargs: Any) -> None:
         cls.qualified_name = kwargs.get("name") or cls.__name__
         cls.command_attrs = kwargs.get("command_attrs", dict())
 
@@ -130,7 +130,7 @@ class Cog:
         return help_doc
 
     @classmethod
-    def listener(cls, name: Optional[str] = None):
+    def listener(cls, name: Optional[str] = None) -> Callable[["EventType"], "EventType"]:
         """Register a function as a listener.
         Similar to :meth:`~steam.ext.commands.Bot.listen`
 
@@ -140,7 +140,7 @@ class Cog:
             The name of the event to listen for. Defaults to ``func.__name__``.
         """
 
-        def decorator(func: "EventType"):
+        def decorator(func: "EventType") -> "EventType":
             if not asyncio.iscoroutinefunction(func):
                 raise TypeError(f"Listeners must be coroutines, {func.__name__} is {type(func).__name__}")
             func.__event_name__ = name or func.__name__

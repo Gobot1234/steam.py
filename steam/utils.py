@@ -392,7 +392,7 @@ def parse_trade_url(url: str) -> Optional["re.Match[str]"]:
     Returns
     -------
     Optional[re.Match[:class:`str`]]
-        The :class:`re.Match` object with a ``token`` and ``user_id`` :meth:`re.Match.group`s or ``None``.
+        The :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``
     """
     return re.search(
         r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=(?P<user_id>\d{,10})"
@@ -495,8 +495,8 @@ def contains_bbcode(string: str) -> bool:
     return False
 
 
-def chunk(iterable: Sequence[_T], size: int) -> List[List[_T]]:
-    def chunker() -> Generator[List[_T], None, None]:
+def chunk(iterable: Sequence[_T], size: int) -> List[Sequence[_T]]:
+    def chunker() -> Generator[Sequence[_T], None, None]:
         for i in range(0, len(iterable), size):
             yield iterable[i : i + size]
 

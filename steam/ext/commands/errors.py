@@ -37,10 +37,11 @@ if TYPE_CHECKING:
 __all__ = (
     "CommandError",
     "BadArgument",
+    "MissingRequiredArgument",
     "CheckFailure",
     "NotOwner",
     "CommandNotFound",
-    "MissingRequiredArgument",
+    "CommandDisabled",
     "CommandOnCooldown",
 )
 
@@ -48,13 +49,15 @@ __all__ = (
 class CommandError(SteamException):
     """Base Exception for errors raised by commands.
 
-    Subclass of :exc:`SteamException`."""
+    Subclass of :exc:`SteamException`.
+    """
 
 
 class CommandNotFound(CommandError):
     """Exception raised when a command is not found.
 
-    Subclass of :exc:`CommandError`."""
+    Subclass of :exc:`CommandError`.
+    """
 
 
 class BadArgument(CommandError):
@@ -64,10 +67,10 @@ class BadArgument(CommandError):
     """
 
 
-class MissingRequiredArgument(CommandError):
+class MissingRequiredArgument(BadArgument):
     """Exception raised when a required argument is not passed to a command.
 
-    Subclass of :exc:`CommandError`.
+    Subclass of :exc:`BadArgument`.
 
     Attributes
     ----------
@@ -91,6 +94,11 @@ class CommandDisabled(CheckFailure):
     """Exception raised when a command is disabled and is attempted to be ran.
 
     Subclass of :exc:`CheckFailure`.
+
+    Attributes
+    -----------
+    command: :class:`~steam.ext.commands.Command`
+        The command that has been disabled.
     """
 
     def __init__(self, command: "Command"):

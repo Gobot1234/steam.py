@@ -5,7 +5,7 @@ ext.commands
 ~~~~~~~~~~~~~
 A basic commands framework for steam.py.
 
-:copyright: (c) 2020 Gobot1234.
+:copyright: (c) 2020 James.
 :license: MIT, see LICENSE for more details.
 """
 

@@ -26,7 +26,7 @@ SOFTWARE.
 
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeVar, Union
 
 from typing_extensions import Protocol, get_origin, runtime_checkable
 
@@ -261,24 +261,34 @@ class DefaultClan(Default):
 
 
 class DefaultGame(Default):
-    """Returns the author's :attr:`~steam.User.game`"""
+    """Returns the :attr:`~steam.ext.commands.Context.author`'s :attr:`~steam.User.game`"""
 
     async def default(self, ctx: "commands.Context"):
         return ctx.author.game
 
 
 class Greedy(Generic[T]):
-    """A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour by signaling that
-    the parser should consume as many types as possible before returning to the default parsing method.
+    """
+    A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
+    parser to consume as many arguments as it can until it silently errors reverts the last argument being read and
+    then carries on normally.
 
-    Examples
-    --------
-    # TODO
+    Greedy can be mixed in with any normally supported positional or keyword argument type any number of times.
+
+    Example
+    -------
+    .. code-block:: python
+
+        @bot.command()
+        async def test(ctx, numbers: commands.Greedy[int], reason: str):
+            await ctx.send("numbers: {}, reason: {}".format(numbers, reason))
+
+    An invocation of "test 1 2 3 4 5 6 hello" would pass numbers (1, 2, 3, 4, 5, 6) and reason with hello.
     """
 
     converter: T
 
-    def __new__(cls, *args, **kwargs):  # give a more helpful message than typing._BaseGenericAlias.__call__
+    def __new__(cls, *args, **kwargs) -> NoReturn:  # give a more helpful message than typing._BaseGenericAlias.__call__
         raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[converter]")
 
     def __class_getitem__(cls, converter: "GreedyTypes") -> "Greedy[T]":
