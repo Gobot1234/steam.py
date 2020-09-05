@@ -246,14 +246,12 @@ class Bot(GroupMixin, Client):
 
     @property
     def cogs(self) -> Mapping[str, Cog]:
-        """Mapping[:class:`str`, :class:`.Cog`]:
-        A read only mapping of any loaded cogs."""
+        """Mapping[:class:`str`, :class:`.Cog`]: A read only mapping of any loaded cogs."""
         return MappingProxyType(self.__cogs__)
 
     @property
     def extensions(self) -> Mapping[str, "ExtensionType"]:
-        """Mapping[:class:`str`, :class:`ExtensionType`]:
-        A read only mapping of any loaded extensions."""
+        """Mapping[:class:`str`, :class:`ExtensionType`]: A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
     @property
@@ -322,7 +320,7 @@ class Bot(GroupMixin, Client):
             The name of the extension to unload.
         """
         if extension not in self.__extensions__:
-            raise ModuleNotFoundError(f"The extension {extension} was not found")
+            raise ModuleNotFoundError(f"The extension {extension} was not found", name=extension, path=extension)
 
         module: "ExtensionType" = self.__extensions__[extension]
         for attr in tuple(module.__dict__.values()):
@@ -350,7 +348,7 @@ class Bot(GroupMixin, Client):
         """
         previous = self.__extensions__.get(extension)
         if previous is None:
-            raise ModuleNotFoundError(f"The extension {extension} was not found")
+            raise ModuleNotFoundError(f"The extension {extension} was not found", name=extension, path=extension)
 
         try:
             self.unload_extension(extension)
@@ -358,7 +356,7 @@ class Bot(GroupMixin, Client):
         except Exception:
             previous.setup(self)
             self.__extensions__[extension] = previous
-            sys.modules.update({extension: previous})
+            sys.modules[extension] = previous
             raise
 
     def add_cog(self, cog: "Cog") -> None:
