@@ -534,6 +534,14 @@ class HTTPClient:
     def clear_notifications(self) -> RequestType:
         return self.request("GET", community_route("my/inventory"))
 
+    def get_price(self, app_id: int, item_name: str, currency: int) -> RequestType:
+        payload = {
+            "appid": app_id,
+            "market_hash_name": item_name,
+        }
+        payload.update({"currency": currency} if currency is not None else {})
+        return self.request("POST", community_route("market/priceoverview"), data=payload)
+
     async def edit_profile(
         self,
         name: Optional[str],

@@ -24,12 +24,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import re
 from datetime import timedelta
 
 from typing_extensions import Final
 from yarl import URL as _URL
 
-__all__ = ("Ban",)
+__all__ = (
+    "PriceOverview",
+    "Ban",
+)
 
 
 def api_route(path: str) -> _URL:
@@ -51,6 +55,51 @@ class URL:
     API: Final[_URL] = _URL("https://api.steampowered.com")
     COMMUNITY: Final[_URL] = _URL("https://steamcommunity.com")
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
+
+
+PRICE_REGEX = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")
+
+
+class PriceOverview:
+    """Represents the data received from https://steamcommunity.com/market/priceoverview.
+
+    Attributes
+    -------------
+    currency: :class:`str`
+        The currency identifier for the item eg. "$" or "£".
+    volume: :class:`int`
+        The amount of items are currently on the market.
+    lowest_price: :class:`float`
+        The lowest price observed by the market.
+    median_price: :class:`float`
+        The median price observed by the market.
+    """
+
+    __slots__ = ("currency", "volume", "lowest_price", "median_price")
+
+    def __init__(self, data: dict):
+        lowest_price = PRICE_REGEX.search(data["lowest_price"]).group("price")
+        median_price = PRICE_REGEX.search(data["median_price"]).group("price")
+
+        try:
+            self.lowest_price = float(lowest_price.replace(",", "."))
+            self.median_price = float(median_price.replace(",", "."))
+        except (ValueError, TypeError):
+            self.lowest_price = lowest_price
+            self.median_price = median_price
+
+        self.volume = int(data["volume"].replace(",", ""))
+        self.currency = data["lowest_price"].replace(str(self.lowest_price).replace(",", "."), "")
+
+    def __repr__(self):
+        attrs = (
+            "volume",
+            "currency",
+            "lowest_price",
+            "median_price",
+        )
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<PriceOverview {' '.join(resolved)}>"
 
 
 class Ban:

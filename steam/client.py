@@ -40,12 +40,11 @@ from typing_extensions import Literal, Protocol
 
 from . import errors, utils
 from .abc import SteamID
-from .clan import Clan
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .models import community_route
+from .models import PriceOverview, community_route
 from .state import ConnectionState
 
 if TYPE_CHECKING:
@@ -53,6 +52,7 @@ if TYPE_CHECKING:
 
     import steam
 
+    from .clan import Clan
     from .comment import Comment
     from .enums import EPersonaState, EPersonaStateFlag, EUIMode
     from .game import Game
@@ -783,6 +783,22 @@ class Client:
         Waits until the client's internal cache is all ready.
         """
         await self._ready.wait()
+
+    async def fetch_price(self, name: str, game: "Game", currency: Optional[int] = None) -> PriceOverview:
+        """|coro|
+        Fetch the price for an item.
+
+        Parameters
+        ----------
+        name: :class:`str`
+            The name of the item.
+        game: :class:`.Game`
+            The game the item is from.
+        currency: :class:`int`
+            The currency to fetch the price in.
+        """
+        price = await self.http.get_price(game.id, name, currency)
+        return PriceOverview(price)
 
     # events to be subclassed
 

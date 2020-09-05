@@ -313,6 +313,12 @@ Message
     :members:
     :inherited-members:
 
+PriceOverview
+~~~~~~~~~~~~~~~
+
+.. autoclass:: PriceOverview()
+    :members:
+
 Trading
 ~~~~~~~~~~~~~~~
 
