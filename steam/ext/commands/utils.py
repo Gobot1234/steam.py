@@ -122,7 +122,7 @@ class Shlex:
     def __init__(self, in_stream: str):
         self.in_stream = in_stream.replace("‘", '"').replace("’", '"').replace("“", '"').replace("”", '"').strip()
         self.position = 0
-        self.end = len(in_stream)
+        self.end = len(self.in_stream)
         self._undo_pushback: Deque[int] = deque()
 
     def read(self) -> Optional[str]:
@@ -176,7 +176,8 @@ class Shlex:
 
 
 def reload_module_with_TYPE_CHECKING(module: "ModuleType") -> None:
-    """Reload a module with typing.TYPE_CHECKING set to ``True``.
+    """Reload a module with typing.TYPE_CHECKING set to ``True``. Allowing you to avoid circular import issues due to
+    the way :meth:`importlib.reload` works.
 
     Warnings
     --------
@@ -189,9 +190,6 @@ def reload_module_with_TYPE_CHECKING(module: "ModuleType") -> None:
            from expensive_module import expensive_type
         else:
            expensive_type = str
-
-    .. note::
-        This doesn't run into circular import errors due to the way importlib.reload works.
     """
     if not (typing in module.__dict__.values() or not getattr(module, "TYPE_CHECKING", True)):
         return
@@ -216,8 +214,7 @@ def _eval_type(type: Any, globals: Dict[str, Any]) -> Any:
 def update_annotations(annotations: Dict[str, Any], globals: Dict[str, Any]) -> Dict[str, Any]:
     """A helper function loosely based off of typing's implementation of :meth:`typing.get_type_hints`.
 
-    Main purpose of this is for evaluating postponed annotations (type hints in quotes) for more info see :pep:`563`/
-    https://www.python.org/dev/peps/pep-0563
+    Main purpose of this is for evaluating postponed annotations (type hints in quotes) for more info see :pep:`563`
     """
     for key, annotation in annotations.items():
         annotation = _eval_type(annotation, globals)

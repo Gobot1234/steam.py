@@ -78,7 +78,7 @@ class Game:
     id: :class:`int`
         The game's app ID.
     context_id: :class:`int`
-        The context id of the game normally 2.
+        The context id of the game normally ``2``.
     total_play_time: Optional[:class:`int`]
         The total time the game has been played for.
         Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.

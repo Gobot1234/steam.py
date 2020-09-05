@@ -101,14 +101,17 @@ class Group(SteamID):
         else:
             self.default_role = None
         self.channels: List[GroupChannel] = []
-        default_channel: GroupChannel
         for channel in proto.chat_rooms:
             channel = GroupChannel(state=self._state, group=self, channel=channel)
             self.channels.append(channel)
-        self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
+        self.default_channel: GroupChannel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
 
     def __repr__(self):
-        attrs = ("name", "id", "owner")
+        attrs = (
+            "name",
+            "id",
+            "owner",
+        )
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Group {' '.join(resolved)}>"
 

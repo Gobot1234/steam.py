@@ -20,6 +20,11 @@ Bot
                       on_command, on_command_error, on_command_completion
 
 
+.. autofunction:: steam.ext.commands.when_mentioned
+
+.. autofunction:: steam.ext.commands.when_mentioned_or
+
+
 Event Reference
 -----------------
 
