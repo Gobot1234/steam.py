@@ -49,7 +49,7 @@ class Games(IntEnum):
     Steam = 753
 
 
-class _GameDict(TypedDict, total=False):
+class GameDict(TypedDict, total=False):
     game_id: str
     game_extra_info: str
 

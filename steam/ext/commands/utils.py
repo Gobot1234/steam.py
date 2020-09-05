@@ -166,10 +166,9 @@ class Shlex:
     def __iter__(self) -> Generator[str, None, None]:
         while 1:
             token = self.read()
-            if token is not None:
-                yield token
-            else:
+            if token is None:
                 break
+            yield token
 
 
 # various typing related functions

@@ -50,20 +50,20 @@ Items = Union["Item", "Asset"]
 
 
 # TypedDicts to help visualise the data you receive
-class _AssetToDict(TypedDict):
+class AssetToDict(TypedDict):
     assetid: str
-    amount: str
+    amount: int
     appid: str
     contextid: str
 
 
-class _AssetDict(_AssetToDict):
+class AssetDict(AssetToDict):
     instanceid: str
     classid: str
     missing: bool
 
 
-class _DescriptionDict(TypedDict, total=False):
+class DescriptionDict(TypedDict, total=False):
     instanceid: str
     classid: str
     market_name: str
@@ -84,19 +84,19 @@ class _DescriptionDict(TypedDict, total=False):
     commodity: int  # might be a bool
 
 
-class _ItemDict(_AssetDict, _DescriptionDict):
+class ItemDict(AssetDict, DescriptionDict):
     """We combine Assets with their matching Description to form items."""
 
 
-class _InventoryDict(TypedDict):
-    assets: List[_AssetDict]
-    descriptions: List[_DescriptionDict]
+class InventoryDict(TypedDict):
+    assets: List[AssetDict]
+    descriptions: List[DescriptionDict]
     total_inventory_count: int
     success: int  # EResult
     rwgrsn: int  # p. much always -2
 
 
-class _TradeOfferDict(TypedDict):
+class TradeOfferDict(TypedDict):
     tradeofferid: str
     tradeid: str  # no clue what this is (its not the useful one)
     accountid_other: int
@@ -106,8 +106,8 @@ class _TradeOfferDict(TypedDict):
     time_created: int
     time_updated: int
     escrow_end_date: int
-    items_to_give: List[_AssetDict]
-    items_to_receive: List[_AssetDict]
+    items_to_give: List[AssetDict]
+    items_to_receive: List[AssetDict]
     is_our_offer: bool
     from_real_time_trade: bool
     confirmation_method: int  # 2 is mobile not a clue what other values are
@@ -143,7 +143,7 @@ class Asset:
 
     __slots__ = ("game", "amount", "class_id", "asset_id", "instance_id")
 
-    def __init__(self, data: _AssetDict):
+    def __init__(self, data: AssetDict):
         self.asset_id = int(data["assetid"])
         self.game = Game(id=data["appid"])
         self.amount = int(data["amount"])
@@ -164,7 +164,7 @@ class Asset:
     def __eq__(self, other: "Asset") -> bool:
         return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
-    def to_dict(self) -> _AssetToDict:
+    def to_dict(self) -> AssetToDict:
         return {
             "assetid": str(self.asset_id),
             "amount": self.amount,
@@ -217,7 +217,7 @@ class Item(Asset):
         "_is_marketable",
     )
 
-    def __init__(self, data: _ItemDict):
+    def __init__(self, data: ItemDict):
         super().__init__(data)
         self._from_data(data)
 
@@ -228,7 +228,7 @@ class Item(Asset):
         resolved.append(asset_repr)
         return f"<Item {' '.join(resolved)}>"
 
-    def _from_data(self, data: _ItemDict) -> None:
+    def _from_data(self, data: ItemDict) -> None:
         self.name = data.get("market_name")
         self.display_name = data.get("name")
         self.colour = int(data["name_color"], 16) if "name_color" in data else None
@@ -282,7 +282,7 @@ class Inventory:
 
     __slots__ = ("game", "items", "owner", "_state", "_total_inventory_count")
 
-    def __init__(self, state: "ConnectionState", data: _InventoryDict, owner: "BaseUser"):
+    def __init__(self, state: "ConnectionState", data: InventoryDict, owner: "BaseUser"):
         self._state = state
         self.owner = owner
         self.items: List[Items] = []
@@ -305,7 +305,7 @@ class Inventory:
             return item in self.items
         return NotImplemented
 
-    def _update(self, data: _InventoryDict) -> None:
+    def _update(self, data: InventoryDict) -> None:
         try:
             self.game = Game(id=int(data["assets"][0]["appid"]))
         except KeyError:  # they don't have an inventory in this game
@@ -454,7 +454,7 @@ class TradeOffer:
         self.state = ETradeOfferState.Invalid
 
     @classmethod
-    async def _from_api(cls, state: "ConnectionState", data: _TradeOfferDict) -> "TradeOffer":
+    async def _from_api(cls, state: "ConnectionState", data: TradeOfferDict) -> "TradeOffer":
         from .abc import SteamID
 
         trade = cls()
@@ -471,7 +471,7 @@ class TradeOffer:
         resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
-    def _update(self, data: _TradeOfferDict) -> None:
+    def _update(self, data: TradeOfferDict) -> None:
         self.message = data.get("message") or None
         self.id = int(data["tradeofferid"])
         expires = data.get("expiration_time")

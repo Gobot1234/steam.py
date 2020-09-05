@@ -41,7 +41,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, NewType, Optional, Union
 
 import aiohttp
 from typing_extensions import Literal
@@ -55,6 +55,7 @@ from .protobufs import EMsg, Msg, MsgProto
 if TYPE_CHECKING:
     from .client import Client
     from .enums import EUIMode
+    from .game import GameDict
     from .protobufs.steammessages_base import CMsgMulti
     from .protobufs.steammessages_clientserver_login import CMsgClientLogonResponse
     from .state import ConnectionState, EventParser
@@ -70,6 +71,8 @@ __all__ = (
 
 log = logging.getLogger(__name__)
 Msgs = Union[MsgProto, Msg]
+GoodType = NewType("GOOD", Literal[True])
+BadType = NewType("BAD", Literal[False])
 
 
 def return_true(*_, **__) -> Literal[True]:
@@ -87,9 +90,9 @@ class EventListener(NamedTuple):
     future: asyncio.Future
 
 
-class CMInfo(NamedTuple):
+class CMServer(NamedTuple):
     url: str
-    status: int  # CMServerList.GOOD/BAD
+    state: Union["CMServerList.GOOD", "CMServerList.BAD"]
     score: float
 
 
@@ -105,13 +108,14 @@ class WebSocketClosure(Exception):
 
 
 class CMServerList(AsyncIterator[str]):
-    GOOD = 1
-    BAD = 2
+    GOOD = GoodType(True)
+    BAD = BadType(False)
+
     __slots__ = ("cms", "cell_id", "_state")
 
     def __init__(self, state: "ConnectionState", first_cm_to_try: str):
         super().__init__(state, None, None, None)
-        self.cms: List[CMInfo] = []
+        self.cms: List[CMServer] = []
         self.cell_id = 0
         if first_cm_to_try is not None:
             self.queue.put_nowait(first_cm_to_try)
@@ -120,8 +124,8 @@ class CMServerList(AsyncIterator[str]):
         return len(self.cms)
 
     @utils.async_property
-    async def best_cms(self) -> List[CMInfo]:
-        good_servers = [cm for cm in self.cms if cm.status == self.GOOD]
+    async def best_cms(self) -> List[CMServer]:
+        good_servers = [cm for cm in self.cms if cm.state]
 
         if not good_servers:
             log.debug("No good servers left. Resetting...")
@@ -173,10 +177,10 @@ class CMServerList(AsyncIterator[str]):
             self.mark_good(cm.url)
 
     def mark_good(self, url: str, score: float = 0.0) -> None:
-        self.cms.append(CMInfo(url, self.GOOD, score))
+        self.cms.append(CMServer(url, self.GOOD, score))
 
     def mark_bad(self, url: str) -> None:
-        self.cms.append(CMInfo(url, self.BAD, 0.0))
+        self.cms.append(CMServer(url, self.BAD, 0.0))
 
     def merge_list(self, hosts: List[str]) -> None:
         total = len(self)
@@ -187,7 +191,7 @@ class CMServerList(AsyncIterator[str]):
         if len(self) > total:
             log.debug(f"Added {len(self) - total} new CM server addresses.")
 
-    async def ping_cms(self, cms: Optional[List[CMInfo]] = None, to_ping: int = 10) -> List[CMInfo]:
+    async def ping_cms(self, cms: Optional[List[CMServer]] = None, to_ping: int = 10) -> List[CMServer]:
         cms = self.cms or cms
         best_cms = []
         for cm in cms[:to_ping]:
@@ -545,7 +549,7 @@ class SteamWebSocket:
     async def change_presence(
         self,
         *,
-        games: List[dict],
+        games: List[GameDict],
         state: Optional["EPersonaState"],
         flags: int,
         ui_mode: Optional["EUIMode"],

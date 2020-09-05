@@ -85,7 +85,7 @@ class Ban:
             ("is_vac_banned", self.is_vac_banned()),
         ]
         resolved = [f"{method}={value!r}" for method, value in attrs]
-        return f'<Ban {" ".join(resolved)}>'
+        return f"<Ban {' '.join(resolved)}>"
 
     def is_banned(self) -> bool:
         """:class:`bool`: Species if the user is banned from any part of Steam."""

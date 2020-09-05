@@ -32,9 +32,9 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional, SupportsInt, Tuple, Union, overload
+from typing import TYPE_CHECKING, Awaitable, Callable, List, NoReturn, Optional, SupportsInt, Tuple, Union, overload
 
-from typing_extensions import Final, Literal
+from typing_extensions import Final, TypedDict
 
 from .badge import UserBadges
 from .comment import Comment
@@ -79,6 +79,38 @@ __all__ = (
     "SteamID",
     "Message",
 )
+
+
+class UserDict(TypedDict):
+    personaname: str
+    steamid: str
+    primaryclanid: str
+    profileurl: str
+    realname: str
+    # enums
+    communityvisibilitystate: int
+    profilestate: int
+    commentpermission: int
+    personastate: int
+    personastateflags: int
+    # avatar
+    avatar: str
+    avatarmedium: str
+    avatarfull: str
+    avatarhash: str
+    # country stuff
+    loccountrycode: str
+    locstatecode: int
+    loccityid: int
+    # game stuff
+    gameid: str  # game app id
+    gameextrainfo: str  # game name
+    # unix timestamps
+    timecreated: int
+    lastlogoff: int
+    # we pass these ourselves
+    last_logon: int
+    last_seen_online: int
 
 
 class SteamID(metaclass=abc.ABCMeta):
@@ -389,7 +421,7 @@ class BaseUser(SteamID):
     def __str__(self):
         return self.name
 
-    def _update(self, data) -> None:
+    def _update(self, data: UserDict) -> None:
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
         self.avatar_url = data.get("avatarfull") or self.avatar_url
@@ -457,7 +489,7 @@ class BaseUser(SteamID):
         :class:`Inventory`
             The user's inventory.
         """
-        resp = await self._state.http.get_user_inventory(self.id64, game.app_id, game.context_id)
+        resp = await self._state.http.get_user_inventory(self.id64, game.id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
     async def friends(self) -> List["User"]:
@@ -641,7 +673,7 @@ class Messageable(metaclass=abc.ABCMeta):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         raise NotImplementedError
 
-    async def send(self, content: Optional[str] = None, image: Optional["Image"] = None):
+    async def send(self, content: Optional[str] = None, image: Optional["Image"] = None) -> None:
         """|coro|
         Send a message to a certain destination.
 
@@ -677,11 +709,11 @@ class BaseChannel(Messageable):
         self.group: Optional["Group"] = None
 
     @abc.abstractmethod
-    def typing(self):
+    def typing(self) -> NoReturn:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def trigger_typing(self):
+    async def trigger_typing(self) -> NoReturn:
         raise NotImplementedError
 
 
@@ -738,7 +770,7 @@ class Message:
         self.author: "User"
         self.created_at: datetime
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("author", "channel")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
