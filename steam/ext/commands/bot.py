@@ -77,11 +77,51 @@ if TYPE_CHECKING:
     from .commands import CheckType
     from .cooldown import Cooldown
 
-__all__ = ("Bot",)
+__all__ = (
+    "Bot",
+    "when_mentioned",
+    "when_mentioned_or",
+)
 
 
 StrOrIterStr = Union[str, Iterable[str]]
 CommandPrefixType = Union[StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]]]
+
+
+def when_mentioned(bot: "Bot", message: "steam.Message") -> List[str]:
+    """A callable that implements a command prefix equivalent to being mentioned.
+    This is meant to be passed into the :attr:`.Bot.command_prefix` attribute.
+    """
+    return [bot.user.mention]
+
+
+def when_mentioned_or(*prefixes: str) -> Callable[["Bot", "steam.Message"], List[str]]:
+    """A callable that implements when mentioned or other prefixes provided. These are meant to be passed into the
+    :attr:`.Bot.command_prefix` attribute.
+
+    Example
+    --------
+    .. code-block:: python3
+
+        bot = commands.Bot(command_prefix=commands.when_mentioned_or('!'))
+
+    .. note::
+        This callable returns another callable, so if this is done inside a custom callable, you must call the
+        returned callable, for example: ::
+
+            async def get_prefix(bot, message):
+                extras = await prefixes_for(message.guild)  # returns a list
+                return commands.when_mentioned_or(*extras)(bot, message)
+
+    See Also
+    ---------
+    :func:`.when_mentioned`
+    """
+
+    def inner(bot: "Bot", message: "steam.Message") -> List[str]:
+        return list(prefixes) + when_mentioned(bot, message)
+
+    return inner
 
 
 class CommandFunctionType(Protocol):
@@ -523,7 +563,7 @@ class Bot(GroupMixin, Client):
         """
         prefixes = self.command_prefix
         if callable(prefixes):
-            prefixes = await utils.maybe_coroutine(self.command_prefix, message)
+            prefixes = await utils.maybe_coroutine(prefixes, message)
         if isinstance(prefixes, str):
             prefixes = (prefixes,)
         else:
