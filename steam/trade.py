@@ -133,8 +133,6 @@ class Asset:
         The game the item is from.
     asset_id: :class:`str`
         The assetid of the item.
-    app_id: :class:`str`
-        The appid of the item.
     amount: :class:`int`
         The amount of the same asset there are in the inventory.
     instance_id: :class:`str`
@@ -143,12 +141,11 @@ class Asset:
         The classid of the item.
     """
 
-    __slots__ = ("game", "amount", "app_id", "class_id", "asset_id", "instance_id")
+    __slots__ = ("game", "amount", "class_id", "asset_id", "instance_id")
 
     def __init__(self, data: _AssetDict):
         self.asset_id = int(data["assetid"])
-        self.game = Game(app_id=data["appid"])
-        self.app_id = self.game.app_id
+        self.game = Game(id=data["appid"])
         self.amount = int(data["amount"])
         self.instance_id = int(data["instanceid"])
         self.class_id = int(data["classid"])
@@ -171,7 +168,7 @@ class Asset:
         return {
             "assetid": str(self.asset_id),
             "amount": self.amount,
-            "appid": str(self.app_id),
+            "appid": str(self.game.id),
             "contextid": str(self.game.context_id),
         }
 
@@ -310,7 +307,7 @@ class Inventory:
 
     def _update(self, data: _InventoryDict) -> None:
         try:
-            self.game = Game(app_id=int(data["assets"][0]["appid"]))
+            self.game = Game(id=int(data["assets"][0]["appid"]))
         except KeyError:  # they don't have an inventory in this game
             self.game = None
             self.items = []
@@ -331,7 +328,7 @@ class Inventory:
         """|coro|
         Re-fetches the inventory.
         """
-        data = await self._state.http.get_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
+        data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
     def filter_items(self, *names: str, **kwargs: Any) -> List[Item]:

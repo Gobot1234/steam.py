@@ -66,8 +66,8 @@ class Game:
     ----------
     title: Optional[:class:`str`]
         The game's title.
-    app_id: Optional[:class:`int`]
-        The game's app_id.
+    id: Optional[:class:`int`]
+        The game's app ID.
     context_id: Optional[:class:`int`]
         The game's context ID by default 2.
 
@@ -75,8 +75,8 @@ class Game:
     -----------
     title: Optional[:class:`str`]
         The game's title.
-    app_id: :class:`int`
-        The game's app_id.
+    id: :class:`int`
+        The game's app ID.
     context_id: :class:`int`
         The context id of the game normally 2.
     total_play_time: Optional[:class:`int`]
@@ -91,7 +91,7 @@ class Game:
     """
 
     __slots__ = (
-        "app_id",
+        "id",
         "title",
         "context_id",
         "total_play_time",
@@ -112,34 +112,38 @@ class Game:
     def __init__(self, app_id: SupportsInt, title: str, *, context_id: Optional[int] = 2):
         ...
 
-    def __init__(self, app_id: Optional[SupportsInt] = None, title: Optional[str] = None, *, context_id: int = 2):
-        if title is None and app_id is None:
-            raise TypeError("__init__() missing a required positional argument: 'app_id' or 'title'")
-        if app_id is not None and title is None:
+    @overload
+    def __init__(self, id: Optional[SupportsInt], title: Optional[str] = None, *, context_id: Optional[int] = 2):
+        ...
+
+    def __init__(self, id=None, title=None, *, context_id=2):
+        if title is None and id is None:
+            raise TypeError("__init__() missing a required positional argument: 'id' or 'title'")
+        if id is not None and title is None:
             try:
-                app_id = int(app_id)
-            except ValueError:
-                raise ValueError(f"app_id expected to be a not {app_id.__class__.__name__!r}")
-            if app_id < 0:
-                raise ValueError("app_id cannot be negative")
+                id = int(id)
+            except (ValueError, TypeError):
+                raise ValueError(f"id expected to support int()")
+            if id < 0:
+                raise ValueError("id cannot be negative")
             try:
-                title = Games(app_id)
+                title = Games(id)
             except ValueError:
                 title = None
             else:
                 if title == "Steam" and context_id is not None:
                     context_id = 6
-        elif app_id is None and title is not None:
+        elif id is None and title is not None:
             try:
-                app_id = Games[title.replace(" ", "_").replace("-", "__")]
+                id = Games[title.replace(" ", "_").replace("-", "__")]
             except KeyError:
-                app_id = 0
+                id = 0
 
         else:
-            if not isinstance(app_id, int):
-                raise ValueError("app_id must be an int")
+            if not isinstance(id, int):
+                raise ValueError("id must be an int")
 
-        self.app_id: int = app_id
+        self.id: int = id
         self.title: Optional[str] = title
         self.context_id: Optional[int] = context_id
 
@@ -150,7 +154,7 @@ class Game:
 
     @classmethod
     def _from_api(cls, data: Dict[str, str]) -> "Game":
-        game = cls(app_id=data.get("appid"), title=data.get("name"))
+        game = cls(id=data.get("appid"), title=data.get("name"))
         game.total_play_time = data.get("playtime_forever", 0)
         game.icon_url = data.get("img_icon_url")
         game.logo_url = data.get("img_logo_url")
@@ -161,19 +165,19 @@ class Game:
         return self.title or ""
 
     def __repr__(self) -> str:
-        attrs = ("title", "app_id", "context_id")
+        attrs = ("title", "id", "context_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Game {' '.join(resolved)}>"
 
-    def to_dict(self) -> _GameDict:
+    def to_dict(self) -> GameDict:
         """:class:`Dict[:class:`str`, :class:`str`]: The dict representation of the game used to set presences."""
         if not self.is_steam_game():
-            return {"game_id": str(self.app_id), "game_extra_info": self.title}
-        return {"game_id": str(self.app_id)}
+            return {"game_id": str(self.id), "game_extra_info": self.title}
+        return {"game_id": str(self.id)}
 
     def is_steam_game(self) -> bool:
         """:class:`bool`: Whether the game could be a Steam game."""
-        return self.app_id <= APP_ID_MAX
+        return self.id <= APP_ID_MAX
 
     def has_visible_stats(self) -> bool:
         """:class:`bool`: Whether the game has publicly visible stats.
@@ -182,15 +186,15 @@ class Game:
         return self._stats_visible
 
 
-TF2 = Game(title="Team Fortress 2", app_id=440)
-DOTA2 = Game(title="DOTA 2", app_id=570)
-CSGO = Game(title="Counter Strike Global-Offensive", app_id=730)
-STEAM = Game(title="Steam", app_id=753, context_id=6)
+TF2 = Game(title="Team Fortress 2")
+DOTA2 = Game(title="DOTA 2")
+CSGO = Game(title="Counter Strike Global-Offensive")
+STEAM = Game(title="Steam", context_id=6)
 
 
 def CUSTOM_GAME(title: str) -> Game:
     """Create a custom game instance for :meth:`~steam.Client.change_presence`.
-    The :attr:`Game.app_id` will be set to ``15190414816125648896`` and the :attr:`Game.context_id` to ``None``.
+    The :attr:`Game.id` will be set to ``15190414816125648896`` and the :attr:`Game.context_id` to ``None``.
 
     Example: ::
 
@@ -206,4 +210,4 @@ def CUSTOM_GAME(title: str) -> Game:
     class:`Game`
         The created custom game.
     """
-    return Game(title=title, app_id=15190414816125648896, context_id=None)
+    return Game(title=title, id=15190414816125648896, context_id=None)

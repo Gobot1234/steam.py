@@ -403,7 +403,7 @@ class BaseUser(SteamID):
         self.last_seen_online = (
             datetime.utcfromtimestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
         )
-        self.game = Game(title=data.get("gameextrainfo"), app_id=data["gameid"]) if "gameid" in data else self.game
+        self.game = Game(title=data.get("gameextrainfo"), id=data["gameid"]) if "gameid" in data else self.game
         self.state = EPersonaState(data.get("personastate", 0)) or self.state
         self.flags = EPersonaStateFlag.components(data.get("personastateflags", 0)) or self.flags
         self.privacy_state = ECommunityVisibilityState(data.get("communityvisibilitystate", 0))

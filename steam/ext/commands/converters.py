@@ -197,7 +197,7 @@ class GameConverter(Converter):
     """
 
     async def convert(self, ctx: "commands.Context", argument: str):
-        return Game(app_id=int(argument)) if argument.isdigit() else Game(title=argument)
+        return Game(id=int(argument)) if argument.isdigit() else Game(title=argument)
 
 
 @runtime_checkable
