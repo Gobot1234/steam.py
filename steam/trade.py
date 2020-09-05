@@ -26,7 +26,9 @@ SOFTWARE.
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Generator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, NoReturn, Optional, Union
+
+from typing_extensions import TypedDict
 
 from .enums import ETradeOfferState
 from .errors import ClientException, ConfirmationError
@@ -45,6 +47,70 @@ __all__ = (
 )
 
 Items = Union["Item", "Asset"]
+
+
+# TypedDicts to help visualise the data you receive
+class _AssetToDict(TypedDict):
+    assetid: str
+    amount: str
+    appid: str
+    contextid: str
+
+
+class _AssetDict(_AssetToDict):
+    instanceid: str
+    classid: str
+    missing: bool
+
+
+class _DescriptionDict(TypedDict, total=False):
+    instanceid: str
+    classid: str
+    market_name: str
+    currency: int
+    name: str
+    market_hash_name: str
+    name_color: str
+    background_color: str  # hex code
+    type: str
+    descriptions: Dict[str, str]
+    market_actions: List[Dict[str, str]]
+    tags: List[Dict[str, str]]
+    actions: List[Dict[str, str]]
+    icon_url: str
+    icon_url_large: str
+    tradable: bool  # 1 vs 0
+    marketable: bool  # same as above
+    commodity: int  # might be a bool
+
+
+class _ItemDict(_AssetDict, _DescriptionDict):
+    """We combine Assets with their matching Description to form items."""
+
+
+class _InventoryDict(TypedDict):
+    assets: List[_AssetDict]
+    descriptions: List[_DescriptionDict]
+    total_inventory_count: int
+    success: int  # EResult
+    rwgrsn: int  # p. much always -2
+
+
+class _TradeOfferDict(TypedDict):
+    tradeofferid: str
+    tradeid: str  # no clue what this is (its not the useful one)
+    accountid_other: int
+    message: str
+    trade_offer_state: int  # ETradeOfferState
+    expiration_time: int  # unix timestamps
+    time_created: int
+    time_updated: int
+    escrow_end_date: int
+    items_to_give: List[_AssetDict]
+    items_to_receive: List[_AssetDict]
+    is_our_offer: bool
+    from_real_time_trade: bool
+    confirmation_method: int  # 2 is mobile not a clue what other values are
 
 
 class Asset:
@@ -79,7 +145,7 @@ class Asset:
 
     __slots__ = ("game", "amount", "app_id", "class_id", "asset_id", "instance_id")
 
-    def __init__(self, data: dict):
+    def __init__(self, data: _AssetDict):
         self.asset_id = int(data["assetid"])
         self.game = Game(app_id=data["appid"])
         self.app_id = self.game.app_id
@@ -87,7 +153,7 @@ class Asset:
         self.instance_id = int(data["instanceid"])
         self.class_id = int(data["classid"])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = (
             "game",
             "amount",
@@ -98,10 +164,10 @@ class Asset:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Asset {' '.join(resolved)}>"
 
-    def __eq__(self, other):
+    def __eq__(self, other: "Asset") -> bool:
         return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> _AssetToDict:
         return {
             "assetid": str(self.asset_id),
             "amount": self.amount,
@@ -154,18 +220,18 @@ class Item(Asset):
         "_is_marketable",
     )
 
-    def __init__(self, data: dict):
+    def __init__(self, data: _ItemDict):
         super().__init__(data)
         self._from_data(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         asset_repr = super().__repr__()[7:-1]
         attrs = ("name",)
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         resolved.append(asset_repr)
         return f"<Item {' '.join(resolved)}>"
 
-    def _from_data(self, data) -> None:
+    def _from_data(self, data: _ItemDict) -> None:
         self.name = data.get("market_name")
         self.display_name = data.get("name")
         self.colour = int(data["name_color"], 16) if "name_color" in data else None
@@ -219,30 +285,30 @@ class Inventory:
 
     __slots__ = ("game", "items", "owner", "_state", "_total_inventory_count")
 
-    def __init__(self, state: "ConnectionState", data: dict, owner: "BaseUser"):
+    def __init__(self, state: "ConnectionState", data: _InventoryDict, owner: "BaseUser"):
         self._state = state
         self.owner = owner
         self.items: List[Items] = []
         self.game: Optional[Game]
         self._update(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("owner", "game")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Inventory {' '.join(resolved)}>"
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._total_inventory_count
 
-    def __iter__(self) -> Generator[Item, None, None]:
+    def __iter__(self) -> Generator[Items, None, None]:
         return (item for item in self.items)
 
-    def __contains__(self, item: Asset):
+    def __contains__(self, item: Asset) -> bool:
         if isinstance(item, Asset):
             return item in self.items
         return NotImplemented
 
-    def _update(self, data: dict) -> None:
+    def _update(self, data: _InventoryDict) -> None:
         try:
             self.game = Game(app_id=int(data["assets"][0]["appid"]))
         except KeyError:  # they don't have an inventory in this game
@@ -268,7 +334,7 @@ class Inventory:
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.app_id, self.game.context_id)
         self._update(data)
 
-    def filter_items(self, *names: str, **kwargs) -> List[Item]:
+    def filter_items(self, *names: str, **kwargs: Any) -> List[Item]:
         """A helper function that filters and removes items by name from the inventory.
 
         Parameters
@@ -391,7 +457,7 @@ class TradeOffer:
         self.state = ETradeOfferState.Invalid
 
     @classmethod
-    async def _from_api(cls, state: "ConnectionState", data: dict) -> "TradeOffer":
+    async def _from_api(cls, state: "ConnectionState", data: _TradeOfferDict) -> "TradeOffer":
         from .abc import SteamID
 
         trade = cls()
@@ -403,12 +469,12 @@ class TradeOffer:
         )  # the account is private :(
         return trade
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("id", "state", "partner")
         resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
-    def _update(self, data) -> None:
+    def _update(self, data: _TradeOfferDict) -> None:
         self.message = data.get("message") or None
         self.id = int(data["tradeofferid"])
         expires = data.get("expiration_time")
@@ -420,7 +486,7 @@ class TradeOffer:
         self.items_to_receive = [Item(data=item) for item in data.get("items_to_receive", [])]
         self._is_our_offer = data.get("is_our_offer", False)
 
-    def __eq__(self, other):
+    def __eq__(self, other: "TradeOffer") -> bool:
         if isinstance(other, TradeOffer):
             if self._has_been_sent and other._has_been_sent:
                 return self.id == other.id
@@ -533,13 +599,13 @@ class TradeOffer:
             await self._state.get_and_confirm_confirmation(int(resp["tradeofferid"]))
 
     def is_gift(self) -> bool:
-        """:class:`bool`: Checks if an offer is a gift to the ClientUser"""
+        """:class:`bool`: Helper method that checks if an offer is a gift to the :class:`~steam.ClientUser`"""
         return self.items_to_receive and not self.items_to_send
 
     def is_our_offer(self) -> bool:
-        """:class:`bool`: Whether the offer was created by the ClientUser."""
+        """:class:`bool`: Whether the offer was created by the :class:`~steam.ClientUser`."""
         return self._is_our_offer
 
-    def _check_active(self) -> None:
+    def _check_active(self) -> NoReturn:
         if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException("This trade is not active")

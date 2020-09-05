@@ -24,7 +24,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import Optional
+from typing import Dict, Optional, SupportsInt, overload
+
+from typing_extensions import TypedDict
+
+from .enums import IntEnum
 
 __all__ = (
     "TF2",
@@ -37,16 +41,17 @@ __all__ = (
 
 APP_ID_MAX = 2 ** 32
 
-MAPPING = {
-    "Team Fortress 2": [440, 2],
-    "DOTA 2": [570, 2],
-    "Counter Strike Global-Offensive": [730, 2],
-    "Steam": [753, 6],
-    440: ["Team Fortress 2", 2],
-    570: ["DOTA 2", 2],
-    730: ["Counter Strike Global-Offensive", 2],
-    753: ["Steam", 6],
-}
+
+class Games(IntEnum):
+    Team_Fortress_2 = 440
+    DOTA_2 = 570
+    Counter_Strike_Global__Offensive = 730
+    Steam = 753
+
+
+class _GameDict(TypedDict, total=False):
+    game_id: str
+    game_extra_info: str
 
 
 class Game:
@@ -83,9 +88,6 @@ class Game:
     logo_url: Optional[:class:`str`]
         The logo url of the game.
         Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
-    stats_visible: Optional[:class:`bool`]
-        Whether the game has publicly visible stats.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     """
 
     __slots__ = (
@@ -95,90 +97,89 @@ class Game:
         "total_play_time",
         "icon_url",
         "logo_url",
-        "stats_visible",
+        "_stats_visible",
     )
 
-    def __init__(self, app_id: Optional[int] = None, title: Optional[str] = None, *, context_id: Optional[int] = 2):
+    @overload
+    def __init__(self, app_id: SupportsInt, *, context_id: Optional[int] = 2):
+        ...
+
+    @overload
+    def __init__(self, title: str, *, context_id: Optional[int] = 2):
+        ...
+
+    @overload
+    def __init__(self, app_id: SupportsInt, title: str, *, context_id: Optional[int] = 2):
+        ...
+
+    def __init__(self, app_id: Optional[SupportsInt] = None, title: Optional[str] = None, *, context_id: int = 2):
+        if title is None and app_id is None:
+            raise TypeError("__init__() missing a required positional argument: 'app_id' or 'title'")
         if app_id is not None and title is None:
             try:
-                self.app_id = int(app_id)
-            except ValueError as exc:
-                raise ValueError(f"app_id expected to be a digit not {repr(type(app_id).__name__)}") from exc
-            if self.app_id < 0:
+                app_id = int(app_id)
+            except ValueError:
+                raise ValueError(f"app_id expected to be a not {app_id.__class__.__name__!r}")
+            if app_id < 0:
                 raise ValueError("app_id cannot be negative")
-            mapping = MAPPING.get(app_id)
-            if mapping is not None:
-                self.title = mapping[0]
-                self.context_id = mapping[1]
+            try:
+                title = Games(app_id)
+            except ValueError:
+                title = None
             else:
-                self.title = title
-                self.context_id = context_id
-
+                if title == "Steam" and context_id is not None:
+                    context_id = 6
         elif app_id is None and title is not None:
-            mapping = MAPPING.get(title)
-            if mapping is not None:
-                self.app_id = mapping[0]
-                self.context_id = mapping[1]
-            else:
-                self.app_id = app_id
-                self.context_id = context_id
-            self.title = title
+            try:
+                app_id = Games[title.replace(" ", "_").replace("-", "__")]
+            except KeyError:
+                app_id = 0
 
         else:
-            app_id = int(app_id)
-            mapping = MAPPING.get(app_id)
-            if mapping is not None:
-                self.title = mapping[0]
-                self.app_id = app_id
-                self.context_id = mapping[1]
-            else:
-                self.title = title
-                self.app_id = app_id
-                self.context_id = context_id
+            if not isinstance(app_id, int):
+                raise ValueError("app_id must be an int")
 
-            mapping = MAPPING.get(title)
-            if mapping is not None:
-                self.title = title
-                self.app_id = mapping[0]
-                self.context_id = mapping[1]
-            else:
-                self.title = title
-                self.app_id = app_id
-                self.context_id = context_id
+        self.app_id: int = app_id
+        self.title: Optional[str] = title
+        self.context_id: Optional[int] = context_id
 
         self.total_play_time: Optional[int] = None
         self.icon_url: Optional[str] = None
         self.logo_url: Optional[str] = None
-        self.stats_visible: Optional[bool] = None
+        self._stats_visible: Optional[bool] = None
 
     @classmethod
-    def _from_api(cls, data: dict) -> "Game":
+    def _from_api(cls, data: Dict[str, str]) -> "Game":
         game = cls(app_id=data.get("appid"), title=data.get("name"))
         game.total_play_time = data.get("playtime_forever", 0)
         game.icon_url = data.get("img_icon_url")
         game.logo_url = data.get("img_logo_url")
-        game.stats_visible = data.get("has_community_visible_stats", False)
+        game._stats_visible = data.get("has_community_visible_stats", False)
         return game
 
-    def __repr__(self):
+    def __str__(self) -> str:
+        return self.title or ""
+
+    def __repr__(self) -> str:
         attrs = ("title", "app_id", "context_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Game {' '.join(resolved)}>"
 
-    def __eq__(self, other):
-        if isinstance(other, Game):
-            return self.app_id == other.app_id or self.title == other.title
-        if isinstance(other, int):
-            return self.app_id == other
-        return NotImplemented
-
-    def to_dict(self) -> dict:
+    def to_dict(self) -> _GameDict:
+        """:class:`Dict[:class:`str`, :class:`str`]: The dict representation of the game used to set presences."""
         if not self.is_steam_game():
             return {"game_id": str(self.app_id), "game_extra_info": self.title}
         return {"game_id": str(self.app_id)}
 
     def is_steam_game(self) -> bool:
+        """:class:`bool`: Whether the game could be a Steam game."""
         return self.app_id <= APP_ID_MAX
+
+    def has_visible_stats(self) -> bool:
+        """:class:`bool`: Whether the game has publicly visible stats.
+        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
+        """
+        return self._stats_visible
 
 
 TF2 = Game(title="Team Fortress 2", app_id=440)
