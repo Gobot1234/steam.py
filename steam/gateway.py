@@ -549,7 +549,7 @@ class SteamWebSocket:
     async def change_presence(
         self,
         *,
-        games: List[GameDict],
+        games: List["GameDict"],
         state: Optional["EPersonaState"],
         flags: int,
         ui_mode: Optional["EUIMode"],
