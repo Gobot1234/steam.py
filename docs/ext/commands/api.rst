@@ -123,16 +123,22 @@ Exceptions
 .. autoexception:: steam.ext.commands.CommandError
     :members:
 
-.. autoexception:: steam.ext.commands.MissingRequiredArgument
+.. autoexception:: steam.ext.commands.BadArgument
     :members:
 
-.. autoexception:: steam.ext.commands.BadArgument
+.. autoexception:: steam.ext.commands.MissingRequiredArgument
     :members:
 
 .. autoexception:: steam.ext.commands.CheckFailure
     :members:
 
+.. autoexception:: steam.ext.commands.NotOwner
+    :members:
+
 .. autoexception:: steam.ext.commands.CommandNotFound
+    :members:
+
+.. autoexception:: steam.ext.commands.CommandDisabled
     :members:
 
 .. autoexception:: steam.ext.commands.CommandOnCooldown
@@ -146,8 +152,10 @@ Exception Hierarchy
 
     - :exc:`~.SteamException`
         - :exc:`~.commands.CommandError`
-            - :exc:`~.commands.MissingRequiredArgument`
             - :exc:`~.commands.BadArgument`
+                - :exc:`~.commands.MissingRequiredArgument`
             - :exc:`~.commands.CommandNotFound`
             - :exc:`~.commands.CheckFailure`
+                - :exc:`~.commands.CommandDisabled`
+                - :exc:`~.commands.NotOwner`
             - :exc:`~.commands.CommandOnCooldown`
