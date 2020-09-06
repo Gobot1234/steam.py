@@ -127,7 +127,7 @@ class Game:
             if id < 0:
                 raise ValueError("id cannot be negative")
             try:
-                title = Games(id)
+                title = Games(id).name.replace("__", "-").replace("_", " ")
             except ValueError:
                 title = None
             else:
@@ -135,13 +135,15 @@ class Game:
                     context_id = 6
         elif id is None and title is not None:
             try:
-                id = Games[title.replace(" ", "_").replace("-", "__")]
+                id = Games[title.replace(" ", "_").replace("-", "__")].value
             except KeyError:
                 id = 0
 
         else:
-            if not isinstance(id, int):
-                raise ValueError("id must be an int")
+            try:
+                id = int(id)
+            except (ValueError, TypeError):
+                raise ValueError("id must be an int") from None
 
         self.id: int = id
         self.title: Optional[str] = title
@@ -167,7 +169,7 @@ class Game:
     def __repr__(self) -> str:
         attrs = ("title", "id", "context_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<Game {' '.join(resolved)}>"
+        return f"Game({', '.join(resolved)})"
 
     def to_dict(self) -> GameDict:
         """:class:`Dict[:class:`str`, :class:`str`]: The dict representation of the game used to set presences."""
