@@ -51,10 +51,17 @@ Command
 
 .. autofunction:: steam.ext.commands.command
 
+.. autofunction:: steam.ext.commands.group
+
 .. autofunction:: steam.ext.commands.command.cooldown
 
 .. autoclass:: steam.ext.commands.Command
     :members:
+    :special-members: __call__
+
+.. autoclass:: steam.ext.commands.Group
+    :members:
+    :inherited-members:
     :special-members: __call__
 
 
@@ -65,11 +72,10 @@ Cogs
     :members:
 
 
-
 Context
 --------
 
-.. autoclass:: steam.ext.commands.Context()
+.. autoclass:: steam.ext.commands.Context
     :members:
     :inherited-members:
 
