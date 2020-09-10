@@ -28,7 +28,9 @@ EnumMeta from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
 """
 
 from types import MappingProxyType
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Generator, List, Mapping, NoReturn, Tuple
+
+from typing_extensions import Literal
 
 __all__ = (
     "Enum",
@@ -54,157 +56,92 @@ def _is_descriptor(obj: object) -> bool:
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
-def _is_dunder(name: str) -> bool:
-    """Returns True if a __dunder__ name, False otherwise."""
-    return len(name) > 4 and name[:2] == name[-2:] == "__" and name[2] != "_" and name[-3] != "_"
-
-
-class EnumMember:
-    _enum_cls_: "Enum"
-    name: str
-    value: Any
-
-    def __new__(cls, *, name, value) -> "EnumMember":
-        self = super().__new__(cls)
-        self.name = name
-        self.value = value
-        return self
-
-    def __repr__(self):
-        return f"<{self._enum_cls_.__name__}.{self.name}: {self.value!r}>"
-
-    def __str__(self):
-        return f"{self._enum_cls_.__name__}.{self.name}"
-
-    def __hash__(self):
-        return hash((self.name, self.value))
-
-
-class IntEnumMember(EnumMember, int):
-    _enum_cls_: "IntEnum"
-    value: int
-
-    def __new__(cls, *, name, value) -> "IntEnumMember":
-        self = int.__new__(cls, value)
-        self.name = name
-        self.value = value
-        return self
-
-    def __bool__(self):
-        return True
-
-
 class EnumMeta(type):
-    def __new__(mcs, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]) -> "Enum":
-        value_mapping: Dict[Any, EnumMember] = {}
-        member_mapping: Dict[str, EnumMember] = {}
+    def __new__(mcs, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]) -> type:
+        set_attribute = super().__setattr__
+        enum_class = super().__new__(mcs, name, bases, attrs)
+        enum_new = enum_class.__new__
+
+        value_mapping: Dict[int, "Enum"] = {}
+        member_mapping: Dict[str, "Enum"] = {}
         member_names: List[str] = []
 
-        try:
-            value_cls = IntEnumMember if IntEnum in bases else EnumMember
-        except NameError:
-            value_cls = EnumMember
-
-        for key, value in tuple(attrs.items()):
-            is_descriptor = _is_descriptor(value)
-            if key[0] == "_" and not is_descriptor:
+        for key, value in attrs.items():
+            if key[0] == "_" or _is_descriptor(value):
                 continue
 
-            # special case for classmethods to pass through
-            if isinstance(value, classmethod):
-                continue
-
-            if is_descriptor:
-                setattr(value_cls, key, value)
-                del attrs[key]
-                continue
-
-            try:
-                new_value = value_mapping[value]
-            except KeyError:
-                new_value = value_cls(name=key, value=value)
-                value_mapping[value] = new_value
+            member = value_mapping.get(value)
+            if member is None:
+                member = enum_new(enum_class, name=key, value=value)
+                value_mapping[value] = member
                 member_names.append(key)
 
-            member_mapping[key] = new_value
-            attrs[key] = new_value
+            member_mapping[key] = member
+            set_attribute(enum_class, key, member)
 
-        attrs["_value_map_"] = value_mapping
-        attrs["_member_map_"] = member_mapping
-        attrs["_member_names_"] = member_names
-        enum_class: "Enum" = super().__new__(mcs, name, bases, attrs)
-        for member in value_mapping.values():  # edit each value to ensure it's correct
-            member._enum_cls_ = enum_class
+        set_attribute(enum_class, "_value_map_", value_mapping)
+        set_attribute(enum_class, "_member_map_", member_mapping)
+        set_attribute(enum_class, "_member_names_", member_names)
         return enum_class
 
-    def __call__(cls, value):
-        if isinstance(value, cls):
-            return value
+    def __call__(cls, value: Any) -> "Enum":
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
             raise ValueError(f"{value!r} is not a valid {cls.__name__}")
 
-    def __repr__(cls):
+    def __repr__(cls) -> str:
         return f"<enum {cls.__name__!r}>"
 
-    def __iter__(cls):
+    def __iter__(cls) -> Generator["Enum", None, None]:
         return (cls._member_map_[name] for name in cls._member_names_)
 
-    def __reversed__(cls):
+    def __reversed__(cls) -> Generator["Enum", None, None]:
         return (cls._member_map_[name] for name in reversed(cls._member_names_))
 
-    def __len__(cls):
+    def __len__(cls) -> int:
         return len(cls._member_names_)
 
-    def __getitem__(cls, key):
+    def __getitem__(cls, key: str) -> "Enum":
         return cls._member_map_[key]
 
-    def __setattr__(cls, name, value):
-        if name in cls._member_names_:
-            raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
-        if _is_dunder(name):
-            for value in cls._member_map_:
-                setattr(value, name, value)
-        super().__setattr__(name, value)
+    def __setattr__(cls, name: str, value: Any) -> NoReturn:
+        raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
 
-    def __delattr__(cls, name):
-        if name in cls._member_names_:
-            raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
-        if _is_dunder(name):
-            for value in cls._member_map_:
-                delattr(value, name)
-        super().__delattr__(name)
+    def __delattr__(cls, name: str) -> NoReturn:
+        raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
 
-    def __instancecheck__(self, instance):
-        # isinstance(x, Y) -> __instancecheck__(Y, x)
-        try:
-            cls = instance._enum_cls_
-            return cls is self or issubclass(cls, self)
-        except AttributeError:
-            return False
-
-    def __dir__(cls):
-        return ["__class__", "__doc__", "__members__", "__module__"] + cls._member_names_
-
-    def __contains__(cls, member):
-        if not isinstance(member, EnumMember):
+    def __contains__(cls, member: "Enum") -> bool:
+        if not isinstance(member, Enum):
             raise TypeError(
                 "unsupported operand type(s) for 'in':"
                 f" '{member.__class__.__qualname__}' and '{cls.__class__.__qualname__}'"
             )
-        return member.name in cls._member_map_
-
-    def __bool__(self):
-        return True
+        return isinstance(member, cls) and member.name in cls._member_map_
 
     @property
-    def __members__(cls):
+    def __members__(cls) -> Mapping[str, "Enum"]:
         return MappingProxyType(cls._member_map_)
 
 
 class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates enum.Enum."""
+
+    def __new__(cls, *, name: str, value: Any) -> "Enum":
+        # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__
+        self = super().__new__(cls)
+        self.name = name
+        self.value = value
+        return self
+
+    def __bool__(self) -> Literal[True]:
+        return True  # an enum member with a zero value would return False otherwise
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}.{self.name}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}.{self.name}: {self.value!r}>"
 
     @classmethod
     def try_value(cls, value):
@@ -214,8 +151,14 @@ class Enum(metaclass=EnumMeta):
             return value
 
 
-class IntEnum(int, Enum):
+class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates enum.IntEnum."""
+
+    def __new__(cls, *, name: str, value: int) -> "IntEnum":
+        self = int.__new__(cls, value)
+        self.name = name
+        self.value = value
+        return self
 
 
 # fmt: off

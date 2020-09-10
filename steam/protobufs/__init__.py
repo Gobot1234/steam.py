@@ -32,7 +32,7 @@ from typing import Generic, Optional, Type, TypeVar, Union
 
 import betterproto
 
-from ..enums import EnumMember, IntEnum
+from ..enums import Enum
 from .emsg import *
 from .headers import *
 from .protobufs import *
@@ -43,7 +43,7 @@ AllowedHeaders = (ExtendedMsgHdr, MsgHdrProtoBuf)
 GetProtoType = Optional[Type[betterproto.Message]]
 
 
-def _Message__bool__(self: betterproto.Message):
+def _Message__bool__(self: betterproto.Message) -> bool:
     for field in dataclasses.fields(self):
         if getattr(self, field.name):
             return True
@@ -97,12 +97,12 @@ class MsgBase(Generic[T]):
         self.parse()
         if kwargs:
             for key, value in kwargs.items():
-                if isinstance(value, EnumMember):
+                if isinstance(value, Enum):
                     kwargs[key] = value.value
             if self.body is not None:
                 self.body.from_dict(kwargs)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = (
             "msg",
             "header",
@@ -114,7 +114,7 @@ class MsgBase(Generic[T]):
             resolved.append("body='!!! Failed To Parse !!!'")
         return " ".join(resolved)
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes(self.header) + bytes(self.body)
 
     def _parse(self, proto: Optional[Type[T]]) -> None:
@@ -205,10 +205,10 @@ class Msg(MsgBase[T]):
         self.skip = self.header.SIZE
         super().__init__(msg, data, **kwargs)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Msg {super().__repr__()}>"
 
-    def parse(self):
+    def parse(self) -> None:
         """Parse the payload/data into a protobuf."""
         if self.body is None:
             proto = get_cmsg(self.msg)
@@ -269,10 +269,10 @@ class MsgProto(MsgBase[T]):
         self.um_name = _um_name
         super().__init__(msg, data, **kwargs)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<MsgProto {super().__repr__()}>"
 
-    def parse(self):
+    def parse(self) -> None:
         """Parse the payload/data into a protobuf."""
         if self.body is None:
             if self.msg in (
