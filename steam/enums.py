@@ -85,6 +85,8 @@ class EnumMeta(type):
         return enum_class
 
     def __call__(cls, value: Any) -> "Enum":
+        if value.__class__ is cls:
+            return value
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
