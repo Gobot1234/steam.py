@@ -100,16 +100,26 @@ _QUOTES = tuple('"')
 class MissingClosingQuotation(Exception):
     def __init__(self, position: int):
         self.position = position
-        super().__init__(f"No closing quotation found after the character after position {position}")
+        super().__init__(f"No closing quotation found after the character at position {position}")
 
 
-def _end_of_quote_finder(instream: str, location: int) -> int:
-    end_of_quote_index = instream.find('"', location)
+def _end_of_quote_finder(in_stream: str, location: int) -> int:
+    end_of_quote_index = in_stream.find('"', location)
     if end_of_quote_index == -1:
         raise MissingClosingQuotation(location)
-    if instream[end_of_quote_index - 1] == "\\":  # quote is escaped carry on searching
-        return _end_of_quote_finder(instream, end_of_quote_index + 1)
+    if in_stream[end_of_quote_index - 1] == "\\":  # quote is escaped carry on searching
+        return _end_of_quote_finder(in_stream, end_of_quote_index + 1)
     return end_of_quote_index
+
+
+def remove_quotes(string: str) -> str:
+    """
+    >>> remove_quotes('"only a quote at the start')
+    ... '"quoted only at the start'
+    >>> remove_quotes('"quoted all the way"')
+    ... 'quoted all the way'
+    """
+    return string[1:-1] if (string[-1:], string[:1]) == _QUOTES * 2 else string
 
 
 class Shlex:
@@ -128,28 +138,27 @@ class Shlex:
     def read(self) -> Optional[str]:
         if self.position >= self.end:
             return None
-        token = []
+
         start = self.position
-        for char in self.in_stream[self.position :]:
+        characters = []
+        for character in self.in_stream[self.position :]:
             self.position += 1
-            if char in _WHITE_SPACE:
+            if character in _WHITE_SPACE:
                 break
-            if char in _QUOTES:
+
+            if character in _QUOTES:
                 before = self.position
                 if self.in_stream[before - 2] != "\\":  # quote is escaped carry on searching
                     end_of_quote = _end_of_quote_finder(self.in_stream, before)
-                    token = f'"{self.in_stream[before: end_of_quote]}"'
-                    self.position = end_of_quote + 1
-                    break
-                token.pop()
+                    self.position = end_of_quote + 2
+                    self._undo_pushback.append(start)
+                    return remove_quotes(self.in_stream[before:end_of_quote])
 
-            token.append(char)
+                characters.pop()
+            characters.append(character)
 
-        token = "".join(token)
         self._undo_pushback.append(start)
-        if token[-1:] == '"' and token[:1] == '"':
-            token = token[1:-1]
-        return token.strip()
+        return remove_quotes("".join(characters))
 
     def undo(self) -> None:
         self.position = self._undo_pushback.pop()
