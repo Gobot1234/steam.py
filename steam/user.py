@@ -27,7 +27,7 @@ SOFTWARE.
 from datetime import timedelta
 from typing import TYPE_CHECKING, List, Optional
 
-from .abc import BaseUser, Messageable
+from .abc import BaseUser, Messageable, _EndPointReturnType
 from .errors import ConfirmationError
 from .models import community_route
 
@@ -45,7 +45,7 @@ __all__ = (
 )
 
 
-class User(BaseUser, Messageable):
+class User(BaseUser, Messageable, comment_path="Profile"):
     """Represents a Steam user's account.
 
     .. container:: operations
@@ -221,7 +221,7 @@ class User(BaseUser, Messageable):
         return self in self._state.client.user.friends
 
 
-class ClientUser(BaseUser):
+class ClientUser(BaseUser, comment_path="Profile"):
     """Represents your account.
 
     .. container:: operations

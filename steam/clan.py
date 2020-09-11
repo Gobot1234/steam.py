@@ -32,12 +32,10 @@ from typing import TYPE_CHECKING, List, Optional, Union
 from bs4 import BeautifulSoup
 
 from . import utils
-from .abc import SteamID
+from .abc import SteamID, Commentable
 from .channel import ClanChannel
-from .comment import Comment
 from .errors import HTTPException
 from .game import Game
-from .iterators import CommentsIterator
 from .models import community_route
 from .protobufs.steammessages_chat import (
     CChatRoomSummaryPair as ReceivedResponse,
@@ -53,7 +51,7 @@ if TYPE_CHECKING:
 __all__ = ("Clan",)
 
 
-class Clan(SteamID):
+class Clan(Commentable, comment_path="Clan"):
     """Represents a Steam clan.
 
     .. container:: operations
@@ -339,64 +337,3 @@ class Clan(SteamID):
             The user to invite to the clan.
         """
         await self._state.http.invite_user_to_clan(user_id64=user.id64, clan_id=self.id64)
-
-    async def comment(self, content: str) -> Comment:
-        """|coro|
-        Post a comment to an :class:`Clan`'s comment section.
-
-        Parameters
-        -----------
-        content: :class:`str`
-            The message to add to the clan's profile.
-
-        Returns
-        -------
-        :class:`~steam.Comment`
-            The created comment.
-        """
-        resp = await self._state.http.post_comment(self.id64, "Clan", content)
-        id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
-        timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
-        comment = Comment(
-            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user
-        )
-        self._state.dispatch("comment", comment)
-        return comment
-
-    def comments(
-        self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None
-    ) -> CommentsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a
-        :class:`~steam.Clan`'s :class:`~steam.Comment` objects.
-
-        Examples
-        -----------
-
-        Usage: ::
-
-            async for comment in clan.comments(limit=10):
-                print('Author:', comment.author, 'Said:', comment.content)
-
-        Flattening into a list: ::
-
-            comments = await clan.comments(limit=50).flatten()
-            # comments is now a list of Comment
-
-        All parameters are optional.
-
-        Parameters
-        ----------
-        limit: Optional[:class:`int`]
-            The maximum number of comments to search through.
-            Default is ``None`` which will fetch the clan's entire comments section.
-        before: Optional[:class:`datetime.datetime`]
-            A time to search for comments before.
-        after: Optional[:class:`datetime.datetime`]
-            A time to search for comments after.
-
-        Yields
-        ---------
-        :class:`~steam.Comment`
-            The comment with the comment information parsed.
-        """
-        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)

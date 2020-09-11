@@ -218,18 +218,15 @@ class CommentsIterator(AsyncIterator["Comment"]):
         self.owner = owner
 
     async def fill(self) -> None:
-        from .user import BaseUser, User
+        from .user import User
 
         data = await self._state.http.get_comments(
-            id64=self.owner.id64,
-            limit=self.limit,
-            comment_type="Profile" if isinstance(self.owner, BaseUser) else "Clan",
+            id64=self.owner.id64, comment_path=self.owner.comment_path, limit=self.limit
         )
         soup = BeautifulSoup(data["comments_html"], "html.parser")
-        comments = soup.find_all("div", attrs={"class": "commentthread_comment responsive_body_text"})
         to_fetch = []
 
-        for comment in comments:
+        for comment in soup.find_all("div", attrs={"class": "commentthread_comment responsive_body_text"}):
             timestamp = comment.find("span", attrs={"class": "commentthread_comment_timestamp"})["data-timestamp"]
             timestamp = datetime.utcfromtimestamp(int(timestamp))
             if self.after < timestamp < self.before:

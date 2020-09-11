@@ -329,7 +329,79 @@ class SteamID(metaclass=abc.ABCMeta):
         return cls(id64) if id64 else None
 
 
-class BaseUser(SteamID):
+class Commentable(SteamID):
+    """A mixin that implements commenting functionality"""
+
+    __slots__ = ("comment_path",)
+
+    _state: "ConnectionState"
+
+    def __init_subclass__(cls, **kwargs):
+        cls.comment_path: Final[str] = kwargs["comment_path"]
+
+    async def comment(self, content: str) -> Comment:
+        """|coro|
+        Post a comment to a profile.
+
+        Parameters
+        -----------
+        content: :class:`str`
+            The message to add to the profile.
+
+        Returns
+        -------
+        :class:`~steam.Comment`
+            The created comment.
+        """
+        resp = await self._state.http.post_comment(self.id64, self.comment_path, content)
+        id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
+        timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
+        comment = Comment(
+            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user
+        )
+        self._state.dispatch("comment", comment)
+        return comment
+
+    def comments(
+        self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None
+    ) -> CommentsIterator:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a
+        :class:`~steam.Clan`'s :class:`~steam.Comment` objects.
+
+        Examples
+        -----------
+
+        Usage: ::
+
+            async for comment in commentable.comments(limit=10):
+                print('Author:', comment.author, 'Said:', comment.content)
+
+        Flattening into a list: ::
+
+            comments = await commentable.comments(limit=50).flatten()
+            # comments is now a list of Comment
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit: Optional[:class:`int`]
+            The maximum number of comments to search through.
+            Default is ``None`` which will fetch the clan's entire comments section.
+        before: Optional[:class:`datetime.datetime`]
+            A time to search for comments before.
+        after: Optional[:class:`datetime.datetime`]
+            A time to search for comments after.
+
+        Yields
+        ---------
+        :class:`~steam.Comment`
+            The comment with the comment information parsed.
+        """
+        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
+
+
+class BaseUser(Commentable, comment_path="Profile"):
     """An ABC that details the common operations on a Steam user.
     The following classes implement this ABC:
 
@@ -446,29 +518,6 @@ class BaseUser(SteamID):
     def mention(self) -> str:
         """:class:`str`: The string used to mention the user."""
         return f"[mention={self.id}]@{self.name}[/mention]"
-
-    async def comment(self, content: str) -> Comment:
-        """|coro|
-        Post a comment to an :class:`User`'s profile.
-
-        Parameters
-        -----------
-        content: :class:`str`
-            The message to add to the user's profile.
-
-        Returns
-        -------
-        :class:`~steam.Comment`
-            The created comment.
-        """
-        resp = await self._state.http.post_comment(self.id64, "Profile", content)
-        id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
-        timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
-        comment = Comment(
-            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user
-        )
-        self._state.dispatch("comment", comment)
-        return comment
 
     async def inventory(self, game: Game) -> Inventory:
         """|coro|
@@ -610,44 +659,6 @@ class BaseUser(SteamID):
         """
         bans = await self.bans()
         return bans.is_banned()
-
-    def comments(
-        self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None
-    ) -> CommentsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`~steam.User`'s :class:`~steam.Comment`
-        objects.
-
-        Examples
-        -----------
-
-        Usage: ::
-
-            async for comment in user.comments(limit=10):
-                print('Author:', comment.author, 'Said:', comment.content)
-
-        Flattening into a list: ::
-
-            comments = await user.comments(limit=50).flatten()
-            # comments is now a list of Comment
-
-        All parameters are optional.
-
-        Parameters
-        ----------
-        limit: Optional[:class:`int`]
-            The maximum number of comments to search through. Default is ``None`` which will fetch the user's entire
-            comments section.
-        before: Optional[:class:`datetime.datetime`]
-            A time to search for comments before.
-        after: Optional[:class:`datetime.datetime`]
-            A time to search for comments after.
-
-        Yields
-        ---------
-        :class:`~steam.Comment`
-            The comment with the comment information parsed.
-        """
-        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
 _EndPointReturnType = Tuple[Union[Tuple[int, int], int], Callable[..., Awaitable[None]]]
