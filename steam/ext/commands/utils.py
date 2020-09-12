@@ -161,7 +161,10 @@ class Shlex:
         return remove_quotes("".join(characters))
 
     def undo(self) -> None:
-        self.position = self._undo_pushback.pop()
+        try:
+            self.position = self._undo_pushback.pop()
+        except IndexError:
+            pass
 
     def __repr__(self) -> str:
         attrs = (
