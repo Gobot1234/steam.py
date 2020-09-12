@@ -346,13 +346,12 @@ class Command:
                         if origin is Union:
                             continue
                         raise
-                else:
-                    if origin is Union and type(None) in get_args(converter):  # typing.Optional
-                        try:
-                            return self._get_default(ctx, param)  # get the default if possible
-                        except MissingRequiredArgument:
-                            return None  # fall back to None
-                    raise BadArgument(f"Failed to parse {argument} to any type")
+                if origin is Union and type(None) in get_args(converter):  # typing.Optional
+                    try:
+                        return self._get_default(ctx, param)  # get the default if possible
+                    except MissingRequiredArgument:
+                        return None  # fall back to None
+                raise BadArgument(f"Failed to parse {argument} to any type")
 
             try:
                 return converter(argument)

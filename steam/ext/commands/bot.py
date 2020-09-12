@@ -583,21 +583,6 @@ class Bot(GroupMixin, Client):
         """
         return self.__cogs__.get(name)
 
-    def get_extension(self, name: str) -> Optional["ExtensionType"]:
-        """Get a copy of a loaded extension.
-
-        Parameters
-        ----------
-        name: :class:`str`
-            The name of the extension.
-
-        Returns
-        -------
-        Optional[ExtensionType]
-            A copy of the found extension or ``None``.
-        """
-        return copy(self.__extensions__.get(name))
-
     async def on_command_error(self, ctx: "commands.Context", error: Exception):
         """|coro|
         The default command error handler provided by the bot. This only fires if you do not specify any listeners for

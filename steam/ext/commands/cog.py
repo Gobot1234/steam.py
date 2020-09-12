@@ -29,7 +29,7 @@ import inspect
 import sys
 import traceback
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional
 
 from .commands import Command, GroupCommand
 

@@ -11,8 +11,8 @@ try:
 except ImportError as exc:
     print(f'Failed to import {exc.name} make sure you installed "steamio[dev]" to get extra dependencies.')
 
-__FILE__ = pathlib.Path(__file__)
-STEAM_PY = __FILE__.parent.parent
+PATH = pathlib.Path(__file__)
+STEAM_PY = PATH.parent.parent
 STEAM = STEAM_PY / "steam"
 EXAMPLES = STEAM_PY / "examples"
 TESTS = STEAM_PY / "tests"
@@ -53,6 +53,9 @@ def main(ctx: click.Context, test: bool, format: bool):
     if test:
         testable_files = [f.as_posix() for f in TESTS.iterdir() if "test" in f.name]
         ctx.exit(pytest.main(testable_files))
+
+
+main: click.Command
 
 
 if __name__ == "__main__":
