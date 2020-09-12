@@ -172,18 +172,6 @@ class Client:
         self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
-        for base in reversed(self.__class__.__mro__):
-            for name, attr in tuple(base.__dict__.items()):
-                if name[:3] != "on_":  # not an event
-                    continue
-                if "error" in name:  # an error event, we shouldn't delete these
-                    continue
-                try:
-                    if attr.__code__.co_filename == __file__:
-                        delattr(base, name)
-                except AttributeError:
-                    pass
-
     @property
     def user(self) -> Optional["ClientUser"]:
         """Optional[:class:`~steam.ClientUser`]: Represents the connected client. ``None`` if not logged in."""
@@ -732,7 +720,7 @@ class Client:
         """
         return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only)
 
-    # misc
+    # miscellaneous stuff
 
     async def change_presence(
         self,
@@ -833,260 +821,262 @@ class Client:
         print(f"Ignoring exception in {event}", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    async def on_connect(self):
-        """|coro|
-        Called when the client has successfully connected to Steam. This is not the same as the client being
-        fully prepared, see :func:`on_ready` for that.
+    if TYPE_CHECKING:  # these methods shouldn't exist at runtime to prevent pollution of logs
+        async def on_connect(self):
+            """|coro|
+            Called when the client has successfully connected to Steam. This is not the same as the client being
+            fully prepared, see :func:`on_ready` for that.
 
-        The warnings on :meth:`on_ready` also apply.
-        """
+            The warnings on :meth:`on_ready` also apply.
+            """
 
-    async def on_disconnect(self):
-        """|coro|
-        Called when the client has disconnected from Steam. This could happen either through the internet
-        disconnecting, an explicit call to logout, or Steam terminating the connection.
+        async def on_disconnect(self):
+            """|coro|
+            Called when the client has disconnected from Steam. This could happen either through the internet
+            disconnecting, an explicit call to logout, or Steam terminating the connection.
 
-        This function can be called multiple times.
-        """
+            This function can be called multiple times.
+            """
 
-    async def on_ready(self):
-        """|coro|
-        Called after a successful login and the client has handled setting up trade and notification polling,
-        along with setup the confirmation manager.
+        async def on_ready(self):
+            """|coro|
+            Called after a successful login and the client has handled setting up trade and notification polling,
+            along with setup the confirmation manager.
 
-        .. note::
-            In future this will be called when the client is done preparing the data received from Steam.
-            Usually after login to a CM is successful.
+            .. note::
+                In future this will be called when the client is done preparing the data received from Steam.
+                Usually after login to a CM is successful.
 
-        .. warning::
+            .. warning::
 
-            This function is not guaranteed to be the first event called. Likewise, this function is **not**
-            guaranteed to only be called once. This library implements reconnection logic and will therefore
-            end up calling this event whenever a CM disconnects.
-        """
+                This function is not guaranteed to be the first event called. Likewise, this function is **not**
+                guaranteed to only be called once. This library implements reconnection logic and will therefore
+                end up calling this event whenever a CM disconnects.
+            """
 
-    async def on_login(self):
-        """|coro|
-        Called when the client has logged into https://steamcommunity.com and the :attr:`user` is setup.
-        """
+        async def on_login(self):
+            """|coro|
+            Called when the client has logged into https://steamcommunity.com and the :attr:`user` is setup.
+            """
 
-    async def on_logout(self):
-        """|coro|
-        Called when the client has logged out of https://steamcommunity.com.
-        """
+        async def on_logout(self):
+            """|coro|
+            Called when the client has logged out of https://steamcommunity.com.
+            """
 
-    async def on_message(self, message: "steam.Message"):
-        """|coro|
-        Called when a message is created.
+        async def on_message(self, message: "steam.Message"):
+            """|coro|
+            Called when a message is created.
 
-        Parameters
-        ----------
-        message: :class:`~steam.Message`
-            The message that was received.
-        """
+            Parameters
+            ----------
+            message: :class:`~steam.Message`
+                The message that was received.
+            """
 
-    async def on_typing(self, user: "steam.User", when: "datetime.datetime"):
-        """|coro|
-        Called when typing is started.
+        async def on_typing(self, user: "steam.User", when: "datetime.datetime"):
+            """|coro|
+            Called when typing is started.
 
-        Parameters
-        ----------
-        user: :class:`~steam.User`
-            The user that started typing.
-        when: :class:`datetime.datetime`
-            The time the user started typing at.
-        """
+            Parameters
+            ----------
+            user: :class:`~steam.User`
+                The user that started typing.
+            when: :class:`datetime.datetime`
+                The time the user started typing at.
+            """
 
-    async def on_trade_receive(self, trade: "steam.TradeOffer"):
-        """|coro|
-        Called when the client receives a trade offer.
+        async def on_trade_receive(self, trade: "steam.TradeOffer"):
+            """|coro|
+            Called when the client receives a trade offer.
 
-        Parameters
-        ----------
-        trade: :class:`~steam.TradeOffer`
-            The trade offer that was received.
-        """
+            Parameters
+            ----------
+            trade: :class:`~steam.TradeOffer`
+                The trade offer that was received.
+            """
 
-    async def on_trade_send(self, trade: "steam.TradeOffer"):
-        """|coro|
-        Called when the client sends a trade offer.
+        async def on_trade_send(self, trade: "steam.TradeOffer"):
+            """|coro|
+            Called when the client sends a trade offer.
 
-        Parameters
-        ----------
-        trade: :class:`~steam.TradeOffer`
-            The trade offer that was sent.
-        """
+            Parameters
+            ----------
+            trade: :class:`~steam.TradeOffer`
+                The trade offer that was sent.
+            """
 
-    async def on_trade_accept(self, trade: "steam.TradeOffer"):
-        """|coro|
-        Called when the client or the trade partner accepts a trade offer.
+        async def on_trade_accept(self, trade: "steam.TradeOffer"):
+            """|coro|
+            Called when the client or the trade partner accepts a trade offer.
 
-        Parameters
-        ----------
-        trade: :class:`~steam.TradeOffer`
-            The trade offer that was accepted.
-        """
+            Parameters
+            ----------
+            trade: :class:`~steam.TradeOffer`
+                The trade offer that was accepted.
+            """
 
-    async def on_trade_decline(self, trade: "steam.TradeOffer"):
-        """|coro|
-        Called when the client or the trade partner declines a trade offer.
+        async def on_trade_decline(self, trade: "steam.TradeOffer"):
+            """|coro|
+            Called when the client or the trade partner declines a trade offer.
 
-        Parameters
-        ----------
-        trade: :class:`~steam.TradeOffer`
-            The trade offer that was declined.
-        """
+            Parameters
+            ----------
+            trade: :class:`~steam.TradeOffer`
+                The trade offer that was declined.
+            """
 
-    async def on_trade_cancel(self, trade: "steam.TradeOffer"):
-        """|coro|
-        Called when the client or the trade partner cancels a trade offer.
+        async def on_trade_cancel(self, trade: "steam.TradeOffer"):
+            """|coro|
+            Called when the client or the trade partner cancels a trade offer.
 
-        .. note::
-            This is called when the trade state becomes :attr:`~steam.ETradeOfferState.Canceled` and
-            :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`.
+            .. note::
+                This is called when the trade state becomes :attr:`~steam.ETradeOfferState.Canceled` and
+                :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`.
 
-        Parameters
-        ----------
-        trade: :class:`~steam.TradeOffer`
-            The trade offer that was cancelled.
-        """
+            Parameters
+            ----------
+            trade: :class:`~steam.TradeOffer`
+                The trade offer that was cancelled.
+            """
 
-    async def on_trade_expire(self, trade: "steam.TradeOffer"):
-        """|coro|
-        Called when a trade offer expires due to being active for too long.
+        async def on_trade_expire(self, trade: "steam.TradeOffer"):
+            """|coro|
+            Called when a trade offer expires due to being active for too long.
 
-        Parameters
-        ----------
-        trade: :class:`~steam.TradeOffer`
-            The trade offer that expired.
-        """
+            Parameters
+            ----------
+            trade: :class:`~steam.TradeOffer`
+                The trade offer that expired.
+            """
 
-    async def on_trade_counter(self, trade: "steam.TradeOffer"):
-        """|coro|
-        Called when the client or the trade partner counters a trade offer.
+        async def on_trade_counter(self, trade: "steam.TradeOffer"):
+            """|coro|
+            Called when the client or the trade partner counters a trade offer.
 
-        Parameters
-        ----------
-        trade: :class:`~steam.TradeOffer`
-            The trade offer that was countered.
-        """
+            Parameters
+            ----------
+            trade: :class:`~steam.TradeOffer`
+                The trade offer that was countered.
+            """
 
-    async def on_comment(self, comment: "steam.Comment"):
-        """|coro|
-        Called when the client receives a comment notification.
+        async def on_comment(self, comment: "steam.Comment"):
+            """|coro|
+            Called when the client receives a comment notification.
 
-        Parameters
-        ----------
-        comment: :class:`~steam.Comment`
-            The comment received.
-        """
+            Parameters
+            ----------
+            comment: :class:`~steam.Comment`
+                The comment received.
+            """
 
-    async def on_user_invite(self, invite: "steam.UserInvite"):
-        """|coro|
-        Called when the client receives/sends an invite from/to a :class:`~steam.User` to become a friend.
+        async def on_user_invite(self, invite: "steam.UserInvite"):
+            """|coro|
+            Called when the client receives/sends an invite from/to a :class:`~steam.User` to become a friend.
 
-        Parameters
-        ----------
-        invite: :class:`~steam.UserInvite`
-            The invite received.
-        """
+            Parameters
+            ----------
+            invite: :class:`~steam.UserInvite`
+                The invite received.
+            """
 
-    async def on_user_invite_accept(self, invite: "steam.UserInvite"):
-        """|coro|
-        Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
+        async def on_user_invite_accept(self, invite: "steam.UserInvite"):
+            """|coro|
+            Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
 
-        Parameters
-        ----------
-        invite: :class:`~steam.UserInvite`
-            The invite that was accepted.
-        """
+            Parameters
+            ----------
+            invite: :class:`~steam.UserInvite`
+                The invite that was accepted.
+            """
 
-    async def on_clan_invite(self, invite: "steam.ClanInvite"):
-        """|coro|
-        Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a :class:`~steam.Clan`.
+        async def on_clan_invite(self, invite: "steam.ClanInvite"):
+            """|coro|
+            Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a
+            :class:`~steam.Clan`.
 
-        Parameters
-        ----------
-        invite: :class:`~steam.ClanInvite`
-            The invite received.
-        """
+            Parameters
+            ----------
+            invite: :class:`~steam.ClanInvite`
+                The invite received.
+            """
 
-    async def on_clan_invite_accept(self, invite: "steam.ClanInvite"):
-        """|coro|
-        Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
+        async def on_clan_invite_accept(self, invite: "steam.ClanInvite"):
+            """|coro|
+            Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
 
-        Parameters
-        ----------
-        invite: :class:`~steam.ClanInvite`
-            The invite that was accepted.
-        """
+            Parameters
+            ----------
+            invite: :class:`~steam.ClanInvite`
+                The invite that was accepted.
+            """
 
-    async def on_user_update(self, before: "steam.User", after: "steam.User"):
-        """|coro|
-        Called when a user's their state, due to one or more of the following attributes changing:
+        async def on_user_update(self, before: "steam.User", after: "steam.User"):
+            """|coro|
+            Called when a user's their state, due to one or more of the following attributes changing:
 
-            - :attr:`~steam.User.name`
-            - :attr:`~steam.User.state`
-            - :attr:`~steam.User.flags`
-            - :attr:`~steam.User.avatar_url`
-            - :attr:`~steam.User.last_logon`
-            - :attr:`~steam.User.last_logoff`
-            - :attr:`~steam.User.last_seen_online`
-            - :attr:`~steam.User.game`
+                - :attr:`~steam.User.name`
+                - :attr:`~steam.User.state`
+                - :attr:`~steam.User.flags`
+                - :attr:`~steam.User.avatar_url`
+                - :attr:`~steam.User.last_logon`
+                - :attr:`~steam.User.last_logoff`
+                - :attr:`~steam.User.last_seen_online`
+                - :attr:`~steam.User.game`
 
 
-        Parameters
-        ----------
-        before: :class:`~steam.User`
-            The user's state before it was updated.
-        after: :class:`~steam.User`
-            The user's state now.
-        """
+            Parameters
+            ----------
+            before: :class:`~steam.User`
+                The user's state before it was updated.
+            after: :class:`~steam.User`
+                The user's state now.
+            """
 
-    async def on_socket_receive(self, msg: Union["Msg", "MsgProto"]):
-        """|coro|
-        Called when the connected web-socket parses a received
-        ``Msg``/``MsgProto``
+        async def on_socket_receive(self, msg: Union["Msg", "MsgProto"]):
+            """|coro|
+            Called when the connected web-socket parses a received
+            ``Msg``/``MsgProto``
 
-        Parameters
-        ----------
-        msg: Union[:class:`~steam.protobufs.Msg`, :class:`~steam.protobufs.MsgProto`]
-            The received message.
-        """
+            Parameters
+            ----------
+            msg: Union[:class:`~steam.protobufs.Msg`, :class:`~steam.protobufs.MsgProto`]
+                The received message.
+            """
 
-    async def on_socket_raw_receive(self, message: bytes):
-        """|coro|
-        Called when the connected web-socket receives
-        raw :class:`bytes`. This isn't likely to be very useful.
+        async def on_socket_raw_receive(self, message: bytes):
+            """|coro|
+            Called when the connected web-socket receives
+            raw :class:`bytes`. This isn't likely to be very useful.
 
-        Parameters
-        ----------
-        message: bytes
-            The raw received message.
-        """
+            Parameters
+            ----------
+            message: bytes
+                The raw received message.
+            """
 
-    async def on_socket_send(self, msg: Union["Msg", "MsgProto"]):
-        """|coro|
-        Called when the client sends a parsed ``Msg``/``MsgProto``
-        to the connected web-socket.
+        async def on_socket_send(self, msg: Union["Msg", "MsgProto"]):
+            """|coro|
+            Called when the client sends a parsed ``Msg``/``MsgProto``
+            to the connected web-socket.
 
-        Parameters
-        ----------
-        msg: Union[:class:`~steam.protobufs.Msg`, :class:`~steam.protobufs.MsgProto`]
-            The sent message.
-        """
+            Parameters
+            ----------
+            msg: Union[:class:`~steam.protobufs.Msg`, :class:`~steam.protobufs.MsgProto`]
+                The sent message.
+            """
 
-    async def on_socket_raw_send(self, message: bytes):
-        """|coro|
-        Called when the client sends raw :class:`bytes`
-        to the connected web-socket.
-        This isn't likely to be very useful.
+        async def on_socket_raw_send(self, message: bytes):
+            """|coro|
+            Called when the client sends raw :class:`bytes`
+            to the connected web-socket.
+            This isn't likely to be very useful.
 
-        Parameters
-        ----------
-        message: bytes
-            The raw sent message.
-        """
+            Parameters
+            ----------
+            message: bytes
+                The raw sent message.
+            """
 
     @overload
     def wait_for(

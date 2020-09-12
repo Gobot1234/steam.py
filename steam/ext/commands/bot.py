@@ -216,32 +216,23 @@ class Bot(GroupMixin, Client):
             self.owner_ids.add(utils.make_id64(owner_id))
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
-        inline_commands = dict()
-        for base in reversed(self.__class__.__mro__):
-            for name, attr in tuple(base.__dict__.items()):
-                if name in inline_commands:
-                    del inline_commands[name]
-                if isinstance(attr, Command):
-                    if attr.parent:  # sub-command don't add it to the global commands
-                        continue
-                    inline_commands[name] = attr
-                if name[:3] != "on_":  # not an event
-                    continue
-                if "error" in name or name == "on_message":
-                    continue
-                try:
-                    if attr.__code__.co_filename == __file__:
-                        delattr(base, name)
-                except AttributeError:
-                    pass
 
-        for command in inline_commands.values():
-            setattr(self, command.callback.__name__, command)
-            if isinstance(command, GroupCommand):
-                for child in command.children:
-                    child.cog = self
-            command.cog = self
-            self.add_command(command)
+        for base in reversed(self.__class__.__mro__):  # traverse the MRO for any commands added in a Bot subclass
+            for name, attr in tuple(base.__dict__.items()):
+                if name in self.commands:
+                    self.remove_command(name)
+                if isinstance(attr, Command):
+                    if attr.parent:  # if it's a sub-command don't add it to the global commands
+                        continue
+
+                    setattr(self, attr.callback.__name__, attr)
+                    if isinstance(attr, GroupCommand):
+                        for child in attr.children:
+                            child.cog = self
+
+                    attr.cog = self
+                    self.add_command(attr)
+
         self.help_command = help_command
 
     @property
@@ -634,25 +625,26 @@ class Bot(GroupMixin, Client):
         print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    async def on_command(self, ctx: "commands.Context"):
-        """|coro|
-        A method that is called every time a command is dispatched.
+    if TYPE_CHECKING:
+        async def on_command(self, ctx: "commands.Context"):
+            """|coro|
+            A method that is called every time a command is dispatched.
 
-        Parameters
-        ----------
-        ctx: :class:`.Context`
-            The invocation context.
-        """
+            Parameters
+            ----------
+            ctx: :class:`.Context`
+                The invocation context.
+            """
 
-    async def on_command_completion(self, ctx: "commands.Context"):
-        """|coro|
-        A method that is called every time a command is dispatched and completed without error.
+        async def on_command_completion(self, ctx: "commands.Context"):
+            """|coro|
+            A method that is called every time a command is dispatched and completed without error.
 
-        Parameters
-        ----------
-        ctx: :class:`.Context`
-            The invocation context.
-        """
+            Parameters
+            ----------
+            ctx: :class:`.Context`
+                The invocation context.
+            """
 
     @overload
     def wait_for(
