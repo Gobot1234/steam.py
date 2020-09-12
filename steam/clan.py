@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, List, Optional, Union
 from bs4 import BeautifulSoup
 
 from . import utils
-from .abc import SteamID, Commentable
+from .abc import Commentable, SteamID
 from .channel import ClanChannel
 from .errors import HTTPException
 from .game import Game

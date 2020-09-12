@@ -259,6 +259,8 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                     return self.stop()
 
             log.debug(self.msg.format(self.heartbeat))
+            if self.ws.loop.is_closed():  # FIXME this is not great
+                return
             coro = self.ws.send_as_proto(self.heartbeat)
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
             # block until sending is complete
@@ -479,7 +481,7 @@ class SteamWebSocket:
         if not self.socket.closed:
             await self.close()
             self.cm_list.queue.get_nowait()  # pop the disconnected cm
-        if self._keep_alive:
+        if self._keep_alive is not None:
             self._keep_alive.stop()
             self._keep_alive = None
         log.info(f"Websocket closed, cannot reconnect.")
