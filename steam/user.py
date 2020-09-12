@@ -45,7 +45,7 @@ __all__ = (
 )
 
 
-class User(BaseUser, Messageable, comment_path="Profile"):
+class User(BaseUser, Messageable):
     """Represents a Steam user's account.
 
     .. container:: operations
@@ -221,7 +221,7 @@ class User(BaseUser, Messageable, comment_path="Profile"):
         return self in self._state.client.user.friends
 
 
-class ClientUser(BaseUser, comment_path="Profile"):
+class ClientUser(BaseUser):
     """Represents your account.
 
     .. container:: operations

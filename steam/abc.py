@@ -337,7 +337,7 @@ class Commentable(SteamID):
     _state: "ConnectionState"
 
     def __init_subclass__(cls, **kwargs):
-        cls.comment_path: Final[str] = kwargs["comment_path"]
+        cls.comment_path: Final[str] = kwargs.get("comment_path", "Profile")
 
     async def comment(self, content: str) -> Comment:
         """|coro|
@@ -401,7 +401,7 @@ class Commentable(SteamID):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-class BaseUser(Commentable, comment_path="Profile"):
+class BaseUser(Commentable):
     """An ABC that details the common operations on a Steam user.
     The following classes implement this ABC:
 
