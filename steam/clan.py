@@ -25,6 +25,7 @@ SOFTWARE.
 """
 
 import asyncio
+import inspect
 import re
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional, Union
@@ -264,10 +265,12 @@ class Clan(Commentable, comment_path="Clan"):
             else:  # update the old instance
                 idx = self.channels.index(channel)
                 old_channel = self.channels[idx]
-                for key, value in channel.__dict__.items():
-                    if value:
-                        old_channel.__dict__[key] = value
-        self.default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
+                for name, attr in inspect.getmembers(channel):
+                    if attr:
+                        setattr(old_channel, name, attr)
+
+        default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)]
+        self.default_channel = default_channel[0] if default_channel else None
         return self
 
     def __repr__(self):
@@ -280,6 +283,14 @@ class Clan(Commentable, comment_path="Clan"):
 
     def __len__(self):
         return self.member_count
+
+    def __copy__(self) -> "Clan":
+        clan = self.__class__(state=self._state, id=self.id64)
+        for name, attr in inspect.getmembers(self):
+            setattr(clan, name, attr)  # TODO do these need to be copied?
+        return clan
+
+    copy = __copy__
 
     async def fetch_members(self) -> List["SteamID"]:
         """|coro|

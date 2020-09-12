@@ -485,14 +485,6 @@ class BaseUser(Commentable, comment_path="Profile"):
         self.privacy_state: Optional[ECommunityVisibilityState] = None
         self._update(data)
 
-    def __repr__(self):
-        attrs = ("name", "state", "id", "type", "universe", "instance")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<User {' '.join(resolved)}>"
-
-    def __str__(self):
-        return self.name
-
     def _update(self, data: UserDict) -> None:
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
@@ -513,6 +505,48 @@ class BaseUser(Commentable, comment_path="Profile"):
         self.privacy_state = ECommunityVisibilityState(data.get("communityvisibilitystate", 0))
         self._is_commentable = bool(data.get("commentpermission"))
         self._setup_profile = bool(data.get("profilestate"))
+
+    def __repr__(self) -> str:
+        attrs = ("name", "state", "id", "type", "universe", "instance")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<User {' '.join(resolved)}>"
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __copy__(self) -> "BaseUser":
+        # can't use default implementation due to comment_path being read only
+        flag_value = 0
+        for flag in self.flags:
+            flag_value |= flag
+        data = {
+            "steamid": self.id64,
+            "personaname": self.name,
+            "realname": self.real_name,
+            "avatarfull": self.avatar_url,
+            "primaryclanid": self.primary_clan,
+            "loccountrycode": self.country,
+            "gameextrainfo": self.game.name if self.game else None,
+            "personastate": self.state,
+            "personastateflags": flag_value,
+            "communityvisibilitystate": self.privacy_state,
+            "commentpermission": self._is_commentable,
+            "profilestate": self._setup_profile,
+        }
+        if self.game is not None:
+            data.update({"gameid": self.game.id})
+        if self.created_at is not None:
+            data.update({"timecreated": self.created_at.timestamp()})
+        if self.last_logoff is not None:
+            data.update({"lastlogoff": self.last_logoff.timestamp()})
+        if self.last_logon is not None:
+            data.update({"last_logon": self.last_logon.timestamp()})
+        if self.last_seen_online is not None:
+            data.update({"last_seen_online": self.last_seen_online.timestamp()})
+
+        return self.__class__(state=self._state, data=data)
+
+    copy = __copy__
 
     @property
     def mention(self) -> str:
@@ -604,7 +638,7 @@ class BaseUser(Commentable, comment_path="Profile"):
         """
         resp = await self._state.http.get_user_bans(self.id64)
         resp = resp["players"][0]
-        resp["EconomyBan"] = False if resp["EconomyBan"] == "none" else True
+        resp["EconomyBan"] = resp["EconomyBan"] != "none"
         return Ban(data=resp)
 
     async def badges(self) -> UserBadges:
