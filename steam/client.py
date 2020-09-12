@@ -822,6 +822,7 @@ class Client:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     if TYPE_CHECKING:  # these methods shouldn't exist at runtime to prevent pollution of logs
+
         async def on_connect(self):
             """|coro|
             Called when the client has successfully connected to Steam. This is not the same as the client being
@@ -1318,8 +1319,10 @@ class Client:
 
         Returns
         --------
-        Returns ``None``, a single argument, or a :class:`tuple` of multiple arguments that mirrors the
-        parameters for the ``event`` parameter from the `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
+        Optional[Any]:
+            Returns ``None``, a single argument, or a :class:`tuple` of multiple arguments that mirrors the parameters
+            for the ``event`` parameter from the
+            `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
         """
         future = self.loop.create_future()
         check = check or return_true

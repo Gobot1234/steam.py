@@ -33,7 +33,6 @@ import importlib
 import inspect
 import sys
 import traceback
-from copy import copy
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -611,6 +610,7 @@ class Bot(GroupMixin, Client):
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     if TYPE_CHECKING:
+
         async def on_command(self, ctx: "commands.Context"):
             """|coro|
             A method that is called every time a command is dispatched.
