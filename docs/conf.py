@@ -28,7 +28,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib_trio",
     "exception_hierarchy",
-    "events",
 ]
 
 autodoc_member_order = "bysource"

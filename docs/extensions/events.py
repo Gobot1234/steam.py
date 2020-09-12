@@ -4,7 +4,9 @@
 # TYPE_CHECKING block to be able to be picked up by Sphinx.
 
 import importlib
-import inspect
+from typing import Any
+
+from sphinx.util import inspect
 
 import steam
 from steam.ext import commands
@@ -15,16 +17,16 @@ bot = importlib.import_module("steam.ext.commands.bot")
 commands.utils.reload_module_with_TYPE_CHECKING(client)
 commands.utils.reload_module_with_TYPE_CHECKING(bot)
 
-OLD_GETATTR_STATIC = inspect.getattr_static
+OLD_SAFE_GETATTR = inspect.safe_getattr
 
 
-def getattr_static(obj, attr, default=inspect._sentinel):
+def safe_getattr(obj: Any, name: str, *defargs: Any) -> Any:
+    """A getattr() that turns all exceptions into AttributeErrors."""
     if obj is steam.Client:
-        return OLD_GETATTR_STATIC(client.Client, attr, default)
+        return OLD_SAFE_GETATTR(client.Client, name, *defargs)
     elif obj is commands.Bot:
-        return OLD_GETATTR_STATIC(bot.Bot, attr, default)
-    return OLD_GETATTR_STATIC(obj, attr, default)
+        return OLD_SAFE_GETATTR(bot.Bot, name, *defargs)
+    return OLD_SAFE_GETATTR(obj, name, *defargs)
 
 
-def setup(_):
-    inspect.getattr_static = getattr_static
+inspect.safe_getattr = safe_getattr
