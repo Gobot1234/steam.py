@@ -6,7 +6,9 @@
 import importlib
 from typing import Any
 
+from sphinx.application import Sphinx
 from sphinx.util import inspect
+from sphinx.ext import autodoc
 
 import steam
 from steam.ext import commands
@@ -17,16 +19,16 @@ bot = importlib.import_module("steam.ext.commands.bot")
 commands.utils.reload_module_with_TYPE_CHECKING(client)
 commands.utils.reload_module_with_TYPE_CHECKING(bot)
 
-OLD_SAFE_GETATTR = inspect.safe_getattr
+OLD_AUTODOC_ATTRGETTER = autodoc.autodoc_attrgetter
 
 
-def safe_getattr(obj: Any, name: str, *defargs: Any) -> Any:
-    """A getattr() that turns all exceptions into AttributeErrors."""
+def autodoc_attrgetter(app: Sphinx, obj: Any, name: str, *defargs: Any) -> Any:
+    """Alternative getattr() for types"""
     if obj is steam.Client:
-        return OLD_SAFE_GETATTR(client.Client, name, *defargs)
+        return inspect.safe_getattr(client.Client, name, *defargs)
     elif obj is commands.Bot:
-        return OLD_SAFE_GETATTR(bot.Bot, name, *defargs)
-    return OLD_SAFE_GETATTR(obj, name, *defargs)
+        return inspect.safe_getattr(bot.Bot, name, *defargs)
+    return OLD_AUTODOC_ATTRGETTER
 
 
-inspect.safe_getattr = safe_getattr
+autodoc.autodoc_attrgetter = autodoc_attrgetter
