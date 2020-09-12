@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # If you are wondering why this is done, it is to make Sphinx think that our Enums are enum.Enum subclasses which makes
 # documenting them a whole lot nicer
 
