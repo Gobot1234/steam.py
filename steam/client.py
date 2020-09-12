@@ -328,7 +328,10 @@ class Client:
 
         This is roughly equivalent to::
 
-            asyncio.run(client.start(username, password))
+            try:
+                asyncio.run(client.start(username, password))
+            finally:
+                asyncio.run(client.close())
 
         If you want more control over the event loop then this function should not be used. It is not recommended to
         subclass this, it is normally favourable to subclass :meth:`start` or :meth:`login` as they are
@@ -338,13 +341,17 @@ class Client:
 
             This takes the same arguments as :meth:`start`.
         """
+
+        # TODO use asyncio.run needs some asyncio wizardry doing with KeepAliveHandler and asyncio.run_coro_threadsafe
+        # but it will clean up this a lot and allows for stuff like loop.shutdown_default_executor to be called
+
         loop = self.loop
 
-        async def runner():
+        async def runner() -> None:
             try:
                 await self.start(*args, **kwargs)
             finally:
-                if not self._closed:
+                if not self.is_closed():
                     await self.close()
 
         try:
@@ -398,7 +405,7 @@ class Client:
         """|coro|
         Closes the connection to Steam.
         """
-        if self._closed:
+        if self.is_closed():
             return
 
         await self.http.close()

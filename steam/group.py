@@ -96,15 +96,12 @@ class Group(SteamID):
             self.roles.append(Role(self._state, self, role))
 
         default_role = [r for r in self.roles if r.id == int(proto.default_role_id)]
-        if default_role:
-            self.default_role = default_role[0]
-        else:
-            self.default_role = None
-        self.channels: List[GroupChannel] = []
-        for channel in proto.chat_rooms:
-            channel = GroupChannel(state=self._state, group=self, channel=channel)
-            self.channels.append(channel)
-        self.default_channel: GroupChannel = [c for c in self.channels if c.id == int(proto.default_chat_id)][0]
+        self.default_role: Optional[Role] = default_role[0] if default_role else None
+        self.channels: List[GroupChannel] = [
+            GroupChannel(state=self._state, group=self, channel=channel) for channel in proto.chat_rooms
+        ]
+        default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)]
+        self.default_channel: Optional[GroupChannel] = default_channel[0] if default_channel else None
 
     def __repr__(self):
         attrs = (

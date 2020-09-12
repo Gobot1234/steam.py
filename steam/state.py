@@ -153,7 +153,7 @@ class ConnectionState:
         self.dispatch = client.dispatch
 
         self.handled_friends = asyncio.Event()
-        self._user_slots = set(User.__slots__) - {"_state", "_data"}
+        self._user_slots = set(User.__slots__) - {"_state"}
         self.max_messages = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -360,16 +360,16 @@ class ConnectionState:
         resp = await self.request("GET", community_route("my/commentnotifications"))
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         if search is None:
-            return None
+            return
         steam_id = await SteamID.from_url(search.group(1), self.http._session)
         if steam_id is None:
-            return None
+            return
         if steam_id.type == EType.Clan:
             obj = await self.fetch_clan(steam_id.id64)
         else:
             obj = await self.fetch_user(steam_id.id64)
         if obj is None:
-            return None
+            return
 
         if self._obj is obj:
             self._previous_iteration += 1
@@ -380,7 +380,7 @@ class ConnectionState:
         try:
             return comments[self._previous_iteration]
         except KeyError:
-            return None
+            pass
 
     # confirmations
 

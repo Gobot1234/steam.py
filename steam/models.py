@@ -130,8 +130,10 @@ class Ban:
 
     def __repr__(self):
         attrs = [
-            ("is_banned", self.is_banned()),
-            ("is_vac_banned", self.is_vac_banned()),
+            ("is_banned()", self.is_banned()),
+            ("is_vac_banned()", self.is_vac_banned()),
+            ("is_community_banned()", self.is_community_banned()),
+            ("is_market_banned()", self.is_market_banned()),
         ]
         resolved = [f"{method}={value!r}" for method, value in attrs]
         return f"<Ban {' '.join(resolved)}>"

@@ -108,7 +108,7 @@ class User(BaseUser, Messageable, comment_path="Profile"):
         except ValueError:
             pass
 
-    async def cancel_invite(self):
+    async def cancel_invite(self) -> None:
         """|coro|
         Cancels an invite sent to an :class:`User`. This effectively does the same thing as :meth:`remove`.
         """
@@ -148,10 +148,10 @@ class User(BaseUser, Messageable, comment_path="Profile"):
         seconds = their_escrow["escrow_end_duration_seconds"]
         return timedelta(seconds=seconds) if seconds else None
 
-    def _get_message_endpoint(self):
+    def _get_message_endpoint(self) -> _EndPointReturnType:
         return self.id64, self._state.send_user_message
 
-    def _get_image_endpoint(self):
+    def _get_image_endpoint(self) -> _EndPointReturnType:
         return self.id64, self._state.http.send_user_image
 
     async def send(
@@ -278,7 +278,7 @@ class ClientUser(BaseUser, comment_path="Profile"):
         super().__init__(state, data)
         self.friends: List[User] = []
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("name", "state", "id", "type", "universe", "instance")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClientUser {' '.join(resolved)}>"
@@ -310,7 +310,7 @@ class ClientUser(BaseUser, comment_path="Profile"):
         state: Optional[str] = None,
         city: Optional[str] = None,
         avatar: Optional["Image"] = None,
-    ):
+    ) -> None:
         """|coro|
         Edit the :class:`ClientUser`'s profile.
         Any values that aren't set will use their defaults.

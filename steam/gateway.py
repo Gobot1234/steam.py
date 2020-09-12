@@ -261,29 +261,27 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
             log.debug(self.msg.format(self.heartbeat))
             coro = self.ws.send_as_proto(self.heartbeat)
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
-            try:
-                # block until sending is complete
-                total = 0
-                while 1:
+            # block until sending is complete
+            total = 0
+            while 1:
+                try:
+                    f.result(timeout=10)
+                except concurrent.futures.TimeoutError:
+                    total += 10
                     try:
-                        f.result(10)
-                        break
-                    except concurrent.futures.TimeoutError:
-                        total += 10
-                        try:
-                            frame = sys._current_frames()[self._main_thread_id]
-                        except KeyError:
-                            msg = self.block_msg
-                        else:
-                            stack = traceback.format_stack(frame)
-                            msg = f'{self.block_msg}\nLoop thread traceback (most recent call last):\n{"".join(stack)}'
-                        log.warning(msg.format(total))
-
-            except Exception:
-                self.stop()
-            else:
-                self.ack()
-                self._last_send = time.perf_counter()
+                        frame = sys._current_frames()[self._main_thread_id]
+                    except KeyError:
+                        msg = self.block_msg
+                    else:
+                        stack = traceback.format_stack(frame)
+                        msg = f'{self.block_msg}\nLoop thread traceback (most recent call last):\n{"".join(stack)}'
+                    log.warning(msg.format(total))
+                except Exception:
+                    self.stop()
+                else:
+                    self.ack()
+                    self._last_send = time.perf_counter()
+                    break
 
     def stop(self) -> None:
         self._stop_ev.set()
