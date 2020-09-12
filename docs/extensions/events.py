@@ -26,4 +26,5 @@ def getattr_static(obj, attr, default=inspect._sentinel):
     return OLD_GETATTR_STATIC(obj, attr, default)
 
 
-inspect.getattr_static = getattr_static
+def setup(_):
+    inspect.getattr_static = getattr_static
