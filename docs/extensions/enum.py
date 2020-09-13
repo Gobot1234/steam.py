@@ -21,5 +21,6 @@ def isenumattribute(x: Any) -> bool:
     return isinstance(x, Enum)
 
 
-inspect.isenumclass = isenumclass
-inspect.isenumattribute = isenumattribute
+def setup(_):
+    inspect.isenumclass = isenumclass
+    inspect.isenumattribute = isenumattribute

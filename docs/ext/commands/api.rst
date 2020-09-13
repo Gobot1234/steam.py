@@ -28,8 +28,8 @@ Bot
 Event Reference
 -----------------
 
-These events function similar to `the regular events <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_,
-except they are unique to the command extension module.
+These events function similar to `the regular events <https://steampy.rtfd.io/en/latest/api.html#id2>`_, except they are
+unique to the command extension module. All of those events are also applicable to :class:`steam.ext.commands.Bot`.
 
 .. autofunction:: steam.ext.commands.Bot.on_command_error
 
@@ -53,7 +53,7 @@ Command
 
 .. autofunction:: steam.ext.commands.group
 
-.. autofunction:: steam.ext.commands.command.cooldown
+.. autofunction:: steam.ext.commands.cooldown
 
 .. autoclass:: steam.ext.commands.Command
     :members:
