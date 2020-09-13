@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib_trio",
     "exception_hierarchy",
+    "enum",
     "events",
 ]
 
