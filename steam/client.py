@@ -36,7 +36,7 @@ import traceback
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union, overload
 
 import aiohttp
-from typing_extensions import Literal, Protocol
+from typing_extensions import Literal
 
 from . import errors, utils
 from .abc import SteamID
@@ -485,6 +485,7 @@ class Client:
             except (
                 OSError,
                 aiohttp.ClientError,
+                ConnectionResetError,
                 asyncio.TimeoutError,
                 errors.HTTPException,
             ):
@@ -493,11 +494,9 @@ class Client:
                 self._cm_list = exc.cm_list
                 self.dispatch("disconnect")
             finally:
-                if self.is_closed():
-                    return
-
-                log.info(f"Attempting to connect to another CM")
-                await asyncio.sleep(5)
+                if not self.is_closed():
+                    log.info(f"Attempting to connect to another CM")
+                    await asyncio.sleep(5)
 
     # state stuff
 
@@ -507,9 +506,9 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_id64`.
+            The arguments to pass to :meth:`.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
+            The keyword arguments to pass to :meth:`.utils.make_id64`.
 
         Returns
         -------
@@ -526,9 +525,9 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_id64`.
+            The arguments to pass to :meth:`.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
+            The keyword arguments to pass to :meth:`.utils.make_id64`.
 
         Returns
         -------
@@ -612,9 +611,9 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_id64`.
+            The arguments to pass to :meth:`.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
+            The keyword arguments to pass to :meth:`.utils.make_id64`.
 
         Returns
         -------
@@ -631,9 +630,9 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_id64`.
+            The arguments to pass to :meth:`.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
+            The keyword arguments to pass to :meth:`.utils.make_id64`.
 
         Returns
         -------
@@ -651,9 +650,9 @@ class Client:
         Parameters
         ----------
         *args
-            The arguments to pass to :meth:`~steam.utils.make_id64`.
+            The arguments to pass to :meth:`.utils.make_id64`.
         **kwargs
-            The keyword arguments to pass to :meth:`~steam.utils.make_id64`.
+            The keyword arguments to pass to :meth:`.utils.make_id64`.
 
         Returns
         -------

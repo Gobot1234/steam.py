@@ -55,6 +55,7 @@ from typing_extensions import Literal, get_args, get_origin
 import steam
 
 from ...errors import ClientException
+from ...utils import cached_property
 from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import BadArgument, CheckFailure, MissingRequiredArgument, NotOwner
@@ -165,7 +166,7 @@ class Command:
         self.module = module
         self._callback = function
 
-    @property
+    @cached_property
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
         """:class:`OrderedDict[:class:`str`, :class:`inspect.Parameter`]`:
         The command's parameters without "self" and "ctx"."""
