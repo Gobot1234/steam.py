@@ -24,11 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from enum import Enum, IntEnum
-from typing import Any, Generator, List, Mapping, NoReturn, Tuple, TypeVar, Union
+from enum import Enum
+from typing import Any, Generator, List, Mapping, NoReturn, TypeVar, Union
 
 T = TypeVar("T")
-__all__: Tuple[str, ...] = ...
 
 # enums aren't very well typed so we'll just do it here.
 class EnumMeta(type):
@@ -51,7 +50,7 @@ class Enum(Enum, metaclass=EnumMeta):
 # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour I
 # can't seem to replicate
 
-class IntEnum(Enum, IntEnum): ...
+class IntEnum(Enum, int): ...
 
 class EResult(IntEnum):
     Invalid: EResult = ...

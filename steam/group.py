@@ -79,11 +79,11 @@ class Group(SteamID):
         self._state = state
         self._from_proto(proto)
 
-    async def __ainit__(self):
+    async def __ainit__(self) -> None:
         self.owner = await self._state.client.fetch_user(self.owner)
         self.top_members = await self._state.client.fetch_users(*self.top_members)
 
-    def _from_proto(self, proto: "GroupProto"):
+    def _from_proto(self, proto: "GroupProto") -> None:
         self.owner: "User" = proto.accountid_owner
         self.name: Optional[str] = proto.chat_group_name or None
 
@@ -103,7 +103,7 @@ class Group(SteamID):
         default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)]
         self.default_channel: Optional[GroupChannel] = default_channel[0] if default_channel else None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = (
             "name",
             "id",
@@ -112,7 +112,7 @@ class Group(SteamID):
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Group {' '.join(resolved)}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name or ""
 
     async def leave(self) -> None:
@@ -121,7 +121,7 @@ class Group(SteamID):
         """
         await self._state.leave_chat(self.id)
 
-    async def invite(self, user: "User"):
+    async def invite(self, user: "User") -> None:
         """|coro|
         Invites a :class:`~steam.User` to the :class:`Group`.
 

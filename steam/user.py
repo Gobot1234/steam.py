@@ -194,7 +194,7 @@ class User(BaseUser, Messageable):
                         break
             trade.id = int(resp["tradeofferid"])
 
-    async def invite_to_group(self, group: "Group"):
+    async def invite_to_group(self, group: "Group") -> None:
         """|coro|
         Invites a :class:`~steam.User` to a :class:`Group`.
 
@@ -205,7 +205,7 @@ class User(BaseUser, Messageable):
         """
         await self._state.invite_user_to_group(self.id64, group.id)
 
-    async def invite_to_clan(self, clan: "Clan"):
+    async def invite_to_clan(self, clan: "Clan") -> None:
         """|coro|
         Invites a :class:`~steam.User` to a :class:`Clan`.
 

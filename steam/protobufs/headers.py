@@ -75,11 +75,11 @@ class MsgHdr:
         if data:
             self.parse(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in ("msg", "job_id_target", "job_id_source")]
         return f'<MsgHdr {" ".join(resolved)}>'
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return struct.pack("<Iqq", self.msg, self.job_id_target, self.job_id_source)
 
     def parse(self, data: bytes) -> None:
@@ -140,12 +140,12 @@ class ExtendedMsgHdr:
         if data:
             self.parse(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("msg", "steam_id", "session_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f'<ExtendedMsgHdr {" ".join(resolved)}>'
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return struct.pack(
             "<IBHqqBqi",
             self.msg,
@@ -208,13 +208,13 @@ class MsgHdrProtoBuf:
         if data:
             self.parse(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("msg",)
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snakecase).items())
         return f'<MsgHdrProtoBuf {" ".join(resolved)}>'
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         proto_data = bytes(self.body)
         return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
 
@@ -238,7 +238,7 @@ class MsgHdrProtoBuf:
         return self.body.client_sessionid
 
     @session_id.setter
-    def session_id(self, value: int):
+    def session_id(self, value: int) -> None:
         self.body.client_sessionid = int(value)
 
     @property
@@ -246,7 +246,7 @@ class MsgHdrProtoBuf:
         return self.body.steamid
 
     @steam_id.setter
-    def steam_id(self, value: int):
+    def steam_id(self, value: int) -> None:
         self.body.steamid = int(value)
 
     @property
@@ -274,7 +274,7 @@ class MsgHdrProtoBuf:
         self.body.jobid_target = int(value)
 
     @property
-    def eresult(self) -> Union[EResult, int]:
+    def eresult(self) -> EResult:
         return EResult.try_value(self.body.eresult)
 
     @property
@@ -296,16 +296,16 @@ class GCMsgHdr:
         if data:
             self.parse(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("msg", "target_job_id", "source_job_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snakecase).items())
         return f'<GCMsgHdr {" ".join(resolved)}>'
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
 
-    def parse(self, data):
+    def parse(self, data: bytes) -> None:
         (
             self.header_version,
             self.target_job_id,
@@ -325,13 +325,13 @@ class GCMsgHdrProto:
         if data:
             self.parse(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("msg",)
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snakecase).items())
         return f'<GCMsgHdrProto {" ".join(resolved)}>'
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         proto_data = bytes(self.body)
         self.header_length = len(proto_data)
         return struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data

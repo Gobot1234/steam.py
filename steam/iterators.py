@@ -27,7 +27,17 @@ SOFTWARE.
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator as _AsyncIterator, Awaitable, Callable, List, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncIterator as _AsyncIterator,
+    Awaitable,
+    Callable,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 from bs4 import BeautifulSoup
 
@@ -78,8 +88,8 @@ class AsyncIterator(_AsyncIterator[T]):
         self.queue: "asyncio.Queue[T]" = asyncio.Queue(maxsize=limit or 0)
         self.limit = limit
 
-    def get(self, **attrs) -> Awaitable[Optional[T]]:
-        r"""|coro|
+    def get(self, **attrs: Any) -> Awaitable[Optional[T]]:
+        """|coro|
         A helper function which is similar to :func:`~steam.utils.get` except it runs over the :class:`AsyncIterator`.
 
         This is roughly equipment to: ::
@@ -95,7 +105,7 @@ class AsyncIterator(_AsyncIterator[T]):
 
         Parameters
         ----------
-        \*\*attrs
+        **attrs
             Keyword arguments that denote attributes to match.
 
         Returns
@@ -145,9 +155,8 @@ class AsyncIterator(_AsyncIterator[T]):
         Returns
         -------
         Optional[T]
-            The first element from the iterator
-            for which the ``predicate`` returns ``True``
-            or ``None`` if no matching element was found.
+            The first element from the iterator for which the ``predicate`` returns ``True`` or ``None`` if no matching
+            element was found.
         """
         while 1:
             try:
@@ -200,7 +209,7 @@ class AsyncIterator(_AsyncIterator[T]):
         return self.queue.get_nowait()
 
     async def fill(self) -> None:
-        pass
+        raise NotImplementedError
 
 
 class CommentsIterator(AsyncIterator["Comment"]):

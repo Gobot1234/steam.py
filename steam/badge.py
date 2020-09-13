@@ -65,7 +65,7 @@ class Badge:
         self.scarcity: int = data["scarcity"]
         self.game = Game(data["appid"]) if "appid" in data else None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("id", "level", "xp", "game")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f'<Badge {" ".join(resolved)}>'
@@ -103,10 +103,10 @@ class UserBadges:
         self.xp_needed_for_current_level: int = data["player_xp_needed_current_level"]
         self.badges: List[Badge] = [Badge(data) for data in data["badges"]]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("level", "xp")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f'<UserBadges {" ".join(resolved)}>'
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.badges)

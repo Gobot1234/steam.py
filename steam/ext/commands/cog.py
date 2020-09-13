@@ -29,14 +29,14 @@ import inspect
 import sys
 import traceback
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional
 
+from ...client import EventType, FunctionType
 from .commands import Command, GroupCommand
 
 if TYPE_CHECKING:
     from steam.ext import commands
 
-    from ...client import EventType
     from .bot import Bot
     from .context import Context
 
@@ -46,7 +46,7 @@ __all__ = (
 )
 
 
-class InjectedListener:
+class InjectedListener(FunctionType):
     """Injects the cog's "self" parameter into every event call auto-magically."""
 
     __slots__ = ("func", "cog", "_is_coroutine")
@@ -54,9 +54,9 @@ class InjectedListener:
     def __init__(self, cog: "Cog", func: "EventType"):
         self.func = func
         self.cog = cog
-        self._is_coroutine = asyncio.coroutines._is_coroutine  # for asyncio.iscoroutinefunction
+        self._is_coroutine = asyncio.coroutines._is_coroutine  # marker for asyncio.iscoroutinefunction
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[None]:
+    def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
         return self.func(self.cog, *args, **kwargs)
 
 

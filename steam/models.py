@@ -26,6 +26,7 @@ SOFTWARE.
 
 import re
 from datetime import timedelta
+from typing import Any
 
 from typing_extensions import Final
 from yarl import URL as _URL
@@ -82,16 +83,16 @@ class PriceOverview:
         median_price = PRICE_REGEX.search(data["median_price"]).group("price")
 
         try:
-            self.lowest_price = float(lowest_price.replace(",", "."))
-            self.median_price = float(median_price.replace(",", "."))
+            self.lowest_price: float = float(lowest_price.replace(",", "."))
+            self.median_price: float = float(median_price.replace(",", "."))
         except (ValueError, TypeError):
-            self.lowest_price = lowest_price
-            self.median_price = median_price
+            self.lowest_price: str = lowest_price
+            self.median_price: str = median_price
 
-        self.volume = int(data["volume"].replace(",", ""))
-        self.currency = data["lowest_price"].replace(str(self.lowest_price).replace(",", "."), "")
+        self.volume: int = int(data["volume"].replace(",", ""))
+        self.currency: str = data["lowest_price"].replace(str(self.lowest_price).replace(",", "."), "")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = (
             "volume",
             "currency",
@@ -128,7 +129,7 @@ class Ban:
         self.since_last_ban = timedelta(days=data["DaysSinceLastBan"])
         self.number_of_game_bans = data["NumberOfGameBans"]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = [
             ("is_banned()", self.is_banned()),
             ("is_vac_banned()", self.is_vac_banned()),
@@ -156,7 +157,7 @@ class Ban:
 
 
 class Permissions:
-    def __init__(self, proto):
+    def __init__(self, proto: Any):
         self.kick = proto.can_kick
         self.ban_members = proto.can_ban
         self.invite = proto.can_invite

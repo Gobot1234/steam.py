@@ -224,7 +224,9 @@ class Clan(Commentable, comment_path="Clan"):
         self.mods = await self._state.client.fetch_users(*mods)
 
     @classmethod
-    async def _from_proto(cls, state, clan_proto: Union["ReceivedResponse", "FetchedResponse"]) -> "Clan":
+    async def _from_proto(
+        cls, state: "ConnectionState", clan_proto: Union["ReceivedResponse", "FetchedResponse"]
+    ) -> "Clan":
         if isinstance(clan_proto, ReceivedResponse):
             id = clan_proto.group_summary.clanid
         else:
@@ -273,15 +275,15 @@ class Clan(Commentable, comment_path="Clan"):
         self.default_channel = default_channel[0] if default_channel else None
         return self
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("name", "id", "chat_id", "type", "universe", "instance")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Clan {' '.join(resolved)}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.member_count
 
     def __copy__(self) -> "Clan":
@@ -308,7 +310,7 @@ class Clan(Commentable, comment_path="Clan"):
         soup = BeautifulSoup(resp, "html.parser")
         pages = int(soup.find_all("a", attrs={"class": "pagelink"}).pop().text)
 
-        async def getter(i) -> None:
+        async def getter(i: int) -> None:
             try:
                 resp = await self._state.request("GET", f"{self.url}/members?p={i + 1}")
             except HTTPException:
@@ -338,7 +340,7 @@ class Clan(Commentable, comment_path="Clan"):
         """
         await self._state.http.leave_clan(self.id64)
 
-    async def invite(self, user: "User"):
+    async def invite(self, user: "User") -> None:
         """|coro|
         Invites a :class:`~steam.User` to the :class:`Clan`.
 

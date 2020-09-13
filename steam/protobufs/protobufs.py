@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 __all__ = ("PROTOBUFS",)
 
 
-PROTOBUFS: Dict[EMsg, Type["betterproto.Message"]] = {
+PROTOBUFS = {
     EMsg.Multi: steammessages_base.CMsgMulti,
     EMsg.ClientHeartBeat: steammessages_clientserver_login.CMsgClientHeartBeat,
     EMsg.ClientServerTimestampRequest: steammessages_clientserver_login.CMsgClientServerTimestampRequest,

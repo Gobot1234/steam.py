@@ -39,6 +39,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Dict,
     Iterable,
     List,
@@ -90,7 +91,7 @@ def to_bool(argument: str) -> bool:
 
 
 class Command:
-    def __init__(self, func: "CommandFunctionType", **kwargs):
+    def __init__(self, func: "CommandFunctionType", **kwargs: Any):
         self.name: str = kwargs.get("name") or func.__name__
         if not isinstance(self.name, str):
             raise TypeError("Name of a command must be a string.")
@@ -134,7 +135,7 @@ class Command:
             if not isinstance(alias, str):
                 raise TypeError("A commands aliases should be an iterable only containing strings")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.qualified_name
 
     @property
@@ -196,7 +197,7 @@ class Command:
 
         return recursive_iter(self)
 
-    def __call__(self, *args, **kwargs) -> Awaitable[None]:
+    def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
         """|coro|
         Calls the internal callback that the command holds.
 
@@ -385,7 +386,7 @@ class Command:
 
 
 class GroupMixin:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         self.case_insensitive = kwargs.get("case_insensitive", False)
         self.__commands__: Dict[str, Command] = CaseInsensitiveDict() if self.case_insensitive else dict()
         super().__init__(*args, **kwargs)
@@ -473,7 +474,7 @@ class GroupMixin:
     def command(self, *args, **kwargs) -> Callable[["CommandFunctionType"], "Command"]:
         """A shortcut decorator that invokes :func:`command` and adds it to the internal command list."""
 
-        def decorator(func: "CommandFunctionType"):
+        def decorator(func: "CommandFunctionType") -> "Command":
             try:
                 kwargs["parent"]
             except KeyError:
@@ -487,7 +488,7 @@ class GroupMixin:
     def group(self, *args, **kwargs) -> Callable[["CommandFunctionType"], "GroupCommand"]:
         """A shortcut decorator that invokes :func:`group` and adds it to the internal command list."""
 
-        def decorator(func: "CommandFunctionType"):
+        def decorator(func: "CommandFunctionType") -> GroupCommand:
             try:
                 kwargs["parent"]
             except KeyError:
@@ -500,7 +501,7 @@ class GroupMixin:
 
 
 class GroupCommand(GroupMixin, Command):
-    def __init__(self, func: "CommandFunctionType", **kwargs):
+    def __init__(self, func: "CommandFunctionType", **kwargs: Any):
         super().__init__(func, **kwargs)
 
     @property
@@ -510,7 +511,7 @@ class GroupCommand(GroupMixin, Command):
             if isinstance(command, GroupCommand):
                 yield from command.children
 
-    def recursively_remove_all_commands(self):
+    def recursively_remove_all_commands(self) -> None:
         for command in self.commands:
             if isinstance(command, GroupCommand):
                 command.recursively_remove_all_commands()
@@ -522,7 +523,7 @@ class GroupCommand(GroupMixin, Command):
 
 
 def command(
-    name: Optional[str] = None, cls: Type[Command] = Command, **attrs
+    name: Optional[str] = None, cls: Type[Command] = Command, **attrs: Any
 ) -> Callable[["CommandFunctionType"], Command]:
     """Register a coroutine as a :class:`Command`.
 
@@ -545,7 +546,7 @@ def command(
 
 
 def group(
-    name: Optional[str] = None, cls: Type[GroupCommand] = GroupCommand, **attrs
+    name: Optional[str] = None, cls: Type[GroupCommand] = GroupCommand, **attrs: Any
 ) -> Callable[["CommandFunctionType"], GroupCommand]:
     """Register a coroutine as a :class:`GroupCommand`.
 
@@ -601,7 +602,7 @@ def check(predicate: CheckType) -> CommandDeco:  # TODO better docs
     else:
 
         @functools.wraps(predicate)
-        async def wrapper(ctx):
+        async def wrapper(ctx: "Context") -> bool:
             return predicate(ctx)
 
         decorator.predicate = wrapper

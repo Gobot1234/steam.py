@@ -86,7 +86,7 @@ class CaseInsensitiveDict(Dict[str, _VT], Generic[_VT]):
     def get(self, k: str, default: Optional[_T] = None) -> Optional[Union[_VT, _T]]:
         ...
 
-    def get(self, k, default=None):
+    def get(self, k: str, default: Optional[_T] = None) -> Optional[Union[_VT, _T]]:
         return super().get(k.lower(), default)
 
     def pop(self, k: str) -> _VT:

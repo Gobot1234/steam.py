@@ -141,7 +141,7 @@ class Asset:
         The classid of the item.
     """
 
-    __slots__ = ("game", "amount", "class_id", "asset_id", "instance_id")
+    __slots__ = ("game", "amount", "class_id", "asset_id", "instance_id", "name")
 
     def __init__(self, data: AssetDict):
         self.asset_id = int(data["assetid"])
@@ -149,6 +149,7 @@ class Asset:
         self.amount = int(data["amount"])
         self.instance_id = int(data["instanceid"])
         self.class_id = int(data["classid"])
+        self.name = None  # so we don't raise AttributeError
 
     def __repr__(self) -> str:
         attrs = (
@@ -589,8 +590,8 @@ class TradeOffer:
 
         to_send = [item.to_dict() for item in trade.items_to_send]
         to_receive = [item.to_dict() for item in trade.items_to_receive]
-        resp = await self._state.http.send_counter_trade_offer(
-            self.id, self.partner, to_send, to_receive, trade.token, trade.message
+        resp = await self._state.http.send_trade_offer(
+            self.partner, to_send, to_receive, trade.token, trade.message, trade_id=self.id
         )
         if resp.get("needs_mobile_confirmation", False):
             await self._state.get_and_confirm_confirmation(int(resp["tradeofferid"]))
@@ -603,6 +604,6 @@ class TradeOffer:
         """:class:`bool`: Whether the offer was created by the :class:`~steam.ClientUser`."""
         return self._is_our_offer
 
-    def _check_active(self) -> NoReturn:
+    def _check_active(self) -> None:
         if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException("This trade is not active")

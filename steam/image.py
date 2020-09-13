@@ -67,7 +67,7 @@ class Image:
         if isinstance(fp, io.IOBase):
             self.fp = fp
         else:
-            self.fp: io.BufferedReader = open(fp, "rb")
+            self.fp: io.FileIO = open(fp, "rb")
 
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
@@ -112,7 +112,7 @@ class Image:
         self.hash = hashlib.sha1(self.read()).hexdigest()
         self.name = f'{int(time())}_{getattr(self.fp, "name", f"image.{self.type}")}'
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.read())
 
     def read(self) -> bytes:
@@ -122,7 +122,7 @@ class Image:
         return read
 
 
-def test_jpeg(h, _):  # adds support for more header types
+def test_jpeg(h: bytes, _) -> str:  # adds support for more header types
     # SOI APP2 + ICC_PROFILE
     if h[0:4] == "\xff\xd8\xff\xe2" and h[6:17] == b"ICC_PROFILE":
         return "jpeg"

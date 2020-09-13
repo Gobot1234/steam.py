@@ -41,7 +41,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, Callable, Dict, List, NamedTuple, NewType, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, NewType, Optional, Union
 
 import aiohttp
 from typing_extensions import Literal
@@ -71,15 +71,15 @@ __all__ = (
 
 log = logging.getLogger(__name__)
 Msgs = Union[MsgProto, Msg]
-GoodType = NewType("GOOD", Literal[True])
-BadType = NewType("BAD", Literal[False])
+GoodType = NewType("GoodType", Literal[True])
+BadType = NewType("BadType", Literal[False])
 
 
 def return_true(*_, **__) -> Literal[True]:
     return True
 
 
-def check_job_id(job_id: int):
+def check_job_id(job_id: int) -> Callable[[Msgs], bool]:
     exec(f"def check(msg): return msg.header.job_id_target == {job_id}")
     return locals()["check"]
 
@@ -92,7 +92,7 @@ class EventListener(NamedTuple):
 
 class CMServer(NamedTuple):
     url: str
-    state: Union["CMServerList.GOOD", "CMServerList.BAD"]
+    state: Union["GoodType", "BadType"]
     score: float
 
 
@@ -229,7 +229,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         "_main_thread_id",
     )
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         super().__init__()
         self.ws: "SteamWebSocket" = kwargs.pop("ws")
         self.interval: int = kwargs.pop("interval")
@@ -324,7 +324,7 @@ class SteamWebSocket:
         # the keep alive
         self._keep_alive: Optional[KeepAliveHandler] = None
         # an empty dispatcher to prevent crashes
-        self._dispatch = return_true  # in practice this is the same as lambda *args: None
+        self._dispatch = lambda *args, **kwargs: None
         self.cm: Optional[str] = None
         self.thread_id = threading.get_ident()
 
@@ -413,7 +413,7 @@ class SteamWebSocket:
             return await self.handlers[emsg](msg)
 
         if not self.connected:
-            return log.debug(f"Dropped unexpected message: {emsg} {message}")
+            return log.debug(f"Dropped unexpected message: {emsg} {message!r}")
         try:
             if utils.is_proto(emsg_value):
                 msg = MsgProto(emsg, message)
@@ -425,7 +425,7 @@ class SteamWebSocket:
                 if msg.msg != EMsg.ServiceMethodResponse:
                     pass
             except Exception:
-                log.critical(f"Failed to deserialize message: {emsg!r}, {message}")
+                log.critical(f"Failed to deserialize message: {emsg!r}, {message!r}")
                 return log.error(exc)
 
         self._dispatch("socket_receive", msg)
@@ -477,7 +477,7 @@ class SteamWebSocket:
             await self.send_as_proto(MsgProto(EMsg.ClientLogOff))
         await self.socket.close(code=code)
 
-    async def handle_close(self):
+    async def handle_close(self) -> None:
         if not self.socket.closed:
             await self.close()
             self.cm_list.queue.get_nowait()  # pop the disconnected cm
@@ -532,14 +532,14 @@ class SteamWebSocket:
             await self.receive(data[4 : 4 + size])
             data = data[4 + size :]
 
-    async def send_um(self, name: str, **kwargs) -> int:
+    async def send_um(self, name: str, **kwargs: Any) -> int:
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, _um_name=name, **kwargs)
         msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
         return msg.header.job_id_source
 
     async def send_um_and_wait(
-        self, name: str, check: Optional[Callable[[Msgs], bool]] = None, timeout: float = 5.0, **kwargs
+        self, name: str, check: Optional[Callable[[Msgs], bool]] = None, timeout: float = 5.0, **kwargs: Any
     ) -> Msgs:
         job_id = await self.send_um(name, **kwargs)
         if check is None:

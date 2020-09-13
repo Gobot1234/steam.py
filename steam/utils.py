@@ -405,7 +405,7 @@ def parse_trade_url(url: str) -> Optional["re.Match[str]"]:
 
 
 # TODO make a custom cancellable Executor
-def to_thread(callable: Callable[..., _T], *args, **kwargs) -> Coroutine[None, None, _T]:  # asyncio.to_thread
+def to_thread(callable: Callable[..., _T], *args: Any, **kwargs: Any) -> Coroutine[None, None, _T]:  # asyncio.to_thread
     loop = asyncio.get_running_loop()
     ctx = contextvars.copy_context()
     partial = functools.partial(ctx.run, callable, *args, **kwargs)
@@ -530,7 +530,7 @@ def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T
     return None
 
 
-def get(iterable: Iterable[_T], **attrs) -> Optional[_T]:
+def get(iterable: Iterable[_T], **attrs: Any) -> Optional[_T]:
     r"""A helper that returns the first element in the iterable that meets all the traits passed in ``attrs``. This
     is an alternative for :func:`utils.find`.
 
@@ -569,7 +569,7 @@ def get(iterable: Iterable[_T], **attrs) -> Optional[_T]:
     return None
 
 
-async def maybe_coroutine(func: Callable[..., Union[_T, Awaitable[_T]]], *args, **kwargs) -> _T:
+async def maybe_coroutine(func: Callable[..., Union[_T, Awaitable[_T]]], *args: Any, **kwargs: Any) -> _T:
     value = func(*args, **kwargs)
     if isawaitable(value):
         return await value

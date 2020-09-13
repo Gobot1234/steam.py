@@ -26,11 +26,12 @@ SOFTWARE.
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Awaitable, Callable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, NoReturn, Optional, Union
 
 from .abc import BaseChannel
 
 if TYPE_CHECKING:
+    from .abc import _EndPointReturnType
     from .clan import Clan
     from .group import Group
     from .image import Image
@@ -62,18 +63,19 @@ class DMChannel(BaseChannel):
     __slots__ = ("participant",)
 
     def __init__(self, state: "ConnectionState", participant: "User"):
+        super().__init__()
         self._state = state
         self.participant = participant
         self.clan = None
         self.group = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<DMChannel participant={self.participant!r}>"
 
-    def _get_message_endpoint(self):
+    def _get_message_endpoint(self) -> "_EndPointReturnType":
         return self.participant._get_message_endpoint()
 
-    def _get_image_endpoint(self):
+    def _get_image_endpoint(self) -> "_EndPointReturnType":
         return self.participant._get_image_endpoint()
 
     async def send(
@@ -113,7 +115,7 @@ class DMChannel(BaseChannel):
 # this is basically straight from d.py
 
 
-def _typing_done_callback(future: asyncio.Future):
+def _typing_done_callback(future: asyncio.Future) -> None:
     # just retrieve any exception and call it a day
     try:
         future.exception()
@@ -128,32 +130,29 @@ class TypingContextManager:
         self._state = participant._state
         self.participant = participant
 
-    async def send_typing(self):
+    async def send_typing(self) -> None:
         while 1:
             await self._state.send_user_typing(self.participant)
             await asyncio.sleep(5)
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         self.task = asyncio.create_task(self.send_typing())
         return self.task.add_done_callback(_typing_done_callback)
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, exc_type, exc, tb) -> None:
         self.task.cancel()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> None:
         return self.__enter__()
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type, exc, tb) -> None:
         self.task.cancel()
-
-
-_MessageEndpointReturnType = Tuple[Tuple[int, int], Callable[[Tuple[int, int]], Awaitable[None]]]
 
 
 class _GroupChannel(BaseChannel):
     __slots__ = ("id", "joined_at", "name")
 
-    def __init__(self, state: "ConnectionState", channel):
+    def __init__(self, state: "ConnectionState", channel: Any):
         super().__init__()
         self._state = state
         self.id = int(channel.chat_id)
@@ -168,21 +167,21 @@ class _GroupChannel(BaseChannel):
         else:
             self.joined_at = None
 
-    def typing(self):
+    def typing(self) -> NoReturn:
         raise NotImplementedError
 
-    async def trigger_typing(self):
+    async def trigger_typing(self) -> NoReturn:
         raise NotImplementedError
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("id", "group")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<GroupChannel {' '.join(resolved)}>"
 
-    def _get_message_endpoint(self) -> _MessageEndpointReturnType:
+    def _get_message_endpoint(self) -> "_EndPointReturnType":
         return (self.id, self.group.id), self._state.send_group_message
 
-    def _get_image_endpoint(self) -> _MessageEndpointReturnType:
+    def _get_image_endpoint(self) -> "_EndPointReturnType":
         return (self.id, self.group.id), self._state.http.send_group_image
 
 
@@ -230,13 +229,13 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
         super().__init__(state, channel)
         self.clan = clan
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("id", "clan")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClanChannel {' '.join(resolved)}>"
 
-    def _get_message_endpoint(self) -> _MessageEndpointReturnType:
+    def _get_message_endpoint(self) -> "_EndPointReturnType":
         return (self.id, self.clan.chat_id), self._state.send_group_message
 
-    def _get_image_endpoint(self) -> _MessageEndpointReturnType:
+    def _get_image_endpoint(self) -> "_EndPointReturnType":
         return (self.id, self.clan.chat_id), self._state.http.send_group_image

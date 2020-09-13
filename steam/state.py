@@ -33,14 +33,14 @@ from collections import deque
 from copy import copy
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Awaitable, Callable, Dict, List, MutableMapping, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Deque, Dict, List, MutableMapping, Optional, Tuple, Union
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
 from typing_extensions import Protocol
 
 from . import utils
-from .abc import SteamID
+from .abc import SteamID, UserDict
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
 from .enums import *
@@ -60,10 +60,11 @@ from .protobufs.steammessages_friendmessages import (
     CFriendMessagesIncomingMessageNotification as UserMessageNotification,
     CFriendMessagesSendMessageResponse as SendUserMessageResponse,
 )
-from .trade import TradeOffer
+from .trade import DescriptionDict, TradeOffer, TradeOfferDict
 from .user import User
 
 if TYPE_CHECKING:
+    from .abc import Message
     from .client import Client
     from .comment import Comment
     from .gateway import SteamWebSocket
@@ -86,23 +87,29 @@ log = logging.getLogger(__name__)
 
 
 class EventParser(Protocol):
-    def __call__(self: "ConnectionState", msg: "MsgProto") -> Optional[Awaitable[None]]:
+    @staticmethod
+    def __call__(self: "ConnectionState", msg: "MsgProto") -> Optional[Coroutine[None, None, None]]:
         ...
 
 
 class Registerer:
-    __slots__ = ("func", "emsg")
+    __slots__ = ("func", "emsg", "_state")
 
     def __init__(self, func: EventParser, emsg: EMsg):
         self.func = func
         self.emsg = emsg
+        self._state: "ConnectionState"
 
-    def __set_name__(self, state: "ConnectionState", _):
+    def __call__(self, *args: Any, **kwargs: Any) -> Optional[Coroutine[None, None, None]]:
+        return self.func(self._state, *args, **kwargs)
+
+    def __set_name__(self, state: "ConnectionState", _) -> None:
         state.parsers[self.emsg] = self.func
+        self._state = state
 
 
 def register(emsg: EMsg) -> Callable[[EventParser], Registerer]:
-    def decorator(func: EventParser):
+    def decorator(func: EventParser) -> Registerer:
         return Registerer(func, emsg)
 
     return decorator
@@ -145,7 +152,7 @@ class ConnectionState:
         "_force_kick",
     )
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, client: "Client", http: "HTTPClient", **kwargs):
+    def __init__(self, loop: asyncio.AbstractEventLoop, client: "Client", http: "HTTPClient", **kwargs: Any):
         self.loop = loop
         self.http = http
         self.request = http.request
@@ -154,7 +161,7 @@ class ConnectionState:
 
         self.handled_friends = asyncio.Event()
         self._user_slots = set(User.__slots__) - {"_state"}
-        self.max_messages = kwargs.pop("max_messages", 1000)
+        self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
         games = kwargs.get("games")
@@ -183,7 +190,7 @@ class ConnectionState:
         self._clans: Dict[int, Clan] = dict()
         self._confirmations: Dict[str, Confirmation] = dict()
         self._confirmations_to_ignore: List[str] = []
-        self._messages = self.max_messages and deque(maxlen=self.max_messages)
+        self._messages: Deque["Message"] = self.max_messages and deque(maxlen=self.max_messages)
         self.invites: Dict[int, Union[UserInvite, ClanInvite]] = dict()
 
         self._trades_task: Optional[asyncio.Task] = None
@@ -241,7 +248,7 @@ class ConnectionState:
         resp = await self.http.get_users(user_id64s)
         return [User(state=self, data=data) for data in resp]
 
-    def _store_user(self, data: dict) -> User:
+    def _store_user(self, data: UserDict) -> User:
         try:
             user = self._users[int(data["steamid"])]
         except KeyError:
@@ -289,7 +296,7 @@ class ConnectionState:
             return trades[0]
         return None
 
-    async def _store_trade(self, data: dict) -> TradeOffer:
+    async def _store_trade(self, data: TradeOfferDict) -> TradeOffer:
         try:
             trade = self._trades[int(data["tradeofferid"])]
         except KeyError:
@@ -327,7 +334,9 @@ class ConnectionState:
                     self._trades_to_watch.remove(trade.id)
         return trade
 
-    async def _process_trades(self, trades: List[dict], descriptions: List[dict]) -> List[TradeOffer]:
+    async def _process_trades(
+        self, trades: List[TradeOfferDict], descriptions: List[DescriptionDict]
+    ) -> List[TradeOffer]:
         ret = []
         for trade in trades:
             for item in descriptions:
@@ -544,7 +553,7 @@ class ConnectionState:
         elif msg.header.eresult != EResult.OK:
             raise WSException(msg)
 
-    async def edit_role(self, group_id: int, role_id: int, *, name: str):
+    async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
         try:
             msg = await self.ws.send_um_and_wait(
                 "ChatRoom.RenameRole#1_Request", chat_group_id=group_id, role_id=role_id, name=name
@@ -657,7 +666,7 @@ class ConnectionState:
     @register(EMsg.ClientPersonaState)
     async def parse_persona_state_update(self, msg: MsgProto["CMsgClientPersonaState"]) -> None:
         for friend in msg.body.friends:
-            data = friend.to_dict(snakecase)
+            data: UserDict = friend.to_dict(snakecase)
             if not data:
                 continue
             user_id64 = friend.friendid
@@ -784,7 +793,7 @@ class ConnectionState:
             await self.http.clear_notifications()
 
     @register(EMsg.ClientAccountInfo)
-    def parse_account_info(self, msg: MsgProto["CMsgClientAccountInfo"]):
+    def parse_account_info(self, msg: MsgProto["CMsgClientAccountInfo"]) -> None:
         if msg.body.persona_name != self.client.user.name:
             before = copy(self.client.user)
             self.client.user.name = msg.body.persona_name

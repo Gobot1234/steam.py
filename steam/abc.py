@@ -32,7 +32,19 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Awaitable, Callable, List, NoReturn, Optional, SupportsInt, Tuple, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    List,
+    NoReturn,
+    Optional,
+    SupportsInt,
+    Tuple,
+    Union,
+    overload,
+)
 
 from typing_extensions import Final, TypedDict
 
@@ -65,6 +77,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
+    import betterproto
     from aiohttp import ClientSession
 
     from .clan import Clan
@@ -82,6 +95,7 @@ __all__ = (
 
 
 class UserDict(TypedDict):
+    steamid: str
     personaname: str
     steamid: str
     primaryclanid: str
@@ -147,19 +161,19 @@ class SteamID(metaclass=abc.ABCMeta):
     def __int__(self):
         return self.__BASE
 
-    def __eq__(self, other: SupportsInt):
+    def __eq__(self, other: SupportsInt) -> bool:
         try:
             return int(self) == int(other)
         except (TypeError, ValueError):
             return NotImplemented
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.__BASE)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.__BASE)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"SteamID(id={self.id}, type={self.type}, universe={self.universe}, instance={self.instance})"
 
     @property
@@ -242,7 +256,7 @@ class SteamID(metaclass=abc.ABCMeta):
         """
         if self.type == EType.Individual and self.is_valid():
 
-            def repl_mapper(x: re.Match):
+            def repl_mapper(x: re.Match) -> str:
                 return _INVITE_MAPPING[x.group()]
 
             invite_code = re.sub(f"[{_INVITE_HEX}]", repl_mapper, f"{self.id:x}")
@@ -260,8 +274,7 @@ class SteamID(metaclass=abc.ABCMeta):
         e.g ``https://s.team/p/cv-dgb``.
         """
         code = self.invite_code
-        if code:
-            return f"https://s.team/p/{code}"
+        return f"https://s.team/p/{code}" if code else None
 
     @property
     def community_url(self) -> Optional[str]:
@@ -335,8 +348,9 @@ class Commentable(SteamID):
     __slots__ = ("comment_path",)
 
     _state: "ConnectionState"
+    comment_path: str
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any):
         cls.comment_path: Final[str] = kwargs.get("comment_path", "Profile")
 
     async def comment(self, content: str) -> Comment:
@@ -467,7 +481,7 @@ class BaseUser(Commentable):
         "_setup_profile",
     )
 
-    def __init__(self, state: "ConnectionState", data: dict):
+    def __init__(self, state: "ConnectionState", data: UserDict):
         super().__init__(data["steamid"])
         self._state = state
         self.name: Optional[str] = None
@@ -526,7 +540,7 @@ class BaseUser(Commentable):
             "avatarfull": self.avatar_url,
             "primaryclanid": self.primary_clan,
             "loccountrycode": self.country,
-            "gameextrainfo": self.game.name if self.game else None,
+            "gameextrainfo": self.game.title if self.game else None,
             "personastate": self.state,
             "personastateflags": flag_value,
             "communityvisibilitystate": self.privacy_state,
@@ -612,7 +626,7 @@ class BaseUser(Commentable):
         """
         clans = []
 
-        async def getter(gid: int):
+        async def getter(gid: int) -> None:
             try:
                 clan = await self._state.client.fetch_clan(gid)
             except WSException as exc:
@@ -805,7 +819,7 @@ class Message:
         "_state",
     )
 
-    def __init__(self, channel: "BaseChannel", proto):
+    def __init__(self, channel: "BaseChannel", proto: "betterproto.Message"):
         self._state: "ConnectionState" = channel._state
         self.channel = channel
         self.group: Optional["Group"] = channel.group

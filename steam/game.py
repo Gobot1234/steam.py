@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import Dict, Optional, SupportsInt, overload
+from typing import Dict, Optional, Union, overload
 
 from typing_extensions import TypedDict
 
@@ -101,7 +101,7 @@ class Game:
     )
 
     @overload
-    def __init__(self, app_id: SupportsInt, *, context_id: Optional[int] = 2):
+    def __init__(self, app_id: Union[int, str], *, context_id: Optional[int] = 2):
         ...
 
     @overload
@@ -109,14 +109,16 @@ class Game:
         ...
 
     @overload
-    def __init__(self, app_id: SupportsInt, title: str, *, context_id: Optional[int] = 2):
+    def __init__(self, app_id: Union[int, str], title: str, *, context_id: Optional[int] = 2):
         ...
 
     @overload
-    def __init__(self, id: Optional[SupportsInt], title: Optional[str] = None, *, context_id: Optional[int] = 2):
+    def __init__(self, id: Optional[Union[int, str]], title: Optional[str] = None, *, context_id: Optional[int] = 2):
         ...
 
-    def __init__(self, id=None, title=None, *, context_id=2):
+    def __init__(
+        self, id: Optional[Union[int, str]] = None, title: Optional[str] = None, *, context_id: Optional[int] = 2
+    ):
         if title is None and id is None:
             raise TypeError("__init__() missing a required positional argument: 'id' or 'title'")
         if id is not None and title is None:

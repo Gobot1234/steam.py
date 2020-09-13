@@ -68,13 +68,21 @@ __all__ = ("Client",)
 log = logging.getLogger(__name__)
 
 
-class EventType(Protocol):
-    # would be a FunctionType subclass to make things nicer, but alas "type 'function' is not an acceptable base type"
+class FunctionType:
+    """A protocol mocking some of `types.FunctionType`"""
+
     __code__: "CodeType"
     __annotations__: Dict[str, Any]
+    __dict__: Dict[str, Any]
+    __globals__: Dict[str, Any]
     __name__: str
+    __qualname__: str
 
-    async def __call__(self, *args, **kwargs) -> None:
+
+class EventType(FunctionType):
+    __event_name__: str
+
+    async def __call__(self, *args: Any, **kwargs: Any) -> None:
         ...
 
 
@@ -110,7 +118,7 @@ class ClientEventTask(asyncio.Task):
         self.__event_name = event_name
         self.__original_coro = original_coro
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         info = [
             ("state", self._state.lower()),
             ("event", self.__event_name),
@@ -153,7 +161,7 @@ class Client:
         The connected websocket/CM server, this can be used to directly send messages to said CM.
     """
 
-    def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options):
+    def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
         self.loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
 
         self.http = HTTPClient(client=self)
@@ -251,7 +259,7 @@ class Client:
         log.debug(f"{coro.__name__} has successfully been registered as an event")
         return coro
 
-    async def _run_event(self, coro: EventType, event_name: str, *args, **kwargs) -> None:
+    async def _run_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> None:
         try:
             await coro(*args, **kwargs)
         except asyncio.CancelledError:
@@ -262,12 +270,12 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: EventType, event_name: str, *args, **kwargs) -> ClientEventTask:
+    def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
         # schedules the task
         return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped)
 
-    def dispatch(self, event: str, *args, **kwargs) -> None:
+    def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
         log.debug(f"Dispatching event {event}")
         method = f"on_{event}"
 
@@ -311,7 +319,7 @@ class Client:
         self._ready.set()
         self.dispatch("ready")
 
-    def run(self, *args, **kwargs) -> None:
+    def run(self, *args: Any, **kwargs: Any) -> None:
         """A blocking call that abstracts away the event loop initialisation from you.
 
         This is roughly equivalent to::
@@ -493,7 +501,7 @@ class Client:
 
     # state stuff
 
-    def get_user(self, *args, **kwargs) -> Optional["User"]:
+    def get_user(self, *args: Any, **kwargs: Any) -> Optional["User"]:
         """Returns a user from cache with a matching ID.
 
         Parameters
@@ -511,7 +519,7 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return self._connection.get_user(steam_id.id64)
 
-    async def fetch_user(self, *args, **kwargs) -> Optional["User"]:
+    async def fetch_user(self, *args: Any, **kwargs: Any) -> Optional["User"]:
         """|coro|
         Fetches a user from the API with a matching ID.
 
@@ -598,7 +606,7 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    def get_group(self, *args, **kwargs) -> Optional["Group"]:
+    def get_group(self, *args: Any, **kwargs: Any) -> Optional["Group"]:
         """Get a group from cache with a matching ID.
 
         Parameters
@@ -617,7 +625,7 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return self._connection.get_group(steam_id.id)
 
-    def get_clan(self, *args, **kwargs) -> Optional["Clan"]:
+    def get_clan(self, *args: Any, **kwargs: Any) -> Optional["Clan"]:
         """Get a clan from cache with a matching ID.
 
         Parameters
@@ -636,7 +644,7 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return self._connection.get_clan(steam_id.id)
 
-    async def fetch_clan(self, *args, **kwargs) -> Optional["Clan"]:
+    async def fetch_clan(self, *args: Any, **kwargs: Any) -> Optional["Clan"]:
         """|coro|
         Fetches a clan from the websocket with a matching ID.
 

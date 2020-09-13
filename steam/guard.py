@@ -137,13 +137,13 @@ class Confirmation:
         self.tag = tag
         self.trade_id = trade_id  # this isn't really always the trade ID, but for our purposes this is fine
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Confirmation id={self.id!r} trade_id={self.trade_id}>"
 
-    def __eq__(self, other: "Confirmation"):
+    def __eq__(self, other: "Confirmation") -> bool:
         return isinstance(other, Confirmation) and self.trade_id == other.trade_id and self.id == other.id
 
-    def _confirm_params(self, tag) -> dict:
+    def _confirm_params(self, tag: str) -> dict:
         timestamp = int(time())
         return {
             "p": self._state._device_id,
@@ -154,7 +154,7 @@ class Confirmation:
             "tag": tag,
         }
 
-    def _assert_valid(self, resp: dict):
+    def _assert_valid(self, resp: dict) -> None:
         if not resp.get("success", False):
             self._state._confirmations_to_ignore.append(self.id)
             raise ConfirmationError

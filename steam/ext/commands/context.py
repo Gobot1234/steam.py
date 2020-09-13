@@ -26,7 +26,7 @@ SOFTWARE.
 
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
-from ...abc import Message, Messageable
+from ...abc import Message, Messageable, _EndPointReturnType
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -62,7 +62,7 @@ class Context(Messageable):
         The cog the command is in.
     """
 
-    def __init__(self, **attrs):
+    def __init__(self, **attrs: Any):
         self.bot: "Bot" = attrs.get("bot")
         self.message: Message = attrs.get("message")
         self.command: Optional["Command"] = attrs.get("command")
@@ -81,8 +81,8 @@ class Context(Messageable):
         self.args: Optional[Tuple[Any, ...]] = None
         self.kwargs: Optional[Dict[str, Any]] = None
 
-    def _get_message_endpoint(self):
+    def _get_message_endpoint(self) -> _EndPointReturnType:
         return self.channel._get_message_endpoint()
 
-    def _get_image_endpoint(self):
+    def _get_image_endpoint(self) -> _EndPointReturnType:
         return self.channel._get_image_endpoint()

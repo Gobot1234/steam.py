@@ -73,7 +73,7 @@ class UserInvite(Invite):
         The relationship you have with the invitee. This ``None`` if the invite was sent while the bot is online.
     """
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("invitee",)
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<UserInvite {' '.join(resolved)}>"
@@ -117,7 +117,7 @@ class ClanInvite(Invite):
         super().__init__(state, invitee, relationship)
         self.clan = clan
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("invitee", "clan")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClanInvite {' '.join(resolved)}>"

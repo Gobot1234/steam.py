@@ -51,5 +51,5 @@ class Role:
             self.clan = None
         self.permissions = Permissions(proto)
 
-    async def edit(self, *, name: str):
+    async def edit(self, *, name: str) -> None:
         await self._state.edit_role(self.id, (self.clan or self.group).id, name=name)

@@ -28,7 +28,7 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 """
 
 import dataclasses
-from typing import Generic, Optional, Type, TypeVar, Union
+from typing import Any, Generic, Optional, Type, TypeVar, Union
 
 import betterproto
 
@@ -89,7 +89,7 @@ def get_um(name: str) -> GetProtoType:
 class MsgBase(Generic[T]):
     __slots__ = ("header", "body", "payload", "skip")
 
-    def __init__(self, msg: EMsg, data: Optional[bytes], **kwargs):
+    def __init__(self, msg: EMsg, data: Optional[bytes], **kwargs: Any):
         self.msg = msg
         self.body: Optional[T] = None
         self.payload: Optional[bytes] = data[self.skip :] if data else None
@@ -124,12 +124,12 @@ class MsgBase(Generic[T]):
                 self.body.parse(self.payload)
 
     @property
-    def msg(self) -> Union[EMsg, int]:
+    def msg(self) -> EMsg:
         """Union[:class:`.EMsg`, :class:`int`]: The :attr:`header.msg`."""
         return self.header.msg
 
     @msg.setter
-    def msg(self, value) -> None:
+    def msg(self, value: int) -> None:
         self.header.msg = EMsg.try_value(value)
 
     @property
@@ -138,7 +138,7 @@ class MsgBase(Generic[T]):
         return self.header.steam_id if isinstance(self.header, AllowedHeaders) else None
 
     @steam_id.setter
-    def steam_id(self, value) -> None:
+    def steam_id(self, value: int) -> None:
         if isinstance(self.header, AllowedHeaders):
             self.header.steam_id = value
 
@@ -148,9 +148,12 @@ class MsgBase(Generic[T]):
         return self.header.session_id if isinstance(self.header, AllowedHeaders) else None
 
     @session_id.setter
-    def session_id(self, value) -> None:
+    def session_id(self, value: int) -> None:
         if isinstance(self.header, AllowedHeaders):
             self.header.session_id = value
+
+    def parse(self) -> None:
+        raise NotImplementedError
 
 
 class Msg(MsgBase[T]):
@@ -199,7 +202,7 @@ class Msg(MsgBase[T]):
         msg: EMsg,
         data: Optional[bytes] = None,
         extended: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ):
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.skip = self.header.SIZE
@@ -262,7 +265,7 @@ class MsgProto(MsgBase[T]):
         msg: EMsg,
         data: Optional[bytes] = None,
         _um_name: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size

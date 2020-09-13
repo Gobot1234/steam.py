@@ -288,7 +288,9 @@ class Greedy(Generic[T]):
 
     converter: T
 
-    def __new__(cls, *args, **kwargs) -> NoReturn:  # give a more helpful message than typing._BaseGenericAlias.__call__
+    def __new__(
+        cls, *args: Any, **kwargs: Any
+    ) -> NoReturn:  # give a more helpful message than typing._BaseGenericAlias.__call__
         raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[converter]")
 
     def __class_getitem__(cls, converter: "GreedyTypes") -> "Greedy[T]":

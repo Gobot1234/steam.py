@@ -50,14 +50,14 @@ from typing import (
     Union,
 )
 
-from typing_extensions import Literal, Protocol, overload
+from typing_extensions import Literal, overload
 
 from ... import utils
-from ...client import Client, EventType, log
+from ...client import Client, EventType, FunctionType, log
 from .cog import Cog, ExtensionType, InjectedListener
 from .commands import Command, GroupCommand, GroupMixin
 from .context import Context
-from .errors import CheckFailure, CommandDisabled, CommandNotFound, CommandOnCooldown
+from .errors import CheckFailure, CommandDisabled, CommandError, CommandNotFound
 from .help import HelpCommand
 from .utils import Shlex
 
@@ -123,16 +123,16 @@ def when_mentioned_or(*prefixes: str) -> Callable[["Bot", "steam.Message"], List
     return inner
 
 
-class CommandFunctionType(Protocol):
+class CommandFunctionType(FunctionType):
     __commands_checks__: List["CheckType"]
     __commands_cooldown__: List["Cooldown"]
 
     @overload
-    async def __call__(self, ctx: "Context", *args, **kwargs) -> None:
+    async def __call__(self, ctx: "Context", *args: Any, **kwargs: Any) -> None:
         ...
 
     @overload
-    async def __call__(self, cog: "Cog", ctx: "Context", *args, **kwargs) -> None:
+    async def __call__(self, cog: "Cog", ctx: "Context", *args: Any, **kwargs: Any) -> None:
         ...
 
 
@@ -205,7 +205,7 @@ class Bot(GroupMixin, Client):
     __listeners__: Dict[str, List[Union["EventType", "InjectedListener"]]] = dict()
     __extensions__: Dict[str, "ExtensionType"] = dict()
 
-    def __init__(self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options):
+    def __init__(self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options: Any):
         super().__init__(**options)
         self.command_prefix = command_prefix
         self.owner_id = utils.make_id64(options.get("owner_id", 0))
@@ -249,13 +249,13 @@ class Bot(GroupMixin, Client):
         return self._help_command
 
     @help_command.setter
-    def help_command(self, value: HelpCommand):
+    def help_command(self, value: HelpCommand) -> None:
         if not isinstance(value, HelpCommand):
             raise TypeError("help_command should derive from commands.HelpCommand")
         self.add_command(value)
         self._help_command = value
 
-    def dispatch(self, event: str, *args, **kwargs) -> None:
+    def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
         super().dispatch(event, *args, **kwargs)
         method = f"on_{event}"
         for ev in self.__listeners__.get(method, []):
@@ -492,7 +492,7 @@ class Bot(GroupMixin, Client):
             except Exception as exc:
                 await self.on_command_error(ctx, exc)
 
-        except (CheckFailure, CommandDisabled, CommandOnCooldown) as exc:
+        except CommandError as exc:
             await self.on_command_error(ctx, exc)
 
         else:

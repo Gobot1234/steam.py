@@ -73,7 +73,7 @@ class Comment:
         self.author = author
         self.owner = owner
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         attrs = ("id", "author")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Comment {' '.join(resolved)}>"

@@ -109,7 +109,7 @@ class HTTPClient:
         if self._session.closed:
             self._session = aiohttp.ClientSession()
 
-    async def request(self, method: str, url: StrOrURL, **kwargs) -> Optional[Any]:  # adapted from d.py
+    async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Optional[Any]:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
 
         for tries in range(5):
@@ -404,7 +404,7 @@ class HTTPClient:
         to_receive: List[dict],
         token: Optional[str],
         offer_message: str,
-        **kwargs,
+        **kwargs: Any,
     ) -> RequestType:
         payload = {
             "sessionid": self.session_id,
@@ -425,17 +425,6 @@ class HTTPClient:
         payload.update(**kwargs)
         headers = {"Referer": str(community_route(f"tradeoffer/new/?partner={user.id}"))}
         return self.request("POST", community_route("tradeoffer/new/send"), data=payload, headers=headers)
-
-    def send_counter_trade_offer(
-        self,
-        trade_id: int,
-        user: "User",
-        to_send: List[dict],
-        to_receive: List[dict],
-        token: Optional[str],
-        offer_message: str,
-    ) -> RequestType:
-        return self.send_trade_offer(user, to_send, to_receive, token, offer_message, trade_id=trade_id)
 
     def get_cm_list(self, cell_id: int) -> RequestType:
         params = {"cellid": cell_id}
