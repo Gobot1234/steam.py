@@ -1321,8 +1321,7 @@ class Client:
         --------
         Optional[Any]:
             Returns ``None``, a single argument, or a :class:`tuple` of multiple arguments that mirrors the parameters
-            for the ``event`` parameter from the
-            `event reference <https://steampy.rtfd.io/en/latest/api.html#event-reference>`_.
+            for the ``event`` parameter from the `event reference <https://steampy.rtfd.io/en/latest/api.html#id2>`_.
         """
         future = self.loop.create_future()
         check = check or return_true

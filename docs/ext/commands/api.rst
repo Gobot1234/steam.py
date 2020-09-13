@@ -59,7 +59,7 @@ Command
     :members:
     :special-members: __call__
 
-.. autoclass:: steam.ext.commands.Group
+.. autoclass:: steam.ext.commands.GroupCommand
     :members:
     :inherited-members:
     :special-members: __call__
