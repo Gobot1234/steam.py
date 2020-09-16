@@ -82,22 +82,18 @@ class Comment:
         """|coro|
         Reports the :class:`Comment`.
         """
-        from .abc import BaseUser
-
         await self._state.http.report_comment(
             id64=self.owner.id64,
             comment_id=self.id,
-            comment_type="Profile" if isinstance(self.owner, BaseUser) else "Clan",
+            comment_type=self.owner.comment_path,
         )
 
     async def delete(self) -> None:
         """|coro|
         Deletes the :class:`Comment`.
         """
-        from .abc import BaseUser
-
         await self._state.http.delete_comment(
             id64=self.owner.id64,
             comment_id=self.id,
-            comment_type="Profile" if isinstance(self.owner, BaseUser) else "Clan",
+            comment_type=self.owner.comment_path,
         )
