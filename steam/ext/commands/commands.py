@@ -84,7 +84,10 @@ def _eval_type(type: Any, globalns: dict[str, Any], localns: dict[str, Any]) -> 
     """Evaluate all forward reverences in the given type."""
     if isinstance(type, typing._GenericAlias):
         args = tuple(_eval_type(arg, globalns, localns) for arg in get_args(type))
-        return get_origin(type)[args]
+        try:
+            return get_origin(type)[args]
+        except TypeError:
+            pass
 
     return _OLD_EVAL_TYPE(type, globalns, localns)
 
