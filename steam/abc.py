@@ -247,7 +247,7 @@ class SteamID(metaclass=abc.ABCMeta):
         if self.type == EType.Individual and self.is_valid():
             invite_code = re.sub(f"[{_INVITE_HEX}]", lambda x: _INVITE_MAPPING[x.group()], f"{self.id:x}")
             split_idx = len(invite_code) // 2
-            return invite_code if split_idx != 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
+            return invite_code if split_idx == 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
 
     @property
     def invite_url(self) -> Optional[str]:
@@ -510,7 +510,7 @@ class BaseUser(Commentable):
     def __str__(self) -> str:
         return self.name
 
-    def __copy__(self) -> "BaseUser":
+    def __copy__(self) -> BaseUser:
         # can't use default implementation due to comment_path being read only
         flag_value = 0
         for flag in self.flags:
