@@ -28,23 +28,13 @@ This contains a copy of
 https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 """
 
+from __future__ import annotations
+
 import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Callable,
-    List,
-    NoReturn,
-    Optional,
-    SupportsInt,
-    Tuple,
-    Union,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, NoReturn, Optional, Tuple, Union, overload
 
 from typing_extensions import Final, TypedDict
 
@@ -161,7 +151,7 @@ class SteamID(metaclass=abc.ABCMeta):
     def __int__(self):
         return self.__BASE
 
-    def __eq__(self, other: SupportsInt) -> bool:
+    def __eq__(self, other: Any) -> bool:
         try:
             return int(self) == int(other)
         except (TypeError, ValueError):
@@ -255,17 +245,9 @@ class SteamID(metaclass=abc.ABCMeta):
         e.g. ``cv-dgb``.
         """
         if self.type == EType.Individual and self.is_valid():
-
-            def repl_mapper(x: re.Match) -> str:
-                return _INVITE_MAPPING[x.group()]
-
-            invite_code = re.sub(f"[{_INVITE_HEX}]", repl_mapper, f"{self.id:x}")
+            invite_code = re.sub(f"[{_INVITE_HEX}]", lambda x: _INVITE_MAPPING[x.group()], f"{self.id:x}")
             split_idx = len(invite_code) // 2
-
-            if split_idx:
-                invite_code = f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
-
-            return invite_code
+            return invite_code if split_idx != 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
 
     @property
     def invite_url(self) -> Optional[str]:
@@ -289,7 +271,7 @@ class SteamID(metaclass=abc.ABCMeta):
         try:
             return f"https://steamcommunity.com/{suffix[self.type]}/{self.id64}"
         except KeyError:
-            pass
+            return None
 
     def is_valid(self) -> bool:
         """:class:`bool`: Whether or not the SteamID would be valid."""
@@ -319,8 +301,8 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @classmethod
     async def from_url(
-        cls, url: "StrOrURL", session: Optional["ClientSession"] = None, timeout: float = 30
-    ) -> Optional["SteamID"]:
+        cls, url: StrOrURL, session: Optional[ClientSession] = None, timeout: float = 30
+    ) -> Optional[SteamID]:
         """|coro|
         A helper function creates a SteamID instance from a Steam community url. See :func:`id64_from_url` for details.
 
@@ -457,7 +439,7 @@ class BaseUser(Commentable):
         The last time the user logged into steam. Could be None (e.g. if they are currently online).
     country: Optional[:class:`str`]
         The country code of the account. Could be ``None``.
-    flags: List[:class:`~steam.EPersonaStateFlag`]
+    flags: list[:class:`~steam.EPersonaStateFlag`]
         The persona state flags of the account.
     """
 
@@ -481,7 +463,7 @@ class BaseUser(Commentable):
         "_setup_profile",
     )
 
-    def __init__(self, state: "ConnectionState", data: UserDict):
+    def __init__(self, state: ConnectionState, data: UserDict):
         super().__init__(data["steamid"])
         self._state = state
         self.name: Optional[str] = None
@@ -495,7 +477,7 @@ class BaseUser(Commentable):
         self.last_seen_online: Optional[datetime] = None
         self.game: Optional[Game] = None
         self.state: Optional[EPersonaState] = None
-        self.flags: List[EPersonaStateFlag] = []
+        self.flags: list[EPersonaStateFlag] = []
         self.privacy_state: Optional[ECommunityVisibilityState] = None
         self._update(data)
 
@@ -589,39 +571,39 @@ class BaseUser(Commentable):
         resp = await self._state.http.get_user_inventory(self.id64, game.id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
-    async def friends(self) -> List["User"]:
+    async def friends(self) -> list[User]:
         """|coro|
         Fetch the list of :class:`~steam.User`'s friends from the API.
 
         Returns
         -------
-        List[:class:`~steam.User`]
+        list[:class:`~steam.User`]
             The list of user's friends from the API.
         """
         friends = await self._state.http.get_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
-    async def games(self) -> List[Game]:
+    async def games(self) -> list[Game]:
         """|coro|
         Fetches the :class:`~steam.Game` objects the :class:`User` owns from the API.
 
         Returns
         -------
-        List[:class:`~steam.Game`]
+        list[:class:`~steam.Game`]
             The list of game objects from the API.
         """
         data = await self._state.http.get_user_games(self.id64)
         games = data["response"].get("games", [])
         return [Game._from_api(game) for game in games]
 
-    async def clans(self) -> List["Clan"]:
+    async def clans(self) -> list[Clan]:
         """|coro|
         Fetches a list of the :class:`User`'s :class:`~steam.Clan`
         objects the :class:`User` is in from the API.
 
         Returns
         -------
-        List[:class:`~steam.Clan`]
+        list[:class:`~steam.Clan`]
             The user's clans.
         """
         clans = []
@@ -732,7 +714,7 @@ class Messageable(metaclass=abc.ABCMeta):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         raise NotImplementedError
 
-    async def send(self, content: Optional[str] = None, image: Optional["Image"] = None) -> None:
+    async def send(self, content: Optional[str] = None, image: Optional[Image] = None) -> None:
         """|coro|
         Send a message to a certain destination.
 
@@ -764,8 +746,8 @@ class BaseChannel(Messageable):
     _state: "ConnectionState"
 
     def __init__(self):
-        self.clan: Optional["Clan"] = None
-        self.group: Optional["Group"] = None
+        self.clan: Optional[Clan] = None
+        self.group: Optional[Group] = None
 
     @abc.abstractmethod
     def typing(self) -> NoReturn:
@@ -819,11 +801,11 @@ class Message:
         "_state",
     )
 
-    def __init__(self, channel: "BaseChannel", proto: "betterproto.Message"):
-        self._state: "ConnectionState" = channel._state
+    def __init__(self, channel: BaseChannel, proto: betterproto.Message):
+        self._state: ConnectionState = channel._state
         self.channel = channel
-        self.group: Optional["Group"] = channel.group
-        self.clan: Optional["Clan"] = channel.clan
+        self.group: Optional[Group] = channel.group
+        self.clan: Optional[Clan] = channel.clan
         self.content: str = _clean_up_content(proto.message)
         self.clean_content: str = proto.message_no_bbcode or self.content
         self.author: "User"

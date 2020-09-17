@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import importlib
 import typing
 from collections import deque
@@ -186,7 +188,7 @@ class Shlex:
 # various typing related functions
 
 
-def reload_module_with_TYPE_CHECKING(module: "ModuleType") -> None:
+def reload_module_with_TYPE_CHECKING(module: ModuleType) -> None:
     """Reload a module with typing.TYPE_CHECKING set to ``True``. Allowing you to avoid circular import issues due to
     the way :meth:`importlib.reload` works.
 
@@ -210,7 +212,7 @@ def reload_module_with_TYPE_CHECKING(module: "ModuleType") -> None:
     typing.TYPE_CHECKING = False
 
 
-def _eval_type(type: Any, globals: Dict[str, Any]) -> Any:
+def _eval_type(type: Any, globals: dict[str, Any]) -> Any:
     """Evaluate all forward reverences in the given type."""
     if isinstance(type, str):
         type = ForwardRef(type)
@@ -222,7 +224,7 @@ def _eval_type(type: Any, globals: Dict[str, Any]) -> Any:
     return type
 
 
-def update_annotations(annotations: Dict[str, Any], globals: Dict[str, Any]) -> Dict[str, Any]:
+def update_annotations(annotations: dict[str, Any], globals: dict[str, Any]) -> dict[str, Any]:
     """A helper function loosely based off of typing's implementation of :meth:`typing.get_type_hints`.
 
     Main purpose of this is for evaluating postponed annotations (type hints in quotes) for more info see :pep:`563`

@@ -31,12 +31,14 @@ and https://github.com/Zwork101/steam-trade/blob/master/pytrade/confirmations.py
 with extra doc-strings and performance improvements.
 """
 
+from __future__ import annotations
+
 import base64
 import hmac
 import struct
 from hashlib import sha1
 from time import time
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from .errors import ConfirmationError
 from .models import community_route
@@ -129,7 +131,7 @@ def generate_device_id(user_id64: str) -> str:
 
 
 class Confirmation:
-    def __init__(self, state: "ConnectionState", id: str, data_confid: int, data_key: str, trade_id: int, tag: str):
+    def __init__(self, state: ConnectionState, id: str, data_confid: int, data_key: str, trade_id: int, tag: str):
         self._state = state
         self.id = id.split("conf")[1]
         self.data_confid = data_confid
@@ -140,7 +142,7 @@ class Confirmation:
     def __repr__(self) -> str:
         return f"<Confirmation id={self.id!r} trade_id={self.trade_id}>"
 
-    def __eq__(self, other: "Confirmation") -> bool:
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, Confirmation) and self.trade_id == other.trade_id and self.id == other.id
 
     def _confirm_params(self, tag: str) -> dict:

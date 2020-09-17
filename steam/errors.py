@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import re
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -88,7 +90,7 @@ class HTTPException(SteamException):
         It will attempt to find a matching a :class:`.EResult` for the value.
     """
 
-    def __init__(self, response: "ClientResponse", data: Optional[Any]):
+    def __init__(self, response: ClientResponse, data: Optional[Any]):
         self.response = response
         self.status = response.status
         self.code = 0
@@ -128,7 +130,7 @@ class NotFound(HTTPException):
 
 
 class WSException(SteamException):
-    """Exception that's thrown for any web API error.
+    """Exception that's thrown for any web API error. Similar to :exc:`HTTPException`.
 
     Subclass of :exc:`SteamException`.
 
@@ -137,21 +139,19 @@ class WSException(SteamException):
     msg: Union[:class:`~steam.protobufs.MsgProto`, :class:`~steam.protobufs.Msg`]
         The received protobuf.
     code: Union[:class:`~steam.EResult`, :class:`int`]
-        The Steam specific error code for the failure.
-        It will attempt to find a matching a :class:`~steam.EResult` for the value.
+        The Steam specific error code for the failure. It will attempt to find a matching a :class:`~steam.EResult`
+        for the value.
     """
 
-    def __init__(self, msg: "MsgProto"):
+    def __init__(self, msg: MsgProto):
         self.msg = msg
         self.code = EResult.try_value(msg.header.eresult)
         super().__init__(f"The request {msg.header.job_name_target} failed. (error code: {repr(self.code)})")
 
 
 class WSForbidden(WSException):
-    """Exception that's thrown when the websocket returns
-    an :class:`.EResult` that means we do not have permission
-    to perform an action.
-    Similar to :exc:`Forbidden`.
+    """Exception that's thrown when the websocket returns an :class:`.EResult` that means we do not have permission
+    to perform an action. Similar to :exc:`Forbidden`.
 
     Subclass of :exc:`WSException`.
     """

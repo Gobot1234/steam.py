@@ -28,27 +28,15 @@ Heavily inspired by
 https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/bot.py
 """
 
+from __future__ import annotations
+
 import asyncio
 import importlib
 import inspect
 import sys
 import traceback
 from types import MappingProxyType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Mapping, Optional, Union
 
 from typing_extensions import Literal, overload
 
@@ -84,17 +72,19 @@ __all__ = (
 
 
 StrOrIterStr = Union[str, Iterable[str]]
-CommandPrefixType = Union[StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Awaitable[StrOrIterStr]]]]
+CommandPrefixType = Union[
+    StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Coroutine[Any,  Any, StrOrIterStr]]]
+]
 
 
-def when_mentioned(bot: "Bot", message: "steam.Message") -> List[str]:
+def when_mentioned(bot: Bot, message: Message) -> list[str]:
     """A callable that implements a command prefix equivalent to being mentioned.
     This is meant to be passed into the :attr:`.Bot.command_prefix` attribute.
     """
     return [bot.user.mention]
 
 
-def when_mentioned_or(*prefixes: str) -> Callable[["Bot", "steam.Message"], List[str]]:
+def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
     """A callable that implements when mentioned or other prefixes provided. These are meant to be passed into the
     :attr:`.Bot.command_prefix` attribute.
 
@@ -117,22 +107,22 @@ def when_mentioned_or(*prefixes: str) -> Callable[["Bot", "steam.Message"], List
     :func:`.when_mentioned`
     """
 
-    def inner(bot: "Bot", message: "steam.Message") -> List[str]:
+    def inner(bot: Bot, message: Message) -> list[str]:
         return list(prefixes) + when_mentioned(bot, message)
 
     return inner
 
 
 class CommandFunctionType(FunctionType):
-    __commands_checks__: List["CheckType"]
-    __commands_cooldown__: List["Cooldown"]
+    __commands_checks__: list[CheckType]
+    __commands_cooldown__: list[Cooldown]
 
     @overload
-    async def __call__(self, ctx: "Context", *args: Any, **kwargs: Any) -> None:
+    async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
         ...
 
     @overload
-    async def __call__(self, cog: "Cog", ctx: "Context", *args: Any, **kwargs: Any) -> None:
+    async def __call__(self, cog: Cog, ctx: Context, *args: Any, **kwargs: Any) -> None:
         ...
 
 
@@ -168,7 +158,7 @@ class Bot(GroupMixin, Client):
 
     owner_id: :class:`int`
         The Steam ID of the owner, this is converted to their 64 bit ID representation upon initialization.
-    owner_ids: Set[:class:`int`]
+    owner_ids: set[:class:`int`]
         The Steam IDs of the owners, these are converted to their 64 bit ID representations upon initialization.
     case_insensitive: :class:`bool`
         Whether or not to use CaseInsensitiveDict for registering commands.
@@ -178,7 +168,7 @@ class Bot(GroupMixin, Client):
         default event loop is used via :func:`asyncio.get_event_loop()`.
     game: :class:`~steam.Game`
         A games to set your status as on connect.
-    games: List[:class:`~steam.Game`]
+    games: list[:class:`~steam.Game`]
         A list of games to set your status to on connect.
     state: :class:`~steam.EPersonaState`
         The state to show your account as on connect.
@@ -201,15 +191,15 @@ class Bot(GroupMixin, Client):
         to the connected CM.
     """
 
-    __cogs__: Dict[str, Cog] = dict()
-    __listeners__: Dict[str, List[Union["EventType", "InjectedListener"]]] = dict()
-    __extensions__: Dict[str, "ExtensionType"] = dict()
+    __cogs__: dict[str, Cog] = dict()
+    __listeners__: dict[str, list[Union[EventType, InjectedListener]]] = dict()
+    __extensions__: dict[str, ExtensionType] = dict()
 
     def __init__(self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options: Any):
         super().__init__(**options)
         self.command_prefix = command_prefix
         self.owner_id = utils.make_id64(options.get("owner_id", 0))
-        owner_ids: Set[int] = options.get("owner_ids", ())
+        owner_ids: set[int] = options.get("owner_ids", ())
         self.owner_ids = set()
         for owner_id in owner_ids:
             self.owner_ids.add(utils.make_id64(owner_id))
@@ -240,7 +230,7 @@ class Bot(GroupMixin, Client):
         return MappingProxyType(self.__cogs__)
 
     @property
-    def extensions(self) -> Mapping[str, "ExtensionType"]:
+    def extensions(self) -> Mapping[str, ExtensionType]:
         """Mapping[:class:`str`, :class:`ExtensionType`]: A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
@@ -291,7 +281,7 @@ class Bot(GroupMixin, Client):
         if extension in self.__extensions__:
             return
 
-        module: "ExtensionType" = importlib.import_module(extension)
+        module: ExtensionType = importlib.import_module(extension)
         if hasattr(module, "setup"):
             module.setup(self)
         else:
@@ -312,7 +302,7 @@ class Bot(GroupMixin, Client):
         if extension not in self.__extensions__:
             raise ModuleNotFoundError(f"The extension {extension} was not found", name=extension, path=extension)
 
-        module: "ExtensionType" = self.__extensions__[extension]
+        module: ExtensionType = self.__extensions__[extension]
         for attr in tuple(module.__dict__.values()):
             if inspect.isclass(attr) and issubclass(attr, Cog):
                 cog = self.get_cog(attr.qualified_name)
@@ -349,7 +339,7 @@ class Bot(GroupMixin, Client):
             sys.modules[extension] = previous
             raise
 
-    def add_cog(self, cog: "Cog") -> None:
+    def add_cog(self, cog: Cog) -> None:
         """Add a cog to the internal list.
 
         Parameters
@@ -363,7 +353,7 @@ class Bot(GroupMixin, Client):
         cog._inject(self)
         self.__cogs__[cog.qualified_name] = cog
 
-    def remove_cog(self, cog: "Cog") -> None:
+    def remove_cog(self, cog: Cog) -> None:
         """Remove a cog from the internal list.
 
         Parameters
@@ -374,7 +364,7 @@ class Bot(GroupMixin, Client):
         cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: Union["EventType", "InjectedListener"], name: Optional[str] = None) -> None:
+    def add_listener(self, func: Union[EventType, InjectedListener], name: Optional[str] = None) -> None:
         """Add a function from the internal listeners list.
 
         Parameters
@@ -394,7 +384,7 @@ class Bot(GroupMixin, Client):
         except KeyError:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: Union["EventType", "InjectedListener"], name: Optional[str] = None) -> None:
+    def remove_listener(self, func: Union[EventType, InjectedListener], name: Optional[str] = None) -> None:
         """Remove a function from the internal listeners list.
 
         Parameters
@@ -411,7 +401,7 @@ class Bot(GroupMixin, Client):
         except (KeyError, ValueError):
             pass
 
-    def listen(self, name: Optional[str] = None) -> Callable[..., "EventType"]:
+    def listen(self, name: Optional[str] = None) -> Callable[..., EventType]:
         """Register a function as a listener. Calls :meth:`add_listener`. Similar to :meth:`.Cog.listener`
 
         Parameters
@@ -420,13 +410,13 @@ class Bot(GroupMixin, Client):
             The name of the event to listen for. Will default to ``func.__name__``.
         """
 
-        def decorator(func: "EventType") -> "EventType":
+        def decorator(func: EventType) -> EventType:
             self.add_listener(func, name)
             return func
 
         return decorator
 
-    async def on_message(self, message: "steam.Message"):
+    async def on_message(self, message: Message) -> None:
         """|coro|
         Called when a message is created.
 
@@ -437,7 +427,7 @@ class Bot(GroupMixin, Client):
         """
         await self.process_commands(message)
 
-    async def process_commands(self, message: "Message") -> None:
+    async def process_commands(self, message: Message) -> None:
         """|coro|
         A method to process commands for a message.
 
@@ -455,7 +445,7 @@ class Bot(GroupMixin, Client):
             ctx = await self.get_context(message)
             await self.invoke(ctx)
 
-    async def invoke(self, ctx: "Context") -> None:
+    async def invoke(self, ctx: Context) -> None:
         """|coro|
         Invoke a command. This will parse arguments, checks, cooldowns etc. correctly.
 
@@ -498,7 +488,7 @@ class Bot(GroupMixin, Client):
         else:
             self.dispatch("command_completion", ctx)
 
-    async def get_context(self, message: "Message", *, cls: Type[Context] = Context) -> Context:
+    async def get_context(self, message: Message, *, cls: type[Context] = Context) -> Context:
         """|coro|
         Get context for a certain message.
 
@@ -506,7 +496,7 @@ class Bot(GroupMixin, Client):
         ----------
         message: :class:`~steam.Message`
             The message to get the context for.
-        cls: Type[:class:`.Context`]
+        cls: type[:class:`.Context`]
             The class to construct the context with.
 
         Returns
@@ -535,7 +525,7 @@ class Bot(GroupMixin, Client):
         lex = Shlex(content[len(command_name) :].strip())
         return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix, invoked_with=command_name)
 
-    async def get_prefix(self, message: "Message") -> Optional[str]:
+    async def get_prefix(self, message: Message) -> Optional[str]:
         """|coro|
         Get a command prefix for a certain message.
 
@@ -582,7 +572,7 @@ class Bot(GroupMixin, Client):
         """
         return self.__cogs__.get(name)
 
-    async def on_command_error(self, ctx: "commands.Context", error: Exception):
+    async def on_command_error(self, ctx: "commands.Context", error: Exception) -> None:
         """|coro|
         The default command error handler provided by the bot. This only fires if you do not specify any listeners for
         command error.
@@ -611,7 +601,7 @@ class Bot(GroupMixin, Client):
 
     if TYPE_CHECKING:
 
-        async def on_command(self, ctx: "commands.Context"):
+        async def on_command(self, ctx: "commands.Context") -> None:
             """|coro|
             A method that is called every time a command is dispatched.
 
@@ -621,7 +611,7 @@ class Bot(GroupMixin, Client):
                 The invocation context.
             """
 
-        async def on_command_completion(self, ctx: "commands.Context"):
+        async def on_command_completion(self, ctx: "commands.Context") -> None:
             """|coro|
             A method that is called every time a command is dispatched and completed without error.
 
@@ -633,8 +623,12 @@ class Bot(GroupMixin, Client):
 
     @overload
     def wait_for(
-        self, event: Literal["connect"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> "asyncio.Future[None]":
+        self,
+        event: Literal["connect"],
+        *,
+        check: Optional[Callable[[], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
@@ -644,19 +638,27 @@ class Bot(GroupMixin, Client):
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[None]":
+    ) -> asyncio.Future[None]:
         ...
 
     @overload  # don't know why you'd do this
     def wait_for(
-        self, event: Literal["ready"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> "asyncio.Future[None]":
+        self,
+        event: Literal["ready"],
+        *,
+        check: Optional[Callable[[], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
     def wait_for(
-        self, event: Literal["login"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> "asyncio.Future[None]":
+        self,
+        event: Literal["login"],
+        *,
+        check: Optional[Callable[[], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
@@ -666,7 +668,7 @@ class Bot(GroupMixin, Client):
         *,
         check: Optional[Callable[[str, Exception, Any, Any], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Tuple[str, Exception, Any, Any]]":
+    ) -> asyncio.Future[tuple[str, Exception, Any, Any]]:
         ...
 
     @overload
@@ -674,9 +676,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["message"],
         *,
-        check: Optional[Callable[["steam.Message"], bool]] = ...,
+        check: Optional[Callable[[Message], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[steam.Message]":
+    ) -> asyncio.Future[steam.Message]:
         ...
 
     @overload
@@ -684,9 +686,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["comment"],
         *,
-        check: Optional[Callable[["Comment"], bool]] = ...,
+        check: Optional[Callable[[Comment], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Comment]":
+    ) -> asyncio.Future[Comment]:
         ...
 
     @overload
@@ -694,9 +696,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["user_update"],
         *,
-        check: Optional[Callable[["User", "User"], bool]] = ...,
+        check: Optional[Callable[[User, User], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Tuple[User, User]]":
+    ) -> asyncio.Future[tuple[User, User]]:
         ...
 
     @overload
@@ -704,9 +706,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["typing"],
         *,
-        check: Optional[Callable[["User", "datetime.datetime"], bool]] = ...,
+        check: Optional[Callable[[User, datetime.datetime], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Tuple[User, datetime.datetime]]":
+    ) -> asyncio.Future[tuple[User, datetime.datetime]]:
         ...
 
     @overload
@@ -714,9 +716,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["trade_receive"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -724,9 +726,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["trade_send"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -734,9 +736,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["trade_accept"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -744,9 +746,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["trade_decline"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -754,9 +756,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["trade_cancel"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -764,9 +766,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["trade_expire"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -774,9 +776,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["trade_counter"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -784,9 +786,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["user_invite"],
         *,
-        check: Optional[Callable[["UserInvite"], bool]] = ...,
+        check: Optional[Callable[[UserInvite], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[UserInvite]":
+    ) -> asyncio.Future[UserInvite]:
         ...
 
     @overload
@@ -794,9 +796,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["clan_invite"],
         *,
-        check: Optional[Callable[["ClanInvite"], bool]] = ...,
+        check: Optional[Callable[[ClanInvite], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[ClanInvite]":
+    ) -> asyncio.Future[ClanInvite]:
         ...
 
     @overload
@@ -804,9 +806,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["socket_receive"],
         *,
-        check: Optional[Callable[["Msgs"], bool]] = ...,
+        check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Msgs]":
+    ) -> asyncio.Future[Msgs]:
         ...
 
     @overload
@@ -816,7 +818,7 @@ class Bot(GroupMixin, Client):
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[bytes]":
+    ) -> asyncio.Future[bytes]:
         ...
 
     @overload
@@ -824,9 +826,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["socket_send"],
         *,
-        check: Optional[Callable[["Msgs"], bool]] = ...,
+        check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Msgs]":
+    ) -> asyncio.Future[Msgs]:
         ...
 
     @overload
@@ -836,7 +838,7 @@ class Bot(GroupMixin, Client):
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[bytes]":
+    ) -> asyncio.Future[bytes]:
         ...
 
     @overload
@@ -846,7 +848,7 @@ class Bot(GroupMixin, Client):
         *,
         check: Optional[Callable[[Context, Exception], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Tuple[Context, Exception]]":
+    ) -> asyncio.Future[tuple[Context, Exception]]:
         ...
 
     @overload
@@ -856,7 +858,7 @@ class Bot(GroupMixin, Client):
         *,
         check: Optional[Callable[[Context], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Context]":
+    ) -> asyncio.Future[Context]:
         ...
 
     @overload
@@ -866,12 +868,12 @@ class Bot(GroupMixin, Client):
         *,
         check: Optional[Callable[[Context], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Context]":
+    ) -> asyncio.Future[Context]:
         ...
 
     def wait_for(
         self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
-    ) -> "asyncio.Future[Any]":
+    ) -> asyncio.Future[Any]:
         return super().wait_for(event, check=check, timeout=timeout)
 
     wait_for.__doc__ = Client.wait_for.__doc__

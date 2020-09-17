@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -48,14 +50,14 @@ __all__ = (
 class UserMessage(Message):
     """Represents a message from a User."""
 
-    def __init__(self, proto: "UserMessageNotification", channel: "DMChannel"):
+    def __init__(self, proto: UserMessageNotification, channel: DMChannel):
         super().__init__(channel, proto)
         self.author = channel.participant
         self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
 
 
 class _GroupMessage(Message):
-    def __init__(self, proto: "GroupMessageNotification", channel, author: "User"):
+    def __init__(self, proto: GroupMessageNotification, channel, author: User):
         super().__init__(channel, proto)
         self.author = author
         self.created_at = datetime.utcfromtimestamp(proto.timestamp)
@@ -64,12 +66,12 @@ class _GroupMessage(Message):
 class GroupMessage(_GroupMessage):
     """Represents a message in a Group."""
 
-    def __init__(self, proto: "GroupMessageNotification", channel: "GroupChannel", author: "User"):
+    def __init__(self, proto: GroupMessageNotification, channel: GroupChannel, author: User):
         super().__init__(proto, channel, author)
 
 
 class ClanMessage(_GroupMessage):
     """Represents a message in a Clan."""
 
-    def __init__(self, proto: "GroupMessageNotification", channel: "ClanChannel", author: "User"):
+    def __init__(self, proto: GroupMessageNotification, channel: ClanChannel, author: User):
         super().__init__(proto, channel, author)

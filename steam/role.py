@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Union
 
 from .models import Permissions
@@ -40,7 +42,7 @@ __all__ = ("Role",)
 class Role:
     __slots__ = ("id", "clan", "group", "permissions", "_state")
 
-    def __init__(self, state: "ConnectionState", group: Union["Clan", "Group"], proto: "RoleProto"):
+    def __init__(self, state: ConnectionState, group: Union[Clan, Group], proto: RoleProto):
         self._state = state
         self.id = int(proto.role_id)
         if group.__class__.__name__ == "Clan":

@@ -64,10 +64,7 @@ class Image:
     __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash")
 
     def __init__(self, fp: Union[io.IOBase, AnyPath], *, spoiler: bool = False):
-        if isinstance(fp, io.IOBase):
-            self.fp = fp
-        else:
-            self.fp: io.FileIO = open(fp, "rb")
+        self.fp: io.IOBase = fp if isinstance(fp, io.IOBase) else open(fp, "rb")
 
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")

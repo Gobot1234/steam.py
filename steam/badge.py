@@ -24,8 +24,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List
 
 from .enums import EUserBadge
 from .game import Game
@@ -84,7 +85,7 @@ class UserBadges:
         The amount of XP the user needs to level up.
     xp_needed_for_current_level: :class:`int`
         The amount of XP the user's current level requires to achieve.
-    badges: List[:class:`Badge`]
+    badges: list[:class:`Badge`]
         A list of the user's badges.
     """
 
@@ -101,7 +102,7 @@ class UserBadges:
         self.xp: int = data["player_xp"]
         self.xp_needed_to_level_up: int = data["player_xp_needed_to_level_up"]
         self.xp_needed_for_current_level: int = data["player_xp_needed_current_level"]
-        self.badges: List[Badge] = [Badge(data) for data in data["badges"]]
+        self.badges: list[Badge] = [Badge(data) for data in data["badges"]]
 
     def __repr__(self) -> str:
         attrs = ("level", "xp")

@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import asyncio
 import html
 import json
@@ -32,7 +34,7 @@ import re
 from base64 import b64encode
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Coroutine, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Coroutine, Optional
 
 import aiohttp
 import rsa
@@ -83,7 +85,7 @@ class HTTPClient:
     SUCCESS_LOG = "{method} {url} has received {text}"
     REQUEST_LOG = "{method} {url} with {payload} has returned {status}"
 
-    def __init__(self, client: "Client"):
+    def __init__(self, client: Client):
         self._session: Optional[aiohttp.ClientSession] = None  # filled in login
         self._client = client
 
@@ -155,7 +157,6 @@ class HTTPClient:
                     if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
                         # time to fetch a new key
                         self._client.api_key = self.api_key = kwargs["key"] = await self.get_api_key()
-                        continue
                         # retry with our new key
 
                 # the usual error cases
@@ -227,7 +228,7 @@ class HTTPClient:
         self.user = None
         self._client.dispatch("logout")
 
-    async def _get_rsa_params(self, current_repetitions: int = 0) -> Tuple[bytes, int]:
+    async def _get_rsa_params(self, current_repetitions: int = 0) -> tuple[bytes, int]:
         payload = {"username": self.username, "donotcache": int(time() * 1000)}
         try:
             key_response = await self.request("POST", community_route("login/getrsakey"), data=payload)
@@ -276,8 +277,8 @@ class HTTPClient:
         params = {"key": self.api_key, "steamids": user_id64}
         return self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
 
-    async def get_users(self, user_id64s: List[int]) -> List[dict]:
-        ret: List[dict] = []
+    async def get_users(self, user_id64s: list[int]) -> list[dict]:
+        ret = []
         if user_id64s == [0]:  # FIXME bandaid
             return ret
 
@@ -349,7 +350,7 @@ class HTTPClient:
         }
         return self.request("GET", api_route("IEconService/GetTradeHoldDurations"), params=params)
 
-    async def get_friends(self, user_id64: int) -> List[dict]:
+    async def get_friends(self, user_id64: int) -> list[dict]:
         params = {"key": self.api_key, "steamid": user_id64, "relationship": "friend"}
         friends = await self.request("GET", api_route("ISteamUser/GetFriendList"), params=params)
         return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])
@@ -399,9 +400,9 @@ class HTTPClient:
 
     def send_trade_offer(
         self,
-        user: "User",
-        to_send: List[dict],
-        to_receive: List[dict],
+        user: User,
+        to_send: list[dict],
+        to_receive: list[dict],
         token: Optional[str],
         offer_message: str,
         **kwargs: Any,
@@ -589,7 +590,7 @@ class HTTPClient:
             )
             await self.request("POST", community_route("actions/FileUploader"), data=payload)
 
-    async def send_user_image(self, user_id64: int, image: "Image") -> None:
+    async def send_user_image(self, user_id64: int, image: Image) -> None:
         payload = {
             "sessionid": self.session_id,
             "l": "english",
@@ -619,7 +620,7 @@ class HTTPClient:
         )
         await self.request("POST", community_route("chat/commitfileupload"), data=payload)
 
-    async def send_group_image(self, destination: Tuple[int, int], image: "Image") -> None:
+    async def send_group_image(self, destination: tuple[int, int], image: Image) -> None:
         chat_id, channel_id = destination
         payload = {
             "sessionid": self.session_id,

@@ -28,12 +28,14 @@ This is a slightly modified version of discord.py's client
 https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 """
 
+from __future__ import annotations
+
 import asyncio
 import datetime
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, NoReturn, Optional, Union, overload
 
 import aiohttp
 from typing_extensions import Literal
@@ -52,6 +54,7 @@ if TYPE_CHECKING:
 
     import steam
 
+    from .abc import Message
     from .clan import Clan
     from .comment import Comment
     from .enums import EPersonaState, EPersonaStateFlag, EUIMode
@@ -71,15 +74,17 @@ log = logging.getLogger(__name__)
 class FunctionType:
     """A protocol mocking some of `types.FunctionType`"""
 
-    __code__: "CodeType"
-    __annotations__: Dict[str, Any]
-    __dict__: Dict[str, Any]
-    __globals__: Dict[str, Any]
+    __code__: CodeType
+    __annotations__: dict[str, Any]
+    __globals__: dict[str, Any]
     __name__: str
     __qualname__: str
 
+    def __new__(cls, *args: Any, **kwargs: Any) -> NoReturn:
+        raise TypeError(f"{cls.__qualname__} cannot be instantiated")
 
-class EventType(FunctionType):
+
+class EventType(FunctionType, Coroutine):
     __event_name__: str
 
     async def __call__(self, *args: Any, **kwargs: Any) -> None:
@@ -113,7 +118,7 @@ def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
 
 
 class ClientEventTask(asyncio.Task):
-    def __init__(self, original_coro: EventType, event_name: str, coro: Awaitable[None]):
+    def __init__(self, original_coro: EventType, event_name: str, coro: Coroutine[None, None, None]):
         super().__init__(coro)
         self.__event_name = event_name
         self.__original_coro = original_coro
@@ -139,7 +144,7 @@ class Client:
         default event loop is used via :func:`asyncio.get_event_loop()`.
     game: :class:`~steam.Game`
         A games to set your status as on connect.
-    games: List[:class:`~steam.Game`]
+    games: list[:class:`~steam.Game`]
         A list of games to set your status to on connect.
     state: :class:`~steam.EPersonaState`
         The state to show your account as on connect.
@@ -176,33 +181,33 @@ class Client:
         self.token: Optional[str] = None
 
         self._closed = True
-        self._cm_list: Optional["CMServerList"] = None
-        self._listeners: Dict[str, List[Tuple[asyncio.Future, Callable[..., bool]]]] = {}
+        self._cm_list: Optional[CMServerList] = None
+        self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = dict()
         self._ready = asyncio.Event()
 
     @property
-    def user(self) -> Optional["ClientUser"]:
+    def user(self) -> Optional[ClientUser]:
         """Optional[:class:`~steam.ClientUser`]: Represents the connected client. ``None`` if not logged in."""
         return self.http.user
 
     @property
-    def users(self) -> List["User"]:
-        """List[:class:`~steam.User`]: Returns a list of all the users the account can see."""
+    def users(self) -> list[User]:
+        """list[:class:`~steam.User`]: Returns a list of all the users the account can see."""
         return self._connection.users
 
     @property
-    def trades(self) -> List["TradeOffer"]:
-        """List[:class:`~steam.TradeOffer`]: Returns a list of all the trades the connected client has seen."""
+    def trades(self) -> list[TradeOffer]:
+        """list[:class:`~steam.TradeOffer`]: Returns a list of all the trades the connected client has seen."""
         return self._connection.trades
 
     @property
-    def groups(self) -> List["Group"]:
-        """List[:class:`~steam.Group`]: Returns a list of all the groups the connected client is in."""
+    def groups(self) -> list[Group]:
+        """list[:class:`~steam.Group`]: Returns a list of all the groups the connected client is in."""
         return self._connection.groups
 
     @property
-    def clans(self) -> List["Clan"]:
-        """List[:class:`~steam.Clan`]: Returns a list of all the clans the connected client is in."""
+    def clans(self) -> list[Clan]:
+        """list[:class:`~steam.Clan`]: Returns a list of all the clans the connected client is in."""
         return self._connection.clans
 
     @property
@@ -256,7 +261,7 @@ class Client:
             raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is not")
 
         setattr(self, coro.__name__, coro)
-        log.debug(f"{coro.__name__} has successfully been registered as an event")
+        log.debug(f"{coro.__name__} has been registered as an event")
         return coro
 
     async def _run_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> None:
@@ -272,8 +277,7 @@ class Client:
 
     def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> ClientEventTask:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
-        # schedules the task
-        return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped)
+        return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped)  # schedules the task
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
         log.debug(f"Dispatching event {event}")
@@ -500,7 +504,7 @@ class Client:
 
     # state stuff
 
-    def get_user(self, *args: Any, **kwargs: Any) -> Optional["User"]:
+    def get_user(self, *args: Any, **kwargs: Any) -> Optional[User]:
         """Returns a user from cache with a matching ID.
 
         Parameters
@@ -518,7 +522,7 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return self._connection.get_user(steam_id.id64)
 
-    async def fetch_user(self, *args: Any, **kwargs: Any) -> Optional["User"]:
+    async def fetch_user(self, *args: Any, **kwargs: Any) -> Optional[User]:
         """|coro|
         Fetches a user from the API with a matching ID.
 
@@ -537,7 +541,7 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return await self._connection.fetch_user(steam_id.id64)
 
-    async def fetch_users(self, *ids: int) -> List[Optional["User"]]:
+    async def fetch_users(self, *ids: int) -> list[Optional[User]]:
         """|coro|
         Fetches a list of :class:`~steam.User` from their IDs from the API with a matching ID. The
         :class:`~steam.User` objects returned are unlikely to retain the order they were originally in.
@@ -549,7 +553,7 @@ class Client:
 
         Returns
         -------
-        List[Optional[:class:`~steam.User`]]
+        list[Optional[:class:`~steam.User`]]
             A list of the users or ``None`` if the user was not found.
         """
         steam_ids = [SteamID(id).id64 for id in ids]
@@ -732,12 +736,12 @@ class Client:
     async def change_presence(
         self,
         *,
-        game: Optional["Game"] = None,
-        games: Optional[List["Game"]] = None,
-        state: Optional["EPersonaState"] = None,
-        ui_mode: Optional["EUIMode"] = None,
-        flag: Optional["EPersonaStateFlag"] = None,
-        flags: Optional[List["EPersonaStateFlag"]] = None,
+        game: Optional[Game] = None,
+        games: Optional[list[Game]] = None,
+        state: Optional[EPersonaState] = None,
+        ui_mode: Optional[EUIMode] = None,
+        flag: Optional[EPersonaStateFlag] = None,
+        flags: Optional[list[EPersonaStateFlag]] = None,
         force_kick: bool = False,
     ) -> None:
         """|coro|
@@ -747,7 +751,7 @@ class Client:
         ----------
         game: :class:`~steam.Game`
             A games to set your status as.
-        games: List[:class:`~steam.Game`]
+        games: list[:class:`~steam.Game`]
             A list of games to set your status to.
         state: :class:`~steam.EPersonaState`
             The state to show your account as.
@@ -760,7 +764,7 @@ class Client:
             The UI mode to set your status to.
         flag: Optional[:class:`EPersonaStateFlag`]
             The flag to update your account with.
-        flags: Optional[List[:class:`EPersonaStateFlag`]
+        flags: Optional[list[:class:`EPersonaStateFlag`]
             The flags to update your account with.
         force_kick: :class:`bool`
             Whether or not to forcefully kick any other playing sessions.
@@ -828,9 +832,9 @@ class Client:
         print(f"Ignoring exception in {event}", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    if TYPE_CHECKING:  # these methods shouldn't exist at runtime to prevent pollution of logs
+    if TYPE_CHECKING:  # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs
 
-        async def on_connect(self):
+        async def on_connect(self) -> None:
             """|coro|
             Called when the client has successfully connected to Steam. This is not the same as the client being
             fully prepared, see :func:`on_ready` for that.
@@ -838,7 +842,7 @@ class Client:
             The warnings on :meth:`on_ready` also apply.
             """
 
-        async def on_disconnect(self):
+        async def on_disconnect(self) -> None:
             """|coro|
             Called when the client has disconnected from Steam. This could happen either through the internet
             disconnecting, an explicit call to logout, or Steam terminating the connection.
@@ -846,7 +850,7 @@ class Client:
             This function can be called multiple times.
             """
 
-        async def on_ready(self):
+        async def on_ready(self) -> None:
             """|coro|
             Called after a successful login and the client has handled setting up trade and notification polling,
             along with setup the confirmation manager.
@@ -862,17 +866,17 @@ class Client:
                 end up calling this event whenever a CM disconnects.
             """
 
-        async def on_login(self):
+        async def on_login(self) -> None:
             """|coro|
             Called when the client has logged into https://steamcommunity.com and the :attr:`user` is setup.
             """
 
-        async def on_logout(self):
+        async def on_logout(self) -> None:
             """|coro|
             Called when the client has logged out of https://steamcommunity.com.
             """
 
-        async def on_message(self, message: "steam.Message"):
+        async def on_message(self, message: "steam.Message") -> None:
             """|coro|
             Called when a message is created.
 
@@ -882,7 +886,7 @@ class Client:
                 The message that was received.
             """
 
-        async def on_typing(self, user: "steam.User", when: "datetime.datetime"):
+        async def on_typing(self, user: "steam.User", when: "datetime.datetime") -> None:
             """|coro|
             Called when typing is started.
 
@@ -894,7 +898,7 @@ class Client:
                 The time the user started typing at.
             """
 
-        async def on_trade_receive(self, trade: "steam.TradeOffer"):
+        async def on_trade_receive(self, trade: "steam.TradeOffer") -> None:
             """|coro|
             Called when the client receives a trade offer.
 
@@ -904,7 +908,7 @@ class Client:
                 The trade offer that was received.
             """
 
-        async def on_trade_send(self, trade: "steam.TradeOffer"):
+        async def on_trade_send(self, trade: "steam.TradeOffer") -> None:
             """|coro|
             Called when the client sends a trade offer.
 
@@ -914,7 +918,7 @@ class Client:
                 The trade offer that was sent.
             """
 
-        async def on_trade_accept(self, trade: "steam.TradeOffer"):
+        async def on_trade_accept(self, trade: "steam.TradeOffer") -> None:
             """|coro|
             Called when the client or the trade partner accepts a trade offer.
 
@@ -924,7 +928,7 @@ class Client:
                 The trade offer that was accepted.
             """
 
-        async def on_trade_decline(self, trade: "steam.TradeOffer"):
+        async def on_trade_decline(self, trade: "steam.TradeOffer") -> None:
             """|coro|
             Called when the client or the trade partner declines a trade offer.
 
@@ -934,7 +938,7 @@ class Client:
                 The trade offer that was declined.
             """
 
-        async def on_trade_cancel(self, trade: "steam.TradeOffer"):
+        async def on_trade_cancel(self, trade: "steam.TradeOffer") -> None:
             """|coro|
             Called when the client or the trade partner cancels a trade offer.
 
@@ -948,7 +952,7 @@ class Client:
                 The trade offer that was cancelled.
             """
 
-        async def on_trade_expire(self, trade: "steam.TradeOffer"):
+        async def on_trade_expire(self, trade: "steam.TradeOffer") -> None:
             """|coro|
             Called when a trade offer expires due to being active for too long.
 
@@ -958,7 +962,7 @@ class Client:
                 The trade offer that expired.
             """
 
-        async def on_trade_counter(self, trade: "steam.TradeOffer"):
+        async def on_trade_counter(self, trade: "steam.TradeOffer") -> None:
             """|coro|
             Called when the client or the trade partner counters a trade offer.
 
@@ -968,7 +972,7 @@ class Client:
                 The trade offer that was countered.
             """
 
-        async def on_comment(self, comment: "steam.Comment"):
+        async def on_comment(self, comment: "steam.Comment") -> None:
             """|coro|
             Called when the client receives a comment notification.
 
@@ -978,7 +982,7 @@ class Client:
                 The comment received.
             """
 
-        async def on_user_invite(self, invite: "steam.UserInvite"):
+        async def on_user_invite(self, invite: "steam.UserInvite") -> None:
             """|coro|
             Called when the client receives/sends an invite from/to a :class:`~steam.User` to become a friend.
 
@@ -988,7 +992,7 @@ class Client:
                 The invite received.
             """
 
-        async def on_user_invite_accept(self, invite: "steam.UserInvite"):
+        async def on_user_invite_accept(self, invite: "steam.UserInvite") -> None:
             """|coro|
             Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
 
@@ -998,7 +1002,7 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_clan_invite(self, invite: "steam.ClanInvite"):
+        async def on_clan_invite(self, invite: "steam.ClanInvite") -> None:
             """|coro|
             Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a
             :class:`~steam.Clan`.
@@ -1009,7 +1013,7 @@ class Client:
                 The invite received.
             """
 
-        async def on_clan_invite_accept(self, invite: "steam.ClanInvite"):
+        async def on_clan_invite_accept(self, invite: "steam.ClanInvite") -> None:
             """|coro|
             Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
 
@@ -1019,7 +1023,7 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_user_update(self, before: "steam.User", after: "steam.User"):
+        async def on_user_update(self, before: "steam.User", after: "steam.User") -> None:
             """|coro|
             Called when a user's their state, due to one or more of the following attributes changing:
 
@@ -1041,7 +1045,7 @@ class Client:
                 The user's state now.
             """
 
-        async def on_socket_receive(self, msg: Union["Msg", "MsgProto"]):
+        async def on_socket_receive(self, msg: Union["Msg", "MsgProto"]) -> None:
             """|coro|
             Called when the connected web-socket parses a received
             ``Msg``/``MsgProto``
@@ -1052,7 +1056,7 @@ class Client:
                 The received message.
             """
 
-        async def on_socket_raw_receive(self, message: bytes):
+        async def on_socket_raw_receive(self, message: bytes) -> None:
             """|coro|
             Called when the connected web-socket receives
             raw :class:`bytes`. This isn't likely to be very useful.
@@ -1063,7 +1067,7 @@ class Client:
                 The raw received message.
             """
 
-        async def on_socket_send(self, msg: Union["Msg", "MsgProto"]):
+        async def on_socket_send(self, msg: Union["Msg", "MsgProto"]) -> None:
             """|coro|
             Called when the client sends a parsed ``Msg``/``MsgProto``
             to the connected web-socket.
@@ -1074,7 +1078,7 @@ class Client:
                 The sent message.
             """
 
-        async def on_socket_raw_send(self, message: bytes):
+        async def on_socket_raw_send(self, message: bytes) -> None:
             """|coro|
             Called when the client sends raw :class:`bytes`
             to the connected web-socket.
@@ -1088,14 +1092,12 @@ class Client:
 
     @overload
     def wait_for(
-        self, event: str, *, check: Optional[Callable[..., bool]] = ..., timeout: Optional[float] = ...
-    ) -> "asyncio.Future[Any]":
-        ...
-
-    @overload
-    def wait_for(
-        self, event: Literal["connect"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> "asyncio.Future[None]":
+        self,
+        event: Literal["connect"],
+        *,
+        check: Optional[Callable[[], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
@@ -1105,19 +1107,27 @@ class Client:
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[None]":
+    ) -> asyncio.Future[None]:
         ...
 
     @overload  # don't know why you'd do this
     def wait_for(
-        self, event: Literal["ready"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> "asyncio.Future[None]":
+        self,
+        event: Literal["ready"],
+        *,
+        check: Optional[Callable[[], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
     def wait_for(
-        self, event: Literal["login"], *, check: Optional[Callable[[], bool]] = ..., timeout: Optional[float] = ...
-    ) -> "asyncio.Future[None]":
+        self,
+        event: Literal["login"],
+        *,
+        check: Optional[Callable[[], bool]] = ...,
+        timeout: Optional[float] = ...,
+    ) -> asyncio.Future[None]:
         ...
 
     @overload
@@ -1127,7 +1137,7 @@ class Client:
         *,
         check: Optional[Callable[[str, Exception, Any, Any], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Tuple[str, Exception, Any, Any]]":
+    ) -> asyncio.Future[tuple[str, Exception, Any, Any]]:
         ...
 
     @overload
@@ -1135,9 +1145,9 @@ class Client:
         self,
         event: Literal["message"],
         *,
-        check: Optional[Callable[["steam.Message"], bool]] = ...,
+        check: Optional[Callable[[Message], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[steam.Message]":
+    ) -> asyncio.Future[steam.Message]:
         ...
 
     @overload
@@ -1145,9 +1155,9 @@ class Client:
         self,
         event: Literal["comment"],
         *,
-        check: Optional[Callable[["Comment"], bool]] = ...,
+        check: Optional[Callable[[Comment], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Comment]":
+    ) -> asyncio.Future[Comment]:
         ...
 
     @overload
@@ -1155,9 +1165,9 @@ class Client:
         self,
         event: Literal["user_update"],
         *,
-        check: Optional[Callable[["User", "User"], bool]] = ...,
+        check: Optional[Callable[[User, User], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Tuple[User, User]]":
+    ) -> asyncio.Future[tuple[User, User]]:
         ...
 
     @overload
@@ -1165,9 +1175,9 @@ class Client:
         self,
         event: Literal["typing"],
         *,
-        check: Optional[Callable[["User", datetime.datetime], bool]] = ...,
+        check: Optional[Callable[[User, datetime.datetime], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Tuple[User, datetime.datetime]]":
+    ) -> asyncio.Future[tuple[User, datetime.datetime]]:
         ...
 
     @overload
@@ -1175,9 +1185,9 @@ class Client:
         self,
         event: Literal["trade_receive"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -1185,9 +1195,9 @@ class Client:
         self,
         event: Literal["trade_send"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -1195,9 +1205,9 @@ class Client:
         self,
         event: Literal["trade_accept"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -1205,9 +1215,9 @@ class Client:
         self,
         event: Literal["trade_decline"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -1215,9 +1225,9 @@ class Client:
         self,
         event: Literal["trade_cancel"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -1225,9 +1235,9 @@ class Client:
         self,
         event: Literal["trade_expire"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -1235,9 +1245,9 @@ class Client:
         self,
         event: Literal["trade_counter"],
         *,
-        check: Optional[Callable[["TradeOffer"], bool]] = ...,
+        check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[TradeOffer]":
+    ) -> asyncio.Future[TradeOffer]:
         ...
 
     @overload
@@ -1245,9 +1255,9 @@ class Client:
         self,
         event: Literal["user_invite"],
         *,
-        check: Optional[Callable[["UserInvite"], bool]] = ...,
+        check: Optional[Callable[[UserInvite], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[UserInvite]":
+    ) -> asyncio.Future[UserInvite]:
         ...
 
     @overload
@@ -1255,9 +1265,9 @@ class Client:
         self,
         event: Literal["clan_invite"],
         *,
-        check: Optional[Callable[["ClanInvite"], bool]] = ...,
+        check: Optional[Callable[[ClanInvite], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[ClanInvite]":
+    ) -> asyncio.Future[ClanInvite]:
         ...
 
     @overload
@@ -1267,7 +1277,7 @@ class Client:
         *,
         check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Msgs]":
+    ) -> asyncio.Future[Msgs]:
         ...
 
     @overload
@@ -1277,7 +1287,7 @@ class Client:
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[bytes]":
+    ) -> asyncio.Future[bytes]:
         ...
 
     @overload
@@ -1285,9 +1295,9 @@ class Client:
         self,
         event: Literal["socket_send"],
         *,
-        check: Optional[Callable[["Msgs"], bool]] = ...,
+        check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[Msgs]":
+    ) -> asyncio.Future[Msgs]:
         ...
 
     @overload
@@ -1297,12 +1307,12 @@ class Client:
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> "asyncio.Future[bytes]":
+    ) -> asyncio.Future[bytes]:
         ...
 
     def wait_for(
         self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
-    ) -> "asyncio.Future[Any]":
+    ) -> asyncio.Future[Any]:
         """|coro|
         Wait for the first event to be dispatched that meets the requirements, this by default is the first event
         with a matching event name.

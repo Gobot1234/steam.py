@@ -30,6 +30,8 @@ https://github.com/Rapptz/discord.py/blob/master/discord/gateway.py
 and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 """
 
+from __future__ import annotations
+
 import asyncio
 import concurrent.futures
 import logging
@@ -41,7 +43,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, NewType, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, NewType, Optional, Union
 
 import aiohttp
 from typing_extensions import Literal
@@ -80,8 +82,9 @@ def return_true(*_, **__) -> Literal[True]:
 
 
 def check_job_id(job_id: int) -> Callable[[Msgs], bool]:
+    check = None  # needed to stop pylint thinking this is a NameError
     exec(f"def check(msg): return msg.header.job_id_target == {job_id}")
-    return locals()["check"]
+    return check
 
 
 class EventListener(NamedTuple):
@@ -92,12 +95,12 @@ class EventListener(NamedTuple):
 
 class CMServer(NamedTuple):
     url: str
-    state: Union["GoodType", "BadType"]
+    state: Union[GoodType, BadType]
     score: float
 
 
 class ConnectionClosed(Exception):
-    def __init__(self, cm: str, cms: "CMServerList"):
+    def __init__(self, cm: str, cms: CMServerList):
         self.cm = cm
         self.cm_list = cms
         super().__init__(f"Connection to {self.cm}, has closed.")
@@ -113,9 +116,9 @@ class CMServerList(AsyncIterator[str]):
 
     __slots__ = ("cms", "cell_id", "_state")
 
-    def __init__(self, state: "ConnectionState", first_cm_to_try: str):
+    def __init__(self, state: ConnectionState, first_cm_to_try: Optional[str] = None):
         super().__init__(state, None, None, None)
-        self.cms: List[CMServer] = []
+        self.cms: list[CMServer] = []
         self.cell_id = 0
         if first_cm_to_try is not None:
             self.queue.put_nowait(first_cm_to_try)
@@ -124,7 +127,7 @@ class CMServerList(AsyncIterator[str]):
         return len(self.cms)
 
     @utils.async_property
-    async def best_cms(self) -> List[CMServer]:
+    async def best_cms(self) -> list[CMServer]:
         good_servers = [cm for cm in self.cms if cm.state]
 
         if not good_servers:
@@ -182,7 +185,7 @@ class CMServerList(AsyncIterator[str]):
     def mark_bad(self, url: str) -> None:
         self.cms.append(CMServer(url, self.BAD, 0.0))
 
-    def merge_list(self, hosts: List[str]) -> None:
+    def merge_list(self, hosts: list[str]) -> None:
         total = len(self)
         urls = [cm.url for cm in self.cms]
         for host in hosts:
@@ -191,7 +194,7 @@ class CMServerList(AsyncIterator[str]):
         if len(self) > total:
             log.debug(f"Added {len(self) - total} new CM server addresses.")
 
-    async def ping_cms(self, cms: Optional[List[CMServer]] = None, to_ping: int = 10) -> List[CMServer]:
+    async def ping_cms(self, cms: Optional[list[CMServer]] = None, to_ping: int = 10) -> list[CMServer]:
         cms = self.cms or cms
         best_cms = []
         for cm in cms[:to_ping]:
@@ -231,7 +234,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
     def __init__(self, **kwargs: Any):
         super().__init__()
-        self.ws: "SteamWebSocket" = kwargs.pop("ws")
+        self.ws: SteamWebSocket = kwargs.pop("ws")
         self.interval: int = kwargs.pop("interval")
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
@@ -329,8 +332,8 @@ class SteamWebSocket:
         self.thread_id = threading.get_ident()
 
         # ws related stuff
-        self.listeners: List[EventListener] = []
-        self._parsers: Dict[EMsg, EventParser] = dict()
+        self.listeners: list[EventListener] = []
+        self._parsers: dict[EMsg, EventParser] = dict()
 
         self.connected = False
         self.session_id = 0
@@ -355,8 +358,8 @@ class SteamWebSocket:
 
     @classmethod
     async def from_client(
-        cls, client: "Client", cm: Optional[str] = None, cms: Optional[CMServerList] = None
-    ) -> "SteamWebSocket":
+        cls, client: Client, cm: Optional[str] = None, cms: Optional[CMServerList] = None
+    ) -> SteamWebSocket:
         connection = client._connection
         cm_list = cms or CMServerList(connection, cm)
         async for cm in cm_list:
@@ -415,15 +418,11 @@ class SteamWebSocket:
         if not self.connected:
             return log.debug(f"Dropped unexpected message: {emsg} {message!r}")
         try:
-            if utils.is_proto(emsg_value):
-                msg = MsgProto(emsg, message)
-            else:
-                msg = Msg(emsg, message, extended=True)
+            msg = MsgProto(emsg, message) if utils.is_proto(emsg_value) else Msg(emsg, message, extended=True)
             log.debug(f"Socket has received {msg!r} from the websocket.")
         except Exception as exc:
             try:
-                if msg.msg != EMsg.ServiceMethodResponse:
-                    pass
+                repr(message)
             except Exception:
                 log.critical(f"Failed to deserialize message: {emsg!r}, {message!r}")
                 return log.error(exc)
@@ -487,7 +486,7 @@ class SteamWebSocket:
         log.info(f"Websocket closed, cannot reconnect.")
         raise ConnectionClosed(self.cm, self.cm_list)
 
-    async def handle_logon(self, msg: MsgProto["CMsgClientLogonResponse"]) -> None:
+    async def handle_logon(self, msg: MsgProto[CMsgClientLogonResponse]) -> None:
         if msg.body.eresult == EResult.OK:
             log.debug("Logon completed")
 
@@ -514,7 +513,7 @@ class SteamWebSocket:
             await http.login(http.username, http.password, shared_secret=http.shared_secret)
         await self.handle_close()
 
-    async def handle_multi(self, msg: MsgProto["CMsgMulti"]) -> None:
+    async def handle_multi(self, msg: MsgProto[CMsgMulti]) -> None:
         log.debug("Received a multi, unpacking")
         if msg.body.size_unzipped:
             log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
@@ -549,10 +548,10 @@ class SteamWebSocket:
     async def change_presence(
         self,
         *,
-        games: List["GameDict"],
-        state: Optional["EPersonaState"],
+        games: list[GameDict],
+        state: Optional[EPersonaState],
         flags: int,
-        ui_mode: Optional["EUIMode"],
+        ui_mode: Optional[EUIMode],
         force_kick: bool,
     ) -> None:
         if force_kick:

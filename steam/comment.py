@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING, Union
 
@@ -59,12 +61,12 @@ class Comment:
 
     def __init__(
         self,
-        state: "ConnectionState",
+        state: ConnectionState,
         id: int,
         content: str,
         timestamp: datetime,
-        author: "BaseUser",
-        owner: Union["Clan", "BaseUser"],
+        author: BaseUser,
+        owner: Union[Clan, BaseUser],
     ):
         self._state = state
         self.content = content

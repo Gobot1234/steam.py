@@ -24,8 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 from datetime import timedelta
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from .abc import BaseUser, Messageable, _EndPointReturnType
 from .errors import ConfirmationError
@@ -155,7 +157,7 @@ class User(BaseUser, Messageable):
         return self.id64, self._state.http.send_user_image
 
     async def send(
-        self, content: Optional[str] = None, *, trade: Optional["TradeOffer"] = None, image: Optional["Image"] = None
+        self, content: Optional[str] = None, *, trade: Optional[TradeOffer] = None, image: Optional[Image] = None
     ) -> None:
         """|coro|
         Send a message, trade or image to an :class:`User`.
@@ -194,7 +196,7 @@ class User(BaseUser, Messageable):
                         break
             trade.id = int(resp["tradeofferid"])
 
-    async def invite_to_group(self, group: "Group") -> None:
+    async def invite_to_group(self, group: Group) -> None:
         """|coro|
         Invites a :class:`~steam.User` to a :class:`Group`.
 
@@ -242,8 +244,8 @@ class ClientUser(BaseUser):
     ----------
     name: :class:`str`
         The user's username.
-    friends: List[:class:`User`]
-        A list of the :class:`ClientUser`'s friends.
+    friends: list[:class:`User`]
+        A list of the :class:`ClientUser`'s friends. This is dynamic and does not to be fetched/``await``ed.
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
@@ -274,9 +276,9 @@ class ClientUser(BaseUser):
 
     __slots__ = ("friends",)
 
-    def __init__(self, state: "ConnectionState", data: dict):
+    def __init__(self, state: ConnectionState, data: dict):
         super().__init__(state, data)
-        self.friends: List[User] = []
+        self.friends: list[User] = []
 
     def __repr__(self) -> str:
         attrs = ("name", "state", "id", "type", "universe", "instance")
@@ -309,7 +311,7 @@ class ClientUser(BaseUser):
         country: Optional[str] = None,
         state: Optional[str] = None,
         city: Optional[str] = None,
-        avatar: Optional["Image"] = None,
+        avatar: Optional[Image] = None,
     ) -> None:
         """|coro|
         Edit the :class:`ClientUser`'s profile.

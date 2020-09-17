@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, NoReturn, Optional, Union
@@ -62,7 +64,7 @@ class DMChannel(BaseChannel):
 
     __slots__ = ("participant",)
 
-    def __init__(self, state: "ConnectionState", participant: "User"):
+    def __init__(self, state: ConnectionState, participant: User):
         super().__init__()
         self._state = state
         self.participant = participant
@@ -72,18 +74,18 @@ class DMChannel(BaseChannel):
     def __repr__(self) -> str:
         return f"<DMChannel participant={self.participant!r}>"
 
-    def _get_message_endpoint(self) -> "_EndPointReturnType":
+    def _get_message_endpoint(self) -> _EndPointReturnType:
         return self.participant._get_message_endpoint()
 
-    def _get_image_endpoint(self) -> "_EndPointReturnType":
+    def _get_image_endpoint(self) -> _EndPointReturnType:
         return self.participant._get_image_endpoint()
 
     async def send(
-        self, content: Optional[str] = None, *, trade: Optional["TradeOffer"] = None, image: Optional["Image"] = None
+        self, content: Optional[str] = None, *, trade: Optional[TradeOffer] = None, image: Optional[Image] = None
     ) -> None:
         await self.participant.send(content=content, trade=trade, image=image)
 
-    def typing(self) -> "TypingContextManager":
+    def typing(self) -> TypingContextManager:
         """Send a typing indicator continuously to the channel while in the context manager.
 
         .. note::
@@ -152,7 +154,7 @@ class TypingContextManager:
 class _GroupChannel(BaseChannel):
     __slots__ = ("id", "joined_at", "name")
 
-    def __init__(self, state: "ConnectionState", channel: Any):
+    def __init__(self, state: ConnectionState, channel: Any):
         super().__init__()
         self._state = state
         self.id = int(channel.chat_id)
@@ -162,10 +164,9 @@ class _GroupChannel(BaseChannel):
             self.name = split[1] if len(split) != 1 else split[0]
         else:
             self.name = None
-        if hasattr(channel, "time_joined"):
-            self.joined_at = datetime.utcfromtimestamp(int(channel.time_joined))
-        else:
-            self.joined_at = None
+        self.joined_at = (
+            datetime.utcfromtimestamp(int(channel.time_joined)) if hasattr(channel, "time_joined") else None
+        )
 
     def typing(self) -> NoReturn:
         raise NotImplementedError
@@ -178,10 +179,10 @@ class _GroupChannel(BaseChannel):
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<GroupChannel {' '.join(resolved)}>"
 
-    def _get_message_endpoint(self) -> "_EndPointReturnType":
+    def _get_message_endpoint(self) -> _EndPointReturnType:
         return (self.id, self.group.id), self._state.send_group_message
 
-    def _get_image_endpoint(self) -> "_EndPointReturnType":
+    def _get_image_endpoint(self) -> _EndPointReturnType:
         return (self.id, self.group.id), self._state.http.send_group_image
 
 
@@ -200,9 +201,7 @@ class GroupChannel(_GroupChannel):
         The time the client joined the chat.
     """
 
-    def __init__(
-        self, state: "ConnectionState", group: "Group", channel: Union["GroupMessageNotification", "CChatRoomState"]
-    ):
+    def __init__(self, state: ConnectionState, group: Group, channel: Union[GroupMessageNotification, CChatRoomState]):
         super().__init__(state, channel)
         self.group = group
 
@@ -224,7 +223,7 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
     """
 
     def __init__(
-        self, state: "ConnectionState", clan: "Clan", channel: Union["GroupMessageNotification", "CUserChatRoomState"]
+        self, state: ConnectionState, clan: Clan, channel: Union[GroupMessageNotification, CUserChatRoomState]
     ):
         super().__init__(state, channel)
         self.clan = clan
@@ -234,8 +233,8 @@ class ClanChannel(_GroupChannel):  # they're basically the same thing
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClanChannel {' '.join(resolved)}>"
 
-    def _get_message_endpoint(self) -> "_EndPointReturnType":
+    def _get_message_endpoint(self) -> _EndPointReturnType:
         return (self.id, self.clan.chat_id), self._state.send_group_message
 
-    def _get_image_endpoint(self) -> "_EndPointReturnType":
+    def _get_image_endpoint(self) -> _EndPointReturnType:
         return (self.id, self.clan.chat_id), self._state.http.send_group_image

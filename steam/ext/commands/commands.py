@@ -28,27 +28,15 @@ Heavily inspired by
 https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/core.py
 """
 
+from __future__ import annotations
+
 import asyncio
 import functools
 import inspect
 import sys
 import typing
 from types import MethodType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    OrderedDict,
-    Set,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, Generator, Iterable, OrderedDict, Optional, Union
 
 from typing_extensions import Literal, get_args, get_origin
 
@@ -76,10 +64,10 @@ __all__ = (
     "cooldown",
 )
 
-CheckType = Callable[["Context"], Union[bool, Awaitable[bool]]]
+CheckType = Callable[["Context"], Union[bool, Coroutine[Any, Any, bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
 CommandDeco = Callable[[MaybeCommand], MaybeCommand]
-CommandErrorFunctionType = Callable[["Context", Exception], Awaitable[None]]
+CommandErrorFunctionType = Callable[["Context", Exception], Coroutine[Any, Any, None]]
 
 
 def to_bool(argument: str) -> bool:
@@ -92,7 +80,7 @@ def to_bool(argument: str) -> bool:
 
 
 class Command:
-    def __init__(self, func: "CommandFunctionType", **kwargs: Any):
+    def __init__(self, func: CommandFunctionType, **kwargs: Any):
         self.name: str = kwargs.get("name") or func.__name__
         if not isinstance(self.name, str):
             raise TypeError("Name of a command must be a string.")
@@ -114,20 +102,20 @@ class Command:
         except AttributeError:
             checks = kwargs.get("checks", [])
         finally:
-            self.checks: List[CheckType] = checks
+            self.checks: list[CheckType] = checks
 
         try:
             cooldown = func.__commands_cooldown__
         except AttributeError:
             cooldown = kwargs.get("cooldown", [])
         finally:
-            self.cooldown: List[Cooldown] = cooldown
+            self.cooldown: list[Cooldown] = cooldown
 
         self.enabled = kwargs.get("enabled", True)
         self.brief: Optional[str] = kwargs.get("brief")
         self.usage: Optional[str] = kwargs.get("usage")
-        self.cog: Optional["Cog"] = kwargs.get("cog")
-        self.parent: Optional["Command"] = kwargs.get("parent")
+        self.cog: Optional[Cog] = kwargs.get("cog")
+        self.parent: Optional[Command] = kwargs.get("parent")
         self.description: str = inspect.cleandoc(kwargs.get("description", ""))
         self.hidden: bool = kwargs.get("hidden", False)
         self.aliases: Iterable[str] = kwargs.get("aliases", [])
@@ -140,12 +128,12 @@ class Command:
         return self.qualified_name
 
     @property
-    def callback(self) -> "CommandFunctionType":
+    def callback(self) -> CommandFunctionType:
         """The internal callback the command holds."""
         return self._callback
 
     @callback.setter
-    def callback(self, function: "CommandFunctionType") -> None:
+    def callback(self, function: CommandFunctionType) -> None:
         if not asyncio.iscoroutinefunction(function):
             raise TypeError(f"Callback for command {function.__name__} must be a coroutine.")
 
@@ -188,10 +176,10 @@ class Command:
         return " ".join(c.name for c in reversed(list(self.parents)))
 
     @property
-    def parents(self) -> typing.Generator["Command", None, None]:
+    def parents(self) -> Generator[Command, None, None]:
         """Iterator[:class:`Command`]: A generator returning the command's parents."""
 
-        def recursive_iter(command: Command) -> typing.Generator["Command", None, None]:
+        def recursive_iter(command: Command) -> Generator[Command, None, None]:
             yield command
             if isinstance(command.parent, GroupCommand):
                 yield from recursive_iter(command.parent)
@@ -211,7 +199,7 @@ class Command:
         else:
             return self.callback(*args, **kwargs)
 
-    def error(self, func: "CommandErrorFunctionType") -> "CommandErrorFunctionType":
+    def error(self, func: CommandErrorFunctionType) -> CommandErrorFunctionType:
         """Register an event to handle a commands ``on_error`` functionality similarly to
         :meth:`steam.ext.commands.Bot.on_command_error`.
 
@@ -300,7 +288,7 @@ class Command:
         ctx.args = tuple(args)
         ctx.kwargs = kwargs
 
-    def _transform(self, ctx: "Context", param: inspect.Parameter, argument: str) -> Awaitable[Any]:
+    def _transform(self, ctx: Context, param: inspect.Parameter, argument: str) -> Coroutine[Any, None, None]:
         param_type = param.annotation if param.annotation is not param.empty else str
         converter = self._get_converter(param_type)
         return self._convert(ctx, converter, param, argument)
@@ -320,7 +308,7 @@ class Command:
 
     async def _convert(
         self,
-        ctx: "Context",
+        ctx: Context,
         converter: Union[converters.Converter, type, Callable[[str], Any]],
         param: inspect.Parameter,
         argument: str,
@@ -364,7 +352,7 @@ class Command:
                     name = converter.__class__.__name__
                 raise BadArgument(f"{argument!r} failed to convert to {name}") from exc
 
-    async def _get_default(self, ctx: "Context", param: inspect.Parameter) -> Any:
+    async def _get_default(self, ctx: Context, param: inspect.Parameter) -> Any:
         if param.default is param.empty:
             raise MissingRequiredArgument(param)
         if isinstance(param.default, converters.Default):
@@ -379,7 +367,7 @@ class Command:
                 raise BadArgument(f"{name} failed to return a default argument") from exc
         return param.default
 
-    async def can_run(self, ctx: "Context") -> Literal[True]:
+    async def can_run(self, ctx: Context) -> Literal[True]:
         for check in self.checks:
             if not await steam.utils.maybe_coroutine(check, ctx):
                 raise CheckFailure("You failed to pass one of the checks for this command")
@@ -389,15 +377,15 @@ class Command:
 class GroupMixin:
     def __init__(self, *args: Any, **kwargs: Any):
         self.case_insensitive = kwargs.get("case_insensitive", False)
-        self.__commands__: Dict[str, Command] = CaseInsensitiveDict() if self.case_insensitive else dict()
+        self.__commands__: dict[str, Command] = CaseInsensitiveDict() if self.case_insensitive else dict()
         super().__init__(*args, **kwargs)
 
     @property
-    def commands(self) -> Set[Command]:
-        """Set[:class:`Command`]: A list of the loaded commands."""
+    def commands(self) -> set[Command]:
+        """set[:class:`Command`]: A list of the loaded commands."""
         return set(self.__commands__.values())
 
-    def add_command(self, command: "Command") -> None:
+    def add_command(self, command: Command) -> None:
         """Add a command to the internal commands list.
 
         Parameters
@@ -460,6 +448,8 @@ class GroupMixin:
         Optional[:class:`Command`]
             The found command or ``None``.
         """
+
+        # fast path, no space in name & not a subcommand.
         if " " not in name:
             return self.__commands__.get(name)
 
@@ -470,12 +460,18 @@ class GroupMixin:
         if not isinstance(command, GroupMixin):
             return command
 
-        return command.get_command(" ".join(names[1:]))
+        for name in names[1:]:
+            try:
+                command = command.__commands__[name]
+            except (AttributeError, KeyError):
+                return None
 
-    def command(self, *args, **kwargs) -> Callable[["CommandFunctionType"], "Command"]:
+        return command
+
+    def command(self, *args, **kwargs) -> Callable[[CommandFunctionType], Command]:
         """A shortcut decorator that invokes :func:`command` and adds it to the internal command list."""
 
-        def decorator(func: "CommandFunctionType") -> "Command":
+        def decorator(func: CommandFunctionType) -> Command:
             try:
                 kwargs["parent"]
             except KeyError:
@@ -486,10 +482,10 @@ class GroupMixin:
 
         return decorator
 
-    def group(self, *args, **kwargs) -> Callable[["CommandFunctionType"], "GroupCommand"]:
+    def group(self, *args, **kwargs) -> Callable[[CommandFunctionType], GroupCommand]:
         """A shortcut decorator that invokes :func:`group` and adds it to the internal command list."""
 
-        def decorator(func: "CommandFunctionType") -> GroupCommand:
+        def decorator(func: CommandFunctionType) -> GroupCommand:
             try:
                 kwargs["parent"]
             except KeyError:
@@ -502,11 +498,11 @@ class GroupMixin:
 
 
 class GroupCommand(GroupMixin, Command):
-    def __init__(self, func: "CommandFunctionType", **kwargs: Any):
+    def __init__(self, func: CommandFunctionType, **kwargs: Any):
         super().__init__(func, **kwargs)
 
     @property
-    def children(self) -> typing.Generator["Command", None, None]:
+    def children(self) -> Generator[Command, None, None]:
         for command in self.commands:
             yield command
             if isinstance(command, GroupCommand):
@@ -518,27 +514,27 @@ class GroupCommand(GroupMixin, Command):
                 command.recursively_remove_all_commands()
             self.remove_command(command.name)
 
-    async def _parse_arguments(self, ctx: "Context") -> None:
+    async def _parse_arguments(self, ctx: Context) -> None:
         ctx.command.invoked_without_command = bool(list(self.children))
         await super()._parse_arguments(ctx)
 
 
 def command(
-    name: Optional[str] = None, cls: Type[Command] = Command, **attrs: Any
-) -> Callable[["CommandFunctionType"], Command]:
+    name: Optional[str] = None, cls: type[Command] = Command, **attrs: Any
+) -> Callable[[CommandFunctionType], Command]:
     """Register a coroutine as a :class:`Command`.
 
     Parameters
     ----------
     name: :class:`str`
         The name of the command. Will default to ``func.__name__``.
-    cls: Type[:class:`Command`]
+    cls: type[:class:`Command`]
         The class to construct the command from. Defaults to :class:`Command`.
     **attrs:
         The attributes to pass to the command's ``__init__``.
     """
 
-    def decorator(func: "CommandFunctionType") -> Command:
+    def decorator(func: CommandFunctionType) -> Command:
         if isinstance(func, Command):
             raise TypeError("Callback is already a command.")
         return cls(func, name=name, **attrs)
@@ -547,21 +543,21 @@ def command(
 
 
 def group(
-    name: Optional[str] = None, cls: Type[GroupCommand] = GroupCommand, **attrs: Any
-) -> Callable[["CommandFunctionType"], GroupCommand]:
+    name: Optional[str] = None, cls: type[GroupCommand] = GroupCommand, **attrs: Any
+) -> Callable[[CommandFunctionType], GroupCommand]:
     """Register a coroutine as a :class:`GroupCommand`.
 
     Parameters
     ----------
     name: :class:`str`
         The name of the command. Will default to ``func.__name__``.
-    cls: Type[:class:`GroupCommand`]
+    cls: type[:class:`GroupCommand`]
         The class to construct the command from. Defaults to :class:`GroupCommand`.
     **attrs:
         The attributes to pass to the command's ``__init__``.
     """
 
-    def decorator(func: "CommandFunctionType") -> GroupCommand:
+    def decorator(func: CommandFunctionType) -> GroupCommand:
         if isinstance(func, Command):
             raise TypeError("Callback is already a command.")
         return cls(func, name=name, **attrs)
@@ -603,7 +599,7 @@ def check(predicate: CheckType) -> CommandDeco:  # TODO better docs
     else:
 
         @functools.wraps(predicate)
-        async def wrapper(ctx: "Context") -> bool:
+        async def wrapper(ctx: Context) -> bool:
             return predicate(ctx)
 
         decorator.predicate = wrapper
@@ -617,7 +613,7 @@ def is_owner() -> CommandDeco:
     :attr:`~steam.ext.commands.Bot.owner_id` or :attr:`~steam.ext.commands.Bot.owner_ids`.
     """
 
-    def predicate(ctx: "Context") -> bool:
+    def predicate(ctx: Context) -> bool:
         if ctx.bot.owner_id:
             return ctx.author.id64 == ctx.bot.owner_id
         elif ctx.bot.owner_ids:

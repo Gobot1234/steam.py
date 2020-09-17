@@ -24,12 +24,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import asyncio
 import inspect
 import sys
 import traceback
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Union
 
 from ...client import EventType, FunctionType
 from .commands import Command, GroupCommand
@@ -51,10 +53,12 @@ class InjectedListener(FunctionType):
 
     __slots__ = ("func", "cog", "_is_coroutine")
 
-    def __init__(self, cog: "Cog", func: "EventType"):
+    def __new__(cls, cog: Cog, func: EventType):
+        self = object.__new__(cls)
         self.func = func
         self.cog = cog
         self._is_coroutine = asyncio.coroutines._is_coroutine  # marker for asyncio.iscoroutinefunction
+        return self
 
     def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
         return self.func(self.cog, *args, **kwargs)
@@ -62,10 +66,11 @@ class InjectedListener(FunctionType):
 
 # for a bit of type hinting
 class ExtensionType(ModuleType):
-    def setup(self, bot: "Bot") -> None:
+    """A class to mimic an extension's file structure."""
+    def setup(self, bot: Bot) -> None:
         pass
 
-    def teardown(self, bot: "Bot") -> None:
+    def teardown(self, bot: Bot) -> None:
         pass
 
 
@@ -82,7 +87,7 @@ class Cog:
 
         Defaults to ``Cog.__name__``.
 
-    command_attrs: Dict[str, Any]
+    command_attrs: dict[:class:`str`, Any]
         Attributes to pass to every command registered in the cog.
         Can be set in subclass e.g. ::
 
@@ -98,12 +103,12 @@ class Cog:
                     ...
     """
 
-    __commands__: Dict[str, Command]
-    __listeners__: Dict[str, List["InjectedListener"]]
-    command_attrs: Dict[str, Any]
+    __commands__: dict[str, Command]
+    __listeners__: dict[str, list[InjectedListener]]
+    command_attrs: dict[str, Any]
     qualified_name: str
 
-    def __init_subclass__(cls, *args: Any, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         cls.qualified_name = kwargs.get("name") or cls.__name__
         cls.command_attrs = kwargs.get("command_attrs", dict())
 
@@ -130,7 +135,7 @@ class Cog:
         return help_doc
 
     @classmethod
-    def listener(cls, name: Optional[str] = None) -> Callable[["EventType"], "EventType"]:
+    def listener(cls, name: Optional[str] = None) -> Callable[[EventType], EventType]:
         """Register a function as a listener.
         Similar to :meth:`~steam.ext.commands.Bot.listen`
 
@@ -140,7 +145,7 @@ class Cog:
             The name of the event to listen for. Defaults to ``func.__name__``.
         """
 
-        def decorator(func: "EventType") -> "EventType":
+        def decorator(func: EventType) -> EventType:
             if not asyncio.iscoroutinefunction(func):
                 raise TypeError(f"Listeners must be coroutines, {func.__name__} is {type(func).__name__}")
             func.__event_name__ = name or func.__name__
@@ -148,7 +153,7 @@ class Cog:
 
         return decorator
 
-    async def cog_command_error(self, ctx: "commands.Context", error: Exception):
+    async def cog_command_error(self, ctx: "commands.Context", error: Exception) -> None:
         """|coro|
         A special method that is called when an error is dispatched inside this cog. This is similar to
         :func:`~commands.Bot.on_command_error` except it only applies to the commands inside this cog.
@@ -163,7 +168,7 @@ class Cog:
         print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    async def cog_check(self, ctx: "commands.Context"):
+    async def cog_check(self, ctx: "commands.Context") -> bool:
         """|coro|
         A special method that registers as a :func:`commands.check` for every command and subcommand in this cog.
         This should return a boolean result.
@@ -179,13 +184,13 @@ class Cog:
         """
         return True
 
-    def cog_unload(self):
+    def cog_unload(self) -> None:
         """A special method that is called when the cog gets removed.
 
         This is called before :func:`teardown`.
         """
 
-    def _inject(self, bot: "Bot") -> None:
+    def _inject(self, bot: Bot) -> None:
         for idx, command in enumerate(self.__commands__.values()):
             command.cog = self
             command.checks.append(self.cog_check)
@@ -212,7 +217,7 @@ class Cog:
                 self.__listeners__[name][idx] = listener  # edit the original
                 bot.add_listener(listener, name)
 
-    def _eject(self, bot: "Bot") -> None:
+    def _eject(self, bot: Bot) -> None:
         for command in self.__commands__.values():
             if isinstance(command, GroupCommand):
                 command.recursively_remove_all_commands()

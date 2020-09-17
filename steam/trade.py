@@ -24,9 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import asyncio
+from __future__ import annotations
+
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, NoReturn, Optional, Union
+from typing import TYPE_CHECKING, Any, Generator, Optional, Union
 
 from typing_extensions import TypedDict
 
@@ -73,10 +74,10 @@ class DescriptionDict(TypedDict, total=False):
     name_color: str
     background_color: str  # hex code
     type: str
-    descriptions: Dict[str, str]
-    market_actions: List[Dict[str, str]]
-    tags: List[Dict[str, str]]
-    actions: List[Dict[str, str]]
+    descriptions: dict[str, str]
+    market_actions: list[dict[str, str]]
+    tags: list[dict[str, str]]
+    actions: list[dict[str, str]]
     icon_url: str
     icon_url_large: str
     tradable: bool  # 1 vs 0
@@ -89,8 +90,8 @@ class ItemDict(AssetDict, DescriptionDict):
 
 
 class InventoryDict(TypedDict):
-    assets: List[AssetDict]
-    descriptions: List[DescriptionDict]
+    assets: list[AssetDict]
+    descriptions: list[DescriptionDict]
     total_inventory_count: int
     success: int  # EResult
     rwgrsn: int  # p. much always -2
@@ -106,8 +107,8 @@ class TradeOfferDict(TypedDict):
     time_created: int
     time_updated: int
     escrow_end_date: int
-    items_to_give: List[AssetDict]
-    items_to_receive: List[AssetDict]
+    items_to_give: list[ItemDict]
+    items_to_receive: list[ItemDict]
     is_our_offer: bool
     from_real_time_trade: bool
     confirmation_method: int  # 2 is mobile not a clue what other values are
@@ -162,7 +163,7 @@ class Asset:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Asset {' '.join(resolved)}>"
 
-    def __eq__(self, other: "Asset") -> bool:
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
     def to_dict(self) -> AssetToDict:
@@ -273,7 +274,7 @@ class Inventory:
 
     Attributes
     -------------
-    items: List[Union[:class:`Item`, :class:`Asset`]]
+    items: list[Union[:class:`Item`, :class:`Asset`]]
         A list of the inventory's items.
     owner: :class:`~steam.User`
         The owner of the inventory.
@@ -283,10 +284,10 @@ class Inventory:
 
     __slots__ = ("game", "items", "owner", "_state", "_total_inventory_count")
 
-    def __init__(self, state: "ConnectionState", data: InventoryDict, owner: "BaseUser"):
+    def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser):
         self._state = state
         self.owner = owner
-        self.items: List[Items] = []
+        self.items: list[Items] = []
         self.game: Optional[Game]
         self._update(data)
 
@@ -302,9 +303,9 @@ class Inventory:
         return (item for item in self.items)
 
     def __contains__(self, item: Asset) -> bool:
-        if isinstance(item, Asset):
-            return item in self.items
-        return NotImplemented
+        if not isinstance(item, Asset):
+            raise TypeError("unsupported operand type(s) for 'in':" f" '{item.__class__.__qualname__}' and 'Inventory'")
+        return item in self.items
 
     def _update(self, data: InventoryDict) -> None:
         try:
@@ -332,7 +333,7 @@ class Inventory:
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
-    def filter_items(self, *names: str, **kwargs: Any) -> List[Item]:
+    def filter_items(self, *names: str, **kwargs: Any) -> list[Item]:
         """A helper function that filters and removes items by name from the inventory.
 
         Parameters
@@ -349,7 +350,7 @@ class Inventory:
 
         Returns
         ---------
-        List[:class:`Item`]
+        list[:class:`Item`]
             The removed matching items.
         """
         limit: int = kwargs.get("limit")
@@ -384,13 +385,13 @@ class TradeOffer:
 
     Parameters
     ----------
-    item_to_send: Optional[Union[:class:`steam.Item`, :class:`steam.Asset`]]
+    item_to_send: Optional[:class:`steam.Item`]
         The item to send with the trade offer.
-    item_to_receive: Optional[Union[:class:`steam.Item`, :class:`steam.Asset`]]
+    item_to_receive: Optional[:class:`steam.Item`]
         The item to receive with the trade offer.
-    items_to_send: Optional[List[Union[:class:`steam.Item`, :class:`steam.Asset`]]]
+    items_to_send: Optional[list[:class:`steam.Item`]]
         The items you are sending to the other user.
-    items_to_receive: Optional[List[Union[:class:`steam.Item`, :class:`steam.Asset`]]]
+    items_to_receive: Optional[list[:class:`steam.Item`]]
         The items you are sending to the other user.
     token: Optional[:class:`str`]
         The the trade token used to send trades to users who aren't on the ClientUser's friend's list.
@@ -401,9 +402,9 @@ class TradeOffer:
     -------------
     partner: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The trade offer partner. This should only ever be a :class:`~steam.SteamID` if the partner's profile is private.
-    items_to_send: Union[List[:class:`Item`], List[:class:`Asset`]]
+    items_to_send: Union[list[:class:`Item`]]
         A list of items to send to the partner.
-    items_to_receive: Union[List[:class:`Item`], List[:class:`Asset`]]
+    items_to_receive: Union[list[:class:`Item`]]
         A list of items to receive from the partner.
     state: :class:`~steam.ETradeOfferState`
         The offer state of the trade for the possible types see :class:`~steam.ETradeOfferState`.
@@ -439,11 +440,11 @@ class TradeOffer:
         token: Optional[str] = None,
         item_to_send: Optional[Items] = None,
         item_to_receive: Optional[Items] = None,
-        items_to_send: Optional[List[Items]] = None,
-        items_to_receive: Optional[List[Items]] = None,
+        items_to_send: Optional[list[Items]] = None,
+        items_to_receive: Optional[list[Items]] = None,
     ):
-        self.items_to_receive: List[Items] = items_to_receive if items_to_receive else []
-        self.items_to_send: List[Items] = items_to_send if items_to_send else []
+        self.items_to_receive: list[Items] = items_to_receive if items_to_receive else []
+        self.items_to_send: list[Items] = items_to_send if items_to_send else []
         if item_to_receive:
             self.items_to_receive.append(item_to_receive)
         if item_to_send:
@@ -451,11 +452,11 @@ class TradeOffer:
         self.message: str = message if message is not None else ""
         self.token: Optional[str] = token
         self._has_been_sent = False
-        self.partner: Optional["User"] = None
+        self.partner: Optional[User] = None
         self.state = ETradeOfferState.Invalid
 
     @classmethod
-    async def _from_api(cls, state: "ConnectionState", data: TradeOfferDict) -> "TradeOffer":
+    async def _from_api(cls, state: ConnectionState, data: TradeOfferDict) -> TradeOffer:
         from .abc import SteamID
 
         trade = cls()
@@ -484,11 +485,8 @@ class TradeOffer:
         self.items_to_receive = [Item(data=item) for item in data.get("items_to_receive", [])]
         self._is_our_offer = data.get("is_our_offer", False)
 
-    def __eq__(self, other: "TradeOffer") -> bool:
-        if isinstance(other, TradeOffer):
-            if self._has_been_sent and other._has_been_sent:
-                return self.id == other.id
-        return NotImplemented
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, TradeOffer) and self._has_been_sent and other._has_been_sent and self.id == other.id
 
     async def confirm(self) -> None:
         """|coro|
@@ -534,8 +532,7 @@ class TradeOffer:
                 try:
                     await self.confirm()
                 except ConfirmationError:
-                    await asyncio.sleep(tries * 2)
-                    continue
+                    break
 
     async def decline(self) -> None:
         """|coro|
@@ -569,7 +566,7 @@ class TradeOffer:
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
         await self._state.http.cancel_user_trade(self.id)
 
-    async def counter(self, trade: "TradeOffer") -> None:
+    async def counter(self, trade: TradeOffer) -> None:
         """|coro|
         Counters a trade offer from an :class:`User`.
 

@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import asyncio
 import gc
 import logging
@@ -33,7 +35,7 @@ from collections import deque
 from copy import copy
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Deque, Dict, List, MutableMapping, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Deque, MutableMapping, Optional, Union
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
@@ -87,8 +89,7 @@ log = logging.getLogger(__name__)
 
 
 class EventParser(Protocol):
-    @staticmethod
-    def __call__(self: "ConnectionState", msg: "MsgProto") -> Optional[Coroutine[None, None, None]]:
+    def __call__(self, state: ConnectionState, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
         ...
 
 
@@ -98,12 +99,12 @@ class Registerer:
     def __init__(self, func: EventParser, emsg: EMsg):
         self.func = func
         self.emsg = emsg
-        self._state: "ConnectionState"
+        self._state: ConnectionState
 
     def __call__(self, *args: Any, **kwargs: Any) -> Optional[Coroutine[None, None, None]]:
         return self.func(self._state, *args, **kwargs)
 
-    def __set_name__(self, state: "ConnectionState", _) -> None:
+    def __set_name__(self, state: ConnectionState, _) -> None:
         state.parsers[self.emsg] = self.func
         self._state = state
 
@@ -116,7 +117,7 @@ def register(emsg: EMsg) -> Callable[[EventParser], Registerer]:
 
 
 class ConnectionState:
-    parsers: Dict[EMsg, EventParser] = dict()  # for @register
+    parsers: dict[EMsg, EventParser] = dict()  # for @register
 
     __slots__ = (
         "loop",
@@ -152,7 +153,7 @@ class ConnectionState:
         "_force_kick",
     )
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, client: "Client", http: "HTTPClient", **kwargs: Any):
+    def __init__(self, loop: asyncio.AbstractEventLoop, client: Client, http: HTTPClient, **kwargs: Any):
         self.loop = loop
         self.http = http
         self.request = http.request
@@ -168,11 +169,11 @@ class ConnectionState:
         games = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games.append(game.to_dict())
-        self._games: List[dict] = games
-        self._state: "EPersonaState" = kwargs.get("state", EPersonaState.Online)
-        self._ui_mode: Optional["EUIMode"] = kwargs.get("ui_mode")
+        self._games: list[dict] = games
+        self._state: EPersonaState = kwargs.get("state", EPersonaState.Online)
+        self._ui_mode: Optional[EUIMode] = kwargs.get("ui_mode")
         flag: int = kwargs.get("flag")
-        flags: List[int] = kwargs.get("flag", [0])
+        flags: list[int] = kwargs.get("flag", [0])
         if flag is not None:
             flags.append(flag)
         flag_value = 0
@@ -185,19 +186,19 @@ class ConnectionState:
 
     def clear(self) -> None:
         self._users: MutableMapping[int, User] = weakref.WeakValueDictionary()
-        self._trades: Dict[int, TradeOffer] = dict()
-        self._groups: Dict[int, Group] = dict()
-        self._clans: Dict[int, Clan] = dict()
-        self._confirmations: Dict[str, Confirmation] = dict()
-        self._confirmations_to_ignore: List[str] = []
-        self._messages: Deque["Message"] = self.max_messages and deque(maxlen=self.max_messages)
-        self.invites: Dict[int, Union[UserInvite, ClanInvite]] = dict()
+        self._trades: dict[int, TradeOffer] = dict()
+        self._groups: dict[int, Group] = dict()
+        self._clans: dict[int, Clan] = dict()
+        self._confirmations: dict[str, Confirmation] = dict()
+        self._confirmations_to_ignore: list[str] = []
+        self._messages: Deque[Message] = self.max_messages and deque(maxlen=self.max_messages)
+        self.invites: dict[int, Union[UserInvite, ClanInvite]] = dict()
 
         self._trades_task: Optional[asyncio.Task] = None
-        self._trades_to_watch: List[int] = []
-        self._trades_received_cache: List[dict] = []
-        self._trades_sent_cache: List[dict] = []
-        self._descriptions_cache: List[dict] = []
+        self._trades_to_watch: list[int] = []
+        self._trades_received_cache: list[dict] = []
+        self._trades_sent_cache: list[dict] = []
+        self._descriptions_cache: list[dict] = []
 
         self.handled_friends.clear()
         self.handled_groups = False
@@ -213,27 +214,27 @@ class ConnectionState:
         await self._poll_trades()
 
     @property
-    def ws(self) -> "SteamWebSocket":
+    def ws(self) -> SteamWebSocket:
         return self.client.ws
 
     @property
-    def users(self) -> List[User]:
+    def users(self) -> list[User]:
         return list(self._users.values())
 
     @property
-    def trades(self) -> List[TradeOffer]:
+    def trades(self) -> list[TradeOffer]:
         return list(self._trades.values())
 
     @property
-    def groups(self) -> List[Group]:
+    def groups(self) -> list[Group]:
         return list(self._groups.values())
 
     @property
-    def clans(self) -> List[Clan]:
+    def clans(self) -> list[Clan]:
         return list(self._clans.values())
 
     @property
-    def confirmations(self) -> List[Confirmation]:
+    def confirmations(self) -> list[Confirmation]:
         return list(self._confirmations.values())
 
     def get_user(self, id64: int) -> Optional[User]:
@@ -244,7 +245,7 @@ class ConnectionState:
         players = resp["response"]["players"]
         return User(state=self, data=players[0]) if players else None
 
-    async def fetch_users(self, user_id64s: List[int]) -> List[Optional[User]]:
+    async def fetch_users(self, user_id64s: list[int]) -> list[Optional[User]]:
         resp = await self.http.get_users(user_id64s)
         return [User(state=self, data=data) for data in resp]
 
@@ -264,13 +265,13 @@ class ConnectionState:
         await self._fetch_confirmations()
         return self.get_confirmation(id)
 
-    def get_group(self, id: int) -> Optional["Group"]:
+    def get_group(self, id: int) -> Optional[Group]:
         return self._groups.get(id)
 
-    def get_clan(self, id: int) -> Optional["Clan"]:
+    def get_clan(self, id: int) -> Optional[Clan]:
         return self._clans.get(id)
 
-    async def fetch_clan(self, id64: int) -> Optional["Clan"]:
+    async def fetch_clan(self, id64: int) -> Optional[Clan]:
         try:
             msg: MsgProto["FetchGroupResponse"] = await self.ws.send_um_and_wait(
                 "ClanChatRooms.GetClanChatRoomInfo#1_Request", steamid=id64, autocreate=True
@@ -335,8 +336,8 @@ class ConnectionState:
         return trade
 
     async def _process_trades(
-        self, trades: List[TradeOfferDict], descriptions: List[DescriptionDict]
-    ) -> List[TradeOffer]:
+        self, trades: list[TradeOfferDict], descriptions: list[DescriptionDict]
+    ) -> list[TradeOffer]:
         ret = []
         for trade in trades:
             for item in descriptions:
@@ -365,7 +366,7 @@ class ConnectionState:
         self._trades_sent_cache = trades_sent
         self._descriptions_cache = descriptions
 
-    async def _parse_comment(self) -> Optional["Comment"]:
+    async def _parse_comment(self) -> Optional[Comment]:
         resp = await self.request("GET", community_route("my/commentnotifications"))
         search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
         if search is None:
@@ -404,7 +405,7 @@ class ConnectionState:
             "tag": tag,
         }
 
-    async def _fetch_confirmations(self) -> Dict[str, Confirmation]:
+    async def _fetch_confirmations(self) -> dict[str, Confirmation]:
         params = self._create_confirmation_params("conf")
         headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
         resp = await self.request("GET", community_route("mobileconf/conf"), params=params, headers=headers)
@@ -448,7 +449,7 @@ class ConnectionState:
     # ws stuff
 
     @property
-    def _combined(self) -> Dict[int, Union["Group", "Clan"]]:
+    def _combined(self) -> dict[int, Union[Group, Clan]]:
         return {
             **self._groups,
             **{clan.chat_id: clan for clan in self.clans},
@@ -483,7 +484,7 @@ class ConnectionState:
         self._messages.append(message)
         self.dispatch("message", message)
 
-    async def send_user_typing(self, user: "User") -> None:
+    async def send_user_typing(self, user: User) -> None:
         await self.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
             steamid=str(user.id64),
@@ -491,7 +492,7 @@ class ConnectionState:
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
 
-    async def send_group_message(self, destination: Tuple[int, int], content: str) -> None:
+    async def send_group_message(self, destination: tuple[int, int], content: str) -> None:
         chat_id, group_id = destination
         try:
             msg = await self.ws.send_um_and_wait(
@@ -689,7 +690,7 @@ class ConnectionState:
             if old != new:
                 self.dispatch("user_update", before, after)
 
-    def patch_user_from_ws(self, data: dict, friend: "CMsgClientPersonaStateFriend") -> dict:
+    def patch_user_from_ws(self, data: dict, friend: CMsgClientPersonaStateFriend) -> dict:
         data["personaname"] = friend.player_name
         hash = (
             friend.avatar_hash.hex()

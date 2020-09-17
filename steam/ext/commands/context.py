@@ -24,12 +24,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from __future__ import annotations
 
-from ...abc import Message, Messageable, _EndPointReturnType
+from typing import TYPE_CHECKING, Any, Optional
+
+from ...abc import BaseChannel, Message, Messageable, _EndPointReturnType
 
 if TYPE_CHECKING:
+    from ...clan import Clan
+    from ...group import Group
+    from ...state import ConnectionState
+    from ...user import User
     from .bot import Bot
+    from .cog import Cog
     from .commands import Command
     from .utils import Shlex
 
@@ -63,23 +70,23 @@ class Context(Messageable):
     """
 
     def __init__(self, **attrs: Any):
-        self.bot: "Bot" = attrs.get("bot")
+        self.bot: Bot = attrs.get("bot")
         self.message: Message = attrs.get("message")
-        self.command: Optional["Command"] = attrs.get("command")
-        self.shlex: Optional["Shlex"] = attrs.get("shlex")
         self.prefix = attrs.get("prefix")
+
+        self.command: Optional[Command] = attrs.get("command")
+        self.cog: Optional[Cog] = self.command.cog if self.command is not None else None
+        self.shlex: Optional[Shlex] = attrs.get("shlex")
         self.invoked_with: Optional[str] = attrs.get("invoked_with")
 
-        self.author = self.message.author
-        self.channel = self.message.channel
-        self.clan = self.message.clan
-        self.group = self.message.group
-        self._state = self.message._state
+        self.author: User = self.message.author
+        self.channel: BaseChannel = self.message.channel
+        self.clan: Clan = self.message.clan
+        self.group: Group = self.message.group
+        self._state: ConnectionState = self.message._state
 
-        if self.command is not None:
-            self.cog = self.command.cog
-        self.args: Optional[Tuple[Any, ...]] = None
-        self.kwargs: Optional[Dict[str, Any]] = None
+        self.args: Optional[tuple[Any, ...]] = None
+        self.kwargs: Optional[dict[str, Any]] = None
 
     def _get_message_endpoint(self) -> _EndPointReturnType:
         return self.channel._get_message_endpoint()

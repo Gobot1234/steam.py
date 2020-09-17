@@ -24,11 +24,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import asyncio
 import inspect
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from bs4 import BeautifulSoup
 
@@ -106,17 +108,17 @@ class Clan(Commentable, comment_path="Clan"):
         The clan's associated game.
     owner: :class:`~steam.User`
         The clan's owner.
-    admins: List[:class:`~steam.User`]
+    admins: list[:class:`~steam.User`]
         A list of the clan's administrators.
-    mods: List[:class:`~steam.User`]
+    mods: list[:class:`~steam.User`]
         A list of the clan's moderators.
-    top_members: List[:class:`~steam.User`]
+    top_members: list[:class:`~steam.User`]
         A list of the clan's top_members.
-    roles: List[:class:`.Role`]
+    roles: list[:class:`.Role`]
         A list of the clan's roles.
     default_role: :class:`.Role`
         The clan's default_role.
-    channels: List[:class:`.ClanChannel`]
+    channels: list[:class:`.ClanChannel`]
         A list of the clan's channels.
     default_channel: :class:`.ClanChannel`
         The clan's default_channel.
@@ -150,21 +152,21 @@ class Clan(Commentable, comment_path="Clan"):
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/clans.js
 
-    def __init__(self, state: "ConnectionState", id: int):
+    def __init__(self, state: ConnectionState, id: int):
         super().__init__()
         self.url = community_route(f"gid/{id}")
         self._state = state
         self.name: Optional[str] = None
         self.chat_id: Optional[int] = None
         self.tagline: Optional[str] = None
-        self.game: Optional["Game"] = None
-        self.owner: Optional["User"] = None
+        self.game: Optional[Game] = None
+        self.owner: Optional[User] = None
         self.active_member_count: Optional[int] = None
-        self.top_members: List["User"] = []
-        self.roles: List["Role"] = []
-        self.default_role: Optional["Role"] = None
-        self.channels: List["BaseChannel"] = []
-        self.default_channel: Optional["BaseChannel"] = None
+        self.top_members: list[User] = []
+        self.roles: list[Role] = []
+        self.default_role: Optional[Role] = None
+        self.channels: list[BaseChannel] = []
+        self.default_channel: Optional[BaseChannel] = None
 
     async def __ainit__(self) -> None:
         resp = await self._state.request("GET", self.url)
@@ -224,9 +226,7 @@ class Clan(Commentable, comment_path="Clan"):
         self.mods = await self._state.client.fetch_users(*mods)
 
     @classmethod
-    async def _from_proto(
-        cls, state: "ConnectionState", clan_proto: Union["ReceivedResponse", "FetchedResponse"]
-    ) -> "Clan":
+    async def _from_proto(cls, state: ConnectionState, clan_proto: Union[ReceivedResponse, FetchedResponse]) -> Clan:
         if isinstance(clan_proto, ReceivedResponse):
             id = clan_proto.group_summary.clanid
         else:
@@ -286,7 +286,7 @@ class Clan(Commentable, comment_path="Clan"):
     def __len__(self) -> int:
         return self.member_count
 
-    def __copy__(self) -> "Clan":
+    def __copy__(self) -> Clan:
         clan = self.__class__(state=self._state, id=self.id64)
         for name, attr in inspect.getmembers(self):
             setattr(clan, name, attr)  # TODO do these need to be copied?
@@ -294,13 +294,13 @@ class Clan(Commentable, comment_path="Clan"):
 
     copy = __copy__
 
-    async def fetch_members(self) -> List["SteamID"]:
+    async def fetch_members(self) -> list[SteamID]:
         """|coro|
         Fetches a clan's member list.
 
         Returns
         --------
-        List[:class:`~steam.SteamID`]
+        list[:class:`~steam.SteamID`]
             A basic list of the clan's members.
             This can be a very slow operation due to
             the rate limits on this endpoint.
@@ -340,7 +340,7 @@ class Clan(Commentable, comment_path="Clan"):
         """
         await self._state.http.leave_clan(self.id64)
 
-    async def invite(self, user: "User") -> None:
+    async def invite(self, user: User) -> None:
         """|coro|
         Invites a :class:`~steam.User` to the :class:`Clan`.
 

@@ -24,8 +24,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import time as _time
-from typing import TYPE_CHECKING, List, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, TypeVar, Union
 
 from ...enums import IntEnum
 from .errors import CommandOnCooldown
@@ -39,7 +41,7 @@ __all__ = (
     "BucketType",
     "Cooldown",
 )
-T_Bucket = TypeVar("T_Bucket", Tuple[int, ...], int)
+T_Bucket = TypeVar("T_Bucket", tuple[int, ...], int)
 
 
 class BucketType(IntEnum):
@@ -54,7 +56,7 @@ class BucketType(IntEnum):
     Officer = 7
     # fmt: on
 
-    def get_bucket(self, message_or_context: Union["Message", "Context"]) -> T_Bucket:
+    def get_bucket(self, message_or_context: Union[Message, Context]) -> T_Bucket:
         ctx = message_or_context
         if self == BucketType.Default:
             return 0
@@ -80,13 +82,13 @@ class Cooldown:
         self._per = per
         self.bucket = bucket
         self._last_update = 0.0
-        self._last_called_by: List[Tuple[T_Bucket, float]] = []
+        self._last_called_by: list[tuple[T_Bucket, float]] = []
 
     def reset(self) -> None:
         self._last_update = 0.0
         self._last_called_by = []
 
-    def __call__(self, message_or_context: Union["Message", "Context"]) -> None:
+    def __call__(self, message_or_context: Union[Message, Context]) -> None:
         bucket = self.bucket.get_bucket(message_or_context)
         now = _time.time()
 

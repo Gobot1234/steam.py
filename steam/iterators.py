@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import asyncio
 import re
 from datetime import datetime
@@ -33,7 +35,7 @@ from typing import (
     AsyncIterator as _AsyncIterator,
     Awaitable,
     Callable,
-    List,
+    Coroutine,
     Optional,
     TypeVar,
     Union,
@@ -52,7 +54,7 @@ if TYPE_CHECKING:
     from .trade import TradeOffer
 
 T = TypeVar("T")
-MaybeCoro = Callable[[T], Union[bool, Awaitable[bool]]]
+MaybeCoro = Callable[[T], Union[bool, Coroutine[None, None, bool]]]
 
 
 class AsyncIterator(_AsyncIterator[T]):
@@ -79,16 +81,16 @@ class AsyncIterator(_AsyncIterator[T]):
     __slots__ = ("before", "after", "limit", "queue", "_is_filled", "_state")
 
     def __init__(
-        self, state: "ConnectionState", limit: Optional[int], before: Optional[datetime], after: Optional[datetime]
+        self, state: ConnectionState, limit: Optional[int], before: Optional[datetime], after: Optional[datetime]
     ):
         self._state = state
         self.before = before or datetime.utcnow()
         self.after = after or datetime.utcfromtimestamp(0)
         self._is_filled = False
-        self.queue: "asyncio.Queue[T]" = asyncio.Queue(maxsize=limit or 0)
+        self.queue: asyncio.Queue[T] = asyncio.Queue(maxsize=limit or 0)
         self.limit = limit
 
-    def get(self, **attrs: Any) -> Awaitable[Optional[T]]:
+    def get(self, **attrs: Any) -> Coroutine[Optional[T]]:
         """|coro|
         A helper function which is similar to :func:`~steam.utils.get` except it runs over the :class:`AsyncIterator`.
 
@@ -115,7 +117,7 @@ class AsyncIterator(_AsyncIterator[T]):
             matching element was found.
         """
 
-        def predicate(elem: List[T]) -> bool:
+        def predicate(elem: list[T]) -> bool:
             for attr, val in attrs.items():
                 nested = attr.split("__")
                 obj = elem
@@ -168,10 +170,10 @@ class AsyncIterator(_AsyncIterator[T]):
             if ret:
                 return elem
 
-    async def flatten(self) -> List[T]:
+    async def flatten(self) -> list[T]:
         """|coro|
-        A helper function that iterates over the :class:`AsyncIterator`
-        returning a list of all the elements in the iterator.
+        A helper function that iterates over the :class:`AsyncIterator` returning a list of all the elements in the
+        iterator.
 
         This is equivalent to: ::
 
@@ -179,12 +181,12 @@ class AsyncIterator(_AsyncIterator[T]):
 
         Returns
         -------
-        List[T]
+        list[T]
             A list of every element in the iterator.
         """
         return [element async for element in self]
 
-    def __aiter__(self) -> "AsyncIterator[T]":
+    def __aiter__(self) -> AsyncIterator[T]:
         return self
 
     def __anext__(self) -> Awaitable[T]:
@@ -212,16 +214,16 @@ class AsyncIterator(_AsyncIterator[T]):
         raise NotImplementedError
 
 
-class CommentsIterator(AsyncIterator["Comment"]):
+class CommentsIterator(AsyncIterator[Comment]):
     __slots__ = ("owner",)
 
     def __init__(
         self,
-        state: "ConnectionState",
+        state: ConnectionState,
         limit: Optional[int],
         before: Optional[datetime],
         after: Optional[datetime],
-        owner: Union["BaseUser", "Clan"],
+        owner: Union[BaseUser, Clan],
     ):
         super().__init__(state, limit, before, after)
         self.owner = owner
@@ -268,7 +270,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
 
     def __init__(
         self,
-        state: "ConnectionState",
+        state: ConnectionState,
         limit: Optional[int],
         before: Optional[datetime],
         after: Optional[datetime],

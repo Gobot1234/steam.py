@@ -26,6 +26,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextvars
 import functools
@@ -41,10 +43,8 @@ from typing import (
     Coroutine,
     Generator,
     Iterable,
-    List,
     Optional,
     Sequence,
-    Tuple,
     TypeVar,
     Union,
     overload,
@@ -89,7 +89,7 @@ ETypeType = Union[
         7, 8, 9, 10, 11,
     ],
 ]
-EUniverseType = Union[EUniverse, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6,]]
+EUniverseType = Union[EUniverse, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6]]
 InstanceType = Literal[0, 1]
 # fmt: on
 
@@ -143,7 +143,7 @@ def make_id64(
     :class:`int`
         The 64 bit Steam ID.
     """
-    if not any((type, universe, instance)) and id == 0:
+    if not any((id, type, universe, instance)):
         return 0
     try:
         id = int(id)
@@ -193,7 +193,7 @@ def make_id64(
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<reminder>[0-1]):(?P<id>\d+)")
 
 
-def id2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+def id2_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
     """
     Parameters
     ----------
@@ -202,7 +202,7 @@ def id2_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
 
     Returns
     -------
-    Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+    Optional[tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
         A tuple of 32 bit ID, type, universe and instance or ``None``
         e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
 
@@ -232,7 +232,7 @@ ID3_REGEX = re.compile(
 )
 
 
-def id3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+def id3_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
     """Convert a Steam ID3 into its component parts.
 
     Parameters
@@ -242,7 +242,7 @@ def id3_to_tuple(value: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
 
     Returns
     -------
-    Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+    Optional[tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
         A tuple of 32 bit ID, type, universe and instance or ``None``
         e.g. (100000, EType.Individual, EUniverse.Public, 1)
     """
@@ -282,7 +282,7 @@ _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))|(?P<code2>[\-{_INVITE_VALID}]+)")
 
 
-def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int]]:
+def invite_code_to_tuple(code: str) -> Optional[tuple[int, EType, EUniverse, int]]:
     """
     Parameters
     ----------
@@ -291,7 +291,7 @@ def invite_code_to_tuple(code: str) -> Optional[Tuple[int, EType, EUniverse, int
 
     Returns
     -------
-    Optional[Tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+    Optional[tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
         A tuple of 32 bit ID, type, universe and instance or ``None``
         e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
     """
@@ -381,7 +381,7 @@ async def id64_from_url(
             await session.close()
 
 
-def parse_trade_url(url: str) -> Optional["re.Match[str]"]:
+def parse_trade_url(url: str) -> Optional[re.Match[str]]:
     """Parses a trade URL for useful information.
 
     Parameters
@@ -427,7 +427,7 @@ class cached_property:  # functools.cached_property
         if self.attr_name is None:
             self.attr_name = name
 
-    def __get__(self, instance: Optional[Any], _) -> Union[_T, "cached_property"]:
+    def __get__(self, instance: Optional[Any], _) -> Union[_T, cached_property]:
         if instance is None:
             return self
         cache = instance.__dict__  # errors here for classes with slots
@@ -452,13 +452,13 @@ class async_property(property):
             return self._read_only_var
     """
 
-    def getter(self, fget: Callable[[Any], Awaitable[Any]]) -> "async_property":
+    def getter(self, fget: Callable[[Any], Coroutine[None, None, Any]]) -> async_property:
         return super().getter(fget)
 
-    def setter(self, fset: Callable[[Any, Any], Awaitable[None]]) -> "async_property":
+    def setter(self, fset: Callable[[Any, Any], Coroutine[None, None, None]]) -> async_property:
         return super().setter(fset)
 
-    def deleter(self, fdel: Callable[[Any], Awaitable[None]]) -> "async_property":
+    def deleter(self, fdel: Callable[[Any], Coroutine[None, None, None]]) -> async_property:
         return super().deleter(fdel)
 
     def __set__(self, obj: Any, value: Any) -> None:
@@ -472,7 +472,7 @@ class async_property(property):
         asyncio.create_task(self.fdel(obj))
 
 
-def ainput(prompt: str = "") -> Awaitable[str]:
+def ainput(prompt: str = "") -> Coroutine[None, None, str]:
     return to_thread(input, prompt)
 
 
@@ -495,7 +495,7 @@ def contains_bbcode(string: str) -> bool:
     return False
 
 
-def chunk(iterable: Sequence[_T], size: int) -> List[Sequence[_T]]:
+def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:
     def chunker() -> Generator[Sequence[_T], None, None]:
         for i in range(0, len(iterable), size):
             yield iterable[i : i + size]

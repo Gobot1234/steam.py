@@ -27,8 +27,10 @@ SOFTWARE.
 EnumMeta from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
 """
 
+from __future__ import annotations
+
 from types import MappingProxyType
-from typing import Any, Dict, Generator, List, Mapping, NoReturn, Tuple
+from typing import TYPE_CHECKING, Any, Generator, Mapping, NoReturn, TypeVar, Union
 
 from typing_extensions import Literal
 
@@ -50,21 +52,23 @@ __all__ = (
     "EUserBadge",
 )
 
+T = TypeVar("T")
 
-def _is_descriptor(obj: object) -> bool:
+
+def _is_descriptor(obj: Any) -> bool:
     """Returns True if obj is a descriptor, False otherwise."""
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
 class EnumMeta(type):
-    def __new__(mcs, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any]) -> type:
+    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> type:
         set_attribute = super().__setattr__
         enum_class = super().__new__(mcs, name, bases, attrs)
         enum_new = enum_class.__new__
 
-        value_mapping: Dict[int, "Enum"] = {}
-        member_mapping: Dict[str, "Enum"] = {}
-        member_names: List[str] = []
+        value_mapping: dict[int, Enum] = {}
+        member_mapping: dict[str, Enum] = {}
+        member_names: list[str] = []
 
         for key, value in attrs.items():
             if key[0] == "_" or _is_descriptor(value):
@@ -84,7 +88,7 @@ class EnumMeta(type):
         set_attribute(enum_class, "_member_names_", member_names)
         return enum_class
 
-    def __call__(cls, value: Any) -> "Enum":
+    def __call__(cls, value: Any) -> Enum:
         if value.__class__ is cls:
             return value
         try:
@@ -95,16 +99,16 @@ class EnumMeta(type):
     def __repr__(cls) -> str:
         return f"<enum {cls.__name__!r}>"
 
-    def __iter__(cls) -> Generator["Enum", None, None]:
+    def __iter__(cls) -> Generator[Enum, None, None]:
         return (cls._member_map_[name] for name in cls._member_names_)
 
-    def __reversed__(cls) -> Generator["Enum", None, None]:
+    def __reversed__(cls) -> Generator[Enum, None, None]:
         return (cls._member_map_[name] for name in reversed(cls._member_names_))
 
     def __len__(cls) -> int:
         return len(cls._member_names_)
 
-    def __getitem__(cls, key: str) -> "Enum":
+    def __getitem__(cls, key: str) -> Enum:
         return cls._member_map_[key]
 
     def __setattr__(cls, name: str, value: Any) -> NoReturn:
@@ -113,7 +117,7 @@ class EnumMeta(type):
     def __delattr__(cls, name: str) -> NoReturn:
         raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
 
-    def __contains__(cls, member: "Enum") -> bool:
+    def __contains__(cls, member: Enum) -> bool:
         if not isinstance(member, Enum):
             raise TypeError(
                 "unsupported operand type(s) for 'in':"
@@ -122,7 +126,7 @@ class EnumMeta(type):
         return isinstance(member, cls) and member.name in cls._member_map_
 
     @property
-    def __members__(cls) -> Mapping[str, "Enum"]:
+    def __members__(cls) -> Mapping[str, Enum]:
         return MappingProxyType(cls._member_map_)
 
 
@@ -147,7 +151,7 @@ class Enum(metaclass=EnumMeta):
         return f"<{self.__class__.__name__}.{self.name}: {self.value!r}>"
 
     @classmethod
-    def try_value(cls, value):
+    def try_value(cls, value: T) -> Union[Enum, T]:
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
@@ -157,11 +161,26 @@ class Enum(metaclass=EnumMeta):
 class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
-    def __new__(cls, *, name: str, value: int) -> "IntEnum":
+    def __new__(cls, *, name: str, value: int) -> IntEnum:
         self = int.__new__(cls, value)
         self.name = name
         self.value = value
         return self
+
+
+if TYPE_CHECKING:
+    from enum import Enum as _Enum
+
+    class Enum(_Enum):
+        @classmethod
+        def try_value(cls, value: T) -> Union[Enum, T]:
+            ...
+
+    class IntEnum(int, Enum):
+        pass
+
+    # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour
+    # I can't seem to replicate
 
 
 # fmt: off
@@ -361,7 +380,7 @@ class EPersonaStateFlag(IntEnum):
     LaunchTypeCompatTool = 8192
 
     @classmethod
-    def components(cls, flag):
+    def components(cls, flag: int) -> list[EPersonaStateFlag]:
         """A helper function to breakdown a flag into its component parts.
 
         Parameters
@@ -371,7 +390,7 @@ class EPersonaStateFlag(IntEnum):
 
         Returns
         -------
-        List[:class:`EPersonaStateFlag`]
+        list[:class:`EPersonaStateFlag`]
             The resolved flags.
         """
         flags = [enum for value, enum in cls._value_map_.items() if value & flag]

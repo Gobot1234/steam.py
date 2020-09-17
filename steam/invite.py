@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional, Union
 
 if TYPE_CHECKING:
@@ -55,7 +57,7 @@ class Invite:
     __slots__ = ("invitee", "relationship", "_state")
 
     def __init__(
-        self, state: "ConnectionState", invitee: Union["User", "SteamID"], relationship: Optional["EFriendRelationship"]
+        self, state: ConnectionState, invitee: Union[User, SteamID], relationship: Optional[EFriendRelationship]
     ):
         self._state = state
         self.invitee = invitee
@@ -109,10 +111,10 @@ class ClanInvite(Invite):
 
     def __init__(
         self,
-        state: "ConnectionState",
-        invitee: Union["User", "SteamID"],
-        clan: Union["Clan", "SteamID"],
-        relationship: Optional["EFriendRelationship"],
+        state: ConnectionState,
+        invitee: Union[User, SteamID],
+        clan: Union[Clan, SteamID],
+        relationship: Optional[EFriendRelationship],
     ):
         super().__init__(state, invitee, relationship)
         self.clan = clan

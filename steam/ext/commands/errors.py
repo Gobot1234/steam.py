@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from ...errors import SteamException
@@ -78,7 +80,7 @@ class MissingRequiredArgument(BadArgument):
         The argument that is missing.
     """
 
-    def __init__(self, param: "Parameter"):
+    def __init__(self, param: Parameter):
         self.param = param
         super().__init__(f"{param.name!r} is a required argument that is missing.")
 
@@ -101,7 +103,7 @@ class CommandDisabled(CheckFailure):
         The command that has been disabled.
     """
 
-    def __init__(self, command: "Command"):
+    def __init__(self, command: Command):
         self.command = command
         super().__init__(f"{command.name} is currently disabled")
 

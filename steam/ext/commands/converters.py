@@ -24,9 +24,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, TypeVar, Union
 
 from typing_extensions import Protocol, get_origin, runtime_checkable
 
@@ -118,7 +120,7 @@ class UserConverter(Converter):
         - Name
     """
 
-    async def convert(self, ctx: "commands.Context", argument: str) -> "User":
+    async def convert(self, ctx: Context, argument: str) -> User:
         try:
             user = ctx.bot.get_user(argument) or await ctx.bot.fetch_user(argument)
         except InvalidSteamID:
@@ -139,7 +141,7 @@ class ChannelConverter(Converter):
         - Name
     """
 
-    async def convert(self, ctx: "commands.Context", argument: str) -> "BaseChannel":
+    async def convert(self, ctx: Context, argument: str) -> BaseChannel:
         channel = None
         if argument.isdigit():
             groups = ctx.bot._connection._combined.values()
@@ -161,7 +163,7 @@ class ClanConverter(Converter):
         - Name
     """
 
-    async def convert(self, ctx: "commands.Context", argument: str) -> "Clan":
+    async def convert(self, ctx: Context, argument: str) -> Clan:
         try:
             clan = ctx.bot.get_clan(argument)
         except InvalidSteamID:
@@ -179,7 +181,7 @@ class GroupConverter(Converter):
         - Name
     """
 
-    async def convert(self, ctx: "commands.Context", argument: str) -> "Group":
+    async def convert(self, ctx: Context, argument: str) -> Group:
         try:
             group = ctx.bot.get_group(argument)
         except InvalidSteamID:
@@ -196,7 +198,7 @@ class GameConverter(Converter):
     title.
     """
 
-    async def convert(self, ctx: "commands.Context", argument: str):
+    async def convert(self, ctx: Context, argument: str) -> Game:
         return Game(id=int(argument)) if argument.isdigit() else Game(title=argument)
 
 
@@ -235,35 +237,35 @@ class Default(Protocol):
 class DefaultAuthor(Default):
     """Returns the :attr:`.Context.author`"""
 
-    async def default(self, ctx: "commands.Context"):
+    async def default(self, ctx: Context) -> User:
         return ctx.author
 
 
 class DefaultChannel(Default):
     """Returns the :attr:`.Context.channel`"""
 
-    async def default(self, ctx: "commands.Context"):
+    async def default(self, ctx: Context) -> BaseChannel:
         return ctx.channel
 
 
 class DefaultGroup(Default):
     """Returns the :attr:`.Context.group`"""
 
-    async def default(self, ctx: "commands.Context"):
+    async def default(self, ctx: Context) -> Group:
         return ctx.group
 
 
 class DefaultClan(Default):
     """Returns the :attr:`.Context.clan`"""
 
-    async def default(self, ctx: "commands.Context"):
+    async def default(self, ctx: Context) -> Clan:
         return ctx.clan
 
 
 class DefaultGame(Default):
     """Returns the :attr:`~steam.ext.commands.Context.author`'s :attr:`~steam.User.game`"""
 
-    async def default(self, ctx: "commands.Context"):
+    async def default(self, ctx: Context) -> Game:
         return ctx.author.game
 
 
@@ -293,7 +295,7 @@ class Greedy(Generic[T]):
     ) -> NoReturn:  # give a more helpful message than typing._BaseGenericAlias.__call__
         raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[converter]")
 
-    def __class_getitem__(cls, converter: "GreedyTypes") -> "Greedy[T]":
+    def __class_getitem__(cls, converter: GreedyTypes) -> Greedy[T]:
         if isinstance(converter, tuple):
             if len(converter) != 1:
                 raise TypeError("commands.Greedy only accepts one argument")
@@ -314,8 +316,8 @@ class Greedy(Generic[T]):
 GreedyTypes = Union[
     T,                     # a class/type
     str,                   # should be a string with a ForwardRef to a class to be evaluated later
-    Tuple[T],              # for Greedy[int,] / Greedy[(int,)] to be valid
-    Tuple[str],            # same as above two points
+    tuple[T],              # for Greedy[int,] / Greedy[(int,)] to be valid
+    tuple[str],            # same as above two points
     Callable[[str], Any],  # a callable simple converter
     Converter,             # a Converter subclass
 ]

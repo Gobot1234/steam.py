@@ -24,7 +24,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 from .abc import SteamID
 from .channel import GroupChannel
@@ -48,17 +50,17 @@ class Group(SteamID):
         The name of the group, could be ``None``.
     owner: :class:`~steam.abc.BaseUser`
         The owner of the group.
-    top_members: List[:class:`~steam.abc.BaseUser`]
+    top_members: list[:class:`~steam.abc.BaseUser`]
         A list of the group's top members.
     active_member_count: :class:`int`
         The group's active member count.
-    roles: List[:class:`~steam.Role`]
+    roles: list[:class:`~steam.Role`]
         A list of the group's roles.
     default_role: :class:`~steam.Role`
         The group's default role.
     default_channel: :class:`~steam.GroupChannel`
         The group's default channel.
-    channels: List[:class:`~steam.GroupChannel`]
+    channels: list[:class:`~steam.GroupChannel`]
         A list of the group's channels.
     """
 
@@ -74,7 +76,7 @@ class Group(SteamID):
         "_state",
     )
 
-    def __init__(self, state: "ConnectionState", proto: "GroupProto"):
+    def __init__(self, state: ConnectionState, proto: GroupProto):
         super().__init__(proto.chat_group_id, type="Chat")
         self._state = state
         self._from_proto(proto)
@@ -83,13 +85,13 @@ class Group(SteamID):
         self.owner = await self._state.client.fetch_user(self.owner)
         self.top_members = await self._state.client.fetch_users(*self.top_members)
 
-    def _from_proto(self, proto: "GroupProto") -> None:
-        self.owner: "User" = proto.accountid_owner
+    def _from_proto(self, proto: GroupProto) -> None:
+        self.owner: User = proto.accountid_owner
         self.name: Optional[str] = proto.chat_group_name or None
 
         self.active_member_count = proto.active_member_count
-        self.top_members: List["User"] = proto.top_members
-        self.roles: List[Role] = []
+        self.top_members: list[User] = proto.top_members
+        self.roles: list[Role] = []
         self.default_role: Optional[Role]
 
         for role in proto.role_actions:
@@ -97,7 +99,7 @@ class Group(SteamID):
 
         default_role = [r for r in self.roles if r.id == int(proto.default_role_id)]
         self.default_role: Optional[Role] = default_role[0] if default_role else None
-        self.channels: List[GroupChannel] = [
+        self.channels: list[GroupChannel] = [
             GroupChannel(state=self._state, group=self, channel=channel) for channel in proto.chat_rooms
         ]
         default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)]
@@ -121,7 +123,7 @@ class Group(SteamID):
         """
         await self._state.leave_chat(self.id)
 
-    async def invite(self, user: "User") -> None:
+    async def invite(self, user: User) -> None:
         """|coro|
         Invites a :class:`~steam.User` to the :class:`Group`.
 

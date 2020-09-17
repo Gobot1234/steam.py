@@ -24,7 +24,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import TYPE_CHECKING, Dict, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
+
+from typing_extensions import final
 
 from .commands import Command
 from .context import Context
@@ -40,22 +44,27 @@ __all__ = ("HelpCommand",)
 class HelpCommand(Command):
     """The default implementation of the help command."""
 
-    def __init__(self):
-        super().__init__(self.command_callback, name="help", help="Shows this message.")
-        self.context: Optional["Context"] = None
-        self.cog: Optional["Cog"]
+    def __init__(self, **kwargs):
+        default = dict(name="help", help="Shows this message.")
+        default.update(kwargs)
+        super().__init__(self.command_callback, **kwargs)
+        self.context: Optional[Context] = None
+        self.cog: Optional[Cog]
+
+    def __init_subclass__(cls, **kwargs):
+        cls.case_insensitive: bool = kwargs.get("case_insensitive", False)
 
     def __repr__(self) -> str:
         return "<default help-command>"
 
-    def _get_doc(self, command: "Command") -> str:
+    def _get_doc(self, command: Command) -> str:
         try:
             return command.help.splitlines()[0]
         except (IndexError, AttributeError):
             return ""
 
-    async def _parse_arguments(self, ctx: "Context") -> None:
-        # Make the parser think we don't have a cog so it doesn't
+    async def _parse_arguments(self, ctx: Context) -> None:
+        # make the parser think we don't have a cog so it doesn't
         # inject the parameter into `ctx.args`.
         original_cog = self.cog
         self.cog = None
@@ -64,15 +73,24 @@ class HelpCommand(Command):
         finally:
             self.cog = original_cog
 
+    @final
     async def command_callback(self, ctx: Context, *, content: str = None) -> None:
-        """The actual implementation of the help command."""
+        """The actual implementation of the help command.
+
+        This method should not directly subclassed instead you should change the behaviour through the methods that
+        actually get dispatched:
+
+        - :meth:`send_cog_help`
+        - :meth:`send_command_help`
+        - :meth:`command_not_found`
+        """
         self.context = ctx
         bot = ctx.bot
         if content is None:
             mapping = self.get_bot_mapping()
             return await self.send_help(mapping)
         # check if it's a cog
-        cog = bot.get_cog(content.capitalize())
+        cog = bot.get_cog(content)
         if cog is not None:
             return await self.send_cog_help(cog)
         command = bot.get_command(content)
@@ -81,7 +99,7 @@ class HelpCommand(Command):
 
         await self.command_not_found(content)
 
-    def get_bot_mapping(self) -> Dict[Optional[str], List[Command]]:
+    def get_bot_mapping(self) -> "dict[Optional[str], list[Command]]":
         bot = self.context.bot
         mapping = {name: list(set(cog.__commands__.values())) for (name, cog) in bot.__cogs__.items()}
         categorized_commands = []
@@ -91,7 +109,7 @@ class HelpCommand(Command):
         mapping[None] = [c for c in set(bot.commands) if c not in categorized_commands]
         return mapping
 
-    async def send_help(self, mapping: Dict[Optional["commands.Cog"], List["commands.Command"]]) -> None:
+    async def send_help(self, mapping: "dict[Optional[commands.Cog], list[commands.Command]]") -> None:
         message = []
         for name, commands in mapping.items():
             if name is not None:
@@ -102,7 +120,7 @@ class HelpCommand(Command):
                 message.append(f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
-    async def send_cog_help(self, cog: "commands.Cog"):
+    async def send_cog_help(self, cog: "commands.Cog") -> None:
         message = [f"--= {cog.qualified_name}'s commands =--"]
         for name, command in sorted(cog.__commands__.items()):
             message.append(f'{name}{f": {self._get_doc(command)}" if command.help else ""}')

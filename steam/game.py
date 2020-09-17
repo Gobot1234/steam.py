@@ -24,7 +24,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from typing import Dict, Optional, Union, overload
+from __future__ import annotations
+
+from typing import Any, Optional, Union, overload
 
 from typing_extensions import TypedDict
 
@@ -157,7 +159,7 @@ class Game:
         self._stats_visible: Optional[bool] = None
 
     @classmethod
-    def _from_api(cls, data: Dict[str, str]) -> "Game":
+    def _from_api(cls, data: dict[str, str]) -> Game:
         game = cls(id=data.get("appid"), title=data.get("name"))
         game.total_play_time = data.get("playtime_forever", 0)
         game.icon_url = data.get("img_icon_url")
