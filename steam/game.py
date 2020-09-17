@@ -175,6 +175,14 @@ class Game:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"Game({', '.join(resolved)})"
 
+    def __eq__(self, other: Any) -> bool:
+        if self.id is not None:
+            if isinstance(other, int):
+                return self.id == other
+            if isinstance(other, Game):
+                return self.id == other.id
+        return NotImplemented
+
     def to_dict(self) -> GameDict:
         """:class:`Dict[:class:`str`, :class:`str`]`: The dict representation of the game used to set presences."""
         if not self.is_steam_game():
