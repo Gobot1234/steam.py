@@ -325,6 +325,5 @@ INVALID_GREEDY_TYPES = (
     str,                   # leads to parsing weirdness
     None,                  # how would this work
     type(None),            # same as above
-    Any,                   # same as above
     Greedy,                # Greedy[Greedy[int]] makes no sense
 )

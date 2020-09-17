@@ -34,6 +34,7 @@ import asyncio
 import functools
 import inspect
 import sys
+import typing
 from types import MethodType
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, Generator, Iterable, Optional, OrderedDict, Union
 
@@ -44,7 +45,7 @@ from ...utils import cached_property, maybe_coroutine
 from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import BadArgument, CheckFailure, MissingRequiredArgument, NotOwner
-from .utils import CaseInsensitiveDict, reload_module_with_TYPE_CHECKING, update_annotations
+from .utils import CaseInsensitiveDict, reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .bot import CommandFunctionType
@@ -74,6 +75,21 @@ def to_bool(argument: str) -> bool:
     elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
         return False
     raise BadArgument(f'"{lowered}" is not a recognised boolean option')
+
+
+_OLD_EVAL_TYPE = typing._eval_type
+
+
+def _eval_type(type: Any, globalns: dict[str, Any], localns: dict[str, Any]) -> Any:
+    """Evaluate all forward reverences in the given type."""
+    if isinstance(type, typing._GenericAlias):
+        args = tuple(_eval_type(arg, globalns, localns) for arg in get_args(type))
+        return get_origin(type)[args]
+
+    return _OLD_EVAL_TYPE(type, globalns, localns)
+
+
+typing._eval_type = _eval_type
 
 
 class Command:
@@ -134,19 +150,19 @@ class Command:
         if not asyncio.iscoroutinefunction(function):
             raise TypeError(f"Callback for command {function.__name__} must be a coroutine.")
 
-        func = function.__func__ if isinstance(function, MethodType) else function
         module = sys.modules[function.__module__]
 
         try:
-            annotations = update_annotations(func.__annotations__, module.__dict__)
+            annotations = typing.get_type_hints(function, module.__dict__)
         except NameError as exc:
             reload_module_with_TYPE_CHECKING(module)
             try:
-                annotations = update_annotations(func.__annotations__, module.__dict__)
+                annotations = get_type_hints(function, module.__dict__)
             except NameError:
                 raise exc from None
 
-        func.__annotations__ = annotations  # replace the function's old annotations for later
+        (function.__func__ if isinstance(function, MethodType) else function).__annotations__ = annotations
+        # replace the function's old annotations for later
         self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
         self.module = module
         self._callback = function

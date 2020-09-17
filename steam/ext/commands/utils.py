@@ -31,22 +31,16 @@ import typing
 from collections import deque
 from typing import (
     TYPE_CHECKING,
-    Any,
     Deque,
     Dict,
-    ForwardRef,
     Generator,
     Generic,
     Optional,
     TypeVar,
     Union,
-    _GenericAlias,
     overload,
 )
 
-from typing_extensions import get_args, get_origin
-
-from .converters import Greedy
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -210,30 +204,3 @@ def reload_module_with_TYPE_CHECKING(module: ModuleType) -> None:
     typing.TYPE_CHECKING = True
     importlib.reload(module)
     typing.TYPE_CHECKING = False
-
-
-def _eval_type(type: Any, globals: dict[str, Any]) -> Any:
-    """Evaluate all forward reverences in the given type."""
-    if isinstance(type, str):
-        type = ForwardRef(type)
-    if isinstance(type, ForwardRef):
-        return type._evaluate(globals, {})
-    if isinstance(type, _GenericAlias):
-        args = tuple(_eval_type(arg, globals) for arg in get_args(type))
-        return get_origin(type)[args]
-    return type
-
-
-def update_annotations(annotations: dict[str, Any], globals: dict[str, Any]) -> dict[str, Any]:
-    """A helper function loosely based off of typing's implementation of :meth:`typing.get_type_hints`.
-
-    Main purpose of this is for evaluating postponed annotations (type hints in quotes) for more info see :pep:`563`
-    """
-    for key, annotation in annotations.items():
-        annotation = _eval_type(annotation, globals)
-        if get_origin(annotation) is Greedy:
-            annotation.converter = annotation.__args__[0]  # update the old converter
-            Greedy[annotation.converter]  # check if the evaluated type is valid
-
-        annotations[key] = annotation
-    return annotations
