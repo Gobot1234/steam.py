@@ -47,12 +47,9 @@ class HelpCommand(Command):
     def __init__(self, **kwargs):
         default = dict(name="help", help="Shows this message.")
         default.update(kwargs)
-        super().__init__(self.command_callback, **kwargs)
+        super().__init__(self.command_callback, **default)
         self.context: Optional[Context] = None
         self.cog: Optional[Cog]
-
-    def __init_subclass__(cls, **kwargs):
-        cls.case_insensitive: bool = kwargs.get("case_insensitive", False)
 
     def __repr__(self) -> str:
         return "<default help-command>"
