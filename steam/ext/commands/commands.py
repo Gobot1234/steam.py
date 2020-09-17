@@ -34,7 +34,6 @@ import asyncio
 import functools
 import inspect
 import sys
-import typing
 from types import MethodType
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, Generator, Iterable, OrderedDict, Optional, Union
 
@@ -219,46 +218,42 @@ class Command:
         self.on_error = func
         return func
 
-    async def _parse_arguments(self, ctx: "Context") -> None:
+    async def _parse_arguments(self, ctx: Context) -> None:
         args = [ctx] if self.cog is None else [self.cog, ctx]
         kwargs = {}
 
-        shlex = ctx.shlex
+        lex = ctx.shlex
 
         for name, param in self.clean_params.items():
             if param.kind == param.POSITIONAL_OR_KEYWORD:
                 is_greedy = get_origin(param.annotation) is converters.Greedy
+                original_args = args.copy()
                 greedy_args = []
-                while 1:
-                    argument = shlex.read()
-                    if argument is None:
-                        transformed = await self._get_default(ctx, param)
-                    else:
-                        try:
-                            transformed = await self._transform(ctx, param, argument)
-                        except BadArgument:
-                            if not is_greedy:
-                                raise
-                            shlex.undo()  # undo last read string for the next argument
-                            args.append(tuple(greedy_args))
-                            break
-                    if not is_greedy:
-                        args.append(transformed)
+                for argument in lex:
+                    try:
+                        transformed = await self._transform(ctx, param, argument)
+                    except BadArgument:
+                        if not is_greedy:
+                            raise
+                        lex.undo()  # undo last read string for the next argument
+                        args.append(tuple(greedy_args))
                         break
-                    greedy_args.append(transformed)
+
+                    greedy_args.append(transformed) if is_greedy else args.append(transformed)
+                if args == original_args:  # no args were added so lex was empty
+                    args.append(await self._get_default(ctx, param))
+
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                arg = " ".join(shlex)
-                if not arg:
-                    kwargs[name] = await self._get_default(ctx, param)
-                else:
-                    kwargs[name] = await self._transform(ctx, param, arg)
+                arg = " ".join(lex)
+                kwargs[name] = await (self._get_default(ctx, param) if not arg else self._transform(ctx, param, arg))
                 break
             elif param.kind == param.VAR_KEYWORD:
                 # same as **kwargs
-                arguments = list(shlex)
-                # TODO make injection way better, ie so you dont have to [] it to get dict values
-                if not arguments:
+                # NOTE: when using this you need to __getitem__ the argument to prevent shadowing any other arguments
+                # in the function's signature as it might lead to injection being possible which is obviously very bad.
+                kv_pairs = [arg.split("=") for arg in lex]
+                if not kv_pairs:
                     kwargs[name] = await self._get_default(ctx, param)
                     break
 
@@ -270,18 +265,17 @@ class Command:
                 key_converter = self._get_converter(key_type)
                 value_converter = self._get_converter(value_type)
 
-                kv_pairs = [arg.split("=") for arg in arguments]
                 kwargs[name] = {
-                    await self._convert(ctx, key_converter, param, key_type.strip()): await self._convert(
-                        ctx, value_converter, param, value_type.strip()
+                    await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
+                        ctx, value_converter, param, value_arg.strip()
                     )
-                    for key_type, value_type in kv_pairs
+                    for key_arg, value_arg in kv_pairs
                 }
                 break
 
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
-                for arg in shlex:
+                for arg in lex:
                     transformed = await self._transform(ctx, param, arg)
                     args.append(transformed)
                 break
@@ -299,7 +293,11 @@ class Command:
         except AttributeError:
             pass
         else:
-            if module is not None and (module.startswith("steam.") and not module.endswith("converter")):
+            if (
+                module is not None
+                and (module.startswith("steam.") and not module.endswith("converter"))
+                and get_origin(param_type) is not converters.Greedy
+            ):
                 converter = getattr(converters, f"{param_type.__name__}Converter", None)
                 if converter is None:
                     raise NotImplementedError(f"{param_type.__name__} does not have an associated converter")
@@ -449,7 +447,7 @@ class GroupMixin:
             The found command or ``None``.
         """
 
-        # fast path, no space in name & not a subcommand.
+        # fast path, no space in name
         if " " not in name:
             return self.__commands__.get(name)
 

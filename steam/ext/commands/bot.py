@@ -464,12 +464,11 @@ class Bot(GroupMixin, Client):
         ctx: :class:`.Context`
             The invocation context.
         """
+        if not ctx.prefix:
+            return
+        if ctx.command is None:
+            raise CommandNotFound(f"The command {ctx.invoked_with} was not found")
         try:
-            if not ctx.prefix:
-                return
-            if ctx.command is None:
-                raise CommandNotFound(f"The command {ctx.invoked_with} was not found")
-
             command = ctx.command
 
             if not command.enabled:
@@ -484,9 +483,7 @@ class Bot(GroupMixin, Client):
             except Exception as exc:
                 return await self.on_command_error(ctx, exc)
 
-            if not await command.can_run(ctx):
-                raise CheckFailure("You failed to pass one of the command checks")
-
+            await command.can_run(ctx)
             try:
                 await command.callback(*ctx.args, **ctx.kwargs)
             except Exception as exc:
@@ -522,18 +519,16 @@ class Bot(GroupMixin, Client):
         if not content:
             return cls(message=message, prefix=prefix, bot=self)
 
-        command = None
         for i in range(len(content.split())):
-            command = self.get_command(content.rsplit(maxsplit=i)[0])
+            invoked_with = content.rsplit(maxsplit=i)[0]
+            command = self.__commands__.get(invoked_with)
             if command is not None:
                 break
 
         if command is None:
-            return cls(message=message, prefix=prefix, bot=self, invoked_with=content.split()[0])
-
-        command_name = " ".join(content.split(maxsplit=i + 1)[: i + 1])  # account for aliases
-        lex = Shlex(content[len(command_name) :].strip())
-        return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix, invoked_with=command_name)
+            return cls(message=message, prefix=prefix, bot=self, invoked_with=invoked_with)
+        lex = Shlex(content[len(invoked_with) :])
+        return cls(bot=self, message=message, shlex=lex, command=command, prefix=prefix, invoked_with=invoked_with)
 
     async def get_prefix(self, message: Message) -> Optional[str]:
         """|coro|
