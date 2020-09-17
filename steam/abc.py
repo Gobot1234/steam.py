@@ -34,7 +34,7 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, NoReturn, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, NoReturn, Optional, Tuple, Union, overload
 
 from typing_extensions import Final, TypedDict
 
@@ -691,7 +691,7 @@ class BaseUser(Commentable):
         return bans.is_banned()
 
 
-_EndPointReturnType = Tuple[Union[Tuple[int, int], int], Callable[..., Awaitable[None]]]
+_EndPointReturnType = Tuple[Union[Tuple[int, int], int], Callable[..., Coroutine[None, None, None]]]
 
 
 class Messageable(metaclass=abc.ABCMeta):
