@@ -42,6 +42,7 @@ from typing import (
     Callable,
     Coroutine,
     Generator,
+    Generic,
     Iterable,
     Optional,
     Sequence,
@@ -415,7 +416,7 @@ def to_thread(callable: Callable[..., _T], *args: Any, **kwargs: Any) -> Corouti
 _NOT_FOUND = object()
 
 
-class cached_property:  # functools.cached_property
+class cached_property(Generic[_T]):  # functools.cached_property
     __slots__ = ("func", "attr_name", "__doc__")
 
     def __init__(self, func: Callable[[Any], _T]):
@@ -438,9 +439,9 @@ class cached_property:  # functools.cached_property
         return value
 
 
-class async_property(property):
+class async_property(property, Generic[_T]):
     """
-    A way to create async properties nicely.
+    A way to create async properties with async __del__ and __set__ support.
 
     class CoolClass:
         def __init__(self, var):
@@ -452,7 +453,20 @@ class async_property(property):
             return self._read_only_var
     """
 
-    def getter(self, fget: Callable[[Any], Coroutine[None, None, Any]]) -> async_property:
+    @overload
+    def __init__(
+        self,
+        fget: Optional[Callable[[Any], Coroutine[Any, Any, _T]]] = ...,
+        fset: Optional[Callable[[Any, Any], Coroutine[Any, Any, None]]] = ...,
+        fdel: Optional[Callable[[Any], Coroutine[Any, Any, None]]] = ...,
+        doc: Optional[str] = ...,
+    ):
+        ...
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+    def getter(self, fget: Callable[[Any], Coroutine[None, None, _T]]) -> async_property:
         return super().getter(fget)
 
     def setter(self, fset: Callable[[Any, Any], Coroutine[None, None, None]]) -> async_property:
