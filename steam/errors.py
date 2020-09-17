@@ -138,6 +138,8 @@ class WSException(SteamException):
     ------------
     msg: Union[:class:`~steam.protobufs.MsgProto`, :class:`~steam.protobufs.Msg`]
         The received protobuf.
+    message: Optional[:class:`str`]
+        The message that Steam sent back with the request, could be ``None``.
     code: Union[:class:`~steam.EResult`, :class:`int`]
         The Steam specific error code for the failure. It will attempt to find a matching a :class:`~steam.EResult`
         for the value.
@@ -146,7 +148,11 @@ class WSException(SteamException):
     def __init__(self, msg: MsgProto):
         self.msg = msg
         self.code = EResult.try_value(msg.header.eresult)
-        super().__init__(f"The request {msg.header.job_name_target} failed. (error code: {repr(self.code)})")
+        self.message = getattr(msg.header, "error_message", None)
+        super().__init__(
+            f"The request {msg.header.job_name_target} failed. (error code:  {self.code!r})"
+            f'{f": {self.message}" if self.message else ""}'
+        )
 
 
 class WSForbidden(WSException):
