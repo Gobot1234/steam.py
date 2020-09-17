@@ -35,14 +35,12 @@ import functools
 import inspect
 import sys
 from types import MethodType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, Generator, Iterable, OrderedDict, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, Generator, Iterable, Optional, OrderedDict, Union
 
 from typing_extensions import Literal, get_args, get_origin
 
-import steam
-
 from ...errors import ClientException
-from ...utils import cached_property
+from ...utils import cached_property, maybe_coroutine
 from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import BadArgument, CheckFailure, MissingRequiredArgument, NotOwner
@@ -367,7 +365,7 @@ class Command:
 
     async def can_run(self, ctx: Context) -> Literal[True]:
         for check in self.checks:
-            if not await steam.utils.maybe_coroutine(check, ctx):
+            if not await maybe_coroutine(check, ctx):
                 raise CheckFailure("You failed to pass one of the checks for this command")
         return True
 

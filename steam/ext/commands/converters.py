@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeVar, Union
 
 from typing_extensions import Protocol, get_origin, runtime_checkable
 
@@ -316,8 +316,8 @@ class Greedy(Generic[T]):
 GreedyTypes = Union[
     T,                     # a class/type
     str,                   # should be a string with a ForwardRef to a class to be evaluated later
-    tuple[T],              # for Greedy[int,] / Greedy[(int,)] to be valid
-    tuple[str],            # same as above two points
+    Tuple[T],              # for Greedy[int,] / Greedy[(int,)] to be valid
+    Tuple[str],            # same as above two points
     Callable[[str], Any],  # a callable simple converter
     Converter,             # a Converter subclass
 ]
