@@ -85,7 +85,7 @@ class Converter(Protocol):
 
         class ImageConverter:
             async def convert(self, ctx: 'commands.Context', argument: str):
-                async with aiohttp.ClientSession as session:
+                async with aiohttp.ClientSession() as session:
                     async with session.get(argument) as r:
                         image_bytes = await r.read()
                 try:
@@ -98,7 +98,7 @@ class Converter(Protocol):
         @bot.command()
         async def set_avatar(ctx, avatar: ImageConverter):
             await bot.edit(avatar=avatar)
-        await ctx.send('👌')
+            await ctx.send('👌')
 
         # invoked as
         # !set_avatar "my image url"
