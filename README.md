@@ -63,6 +63,22 @@ client = MyClient()
 client.run("username", "password")
 ```
 
+Bot Example
+------------
+```py
+from steam.ext import commands
+
+bot = commands.Bot(command_prefix="!")
+
+
+@bot.command()
+async def ping(ctx):
+    await ctx.send("Pong!")
+
+
+bot.run("username", "password")
+```
+
 Links
 ------
 
