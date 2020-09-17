@@ -101,7 +101,7 @@ class HelpCommand(Command):
 
     def get_bot_mapping(self) -> "dict[Optional[str], list[Command]]":
         bot = self.context.bot
-        mapping = {name: list(set(cog.__commands__.values())) for (name, cog) in bot.__cogs__.items()}
+        mapping = {name: list(cog.commands) for name, cog in bot.__cogs__.items()}
         categorized_commands = []
         for l in mapping.values():
             for command in l:

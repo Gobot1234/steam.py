@@ -67,6 +67,7 @@ class InjectedListener(FunctionType):
 # for a bit of type hinting
 class ExtensionType(ModuleType):
     """A class to mimic an extension's file structure."""
+
     def setup(self, bot: Bot) -> None:
         pass
 
@@ -133,6 +134,11 @@ class Cog:
             return help_doc.decode("utf-8")
 
         return help_doc
+
+    @property
+    def commands(self) -> set[Command]:
+        """set[:class:`Command`]: A list of the loaded commands."""
+        return set(self.__commands__.values())
 
     @classmethod
     def listener(cls, name: Optional[str] = None) -> Callable[[EventType], EventType]:
