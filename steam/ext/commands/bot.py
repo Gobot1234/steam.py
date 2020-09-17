@@ -35,6 +35,7 @@ import importlib
 import inspect
 import sys
 import traceback
+from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Mapping, Optional, Union
 
@@ -73,7 +74,7 @@ __all__ = (
 
 StrOrIterStr = Union[str, Iterable[str]]
 CommandPrefixType = Union[
-    StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Coroutine[Any,  Any, StrOrIterStr]]]
+    StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Coroutine[Any, Any, StrOrIterStr]]]
 ]
 
 
@@ -124,6 +125,11 @@ class CommandFunctionType(FunctionType):
     @overload
     async def __call__(self, cog: Cog, ctx: Context, *args: Any, **kwargs: Any) -> None:
         ...
+
+
+def resolve_path(path: Path) -> str:
+    return str(path.resolve().relative_to(Path.cwd()).with_suffix("")).replace("//", ".").replace("/", ".")
+    # resolve cogs relative to where they are loaded as it's probably the most common use case for this
 
 
 class Bot(GroupMixin, Client):
@@ -270,7 +276,7 @@ class Bot(GroupMixin, Client):
 
         await super().close()
 
-    def load_extension(self, extension: str) -> None:
+    def load_extension(self, extension: Union[Path, str]) -> None:
         """Load an extension.
 
         Parameters
@@ -278,6 +284,8 @@ class Bot(GroupMixin, Client):
         extension: :class:`str`
             The name of the extension to load.
         """
+        if isinstance(extension, Path):
+            extension = resolve_path(extension)
         if extension in self.__extensions__:
             return
 
@@ -291,7 +299,7 @@ class Bot(GroupMixin, Client):
 
         self.__extensions__[extension] = module
 
-    def unload_extension(self, extension: str) -> None:
+    def unload_extension(self, extension: Union[Path, str]) -> None:
         """Unload an extension.
 
         Parameters
@@ -299,6 +307,8 @@ class Bot(GroupMixin, Client):
         extension: :class:`str`
             The name of the extension to unload.
         """
+        if isinstance(extension, Path):
+            extension = resolve_path(extension)
         if extension not in self.__extensions__:
             raise ModuleNotFoundError(f"The extension {extension} was not found", name=extension, path=extension)
 
