@@ -127,10 +127,11 @@ class EnumMeta(type):
 
 
 class Enum(metaclass=EnumMeta):
-    """A general enumeration, emulates enum.Enum."""
+    """A general enumeration, emulates `enum.Enum`."""
 
-    def __new__(cls, *, name: str, value: Any) -> "Enum":
-        # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__
+    def __new__(cls, *, name: str, value: Any) -> Enum:
+        # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
+        # for creating Enum members
         self = super().__new__(cls)
         self.name = name
         self.value = value
@@ -154,7 +155,7 @@ class Enum(metaclass=EnumMeta):
 
 
 class IntEnum(Enum, int):
-    """An enumeration where all the values are integers, emulates enum.IntEnum."""
+    """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
     def __new__(cls, *, name: str, value: int) -> "IntEnum":
         self = int.__new__(cls, value)
@@ -311,7 +312,7 @@ class ETypeChar(IntEnum):
     P = EType.Pending         #: The character used for :class:`~steam.EType.Pending`.
     C = EType.ContentServer   #: The character used for :class:`~steam.EType.ContentServer`.
     g = EType.Clan            #: The character used for :class:`~steam.EType.Clan`.
-    T = EType.Chat            #: The character used for :class:`~steam.EType.Chat`.
+    T = EType.Chat            #: The character used for :class:`~steam.EType.Chat` (Lobby/group chat).
     L = EType.Chat            #: The character used for :class:`~steam.EType.Chat` (Lobby/group chat).
     c = EType.Clan            #: The character used for :class:`~steam.EType.Clan`.
     a = EType.AnonUser        #: The character used for :class:`~steam.EType.Invalid`.
