@@ -31,10 +31,13 @@ import inspect
 import sys
 import traceback
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
 
-from ...client import EventType, FunctionType
-from .commands import Command, GroupCommand
+from typing_extensions import Final
+
+from ...client import EventType
+from ...utils import cached_property
+from .commands import Command, GroupMixin
 
 if TYPE_CHECKING:
     from steam.ext import commands
@@ -48,17 +51,15 @@ __all__ = (
 )
 
 
-class InjectedListener(FunctionType):
+class InjectedListener:
     """Injects the cog's "self" parameter into every event call auto-magically."""
 
     __slots__ = ("func", "cog", "_is_coroutine")
 
-    def __new__(cls, cog: Cog, func: EventType):
-        self = object.__new__(cls)
+    def __init__(self, cog: Cog, func: EventType):
         self.func = func
         self.cog = cog
         self._is_coroutine = asyncio.coroutines._is_coroutine  # marker for asyncio.iscoroutinefunction
-        return self
 
     def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
         return self.func(self.cog, *args, **kwargs)
@@ -104,10 +105,10 @@ class Cog:
                     ...
     """
 
-    __commands__: dict[str, Command]
-    __listeners__: dict[str, list[InjectedListener]]
-    command_attrs: dict[str, Any]
-    qualified_name: str
+    __commands__: Final[dict[str, Command]]
+    __listeners__: Final[dict[str, list[InjectedListener]]]
+    command_attrs: Final[dict[str, Any]]
+    qualified_name: Final[str]
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         cls.qualified_name = kwargs.get("name") or cls.__name__
@@ -126,7 +127,7 @@ class Cog:
                 except KeyError:
                     cls.__listeners__[attr.__event_name__] = [attr]
 
-    @property
+    @cached_property
     def description(self) -> Optional[str]:
         """Optional[:class:`str`]: The cleaned up docstring for the class."""
         help_doc = inspect.getdoc(self)
@@ -205,7 +206,7 @@ class Cog:
                 if (name, value) not in old_attrs:
                     setattr(command, name, value)
             setattr(self, command.callback.__name__, command)
-            if isinstance(command, GroupCommand):
+            if isinstance(command, GroupMixin):
                 for child in command.children:
                     child.cog = self
             try:
@@ -225,7 +226,7 @@ class Cog:
 
     def _eject(self, bot: Bot) -> None:
         for command in self.__commands__.values():
-            if isinstance(command, GroupCommand):
+            if isinstance(command, GroupMixin):
                 command.recursively_remove_all_commands()
             bot.remove_command(command.name)
 

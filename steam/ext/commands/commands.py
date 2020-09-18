@@ -36,7 +36,19 @@ import inspect
 import sys
 import typing
 from types import MethodType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, Generator, Iterable, Optional, OrderedDict, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Generator,
+    Iterable,
+    Optional,
+    OrderedDict,
+    Union,
+    get_type_hints,
+)
 
 from typing_extensions import Literal, get_args, get_origin
 

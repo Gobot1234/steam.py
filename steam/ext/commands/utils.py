@@ -29,24 +29,10 @@ from __future__ import annotations
 import importlib
 import typing
 from collections import deque
-from typing import (
-    TYPE_CHECKING,
-    Deque,
-    Dict,
-    Generator,
-    Generic,
-    Optional,
-    TypeVar,
-    Union,
-    overload,
-)
-
+from typing import TYPE_CHECKING, Dict, Generator, Generic, Optional, TypeVar, Union, overload
 
 if TYPE_CHECKING:
     from types import ModuleType
-
-
-__all__ = ("CaseInsensitiveDict",)
 
 
 _T = TypeVar("_T")
@@ -129,7 +115,7 @@ class Shlex:
         self.in_stream = in_stream.replace("‘", '"').replace("’", '"').replace("“", '"').replace("”", '"').strip()
         self.position = 0
         self.end = len(self.in_stream)
-        self._undo_pushback: Deque[int] = deque()
+        self._undo_pushback: deque[int] = deque()
 
     def read(self) -> Optional[str]:
         if self.position >= self.end:
@@ -186,7 +172,7 @@ def reload_module_with_TYPE_CHECKING(module: ModuleType) -> None:
     """Reload a module with typing.TYPE_CHECKING set to ``True``. Allowing you to avoid circular import issues due to
     the way :meth:`importlib.reload` works.
 
-    Warnings
+    Warning
     --------
     This is very hacky and is only really for internal use.
 
