@@ -28,9 +28,9 @@ from __future__ import annotations
 
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeVar, Union, get_args
+from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeVar, Union
 
-from typing_extensions import Protocol, get_origin, runtime_checkable
+from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
 from ...errors import InvalidSteamID
 from ...game import Game
