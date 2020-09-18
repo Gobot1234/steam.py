@@ -183,7 +183,7 @@ def make_id64(
     try:
         universe = EUniverse(universe) if isinstance(universe, int) else EUniverse[universe]
     except (KeyError, ValueError):
-        raise InvalidSteamID(id, f"{type!r} is not a valid EUniverse") from None
+        raise InvalidSteamID(id, f"{universe!r} is not a valid EUniverse") from None
 
     if instance is None:
         instance = 1 if type in (EType.Individual, EType.GameServer) else 0
