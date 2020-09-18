@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeVar, Union, get_args
 
 from typing_extensions import Protocol, get_origin, runtime_checkable
 
@@ -308,7 +308,7 @@ class Greedy(Generic[T]):
         ):
             raise TypeError(f"Cannot type-hint Greedy with {converter!r}")
         annotation = super().__class_getitem__(converter)
-        annotation.converter = converter
+        annotation.converter = get_args(annotation)[0]
         return annotation
 
 

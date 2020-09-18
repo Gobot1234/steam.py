@@ -77,21 +77,6 @@ def to_bool(argument: str) -> bool:
     raise BadArgument(f'"{lowered}" is not a recognised boolean option')
 
 
-_OLD_EVAL_TYPE = typing._eval_type
-
-
-def _eval_type(type: Any, globalns: dict[str, Any], localns: dict[str, Any]) -> Any:
-    """Evaluate all forward reverences in the given type."""
-    if isinstance(type, typing._GenericAlias):
-        args = tuple(_eval_type(arg, globalns, localns) for arg in get_args(type))
-        return get_origin(type)[args]
-
-    return _OLD_EVAL_TYPE(type, globalns, localns)
-
-
-typing._eval_type = _eval_type
-
-
 class Command:
     def __init__(self, func: CommandFunctionType, **kwargs: Any):
         self.name: str = kwargs.get("name") or func.__name__
