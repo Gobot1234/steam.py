@@ -201,9 +201,8 @@ class Cog:
         for idx, command in enumerate(self.__commands__.values()):
             command.cog = self
             command.checks.append(self.cog_check)
-            old_attrs = inspect.getmembers(command)
             for name, value in self.command_attrs.items():
-                if (name, value) not in old_attrs:
+                if name not in command.__original_kwargs__:
                     setattr(command, name, value)
             setattr(self, command.callback.__name__, command)
             if isinstance(command, GroupMixin):

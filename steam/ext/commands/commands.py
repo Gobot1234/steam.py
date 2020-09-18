@@ -90,6 +90,11 @@ def to_bool(argument: str) -> bool:
 
 
 class Command:
+    def __new__(cls, *args, **kwargs: Any) -> Command:
+        self = super().__new__(cls)
+        self.__original_kwargs__ = kwargs.copy()
+        return self
+
     def __init__(self, func: CommandFunctionType, **kwargs: Any):
         self.name: str = kwargs.get("name") or func.__name__
         if not isinstance(self.name, str):
@@ -505,11 +510,6 @@ class GroupMixin:
 
         return decorator
 
-
-class GroupCommand(GroupMixin, Command):
-    def __init__(self, func: CommandFunctionType, **kwargs: Any):
-        super().__init__(func, **kwargs)
-
     @property
     def children(self) -> Generator[Command, None, None]:
         for command in self.commands:
@@ -519,9 +519,14 @@ class GroupCommand(GroupMixin, Command):
 
     def recursively_remove_all_commands(self) -> None:
         for command in self.commands:
-            if isinstance(command, GroupCommand):
+            if isinstance(command, GroupMixin):
                 command.recursively_remove_all_commands()
             self.remove_command(command.name)
+
+
+class GroupCommand(GroupMixin, Command):
+    def __init__(self, func: CommandFunctionType, **kwargs: Any):
+        super().__init__(func, **kwargs)
 
     async def _parse_arguments(self, ctx: Context) -> None:
         ctx.command.invoked_without_command = bool(list(self.children))
