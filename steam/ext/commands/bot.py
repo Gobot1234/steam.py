@@ -46,7 +46,7 @@ from ...client import Client, EventType, FunctionType, log
 from .cog import Cog, ExtensionType, InjectedListener
 from .commands import Command, GroupCommand, GroupMixin
 from .context import Context
-from .errors import CheckFailure, CommandDisabled, CommandError, CommandNotFound
+from .errors import CommandDisabled, CommandError, CommandNotFound
 from .help import HelpCommand
 from .utils import Shlex
 

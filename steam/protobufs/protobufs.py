@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from typing import TYPE_CHECKING, Dict, Type
-
 from . import (
     steammessages_base,
     steammessages_clientserver,
@@ -10,9 +8,6 @@ from . import (
     steammessages_clientserver_login,
 )
 from .emsg import *
-
-if TYPE_CHECKING:
-    import betterproto
 
 __all__ = ("PROTOBUFS",)
 

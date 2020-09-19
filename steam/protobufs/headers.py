@@ -29,7 +29,7 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 """
 
 import struct
-from typing import Optional, Union
+from typing import Optional
 
 from stringcase import snakecase
 
