@@ -26,6 +26,7 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generator, Optional, Union
 
@@ -533,6 +534,8 @@ class TradeOffer:
                     await self.confirm()
                 except ConfirmationError:
                     break
+                except ClientException:
+                    await asyncio.sleep(tries * 2)
 
     async def decline(self) -> None:
         """|coro|

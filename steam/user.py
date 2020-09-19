@@ -26,11 +26,12 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 from .abc import BaseUser, Messageable, _EndPointReturnType
-from .errors import ConfirmationError
+from .errors import ClientException, ConfirmationError
 from .models import community_route
 
 if TYPE_CHECKING:
@@ -194,6 +195,8 @@ class User(BaseUser, Messageable):
                         await trade.confirm()
                     except ConfirmationError:
                         break
+                    except ClientException:
+                        await asyncio.sleep(tries * 2)
             trade.id = int(resp["tradeofferid"])
 
     async def invite_to_group(self, group: Group) -> None:

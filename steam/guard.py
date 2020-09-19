@@ -131,10 +131,27 @@ def generate_device_id(user_id64: str) -> str:
 
 
 class Confirmation:
-    def __init__(self, state: ConnectionState, id: str, data_confid: int, data_key: str, trade_id: int, tag: str):
+    __slots__ = (
+        "_state",
+        "id",
+        "data_conf_id",
+        "data_key",
+        "tag",
+        "trade_id",
+    )
+
+    def __init__(
+        self,
+        state: ConnectionState,
+        confirmation_id: int,
+        data_conf_id: int,
+        data_key: str,
+        trade_id: int,
+        tag: str,
+    ):
         self._state = state
-        self.id = id.split("conf")[1]
-        self.data_confid = data_confid
+        self.id = confirmation_id
+        self.data_conf_id = data_conf_id
         self.data_key = data_key
         self.tag = tag
         self.trade_id = trade_id  # this isn't really always the trade ID, but for our purposes this is fine
