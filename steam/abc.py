@@ -329,7 +329,7 @@ class Commentable(SteamID):
 
     __slots__ = ("comment_path",)
 
-    _state: "ConnectionState"
+    _state: ConnectionState
     comment_path: str
 
     def __init_subclass__(cls, **kwargs: Any):
@@ -361,11 +361,10 @@ class Commentable(SteamID):
     def comments(
         self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None
     ) -> CommentsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a
-        :class:`~steam.Clan`'s :class:`~steam.Comment` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a profiles's :class:`~steam.Comment` objects.
 
         Examples
-        -----------
+        ---------
 
         Usage: ::
 
