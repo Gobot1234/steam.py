@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import asyncio
 import importlib
-import inspect
 import sys
 import traceback
 from pathlib import Path
@@ -221,7 +220,7 @@ class Bot(GroupMixin, Client):
                         continue
 
                     setattr(self, attr.callback.__name__, attr)
-                    if isinstance(attr, GroupCommand):
+                    if isinstance(attr, GroupMixin):
                         for child in attr.children:
                             child.cog = self
 
@@ -309,13 +308,16 @@ class Bot(GroupMixin, Client):
         """
         if isinstance(extension, Path):
             extension = resolve_path(extension)
-        if extension not in self.__extensions__:
-            raise ModuleNotFoundError(f"The extension {extension} was not found", name=extension, path=extension)
 
-        module: ExtensionType = self.__extensions__[extension]
-        for attr in tuple(module.__dict__.values()):
-            if inspect.isclass(attr) and issubclass(attr, Cog):
-                cog = self.get_cog(attr.qualified_name)
+        try:
+            module: ExtensionType = self.__extensions__[extension]
+        except KeyError:
+            raise ModuleNotFoundError(
+                f"The extension {extension!r} was not found", name=extension, path=extension
+            ) from None
+
+        for cog in tuple(self.__cogs__.values()):
+            if cog.__module__ == module.__file__:
                 self.remove_cog(cog)
 
         if hasattr(module, "teardown"):
@@ -327,7 +329,7 @@ class Bot(GroupMixin, Client):
         del sys.modules[extension]
         del self.__extensions__[extension]
 
-    def reload_extension(self, extension: str) -> None:
+    def reload_extension(self, extension: Union[Path, str]) -> None:
         """Atomically reload an extension. If any error occurs during the reload the extension will be reverted to its
         original state.
 
@@ -336,9 +338,14 @@ class Bot(GroupMixin, Client):
         extension: :class:`str`
             The name of the extension to reload.
         """
-        previous = self.__extensions__.get(extension)
-        if previous is None:
-            raise ModuleNotFoundError(f"The extension {extension} was not found", name=extension, path=extension)
+        if isinstance(extension, Path):
+            extension = resolve_path(extension)
+        try:
+            previous = self.__extensions__[extension]
+        except KeyError:
+            raise ModuleNotFoundError(
+                f"The extension {extension!r} was not found", name=extension, path=extension
+            ) from None
 
         try:
             self.unload_extension(extension)
