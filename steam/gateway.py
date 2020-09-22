@@ -52,7 +52,7 @@ from . import utils
 from .enums import EPersonaState, EResult
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
-from .protobufs import EMsg, Msg, MsgProto, MsgBase
+from .protobufs import EMsg, Msg, MsgBase, MsgProto
 
 if TYPE_CHECKING:
     from .client import Client
