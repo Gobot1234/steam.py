@@ -30,6 +30,7 @@ import asyncio
 import inspect
 import sys
 import traceback
+from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
 
@@ -126,6 +127,13 @@ class Cog:
                     cls.__listeners__[attr.__event_name__].append(attr)
                 except KeyError:
                     cls.__listeners__[attr.__event_name__] = [attr]
+
+    def __repr__(self) -> str:
+        module = sys.modules[self.__class__.__module__]
+        path = Path(module.__file__)
+        folder = path.parent.name
+        file = path.name.strip(".py")
+        return f"<Cog {f'{folder}.{file}.{self.__class__.__name__}'!r}>"
 
     @cached_property
     def description(self) -> Optional[str]:
