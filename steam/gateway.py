@@ -52,7 +52,7 @@ from . import utils
 from .enums import EPersonaState, EResult
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
-from .protobufs import EMsg, Msg, MsgProto
+from .protobufs import EMsg, Msg, MsgProto, MsgBase
 
 if TYPE_CHECKING:
     from .client import Client
@@ -81,7 +81,7 @@ def return_true(*_, **__) -> Literal[True]:
     return True
 
 
-def check_job_id(job_id: int) -> Callable[[Msgs], bool]:
+def check_job_id(job_id: int) -> Callable[[], bool]:
     check = None  # needed to stop pylint thinking this is a NameError
     exec(f"def check(msg): return msg.header.job_id_target == {job_id}")
     return check
@@ -89,7 +89,7 @@ def check_job_id(job_id: int) -> Callable[[Msgs], bool]:
 
 class EventListener(NamedTuple):
     emsg: EMsg
-    predicate: Callable[[Msgs], bool]
+    predicate: Callable[[MsgBase], bool]
     future: asyncio.Future
 
 
@@ -350,7 +350,7 @@ class SteamWebSocket:
         """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg, predicate: Optional[Callable[[Msgs], bool]] = None) -> asyncio.Future:
+    def wait_for(self, emsg: EMsg, predicate: Optional[Callable[[MsgBase], bool]] = None) -> asyncio.Future:
         future = self.loop.create_future()
         entry = EventListener(emsg=emsg, predicate=predicate or return_true, future=future)
         self.listeners.append(entry)
@@ -464,7 +464,7 @@ class SteamWebSocket:
         self._dispatch("socket_raw_send", data)
         await self.socket.send_bytes(data=data)
 
-    async def send_as_proto(self, message: Union[MsgProto, Msg]) -> None:
+    async def send_as_proto(self, message: MsgBase) -> None:
         message.steam_id = self.steam_id
         message.session_id = self.session_id
 
@@ -538,8 +538,8 @@ class SteamWebSocket:
         return msg.header.job_id_source
 
     async def send_um_and_wait(
-        self, name: str, check: Optional[Callable[[Msgs], bool]] = None, timeout: float = 5.0, **kwargs: Any
-    ) -> Msgs:
+        self, name: str, check: Optional[Callable[[MsgBase], bool]] = None, timeout: float = 5.0, **kwargs: Any
+    ) -> MsgBase:
         job_id = await self.send_um(name, **kwargs)
         if check is None:
             check = check_job_id(job_id)
