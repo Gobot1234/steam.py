@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
@@ -26,6 +26,8 @@ SOFTWARE.
 
 This is an updated version of https://github.com/ValvePython/steam/tree/master/steam/core/msg
 """
+
+from __future__ import annotations
 
 import dataclasses
 from typing import Any, Generic, Optional, Type, TypeVar, Union
@@ -64,7 +66,7 @@ def get_cmsg(emsg: Union[EMsg, int]) -> GetProtoType:
 
     Returns
     -------
-    Optional[Type[:class:`betterproto.Message`]]
+    Optional[type[:class:`betterproto.Message`]]
         The uninitialized protobuf.
     """
     return PROTOBUFS.get(EMsg.try_value(emsg))
@@ -80,7 +82,7 @@ def get_um(name: str) -> GetProtoType:
 
     Returns
     -------
-    Optional[Type[:class:`betterproto.Message`]]
+    Optional[type[:class:`betterproto.Message`]]
         The uninitialized protobuf.
     """
     return UMS.get(name)
@@ -117,7 +119,7 @@ class MsgBase(Generic[T]):
     def __bytes__(self) -> bytes:
         return bytes(self.header) + bytes(self.body)
 
-    def _parse(self, proto: Optional[Type[T]]) -> None:
+    def _parse(self, proto: Optional[type[T]]) -> None:
         if proto:
             self.body: T = proto()
             if self.payload:
