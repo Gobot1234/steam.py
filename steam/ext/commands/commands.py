@@ -56,7 +56,7 @@ from ...errors import ClientException
 from ...utils import cached_property, maybe_coroutine
 from . import converters
 from .cooldown import BucketType, Cooldown
-from .errors import BadArgument, CheckFailure, MissingRequiredArgument, NotOwner
+from .errors import BadArgument, CheckFailure, DuplicateKeywordArgument, MissingRequiredArgument, NotOwner
 from .utils import CaseInsensitiveDict, reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -266,27 +266,29 @@ class Command:
                 break
             elif param.kind == param.VAR_KEYWORD:
                 # same as **kwargs
-                # NOTE: when using this you need to __getitem__ the argument to prevent shadowing any other arguments
-                # in the function's signature as it might lead to injection being possible which is obviously very bad.
                 kv_pairs = [arg.split("=") for arg in lex]
                 if not kv_pairs:
-                    kwargs[name] = await self._get_default(ctx, param)
+                    kwargs["default"] = await self._get_default(ctx, param)
                     break
 
                 annotation = param.annotation
-                if annotation is param.empty or annotation is dict:
-                    annotation = Dict[str, str]  # default to {str: str}
+                key_type, value_type = (
+                    (str, str) if annotation in (param.empty, dict) else get_args(annotation)
+                )  # default to {str: str}
 
-                key_type, value_type = get_args(annotation)
                 key_converter = self._get_converter(key_type)
                 value_converter = self._get_converter(value_type)
 
-                kwargs[name] = {
-                    await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
-                        ctx, value_converter, param, value_arg.strip()
+                for key_arg, value_arg in kv_pairs:
+                    if key_arg in self.params:
+                        raise DuplicateKeywordArgument(param)
+                    kwargs.update(
+                        {
+                            await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
+                                ctx, value_converter, param, value_arg.strip()
+                            )
+                        }
                     )
-                    for key_arg, value_arg in kv_pairs
-                }
                 break
 
             elif param.kind == param.VAR_POSITIONAL:

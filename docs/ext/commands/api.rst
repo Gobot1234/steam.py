@@ -154,6 +154,7 @@ Exception Hierarchy
         - :exc:`~.commands.CommandError`
             - :exc:`~.commands.BadArgument`
                 - :exc:`~.commands.MissingRequiredArgument`
+                - :exc:`~.commands.DuplicateKeywordArgument`
             - :exc:`~.commands.CommandNotFound`
             - :exc:`~.commands.CheckFailure`
                 - :exc:`~.commands.CommandDisabled`

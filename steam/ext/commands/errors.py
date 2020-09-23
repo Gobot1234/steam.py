@@ -85,6 +85,22 @@ class MissingRequiredArgument(BadArgument):
         super().__init__(f"{param.name!r} is a required argument that is missing.")
 
 
+class DuplicateKeywordArgument(BadArgument):
+    """Exception raised when a keyword argument passed would shadow another.
+
+    Subclass of :exc:`BadArgument`.
+
+    Attributes
+    ----------
+    param: :class:`inspect.Parameter`
+        The argument that would shadow another.
+    """
+
+    def __init__(self, param: Parameter):
+        self.param = param
+        super().__init__(f"{param.name!r} shadows another argument.")
+
+
 class CheckFailure(CommandError):
     """Base Exception raised when a check fails.
 
