@@ -80,6 +80,98 @@ Context
     :inherited-members:
 
 
+Command Parsing
+----------------------
+
+steam.py offers multiple ways to parse commands.
+
+Positional or Keyword
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Values are passed to matching parameter based on their position.
+
+Example:
+
+.. code-block:: python
+
+
+    @bot.command()
+    async def command(ctx, argument_1, argument_2):
+        ...
+
+An invocation of ``!command some string`` would pass ``"some"`` to ``argument_1`` and ``"string"`` to ``argument_2``.
+
+Variadic Positional
+~~~~~~~~~~~~~~~~~~~~~
+
+- Values are passed as a :class:`tuple` of positional arguments that can be indefinitely long. This corresponds to a
+  `*args` parameter in a function definition.
+
+Example:
+
+.. code-block:: python
+
+    @bot.command()
+    async def command(ctx, argument_1, *arguments):
+        ...
+
+An invocation of ``!command some longer string`` would pass ``"some"`` to ``argument_1`` and ``("longer", "string")``
+to ``arguments``.
+
+.. note::
+
+    This has to be the last parameter in a function definition.
+
+
+Keyword only
+~~~~~~~~~~~~~~~~~~~~~
+
+- Any value is passed from the rest of the command to the first keyword only argument.
+
+Example:
+
+.. code-block:: python
+
+    @bot.command()
+    async def command(ctx, argument_1, *, argument_2):
+        ...
+
+An invocation of ``!command some longer string`` would pass ``"some"`` to ``argument_1`` and ``"longer string"`` to
+``argument_2``.
+
+.. note::
+
+    This has to be the last parameter in a function definition.
+
+
+Variadic Keyword
+~~~~~~~~~~~~~~~~~~~~~
+
+- Values are passed as a :class:`dict` of keyword arguments that can be indefinitely long. This corresponds to a
+  `**kwargs` parameter in a function definition.
+
+Example:
+
+.. code-block:: python
+
+    @bot.command()
+    async def command(ctx, argument_1, **arguments):
+        ...
+
+An invocation of ``!command some string=long`` would pass ``"some"`` to ``argument_1`` and ``{"string": "long"}`` to
+``**arguments``.
+
+.. note::
+
+    This has to be the last parameter in a function definition.
+
+.. warning::
+
+    Type-hinting this function does not work like it strictly should, it should be done using
+    ``**kwargs: dict[key_type, value_type]`` whereas it should normally just be ``**kwargs: value_type`` the rational
+    behind this decision was to allow for non-string keys to something e.g. ``!ban user="reason to ban"``.
+
+
 Converters
 -----------
 
