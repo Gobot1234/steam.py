@@ -84,6 +84,7 @@ Command Parsing
 ----------------------
 
 steam.py offers multiple ways to parse commands.
+.. TODO type hinting section.
 
 Positional or Keyword
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -167,9 +168,9 @@ An invocation of ``!command some string=long`` would pass ``"some"`` to ``argume
 
 .. warning::
 
-    Type-hinting this function does not work like it strictly should, it should be done using
-    ``**kwargs: dict[key_type, value_type]`` whereas it should normally just be ``**kwargs: value_type`` the rational
-    behind this decision was to allow for non-string keys to something e.g. ``!ban user="reason to ban"``.
+    Type-hinting this function does not work like it strictly should, it should be done using ``**kwargs: value_type``
+    whereas with steam.py it is ``**kwargs: dict[key_type, value_type]`` the rational behind this decision was to allow
+    for non-string keys e.g. ``!ban user="reason to ban"``.
 
 
 Converters
@@ -219,6 +220,9 @@ Exceptions
     :members:
 
 .. autoexception:: steam.ext.commands.MissingRequiredArgument
+    :members:
+
+.. autoexception:: steam.ext.commands.DuplicateKeywordArgument
     :members:
 
 .. autoexception:: steam.ext.commands.CheckFailure
