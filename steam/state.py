@@ -77,7 +77,7 @@ if TYPE_CHECKING:
         ChatRoomClientNotifyChatGroupUserStateChangedNotification as GroupAction,
     )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
-    from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications, CMsgClientUserNotifications
+    from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientFriendsList,
         CMsgClientPersonaState,
