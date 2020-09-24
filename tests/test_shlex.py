@@ -1,17 +1,17 @@
-from typing import List, Tuple
+from __future__ import annotations
 
 import pytest
 
 from steam.ext.commands.utils import Shlex, MissingClosingQuotation
 
 
-test_strings: List[Tuple[str, List[str]]] = [
+test_strings: list[tuple[str, list[str]]] = [
     ("foo bar baz", ["foo", "bar", "baz"]),
     ('foo "bar baz"', ["foo", "bar baz"]),
     ('foo \\"bar baz', ["foo", '"bar', "baz"]),
     ('foo bar baz\\"', ["foo", "bar", 'baz"']),
     ("'", ["'"]),
-    ("print('some\nepic\nstring')", ["print('some\nepic\nstring')"])
+    ("print('some\nepic\nstring')", ["print('some\nepic\nstring')"]),
 ]
 
 

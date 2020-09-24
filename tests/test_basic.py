@@ -2,6 +2,8 @@
 
 """A basic integration test"""
 
+import sys
+
 import pytest
 
 import steam
@@ -39,6 +41,8 @@ class Client(steam.Client):
 
 @pytest.mark.asyncio
 async def test_basic_events():
+    if sys.version_info == (3, 8):  # only test on 3.9 and 3.7 as that's where the issues normally are
+        return
     client = Client()
     try:
         await client.start()

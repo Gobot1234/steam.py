@@ -7,36 +7,13 @@ try:
     import click
     import isort.main
     import pytest
-    import yaml
 except ImportError as exc:
     print(f'Failed to import {exc.name} make sure you installed "steamio[dev]" to get extra dependencies.')
 
 PATH = pathlib.Path(__file__)
 STEAM_PY = PATH.parent.parent
 STEAM = STEAM_PY / "steam"
-EXAMPLES = STEAM_PY / "examples"
 TESTS = STEAM_PY / "tests"
-WORKFLOWS = STEAM_PY / ".github" / "workflows"
-
-with open(WORKFLOWS / "blacken.yml") as f:
-    BLACK_SETTINGS = yaml.safe_load(f)
-
-with open(WORKFLOWS / "isort.yml") as f:
-    ISORT_SETTINGS = yaml.safe_load(f)
-
-
-def prepare_args(args: dict) -> list:
-    final_steps: str = args["jobs"]["check-formatting"]["steps"][-1:][0]["run"]
-    return (
-        final_steps.split("--diff")[0]
-        .strip("isort")
-        .strip("black")
-        .replace("steam", str(STEAM.absolute()))
-        .replace("examples", str(EXAMPLES.absolute()))
-        .replace("tests", str(TESTS.absolute()))
-        .strip()
-        .split()
-    )
 
 
 @click.command()
@@ -46,8 +23,23 @@ def prepare_args(args: dict) -> list:
 def main(ctx: click.Context, test: bool, format: bool):
     if format:
         print("Starting formatting")
-        isort.main.main(prepare_args(ISORT_SETTINGS))
-        black_ctx = black.main.make_context(__file__, prepare_args(BLACK_SETTINGS))
+        isort.main.main(
+            [
+                "steam",
+                "--combine-as",
+                "--profile",
+                "black",
+                "-l120",
+                "-n",
+            ]
+        )
+        black_ctx = black.main.make_context(
+            __file__,
+            [
+                ".",
+                "-l120",
+            ],
+        )
         black.main.invoke(black_ctx)
         print("Done running formatting")
     if test:

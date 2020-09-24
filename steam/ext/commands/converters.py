@@ -283,9 +283,10 @@ class Greedy(Generic[T]):
 
         @bot.command()
         async def test(ctx, numbers: commands.Greedy[int], reason: str):
-            await ctx.send("numbers: {}, reason: {}".format(numbers, reason))
+            await ctx.send(f"numbers: {numbers}, reason: {reason}")
 
-    An invocation of "test 1 2 3 4 5 6 hello" would pass numbers (1, 2, 3, 4, 5, 6) and reason with hello.
+    An invocation of ``"test 1 2 3 4 5 6 hello"`` would pass ``(1, 2, 3, 4, 5, 6)`` to ``numbers`` and ``"hello"`` to
+    ``reason``
     """
 
     converter: T
