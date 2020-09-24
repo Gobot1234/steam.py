@@ -40,6 +40,7 @@ __all__ = (
     "CommandError",
     "BadArgument",
     "MissingRequiredArgument",
+    "DuplicateKeywordArgument",
     "CheckFailure",
     "NotOwner",
     "CommandNotFound",
