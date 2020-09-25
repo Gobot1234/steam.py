@@ -121,7 +121,7 @@ class CMServerList(AsyncIterator[str]):
         self.cms: list[CMServer] = []
         self.cell_id = 0
         if first_cm_to_try is not None:
-            self.queue.put_nowait(first_cm_to_try)
+            self.append(first_cm_to_try)
 
     def __len__(self) -> int:
         return len(self.cms)
@@ -144,7 +144,7 @@ class CMServerList(AsyncIterator[str]):
             raise NoCMsFound("No Community Managers could be found to connect to")
 
         for cm in await self.best_cms:
-            self.queue.put_nowait(cm.url)
+            self.append(cm)
 
     def clear(self) -> None:
         if self.cms:
@@ -479,7 +479,7 @@ class SteamWebSocket:
     async def handle_close(self) -> None:
         if not self.socket.closed:
             await self.close()
-            self.cm_list.queue.get_nowait()  # pop the disconnected cm
+            self.cm_list.queue.pop()  # pop the disconnected cm
         if self._keep_alive is not None:
             self._keep_alive.stop()
             self._keep_alive = None

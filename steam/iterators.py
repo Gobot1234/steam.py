@@ -26,16 +26,16 @@ SOFTWARE.
 
 from __future__ import annotations
 
-import asyncio
+import itertools
 import re
+from collections import deque
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator as _AsyncIterator,
-    Awaitable,
     Callable,
     Coroutine,
+    Generic,
     Optional,
     TypeVar,
     Union,
@@ -57,7 +57,7 @@ T = TypeVar("T")
 MaybeCoro = Callable[[T], Union[bool, Coroutine[None, None, bool]]]
 
 
-class AsyncIterator(_AsyncIterator[T]):
+class AsyncIterator(Generic[T]):
     """A class from which async iterators (see :pep:`525`) can ben easily derived.
 
     .. container:: operations
@@ -74,7 +74,7 @@ class AsyncIterator(_AsyncIterator[T]):
         When to find objects after.
     limit: Optional[:class:`int`]
         The maximum size of the :attr:`AsyncIterator.queue`.
-    queue: :class:`asyncio.Queue[T]`
+    queue: :class:`collections.deque[T]`
         The queue containing the elements of the iterator.
     """
 
@@ -87,10 +87,22 @@ class AsyncIterator(_AsyncIterator[T]):
         self.before = before or datetime.utcnow()
         self.after = after or datetime.utcfromtimestamp(0)
         self._is_filled = False
-        self.queue: asyncio.Queue[T] = asyncio.Queue(maxsize=limit or 0)
+        self.queue: deque[T] = deque()
         self.limit = limit
 
-    def get(self, **attrs: Any) -> Coroutine[Optional[T]]:
+    def append(self, element: T) -> bool:
+        if self.limit is None:
+            self.queue.append(element)
+            return True
+        if len(self.queue) <= self.limit:
+            self.queue.append(element)
+            return True
+        if len(self.queue) == self.limit:
+            self.queue.append(element)
+            return False
+        return False
+
+    def get(self, **attrs: Any) -> Coroutine[None, None, Optional[T]]:
         """|coro|
         A helper function which is similar to :func:`~steam.utils.get` except it runs over the :class:`AsyncIterator`.
 
@@ -117,7 +129,7 @@ class AsyncIterator(_AsyncIterator[T]):
             matching element was found.
         """
 
-        def predicate(elem: list[T]) -> bool:
+        def predicate(elem: T) -> bool:
             for attr, val in attrs.items():
                 nested = attr.split("__")
                 obj = elem
@@ -160,12 +172,7 @@ class AsyncIterator(_AsyncIterator[T]):
             The first element from the iterator for which the ``predicate`` returns ``True`` or ``None`` if no matching
             element was found.
         """
-        while 1:
-            try:
-                elem = await self.next()
-            except StopAsyncIteration:
-                return None
-
+        async for elem in self:
             ret = await utils.maybe_coroutine(predicate, elem)
             if ret:
                 return elem
@@ -189,7 +196,7 @@ class AsyncIterator(_AsyncIterator[T]):
     def __aiter__(self) -> AsyncIterator[T]:
         return self
 
-    def __anext__(self) -> Awaitable[T]:
+    def __anext__(self) -> Coroutine[None, None, T]:
         return self.next()
 
     async def next(self) -> T:
@@ -201,14 +208,14 @@ class AsyncIterator(_AsyncIterator[T]):
         :exc:`StopAsyncIteration`
             There are no more elements in the iterator.
         """
-        if self.queue.empty():
+        if not self.queue:
             if self._is_filled:
                 raise StopAsyncIteration
             await self.fill()
-            if self.queue.empty():  # yikes
+            if not self.queue:  # yikes
                 raise StopAsyncIteration
             self._is_filled = True
-        return self.queue.get_nowait()
+        return self.queue.pop()
 
     async def fill(self) -> None:
         raise NotImplementedError
@@ -229,8 +236,6 @@ class CommentsIterator(AsyncIterator[Comment]):
         self.owner = owner
 
     async def fill(self) -> None:
-        from .user import User
-
         data = await self._state.http.get_comments(
             id64=self.owner.id64, comment_path=self.owner.comment_path, limit=self.limit
         )
@@ -253,16 +258,12 @@ class CommentsIterator(AsyncIterator[Comment]):
                     author=author_id,
                     owner=self.owner,
                 )
-                try:
-                    self.queue.put_nowait(comment)
-                except asyncio.QueueFull:
+                if not self.append(comment):
                     return
-        users = await self._state.http.get_users(to_fetch)
-        for user in users:
-            author = User(state=self._state, data=user)
-            for comment in self.queue._queue:
-                if comment.author == author.id:
-                    comment.author = author
+        users = await self._state.fetch_users(to_fetch)
+        for user, comment in itertools.product(users, self.queue):
+            if comment.author == user.id:
+                comment.author = user
 
 
 class TradesIterator(AsyncIterator["TradeOffer"]):
@@ -309,17 +310,15 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
 
                 trade = await TradeOffer._from_api(state=self._state, data=data)
 
-                try:
-                    if not self._active_only:
-                        self.queue.put_nowait(trade)
-                    elif self._active_only and trade.state in (
-                        ETradeOfferState.Active,
-                        ETradeOfferState.ConfirmationNeed,
-                    ):
-                        self.queue.put_nowait(trade)
-
-                except asyncio.QueueFull:
-                    raise StopAsyncIteration
+                if not self._active_only:
+                    if not self.append(trade):
+                        raise StopAsyncIteration
+                elif self._active_only and trade.state in (
+                    ETradeOfferState.Active,
+                    ETradeOfferState.ConfirmationNeed,
+                ):
+                    if not self.append(trade):
+                        raise StopAsyncIteration
 
         try:
             for trade in resp.get("trades", []):
