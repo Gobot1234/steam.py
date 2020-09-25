@@ -93,13 +93,13 @@ class DuplicateKeywordArgument(BadArgument):
 
     Attributes
     ----------
-    param: :class:`inspect.Parameter`
+    name: :class:`str`
         The argument that would shadow another.
     """
 
-    def __init__(self, param: Parameter):
-        self.param = param
-        super().__init__(f"{param.name!r} shadows another argument.")
+    def __init__(self, name: str):
+        self.name = name
+        super().__init__(f"{name!r} shadows another argument.")
 
 
 class CheckFailure(CommandError):

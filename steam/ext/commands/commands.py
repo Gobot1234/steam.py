@@ -279,8 +279,8 @@ class Command:
                 value_converter = self._get_converter(value_type)
 
                 for key_arg, value_arg in kv_pairs:
-                    if key_arg in self.params:
-                        raise DuplicateKeywordArgument(param)
+                    if key_arg in kwargs:
+                        raise DuplicateKeywordArgument(key_arg)
                     kwargs.update(
                         {
                             await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
