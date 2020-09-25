@@ -195,11 +195,11 @@ class Command:
     @property
     def parents(self) -> Generator[Command, None, None]:
         """Iterator[:class:`Command`]: A generator returning the command's parents."""
-
-        def recursive_iter(command: Command) -> Generator[Command, None, None]:
+        command = self
+        while command.parent is not None:
             yield command
-            if isinstance(command.parent, GroupCommand):
-                yield from recursive_iter(command.parent)
+            command = command.parent
+        yield command
 
     def __call__(self, ctx, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
         """|coro|
