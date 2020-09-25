@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import inspect
 import sys
 import traceback
 from pathlib import Path
@@ -211,21 +212,18 @@ class Bot(GroupMixin, Client):
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
 
-        for base in reversed(self.__class__.__mro__):  # traverse the MRO for any commands added in a Bot subclass
-            for name, attr in tuple(base.__dict__.items()):
-                if name in self.commands:
-                    self.remove_command(name)
-                if isinstance(attr, Command):
-                    if attr.parent:  # if it's a sub-command don't add it to the global commands
-                        continue
+        for name, attr in inspect.getmembers(self):  # traverse the MRO for any commands added in a Bot subclass
+            if isinstance(attr, Command):
+                if attr.parent:  # if it's a sub-command don't add it to the global commands
+                    continue
 
-                    setattr(self, attr.callback.__name__, attr)
-                    if isinstance(attr, GroupMixin):
-                        for child in attr.children:
-                            child.cog = self
+                setattr(self, attr.callback.__name__, attr)
+                if isinstance(attr, GroupMixin):
+                    for child in attr.children:
+                        child.cog = self
 
-                    attr.cog = self
-                    self.add_command(attr)
+                attr.cog = self
+                self.add_command(attr)
 
         self.help_command = help_command
 
