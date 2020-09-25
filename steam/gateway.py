@@ -81,7 +81,7 @@ def return_true(*_, **__) -> Literal[True]:
     return True
 
 
-def check_job_id(job_id: int) -> Callable[[], bool]:
+def check_job_id(job_id: int) -> Callable[[MsgBase], bool]:
     check = None  # needed to stop pylint thinking this is a NameError
     exec(f"def check(msg): return msg.header.job_id_target == {job_id}")
     return check
