@@ -50,6 +50,7 @@ from typing import (
     get_type_hints,
 )
 
+from chardet import detect
 from typing_extensions import Literal, get_args, get_origin
 
 from ...errors import ClientException
@@ -108,7 +109,8 @@ class Command:
         else:
             help_doc = inspect.getdoc(func)
             if isinstance(help_doc, bytes):
-                help_doc = help_doc.decode("utf-8")
+                encoding = detect(help_doc)
+                help_doc = help_doc.decode(encoding)
         self.help: Optional[str] = help_doc
 
         try:
