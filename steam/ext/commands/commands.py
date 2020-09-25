@@ -199,20 +199,19 @@ class Command:
             if isinstance(command.parent, GroupCommand):
                 yield from recursive_iter(command.parent)
 
-        return recursive_iter(self)
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
+    def __call__(self, ctx, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
         """|coro|
         Calls the internal callback that the command holds.
 
         .. note::
+
             This bypasses all mechanisms -- including checks, converters, invoke hooks, cooldowns, etc. You must take
             care to pass the proper arguments and types to this function.
         """
         if self.cog is not None:
-            return self.callback(self.cog, *args, **kwargs)
+            return self.callback(self.cog, ctx, *args, **kwargs)
         else:
-            return self.callback(*args, **kwargs)
+            return self.callback(ctx, *args, **kwargs)
 
     def error(self, func: CommandErrorFunctionType) -> CommandErrorFunctionType:
         """Register an event to handle a commands ``on_error`` functionality similarly to
