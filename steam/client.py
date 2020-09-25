@@ -35,10 +35,10 @@ import datetime
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, NoReturn, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Union, overload
 
 import aiohttp
-from typing_extensions import Literal
+from typing_extensions import Literal, Protocol
 
 from . import errors, utils
 from .abc import SteamID
@@ -71,7 +71,7 @@ __all__ = ("Client",)
 log = logging.getLogger(__name__)
 
 
-class FunctionType:
+class FunctionType(Protocol):
     """A protocol mocking some of `types.FunctionType`"""
 
     __code__: CodeType
@@ -80,11 +80,8 @@ class FunctionType:
     __name__: str
     __qualname__: str
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> NoReturn:
-        raise TypeError(f"{cls.__qualname__} cannot be instantiated")
 
-
-class EventType(FunctionType, Coroutine):
+class EventType(FunctionType, Coroutine[None, None, None]):
     __event_name__: str
 
     async def __call__(self, *args: Any, **kwargs: Any) -> None:
@@ -284,6 +281,7 @@ class Client:
         method = f"on_{event}"
 
         listeners = self._listeners.get(event)
+        # remove the dispatched listener
         if listeners:
             removed = []
             for idx, (future, condition) in enumerate(listeners):
@@ -312,6 +310,7 @@ class Client:
                 for idx in reversed(removed):
                     del listeners[idx]
 
+        # schedule the event (if possible)
         try:
             coro = getattr(self, method)
         except AttributeError:
@@ -1311,7 +1310,11 @@ class Client:
         ...
 
     def wait_for(
-        self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
+        self,
+        event: str,
+        *,
+        check: Optional[Callable[..., bool]] = None,
+        timeout: Optional[float] = None,
     ) -> asyncio.Future[Any]:
         """|coro|
         Wait for the first event to be dispatched that meets the requirements, this by default is the first event
