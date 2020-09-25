@@ -93,3 +93,6 @@ class Context(Messageable):
 
     def _get_image_endpoint(self) -> _EndPointReturnType:
         return self.channel._get_image_endpoint()
+
+    async def invoke(self) -> None:
+        await self.bot.invoke(self)
