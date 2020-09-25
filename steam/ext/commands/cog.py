@@ -34,6 +34,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
 
 from typing_extensions import Final
+from chardet import detect
 
 from ...client import EventType
 from ...utils import cached_property
@@ -135,7 +136,8 @@ class Cog:
         """Optional[:class:`str`]: The cleaned up docstring for the class."""
         help_doc = inspect.getdoc(self)
         if isinstance(help_doc, bytes):
-            return help_doc.decode("utf-8")
+            encoding = detect(help_doc)["encoding"]
+            return help_doc.decode(encoding)
 
         return help_doc
 
