@@ -100,23 +100,23 @@ class CMServer(NamedTuple):
 
 
 class ConnectionClosed(Exception):
-    def __init__(self, cm: str, cms: CMServerList):
+    def __init__(self, cm: CMServer, cms: CMServerList):
         self.cm = cm
         self.cm_list = cms
-        super().__init__(f"Connection to {self.cm}, has closed.")
+        super().__init__(f"Connection to {self.cm.url}, has closed.")
 
 
 class WebSocketClosure(Exception):
     """An exception to make up for the fact that aiohttp doesn't signal closure."""
 
 
-class CMServerList(AsyncIterator[str]):
+class CMServerList(AsyncIterator[CMServer]):
     GOOD = GoodType(True)
     BAD = BadType(False)
 
     __slots__ = ("cms", "cell_id", "_state")
 
-    def __init__(self, state: ConnectionState, first_cm_to_try: Optional[str] = None):
+    def __init__(self, state: ConnectionState, first_cm_to_try: Optional[CMServer] = None):
         super().__init__(state, None, None, None)
         self.cms: list[CMServer] = []
         self.cell_id = 0
@@ -328,7 +328,7 @@ class SteamWebSocket:
         self._keep_alive: Optional[KeepAliveHandler] = None
         # an empty dispatcher to prevent crashes
         self._dispatch = lambda *args, **kwargs: None
-        self.cm: Optional[str] = None
+        self.cm: Optional[CMServer] = None
         self.thread_id = threading.get_ident()
 
         # ws related stuff
@@ -358,13 +358,13 @@ class SteamWebSocket:
 
     @classmethod
     async def from_client(
-        cls, client: Client, cm: Optional[str] = None, cms: Optional[CMServerList] = None
+        cls, client: Client, cm: Optional[CMServer] = None, cms: Optional[CMServerList] = None
     ) -> SteamWebSocket:
         connection = client._connection
         cm_list = cms or CMServerList(connection, cm)
         async for cm in cm_list:
             log.info(f"Attempting to create a websocket connection to: {cm}")
-            socket: aiohttp.ClientWebSocketResponse = await client.http.connect_to_cm(cm)
+            socket: aiohttp.ClientWebSocketResponse = await client.http.connect_to_cm(cm.url)
             log.debug(f"Connected to {cm}")
             payload = MsgProto(
                 EMsg.ClientLogon,
