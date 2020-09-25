@@ -44,7 +44,7 @@ from typing_extensions import Literal, overload
 from ... import utils
 from ...client import Client, EventType, FunctionType, log
 from .cog import Cog, ExtensionType, InjectedListener
-from .commands import Command, GroupCommand, GroupMixin
+from .commands import Command, GroupMixin
 from .context import Context
 from .errors import CommandDisabled, CommandError, CommandNotFound
 from .help import HelpCommand
@@ -315,14 +315,11 @@ class Bot(GroupMixin, Client):
             ) from None
 
         for cog in tuple(self.__cogs__.values()):
-            if cog.__module__ == module.__file__:
+            if cog.__module__ == module.__name__:
                 self.remove_cog(cog)
 
         if hasattr(module, "teardown"):
-            try:
-                module.teardown(self)
-            except Exception:
-                pass
+            module.teardown(self)
 
         del sys.modules[extension]
         del self.__extensions__[extension]
@@ -882,7 +879,11 @@ class Bot(GroupMixin, Client):
         ...
 
     def wait_for(
-        self, event: str, *, check: Optional[Callable[..., bool]] = None, timeout: Optional[float] = None
+        self,
+        event: str,
+        *,
+        check: Optional[Callable[..., bool]] = None,
+        timeout: Optional[float] = None,
     ) -> asyncio.Future[Any]:
         return super().wait_for(event, check=check, timeout=timeout)
 
