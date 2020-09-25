@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.9.0-rc.1]
+        python-version: [3.7, 3.8, 3.9.0-rc.1]
 
     steps:
     - uses: actions/checkout@v2
@@ -31,3 +31,4 @@ jobs:
         SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
         IDENTITY_SECRET: ${{ secrets.STEAM_IDENTITY_SECRET }}
       run: python3 tests -t
+      timeout-minutes: 30
