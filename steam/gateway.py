@@ -262,8 +262,6 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                     return self.stop()
 
             log.debug(self.msg.format(self.heartbeat))
-            if self.ws.loop.is_closed():  # FIXME this is not great
-                return
             coro = self.ws.send_as_proto(self.heartbeat)
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
             # block until sending is complete
@@ -271,7 +269,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
             while 1:
                 try:
                     f.result(timeout=10)
-                except concurrent.futures.TimeoutError:
+                except asyncio.TimeoutError:
                     total += 10
                     try:
                         frame = sys._current_frames()[self._main_thread_id]
@@ -430,11 +428,12 @@ class SteamWebSocket:
         self._dispatch("socket_receive", msg)
 
         try:
-            func = self._parsers[emsg]
+            event_parser = self.parsers[emsg]
         except KeyError:
             log.debug(f"Ignoring event {msg!r}")
         else:
-            await utils.maybe_coroutine(func, self._connection, msg)
+            self_ = self if event_parser.__module__ == __name__ else self._connection
+            await utils.maybe_coroutine(event_parser, self_, msg)
 
         # remove the dispatched listener
         removed = []

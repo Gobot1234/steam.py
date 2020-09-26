@@ -120,7 +120,6 @@ class ConnectionState:
     parsers: dict[EMsg, EventParser] = dict()  # for @register
 
     __slots__ = (
-        "loop",
         "http",
         "request",
         "client",
@@ -153,8 +152,7 @@ class ConnectionState:
         "_force_kick",
     )
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, client: Client, http: HTTPClient, **kwargs: Any):
-        self.loop = loop
+    def __init__(self, client: Client, http: HTTPClient, **kwargs: Any):
         self.http = http
         self.request = http.request
         self.client = client
@@ -216,6 +214,10 @@ class ConnectionState:
     @property
     def ws(self) -> SteamWebSocket:
         return self.client.ws
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        return self.client.loop
 
     @property
     def users(self) -> list[User]:
@@ -661,7 +663,7 @@ class ConnectionState:
         cms = msg.body.cm_websocket_addresses
         self.ws.cm_list.clear()
         self.ws.cm_list.merge_list(cms)
-        self.loop.create_task(self.ws.cm_list.ping_cms(to_ping=len(cms)))
+        self.client.loop.create_task(self.ws.cm_list.ping_cms(to_ping=len(cms)))
         # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)
@@ -789,7 +791,7 @@ class ConnectionState:
 
                 if self._trades_task is None or self._trades_task.done():
                     await self._poll_trades()
-                    self._trades_task = self.loop.create_task(poll_trades())  # watch trades for changes
+                    self._trades_task = self.client.loop.create_task(poll_trades())  # watch trades for changes
         if msg.body:
             await self.http.clear_notifications()
 

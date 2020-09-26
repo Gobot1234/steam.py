@@ -88,32 +88,6 @@ class EventType(FunctionType, Coroutine[None, None, None]):
         ...
 
 
-def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
-    tasks = asyncio.all_tasks(loop=loop)
-
-    if not tasks:
-        return
-
-    log.info(f"Cleaning up after {len(tasks)} tasks.")
-    for task in tasks:
-        task.cancel()
-
-    loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-    log.info("All tasks finished cancelling.")
-
-    for task in tasks:
-        if task.cancelled():
-            continue
-        if task.exception() is not None:
-            loop.call_exception_handler(
-                {
-                    "message": "unhandled exception during Client.run shutdown.",
-                    "exception": task.exception(),
-                    "task": task,
-                }
-            )
-
-
 class ClientEventTask(asyncio.Task):
     def __init__(self, original_coro: EventType, event_name: str, coro: Coroutine[None, None, None]):
         super().__init__(coro)
@@ -136,9 +110,6 @@ class Client:
 
     Parameters
     ----------
-    loop: Optional[:class:`asyncio.AbstractEventLoop`]
-        The :class:`asyncio.AbstractEventLoop` used for asynchronous operations. Defaults to ``None``, in which case the
-        default event loop is used via :func:`asyncio.get_event_loop()`.
     game: :class:`~steam.Game`
         A games to set your status as on connect.
     games: list[:class:`~steam.Game`]
@@ -157,17 +128,18 @@ class Client:
 
     Attributes
     -----------
-    loop: :class:`asyncio.AbstractEventLoop`
-        The event loop that the client uses for HTTP requests.
     ws:
         The connected websocket/CM server, this can be used to directly send messages to said CM.
     """
 
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
-        self.loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
+        if loop:
+            import warnings
 
+            warnings.warn("The loop argument is deprecated and scheduled for removal in V.1", DeprecationWarning)
+            # now filled in start
         self.http = HTTPClient(client=self)
-        self._connection = ConnectionState(loop=self.loop, client=self, http=self.http, **options)
+        self._connection = ConnectionState(client=self, http=self.http, **options)
         self.ws: Optional[SteamWebSocket] = None
 
         self.username: Optional[str] = None
@@ -341,11 +313,6 @@ class Client:
             This takes the same arguments as :meth:`start`.
         """
 
-        # TODO use asyncio.run needs some asyncio wizardry doing with KeepAliveHandler and asyncio.run_coro_threadsafe
-        # but it will clean up this a lot and allows for stuff like loop.shutdown_default_executor to be called
-
-        loop = self.loop
-
         async def runner() -> None:
             try:
                 await self.start(*args, **kwargs)
@@ -354,17 +321,9 @@ class Client:
                     await self.close()
 
         try:
-            loop.run_until_complete(runner())
+            asyncio.run(runner())
         except KeyboardInterrupt:
-            log.info("Received signal to terminate the client and event loop.")
-        finally:
-            log.info("Cleaning up tasks.")
-            try:
-                _cancel_tasks(loop)
-                loop.run_until_complete(loop.shutdown_asyncgens())
-            finally:
-                log.info("Closing the event loop.")
-                loop.close()
+            log.info("Closing the event loop")
 
     async def login(self, username: str, password: str, *, shared_secret: Optional[str] = None) -> None:
         """|coro|
@@ -407,8 +366,8 @@ class Client:
         if self.is_closed():
             return
 
-        await self.http.close()
         self._closed = True
+        await self.http.close()
 
         if self.ws is not None:
             try:
@@ -459,6 +418,8 @@ class Client:
         :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """
+        self.loop = asyncio.get_event_loop()
+
         self.username = username
         self.password = password
         self.shared_secret = shared_secret

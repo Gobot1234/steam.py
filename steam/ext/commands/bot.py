@@ -169,9 +169,6 @@ class Bot(GroupMixin, Client):
     case_insensitive: :class:`bool`
         Whether or not to use CaseInsensitiveDict for registering commands.
 
-    loop: Optional[:class:`asyncio.AbstractEventLoop`]
-        The :class:`asyncio.AbstractEventLoop` used for asynchronous operations. Defaults to ``None``, in which case the
-        default event loop is used via :func:`asyncio.get_event_loop()`.
     game: :class:`~steam.Game`
         A games to set your status as on connect.
     games: list[:class:`~steam.Game`]
@@ -190,8 +187,6 @@ class Bot(GroupMixin, Client):
 
     Attributes
     -----------
-    loop: :class:`asyncio.AbstractEventLoop`
-        The event loop that the client uses for HTTP requests.
     ws:
         The connected websocket, this can be used to directly send messages
         to the connected CM.
