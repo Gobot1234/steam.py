@@ -517,13 +517,13 @@ class Bot(GroupMixin, Client):
 
         lex = Shlex(content)
         invoked_with = lex.read()
-        commands = self.__commands__.get(invoked_with)
-        if isinstance(commands, Command):
+        command = self.__commands__.get(invoked_with)
+        if isinstance(command, Command):
             for argument in lex:
-                if isinstance(commands, GroupMixin):
-                    new_commands = commands.__commands__.get(argument)
+                if isinstance(command, GroupMixin):
+                    new_commands = command.__commands__.get(argument)
                     if new_commands is not None:
-                        commands = new_commands
+                        command = new_commands
                         continue
                 lex.undo()
                 break
@@ -533,7 +533,7 @@ class Bot(GroupMixin, Client):
                 shlex=lex,
                 prefix=prefix,
                 invoked_with=invoked_with,
-                command=commands,
+                command=command,
             )
         return cls(bot=self, message=message, shlex=lex, prefix=prefix, invoked_with=invoked_with)
 

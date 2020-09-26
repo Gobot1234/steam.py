@@ -152,7 +152,7 @@ class Command:
     @callback.setter
     def callback(self, function: CommandFunctionType) -> None:
         if not asyncio.iscoroutinefunction(function):
-            raise TypeError(f"Callback for command {function.__name__} must be a coroutine.")
+            raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine.")
 
         module = sys.modules[function.__module__]
 
