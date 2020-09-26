@@ -314,7 +314,7 @@ class Bot(GroupMixin, Client):
                 f"The extension {extension!r} was not found", name=extension, path=extension
             ) from None
 
-        for cog in tuple(self.__cogs__.values()):
+        for cog in tuple(self.cogs.values()):
             if cog.__module__ == module.__name__:
                 self.remove_cog(cog)
 
