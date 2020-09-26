@@ -173,8 +173,8 @@ class Command:
 
     @cached_property
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
-        """:class:`OrderedDict[:class:`str`, :class:`inspect.Parameter`]`:
-        The command's parameters without "self" and "ctx"."""
+        """:class:`OrderedDict`[:class:`str`, :class:`inspect.Parameter`]:
+        The command's parameters without `"self"` and `"ctx"`."""
         params = self.params.copy()
         if self.cog is not None:
             try:
