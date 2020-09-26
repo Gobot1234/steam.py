@@ -255,11 +255,9 @@ class Command:
                         lex.undo()  # undo last read string for the next argument
                         args.append(tuple(greedy_args))
                         break
-
-                    greedy_args.append(transformed) if is_greedy else args.append(transformed)
+                    args.append(transformed) if not is_greedy else greedy_args.append(transformed)
                 if args == original_args:  # no args were added so lex was empty
                     args.append(await self._get_default(ctx, param))
-
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
                 arg = " ".join(lex)
@@ -291,7 +289,6 @@ class Command:
                         }
                     )
                 break
-
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
                 for arg in lex:
