@@ -24,12 +24,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from __future__ import annotations
+
 import re
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
 
-from typing_extensions import Final
+from typing_extensions import Final, Protocol
 from yarl import URL as _URL
+
+if TYPE_CHECKING:
+    from types import CodeType
+
+    from .protobufs import EMsg, MsgProto
 
 __all__ = (
     "PriceOverview",
@@ -56,6 +63,39 @@ class URL:
     API: Final[_URL] = _URL("https://api.steampowered.com")
     COMMUNITY: Final[_URL] = _URL("https://steamcommunity.com")
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
+
+
+class FunctionType(Protocol):
+    """A protocol mocking some of `types.FunctionType`"""
+
+    __code__: CodeType
+    __annotations__: dict[str, Any]
+    __globals__: dict[str, Any]
+    __name__: str
+    __qualname__: str
+
+
+class EventParser(FunctionType):
+    def __call__(self, cls: type, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
+        ...
+
+
+class Registerer:
+    __slots__ = ("func", "emsg")
+
+    def __init__(self, func: EventParser, emsg: EMsg):
+        self.func = func
+        self.emsg = emsg
+
+    def __set_name__(self, cls: type, _) -> None:
+        cls.parsers[self.emsg] = self.func
+
+
+def register(emsg: EMsg) -> Callable[[EventParser], Registerer]:
+    def decorator(func: EventParser) -> Registerer:
+        return Registerer(func, emsg)
+
+    return decorator
 
 
 PRICE_REGEX = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")

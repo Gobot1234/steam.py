@@ -53,6 +53,7 @@ from .enums import EPersonaState, EResult
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .protobufs import EMsg, Msg, MsgBase, MsgProto
+from .models import register
 
 if TYPE_CHECKING:
     from .client import Client
@@ -297,6 +298,8 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
 
 class SteamWebSocket:
+    parsers: dict[EMsg, EventParser] = dict()
+
     __slots__ = (
         "socket",
         "loop",
@@ -305,13 +308,10 @@ class SteamWebSocket:
         "session_id",
         "thread_id",
         "listeners",
-        "connected",
         "steam_id",
-        "handlers",
         "_connection",
         "_dispatch",
         "_current_job_id",
-        "_parsers",
         "_keep_alive",
     )
 
@@ -320,7 +320,7 @@ class SteamWebSocket:
         self.loop = loop
 
         # state stuff
-        self._connection: Optional["ConnectionState"] = None
+        self._connection: Optional[ConnectionState] = None
         self.cm_list: Optional[CMServerList] = None
         # the keep alive
         self._keep_alive: Optional[KeepAliveHandler] = None
@@ -331,17 +331,10 @@ class SteamWebSocket:
 
         # ws related stuff
         self.listeners: list[EventListener] = []
-        self._parsers: dict[EMsg, EventParser] = dict()
 
-        self.connected = False
         self.session_id = 0
         self.steam_id = 0
         self._current_job_id = 0
-
-        self.handlers = {
-            EMsg.Multi: self.handle_multi,
-            EMsg.ClientLogOnResponse: self.handle_logon,
-        }
 
     @property
     def latency(self) -> float:
@@ -377,12 +370,11 @@ class SteamWebSocket:
             ws = cls(socket, loop=client.loop)
             # dynamically add attributes needed
             ws._connection = connection
-            ws._parsers = connection.parsers
+            ws.parsers.update(connection.parsers)
             ws._dispatch = client.dispatch
             ws.steam_id = client.user.id64
             ws.cm = cm
             ws.cm_list = cm_list
-            ws.connected = True
             await ws.send_as_proto(payload)  # send the identification message straight away
             ws._dispatch("connect")
             return ws
@@ -408,13 +400,7 @@ class SteamWebSocket:
 
         emsg_value = struct.unpack_from("<I", message)[0]
         emsg = EMsg(utils.clear_proto_bit(emsg_value))
-        if emsg in self.handlers:
-            msg = MsgProto(emsg, message)
-            self._dispatch("socket_receive", msg)
-            return await self.handlers[emsg](msg)
 
-        if not self.connected:
-            return log.debug(f"Dropped unexpected message: {emsg} {message!r}")
         try:
             msg = MsgProto(emsg, message) if utils.is_proto(emsg_value) else Msg(emsg, message, extended=True)
             log.debug(f"Socket has received {msg!r} from the websocket.")
@@ -471,11 +457,12 @@ class SteamWebSocket:
         await self.send(bytes(message))
 
     async def close(self, code: int = 4000) -> None:
-        if self.connected:
-            await self.send_as_proto(MsgProto(EMsg.ClientLogOff))
-        await self.socket.close(code=code)
+        message = MsgProto(EMsg.ClientLogOff)
+        message.steam_id = self.steam_id
+        message.session_id = self.session_id
+        await self.socket.close(code=code, message=bytes(message))
 
-    async def handle_close(self) -> None:
+    async def handle_close(self) -> None:  # TODO make this a parser
         if not self.socket.closed:
             await self.close()
             self.cm_list.queue.pop()  # pop the disconnected cm
@@ -485,6 +472,7 @@ class SteamWebSocket:
         log.info(f"Websocket closed, cannot reconnect.")
         raise ConnectionClosed(self.cm, self.cm_list)
 
+    @register(EMsg.ClientLogOnResponse)
     async def handle_logon(self, msg: MsgProto[CMsgClientLogonResponse]) -> None:
         if msg.body.eresult == EResult.OK:
             log.debug("Logon completed")
@@ -512,6 +500,7 @@ class SteamWebSocket:
             await http.login(http.username, http.password, shared_secret=http.shared_secret)
         await self.handle_close()
 
+    @register(EMsg.Multi)
     async def handle_multi(self, msg: MsgProto[CMsgMulti]) -> None:
         log.debug("Received a multi, unpacking")
         if msg.body.size_unzipped:

@@ -35,11 +35,10 @@ from collections import deque
 from copy import copy
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Deque, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
 
 from bs4 import BeautifulSoup
 from stringcase import snakecase
-from typing_extensions import Protocol
 
 from . import utils
 from .abc import SteamID, UserDict
@@ -52,7 +51,7 @@ from .guard import *
 from .invite import ClanInvite, UserInvite
 from .message import *
 from .message import ClanMessage
-from .models import community_route
+from .models import EventParser, community_route, register
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_chat import (
     CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
@@ -86,34 +85,6 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo
 
 log = logging.getLogger(__name__)
-
-
-class EventParser(Protocol):
-    def __call__(self, state: ConnectionState, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
-        ...
-
-
-class Registerer:
-    __slots__ = ("func", "emsg", "_state")
-
-    def __init__(self, func: EventParser, emsg: EMsg):
-        self.func = func
-        self.emsg = emsg
-        self._state: ConnectionState
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Optional[Coroutine[None, None, None]]:
-        return self.func(self._state, *args, **kwargs)
-
-    def __set_name__(self, state: ConnectionState, _) -> None:
-        state.parsers[self.emsg] = self.func
-        self._state = state
-
-
-def register(emsg: EMsg) -> Callable[[EventParser], Registerer]:
-    def decorator(func: EventParser) -> Registerer:
-        return Registerer(func, emsg)
-
-    return decorator
 
 
 class ConnectionState:

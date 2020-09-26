@@ -38,7 +38,7 @@ import traceback
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Union, overload
 
 import aiohttp
-from typing_extensions import Literal, Protocol
+from typing_extensions import Literal
 
 from . import errors, utils
 from .abc import SteamID
@@ -46,12 +46,10 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .models import PriceOverview, community_route
+from .models import FunctionType, PriceOverview, community_route
 from .state import ConnectionState
 
 if TYPE_CHECKING:
-    from types import CodeType
-
     import steam
 
     from .abc import Message
@@ -69,16 +67,6 @@ if TYPE_CHECKING:
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
-
-
-class FunctionType(Protocol):
-    """A protocol mocking some of `types.FunctionType`"""
-
-    __code__: CodeType
-    __annotations__: dict[str, Any]
-    __globals__: dict[str, Any]
-    __name__: str
-    __qualname__: str
 
 
 class EventType(FunctionType, Coroutine[None, None, None]):
