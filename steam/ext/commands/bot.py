@@ -469,7 +469,7 @@ class Bot(GroupMixin, Client):
         if not ctx.prefix:
             return
         if ctx.command is None:
-            raise CommandNotFound(f"The command {ctx.invoked_with} was not found")
+            raise CommandNotFound(f"The command {ctx.invoked_with!r} was not found")
         try:
             command = ctx.command
 
@@ -522,8 +522,8 @@ class Bot(GroupMixin, Client):
             return cls(message=message, prefix=prefix, bot=self)
 
         lex = Shlex(content)
-        commands = self.__commands__.get(lex.read())
-        invoked_with = lex.in_stream[lex.position :]
+        invoked_with = lex.read()
+        commands = self.__commands__.get(invoked_with)
         if isinstance(commands, Command):
             for argument in lex:
                 if isinstance(commands, GroupMixin):
