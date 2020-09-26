@@ -36,7 +36,7 @@ from .enums import EResult
 if TYPE_CHECKING:
     from aiohttp import ClientResponse
 
-    from .protobufs import MsgProto
+    from .protobufs import MsgBase
 
 
 __all__ = (
@@ -145,7 +145,7 @@ class WSException(SteamException):
         for the value.
     """
 
-    def __init__(self, msg: MsgProto):
+    def __init__(self, msg: MsgBase):
         self.msg = msg
         self.code = EResult.try_value(msg.header.eresult)
         self.message = getattr(msg.header, "error_message", None)
