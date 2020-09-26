@@ -196,10 +196,11 @@ class Command:
     def parents(self) -> Generator[Command, None, None]:
         """Iterator[:class:`Command`]: A generator returning the command's parents."""
         command = self
-        while command.parent is not None:
+        while command is not None:
+            if not isinstance(command, Command):
+                break
             yield command
             command = command.parent
-        yield command
 
     def __call__(self, ctx, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
         """|coro|
@@ -408,7 +409,7 @@ class GroupMixin:
             The command to register.
         """
         if not isinstance(command, Command):
-            raise TypeError("Commands should derive from commands.Command")
+            raise TypeError("command should derive from commands.Command")
 
         if command.name in self.__commands__:
             raise ClientException(f"The command {command.name} is already registered.")
@@ -416,7 +417,7 @@ class GroupMixin:
         if isinstance(self, Command):
             command.parent = self
 
-        if isinstance(command.parent, GroupCommand):
+        if isinstance(command.parent, GroupMixin):
             if command.parent is not self:
                 return command.parent.add_command(command)
 
