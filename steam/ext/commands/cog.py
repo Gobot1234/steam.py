@@ -33,8 +33,8 @@ import traceback
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
 
-from typing_extensions import Final
 from chardet import detect
+from typing_extensions import Final
 
 from ...client import EventType
 from ...utils import cached_property

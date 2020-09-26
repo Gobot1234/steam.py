@@ -30,16 +30,7 @@ import itertools
 import re
 from collections import deque
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Coroutine,
-    Generic,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generic, Optional, TypeVar, Union
 
 from bs4 import BeautifulSoup
 
