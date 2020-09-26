@@ -84,6 +84,7 @@ Command Parsing
 ----------------------
 
 steam.py offers multiple ways to parse commands.
+
 .. TODO type hinting section.
 
 Positional or Keyword
@@ -242,7 +243,7 @@ Exceptions
 
 
 Exception Hierarchy
-+++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~
 
 .. exception_hierarchy::
 
