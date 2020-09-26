@@ -12,10 +12,12 @@ A basic wrapper for the Steam API and its Community Managers.
 __title__ = "steam"
 __author__ = "Gobot1234"
 __license__ = "MIT"
-__version__ = "0.4.2"
+__version__ = "0.5.0"
 
 import logging
 from typing import NamedTuple
+
+from typing_extensions import Literal
 
 from . import abc, guard, utils
 from .abc import *
@@ -41,12 +43,12 @@ class VersionInfo(NamedTuple):
     major: int
     minor: int
     micro: int
-    releaselevel: str
+    releaselevel: Literal["alpha", "beta", "candidate", "final"]
 
 
-version_info = VersionInfo(major=0, minor=4, micro=2, releaselevel="full")
+version_info = VersionInfo(major=0, minor=5, micro=0, releaselevel="alpha")
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 # not for export
-del logging, NamedTuple, VersionInfo
+del logging, NamedTuple, Literal, VersionInfo
