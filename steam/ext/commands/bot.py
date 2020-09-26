@@ -188,8 +188,7 @@ class Bot(GroupMixin, Client):
     Attributes
     -----------
     ws:
-        The connected websocket, this can be used to directly send messages
-        to the connected CM.
+        The connected websocket, this can be used to directly send messages to the connected CM.
     """
 
     __cogs__: dict[str, Cog] = dict()

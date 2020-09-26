@@ -88,7 +88,7 @@ log = logging.getLogger(__name__)
 
 
 class ConnectionState:
-    parsers: dict[EMsg, EventParser] = dict()  # for @register
+    parsers: dict[EMsg, EventParser] = dict()
 
     __slots__ = (
         "http",
@@ -160,7 +160,7 @@ class ConnectionState:
         self._clans: dict[int, Clan] = dict()
         self._confirmations: dict[str, Confirmation] = dict()
         self._confirmations_to_ignore: list[str] = []
-        self._messages: Deque[Message] = self.max_messages and deque(maxlen=self.max_messages)
+        self._messages: deque[Message] = self.max_messages and deque(maxlen=self.max_messages)
         self.invites: dict[int, Union[UserInvite, ClanInvite]] = dict()
 
         self._trades_task: Optional[asyncio.Task] = None
