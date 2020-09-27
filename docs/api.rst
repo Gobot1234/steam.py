@@ -17,7 +17,7 @@ Version Related Info
     A string representation of the version. e.g. ``'0.1.3'``. This is based off of :pep:`440`.
 
 Client
----------------
+------
 
 .. autoclass:: Client
     :members:

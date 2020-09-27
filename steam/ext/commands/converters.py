@@ -81,14 +81,17 @@ class Converter(Protocol):
 
         # invoked as
         # !command 76561198248053954
-        # or !command "Gobot1234"
+        # or !command Gobot1234
 
     A custom converter: ::
 
         class ImageConverter:
             async def convert(self, ctx: 'commands.Context', argument: str):
+                search = re.search(r'\[url=(.*)\], argument)
+                if search is None:
+                    raise commands.BadArgument(f'{argument} is not a recognised image')
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(argument) as r:
+                    async with session.get(search.group(1)) as r:
                         image_bytes = await r.read()
                 try:
                     return steam.Image(image_bytes)
@@ -103,7 +106,7 @@ class Converter(Protocol):
             await ctx.send('👌')
 
         # invoked as
-        # !set_avatar "my image url"
+        # !set_avatar https://my_image_url.com
     """
 
     @abstractmethod

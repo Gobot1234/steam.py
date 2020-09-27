@@ -143,12 +143,12 @@ class Cog:
 
     @property
     def commands(self) -> set[Command]:
-        """set[:class:`Command`]: A list of the loaded commands."""
+        """set[:class:`Command`]: A set of the :class:`Cog`'s commands."""
         return set(self.__commands__.values())
 
     @classmethod
     def listener(cls, name: Optional[str] = None) -> Callable[[EventType], EventType]:
-        """Register a function as a listener.
+        """A decorator that registers a :ref:`coroutine <coroutine>` as a listener.
         Similar to :meth:`~steam.ext.commands.Bot.listen`
 
         Parameters

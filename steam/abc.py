@@ -807,7 +807,7 @@ class Message:
         self.clan: Optional[Clan] = channel.clan
         self.content: str = _clean_up_content(proto.message)
         self.clean_content: str = proto.message_no_bbcode or self.content
-        self.author: "User"
+        self.author: User
         self.created_at: datetime
 
     def __repr__(self) -> str:

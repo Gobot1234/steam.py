@@ -49,11 +49,11 @@ Enumerations
 Command
 --------
 
-.. autofunction:: steam.ext.commands.command
+.. autodecorator:: steam.ext.commands.command
 
-.. autofunction:: steam.ext.commands.group
+.. autodecorator:: steam.ext.commands.group
 
-.. autofunction:: steam.ext.commands.cooldown
+.. autodecorator:: steam.ext.commands.cooldown
 
 .. autoclass:: steam.ext.commands.Command
     :members:
@@ -106,8 +106,8 @@ An invocation of ``!command some string`` would pass ``"some"`` to ``argument_1`
 Variadic Positional
 ~~~~~~~~~~~~~~~~~~~~~
 
-- Values are passed as a :class:`tuple` of positional arguments that can be indefinitely long. This corresponds to a
-  `*args` parameter in a function definition.
+- Values are passed as a :class:`tuple` of positional arguments that can be indefinitely long. This corresponds to an
+  ``*args`` parameter in a function definition.
 
 Example:
 
@@ -177,38 +177,38 @@ An invocation of ``!command some string=long`` would pass ``"some"`` to ``argume
 Converters
 -----------
 
-.. autoclass:: steam.ext.commands.Converter
+.. autoclass:: steam.ext.commands.Converter()
 
-.. autoclass:: steam.ext.commands.UserConverter
+.. autoclass:: steam.ext.commands.UserConverter()
 
-.. autoclass:: steam.ext.commands.ChannelConverter
+.. autoclass:: steam.ext.commands.ChannelConverter()
 
-.. autoclass:: steam.ext.commands.ClanConverter
+.. autoclass:: steam.ext.commands.ClanConverter()
 
-.. autoclass:: steam.ext.commands.GroupConverter
+.. autoclass:: steam.ext.commands.GroupConverter()
 
-.. autoclass:: steam.ext.commands.GameConverter
+.. autoclass:: steam.ext.commands.GameConverter()
 
 
 Default Values
 ---------------
 
-.. autoclass:: steam.ext.commands.Default
+.. autoclass:: steam.ext.commands.Default()
 
-.. autoclass:: steam.ext.commands.DefaultAuthor
+.. autoclass:: steam.ext.commands.DefaultAuthor()
 
-.. autoclass:: steam.ext.commands.DefaultChannel
+.. autoclass:: steam.ext.commands.DefaultChannel()
 
-.. autoclass:: steam.ext.commands.DefaultClan
+.. autoclass:: steam.ext.commands.DefaultClan()
 
-.. autoclass:: steam.ext.commands.DefaultGroup
+.. autoclass:: steam.ext.commands.DefaultGroup()
 
-.. autoclass:: steam.ext.commands.DefaultGame
+.. autoclass:: steam.ext.commands.DefaultGame()
 
 Greedy
 -------
 
-.. autoclass:: steam.ext.commands.Greedy
+.. autoclass:: steam.ext.commands.Greedy()
 
 
 Exceptions
@@ -247,7 +247,7 @@ Exception Hierarchy
 
 .. exception_hierarchy::
 
-    - :exc:`~.SteamException`
+    - :exc:`steam.SteamException`
         - :exc:`~.commands.CommandError`
             - :exc:`~.commands.BadArgument`
                 - :exc:`~.commands.MissingRequiredArgument`

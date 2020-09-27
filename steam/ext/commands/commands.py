@@ -173,8 +173,9 @@ class Command:
 
     @cached_property
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
-        """:class:`OrderedDict`[:class:`str`, :class:`inspect.Parameter`]:
-        The command's parameters without `"self"` and `"ctx"`."""
+        """
+        OrderedDict[:class:`str`, :class:`inspect.Parameter`]: The command's parameters without `"self"` and `"ctx"`.
+        """
         params = self.params.copy()
         if self.cog is not None:
             try:
@@ -194,7 +195,7 @@ class Command:
 
     @property
     def parents(self) -> Generator[Command, None, None]:
-        """Iterator[:class:`Command`]: A generator returning the command's parents."""
+        """Iterator[:class:`Command`]: The command's parents."""
         command = self
         while command is not None:
             if not isinstance(command, Command):
@@ -217,8 +218,8 @@ class Command:
             return self.callback(ctx, *args, **kwargs)
 
     def error(self, func: CommandErrorFunctionType) -> CommandErrorFunctionType:
-        """Register an event to handle a commands ``on_error`` functionality similarly to
-        :meth:`steam.ext.commands.Bot.on_command_error`.
+        """A decorator that registers a :ref:`coroutine <coroutine>` to handle a commands ``on_error`` functionality
+        similarly to :meth:`steam.ext.commands.Bot.on_command_error`.
 
         Example: ::
 
@@ -397,7 +398,7 @@ class GroupMixin:
 
     @property
     def commands(self) -> set[Command]:
-        """set[:class:`Command`]: A list of the loaded commands."""
+        """set[:class:`Command`]: A set of the loaded commands."""
         return set(self.__commands__.values())
 
     def add_command(self, command: Command) -> None:
@@ -484,7 +485,9 @@ class GroupMixin:
         return command
 
     def command(self, *args, **kwargs) -> Callable[[CommandFunctionType], Command]:
-        """A shortcut decorator that invokes :func:`command` and adds it to the internal command list."""
+        """
+        A decorator that invokes :func:`command` and adds the created :class:`Command` to the internal command list.
+        """
 
         def decorator(func: CommandFunctionType) -> Command:
             try:
@@ -498,7 +501,9 @@ class GroupMixin:
         return decorator
 
     def group(self, *args, **kwargs) -> Callable[[CommandFunctionType], GroupCommand]:
-        """A shortcut decorator that invokes :func:`group` and adds it to the internal command list."""
+        """
+        A decorator that invokes :func:`group` and adds the created :class:`GroupCommand` to the internal command list.
+        """
 
         def decorator(func: CommandFunctionType) -> GroupCommand:
             try:
@@ -513,6 +518,7 @@ class GroupMixin:
 
     @property
     def children(self) -> Generator[Command, None, None]:
+        """Iterator[:class:`Command`]: The commands children."""
         for command in self.commands:
             yield command
             if isinstance(command, GroupCommand):
@@ -537,11 +543,11 @@ class GroupCommand(GroupMixin, Command):
 def command(
     name: Optional[str] = None, cls: type[Command] = Command, **attrs: Any
 ) -> Callable[[CommandFunctionType], Command]:
-    """Register a coroutine as a :class:`Command`.
+    """A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`Command`.
 
     Parameters
     ----------
-    name: :class:`str`
+    name: Optional[:class:`str`]
         The name of the command. Will default to ``func.__name__``.
     cls: type[:class:`Command`]
         The class to construct the command from. Defaults to :class:`Command`.
@@ -560,11 +566,11 @@ def command(
 def group(
     name: Optional[str] = None, cls: type[GroupCommand] = GroupCommand, **attrs: Any
 ) -> Callable[[CommandFunctionType], GroupCommand]:
-    """Register a coroutine as a :class:`GroupCommand`.
+    """A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`GroupCommand`.
 
     Parameters
     ----------
-    name: :class:`str`
+    name: Optional[:class:`str`]
         The name of the command. Will default to ``func.__name__``.
     cls: type[:class:`GroupCommand`]
         The class to construct the command from. Defaults to :class:`GroupCommand`.
@@ -580,22 +586,28 @@ def group(
     return decorator
 
 
-def check(predicate: CheckType) -> CommandDeco:  # TODO better docs
+def check(predicate: CheckType) -> CommandDeco:
     """
     A decorator that registers a function that *could be a* |coroutine_link|_. to a command.
 
     They should take a singular argument representing the :class:`~steam.ext.commands.Context` for the message.
 
-    Examples
-    ---------
+    Usage::
 
-    def is_mod(ctx):
-        return ctx.author in ctx.clan.mods
+        def is_mod(ctx):
+            return ctx.author in ctx.clan.mods
 
-    @commands.check(is_mod)
-    @bot.command()
-    async def kick(ctx, user: steam.User):
-        # implementation here
+        @commands.check(is_mod)
+        @bot.command()
+        async def kick(ctx, user: steam.User):
+            # implementation here
+
+    This will raise an :exc:`steam.ext.commands.CheckFailure` if the user is not an a mod in the clan.
+
+    Attributes
+    ----------
+    predicate: Callable[[:class:`Context`], Awaitable[bool]
+        The predicate, this will always be a wrapped in a :ref:`coroutine <coroutine>`
     """
 
     def decorator(func: MaybeCommand) -> MaybeCommand:
@@ -639,7 +651,7 @@ def is_owner() -> CommandDeco:
 
 
 def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> CommandDeco:
-    """Mark a :class:`Command`'s cooldown.
+    """Give a :class:`Command`'s a cooldown.
 
     Parameters
     ----------
@@ -650,6 +662,17 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
         The amount of time to wait between cooldowns.
     type: :class:`.BucketType`
         The :class:`.BucketType` that the cooldown applies to.
+
+    Examples
+    --------
+    Usage::
+
+        @commands.cooldown(rate=1, per=10, commands.BucketType.User)
+        @bot.command()
+        async def once_every_ten_seconds(ctx):
+            ...
+
+    This can only be invoked a user every ten seconds.
     """
 
     def decorator(func: MaybeCommand) -> MaybeCommand:

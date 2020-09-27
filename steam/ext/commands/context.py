@@ -95,4 +95,11 @@ class Context(Messageable):
         return self.channel._get_image_endpoint()
 
     async def invoke(self) -> None:
+        """|coro|
+        A shortcut method that invokes the current context using :meth:`steam.commands.Bot.invoke`.
+
+        Equivalent to::
+
+            await ctx.bot.invoke(ctx)
+        """
         await self.bot.invoke(self)

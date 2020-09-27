@@ -400,7 +400,7 @@ class TradeOffer:
          The offer message to send with the trade.
 
     Attributes
-    -------------
+    ----------
     partner: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The trade offer partner. This should only ever be a :class:`~steam.SteamID` if the partner's profile is private.
     items_to_send: Union[list[:class:`Item`]]

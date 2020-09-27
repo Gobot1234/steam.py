@@ -46,17 +46,29 @@ T_Bucket = TypeVar("T_Bucket", Tuple[int, ...], int)
 
 class BucketType(IntEnum):
     # fmt: off
-    Default = 0
-    User    = 1
-    Member  = 2
-    Group   = 3
-    Clan    = 4
-    Role    = 5
-    Channel = 6
-    Officer = 7
+    Default = 0  #: The default :class:`BucketType`
+    User    = 1  #: The :class:`BucketType` for a :class:`steam.User`
+    Member  = 2  #: The :class:`BucketType` for a :class:`steam.User`
+    Group   = 3  #: The :class:`BucketType` for a :class:`steam.User` in a :class:`steam.Clan` or a :class:`steam.Group`
+    Clan    = 4  #: The :class:`BucketType` for a :class:`steam.Clan`
+    Role    = 5  #: The :class:`BucketType` for a :class:`steam.Role`
+    Channel = 6  #: The :class:`BucketType` for a :class:`steam.Channel`
+    Admin = 7  #: The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`
     # fmt: on
 
     def get_bucket(self, message_or_context: Union[Message, Context]) -> T_Bucket:
+        """Get a bucket for a message or context.
+
+        Parameters
+        ----------
+        message_or_context: Union[:class:`steam.Message`, :class:`steam.ext.commands.Context`]
+            The message or context to get the bucket for.
+
+        Returns
+        -------
+        Union[:class:`int`, tuple[:class:`int`, ...]]
+            The key for the bucket.
+        """
         ctx = message_or_context
         if self == BucketType.Default:
             return 0
@@ -67,13 +79,13 @@ class BucketType(IntEnum):
         elif self == BucketType.Group:
             return (ctx.group or ctx.author).id
         elif self == BucketType.Role:
-            raise NotImplementedError  # soon :tm:
+            return (ctx.clan and ctx.author.top_role.id), ctx.author.id
         elif self == BucketType.Clan:
             return (ctx.clan or ctx.author).id
         elif self == BucketType.Channel:
             return (ctx.channel or ctx.author).id
-        elif self == BucketType.Officer:
-            raise NotImplementedError  # soon :tm:
+        elif self == BucketType.Admin:
+            return (ctx.clan and (ctx.author in ctx.clan.admins)), ctx.author.id
 
 
 class Cooldown:

@@ -248,7 +248,7 @@ class ClientUser(BaseUser):
     name: :class:`str`
         The user's username.
     friends: list[:class:`User`]
-        A list of the :class:`ClientUser`'s friends. This is dynamic and does not to be fetched/``await``ed.
+        A list of the :class:`ClientUser`'s friends.
     state: :class:`~steam.EPersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]

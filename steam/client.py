@@ -38,7 +38,7 @@ import traceback
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Union, overload
 
 import aiohttp
-from typing_extensions import Literal
+from typing_extensions import Literal, final
 
 from . import errors, utils
 from .abc import SteamID
@@ -282,6 +282,7 @@ class Client:
         self._ready.set()
         self.dispatch("ready")
 
+    @final
     def run(self, *args: Any, **kwargs: Any) -> None:
         """A blocking call that abstracts away the event loop initialisation from you.
 
@@ -292,9 +293,8 @@ class Client:
             finally:
                 asyncio.run(client.close())
 
-        If you want more control over the event loop then this function should not be used. It is not recommended to
-        subclass this, it is normally favourable to subclass :meth:`start` or :meth:`login` as they are
-        :ref:`coroutines <coroutine>`.
+        It is not recommended to subclass this method, it is normally favourable to subclass :meth:`start`
+        it is :ref:`coroutines <coroutine>`.
 
         .. note::
 
@@ -1039,232 +1039,232 @@ class Client:
             """
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["connect"],
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[None]:
+    ) -> None:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["disconnect"],
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[None]:
+    ) -> None:
         ...
 
     @overload  # don't know why you'd do this
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["ready"],
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[None]:
+    ) -> None:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["login"],
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[None]:
+    ) -> None:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["error"],
         *,
         check: Optional[Callable[[str, Exception, Any, Any], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[tuple[str, Exception, Any, Any]]:
+    ) -> tuple[str, Exception, Any, Any]:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["message"],
         *,
         check: Optional[Callable[[Message], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[steam.Message]:
+    ) -> steam.Message:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["comment"],
         *,
         check: Optional[Callable[[Comment], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[Comment]:
+    ) -> Comment:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["user_update"],
         *,
         check: Optional[Callable[[User, User], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[tuple[User, User]]:
+    ) -> tuple[User, User]:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["typing"],
         *,
         check: Optional[Callable[[User, datetime.datetime], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[tuple[User, datetime.datetime]]:
+    ) -> tuple[User, datetime.datetime]:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["trade_receive"],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[TradeOffer]:
+    ) -> TradeOffer:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["trade_send"],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[TradeOffer]:
+    ) -> TradeOffer:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["trade_accept"],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[TradeOffer]:
+    ) -> TradeOffer:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["trade_decline"],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[TradeOffer]:
+    ) -> TradeOffer:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["trade_cancel"],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[TradeOffer]:
+    ) -> TradeOffer:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["trade_expire"],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[TradeOffer]:
+    ) -> TradeOffer:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["trade_counter"],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[TradeOffer]:
+    ) -> TradeOffer:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["user_invite"],
         *,
         check: Optional[Callable[[UserInvite], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[UserInvite]:
+    ) -> UserInvite:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["clan_invite"],
         *,
         check: Optional[Callable[[ClanInvite], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[ClanInvite]:
+    ) -> ClanInvite:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["socket_receive"],
         *,
         check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[Msgs]:
+    ) -> Msgs:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["socket_raw_receive"],
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[bytes]:
+    ) -> bytes:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["socket_send"],
         *,
         check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[Msgs]:
+    ) -> Msgs:
         ...
 
     @overload
-    def wait_for(
+    async def wait_for(
         self,
         event: Literal["socket_raw_send"],
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> asyncio.Future[bytes]:
+    ) -> bytes:
         ...
 
-    def wait_for(
+    async def wait_for(
         self,
         event: str,
         *,
         check: Optional[Callable[..., bool]] = None,
         timeout: Optional[float] = None,
-    ) -> asyncio.Future[Any]:
+    ) -> Any:
         """|coro|
         Wait for the first event to be dispatched that meets the requirements, this by default is the first event
         with a matching event name.
@@ -1303,4 +1303,4 @@ class Client:
             self._listeners[event_lower] = listeners
 
         listeners.append((future, check))
-        return asyncio.wait_for(future, timeout)
+        return await asyncio.wait_for(future, timeout)
