@@ -35,7 +35,7 @@ import datetime
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, overload
 
 import aiohttp
 from typing_extensions import Literal, final
@@ -67,9 +67,10 @@ if TYPE_CHECKING:
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
+TASK_HAS_NAME = sys.version_info[:2] >= (3, 8)
 
 
-class EventType(FunctionType, Coroutine[None, None, None]):
+class EventType(FunctionType):
     __event_name__: str
 
     async def __call__(self, *args: Any, **kwargs: Any) -> None:
@@ -293,8 +294,8 @@ class Client:
             finally:
                 asyncio.run(client.close())
 
-        It is not recommended to subclass this method, it is normally favourable to subclass :meth:`start`
-        it is :ref:`coroutines <coroutine>`.
+        It is not recommended to subclass this method, it is normally favourable to subclass :meth:`start` as it is a
+        :ref:`coroutine <coroutine>`.
 
         .. note::
 
@@ -526,7 +527,7 @@ class Client:
             return None
         return await self._connection.fetch_user(steam_id.id64)
 
-    def get_trade(self, id: int) -> Optional["TradeOffer"]:
+    def get_trade(self, id: int) -> Optional[TradeOffer]:
         """Get a trade from cache with a matching ID.
 
         Parameters
@@ -541,7 +542,7 @@ class Client:
         """
         return self._connection.get_trade(id)
 
-    async def fetch_trade(self, id: int) -> Optional["TradeOffer"]:
+    async def fetch_trade(self, id: int) -> Optional[TradeOffer]:
         """|coro|
         Fetches a trade from the API with a matching ID.
 
@@ -557,7 +558,7 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    def get_group(self, *args: Any, **kwargs: Any) -> Optional["Group"]:
+    def get_group(self, *args: Any, **kwargs: Any) -> Optional[Group]:
         """Get a group from cache with a matching ID.
 
         Parameters
@@ -576,7 +577,7 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return self._connection.get_group(steam_id.id)
 
-    def get_clan(self, *args: Any, **kwargs: Any) -> Optional["Clan"]:
+    def get_clan(self, *args: Any, **kwargs: Any) -> Optional[Clan]:
         """Get a clan from cache with a matching ID.
 
         Parameters
@@ -595,7 +596,7 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return self._connection.get_clan(steam_id.id)
 
-    async def fetch_clan(self, *args: Any, **kwargs: Any) -> Optional["Clan"]:
+    async def fetch_clan(self, *args: Any, **kwargs: Any) -> Optional[Clan]:
         """|coro|
         Fetches a clan from the websocket with a matching ID.
 
@@ -615,7 +616,7 @@ class Client:
         steam_id = SteamID(*args, **kwargs)
         return await self._connection.fetch_clan(steam_id.id64)
 
-    async def fetch_clan_named(self, name: str) -> Optional["Clan"]:
+    async def fetch_clan_named(self, name: str) -> Optional[Clan]:
         """|coro|
         Fetches a clan from https://steamcommunity.com with a matching name.
 
@@ -736,7 +737,7 @@ class Client:
         """
         await self._ready.wait()
 
-    async def fetch_price(self, name: str, game: "Game", currency: Optional[int] = None) -> PriceOverview:
+    async def fetch_price(self, name: str, game: Game, currency: Optional[int] = None) -> PriceOverview:
         """|coro|
         Fetch the price for an item.
 
@@ -748,6 +749,11 @@ class Client:
             The game the item is from.
         currency: :class:`int`
             The currency to fetch the price in.
+
+        Returns
+        --------
+        :class:`.PriceOverview`
+            The price overview for the item.
         """
         price = await self.http.get_price(game.id, name, currency)
         return PriceOverview(price)
@@ -1288,7 +1294,7 @@ class Client:
 
         Returns
         --------
-        Optional[Any]:
+        Optional[Any]
             Returns ``None``, a single argument, or a :class:`tuple` of multiple arguments that mirrors the parameters
             for the ``event`` parameter from the `event reference <https://steampy.rtfd.io/en/latest/api.html#id2>`_.
         """

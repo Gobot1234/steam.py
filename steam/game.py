@@ -103,7 +103,7 @@ class Game:
     )
 
     @overload
-    def __init__(self, app_id: Union[int, str], *, context_id: Optional[int] = 2):
+    def __init__(self, id: Union[int, str], *, context_id: Optional[int] = 2):
         ...
 
     @overload

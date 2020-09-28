@@ -91,6 +91,8 @@ def to_bool(argument: str) -> bool:
 
 
 class Command:
+    """A class to represent a command."""
+
     def __new__(cls, *args, **kwargs: Any) -> Command:
         self = super().__new__(cls)
         self.__original_kwargs__ = kwargs.copy()
@@ -173,9 +175,8 @@ class Command:
 
     @cached_property
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
-        """
-        OrderedDict[:class:`str`, :class:`inspect.Parameter`]: The command's parameters without `"self"` and `"ctx"`.
-        """
+        """OrderedDict[:class:`str`, :class:`inspect.Parameter`]:
+        The command's parameters without ``"self"`` and ``"ctx"``."""
         params = self.params.copy()
         if self.cog is not None:
             try:
@@ -203,7 +204,7 @@ class Command:
             yield command
             command = command.parent
 
-    def __call__(self, ctx, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
+    async def __call__(self, ctx, *args: Any, **kwargs: Any) -> None:
         """|coro|
         Calls the internal callback that the command holds.
 
@@ -213,9 +214,9 @@ class Command:
             care to pass the proper arguments and types to this function.
         """
         if self.cog is not None:
-            return self.callback(self.cog, ctx, *args, **kwargs)
+            return await self.callback(self.cog, ctx, *args, **kwargs)
         else:
-            return self.callback(ctx, *args, **kwargs)
+            return await self.callback(ctx, *args, **kwargs)
 
     def error(self, func: CommandErrorFunctionType) -> CommandErrorFunctionType:
         """A decorator that registers a :ref:`coroutine <coroutine>` to handle a commands ``on_error`` functionality
@@ -590,7 +591,7 @@ def group(
 
 def check(predicate: CheckType) -> CommandDeco:
     """
-    A decorator that registers a function that *could be a* |coroutine_link|_. to a command.
+    A decorator that registers a function that *could be a* |coroutine_link|_ as a check to a command.
 
     They should take a singular argument representing the :class:`~steam.ext.commands.Context` for the message.
 
@@ -608,8 +609,8 @@ def check(predicate: CheckType) -> CommandDeco:
 
     Attributes
     ----------
-    predicate: Callable[[:class:`Context`], Awaitable[bool]
-        The predicate, this will always be a wrapped in a :ref:`coroutine <coroutine>`
+    predicate: Callable[[:class:`Context`], Awaitable[bool]]
+        The registered check, this will always be a wrapped in a :ref:`coroutine <coroutine>`
     """
 
     def decorator(func: MaybeCommand) -> MaybeCommand:
