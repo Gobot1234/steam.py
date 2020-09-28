@@ -77,23 +77,6 @@ class EventType(FunctionType):
         ...
 
 
-class ClientEventTask(asyncio.Task):
-    def __init__(self, original_coro: EventType, event_name: str, coro: Coroutine[None, None, None]):
-        super().__init__(coro)
-        self.__event_name = event_name
-        self.__original_coro = original_coro
-
-    def __repr__(self) -> str:
-        info = [
-            ("state", self._state.lower()),
-            ("event", self.__event_name),
-            ("coro", repr(self.__original_coro)),
-        ]
-        if self._exception is not None:
-            info.append(("exception", repr(self._exception)))
-        return f'<ClientEventTask {" ".join(f"{t}={t!r}" for t in info)}>'
-
-
 class Client:
     """Represents a client connection that connects to Steam. This class is used to interact with the Steam API and CMs.
 
@@ -233,9 +216,9 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> ClientEventTask:
+    def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
-        return ClientEventTask(original_coro=coro, event_name=event_name, coro=wrapped)  # schedules the task
+        return asyncio.Task(wrapped, name=event_name) if TASK_HAS_NAME else asyncio.Task(wrapped)
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
         log.debug(f"Dispatching event {event}")
