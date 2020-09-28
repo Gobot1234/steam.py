@@ -536,7 +536,9 @@ class GroupCommand(GroupMixin, Command):
         super().__init__(func, **kwargs)
 
     async def _parse_arguments(self, ctx: Context) -> None:
-        ctx.command.invoked_without_command = bool(list(self.children))
+        ctx.invoked_without_command = (
+            not ctx.shlex.in_stream[: ctx.shlex.position].strip().startswith(tuple(self.__commands__))
+        )
         await super()._parse_arguments(ctx)
 
 
