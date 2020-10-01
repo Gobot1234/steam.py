@@ -17,7 +17,24 @@ Bot
                       on_trade_expire, on_trade_counter, on_comment, on_user_invite, on_user_invite_accept,
                       on_clan_invite, on_clan_invite_accept, on_user_update, on_socket_receive, on_socket_raw_receive,
                       on_socket_send, on_socket_raw_send,
-                      on_command, on_command_error, on_command_completion
+                      on_command, on_command_error, on_command_completion,
+                      event, trade_history,
+                      command, group, listen
+
+    .. automethod:: event()
+        :decorator:
+
+    .. automethod:: trade_history
+        :async-for: trade
+
+    .. automethod:: command
+        :decorator:
+
+    .. automethod:: group
+        :decorator:
+
+    .. automethod:: listen
+        :decorator:
 
 
 .. autofunction:: steam.ext.commands.when_mentioned
@@ -28,8 +45,8 @@ Bot
 Event Reference
 -----------------
 
-These events function similar to `the regular events <https://steampy.rtfd.io/en/latest/api.html#id2>`_, except they are
-unique to the command extension module. All of those events are also applicable to :class:`steam.ext.commands.Bot`.
+These events function similar to :ref:`the regular events <event-reference>`, and all of the events there are also
+applicable to :class:`steam.ext.commands.Bot`. These are however unique to the commands extension module.
 
 .. autofunction:: steam.ext.commands.Bot.on_command_error
 
@@ -70,6 +87,10 @@ Cogs
 
 .. autoclass:: steam.ext.commands.Cog
     :members:
+    :exclude-members: listener
+
+    .. automethod:: listener
+        :decorator:
 
 
 Context
@@ -209,6 +230,8 @@ Greedy
 -------
 
 .. autoclass:: steam.ext.commands.Greedy()
+    :members:
+    :special-members: __class_getitem__
 
 
 Exceptions

@@ -1261,8 +1261,8 @@ class Client:
         Parameters
         -----------
         event: :class:`str`
-            The event name from the `event reference <https://steampy.rtfd.io/en/latest/api.html#id1>`_, but without
-            the ``on_`` prefix, to wait for.
+            The event name from the :ref:`event reference <event-reference>`, but without the ``on_`` prefix, to wait
+            for.
         check: Optional[Callable[..., :class:`bool`]]
             A callable predicate that checks the received event. The arguments must match the parameters of the
             ``event`` being waited for and must return a :class:`bool`.
@@ -1279,7 +1279,7 @@ class Client:
         --------
         Optional[Any]
             Returns ``None``, a single argument, or a :class:`tuple` of multiple arguments that mirrors the parameters
-            for the ``event`` parameter from the `event reference <https://steampy.rtfd.io/en/latest/api.html#id2>`_.
+            for the ``event`` parameter from the :ref:`event reference <event-reference>`.
         """
         future = self.loop.create_future()
         check = check or return_true

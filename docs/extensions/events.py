@@ -15,7 +15,7 @@ commands.utils.reload_module_with_TYPE_CHECKING(client)
 commands.utils.reload_module_with_TYPE_CHECKING(bot)
 
 
-def setup(_):
+def setup(_) -> None:
     steam.client = client
     steam.Client = client.Client
     commands.bot = bot

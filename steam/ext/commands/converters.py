@@ -292,7 +292,7 @@ class Greedy(Generic[T]):
     ``reason``
     """
 
-    converter: T
+    converter: T  #: The converter the Greedy type holds.
 
     def __new__(
         cls, *args: Any, **kwargs: Any
@@ -300,6 +300,7 @@ class Greedy(Generic[T]):
         raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[converter]")
 
     def __class_getitem__(cls, converter: GreedyTypes) -> Greedy[T]:
+        """The main entry point for Greedy types."""
         if isinstance(converter, tuple):
             if len(converter) != 1:
                 raise TypeError("commands.Greedy only accepts one argument")
@@ -310,7 +311,7 @@ class Greedy(Generic[T]):
             or not isinstance(converter, (Converter, str))
             and not callable(converter)
         ):
-            raise TypeError(f"Cannot type-hint Greedy with {converter!r}")
+            raise TypeError(f"Cannot type-hint commands.Greedy with {converter!r}")
         annotation = super().__class_getitem__(converter)
         annotation.converter = get_args(annotation)[0]
         return annotation

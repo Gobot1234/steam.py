@@ -26,12 +26,13 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
+    "sphinxcontrib_trio",
     "exception_hierarchy",
     "enums",
     "events",
 ]
 
-autodoc_member_order = "bysource"
+autodoc_member_order = "bysource"  # TODO I feel like there is a way to get a better order
 autodoc_typehints = "none"
 
 extlinks = {

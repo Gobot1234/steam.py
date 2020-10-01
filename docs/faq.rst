@@ -141,11 +141,11 @@ How do I send a trade?
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Sending a trade should be pretty simple.
+
 - You need to first get the inventories of the User's involved.
 - Then you need to find the items to trade for.
 - Construct the TradeOffer from its items.
-- Finally use the `send <https://steampy.rtfd.io/en/latest/api.html#steam.User.send>`_ method on the User that you want
-  to send the offer to.
+- Finally use the :ref:`send <steam.User.send>` method on the User that you want to send the offer to.
 
 .. code-block:: python3
 

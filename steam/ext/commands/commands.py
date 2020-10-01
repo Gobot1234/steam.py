@@ -211,7 +211,8 @@ class Command:
         .. note::
 
             This bypasses all mechanisms -- including checks, converters, invoke hooks, cooldowns, etc. You must take
-            care to pass the proper arguments and types to this function.
+            care to pass the proper arguments (excluding the parameter "self" in a cog context) and types to this
+            function.
         """
         if self.cog is not None:
             return await self.callback(self.cog, ctx, *args, **kwargs)

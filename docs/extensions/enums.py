@@ -14,7 +14,7 @@ OLD_IS_ENUM_MEMBER = inspect.isenumattribute
 
 
 def isenumclass(x: Any) -> bool:
-    """Check if the object is subclass of enum."""
+    """Check if the object is subclass of Enum."""
     return isinstance(x, type) and issubclass(x, Enum) or OLD_IS_ENUM_CLASS(x)
 
 
@@ -23,6 +23,6 @@ def isenumattribute(x: Any) -> bool:
     return isinstance(x, Enum) or OLD_IS_ENUM_MEMBER(x)
 
 
-def setup(_):
+def setup(_) -> None:
     inspect.isenumclass = isenumclass
     inspect.isenumattribute = isenumattribute

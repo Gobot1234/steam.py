@@ -24,6 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
+from sphinx.application import Sphinx
 
 
 class exception_hierarchy(nodes.General, nodes.Element):
@@ -48,6 +49,6 @@ class ExceptionHierarchyDirective(Directive):
         return [node]
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
     app.add_node(exception_hierarchy, html=(visit_exception_hierarchy_node, depart_exception_hierarchy_node))
     app.add_directive("exception_hierarchy", ExceptionHierarchyDirective)

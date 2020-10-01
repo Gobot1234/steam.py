@@ -184,7 +184,7 @@ class Game:
         return NotImplemented
 
     def to_dict(self) -> GameDict:
-        """:class:`dict`[:class:`str`, :class:`str`]: The dict representation of the game used to set presences."""
+        """dict[:class:`str`, :class:`str`]: The dict representation of the game used to set presences."""
         if not self.is_steam_game():
             return {"game_id": str(self.id), "game_extra_info": self.title}
         return {"game_id": str(self.id)}
