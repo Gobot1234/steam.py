@@ -35,13 +35,11 @@ import functools
 import inspect
 import sys
 import typing
-from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Coroutine,
-    Dict,
     Generator,
     Iterable,
     Optional,
@@ -167,7 +165,9 @@ class Command:
             except NameError:
                 raise exc from None
 
-        (function.__func__ if isinstance(function, MethodType) else function).__annotations__ = annotations
+        while inspect.ismethod(function):
+            function = function.__func__
+        function.__annotations__ = annotations
         # replace the function's old annotations for later
         self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
         self.module = module
