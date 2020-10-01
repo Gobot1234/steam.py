@@ -439,53 +439,6 @@ class cached_property(Generic[_T]):  # functools.cached_property
         return value
 
 
-class async_property(property, Generic[_T]):
-    """
-    A way to create async properties with async __del__ and __set__ support.
-
-    class CoolClass:
-        def __init__(self, var):
-            self._read_only_var = var
-
-        @async_property:
-        async def var(self):
-            await self.process_var()
-            return self._read_only_var
-    """
-
-    @overload
-    def __init__(
-        self,
-        fget: Optional[Callable[[Any], Coroutine[Any, Any, _T]]] = ...,
-        fset: Optional[Callable[[Any, Any], Coroutine[Any, Any, None]]] = ...,
-        fdel: Optional[Callable[[Any], Coroutine[Any, Any, None]]] = ...,
-        doc: Optional[str] = ...,
-    ):
-        ...
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-
-    def getter(self, fget: Callable[[Any], Coroutine[None, None, _T]]) -> async_property:
-        return super().getter(fget)
-
-    def setter(self, fset: Callable[[Any, Any], Coroutine[None, None, None]]) -> async_property:
-        return super().setter(fset)
-
-    def deleter(self, fdel: Callable[[Any], Coroutine[None, None, None]]) -> async_property:
-        return super().deleter(fdel)
-
-    def __set__(self, obj: Any, value: Any) -> None:
-        if self.fset is None:
-            raise AttributeError("can't set attribute")
-        asyncio.create_task(self.fset(obj, value))
-
-    def __delete__(self, obj: Any) -> None:
-        if self.fdel is None:
-            raise AttributeError("can't delete attribute")
-        asyncio.create_task(self.fdel(obj))
-
-
 def ainput(prompt: str = "") -> Coroutine[None, None, str]:
     return to_thread(input, prompt)
 

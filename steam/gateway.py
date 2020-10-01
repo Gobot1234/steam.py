@@ -33,7 +33,6 @@ and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 from __future__ import annotations
 
 import asyncio
-import concurrent.futures
 import logging
 import random
 import struct
@@ -43,7 +42,7 @@ import time
 import traceback
 from gzip import GzipFile
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, NewType, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, Union
 
 import aiohttp
 from typing_extensions import Literal
@@ -74,8 +73,6 @@ __all__ = (
 
 log = logging.getLogger(__name__)
 Msgs = Union[MsgProto, Msg]
-GoodType = NewType("GoodType", Literal[True])
-BadType = NewType("BadType", Literal[False])
 
 
 def return_true(*_, **__) -> Literal[True]:
@@ -94,10 +91,12 @@ class EventListener(NamedTuple):
     future: asyncio.Future
 
 
-class CMServer(NamedTuple):
-    url: str
-    state: Union[GoodType, BadType]
-    score: float
+class CMServer:
+    __slots__ = ("url", "score")
+
+    def __init__(self, url: str, score: float = 0.0):
+        self.url = url
+        self.score = score
 
 
 class ConnectionClosed(Exception):
@@ -112,14 +111,11 @@ class WebSocketClosure(Exception):
 
 
 class CMServerList(AsyncIterator[CMServer]):
-    GOOD = GoodType(True)
-    BAD = BadType(False)
-
     __slots__ = ("cms", "cell_id", "_state")
 
     def __init__(self, state: ConnectionState, first_cm_to_try: Optional[CMServer] = None):
         super().__init__(state, None, None, None)
-        self.cms: list[CMServer] = []
+        self.cms: list[CMServer] = list()
         self.cell_id = 0
         if first_cm_to_try is not None:
             self.append(first_cm_to_try)
@@ -127,24 +123,18 @@ class CMServerList(AsyncIterator[CMServer]):
     def __len__(self) -> int:
         return len(self.cms)
 
-    @utils.async_property
-    async def best_cms(self) -> list[CMServer]:
-        good_servers = [cm for cm in self.cms if cm.state]
-
-        if not good_servers:
-            log.debug("No good servers left. Resetting...")
-            self.reset_all()
-            await self.fill()
-            return await self.best_cms
-
-        random.shuffle(good_servers)
-        return await self.ping_cms(good_servers)
-
     async def fill(self) -> None:
         if not await self.fetch_servers_from_api():
             raise NoCMsFound("No Community Managers could be found to connect to")
 
-        for cm in await self.best_cms:
+        if not self.cms:
+            log.debug("No good servers left. Resetting...")
+            self.reset_all()
+            await self.fill()
+            return await self.fill()
+
+        random.shuffle(self.cms)
+        for cm in await self.ping_cms(self.cms):
             self.append(cm)
 
     def clear(self) -> None:
@@ -178,43 +168,42 @@ class CMServerList(AsyncIterator[CMServer]):
     def reset_all(self) -> None:
         log.debug("Marking all CM servers as Good.")
         for cm in self.cms:
-            self.mark_good(cm.url)
-
-    def mark_good(self, url: str, score: float = 0.0) -> None:
-        self.cms.append(CMServer(url, self.GOOD, score))
-
-    def mark_bad(self, url: str) -> None:
-        self.cms.append(CMServer(url, self.BAD, 0.0))
+            cm.score = 0.0
 
     def merge_list(self, hosts: list[str]) -> None:
         total = len(self)
         urls = [cm.url for cm in self.cms]
         for host in hosts:
             if host not in urls:
-                self.mark_good(host)
+                self.cms.append(CMServer(host))
         if len(self) > total:
             log.debug(f"Added {len(self) - total} new CM server addresses.")
 
     async def ping_cms(self, cms: Optional[list[CMServer]] = None, to_ping: int = 10) -> list[CMServer]:
         cms = self.cms or cms
-        best_cms = []
         for cm in cms[:to_ping]:
             # TODO dynamically make sure we get good ones by checking len and stuff
             start = time.perf_counter()
             try:
                 resp = await self._state.http._session.get(f"https://{cm.url}/cmping/", timeout=5)
                 if resp.status != 200:
-                    self.mark_bad(cm.url)
+                    try:
+                        self.cms.remove(cm)
+                    except ValueError:
+                        pass
                 load = resp.headers["X-Steam-CMLoad"]
             except (KeyError, asyncio.TimeoutError, aiohttp.ClientError):
-                self.mark_bad(cm.url)
+                try:
+                    self.cms.remove(cm)
+                except ValueError:
+                    pass
             else:
                 latency = time.perf_counter() - start
                 score = (int(load) * 2) + latency
-                best_cms.append(cm)
-                self.mark_good(cm.url, score)
+                cm.score = score
+                self.cms.append(cm)
         log.debug("Finished pinging CMs")
-        return sorted(best_cms, key=lambda cm: cm.score)
+        return sorted(self.cms, key=lambda cm: cm.score)
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool
@@ -349,13 +338,13 @@ class SteamWebSocket:
 
     @classmethod
     async def from_client(
-        cls, client: Client, cm: Optional[CMServer] = None, cms: Optional[CMServerList] = None
+        cls, client: Client, cm: Optional[CMServer] = None, cm_list: Optional[CMServerList] = None
     ) -> SteamWebSocket:
         connection = client._connection
-        cm_list = cms or CMServerList(connection, cm)
+        cm_list = cm_list or CMServerList(connection, cm)
         async for cm in cm_list:
             log.info(f"Attempting to create a websocket connection to: {cm}")
-            socket: aiohttp.ClientWebSocketResponse = await client.http.connect_to_cm(cm.url)
+            socket = await client.http.connect_to_cm(cm.url)
             log.debug(f"Connected to {cm}")
             payload = MsgProto(
                 EMsg.ClientLogon,
@@ -403,14 +392,13 @@ class SteamWebSocket:
 
         try:
             msg = MsgProto(emsg, message) if utils.is_proto(emsg_value) else Msg(emsg, message, extended=True)
-            log.debug(f"Socket has received {msg!r} from the websocket.")
         except Exception as exc:
+            return log.error(f"Failed to deserialize message: {emsg!r}, {message!r}", exc_info=exc)
+        else:
             try:
-                repr(message)
+                log.debug(f"Socket has received {msg!r} from the websocket.")  # see https://github.com/danielgtaylor/python-betterproto/issues/133
             except Exception:
-                log.critical(f"Failed to deserialize message: {emsg!r}, {message!r}")
-                return log.error(exc)
-
+                pass
         self._dispatch("socket_receive", msg)
 
         try:

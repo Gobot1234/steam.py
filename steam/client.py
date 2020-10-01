@@ -414,7 +414,7 @@ class Client:
                     await self.http.login(self.username, self.password, shared_secret=self.shared_secret)
                     continue
                 self.token = resp["token"]
-                coro = SteamWebSocket.from_client(self, cms=self._cm_list)
+                coro = SteamWebSocket.from_client(self, cm_list=self._cm_list)
                 self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
                 while 1:
                     await self.ws.poll_event()
