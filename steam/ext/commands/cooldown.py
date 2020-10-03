@@ -45,15 +45,20 @@ T_Bucket = TypeVar("T_Bucket", Tuple[int, ...], int)
 
 
 class BucketType(IntEnum):
+    """A enumeration that handles cooldowns.
+
+    Each attribute operates on a per-x basis. So :attr:`User` operates on a per :class:`~steam.User` basis.
+    """
+
     # fmt: off
-    Default = 0  #: The default :class:`BucketType`
-    User    = 1  #: The :class:`BucketType` for a :class:`steam.User`
-    Member  = 2  #: The :class:`BucketType` for a :class:`steam.User`
-    Group   = 3  #: The :class:`BucketType` for a :class:`steam.User` in a :class:`steam.Clan` or a :class:`steam.Group`
-    Clan    = 4  #: The :class:`BucketType` for a :class:`steam.Clan`
-    Role    = 5  #: The :class:`BucketType` for a :class:`steam.Role`
-    Channel = 6  #: The :class:`BucketType` for a :class:`steam.Channel`
-    Admin = 7  #: The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`
+    Default = 0  #: The default :class:`BucketType` this operates on a global basis.
+    User    = 1  #: The :class:`BucketType` for a :class:`steam.User`.
+    Member  = 2  #: The :class:`BucketType` for a :class:`steam.User`.
+    Group   = 3  #: The :class:`BucketType` for a :class:`steam.User` in a :class:`steam.Clan` / :class:`steam.Group`.
+    Clan    = 4  #: The :class:`BucketType` for a :class:`steam.Clan`.
+    Role    = 5  #: The :class:`BucketType` for a :class:`steam.Role`.
+    Channel = 6  #: The :class:`BucketType` for a :class:`steam.Channel`.
+    Admin   = 7  #: The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`.
     # fmt: on
 
     def get_bucket(self, message_or_context: Union[Message, Context]) -> T_Bucket:
