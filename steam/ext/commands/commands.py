@@ -79,6 +79,7 @@ CommandDeco = Callable[[MaybeCommand], MaybeCommand]
 CommandErrorFunctionType = Callable[["Context", Exception], Coroutine[Any, Any, None]]
 
 
+@converters.converter(bool)
 def to_bool(argument: str) -> bool:
     lowered = argument.lower()
     if lowered in ("yes", "y", "true", "t", "1", "enable", "on"):
@@ -308,6 +309,8 @@ class Command:
         return self._convert(ctx, converter, param, argument)
 
     def _get_converter(self, param_type: type) -> Union[converters.Converter, type]:
+        if not isinstance(param_type, converters.Converter):
+            return converters.CONVERTERS.get(param_type, param_type)
         try:
             module = param_type.__module__
         except AttributeError:
@@ -327,7 +330,7 @@ class Command:
     async def _convert(
         self,
         ctx: Context,
-        converter: Union[converters.Converter, type, Callable[[str], Any]],
+        converter: converters.Converters,
         param: inspect.Parameter,
         argument: str,
     ) -> Any:
@@ -342,8 +345,6 @@ class Command:
                     name = converter.__class__.__name__
                 raise BadArgument(f"{argument} failed to convert to {name}") from exc
         else:
-            if converter is bool:
-                return to_bool(argument)
             origin = get_origin(converter)
             if origin is not None:
                 for arg in get_args(converter):

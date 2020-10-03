@@ -46,6 +46,7 @@ from ...client import Client, EventType, FunctionType, log
 from .cog import Cog, ExtensionType, InjectedListener
 from .commands import Command, GroupMixin
 from .context import Context
+from .converters import CONVERTERS, Converters
 from .errors import CommandDisabled, CommandError, CommandNotFound
 from .help import HelpCommand
 from .utils import Shlex
@@ -230,6 +231,10 @@ class Bot(GroupMixin, Client):
     def extensions(self) -> Mapping[str, ExtensionType]:
         """Mapping[:class:`str`, :class:`ExtensionType`]: A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
+
+    @property
+    def converters(self) -> dict[str, Converters]:
+        return CONVERTERS
 
     @property
     def help_command(self) -> HelpCommand:

@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeV
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
+import steam
 from ...errors import InvalidSteamID
 from ...game import Game
 from .errors import BadArgument
@@ -39,13 +40,14 @@ from .errors import BadArgument
 if TYPE_CHECKING:
     from steam.ext import commands
 
-    from ...channel import BaseChannel
+    from ...channel import Channel
     from ...clan import Clan
     from ...group import Group
     from ...user import User
     from .context import Context
 
 __all__ = (
+    "converter",
     "Converter",
     "UserConverter",
     "ChannelConverter",
@@ -62,11 +64,28 @@ __all__ = (
 )
 
 T = TypeVar("T", bound=type)
+BasicConverter = Callable[[str], Any]
+
+
+Converters = Union["Converter", BasicConverter]
+CONVERTERS: dict[Any, Converters] = {}
+
+
+def converter(converter: Any) -> Callable[[Converters], Converters]:
+    def decorator(func: Converters) -> Converters:
+        CONVERTERS[converter] = func
+        return converter
+
+    return decorator
 
 
 @runtime_checkable
 class Converter(Protocol):
-    """A custom class from which converters can be derived. They should be type-hinted to a command's argument.
+    """
+    .. warning::
+        This method of defining converters is deprecated and slated for removal in V.1.
+
+    A custom class from which converters can be derived. They should be type-hinted to a command's argument.
 
     Some custom types from this library can be type-hinted just using their normal type (see below).
 
@@ -85,7 +104,7 @@ class Converter(Protocol):
 
     A custom converter: ::
 
-        class ImageConverter:
+        class ImageConverter(commands.Converter):
             async def convert(self, ctx: 'commands.Context', argument: str):
                 search = re.search(r'\[url=(.*)\], argument)
                 if search is None:
@@ -113,8 +132,15 @@ class Converter(Protocol):
     async def convert(self, ctx: "commands.Context", argument: str):
         raise NotImplementedError("Derived classes must implement this")
 
+    def __init_subclass__(cls, **kwargs):
+        import warnings
+        warnings.warn(
+            "Subclassing commands.Converter is depreciated and is scheduled for removal in V.1", DeprecationWarning
+        )
 
-class UserConverter(Converter):
+
+@converter(steam.User)
+class UserConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.User`.
 
     Lookup is in the order of:
@@ -136,7 +162,8 @@ class UserConverter(Converter):
         return user[0] if isinstance(user, list) else user
 
 
-class ChannelConverter(Converter):
+@converter(steam.Channel)
+class ChannelConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.Channel`.
 
     Lookup is in the order of:
@@ -144,7 +171,7 @@ class ChannelConverter(Converter):
         - Name
     """
 
-    async def convert(self, ctx: Context, argument: str) -> BaseChannel:
+    async def convert(self, ctx: Context, argument: str) -> Channel:
         channel = None
         if argument.isdigit():
             groups = ctx.bot._connection._combined.values()
@@ -158,7 +185,8 @@ class ChannelConverter(Converter):
         return channel[0] if isinstance(channel, list) else channel
 
 
-class ClanConverter(Converter):
+@converter(steam.Clan)
+class ClanConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.Clan`.
 
     Lookup is in the order of:
@@ -176,7 +204,8 @@ class ClanConverter(Converter):
         return clan[0] if isinstance(clan, list) else clan
 
 
-class GroupConverter(Converter):
+@converter(steam.Group)
+class GroupConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.Group`.
 
     Lookup is in the order of:
@@ -194,7 +223,8 @@ class GroupConverter(Converter):
         return group[0] if isinstance(group, list) else group
 
 
-class GameConverter(Converter):
+@converter(steam.Game)
+class GameConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.Game`.
 
     If the param is a digit it is assumed that the argument is the game's app id else it is assumed it is the game's
@@ -247,7 +277,7 @@ class DefaultAuthor(Default):
 class DefaultChannel(Default):
     """Returns the :attr:`.Context.channel`"""
 
-    async def default(self, ctx: Context) -> BaseChannel:
+    async def default(self, ctx: Context) -> Channel:
         return ctx.channel
 
 
