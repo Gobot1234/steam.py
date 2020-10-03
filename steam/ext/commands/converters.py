@@ -72,6 +72,45 @@ CONVERTERS: dict[Any, Converters] = {}
 
 
 def converter(converter: Any) -> Callable[[Converters], Converters]:
+    """
+    The recommended way to mark a converter as such.
+
+    .. note::
+        All of the converters marked with this decorator can be accessed either via
+        :attr:`~steam.ext.commands.Bot.converters` or :attr:`~steam.ext.commands.converters.CONVERTERS`.
+
+    Examples
+    --------
+    Taking the image converter example from :class:`~steam.ext.commands.Converter`::
+
+        @commands.converter(steam.Image)  # this is the type hint used
+        class ImageConverter:
+            async def convert(self, ctx: 'commands.Context', argument: str):
+                search = re.search(r'\[url=(.*)\], argument)
+                if search is None:
+                    raise commands.BadArgument(f'{argument} is not a recognised image')
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(search.group(1)) as r:
+                        image_bytes = await r.read()
+                try:
+                    return steam.Image(image_bytes)
+                except (TypeError, ValueError) as exc:  # failed to convert to an image
+                    raise commands.BadArgument from exc
+
+        # then later
+
+        @bot.command()
+        async def set_avatar(ctx, avatar: steam.Image):  # this then calls ImageConverter on invocation.
+            await bot.edit(avatar=avatar)
+            await ctx.send('👌')
+
+
+    Parameters
+    ----------
+    converter: Any
+        The type annotation the decorated converter should convert for.
+    """
+
     def decorator(func: Converters) -> Converters:
         CONVERTERS[converter] = func
         return converter
@@ -134,9 +173,11 @@ class Converter(Protocol):
 
     def __init_subclass__(cls, **kwargs):
         import warnings
+
         warnings.warn(
             "Subclassing commands.Converter is depreciated and is scheduled for removal in V.1", DeprecationWarning
         )
+        CONVERTERS[cls] = cls
 
 
 @converter(steam.User)

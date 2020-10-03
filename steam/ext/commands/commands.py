@@ -309,23 +309,7 @@ class Command:
         return self._convert(ctx, converter, param, argument)
 
     def _get_converter(self, param_type: type) -> Union[converters.Converter, type]:
-        if not isinstance(param_type, converters.Converter):
-            return converters.CONVERTERS.get(param_type, param_type)
-        try:
-            module = param_type.__module__
-        except AttributeError:
-            pass
-        else:
-            if (
-                module is not None
-                and (module.startswith("steam.") and not module.endswith("converter"))
-                and get_origin(param_type) is not converters.Greedy
-            ):
-                converter = getattr(converters, f"{param_type.__name__}Converter", None)
-                if converter is None:
-                    raise NotImplementedError(f"{param_type.__name__} does not have an associated converter")
-                return converter
-        return param_type
+        return converters.CONVERTERS.get(param_type, param_type)
 
     async def _convert(
         self,
