@@ -81,6 +81,7 @@ if TYPE_CHECKING:
 __all__ = (
     "SteamID",
     "Message",
+    "Channel",
 )
 
 
@@ -739,10 +740,10 @@ class Messageable(metaclass=abc.ABCMeta):
             await image_func(destination, image)
 
 
-class BaseChannel(Messageable):
+class Channel(Messageable):
     __slots__ = ("clan", "group", "_state")
 
-    _state: "ConnectionState"
+    _state: ConnectionState
 
     def __init__(self):
         self.clan: Optional[Clan] = None
@@ -773,7 +774,7 @@ class Message:
 
     Attributes
     ----------
-    channel: :class:`BaseChannel`
+    channel: :class:`Channel`
         The channel the message was sent in.
     content: :class:`str`
         The message's content.
@@ -800,7 +801,7 @@ class Message:
         "_state",
     )
 
-    def __init__(self, channel: BaseChannel, proto: betterproto.Message):
+    def __init__(self, channel: Channel, proto: betterproto.Message):
         self._state: ConnectionState = channel._state
         self.channel = channel
         self.group: Optional[Group] = channel.group

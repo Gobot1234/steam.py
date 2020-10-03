@@ -235,7 +235,7 @@ They are only used for subclassing.
     .. automethod:: comments
         :async-for: comment
 
-.. autoclass:: steam.abc.BaseChannel()
+.. autoclass:: steam.abc.Channel()
     :members:
     :inherited-members:
 

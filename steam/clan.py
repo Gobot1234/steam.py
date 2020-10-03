@@ -47,7 +47,7 @@ from .protobufs.steammessages_chat import (
 from .role import Role
 
 if TYPE_CHECKING:
-    from .abc import BaseChannel
+    from .channel import ClanChannel
     from .state import ConnectionState
     from .user import User
 
@@ -165,8 +165,8 @@ class Clan(Commentable, comment_path="Clan"):
         self.top_members: list[User] = []
         self.roles: list[Role] = []
         self.default_role: Optional[Role] = None
-        self.channels: list[BaseChannel] = []
-        self.default_channel: Optional[BaseChannel] = None
+        self.channels: list[ClanChannel] = []
+        self.default_channel: Optional[ClanChannel] = None
 
     async def __ainit__(self) -> None:
         resp = await self._state.request("GET", self.url)

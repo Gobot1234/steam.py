@@ -30,7 +30,7 @@ import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, NoReturn, Optional, Union
 
-from .abc import BaseChannel
+from .abc import Channel
 
 if TYPE_CHECKING:
     from .abc import _EndPointReturnType
@@ -53,7 +53,7 @@ __all__ = (
 )
 
 
-class DMChannel(BaseChannel):
+class DMChannel(Channel):
     """Represents the channel a DM is sent in.
 
     Attributes
@@ -151,7 +151,7 @@ class TypingContextManager:
         self.task.cancel()
 
 
-class _GroupChannel(BaseChannel):
+class _GroupChannel(Channel):
     __slots__ = ("id", "joined_at", "name")
 
     def __init__(self, state: ConnectionState, channel: Any):
