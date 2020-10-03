@@ -206,7 +206,7 @@ An invocation of ``!command some string=long`` would pass ``"some"`` to ``argume
 Converters
 -----------
 
-.. autodecorator:: steam.ext.commands.converter
+.. autodecorator:: steam.ext.commands.converter(converter)
 
 .. autoclass:: steam.ext.commands.Converter()
 

@@ -85,16 +85,7 @@ def converter(converter: Any) -> Callable[[Converters], Converters]:
         @commands.converter(steam.Image)  # this is the type hint used
         class ImageConverter:
             async def convert(self, ctx: 'commands.Context', argument: str):
-                search = re.search(r'\[url=(.*)\], argument)
-                if search is None:
-                    raise commands.BadArgument(f'{argument} is not a recognised image')
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(search.group(1)) as r:
-                        image_bytes = await r.read()
-                try:
-                    return steam.Image(image_bytes)
-                except (TypeError, ValueError) as exc:  # failed to convert to an image
-                    raise commands.BadArgument from exc
+                ...
 
         # then later
 
@@ -112,7 +103,7 @@ def converter(converter: Any) -> Callable[[Converters], Converters]:
 
     def decorator(func: Converters) -> Converters:
         CONVERTERS[converter] = func
-        return converter
+        return func
 
     return decorator
 
