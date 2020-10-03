@@ -32,18 +32,17 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeV
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
-import steam
+from ...channel import Channel
+from ...clan import Clan
 from ...errors import InvalidSteamID
 from ...game import Game
+from ...group import Group
+from ...user import User
 from .errors import BadArgument
 
 if TYPE_CHECKING:
     from steam.ext import commands
 
-    from ...channel import Channel
-    from ...clan import Clan
-    from ...group import Group
-    from ...user import User
     from .context import Context
 
 __all__ = (
@@ -180,7 +179,7 @@ class Converter(Protocol):
         CONVERTERS[cls] = cls
 
 
-@converter(steam.User)
+@converter(User)
 class UserConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.User`.
 
@@ -203,7 +202,7 @@ class UserConverter:
         return user[0] if isinstance(user, list) else user
 
 
-@converter(steam.Channel)
+@converter(Channel)
 class ChannelConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.Channel`.
 
@@ -226,7 +225,7 @@ class ChannelConverter:
         return channel[0] if isinstance(channel, list) else channel
 
 
-@converter(steam.Clan)
+@converter(Clan)
 class ClanConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.Clan`.
 
@@ -245,7 +244,7 @@ class ClanConverter:
         return clan[0] if isinstance(clan, list) else clan
 
 
-@converter(steam.Group)
+@converter(Group)
 class GroupConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.Group`.
 
@@ -264,7 +263,7 @@ class GroupConverter:
         return group[0] if isinstance(group, list) else group
 
 
-@converter(steam.Game)
+@converter(Game)
 class GameConverter:
     """The converter that is used when the type-hint passed is :class:`~steam.Game`.
 
