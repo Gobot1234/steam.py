@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
-from ...abc import BaseChannel, Message, Messageable, _EndPointReturnType
+from ...abc import Channel, Message, Messageable, _EndPointReturnType
 
 if TYPE_CHECKING:
     from ...clan import Clan
@@ -55,7 +55,7 @@ class Context(Messageable):
         The prefix of the message the context was generated from
     author: :class:`~steam.User`
         The author of the message.
-    channel: :class:`~steam.abc.BaseChannel`
+    channel: :class:`~steam.Channel`
         The channel the message was sent in.
     clan: Optional[:class:`~steam.Clan`]
         The clan the message was sent in ``None`` if the message wasn't sent in a clan.
@@ -80,7 +80,7 @@ class Context(Messageable):
         self.invoked_with: Optional[str] = attrs.get("invoked_with")
 
         self.author: User = self.message.author
-        self.channel: BaseChannel = self.message.channel
+        self.channel: Channel = self.message.channel
         self.clan: Clan = self.message.clan
         self.group: Group = self.message.group
         self._state: ConnectionState = self.message._state

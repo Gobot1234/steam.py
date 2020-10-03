@@ -110,7 +110,7 @@ class Command:
         else:
             help_doc = inspect.getdoc(func)
             if isinstance(help_doc, bytes):
-                encoding = detect(help_doc)
+                encoding = detect(help_doc)["encoding"]
                 help_doc = help_doc.decode(encoding)
         self.help: Optional[str] = help_doc
 
