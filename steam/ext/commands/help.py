@@ -26,11 +26,13 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import sys
+import traceback
 from typing import TYPE_CHECKING, Optional
 
 from typing_extensions import final
 
-from .commands import Command
+from .commands import Command, GroupCommand
 from .context import Context
 
 if TYPE_CHECKING:
@@ -42,14 +44,20 @@ __all__ = ("HelpCommand",)
 
 
 class HelpCommand(Command):
-    """The default implementation of the help command."""
+    """The default implementation of the help command.
+
+    Attributes
+    ----------
+    context: :class:`~steam.ext.commands.Context`
+        The context for the command's invocation.
+    """
+
+    context: Context
 
     def __init__(self, **kwargs):
-        default = dict(name="help", help="Shows this message.")
+        default = dict(name="help", help="Shows this message.", cog=self)
         default.update(kwargs)
         super().__init__(self.command_callback, **default)
-        self.context: Optional[Context] = None
-        self.cog: Optional[Cog]
 
     def __repr__(self) -> str:
         return "<default help-command>"
@@ -60,16 +68,6 @@ class HelpCommand(Command):
         except (IndexError, AttributeError):
             return ""
 
-    async def _parse_arguments(self, ctx: Context) -> None:
-        # make the parser think we don't have a cog so it doesn't
-        # inject the parameter into `ctx.args`.
-        original_cog = self.cog
-        self.cog = None
-        try:
-            await super()._parse_arguments(ctx)
-        finally:
-            self.cog = original_cog
-
     @final
     async def command_callback(self, ctx: Context, *, content: str = None) -> None:
         """The actual implementation of the help command.
@@ -79,22 +77,30 @@ class HelpCommand(Command):
 
         - :meth:`send_cog_help`
         - :meth:`send_command_help`
+        - :meth:`send_group_help`
         - :meth:`command_not_found`
         """
         self.context = ctx
-        bot = ctx.bot
-        if content is None:
-            mapping = self.get_bot_mapping()
-            return await self.send_help(mapping)
-        # check if it's a cog
-        cog = bot.get_cog(content)
-        if cog is not None:
-            return await self.send_cog_help(cog)
-        command = bot.get_command(content)
-        if command is not None:
-            return await self.send_command_help(command)
+        try:
+            bot = ctx.bot
+            if content is None:
+                mapping = self.get_bot_mapping()
+                return await self.send_help(mapping)
+            # check if it's a cog
+            cog = bot.get_cog(content)
+            if cog is not None:
+                return await self.send_cog_help(cog)
+            command = bot.get_command(content)
+            if command is not None:
+                return await (
+                    self.send_group_help(command)
+                    if isinstance(command, GroupCommand)
+                    else self.send_command_help(command)
+                )
 
-        await self.command_not_found(content)
+            await self.command_not_found(content)
+        finally:
+            del self.context
 
     def get_bot_mapping(self) -> "dict[Optional[str], list[Command]]":
         bot = self.context.bot
@@ -103,28 +109,41 @@ class HelpCommand(Command):
         for l in mapping.values():
             for command in l:
                 categorized_commands.append(command)
-        mapping[None] = [c for c in set(bot.commands) if c not in categorized_commands]
+        mapping[None] = [c for c in bot.commands if c not in categorized_commands]
         return mapping
 
     async def send_help(self, mapping: "dict[Optional[commands.Cog], list[commands.Command]]") -> None:
-        message = []
+        message = ["/pre"]
         for name, commands in mapping.items():
             if name is not None:
-                message.append(f"--= {name}'s commands =--")
+                message.append(f"{name}'s commands")
             else:
-                message.append("--= Un-categorized commands =--")
+                message.append("Un-categorized commands")
             for command in commands:
                 message.append(f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
     async def send_cog_help(self, cog: "commands.Cog") -> None:
-        message = [f"--= {cog.qualified_name}'s commands =--"]
+        message = [f"/pre {cog.qualified_name}'s commands"]
         for name, command in sorted(cog.__commands__.items()):
             message.append(f'{name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
-    async def send_command_help(self, command: "commands.Command"):
-        await self.context.send(f"Help with {command.name}:\n\n{command.help}")
+    async def send_command_help(self, command: "commands.Command") -> None:
+        await self.context.send(f"/pre Help with {command.name}:\n\n{command.help}")
 
-    async def command_not_found(self, command: str):
+    async def send_group_help(self, command: "commands.GroupCommand") -> None:
+        msg = [f"/pre Help with {command.name}:\n\n{command.help}"]
+        sub_commands = "\n".join(c.name for c in command.children)
+        if sub_commands:
+            msg.append(f"\nAnd its sub commands:\n{sub_commands}")
+        await self.context.send("\n".join(msg))
+
+    async def command_not_found(self, command: str) -> None:
         await self.context.send(f'The command "{command}" was not found.')
+
+    async def on_error(self, ctx: "commands.Context", error: Exception) -> None:
+        print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+    cog_command_error = on_error
