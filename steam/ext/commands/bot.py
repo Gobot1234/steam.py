@@ -212,7 +212,6 @@ class Bot(GroupMixin, Client):
                 if attr.parent:  # if it's a sub-command don't add it to the global commands
                     continue
 
-                setattr(self, attr.callback.__name__, attr)
                 if isinstance(attr, GroupMixin):
                     for child in attr.children:
                         child.cog = self
@@ -233,11 +232,14 @@ class Bot(GroupMixin, Client):
         return MappingProxyType(self.__extensions__)
 
     @property
-    def converters(self) -> dict[str, Converters]:
-        return CONVERTERS
+    def converters(self) -> Mapping[str, Converters]:
+        """Mapping[:class:`str`, :class:`~steam.ext.commands.Converter`]:
+        A read only mapping of registered converters."""
+        return MappingProxyType(CONVERTERS)
 
     @property
     def help_command(self) -> HelpCommand:
+        """:class:`.HelpCommand`: The bot's help command."""
         return self._help_command
 
     @help_command.setter

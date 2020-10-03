@@ -70,15 +70,16 @@ class HelpCommand(Command):
 
     @final
     async def command_callback(self, ctx: Context, *, content: str = None) -> None:
-        """The actual implementation of the help command.
+        """|coro|
+        The actual implementation of the help command.
 
         This method should not directly subclassed instead you should change the behaviour through the methods that
         actually get dispatched:
 
-        - :meth:`send_cog_help`
-        - :meth:`send_command_help`
-        - :meth:`send_group_help`
-        - :meth:`command_not_found`
+            - :meth:`send_cog_help`
+            - :meth:`send_command_help`
+            - :meth:`send_group_help`
+            - :meth:`command_not_found`
         """
         self.context = ctx
         try:
@@ -102,7 +103,15 @@ class HelpCommand(Command):
         finally:
             del self.context
 
-    def get_bot_mapping(self) -> "dict[Optional[str], list[Command]]":
+    def get_bot_mapping(self) -> "dict[Optional[str], list[commands.Command]]":
+        """
+        Generate a mapping of the bot's commands. It's not normally necessary to subclass this.
+
+        Returns
+        -------
+        dict[Optional[str], list[Command]]
+            The mapping of commands passed to :meth:`send_help`.
+        """
         bot = self.context.bot
         mapping = {name: list(cog.commands) for name, cog in bot.__cogs__.items()}
         categorized_commands = []
@@ -112,27 +121,59 @@ class HelpCommand(Command):
         mapping[None] = [c for c in bot.commands if c not in categorized_commands]
         return mapping
 
-    async def send_help(self, mapping: "dict[Optional[commands.Cog], list[commands.Command]]") -> None:
+    async def send_help(self, mapping: "dict[Optional[str], list[commands.Command]]") -> None:
+        """|coro|
+        Send the basic help message for the bot's command.
+
+        Parameters
+        ----------
+        mapping: dict[Optional[commands.Cog], list[commands.Command]]
+            The mapping from :meth:`get_bot_mapping`.
+        """
         message = ["/pre"]
         for name, commands in mapping.items():
-            if name is not None:
-                message.append(f"{name}'s commands")
-            else:
-                message.append("Un-categorized commands")
+            message.append(f"{name}'s commands") if name is not None else message.append("Un-categorized commands")
             for command in commands:
                 message.append(f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
     async def send_cog_help(self, cog: "commands.Cog") -> None:
+        """|coro|
+        The method called with a cog is passed as an argument.
+
+        .. note::
+            This is case-sensitive.
+
+        Parameters
+        ----------
+        cog: :class:`~steam.ext.commands.Cog`
+            The cog that was passed as an argument.
+        """
         message = [f"/pre {cog.qualified_name}'s commands"]
         for name, command in sorted(cog.__commands__.items()):
             message.append(f'{name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
     async def send_command_help(self, command: "commands.Command") -> None:
+        """|coro|
+        The method called when a normal command is passed as an argument.
+
+        Parameters
+        ----------
+        command: :class:`~steam.ext.commands.Command`
+            The command that was passed as an argument.
+        """
         await self.context.send(f"/pre Help with {command.name}:\n\n{command.help}")
 
     async def send_group_help(self, command: "commands.GroupCommand") -> None:
+        """|coro|
+        The method called when a group command is passed as an argument.
+
+        Parameters
+        ----------
+        command: :class:`~steam.ext.commands.GroupCommand`
+            The command that was passed as an argument.
+        """
         msg = [f"/pre Help with {command.name}:\n\n{command.help}"]
         sub_commands = "\n".join(c.name for c in command.children)
         if sub_commands:
@@ -140,9 +181,30 @@ class HelpCommand(Command):
         await self.context.send("\n".join(msg))
 
     async def command_not_found(self, command: str) -> None:
-        await self.context.send(f'The command "{command}" was not found.')
+        """|coro|
+        The default implementation for when a command isn't found.
+
+        This by default sends "The command {command} was not found."
+
+        Parameters
+        ----------
+        command: :class:`str`
+            The command that was not found.
+        """
+        await self.context.send(f"The command {command!r} was not found.")
 
     async def on_error(self, ctx: "commands.Context", error: Exception) -> None:
+        """|coro|
+        The default error handler for the help command. This performs the functionality as
+        :meth:`steam.ext.commands.Bot.on_command_error`.
+
+        Parameters
+        ----------
+        ctx: :class:`.Context`
+            The context for the invocation.
+        error: :exc:`Exception`
+            The error that was raised.
+        """
         print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 

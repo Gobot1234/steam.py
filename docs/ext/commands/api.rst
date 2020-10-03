@@ -82,6 +82,14 @@ Command
     :special-members: __call__
 
 
+Help Command
+------------
+
+.. autoclass:: steam.ext.commands.HelpCommand
+    :members:
+    :inherited-members:
+
+
 Cogs
 ------
 
