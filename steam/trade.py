@@ -305,7 +305,7 @@ class Inventory:
 
     def __contains__(self, item: Asset) -> bool:
         if not isinstance(item, Asset):
-            raise TypeError("unsupported operand type(s) for 'in':" f" '{item.__class__.__qualname__}' and 'Inventory'")
+            raise TypeError(f"unsupported operand type(s) for 'in': {item.__class__.__qualname__!r} and 'Inventory'")
         return item in self.items
 
     def _update(self, data: InventoryDict) -> None:

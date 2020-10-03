@@ -79,12 +79,6 @@ def return_true(*_, **__) -> Literal[True]:
     return True
 
 
-def check_job_id(job_id: int) -> Callable[[MsgBase], bool]:
-    check = None  # needed to stop pylint thinking this is a NameError
-    exec(f"def check(msg): return msg.header.job_id_target == {job_id}")
-    return check
-
-
 class EventListener(NamedTuple):
     emsg: EMsg
     predicate: Callable[[MsgBase], bool]
@@ -97,6 +91,9 @@ class CMServer:
     def __init__(self, url: str, score: float = 0.0):
         self.url = url
         self.score = score
+
+    def __repr__(self):
+        return f"CMServer(url={self.url!r}, score={self.score})"
 
 
 class ConnectionClosed(Exception):
@@ -130,7 +127,6 @@ class CMServerList(AsyncIterator[CMServer]):
         if not self.cms:
             log.debug("No good servers left. Resetting...")
             self.reset_all()
-            await self.fill()
             return await self.fill()
 
         random.shuffle(self.cms)
@@ -181,6 +177,7 @@ class CMServerList(AsyncIterator[CMServer]):
 
     async def ping_cms(self, cms: Optional[list[CMServer]] = None, to_ping: int = 10) -> list[CMServer]:
         cms = self.cms or cms
+        best_cms = []
         for cm in cms[:to_ping]:
             # TODO dynamically make sure we get good ones by checking len and stuff
             start = time.perf_counter()
@@ -199,11 +196,10 @@ class CMServerList(AsyncIterator[CMServer]):
                     pass
             else:
                 latency = time.perf_counter() - start
-                score = (int(load) * 2) + latency
-                cm.score = score
-                self.cms.append(cm)
+                cm.score = (int(load) * 2) + latency
+                best_cms.append(cm)
         log.debug("Finished pinging CMs")
-        return sorted(self.cms, key=lambda cm: cm.score)
+        return sorted(best_cms, key=lambda cm: cm.score)
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool
@@ -396,7 +392,9 @@ class SteamWebSocket:
             return log.error(f"Failed to deserialize message: {emsg!r}, {message!r}", exc_info=exc)
         else:
             try:
-                log.debug(f"Socket has received {msg!r} from the websocket.")  # see https://github.com/danielgtaylor/python-betterproto/issues/133
+                log.debug(
+                    f"Socket has received {msg!r} from the websocket."
+                )  # see https://github.com/danielgtaylor/python-betterproto/issues/133
             except Exception:
                 pass
         self._dispatch("socket_receive", msg)
@@ -518,7 +516,10 @@ class SteamWebSocket:
     ) -> MsgBase:
         job_id = await self.send_um(name, **kwargs)
         if check is None:
-            check = check_job_id(job_id)
+
+            def check(msg: MsgBase) -> bool:
+                return msg.header.job_id_target == job_id
+
         return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, predicate=check), timeout=timeout)
 
     async def change_presence(

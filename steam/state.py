@@ -155,13 +155,13 @@ class ConnectionState:
 
     def clear(self) -> None:
         self._users: MutableMapping[int, User] = weakref.WeakValueDictionary()
-        self._trades: dict[int, TradeOffer] = dict()
-        self._groups: dict[int, Group] = dict()
-        self._clans: dict[int, Clan] = dict()
-        self._confirmations: dict[str, Confirmation] = dict()
+        self._trades: dict[int, TradeOffer] = {}
+        self._groups: dict[int, Group] = {}
+        self._clans: dict[int, Clan] = {}
+        self._confirmations: dict[str, Confirmation] = {}
         self._confirmations_to_ignore: list[str] = []
         self._messages: deque[Message] = self.max_messages and deque(maxlen=self.max_messages)
-        self.invites: dict[int, Union[UserInvite, ClanInvite]] = dict()
+        self.invites: dict[int, Union[UserInvite, ClanInvite]] = {}
 
         self._trades_task: Optional[asyncio.Task] = None
         self._trades_to_watch: list[int] = []
