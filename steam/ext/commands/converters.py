@@ -198,26 +198,23 @@ class Converter(Protocol[T]):
         """
         raise NotImplementedError("Derived classes must implement this")
 
-    def __init_subclass__(cls):
+    def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-        # if not hasattr(cls, "_converter_for"):
-        #     raise TypeError("Converters should subclass commands.Converter[converter_for] using __class_getitem__")
-        for converter, converter_for in reversed(tuple(CONVERTERS.items())):
-            if cls._converter_for is converter_for:
-                del CONVERTERS[converter]
-                CONVERTERS[cls] = converter_for
-                cls.converter_for = converter_for
-                return
-        else:
+        converter_for = globals().pop("__current_converter", None)
+        if converter_for is None:
+            # the control flow for this is __class_getitem__ -> __init_subclass__ so this is fine
+            # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
             import warnings
-
             warnings.warn(
                 "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1",
                 DeprecationWarning,
             )
             CONVERTERS[cls] = cls
+        else:
+            CONVERTERS[cls] = converter_for
+            cls.converter_for = converter_for
 
-    def __class_getitem__(cls, converter_for: Any) -> Converter[T]:
+    def __class_getitem__(cls, converter_for: ConverterTypes) -> Converter[T]:
         """The main entry point for Converters.
 
         This method is called when :class:`.Converter` is subclassed to handle the argument that was passed as the
@@ -228,8 +225,7 @@ class Converter(Protocol[T]):
                 raise TypeError("commands.Converter only accepts one argument")
             converter_for = converter_for[0]
         annotation = super().__class_getitem__(converter_for)
-        cls._converter_for = get_args(annotation)[0]
-        CONVERTERS[annotation] = cls._converter_for
+        globals()["__current_converter"] = get_args(annotation)[0]
         return annotation
 
 
@@ -437,17 +433,22 @@ class Greedy(Generic[T]):
 
 
 # fmt: off
+ConverterTypes = Union[
+    T,
+    Tuple[T],
+    str,
+]
 GreedyTypes = Union[
-    T,                     # a class/type
-    str,                   # should be a string with a ForwardRef to a class to be evaluated later
-    Tuple[T],              # for Greedy[int,] / Greedy[(int,)] to be valid
-    Tuple[str],            # same as above two points
-    Callable[[str], Any],  # a callable simple converter
-    Converter,             # a Converter subclass
+    T,               # a class/type
+    str,             # should be a string with a ForwardRef to a class to be evaluated later
+    Tuple[T],        # for Greedy[int,] / Greedy[(int,)] to be valid
+    Tuple[str],      # same as above two points
+    BasicConverter,  # a callable simple converter
+    Converter,       # a Converter subclass
 ]
 INVALID_GREEDY_TYPES = (
-    str,                   # leads to parsing weirdness
-    None,                  # how would this work
-    type(None),            # same as above
-    Greedy,                # Greedy[Greedy[int]] makes no sense
+    str,             # leads to parsing weirdness
+    None,            # how would this work
+    type(None),      # same as above
+    Greedy,          # Greedy[Greedy[int]] makes no sense
 )
