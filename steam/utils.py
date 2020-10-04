@@ -319,7 +319,7 @@ URL_REGEX = re.compile(
 
 
 async def id64_from_url(
-    url: Optional[str], session: Optional[aiohttp.ClientSession] = None, timeout: float = 30
+    url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None, timeout: float = 30
 ) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or ``None``.
 
