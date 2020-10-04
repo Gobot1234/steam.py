@@ -283,16 +283,20 @@ class SteamID(metaclass=abc.ABCMeta):
             return False
 
         if self.type == EType.Individual:
-            return self.id != 0 or self.instance < 4
+            if self.id == 0 or self.instance > 4:
+                return False
 
         if self.type == EType.Clan:
-            return self.id != 0 or self.instance == 0
+            if self.id == 0 or self.instance != 0:
+                return False
 
         if self.type == EType.GameServer:
-            return self.id != 0
+            if self.id == 0:
+                return False
 
         if self.type == EType.AnonGameServer:
-            return self.id != 0 and self.instance != 0
+            if self.id == 0 and self.instance == 0:
+                return False
 
         return True
 

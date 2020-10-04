@@ -32,12 +32,12 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, Type,
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
-from ...models import FunctionType
 from ...channel import Channel
 from ...clan import Clan
 from ...errors import InvalidSteamID
 from ...game import Game
 from ...group import Group
+from ...models import FunctionType
 from ...user import User
 from .errors import BadArgument
 
@@ -202,7 +202,7 @@ class Converter(Protocol[T]):
         super().__init_subclass__()
         # if not hasattr(cls, "_converter_for"):
         #     raise TypeError("Converters should subclass commands.Converter[converter_for] using __class_getitem__")
-        for converter, converter_for in tuple(reversed(CONVERTERS.items())):
+        for converter, converter_for in reversed(tuple(CONVERTERS.items())):
             if cls._converter_for is converter_for:
                 del CONVERTERS[converter]
                 CONVERTERS[cls] = converter_for
@@ -213,7 +213,7 @@ class Converter(Protocol[T]):
 
             warnings.warn(
                 "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1",
-                DeprecationWarning
+                DeprecationWarning,
             )
             CONVERTERS[cls] = cls
 
