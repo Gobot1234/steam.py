@@ -128,8 +128,6 @@ class Game:
                 id = int(id)
             except (ValueError, TypeError):
                 raise ValueError(f"id expected to support int()")
-            if id < 0:
-                raise ValueError("id cannot be negative")
             try:
                 title = Games(id).name.replace("__", "-").replace("_", " ")
             except ValueError:
@@ -148,6 +146,9 @@ class Game:
                 id = int(id)
             except (ValueError, TypeError):
                 raise ValueError("id must be an int") from None
+
+        if id < 0:
+            raise ValueError("id cannot be negative")
 
         self.id: int = id
         self.title: Optional[str] = title
