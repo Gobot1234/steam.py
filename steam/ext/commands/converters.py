@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, Type, TypeVar, Union
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
@@ -66,33 +66,31 @@ T = TypeVar("T", bound=type)
 BasicConverter = Callable[[str], Any]
 
 
-Converters = Union["Converter", BasicConverter]
+Converters = Union[Type["Converter"], BasicConverter]
 CONVERTERS: dict[Any, Converters] = {}
 
 
-def converter(converter: Any) -> Callable[[Converters], Converters]:
+def converter(converter: Any) -> Callable[[BasicConverter], BasicConverter]:
     """
-    The recommended way to mark a converter as such.
+    The recommended way to mark a callable converter as such.
 
     .. note::
-        All of the converters marked with this decorator can be accessed either via
+        All of the converters marked with this decorator or derived from :class:`.Converter` can be accessed either via
         :attr:`~steam.ext.commands.Bot.converters` or :attr:`~steam.ext.commands.converters.CONVERTERS`.
 
     Examples
     --------
-    Taking the image converter example from :class:`~steam.ext.commands.Converter`::
+    .. code-block:: python
 
-        @commands.converter(steam.Image)  # this is the type hint used
-        class ImageConverter:
-            async def convert(self, ctx: 'commands.Context', argument: str):
-                ...
+        @commands.converter(commands.Command)  # this is the type hint used
+        def command_convert(self, argument: str) -> commands.Command:
+            ...
 
         # then later
 
         @bot.command()
-        async def set_avatar(ctx, avatar: steam.Image):  # this then calls ImageConverter on invocation.
-            await bot.edit(avatar=avatar)
-            await ctx.send('👌')
+        async def source(ctx, avatar: commands.Command):  # this then calls command_convert on invocation.
+            ...
 
 
     Parameters
@@ -101,7 +99,9 @@ def converter(converter: Any) -> Callable[[Converters], Converters]:
         The type annotation the decorated converter should convert for.
     """
 
-    def decorator(func: Converters) -> Converters:
+    def decorator(func: BasicConverter) -> BasicConverter:
+        if not callable(func):
+            raise TypeError(f"Excepted a callable, received {func.__name__!r}")
         CONVERTERS[converter] = func
         return func
 
@@ -109,14 +109,16 @@ def converter(converter: Any) -> Callable[[Converters], Converters]:
 
 
 @runtime_checkable
-class Converter(Protocol):
-    """
-    .. warning::
-        This method of defining converters is deprecated and slated for removal in V.1.
+class Converter(Protocol[T]):
+    """A custom :class:`typing.Protocol` from which converters can be derived.
 
-    A custom class from which converters can be derived. They should be type-hinted to a command's argument.
+    Some custom dataclasses from this library can be type-hinted easily:
 
-    Some custom types from this library can be type-hinted just using their normal type (see below).
+        - :class:`~steam.User`.
+        - :class:`~steam.Channel`
+        - :class:`~steam.Clan`
+        - :class:`~steam.Group`
+        - :class:`~steam.Game`
 
     Examples
     --------
@@ -125,7 +127,7 @@ class Converter(Protocol):
 
         @bot.command()
         async def command(ctx, user: steam.User):
-            # this will end up making the user variable a `User` object.
+            # this will end up making the user variable a :class:`~steam.User` object.
 
         # invoked as
         # !command 76561198248053954
@@ -133,8 +135,8 @@ class Converter(Protocol):
 
     A custom converter: ::
 
-        class ImageConverter(commands.Converter):
-            async def convert(self, ctx: 'commands.Context', argument: str):
+        class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
+            async def convert(self, ctx, argument):
                 search = re.search(r'\[url=(.*)\], argument)
                 if search is None:
                     raise commands.BadArgument(f'{argument} is not a recognised image')
@@ -149,7 +151,7 @@ class Converter(Protocol):
         # then later
 
         @bot.command()
-        async def set_avatar(ctx, avatar: ImageConverter):
+        async def set_avatar(ctx, avatar: steam.Image):
             await bot.edit(avatar=avatar)
             await ctx.send('👌')
 
@@ -157,21 +159,44 @@ class Converter(Protocol):
         # !set_avatar https://my_image_url.com
     """
 
+    # _converter_for: T  # this is overwritten by every subclass so shouldn't be accessed by other code although I
+    # feel like there is a better way to do this.
+
     @abstractmethod
     async def convert(self, ctx: "commands.Context", argument: str):
         raise NotImplementedError("Derived classes must implement this")
 
-    def __init_subclass__(cls, **kwargs):
-        import warnings
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        # if not hasattr(cls, "_converter_for"):
+        #     raise TypeError("Converters should subclass commands.Converter[converter_for] using __class_getitem__")
+        if hasattr(cls, "_converter_for"):
+            for converter, converter_for in tuple(CONVERTERS.items()):
+                if cls._converter_for is converter_for:
+                    del CONVERTERS[converter]
+                    CONVERTERS[cls] = converter_for
 
-        warnings.warn(
-            "Subclassing commands.Converter is depreciated and is scheduled for removal in V.1", DeprecationWarning
-        )
-        CONVERTERS[cls] = cls
+        else:
+            import warnings
+
+            warnings.warn(
+                "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1",
+                DeprecationWarning
+            )
+            CONVERTERS[cls] = cls
+
+    def __class_getitem__(cls, converter: Any) -> Converter[T]:
+        if isinstance(converter, tuple):
+            if len(converter) != 1:
+                raise TypeError("commands.Converter only accepts one argument")
+            converter = converter[0]
+        annotation = super().__class_getitem__(converter)
+        annotation._converter_for = get_args(annotation)[0]
+        CONVERTERS[annotation] = annotation._converter_for
+        return annotation
 
 
-@converter(User)
-class UserConverter:
+class UserConverter(Converter[User]):
     """The converter that is used when the type-hint passed is :class:`~steam.User`.
 
     Lookup is in the order of:
@@ -193,8 +218,7 @@ class UserConverter:
         return user[0] if isinstance(user, list) else user
 
 
-@converter(Channel)
-class ChannelConverter:
+class ChannelConverter(Converter[Channel]):
     """The converter that is used when the type-hint passed is :class:`~steam.Channel`.
 
     Lookup is in the order of:
@@ -216,8 +240,7 @@ class ChannelConverter:
         return channel[0] if isinstance(channel, list) else channel
 
 
-@converter(Clan)
-class ClanConverter:
+class ClanConverter(Converter[Clan]):
     """The converter that is used when the type-hint passed is :class:`~steam.Clan`.
 
     Lookup is in the order of:
@@ -235,8 +258,7 @@ class ClanConverter:
         return clan[0] if isinstance(clan, list) else clan
 
 
-@converter(Group)
-class GroupConverter:
+class GroupConverter(Converter[Group]):
     """The converter that is used when the type-hint passed is :class:`~steam.Group`.
 
     Lookup is in the order of:
@@ -254,8 +276,7 @@ class GroupConverter:
         return group[0] if isinstance(group, list) else group
 
 
-@converter(Game)
-class GameConverter:
+class GameConverter(Converter[Game]):
     """The converter that is used when the type-hint passed is :class:`~steam.Game`.
 
     If the param is a digit it is assumed that the argument is the game's app id else it is assumed it is the game's
@@ -275,13 +296,13 @@ class Default(Protocol):
     Builtin: ::
 
         @bot.command()
-        async def info(ctx, user: steam.User = DefaultAuthor):
+        async def info(ctx, user=DefaultAuthor):
             # if no user is passed it will be ctx.author
 
     A custom default: ::
 
         class CurrentCommand(commands.Default):
-            async def default(self, ctx: 'commands.Context'):
+            async def default(self, ctx):
                 return ctx.command  # return the current command
 
         # then later
@@ -327,7 +348,7 @@ class DefaultClan(Default):
 
 
 class DefaultGame(Default):
-    """Returns the :attr:`~steam.ext.commands.Context.author`'s :attr:`~steam.User.game`"""
+    """Returns the :attr:`.Context.author`'s :attr:`~steam.User.game`"""
 
     async def default(self, ctx: Context) -> Game:
         return ctx.author.game
