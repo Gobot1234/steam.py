@@ -283,20 +283,16 @@ class SteamID(metaclass=abc.ABCMeta):
             return False
 
         if self.type == EType.Individual:
-            if self.id == 0 or self.instance > 4:
-                return False
+            return self.id != 0 or self.instance < 4
 
         if self.type == EType.Clan:
-            if self.id == 0 or self.instance != 0:
-                return False
+            return self.id != 0 or self.instance == 0
 
         if self.type == EType.GameServer:
-            if self.id == 0:
-                return False
+            return self.id != 0
 
         if self.type == EType.AnonGameServer:
-            if self.id == 0 and self.instance == 0:
-                return False
+            return self.id != 0 and self.instance != 0
 
         return True
 
@@ -362,7 +358,7 @@ class Commentable(SteamID):
     def comments(
         self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None
     ) -> CommentsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a profiles's :class:`~steam.Comment` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a profile's :class:`~steam.Comment` objects.
 
         Examples
         ---------

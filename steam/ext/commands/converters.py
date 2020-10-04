@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, Type,
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
+from ...models import FunctionType
 from ...channel import Channel
 from ...clan import Clan
 from ...errors import InvalidSteamID
@@ -63,7 +64,13 @@ __all__ = (
 )
 
 T = TypeVar("T", bound=type)
-BasicConverter = Callable[[str], Any]
+
+
+class BasicConverter(FunctionType):
+    converter_for: T
+
+    def __call__(self, arg: str) -> T:
+        ...
 
 
 Converters = Union[Type["Converter"], BasicConverter]
@@ -95,14 +102,20 @@ def converter(converter: Any) -> Callable[[BasicConverter], BasicConverter]:
 
     Parameters
     ----------
-    converter: Any
+    converter: T
         The type annotation the decorated converter should convert for.
+
+    Attributes
+    -----------
+    converter_for: T
+        The class that the converter can be type-hinted to to.
     """
 
     def decorator(func: BasicConverter) -> BasicConverter:
         if not callable(func):
-            raise TypeError(f"Excepted a callable, received {func.__name__!r}")
+            raise TypeError(f"Excepted a callable, received {func.__class__.__name__!r}")
         CONVERTERS[converter] = func
+        func.converter_for = converter
         return func
 
     return decorator
@@ -112,13 +125,18 @@ def converter(converter: Any) -> Callable[[BasicConverter], BasicConverter]:
 class Converter(Protocol[T]):
     """A custom :class:`typing.Protocol` from which converters can be derived.
 
-    Some custom dataclasses from this library can be type-hinted easily:
+    Some custom dataclasses from this library can be type-hinted without the need for a custom converter:
 
         - :class:`~steam.User`.
         - :class:`~steam.Channel`
         - :class:`~steam.Clan`
         - :class:`~steam.Group`
         - :class:`~steam.Game`
+
+    Attributes
+    -----------
+    converter_for: T
+        The class that the converter can be type-hinted to to.
 
     Examples
     --------
@@ -159,23 +177,37 @@ class Converter(Protocol[T]):
         # !set_avatar https://my_image_url.com
     """
 
-    # _converter_for: T  # this is overwritten by every subclass so shouldn't be accessed by other code although I
-    # feel like there is a better way to do this.
+    converter_for: T
 
     @abstractmethod
     async def convert(self, ctx: "commands.Context", argument: str):
+        """|coro|
+        An abstract method all converters must derive.
+
+        Parameters
+        ----------
+        ctx: :class:`~steam.ext.commands.Context`
+            The context for the invocation.
+        argument: :class:`str`
+            The argument that is passed from the argument parser.
+
+        Returns
+        -------
+        T
+            The created argument, should be of the same type of :attr:`converter_for`
+        """
         raise NotImplementedError("Derived classes must implement this")
 
     def __init_subclass__(cls):
         super().__init_subclass__()
         # if not hasattr(cls, "_converter_for"):
         #     raise TypeError("Converters should subclass commands.Converter[converter_for] using __class_getitem__")
-        if hasattr(cls, "_converter_for"):
-            for converter, converter_for in tuple(CONVERTERS.items()):
-                if cls._converter_for is converter_for:
-                    del CONVERTERS[converter]
-                    CONVERTERS[cls] = converter_for
-
+        for converter, converter_for in tuple(reversed(CONVERTERS.items())):
+            if cls._converter_for is converter_for:
+                del CONVERTERS[converter]
+                CONVERTERS[cls] = converter_for
+                cls.converter_for = converter_for
+                return
         else:
             import warnings
 
@@ -185,14 +217,19 @@ class Converter(Protocol[T]):
             )
             CONVERTERS[cls] = cls
 
-    def __class_getitem__(cls, converter: Any) -> Converter[T]:
-        if isinstance(converter, tuple):
-            if len(converter) != 1:
+    def __class_getitem__(cls, converter_for: Any) -> Converter[T]:
+        """The main entry point for Converters.
+
+        This method is called when :class:`.Converter` is subclassed to handle the argument that was passed as the
+        converter_for.
+        """
+        if isinstance(converter_for, tuple):
+            if len(converter_for) != 1:
                 raise TypeError("commands.Converter only accepts one argument")
-            converter = converter[0]
-        annotation = super().__class_getitem__(converter)
-        annotation._converter_for = get_args(annotation)[0]
-        CONVERTERS[annotation] = annotation._converter_for
+            converter_for = converter_for[0]
+        annotation = super().__class_getitem__(converter_for)
+        cls._converter_for = get_args(annotation)[0]
+        CONVERTERS[annotation] = cls._converter_for
         return annotation
 
 

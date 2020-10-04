@@ -209,6 +209,8 @@ Converters
 .. autodecorator:: steam.ext.commands.converter(converter)
 
 .. autoclass:: steam.ext.commands.Converter()
+    :members:
+    :special-members: __class_getitem__
 
 .. autoclass:: steam.ext.commands.UserConverter()
 
