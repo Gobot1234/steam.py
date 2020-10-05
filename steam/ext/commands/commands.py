@@ -34,7 +34,6 @@ import asyncio
 import functools
 import inspect
 import sys
-import typing
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -79,14 +78,14 @@ CommandDeco = Callable[[MaybeCommand], MaybeCommand]
 CommandErrorFunctionType = Callable[["Context", Exception], Coroutine[Any, Any, None]]
 
 
-@converters.converter(bool)
+@converters.converter_for(bool)
 def to_bool(argument: str) -> bool:
     lowered = argument.lower()
     if lowered in ("yes", "y", "true", "t", "1", "enable", "on"):
         return True
     elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
         return False
-    raise BadArgument(f'"{lowered}" is not a recognised boolean option')
+    raise BadArgument(f"{argument!r} is not a recognised boolean option")
 
 
 class Command:
@@ -147,7 +146,18 @@ class Command:
 
     @property
     def callback(self) -> CommandFunctionType:
-        """The internal callback the command holds."""
+        """The internal callback the command holds.
+
+        .. note::
+            When this is set if it fails to find a matching object in the module's dict, it will reload the module with
+            :attr:`typing.TYPE_CHECKING` set to ``True``, the purpose of this is to help aid with circular import
+            issues, if you do not want this to happen you have a few options:
+
+                - Put the imports in an ``if False:`` block or a constant named ``MYPY`` set to ``False`` (assuming you
+                  are using MyPy see https://mypy.readthedocs.io/en/stable/common_issues.html#import-cycles).
+                - Use an else after the ``if typing.TYPE_CHECKING`` to set the imported values to something at runtime.
+                - Don't have circular imports :)
+        """
         return self._callback
 
     @callback.setter
@@ -158,7 +168,7 @@ class Command:
         module = sys.modules[function.__module__]
 
         try:
-            annotations = typing.get_type_hints(function, module.__dict__)
+            annotations = get_type_hints(function, module.__dict__)
         except NameError as exc:
             reload_module_with_TYPE_CHECKING(module)
             try:
@@ -171,6 +181,9 @@ class Command:
         function.__annotations__ = annotations
         # replace the function's old annotations for later
         self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
+        for param in self.params.values():
+            if param.annotation is converters.Greedy:
+                raise TypeError(f"Cannot use un-parametrized Greedy with argument {param.name!r}")
         self.module = module
         self._callback = function
 
@@ -244,20 +257,18 @@ class Command:
         args = [ctx] if self.cog is None else [self.cog, ctx]
         kwargs = {}
 
-        lex = ctx.shlex
-
         for name, param in self.clean_params.items():
             if param.kind == param.POSITIONAL_OR_KEYWORD:
                 is_greedy = get_origin(param.annotation) is converters.Greedy
                 original_args = args.copy()
                 greedy_args = []
-                for argument in lex:
+                for argument in ctx.shlex:
                     try:
                         transformed = await self._transform(ctx, param, argument)
                     except BadArgument:
                         if not is_greedy:
                             raise
-                        lex.undo()  # undo last read string for the next argument
+                        ctx.shlex.undo()  # undo last read string for the next argument
                         args.append(tuple(greedy_args))
                         break
                     args.append(transformed) if not is_greedy else greedy_args.append(transformed)
@@ -265,12 +276,12 @@ class Command:
                     args.append(await self._get_default(ctx, param))
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                arg = " ".join(lex)
+                arg = " ".join(ctx.shlex)
                 kwargs[name] = await (self._get_default(ctx, param) if not arg else self._transform(ctx, param, arg))
                 break
             elif param.kind == param.VAR_KEYWORD:
                 # same as **kwargs
-                kv_pairs = [arg.split("=") for arg in lex]
+                kv_pairs = [arg.split("=") for arg in ctx.shlex]
                 if not kv_pairs:
                     kwargs["default"] = await self._get_default(ctx, param)
                     break
@@ -296,19 +307,19 @@ class Command:
                 break
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
-                for arg in lex:
+                for arg in ctx.shlex:
                     transformed = await self._transform(ctx, param, arg)
                     args.append(transformed)
                 break
         ctx.args = tuple(args)
         ctx.kwargs = kwargs
 
-    def _transform(self, ctx: Context, param: inspect.Parameter, argument: str) -> Coroutine[Any, None, None]:
+    def _transform(self, ctx: Context, param: inspect.Parameter, argument: str) -> Coroutine[None, None, Any]:
         param_type = param.annotation if param.annotation is not param.empty else str
         converter = self._get_converter(param_type)
         return self._convert(ctx, converter, param, argument)
 
-    def _get_converter(self, param_type: type) -> Union[converters.Converter, type]:
+    def _get_converter(self, param_type: type) -> converters.Converters:
         return converters.CONVERTERS.get(param_type, param_type)
 
     async def _convert(
@@ -328,32 +339,31 @@ class Command:
                 except AttributeError:
                     name = converter.__class__.__name__
                 raise BadArgument(f"{argument} failed to convert to {name}") from exc
-        else:
-            origin = get_origin(converter)
-            if origin is not None:
-                for arg in get_args(converter):
-                    converter = self._get_converter(arg)
-                    try:
-                        return await self._convert(ctx, converter, param, argument)
-                    except BadArgument:
-                        if origin is Union:
-                            continue
-                        raise
-                if origin is Union and type(None) in get_args(converter):  # typing.Optional
-                    try:
-                        return self._get_default(ctx, param)  # get the default if possible
-                    except MissingRequiredArgument:
-                        return None  # fall back to None
-                raise BadArgument(f"Failed to parse {argument} to any type")
-
-            try:
-                return converter(argument)
-            except Exception as exc:
+        origin = get_origin(converter)
+        if origin is not None:
+            for arg in get_args(converter):
+                converter = self._get_converter(arg)
                 try:
-                    name = converter.__name__
-                except AttributeError:
-                    name = converter.__class__.__name__
-                raise BadArgument(f"{argument!r} failed to convert to {name}") from exc
+                    return await self._convert(ctx, converter, param, argument)
+                except BadArgument:
+                    if origin is Union:
+                        continue
+                    raise
+            if origin is Union and type(None) in get_args(converter):  # typing.Optional
+                try:
+                    return self._get_default(ctx, param)  # get the default if possible
+                except MissingRequiredArgument:
+                    return None  # fall back to None
+            raise BadArgument(f"Failed to parse {argument} to any type")
+
+        try:
+            return converter(argument)
+        except Exception as exc:
+            try:
+                name = converter.__name__
+            except AttributeError:
+                name = converter.__class__.__name__
+            raise BadArgument(f"{argument!r} failed to convert to {name}") from exc
 
     async def _get_default(self, ctx: Context, param: inspect.Parameter) -> Any:
         if param.default is param.empty:

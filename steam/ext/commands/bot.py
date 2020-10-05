@@ -232,8 +232,8 @@ class Bot(GroupMixin, Client):
         return MappingProxyType(self.__extensions__)
 
     @property
-    def converters(self) -> Mapping[str, Converters]:
-        """Mapping[:class:`str`, :class:`~steam.ext.commands.Converter`]:
+    def converters(self) -> Mapping[type, Converters]:
+        """Mapping[:class:`type`, :class:`~steam.ext.commands.Converter`]:
         A read only mapping of registered converters."""
         return MappingProxyType(CONVERTERS)
 

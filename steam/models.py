@@ -133,13 +133,7 @@ class PriceOverview:
         self.currency: str = data["lowest_price"].replace(str(self.lowest_price).replace(",", "."), "")
 
     def __repr__(self) -> str:
-        attrs = (
-            "volume",
-            "currency",
-            "lowest_price",
-            "median_price",
-        )
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]
         return f"<PriceOverview {' '.join(resolved)}>"
 
 

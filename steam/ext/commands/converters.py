@@ -27,8 +27,9 @@ SOFTWARE.
 from __future__ import annotations
 
 import re
+import sys
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, NoReturn, Tuple, Type, TypeVar, Union
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
@@ -40,6 +41,7 @@ from ...group import Group
 from ...models import FunctionType
 from ...user import User
 from .errors import BadArgument
+from .utils import reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
     from steam.ext import commands
@@ -47,7 +49,7 @@ if TYPE_CHECKING:
     from .context import Context
 
 __all__ = (
-    "converter",
+    "converter_for",
     "Converter",
     "UserConverter",
     "ChannelConverter",
@@ -63,7 +65,9 @@ __all__ = (
     "Greedy",
 )
 
-T = TypeVar("T", bound=type)
+T = TypeVar("T")
+Converters = Union[Type["Converter"], "BasicConverter"]
+CONVERTERS: dict[Any, Converters] = {}
 
 
 class BasicConverter(FunctionType):
@@ -73,36 +77,31 @@ class BasicConverter(FunctionType):
         ...
 
 
-Converters = Union[Type["Converter"], BasicConverter]
-CONVERTERS: dict[Any, Converters] = {}
-
-
-def converter(converter: Any) -> Callable[[BasicConverter], BasicConverter]:
-    """
-    The recommended way to mark a callable converter as such.
+def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter]:
+    """The recommended way to mark a callable converter as such.
 
     .. note::
-        All of the converters marked with this decorator or derived from :class:`.Converter` can be accessed either via
-        :attr:`~steam.ext.commands.Bot.converters` or :attr:`~steam.ext.commands.converters.CONVERTERS`.
+        All of the converters marked with this decorator or derived from :class:`.Converter` can be accessed via
+        :attr:`~steam.ext.commands.Bot.converters`.
 
     Examples
     --------
     .. code-block:: python
 
         @commands.converter(commands.Command)  # this is the type hint used
-        def command_convert(self, argument: str) -> commands.Command:
+        def command_converter(self, argument: str) -> commands.Command:
             ...
 
         # then later
 
         @bot.command()
-        async def source(ctx, avatar: commands.Command):  # this then calls command_convert on invocation.
+        async def source(ctx, avatar: commands.Command):  # this then calls command_converter on invocation.
             ...
 
 
     Parameters
     ----------
-    converter: T
+    converter_for: T
         The type annotation the decorated converter should convert for.
 
     Attributes
@@ -114,8 +113,8 @@ def converter(converter: Any) -> Callable[[BasicConverter], BasicConverter]:
     def decorator(func: BasicConverter) -> BasicConverter:
         if not callable(func):
             raise TypeError(f"Excepted a callable, received {func.__class__.__name__!r}")
-        CONVERTERS[converter] = func
-        func.converter_for = converter
+        CONVERTERS[converter_for] = func
+        func.converter_for = converter_for
         return func
 
     return decorator
@@ -123,13 +122,17 @@ def converter(converter: Any) -> Callable[[BasicConverter], BasicConverter]:
 
 @runtime_checkable
 class Converter(Protocol[T]):
-    """A custom :class:`typing.Protocol` from which converters can be derived.
+    r"""A custom :class:`typing.Protocol` from which converters can be derived.
+
+    .. note::
+        All of the converters derived from :class:`.Converter` or marked with the :func:`.converter_for` decorator can
+        be accessed via :attr:`~steam.ext.commands.Bot.converters`.
 
     Some custom dataclasses from this library can be type-hinted without the need for a custom converter:
 
         - :class:`~steam.User`.
         - :class:`~steam.Channel`
-        - :class:`~steam.Clan`
+        - :class:`~steam.abc.Clan`
         - :class:`~steam.Group`
         - :class:`~steam.Game`
 
@@ -154,23 +157,23 @@ class Converter(Protocol[T]):
     A custom converter: ::
 
         class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
-            async def convert(self, ctx, argument):
-                search = re.search(r'\[url=(.*)\], argument)
+            async def convert(self, ctx: commands.Context, argument: str) -> steam.Image:
+                search = re.search(r"\[img src=(.*) ", argument)
                 if search is None:
-                    raise commands.BadArgument(f'{argument} is not a recognised image')
+                    raise commands.BadArgument(f"{argument!r} is not a recognised image url")
                 async with aiohttp.ClientSession() as session:
                     async with session.get(search.group(1)) as r:
                         image_bytes = await r.read()
                 try:
                     return steam.Image(image_bytes)
-                except (TypeError, ValueError) as exc:  # failed to convert to an image
-                    raise commands.BadArgument from exc
+                except (TypeError, ValueError):  # failed to convert to an image
+                    raise commands.BadArgument("Cannot convert image") from None
 
         # then later
 
         @bot.command()
-        async def set_avatar(ctx, avatar: steam.Image):
-            await bot.edit(avatar=avatar)
+        async def set_avatar(ctx: commands.Context, *, avatar: steam.Image):
+            await bot.user.edit(avatar=avatar)
             await ctx.send('👌')
 
         # invoked as
@@ -201,17 +204,26 @@ class Converter(Protocol[T]):
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         converter_for = globals().pop("__current_converter", None)
+        # the control flow for this is __class_getitem__ -> __init_subclass__ so this is ok-ish
         if converter_for is None:
-            # the control flow for this is __class_getitem__ -> __init_subclass__ so this is fine
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
             import warnings
+
             warnings.warn(
                 "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1",
                 DeprecationWarning,
             )
             CONVERTERS[cls] = cls
         else:
-            CONVERTERS[cls] = converter_for
+            CONVERTERS[converter_for] = cls
+            if isinstance(converter_for, ForwardRef):
+                module = sys.modules[cls.__module__]
+                reload_module_with_TYPE_CHECKING(module)
+                str_value = converter_for.__forward_arg__
+                evaluated_value = module.__dict__.get(str_value)
+                if evaluated_value is None:
+                    raise NameError(f"{str_value!r} was not able to be evaluated to a type")
+                converter_for = evaluated_value
             cls.converter_for = converter_for
 
     def __class_getitem__(cls, converter_for: ConverterTypes) -> Converter[T]:
@@ -219,6 +231,9 @@ class Converter(Protocol[T]):
 
         This method is called when :class:`.Converter` is subclassed to handle the argument that was passed as the
         converter_for.
+
+        .. note::
+            This has similar behaviour to :attr:`~steam.ext.commands.Command.callback`, so see the note for that.
         """
         if isinstance(converter_for, tuple):
             if len(converter_for) != 1:
@@ -435,8 +450,8 @@ class Greedy(Generic[T]):
 # fmt: off
 ConverterTypes = Union[
     T,
-    Tuple[T],
     str,
+    Tuple[T],
 ]
 GreedyTypes = Union[
     T,               # a class/type

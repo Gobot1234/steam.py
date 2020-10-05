@@ -170,7 +170,7 @@ class Shlex:
 
 def reload_module_with_TYPE_CHECKING(module: ModuleType) -> None:
     """Reload a module with typing.TYPE_CHECKING set to ``True``. Allowing you to avoid circular import issues due to
-    the way :meth:`importlib.reload` works.
+    the way :func:`importlib.reload` works.
 
     Warning
     --------
