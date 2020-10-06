@@ -63,7 +63,6 @@ if TYPE_CHECKING:
     from .trade import TradeOffer
     from .user import ClientUser, User
 
-
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
@@ -436,57 +435,49 @@ class Client:
 
     # state stuff
 
-    def get_user(
-        self,
-        id: utils.IntOrStr,
-        type: Optional[utils.ETypeType] = None,
-        universe: Optional[utils.EUniverseType] = None,
-        instance: Optional[utils.InstanceType] = None,
-    ) -> Optional[User]:
+    def get_user(self, id: utils.IntOrStr) -> Optional[User]:
         """Returns a user from cache with a matching ID.
 
         Parameters
         ----------
-        *args
-            The arguments to pass to :meth:`.utils.make_id64`.
-        **kwargs
-            The keyword arguments to pass to :meth:`.utils.make_id64`.
+        id: Union[:class:`int`, :class:`str`]
+            The ID of the user, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
+            :attr:`.SteamID.id3`.
 
         Returns
         -------
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        steam_id = SteamID(id=id, type=type, universe=universe, instance=instance)
+        steam_id = SteamID(id=id, type="Individual")
         return self._connection.get_user(steam_id.id64)
 
-    async def fetch_user(self, *args: Any, **kwargs: Any) -> Optional[User]:
+    async def fetch_user(self, id: utils.IntOrStr) -> Optional[User]:
         """|coro|
         Fetches a user from the API with a matching ID.
 
         Parameters
         ----------
-        *args
-            The arguments to pass to :meth:`.utils.make_id64`.
-        **kwargs
-            The keyword arguments to pass to :meth:`.utils.make_id64`.
+        id: Union[:class:`int`, :class:`str`]
+            The ID of the user, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
+            :attr:`.SteamID.id3`.
 
         Returns
         -------
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        steam_id = SteamID(*args, **kwargs)
+        steam_id = SteamID(id=id, type="Individual")
         return await self._connection.fetch_user(steam_id.id64)
 
-    async def fetch_users(self, *ids: int) -> list[Optional[User]]:
+    async def fetch_users(self, *ids: utils.IntOrStr) -> list[Optional[User]]:
         """|coro|
         Fetches a list of :class:`~steam.User` from their IDs from the API with a matching ID. The
         :class:`~steam.User` objects returned are unlikely to retain the order they were originally in.
 
         Parameters
         ----------
-        *ids: :class:`int`
+        *ids: Union[:class:`int`, :class:`str`]
             The user's IDs.
 
         Returns
@@ -497,14 +488,14 @@ class Client:
         steam_ids = [SteamID(id).id64 for id in ids]
         return await self._connection.fetch_users(steam_ids)
 
-    async def fetch_user_named(self, name: str) -> Optional["User"]:
+    async def fetch_user_named(self, name: str) -> Optional[User]:
         """|coro|
         Fetches a user from https://steamcommunity.com from there community URL name.
 
         Parameters
         ----------
         name: :class:`str`
-            The name of the Steam user.
+            The name of the user after https://steamcommunity.com/id
 
         Returns
         -------
@@ -547,62 +538,57 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    def get_group(self, *args: Any, **kwargs: Any) -> Optional[Group]:
+    def get_group(self, id: utils.IntOrStr) -> Optional[Group]:
         """Get a group from cache with a matching ID.
 
         Parameters
         ----------
-        *args
-            The arguments to pass to :meth:`.utils.make_id64`.
-        **kwargs
-            The keyword arguments to pass to :meth:`.utils.make_id64`.
+        id: Union[:class:`int`, :class:`str`]
+            The ID of the group, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
+            :attr:`.SteamID.id3`.
 
         Returns
         -------
         Optional[:class:`~steam.Group`]
             The group or ``None`` if the group was not found.
         """
-        kwargs["type"] = "Chat"
-        steam_id = SteamID(*args, **kwargs)
+        steam_id = SteamID(id=id, type="Chat")
         return self._connection.get_group(steam_id.id)
 
-    def get_clan(self, *args: Any, **kwargs: Any) -> Optional[Clan]:
+    def get_clan(self, id: utils.IntOrStr) -> Optional[Clan]:
         """Get a clan from cache with a matching ID.
 
         Parameters
         ----------
-        *args
-            The arguments to pass to :meth:`.utils.make_id64`.
-        **kwargs
-            The keyword arguments to pass to :meth:`.utils.make_id64`.
+        id: Union[:class:`int`, :class:`str`]
+            The ID of the clan, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
+            :attr:`.SteamID.id3`.
 
         Returns
         -------
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        kwargs["type"] = "Clan"
-        steam_id = SteamID(*args, **kwargs)
+        steam_id = SteamID(id=id, type="Clan")
         return self._connection.get_clan(steam_id.id)
 
-    async def fetch_clan(self, *args: Any, **kwargs: Any) -> Optional[Clan]:
+    async def fetch_clan(self, id: utils.IntOrStr) -> Optional[Clan]:
         """|coro|
         Fetches a clan from the websocket with a matching ID.
 
         Parameters
         ----------
-        *args
-            The arguments to pass to :meth:`.utils.make_id64`.
-        **kwargs
-            The keyword arguments to pass to :meth:`.utils.make_id64`.
+        id: Union[:class:`int`, :class:`str`]
+            The ID of the clan, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
+            :attr:`.SteamID.id3`.
+
 
         Returns
         -------
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        kwargs["type"] = "Clan"
-        steam_id = SteamID(*args, **kwargs)
+        steam_id = SteamID(id=id, type="Clan")
         return await self._connection.fetch_clan(steam_id.id64)
 
     async def fetch_clan_named(self, name: str) -> Optional[Clan]:

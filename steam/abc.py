@@ -124,7 +124,7 @@ class SteamID(metaclass=abc.ABCMeta):
     Parameters
     ----------
     id: Union[:class:`int`, :class:`str`]
-        The ID of the user, can be an :attr:`id64`, :attr:`id`, :attr:`id2` or an :attr:`id3`.
+        The ID of the Steam ID, can be an :attr:`id64`, :attr:`id`, :attr:`id2` or an :attr:`id3`.
     type: Union[:class:`.EType`, :class:`int`, :class:`str`]
         The EType for the Steam ID.
     universe: Union[:class:`.EUniverse`, :class:`int`, :class:`str`]
