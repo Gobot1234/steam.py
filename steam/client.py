@@ -436,7 +436,13 @@ class Client:
 
     # state stuff
 
-    def get_user(self, *args: Any, **kwargs: Any) -> Optional[User]:
+    def get_user(
+        self,
+        id: utils.IntOrStr,
+        type: Optional[utils.ETypeType] = None,
+        universe: Optional[utils.EUniverseType] = None,
+        instance: Optional[utils.InstanceType] = None,
+    ) -> Optional[User]:
         """Returns a user from cache with a matching ID.
 
         Parameters
@@ -451,7 +457,7 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        steam_id = SteamID(*args, **kwargs)
+        steam_id = SteamID(id=id, type=type, universe=universe, instance=instance)
         return self._connection.get_user(steam_id.id64)
 
     async def fetch_user(self, *args: Any, **kwargs: Any) -> Optional[User]:

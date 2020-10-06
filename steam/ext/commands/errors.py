@@ -41,6 +41,7 @@ __all__ = (
     "BadArgument",
     "MissingRequiredArgument",
     "DuplicateKeywordArgument",
+    "UnmatchedKeyValuePair",
     "CheckFailure",
     "NotOwner",
     "CommandNotFound",
@@ -100,6 +101,13 @@ class DuplicateKeywordArgument(BadArgument):
     def __init__(self, name: str):
         self.name = name
         super().__init__(f"{name!r} shadows another argument.")
+
+
+class UnmatchedKeyValuePair(BadArgument):
+    """Exception raised when an incorrect number of key value pairs are passed to a command to be unpacked.
+
+    Subclass of :exc:`BadArgument`.
+    """
 
 
 class CheckFailure(CommandError):

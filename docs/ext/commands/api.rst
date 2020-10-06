@@ -261,6 +261,9 @@ Exceptions
 .. autoexception:: steam.ext.commands.DuplicateKeywordArgument
     :members:
 
+.. autoexception:: steam.ext.commands.UnmatchedKeyValuePair
+    :members:
+
 .. autoexception:: steam.ext.commands.CheckFailure
     :members:
 
@@ -287,6 +290,7 @@ Exception Hierarchy
             - :exc:`~.commands.BadArgument`
                 - :exc:`~.commands.MissingRequiredArgument`
                 - :exc:`~.commands.DuplicateKeywordArgument`
+                - :exc:`~.commands.UnmatchedKeyValuePair`
             - :exc:`~.commands.CommandNotFound`
             - :exc:`~.commands.CheckFailure`
                 - :exc:`~.commands.CommandDisabled`

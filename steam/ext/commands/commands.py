@@ -54,7 +54,14 @@ from ...errors import ClientException
 from ...utils import cached_property, maybe_coroutine
 from . import converters
 from .cooldown import BucketType, Cooldown
-from .errors import BadArgument, CheckFailure, DuplicateKeywordArgument, MissingRequiredArgument, NotOwner
+from .errors import (
+    BadArgument,
+    CheckFailure,
+    DuplicateKeywordArgument,
+    MissingRequiredArgument,
+    NotOwner,
+    UnmatchedKeyValuePair,
+)
 from .utils import CaseInsensitiveDict, reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -293,18 +300,20 @@ class Command:
 
                 key_converter = self._get_converter(key_type)
                 value_converter = self._get_converter(value_type)
-
-                for key_arg, value_arg in kv_pairs:
-                    if key_arg in kwargs:
-                        raise DuplicateKeywordArgument(key_arg)
-                    kwargs.update(
-                        {
-                            await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
-                                ctx, value_converter, param, value_arg.strip()
-                            )
-                        }
-                    )
-                break
+                try:
+                    for key_arg, value_arg in kv_pairs:
+                        if key_arg in kwargs:
+                            raise DuplicateKeywordArgument(key_arg)
+                        kwargs.update(
+                            {
+                                await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
+                                    ctx, value_converter, param, value_arg.strip()
+                                )
+                            }
+                        )
+                    break
+                except ValueError:
+                    raise UnmatchedKeyValuePair("Un matched key-value pair passed")
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
                 for arg in ctx.shlex:

@@ -119,7 +119,19 @@ class UserDict(TypedDict):
 
 
 class SteamID(metaclass=abc.ABCMeta):
-    """Convert a Steam ID between its various representations."""
+    """Convert a Steam ID between its various representations.
+
+    Parameters
+    ----------
+    id: Union[:class:`int`, :class:`str`]
+        The ID of the user, can be an :attr:`id64`, :attr:`id`, :attr:`id2` or an :attr:`id3`.
+    type: Union[:class:`.EType`, :class:`int`, :class:`str`]
+        The EType for the Steam ID.
+    universe: Union[:class:`.EUniverse`, :class:`int`, :class:`str`]
+        The EUniverse of the account.
+    instance: Union[:class:`int`, :class:`str`]
+        The instance of the account.
+    """
 
     __slots__ = (
         "__BASE",
