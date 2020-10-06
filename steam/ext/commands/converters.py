@@ -28,11 +28,13 @@ from __future__ import annotations
 
 import re
 import sys
+import types
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, NoReturn, Tuple, Type, TypeVar, Union
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
+from ... import utils
 from ...channel import Channel
 from ...clan import Clan
 from ...errors import InvalidSteamID
@@ -78,7 +80,7 @@ class BasicConverter(FunctionType):
 
 
 def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter]:
-    """The recommended way to mark a callable converter as such.
+    """The recommended way to mark a function converter as such.
 
     .. note::
         All of the converters marked with this decorator or derived from :class:`.Converter` can be accessed via
@@ -95,7 +97,7 @@ def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter
         # then later
 
         @bot.command()
-        async def source(ctx, avatar: commands.Command):  # this then calls command_converter on invocation.
+        async def source(ctx, command: commands.Command):  # this then calls command_converter on invocation.
             ...
 
 
@@ -111,8 +113,8 @@ def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter
     """
 
     def decorator(func: BasicConverter) -> BasicConverter:
-        if not callable(func):
-            raise TypeError(f"Excepted a callable, received {func.__class__.__name__!r}")
+        if not isinstance(func, types.FunctionType):
+            raise TypeError(f"Excepted a function, received {func.__class__.__name__!r}")
         CONVERTERS[converter_for] = func
         func.converter_for = converter_for
         return func
@@ -197,7 +199,7 @@ class Converter(Protocol[T]):
         Returns
         -------
         T
-            The created argument, should be of the same type of :attr:`converter_for`
+            The created argument, should be of the same type of :attr:`converter_for`.
         """
         raise NotImplementedError("Derived classes must implement this")
 
@@ -215,7 +217,6 @@ class Converter(Protocol[T]):
             )
             CONVERTERS[cls] = cls
         else:
-            CONVERTERS[converter_for] = cls
             if isinstance(converter_for, ForwardRef):
                 module = sys.modules[cls.__module__]
                 reload_module_with_TYPE_CHECKING(module)
@@ -225,6 +226,7 @@ class Converter(Protocol[T]):
                     raise NameError(f"{str_value!r} was not able to be evaluated to a type")
                 converter_for = evaluated_value
             cls.converter_for = converter_for
+            CONVERTERS[converter_for] = cls
 
     def __class_getitem__(cls, converter_for: ConverterTypes) -> Converter[T]:
         """The main entry point for Converters.
@@ -260,10 +262,10 @@ class UserConverter(Converter[User]):
             search = re.search(r"\[mention=(\d+)]@\w+\[/mention]", argument)
             if search is not None:
                 return await self.convert(ctx, search.group(1))
-            user = [u for u in ctx.bot.users if u.name == argument]
-        if not user:
+            user = utils.find(lambda u: u.name == argument, ctx.bot.users)
+        if user is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
-        return user[0] if isinstance(user, list) else user
+        return user
 
 
 class ChannelConverter(Converter[Channel]):
@@ -279,13 +281,14 @@ class ChannelConverter(Converter[Channel]):
         if argument.isdigit():
             groups = ctx.bot._connection._combined.values()
             for group in groups:
-                channel = [c for c in group.channels if c.id == int(argument)]
+                channel = utils.find(lambda c: c.id == int(argument), group.channels)
+                if channel is not None:
+                    break
         else:
-            attr = ctx.clan or ctx.group
-            channel = [c for c in attr.channels if c.name == argument]
-        if not channel:
+            channel = utils.find(lambda c: c.name == argument, (ctx.clan or ctx.group).channels)
+        if channel is None:
             raise BadArgument(f'Failed to convert "{argument}" to a channel')
-        return channel[0] if isinstance(channel, list) else channel
+        return channel
 
 
 class ClanConverter(Converter[Clan]):
@@ -300,10 +303,10 @@ class ClanConverter(Converter[Clan]):
         try:
             clan = ctx.bot.get_clan(argument)
         except InvalidSteamID:
-            clan = [c for c in ctx.bot.clans if c.name == argument]
+            clan = utils.find(lambda c: c.name == argument, ctx.bot.clans)
         if clan is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
-        return clan[0] if isinstance(clan, list) else clan
+        return clan
 
 
 class GroupConverter(Converter[Group]):
@@ -318,10 +321,10 @@ class GroupConverter(Converter[Group]):
         try:
             group = ctx.bot.get_group(argument)
         except InvalidSteamID:
-            group = [c for c in ctx.bot.groups if c.name == argument]
-        if not group:
+            group = utils.find(lambda c: c.name == argument, ctx.bot.groups)
+        if group is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam group')
-        return group[0] if isinstance(group, list) else group
+        return group
 
 
 class GameConverter(Converter[Game]):
@@ -420,9 +423,14 @@ class Greedy(Generic[T]):
 
     An invocation of ``"test 1 2 3 4 5 6 hello"`` would pass ``(1, 2, 3, 4, 5, 6)`` to ``numbers`` and ``"hello"`` to
     ``reason``
+
+    Attributes
+    ----------
+    converter: T
+        The converter the Greedy type holds.
     """
 
-    converter: T  #: The converter the Greedy type holds.
+    converter: T
 
     def __new__(
         cls, *args: Any, **kwargs: Any

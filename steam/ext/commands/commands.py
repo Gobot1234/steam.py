@@ -225,7 +225,7 @@ class Command:
             yield command
             command = command.parent
 
-    async def __call__(self, ctx, *args: Any, **kwargs: Any) -> None:
+    async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
         """|coro|
         Calls the internal callback that the command holds.
 
