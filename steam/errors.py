@@ -106,7 +106,7 @@ class HTTPException(SteamException):
                     self.message = CODE_FINDER.sub("", message)
             else:
                 text = BeautifulSoup(data, "html.parser").get_text("\n")
-                self.message = text if text else ""
+                self.message = text or ""
 
         self.message = self.message.replace("  ", " ")
         super().__init__(

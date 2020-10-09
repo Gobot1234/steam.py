@@ -367,9 +367,8 @@ class SteamWebSocket:
     async def poll_event(self) -> None:
         try:
             message = await self.socket.receive()
-            if message.type is aiohttp.WSMsgType.BINARY:
-                if message.data:  # it can sometimes be None/empty
-                    return await self.receive(message.data)
+            if message.type is aiohttp.WSMsgType.BINARY and message.data:  # it can sometimes be None/empty
+                return await self.receive(message.data)
             if message.type is aiohttp.WSMsgType.ERROR:
                 log.debug(f"Received {message}")
                 raise message.data

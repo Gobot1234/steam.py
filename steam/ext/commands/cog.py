@@ -115,8 +115,8 @@ class Cog:
         cls.qualified_name = kwargs.get("name") or cls.__name__
         cls.command_attrs = kwargs.get("command_attrs", dict())
 
-        cls.__listeners__ = dict()
-        cls.__commands__ = dict()
+        cls.__listeners__ = {}
+        cls.__commands__ = {}
         for name, attr in inspect.getmembers(cls):
             if isinstance(attr, Command):
                 if attr.parent:  # ungrouped commands have no parent

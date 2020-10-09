@@ -283,33 +283,38 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         descriptions = resp.get("descriptions", [])
 
         async def process_trade(data: dict, descriptions: dict) -> None:
-            if self.after.timestamp() < data["time_init"] < self.before.timestamp():
-                for item in descriptions:
-                    for asset in data.get("assets_received", []):
-                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                            asset.update(item)
-                    for asset in data.get("assets_given", []):
-                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                            asset.update(item)
+            if (
+                not self.after.timestamp()
+                < data["time_init"]
+                < self.before.timestamp()
+            ):
+                return
+            for item in descriptions:
+                for asset in data.get("assets_received", []):
+                    if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
+                        asset.update(item)
+                for asset in data.get("assets_given", []):
+                    if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
+                        asset.update(item)
 
-                # patch in the attributes cause steam is cool
-                data["tradeofferid"] = data["tradeid"]
-                data["accountid_other"] = data["steamid_other"]
-                data["trade_offer_state"] = data["status"]
-                data["items_to_give"] = data.get("assets_given", [])
-                data["items_to_receive"] = data.get("assets_received", [])
+            # patch in the attributes cause steam is cool
+            data["tradeofferid"] = data["tradeid"]
+            data["accountid_other"] = data["steamid_other"]
+            data["trade_offer_state"] = data["status"]
+            data["items_to_give"] = data.get("assets_given", [])
+            data["items_to_receive"] = data.get("assets_received", [])
 
-                trade = await TradeOffer._from_api(state=self._state, data=data)
+            trade = await TradeOffer._from_api(state=self._state, data=data)
 
-                if not self._active_only:
-                    if not self.append(trade):
-                        raise StopAsyncIteration
-                elif self._active_only and trade.state in (
-                    ETradeOfferState.Active,
-                    ETradeOfferState.ConfirmationNeed,
-                ):
-                    if not self.append(trade):
-                        raise StopAsyncIteration
+            if not self._active_only:
+                if not self.append(trade):
+                    raise StopAsyncIteration
+            elif trade.state in (
+                ETradeOfferState.Active,
+                ETradeOfferState.ConfirmationNeed,
+            ):
+                if not self.append(trade):
+                    raise StopAsyncIteration
 
         try:
             for trade in resp.get("trades", []):

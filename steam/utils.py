@@ -460,11 +460,7 @@ def contains_bbcode(string: str) -> bool:
         "flip",
         "store",
     ]
-    for bbcode in bbcodes:
-        if string.startswith(f"/{bbcode}"):
-            return True
-
-    return False
+    return any(string.startswith(f"/{bbcode}") for bbcode in bbcodes)
 
 
 def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:

@@ -613,20 +613,21 @@ class ConnectionState:
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
-        if msg.header.job_name_target == "ChatRoom.GetMyChatRoomGroups#1":
-            msg: MsgProto[MyChatRooms]
-            for group in msg.body.chat_room_groups:
-                if group.group_summary.clanid:  # received a clan
-                    clan = await Clan._from_proto(self, group)
-                    self._clans[clan.id] = clan
-                else:  # else it's a group
-                    group = Group(state=self, proto=group.group_summary)
-                    await group.__ainit__()
-                    self._groups[group.id] = group
+        if msg.header.job_name_target != "ChatRoom.GetMyChatRoomGroups#1":
+            return
+        msg: MsgProto[MyChatRooms]
+        for group in msg.body.chat_room_groups:
+            if group.group_summary.clanid:  # received a clan
+                clan = await Clan._from_proto(self, group)
+                self._clans[clan.id] = clan
+            else:  # else it's a group
+                group = Group(state=self, proto=group.group_summary)
+                await group.__ainit__()
+                self._groups[group.id] = group
 
-            if not self.handled_groups:
-                await self.handled_friends.wait()  # ensure friend cache is ready
-                self.client._handle_ready()
+        if not self.handled_groups:
+            await self.handled_friends.wait()  # ensure friend cache is ready
+            self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
     def parse_cm_list_update(self, msg: MsgProto[CMsgClientCMList]) -> None:
@@ -676,7 +677,7 @@ class ConnectionState:
 
         if friend.last_logoff:
             data["lastlogoff"] = friend.last_logoff
-        data["gameextrainfo"] = friend.game_name if friend.game_name else None
+        data["gameextrainfo"] = friend.game_name or None
         data["personastate"] = friend.persona_state
         data["personastateflags"] = friend.persona_state_flags
         return data

@@ -113,11 +113,13 @@ class Cooldown:
             if now >= time + self._per:
                 self._last_called_by.pop(0)
 
-        if self._last_update + self._per >= now:
-            if len(self._last_called_by) >= self._rate:
-                if bucket in (b for b, t in self._last_called_by):
-                    retry_after = self._last_update + self._per - now
-                    raise CommandOnCooldown(retry_after)
+        if (
+            self._last_update + self._per >= now
+            and len(self._last_called_by) >= self._rate
+            and bucket in (b for b, t in self._last_called_by)
+        ):
+            retry_after = self._last_update + self._per - now
+            raise CommandOnCooldown(retry_after)
 
         self._last_called_by.append((bucket, now))
         self._last_update = _time.time()
