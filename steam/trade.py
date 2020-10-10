@@ -444,8 +444,8 @@ class TradeOffer:
         items_to_send: Optional[list[Items]] = None,
         items_to_receive: Optional[list[Items]] = None,
     ):
-        (self.items_to_receive): list[Items] = items_to_receive or []
-        (self.items_to_send): list[Items] = items_to_send or []
+        self.items_to_receive: list[Items] = items_to_receive or []
+        self.items_to_send: list[Items] = items_to_send or []
         if item_to_receive:
             self.items_to_receive.append(item_to_receive)
         if item_to_send:
