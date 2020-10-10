@@ -301,7 +301,7 @@ class Inventory:
         return self._total_inventory_count
 
     def __iter__(self) -> Generator[Items, None, None]:
-        return (item for item in self.items)
+        return iter(self.items)
 
     def __contains__(self, item: Asset) -> bool:
         if not isinstance(item, Asset):
@@ -444,8 +444,8 @@ class TradeOffer:
         items_to_send: Optional[list[Items]] = None,
         items_to_receive: Optional[list[Items]] = None,
     ):
-        self.items_to_receive: list[Items] = items_to_receive if items_to_receive else []
-        self.items_to_send: list[Items] = items_to_send if items_to_send else []
+        self.items_to_receive: list[Items] = items_to_receive or []
+        self.items_to_send: list[Items] = items_to_send or []
         if item_to_receive:
             self.items_to_receive.append(item_to_receive)
         if item_to_send:

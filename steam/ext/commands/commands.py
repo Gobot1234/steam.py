@@ -424,9 +424,8 @@ class GroupMixin:
         if isinstance(self, Command):
             command.parent = self
 
-        if isinstance(command.parent, GroupMixin):
-            if command.parent is not self:
-                return command.parent.add_command(command)
+        if isinstance(command.parent, GroupMixin) and command.parent is not self:
+            return command.parent.add_command(command)
 
         self.__commands__[command.name] = command
         for alias in command.aliases:

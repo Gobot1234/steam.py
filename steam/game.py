@@ -123,7 +123,7 @@ class Game:
     ):
         if title is None and id is None:
             raise TypeError("__init__() missing a required positional argument: 'id' or 'title'")
-        if id is not None and title is None:
+        if title is None:
             try:
                 id = int(id)
             except (ValueError, TypeError):
@@ -135,7 +135,7 @@ class Game:
             else:
                 if title == "Steam" and context_id is not None:
                     context_id = 6
-        elif id is None and title is not None:
+        elif id is None:
             try:
                 id = Games[title.replace(" ", "_").replace("-", "__")].value
             except KeyError:

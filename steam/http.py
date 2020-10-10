@@ -432,11 +432,12 @@ class HTTPClient:
         return self.request("GET", api_route("ISteamDirectory/GetCMList"), params=params)
 
     def get_comments(self, id64: int, comment_path: str, limit: Optional[int] = None) -> RequestType:
-        params = {"start": 0, "totalcount": 9999999999}
-        if limit is None:
-            params["count"] = 9999999999
-        else:
-            params["count"] = limit
+        params = {
+            "start": 0,
+            "totalcount": 9999999999,
+            "count": 9999999999 if limit is None else limit,
+        }
+
         return self.request("GET", community_route(f"comment/{comment_path}/render/{id64}"), params=params)
 
     def post_comment(self, id64: int, comment_type: str, content: str) -> RequestType:

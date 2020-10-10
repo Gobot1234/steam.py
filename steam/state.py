@@ -560,7 +560,7 @@ class ConnectionState:
                 when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
                 self.dispatch("typing", author, when)
 
-        if msg.header.job_name_target == "ChatRoomClient.NotifyIncomingChatMessage#1":
+        elif msg.header.job_name_target == "ChatRoomClient.NotifyIncomingChatMessage#1":
             msg: MsgProto[GroupMessageNotification]
             destination = self._combined.get(msg.body.chat_group_id)
             if destination is None:
@@ -578,7 +578,7 @@ class ConnectionState:
             self._messages.append(message)
             self.dispatch("message", message)
 
-        if msg.header.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
+        elif msg.header.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
             msg: MsgProto[GroupStateUpdate]
             destination = self._combined.get(msg.body.header_state.chat_group_id)
             if destination is None:
@@ -589,7 +589,7 @@ class ConnectionState:
             else:
                 destination._from_proto(msg.body.header_state)
 
-        if msg.header.job_name_target == "ChatRoomClient.NotifyChatGroupUserStateChanged#1":
+        elif msg.header.job_name_target == "ChatRoomClient.NotifyChatGroupUserStateChanged#1":
             msg: MsgProto[GroupAction]
             if msg.body.user_action == "Joined":  # join group
                 if msg.body.group_summary.clanid:
@@ -601,7 +601,7 @@ class ConnectionState:
                     self._groups[group.id] = group
                     self.dispatch("group_join", group)
 
-            if msg.body.user_action == "Parted":  # leave group
+            elif msg.body.user_action == "Parted":  # leave group
                 left = self._combined.pop(msg.body.chat_group_id, None)
                 if left is None:
                     return
@@ -676,7 +676,7 @@ class ConnectionState:
 
         if friend.last_logoff:
             data["lastlogoff"] = friend.last_logoff
-        data["gameextrainfo"] = friend.game_name if friend.game_name else None
+        data["gameextrainfo"] = friend.game_name or None
         data["personastate"] = friend.persona_state
         data["personastateflags"] = friend.persona_state_flags
         return data
