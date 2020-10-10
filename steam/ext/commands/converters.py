@@ -30,7 +30,7 @@ import re
 import sys
 import types
 from abc import abstractmethod
-from typing import Dict, TYPE_CHECKING, Any, Callable, ForwardRef, Generic, NoReturn, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, ForwardRef, Generic, NoReturn, Tuple, Type, TypeVar, Union
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
@@ -48,8 +48,8 @@ from .utils import reload_module_with_TYPE_CHECKING
 if TYPE_CHECKING:
     from steam.ext import commands
 
-    from .context import Context
     from .commands import MaybeCommand
+    from .context import Context
 
 __all__ = (
     "converter_for",

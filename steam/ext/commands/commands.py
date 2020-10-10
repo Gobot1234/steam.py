@@ -346,16 +346,18 @@ class Command:
 
     def _get_converter(self, param_type: type) -> converters.Converters:
         converters_ = converters.CONVERTERS.get(param_type, param_type)
-        if len(converters_) == 1:
+        if isinstance(converters_, tuple):
+            if len(converters_) == 1:
+                return converters_[0]
+            for converter in converters_:
+                try:
+                    idx = self.special_converters.index(converter)
+                except ValueError:
+                    pass
+                else:
+                    return self.special_converters[idx]
             return converters_[0]
-        for converter in converters_:
-            try:
-                idx = self.special_converters.index(converter)
-            except ValueError:
-                pass
-            else:
-                return self.special_converters[idx]
-        return converters_[0]
+        return converters_
 
     async def _convert(
         self,
