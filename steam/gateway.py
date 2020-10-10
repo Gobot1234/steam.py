@@ -57,7 +57,7 @@ from .protobufs import EMsg, Msg, MsgBase, MsgProto
 if TYPE_CHECKING:
     from .client import Client
     from .enums import EUIMode
-    from .game import GameDict
+    from .game import GameToDict
     from .protobufs.steammessages_base import CMsgMulti
     from .protobufs.steammessages_clientserver_login import CMsgClientLogonResponse
     from .state import ConnectionState, EventParser
@@ -524,7 +524,7 @@ class SteamWebSocket:
     async def change_presence(
         self,
         *,
-        games: list[GameDict],
+        games: list[GameToDict],
         state: Optional[EPersonaState],
         flags: int,
         ui_mode: Optional[EUIMode],

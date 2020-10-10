@@ -26,6 +26,7 @@ SOFTWARE.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Optional, Union, overload
 
 from typing_extensions import TypedDict
@@ -51,7 +52,16 @@ class Games(IntEnum):
     Steam = 753
 
 
-class GameDict(TypedDict, total=False):
+class GameDict(TypedDict):
+    name: str
+    appid: str
+    playtime_forever: int
+    img_icon_url: str
+    img_logo_url: str
+    has_community_visible_stats: bool
+
+
+class GameToDict(TypedDict, total=False):
     game_id: str
     game_extra_info: str
 
@@ -81,7 +91,7 @@ class Game:
         The game's app ID.
     context_id: :class:`int`
         The context id of the game normally ``2``.
-    total_play_time: Optional[:class:`int`]
+    total_play_time: :class:`datetime.timedelta`
         The total time the game has been played for.
         Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
     icon_url: Optional[:class:`str`]
@@ -115,7 +125,9 @@ class Game:
         ...
 
     @overload
-    def __init__(self, id: Optional[Union[int, str]], title: Optional[str] = None, *, context_id: Optional[int] = 2):
+    def __init__(
+        self, id: Optional[Union[int, str]] = None, title: Optional[str] = None, *, context_id: Optional[int] = 2
+    ):
         ...
 
     def __init__(
@@ -160,11 +172,17 @@ class Game:
         self._stats_visible: Optional[bool] = None
 
     @classmethod
-    def _from_api(cls, data: dict[str, str]) -> Game:
+    def _from_api(cls, data: GameDict) -> Game:
         game = cls(id=data.get("appid"), title=data.get("name"))
-        game.total_play_time = data.get("playtime_forever", 0)
-        game.icon_url = data.get("img_icon_url")
-        game.logo_url = data.get("img_logo_url")
+        game.total_play_time = timedelta(minutes=data.get("playtime_forever", 0))
+        game.icon_url = (
+            f"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{game.id}/"
+            f"{data.get('img_icon_url')}.jpg"
+        )
+        game.logo_url = (
+            f"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{game.id}"
+            f"/{data.get('img_logo_url')}.jpg"
+        )
         game._stats_visible = data.get("has_community_visible_stats", False)
         return game
 
@@ -184,11 +202,13 @@ class Game:
                 return self.id == other.id
         return NotImplemented
 
-    def to_dict(self) -> GameDict:
+    def to_dict(self) -> GameToDict:
         """dict[:class:`str`, :class:`str`]: The dict representation of the game used to set presences."""
-        if not self.is_steam_game():
-            return {"game_id": str(self.id), "game_extra_info": self.title}
-        return {"game_id": str(self.id)}
+        return (
+            {"game_id": str(self.id)}
+            if self.is_steam_game()
+            else {"game_id": str(self.id), "game_extra_info": self.title}
+        )
 
     def is_steam_game(self) -> bool:
         """:class:`bool`: Whether the game could be a Steam game."""
