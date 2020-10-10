@@ -303,7 +303,10 @@ class SteamID(metaclass=abc.ABCMeta):
         if self.type == EType.GameServer and self.id == 0:
             return False
 
-        return self.type != EType.AnonGameServer or self.id != 0 or self.instance != 0
+        if self.type == EType.AnonGameServer and self.id == 0 and self.instance == 0:
+            return False
+
+        return True
 
     @classmethod
     async def from_url(
