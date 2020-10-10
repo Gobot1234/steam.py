@@ -613,7 +613,7 @@ class ConnectionState:
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
-        if msg.header.job_name_target != "ChatRoom.GetMyChatRoomGroups#1":
+        if msg.header.job_name_target == "ChatRoom.GetMyChatRoomGroups#1":
             msg: MsgProto[MyChatRooms]
             for group in msg.body.chat_room_groups:
                 if group.group_summary.clanid:  # received a clan
