@@ -283,11 +283,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         descriptions = resp.get("descriptions", [])
 
         async def process_trade(data: dict, descriptions: dict) -> None:
-            if (
-                not self.after.timestamp()
-                < data["time_init"]
-                < self.before.timestamp()
-            ):
+            if not self.after.timestamp() < data["time_init"] < self.before.timestamp():
                 return
             for item in descriptions:
                 for asset in data.get("assets_received", []):
