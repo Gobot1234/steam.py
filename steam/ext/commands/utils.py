@@ -184,9 +184,7 @@ def reload_module_with_TYPE_CHECKING(module: ModuleType) -> None:
         else:
            expensive_type = str
     """
-    if typing not in module.__dict__.values() and getattr(
-        module, "TYPE_CHECKING", True
-    ):
+    if not (typing in module.__dict__.values() or not getattr(module, "TYPE_CHECKING", True)):
         return
 
     typing.TYPE_CHECKING = True
