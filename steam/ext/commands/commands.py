@@ -135,6 +135,13 @@ class Command:
         finally:
             self.cooldown: list[Cooldown] = cooldown
 
+        try:
+            special_converters = func.__special_converters__
+        except AttributeError:
+            special_converters = kwargs.get("special_converters", [])
+        finally:
+            self.special_converters: list[converters.Converter] = special_converters
+
         self.enabled = kwargs.get("enabled", True)
         self.brief: Optional[str] = kwargs.get("brief")
         self.usage: Optional[str] = kwargs.get("usage")
@@ -267,7 +274,7 @@ class Command:
         for name, param in self.clean_params.items():
             if param.kind == param.POSITIONAL_OR_KEYWORD:
                 is_greedy = get_origin(param.annotation) is converters.Greedy
-                original_args = args.copy()
+                len_original_args = len(args)
                 greedy_args = []
                 for argument in ctx.shlex:
                     try:
@@ -279,7 +286,7 @@ class Command:
                         args.append(tuple(greedy_args))
                         break
                     args.append(transformed) if not is_greedy else greedy_args.append(transformed)
-                if args == original_args:  # no args were added so lex was empty
+                if len(args) == len_original_args:  # no args were added so lex was empty
                     args.append(await self._get_default(ctx, param))
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
@@ -313,7 +320,7 @@ class Command:
                         )
                     break
                 except ValueError:
-                    raise UnmatchedKeyValuePair("Un matched key-value pair passed")
+                    raise UnmatchedKeyValuePair("Unmatched key-value pair passed") from None
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
                 for arg in ctx.shlex:
@@ -324,12 +331,31 @@ class Command:
         ctx.kwargs = kwargs
 
     def _transform(self, ctx: Context, param: inspect.Parameter, argument: str) -> Coroutine[None, None, Any]:
-        param_type = param.annotation if param.annotation is not param.empty else str
-        converter = self._get_converter(param_type)
+        parm_type = self._prepare_param(param)
+        converter = self._get_converter(parm_type)
         return self._convert(ctx, converter, param, argument)
 
+    def _prepare_param(self, param: inspect.Parameter) -> type:
+        converter = param.annotation
+        if converter is param.empty:
+            if param.default is not param.empty:
+                converter = str if param.default is None else type(param.default)
+            else:
+                converter = str
+        return converter
+
     def _get_converter(self, param_type: type) -> converters.Converters:
-        return converters.CONVERTERS.get(param_type, param_type)
+        converters_ = converters.CONVERTERS.get(param_type, param_type)
+        if len(converters_) == 1:
+            return converters_[0]
+        for converter in converters_:
+            try:
+                idx = self.special_converters.index(converter)
+            except ValueError:
+                pass
+            else:
+                return self.special_converters[idx]
+        return converters_[0]
 
     async def _convert(
         self,

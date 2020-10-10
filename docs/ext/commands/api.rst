@@ -212,6 +212,9 @@ Converters
     :members:
     :special-members: __class_getitem__
 
+    .. automethod:: register
+        :decorator:
+
 .. autoclass:: steam.ext.commands.UserConverter()
 
 .. autoclass:: steam.ext.commands.ChannelConverter()

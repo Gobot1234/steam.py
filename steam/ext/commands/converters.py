@@ -30,7 +30,7 @@ import re
 import sys
 import types
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, NoReturn, Tuple, Type, TypeVar, Union
+from typing import Dict, TYPE_CHECKING, Any, Callable, ForwardRef, Generic, NoReturn, Tuple, Type, TypeVar, Union
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from steam.ext import commands
 
     from .context import Context
+    from .commands import MaybeCommand
 
 __all__ = (
     "converter_for",
@@ -69,7 +70,16 @@ __all__ = (
 
 T = TypeVar("T")
 Converters = Union[Type["Converter"], "BasicConverter"]
-CONVERTERS: dict[Any, Converters] = {}
+
+
+class ConverterDict(Dict[Any, Tuple[Converters, ...]]):
+    def __setitem__(self, key: Any, value: Converters) -> None:
+        try:
+            old_value = self[key]
+        except KeyError:
+            super().__setitem__(key, (value,))
+        else:
+            super().__setitem__(key, old_value + (value,))
 
 
 class BasicConverter(FunctionType):
@@ -77,6 +87,9 @@ class BasicConverter(FunctionType):
 
     def __call__(self, arg: str) -> T:
         ...
+
+
+CONVERTERS = ConverterDict()
 
 
 def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter]:
@@ -150,7 +163,7 @@ class Converter(Protocol[T]):
 
         @bot.command()
         async def command(ctx, user: steam.User):
-            # this will end up making the user variable a :class:`~steam.User` object.
+            # this will end up making the user variable a `steam.User` object.
 
         # invoked as
         # !command 76561198248053954
@@ -203,6 +216,36 @@ class Converter(Protocol[T]):
         """
         raise NotImplementedError("Derived classes must implement this")
 
+    @classmethod
+    def register(cls, command: MaybeCommand = None) -> MaybeCommand:
+        """A decorator to register a converter to a specific command.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            class CustomUserConverter(commands.Converter[steam.User]):
+                async def convert(self, ctx: commands.Context, argument: str) -> steam.User:
+                    ...
+
+            @bot.command()
+            @CustomUserConverter.register
+            async def is_cool(ctx, user: steam.User):
+                ...
+
+        In this example ``is_cool``'s user parameter would be registered to the ``CustomUserConverter`` rather than
+        the global :class:`UserConverter`.
+        """
+        is_command = not isinstance(command, types.FunctionType)
+        try:
+            (command.special_converters if is_command else command.__special_converters__).append(cls)
+        except AttributeError:
+            if is_command:
+                command.special_converters = [cls]
+            else:
+                command.__special_converters__ = [cls]
+        return command
+
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         converter_for = globals().pop("__current_converter", None)
@@ -240,7 +283,6 @@ class Converter(Protocol[T]):
         if isinstance(converter_for, tuple):
             if len(converter_for) != 1:
                 raise TypeError("commands.Converter only accepts one argument")
-            converter_for = converter_for[0]
         annotation = super().__class_getitem__(converter_for)
         globals()["__current_converter"] = get_args(annotation)[0]
         return annotation
@@ -442,7 +484,6 @@ class Greedy(Generic[T]):
         if isinstance(converter, tuple):
             if len(converter) != 1:
                 raise TypeError("commands.Greedy only accepts one argument")
-            converter = converter[0]
         if (
             converter in INVALID_GREEDY_TYPES
             or get_origin(converter) is not None
@@ -460,6 +501,7 @@ ConverterTypes = Union[
     T,
     str,
     Tuple[T],
+    Tuple[str],
 ]
 GreedyTypes = Union[
     T,               # a class/type

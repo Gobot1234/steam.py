@@ -46,7 +46,7 @@ from ...client import Client, EventType, FunctionType, log
 from .cog import Cog, ExtensionType, InjectedListener
 from .commands import Command, GroupMixin
 from .context import Context
-from .converters import CONVERTERS, Converters
+from .converters import CONVERTERS, Converter, Converters
 from .errors import CommandDisabled, CommandError, CommandNotFound
 from .help import HelpCommand
 from .utils import Shlex
@@ -118,6 +118,7 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
 class CommandFunctionType(FunctionType):
     __commands_checks__: list[CheckType]
     __commands_cooldown__: list[Cooldown]
+    __special_converters__: list[Converter]
 
     @overload
     async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
@@ -232,8 +233,8 @@ class Bot(GroupMixin, Client):
         return MappingProxyType(self.__extensions__)
 
     @property
-    def converters(self) -> Mapping[type, Converters]:
-        """Mapping[:class:`type`, :class:`~steam.ext.commands.Converter`]:
+    def converters(self) -> Mapping[type, tuple[Converters, ...]]:
+        """Mapping[:class:`type`, tuple[:class:`~steam.ext.commands.Converter`, ...]]:
         A read only mapping of registered converters."""
         return MappingProxyType(CONVERTERS)
 
