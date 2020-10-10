@@ -113,7 +113,7 @@ class Cog:
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         cls.qualified_name = kwargs.get("name") or cls.__name__
-        cls.command_attrs = kwargs.get("command_attrs", dict())
+        cls.command_attrs = kwargs.get("command_attrs", {})
 
         cls.__listeners__ = {}
         cls.__commands__ = {}
