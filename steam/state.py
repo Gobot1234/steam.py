@@ -560,7 +560,7 @@ class ConnectionState:
                 when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
                 self.dispatch("typing", author, when)
 
-        if msg.header.job_name_target == "ChatRoomClient.NotifyIncomingChatMessage#1":
+        elif msg.header.job_name_target == "ChatRoomClient.NotifyIncomingChatMessage#1":
             msg: MsgProto[GroupMessageNotification]
             destination = self._combined.get(msg.body.chat_group_id)
             if destination is None:
@@ -578,7 +578,7 @@ class ConnectionState:
             self._messages.append(message)
             self.dispatch("message", message)
 
-        if msg.header.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
+        elif msg.header.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
             msg: MsgProto[GroupStateUpdate]
             destination = self._combined.get(msg.body.header_state.chat_group_id)
             if destination is None:
@@ -589,7 +589,7 @@ class ConnectionState:
             else:
                 destination._from_proto(msg.body.header_state)
 
-        if msg.header.job_name_target == "ChatRoomClient.NotifyChatGroupUserStateChanged#1":
+        elif msg.header.job_name_target == "ChatRoomClient.NotifyChatGroupUserStateChanged#1":
             msg: MsgProto[GroupAction]
             if msg.body.user_action == "Joined":  # join group
                 if msg.body.group_summary.clanid:
@@ -601,7 +601,7 @@ class ConnectionState:
                     self._groups[group.id] = group
                     self.dispatch("group_join", group)
 
-            if msg.body.user_action == "Parted":  # leave group
+            elif msg.body.user_action == "Parted":  # leave group
                 left = self._combined.pop(msg.body.chat_group_id, None)
                 if left is None:
                     return
@@ -614,20 +614,19 @@ class ConnectionState:
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
         if msg.header.job_name_target != "ChatRoom.GetMyChatRoomGroups#1":
-            return
-        msg: MsgProto[MyChatRooms]
-        for group in msg.body.chat_room_groups:
-            if group.group_summary.clanid:  # received a clan
-                clan = await Clan._from_proto(self, group)
-                self._clans[clan.id] = clan
-            else:  # else it's a group
-                group = Group(state=self, proto=group.group_summary)
-                await group.__ainit__()
-                self._groups[group.id] = group
+            msg: MsgProto[MyChatRooms]
+            for group in msg.body.chat_room_groups:
+                if group.group_summary.clanid:  # received a clan
+                    clan = await Clan._from_proto(self, group)
+                    self._clans[clan.id] = clan
+                else:  # else it's a group
+                    group = Group(state=self, proto=group.group_summary)
+                    await group.__ainit__()
+                    self._groups[group.id] = group
 
-        if not self.handled_groups:
-            await self.handled_friends.wait()  # ensure friend cache is ready
-            self.client._handle_ready()
+            if not self.handled_groups:
+                await self.handled_friends.wait()  # ensure friend cache is ready
+                self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
     def parse_cm_list_update(self, msg: MsgProto[CMsgClientCMList]) -> None:
