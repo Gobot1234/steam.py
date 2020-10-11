@@ -103,3 +103,23 @@ class Context(Messageable):
             await ctx.bot.invoke(ctx)
         """
         await self.bot.invoke(self)
+
+    @property
+    def valid(self) -> bool:
+        return self.prefix is not None and self.command is not None
+
+    @property
+    def invoked_without_command(self) -> bool:
+        return hasattr(self.command, "__commands__") and not self.shlex.in_stream[
+            : self.shlex.position
+        ].strip().startswith(tuple(self.command.__commands__))
+
+    @property
+    def invoked_subcommand(self) -> Optional[Command]:
+        if self.invoked_without_command:
+            return None
+        old_position = self.shlex.position
+        try:
+            return self.bot.get_command(" ".join(self.shlex))
+        finally:
+            self.shlex.position = old_position

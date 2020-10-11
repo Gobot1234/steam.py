@@ -587,12 +587,6 @@ class GroupCommand(GroupMixin, Command):
     def __init__(self, func: CommandFunctionType, **kwargs: Any):
         super().__init__(func, **kwargs)
 
-    async def _parse_arguments(self, ctx: Context) -> None:
-        ctx.invoked_without_command = (
-            not ctx.shlex.in_stream[: ctx.shlex.position].strip().startswith(tuple(self.__commands__))
-        )
-        await super()._parse_arguments(ctx)
-
 
 def command(
     name: Union[Optional[str], CommandFunctionType] = None, cls: type[Command] = Command, **attrs: Any
