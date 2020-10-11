@@ -67,6 +67,7 @@ __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
 TASK_HAS_NAME = sys.version_info[:2] >= (3, 8)
+EventDeco = Union[Callable[["EventType"], "EventType"], "EventType"]
 
 
 class EventType(FunctionType):
@@ -181,7 +182,7 @@ class Client:
         """:class:`bool`: Indicates if connection is closed to the API or CMs."""
         return self._closed
 
-    def event(self, coro: EventType) -> EventType:
+    def event(self, coro: Optional[EventDeco] = None) -> EventDeco:
         """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
@@ -197,6 +198,11 @@ class Client:
         :exc:`TypeError`
             The function passed is not a coroutine.
         """
+        if coro is None:
+            def wrap(coro: EventType) -> EventType:
+                return self.event(coro)
+            return wrap
+
         if not asyncio.iscoroutinefunction(coro):
             raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is not")
 

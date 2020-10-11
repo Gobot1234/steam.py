@@ -82,6 +82,7 @@ __all__ = (
 CheckType = Callable[["Context"], Union[bool, Coroutine[Any, Any, bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
 CommandDeco = Callable[[MaybeCommand], MaybeCommand]
+MaybeCommandDeco = Union[CommandDeco, MaybeCommand]
 CommandErrorFunctionType = Callable[["Context", Exception], Coroutine[Any, Any, None]]
 
 
@@ -517,33 +518,51 @@ class GroupMixin:
 
         return command
 
-    def command(self, *args, **kwargs) -> Callable[[CommandFunctionType], Command]:
+    def command(
+        self,
+        name: Union[Optional[str], CommandFunctionType] = None,
+        cls: Optional[type[Command]] = None,
+        **attrs: Any,
+    ) -> Union[Callable[[CommandFunctionType], Command], Command]:
         """
         A decorator that invokes :func:`command` and adds the created :class:`Command` to the internal command list.
         """
+        cls = cls or Command
+
+        if callable(name):
+            attrs.setdefault("parent", self)
+            result = command(name=name.__name__)(name)
+            self.add_command(result)
+            return result
 
         def decorator(func: CommandFunctionType) -> Command:
-            try:
-                kwargs["parent"]
-            except KeyError:
-                kwargs["parent"] = self
-            result = command(*args, **kwargs)(func)
+            attrs.setdefault("parent", self)
+            result = command(name=name, cls=cls, **attrs)(func)
             self.add_command(result)
             return result
 
         return decorator
 
-    def group(self, *args, **kwargs) -> Callable[[CommandFunctionType], GroupCommand]:
+    def group(
+        self,
+        name: Union[Optional[str], CommandFunctionType] = None,
+        cls: Optional[type[GroupCommand]] = None,
+        **attrs: Any,
+    ) -> Union[Callable[[CommandFunctionType], GroupCommand], GroupCommand]:
         """
         A decorator that invokes :func:`group` and adds the created :class:`GroupCommand` to the internal command list.
         """
+        cls = cls or GroupCommand
+
+        if callable(name):
+            attrs.setdefault("parent", self)
+            result = group(name=name.__name__)(name)
+            self.add_command(result)
+            return result
 
         def decorator(func: CommandFunctionType) -> GroupCommand:
-            try:
-                kwargs["parent"]
-            except KeyError:
-                kwargs["parent"] = self
-            result = group(*args, **kwargs)(func)
+            attrs.setdefault("parent", self)
+            result = group(name=name, cls=cls, **attrs)(func)
             self.add_command(result)
             return result
 
@@ -576,8 +595,8 @@ class GroupCommand(GroupMixin, Command):
 
 
 def command(
-    name: Optional[str] = None, cls: type[Command] = Command, **attrs: Any
-) -> Callable[[CommandFunctionType], Command]:
+    name: Union[Optional[str], CommandFunctionType] = None, cls: type[Command] = Command, **attrs: Any
+) -> Union[Callable[[CommandFunctionType], Command], Command]:
     """A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`Command`.
 
     Parameters
@@ -590,17 +609,20 @@ def command(
         The attributes to pass to the command's ``__init__``.
     """
 
-    def decorator(func: CommandFunctionType) -> Command:
+    def decorator(func: CommandFunctionType, name: str = name) -> Command:
         if isinstance(func, Command):
             raise TypeError("Callback is already a command.")
         return cls(func, name=name, **attrs)
+
+    if callable(name):
+        return decorator(name, name=name.__name__)
 
     return decorator
 
 
 def group(
-    name: Optional[str] = None, cls: type[GroupCommand] = GroupCommand, **attrs: Any
-) -> Callable[[CommandFunctionType], GroupCommand]:
+    name: Union[Optional[str], CommandFunctionType] = None, cls: type[GroupCommand] = GroupCommand, **attrs: Any
+) -> Union[Callable[[CommandFunctionType], GroupCommand], GroupCommand]:
     """A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`GroupCommand`.
 
     Parameters
@@ -613,12 +635,7 @@ def group(
         The attributes to pass to the command's ``__init__``.
     """
 
-    def decorator(func: CommandFunctionType) -> GroupCommand:
-        if isinstance(func, Command):
-            raise TypeError("Callback is already a command.")
-        return cls(func, name=name, **attrs)
-
-    return decorator
+    return command(name=name, cls=cls, attrs=attrs)
 
 
 def check(predicate: CheckType) -> CommandDeco:
@@ -669,7 +686,7 @@ def check(predicate: CheckType) -> CommandDeco:
     return decorator
 
 
-def is_owner() -> CommandDeco:
+def is_owner(func: Optional[MaybeCommandDeco] = None) -> MaybeCommandDeco:
     """
     A decorator that will only allow the bot's owner to invoke the command, relies on
     :attr:`~steam.ext.commands.Bot.owner_id` or :attr:`~steam.ext.commands.Bot.owner_ids`.
@@ -682,7 +699,12 @@ def is_owner() -> CommandDeco:
             return ctx.author.id64 in ctx.bot.owner_ids
         raise NotOwner()
 
-    return check(predicate)
+    decorator = check(predicate)
+
+    if callable(func):
+        return decorator(func)
+
+    return decorator
 
 
 def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> CommandDeco:

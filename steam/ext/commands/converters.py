@@ -30,7 +30,20 @@ import re
 import sys
 import types
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, ForwardRef, Generic, NoReturn, Tuple, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    ForwardRef,
+    Generic,
+    NoReturn,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
 
@@ -70,6 +83,7 @@ __all__ = (
 
 T = TypeVar("T")
 Converters = Union[Type["Converter"], "BasicConverter"]
+RegisterDeco = Union[Callable[["MaybeCommand"], "MaybeCommand"], "MaybeCommand"]
 
 
 class ConverterDict(Dict[Any, Tuple[Converters, ...]]):
@@ -217,7 +231,7 @@ class Converter(Protocol[T]):
         raise NotImplementedError("Derived classes must implement this")
 
     @classmethod
-    def register(cls, command: MaybeCommand = None) -> MaybeCommand:
+    def register(cls, command: Optional[RegisterDeco] = None) -> RegisterDeco:
         """A decorator to register a converter to a specific command.
 
         Examples
@@ -236,6 +250,13 @@ class Converter(Protocol[T]):
         In this example ``is_cool``'s user parameter would be registered to the ``CustomUserConverter`` rather than
         the global :class:`UserConverter`.
         """
+        if command is None:
+
+            def wrap(func: MaybeCommand) -> MaybeCommand:
+                return cls.register(func)
+
+            return wrap
+
         is_command = not isinstance(command, types.FunctionType)
         try:
             (command.special_converters if is_command else command.__special_converters__).append(cls)

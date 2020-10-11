@@ -157,6 +157,9 @@ class Cog:
             The name of the event to listen for. Defaults to ``func.__name__``.
         """
 
+        if callable(name):
+            return cls.listener()
+
         def decorator(func: EventType) -> EventType:
             if not asyncio.iscoroutinefunction(func):
                 raise TypeError(f"Listeners must be coroutines, {func.__name__} is {type(func).__name__}")

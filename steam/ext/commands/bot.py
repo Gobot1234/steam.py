@@ -193,9 +193,9 @@ class Bot(GroupMixin, Client):
         The connected websocket, this can be used to directly send messages to the connected CM.
     """
 
-    __cogs__: dict[str, Cog] = dict()
-    __listeners__: dict[str, list[Union[EventType, InjectedListener]]] = dict()
-    __extensions__: dict[str, ExtensionType] = dict()
+    __cogs__: dict[str, Cog] = {}
+    __listeners__: dict[str, list[Union[EventType, InjectedListener]]] = {}
+    __extensions__: dict[str, ExtensionType] = {}
 
     def __init__(self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options: Any):
         super().__init__(**options)
@@ -289,13 +289,11 @@ class Bot(GroupMixin, Client):
             return
 
         module: ExtensionType = importlib.import_module(extension)
-        if hasattr(module, "setup"):
-            module.setup(self)
-        else:
-            del module
+        if not hasattr(module, "setup"):
             del sys.modules[extension]
             raise ImportError(f"Extension {extension} is missing a setup function")
 
+        module.setup(self)
         self.__extensions__[extension] = module
 
     def unload_extension(self, extension: Union[Path, str]) -> None:
@@ -423,6 +421,8 @@ class Bot(GroupMixin, Client):
         name: Optional[:class:`str`]
             The name of the event to listen for. Will default to ``func.__name__``.
         """
+        if callable(name):
+            return self.listen(name.__name__)
 
         def decorator(func: EventType) -> EventType:
             self.add_listener(func, name)
