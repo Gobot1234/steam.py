@@ -757,14 +757,6 @@ class Channel(Messageable):
         self.clan: Optional[Clan] = None
         self.group: Optional[Group] = None
 
-    @abc.abstractmethod
-    def typing(self) -> NoReturn:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def trigger_typing(self) -> NoReturn:
-        raise NotImplementedError
-
 
 def _clean_up_content(content: str) -> str:
     return content.replace(r"\[", "[").replace("\\\\", "\\")

@@ -301,9 +301,8 @@ class Converter(Protocol[T]):
         .. note::
             This has similar behaviour to :attr:`~steam.ext.commands.Command.callback`, so see the note for that.
         """
-        if isinstance(converter_for, tuple):
-            if len(converter_for) != 1:
-                raise TypeError("commands.Converter only accepts one argument")
+        if isinstance(converter_for, tuple) and len(converter_for) != 1:
+            raise TypeError("commands.Converter only accepts one argument")
         annotation = super().__class_getitem__(converter_for)
         globals()["__current_converter"] = get_args(annotation)[0]
         return annotation
@@ -502,9 +501,8 @@ class Greedy(Generic[T]):
 
     def __class_getitem__(cls, converter: GreedyTypes) -> Greedy[T]:
         """The main entry point for Greedy types."""
-        if isinstance(converter, tuple):
-            if len(converter) != 1:
-                raise TypeError("commands.Greedy only accepts one argument")
+        if isinstance(converter, tuple) and len(converter) != 1:
+            raise TypeError("commands.Greedy only accepts one argument")
         if (
             converter in INVALID_GREEDY_TYPES
             or get_origin(converter) is not None

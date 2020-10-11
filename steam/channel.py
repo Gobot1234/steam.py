@@ -168,12 +168,6 @@ class _GroupChannel(Channel):
             datetime.utcfromtimestamp(int(channel.time_joined)) if hasattr(channel, "time_joined") else None
         )
 
-    def typing(self) -> NoReturn:
-        raise NotImplementedError
-
-    async def trigger_typing(self) -> NoReturn:
-        raise NotImplementedError
-
     def __repr__(self) -> str:
         attrs = ("id", "group")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
