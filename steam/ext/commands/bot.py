@@ -197,7 +197,9 @@ class Bot(GroupMixin, Client):
     __listeners__: dict[str, list[Union[EventType, InjectedListener]]] = {}
     __extensions__: dict[str, ExtensionType] = {}
 
-    def __init__(self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = HelpCommand(), **options: Any):
+    def __init__(
+        self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = DefaultHelpCommand(), **options: Any
+    ):
         super().__init__(**options)
         self.command_prefix = command_prefix
         self.owner_id = utils.make_id64(options.get("owner_id", 0))
