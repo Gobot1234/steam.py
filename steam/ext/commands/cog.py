@@ -226,8 +226,7 @@ class Cog:
 
         for name, listeners in self.__listeners__.items():
             for idx, listener in enumerate(listeners):
-                # we need to manually inject the "self" parameter
-                listener = InjectedListener(self, listener)
+                listener = getattr(self, listener.__name__)  # get the bound method version
                 self.__listeners__[name][idx] = listener  # edit the original
                 bot.add_listener(listener, name)
 

@@ -43,8 +43,8 @@ from typing_extensions import Literal, overload
 
 from ... import utils
 from ...client import Client, EventType, FunctionType, log
-from .cog import Cog, ExtensionType, InjectedListener
-from .commands import Command, GroupMixin
+from .cog import Cog, ExtensionType
+from .commands import CheckReturnType, Command, GroupMixin, HookFunction, HookDecoType, check
 from .context import Context
 from .converters import CONVERTERS, Converter, Converters
 from .errors import CommandDisabled, CommandError, CommandNotFound
@@ -378,7 +378,7 @@ class Bot(GroupMixin, Client):
         cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: Union[EventType, InjectedListener], name: Optional[str] = None) -> None:
+    def add_listener(self, func: EventType, name: Optional[str] = None) -> None:
         """Add a function from the internal listeners list.
 
         Parameters
@@ -398,7 +398,7 @@ class Bot(GroupMixin, Client):
         except KeyError:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: Union[EventType, InjectedListener], name: Optional[str] = None) -> None:
+    def remove_listener(self, func: EventType, name: Optional[str] = None) -> None:
         """Remove a function from the internal listeners list.
 
         Parameters
