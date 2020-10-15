@@ -43,14 +43,14 @@ from typing_extensions import Literal, overload
 
 from ... import utils
 from ...client import Client, EventType, FunctionType, log
+from ...utils import maybe_coroutine
 from .cog import Cog, ExtensionType
-from .commands import CheckReturnType, Command, GroupMixin, HookFunction, HookDecoType, check
+from .commands import CheckReturnType, Command, GroupMixin, HookDecoType, HookFunction, check
 from .context import Context
 from .converters import CONVERTERS, Converter, Converters
 from .errors import CommandNotFound
-from .help import HelpCommand, DefaultHelpCommand
+from .help import DefaultHelpCommand, HelpCommand
 from .utils import Shlex
-from ...utils import maybe_coroutine
 
 if TYPE_CHECKING:
     import datetime
