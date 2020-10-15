@@ -105,20 +105,29 @@ class Cooldown:
         self._last_update = 0.0
         self._last_called_by = []
 
-    def __call__(self, message_or_context: Union[Message, Context]) -> None:
-        bucket = self.bucket.get_bucket(message_or_context)
+    def verify_cache(self):
         now = _time.time()
-
         for _, time in self._last_called_by:
             if now >= time + self._per:
                 self._last_called_by.pop(0)
 
+    def get_tokens(self, bucket: BucketType) -> float:
+        now = _time.time()
         if (
             self._last_update + self._per >= now
             and len(self._last_called_by) >= self._rate
             and bucket in (b for b, t in self._last_called_by)
         ):
-            retry_after = self._last_update + self._per - now
+            return self._last_update + self._per - now
+        return 0.0
+
+    def __call__(self, message_or_context: Union[Message, Context]) -> None:
+        bucket = self.bucket.get_bucket(message_or_context)
+        now = _time.time()
+
+        self.verify_cache()
+        retry_after = self.get_tokens(bucket)
+        if retry_after:
             raise CommandOnCooldown(retry_after)
 
         self._last_called_by.append((bucket, now))
