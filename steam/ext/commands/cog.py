@@ -139,6 +139,16 @@ class Cog:
         """set[:class:`Command`]: A set of the :class:`Cog`'s commands."""
         return set(self.__commands__.values())
 
+    @property
+    def listeners(self) -> list[tuple[str, EventType]]:
+        """tuple[:class:`str`, Callable[..., Awaitable]:
+        A tuple of the events registered with the format (name, listener)"""
+        ret = []
+        for listeners in self.__listeners__.values():
+            for listener in listeners:
+                ret.append((listener.__name__, listener))
+        return ret
+
     @classmethod
     def listener(cls, coro: EventDeco = None, name: Optional[str] = None) -> Callable[[EventType], EventType]:
         """A decorator that registers a :ref:`coroutine <coroutine>` as a listener.
