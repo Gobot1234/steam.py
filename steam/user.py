@@ -170,8 +170,9 @@ class User(BaseUser, Messageable):
         trade: Optional[:class:`.TradeOffer`]
             The trade offer to send to the user.
 
-            .. note::
-                This will have its :attr:`~steam.TradeOffer.id` attribute updated after being sent.
+            Note
+            ----
+            This will have its :attr:`~steam.TradeOffer.id` attribute updated after being sent.
         image: Optional[:class:`.Image`]
             The image to send to the user.
 
@@ -339,8 +340,9 @@ class ClientUser(BaseUser):
         avatar: Optional[:class:`~steam.Image`]
             The avatar you wish to use.
 
-            .. note::
-                This needs to be at least 184px x 184px.
+            Note
+            ----
+            This needs to be at least 184px x 184px.
 
         Raises
         -------

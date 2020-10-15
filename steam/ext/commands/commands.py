@@ -163,15 +163,16 @@ class Command:
     def callback(self) -> CommandFunctionType:
         """The internal callback the command holds.
 
-        .. note::
-            When this is set if it fails to find a matching object in the module's dict, it will reload the module with
-            :attr:`typing.TYPE_CHECKING` set to ``True``, the purpose of this is to help aid with circular import
-            issues, if you do not want this to happen you have a few options:
+        Note
+        ----
+        When this is set if it fails to find a matching object in the module's dict, it will reload the module with
+        :attr:`typing.TYPE_CHECKING` set to ``True``, the purpose of this is to help aid with circular import
+        issues, if you do not want this to happen you have a few options:
 
-                - Put the imports in an ``if False:`` block or a constant named ``MYPY`` set to ``False`` (assuming you
-                  are using MyPy see https://mypy.readthedocs.io/en/stable/common_issues.html#import-cycles).
-                - Use an else after the ``if typing.TYPE_CHECKING`` to set the imported values to something at runtime.
-                - Don't have circular imports :)
+            - Put the imports in an ``if False:`` block or a constant named ``MYPY`` set to ``False`` (assuming you
+              are using MyPy see https://mypy.readthedocs.io/en/stable/common_issues.html#import-cycles).
+            - Use an else after the ``if typing.TYPE_CHECKING`` to set the imported values to something at runtime.
+            - Don't have circular imports :)
         """
         return self._callback
 
@@ -191,10 +192,9 @@ class Command:
             except NameError:
                 raise exc from None
 
-        while inspect.ismethod(function):
+        while inspect.ismethod(function):  # HelpCommand.command_callback
             function = function.__func__
-        function.__annotations__ = annotations
-        # replace the function's old annotations for later
+        function.__annotations__ = annotations  # replace the function's old annotations for later
         self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
         for param in self.params.values():
             if param.annotation is converters.Greedy:
@@ -237,20 +237,21 @@ class Command:
         """|coro|
         Calls the internal callback that the command holds.
 
-        .. note::
-
-            This bypasses all mechanisms -- including checks, converters, invoke hooks, cooldowns, etc. You must take
-            care to pass the proper arguments (excluding the parameter "self" in a cog context) and types to this
-            function.
+        Note
+        ----
+        This bypasses all mechanisms -- including checks, converters, invoke hooks, cooldowns, etc. You must take
+        care to pass the proper arguments (excluding the parameter "self" in a cog context) and types to this
+        function.
         """
         if self.cog is not None:
             return await self.callback(self.cog, ctx, *args, **kwargs)
         else:
             return await self.callback(ctx, *args, **kwargs)
 
-    def error(self, func: CommandErrorFunctionType) -> CommandErrorFunctionType:
-        """A decorator that registers a :ref:`coroutine <coroutine>` to handle a commands ``on_error`` functionality
-        similarly to :meth:`steam.ext.commands.Bot.on_command_error`.
+    def error(self, coro: CommandErrorFunctionType) -> CommandErrorFunctionType:
+        """|maybecallabledeco|
+        Register a :ref:`coroutine <coroutine>` to handle a commands ``on_error`` functionality similarly to
+        :meth:`steam.ext.commands.Bot.on_command_error`.
 
         Example: ::
 
@@ -418,7 +419,21 @@ class Command:
                 raise BadArgument(f"{name} failed to return a default argument") from exc
         return param.default
 
-    async def can_run(self, ctx: Context) -> Literal[True]:
+    async def can_run(self, ctx: Context) -> bool:
+        """|coro|
+        Whether or not the command can be ran.
+
+        Parameters
+        ----------
+        ctx: :class:`~steam.ext.commands.Context`
+            The invocation context.
+
+        Returns
+        -------
+        :class:`bool`
+        """
+        if not self.enabled:
+            return False
         for check in self.checks:
             if not await maybe_coroutine(check, ctx):
                 raise CheckFailure("You failed to pass one of the checks for this command")
@@ -731,8 +746,8 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
     --------
     Usage::
 
+        @bot.command
         @commands.cooldown(rate=1, per=10, commands.BucketType.User)
-        @bot.command()
         async def once_every_ten_seconds(ctx):
             ...
 

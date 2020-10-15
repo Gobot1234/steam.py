@@ -214,9 +214,12 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def id2_zero(self) -> str:
-        """:class:`str`: The SteamID's ID 2 accounted for bugged GoldSrc and Orange Box games. In these games the
-        accounts :attr:`universe`, ``1`` for :class:`.EType.Public`, should be the ``X`` component of ``STEAM_X:0:1234``
-        however, this was bugged and the value of ``X`` was ``0``.
+        """:class:`str`: The SteamID's ID 2 accounted for bugged GoldSrc and Orange Box games.
+
+        Note
+        ----
+        In these games the accounts :attr:`universe`, ``1`` for :class:`.EType.Public`, should be the ``X`` component of
+        ``STEAM_X:0:1234`` however, this was bugged and the value of ``X`` was ``0``.
 
         e.g ``STEAM_0:0:1234``.
         """

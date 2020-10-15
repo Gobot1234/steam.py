@@ -52,11 +52,12 @@ class Image:
         Whether or not to mark the image as a spoiler.
 
 
-    .. note::
-        Currently supported image types include:
-            - PNG
-            - JPG/JPEG
-            - GIF
+    Note
+    ----
+    Currently supported image types include:
+        - PNG
+        - JPG/JPEG
+        - GIF
     """
 
     # TODO add support for "webm", "mpg", "mp4", "mpeg", "ogv"

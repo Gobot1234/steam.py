@@ -447,10 +447,11 @@ class Bot(GroupMixin, Client):
         """|coro|
         A method to process commands for a message.
 
-        .. warning::
-            This is vital for commands to function. If you have an :meth:`on_message` as a registered event using
-            :meth:`event` commands will not be dispatched. Remember to add a call to this in your :meth:`on_message`
-            event.
+        Warning
+        -------
+        This is vital for commands to function. If you have an :meth:`on_message` as a registered event using
+        :meth:`event` commands will not be dispatched. Remember to add a call to this in your :meth:`on_message`
+        event.
 
         Parameters
         ----------

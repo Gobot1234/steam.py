@@ -208,7 +208,8 @@ def id2_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
         A tuple of 32 bit ID, type, universe and instance or ``None``
         e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
 
-    .. note::
+    Note
+    ----
         The universe will be always set to ``1``. See :attr:`SteamID.id2_zero`.
     """
     search = ID2_REGEX.search(value)
@@ -323,22 +324,22 @@ async def id64_from_url(
 ) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or ``None``.
 
-    .. note::
-        Each call makes a http request to https://steamcommunity.com.
+    Notes
+    -----
+    - Each call makes a http request to https://steamcommunity.com.
 
-    .. note::
-        Example URLs
-            https://steamcommunity.com/gid/[g:1:4]
+    - Example URLs:
+        https://steamcommunity.com/gid/[g:1:4]
 
-            https://steamcommunity.com/gid/103582791429521412
+        https://steamcommunity.com/gid/103582791429521412
 
-            https://steamcommunity.com/groups/Valve
+        https://steamcommunity.com/groups/Valve
 
-            https://steamcommunity.com/profiles/[U:1:12]
+        https://steamcommunity.com/profiles/[U:1:12]
 
-            https://steamcommunity.com/profiles/76561197960265740
+        https://steamcommunity.com/profiles/76561197960265740
 
-            https://steamcommunity.com/id/johnc
+        https://steamcommunity.com/id/johnc
 
     Parameters
     ----------

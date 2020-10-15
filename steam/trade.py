@@ -512,8 +512,9 @@ class TradeOffer:
         """|coro|
         Accepts the :class:`TradeOffer`.
 
-        .. note::
-            This also calls :meth:`confirm` (if necessary) so you don't have to.
+        Note
+        ----
+        This also calls :meth:`confirm` (if necessary) so you don't have to.
 
         Raises
         ------

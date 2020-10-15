@@ -69,10 +69,10 @@ class GameToDict(TypedDict, total=False):
 class Game:
     """Represents a Steam game.
 
-    .. note::
-
-        This class can be defined by users using the above parameters, or it can be from an API call this is when
-        :meth:`~steam.User.fetch_games` is called.
+    Note
+    ----
+    This class can be defined by users using the above parameters, or it can be from an API call this is when
+    :meth:`~steam.User.fetch_games` is called.
 
     Parameters
     ----------

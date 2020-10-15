@@ -459,6 +459,8 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: WSNotFound
 
+.. autoexception:: InvalidSteamID
+
 
 
 Exception Hierarchy

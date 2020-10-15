@@ -88,9 +88,9 @@ class DMChannel(Channel):
     def typing(self) -> TypingContextManager:
         """Send a typing indicator continuously to the channel while in the context manager.
 
-        .. note::
-
-            This only works in DMs.
+        Note
+        ----
+        This only works in DMs.
 
         Usage: ::
 
@@ -107,9 +107,9 @@ class DMChannel(Channel):
     async def trigger_typing(self) -> None:
         """Send a typing indicator to the channel once.
 
-        .. note::
-
-            This only works in DMs.
+        Note
+        ----
+        This only works in DMs.
         """
         await self._state.send_user_typing(self.participant)
 

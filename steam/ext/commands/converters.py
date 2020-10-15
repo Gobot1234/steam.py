@@ -109,9 +109,10 @@ CONVERTERS = ConverterDict()
 def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter]:
     """The recommended way to mark a function converter as such.
 
-    .. note::
-        All of the converters marked with this decorator or derived from :class:`.Converter` can be accessed via
-        :attr:`~steam.ext.commands.Bot.converters`.
+    Note
+    ----
+    All of the converters marked with this decorator or derived from :class:`.Converter` can be accessed via
+    :attr:`~steam.ext.commands.Bot.converters`.
 
     Examples
     --------
@@ -153,9 +154,10 @@ def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter
 class Converter(Protocol[T]):
     r"""A custom :class:`typing.Protocol` from which converters can be derived.
 
-    .. note::
-        All of the converters derived from :class:`.Converter` or marked with the :func:`.converter_for` decorator can
-        be accessed via :attr:`~steam.ext.commands.Bot.converters`.
+    Note
+    ----
+    All of the converters derived from :class:`.Converter` or marked with the :func:`.converter_for` decorator can
+    be accessed via :attr:`~steam.ext.commands.Bot.converters`.
 
     Some custom dataclasses from this library can be type-hinted without the need for a custom converter:
 
@@ -298,7 +300,8 @@ class Converter(Protocol[T]):
         This method is called when :class:`.Converter` is subclassed to handle the argument that was passed as the
         converter_for.
 
-        .. note::
+        Note
+        ----
             This has similar behaviour to :attr:`~steam.ext.commands.Command.callback`, so see the note for that.
         """
         if isinstance(converter_for, tuple) and len(converter_for) != 1:

@@ -181,7 +181,7 @@ class Cog:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     async def cog_check(self, ctx: "commands.Context") -> bool:
-        """|coro|
+        """|maybecoro|
         A special method that registers as a :func:`commands.check` for every command and subcommand in this cog.
         This should return a boolean result.
 

@@ -66,21 +66,46 @@ Enumerations
 Command
 --------
 
-.. autodecorator:: steam.ext.commands.command
+.. autodecorator:: steam.ext.commands.command(name=None, cls=None, **attrs)
 
-.. autodecorator:: steam.ext.commands.group
+.. autodecorator:: steam.ext.commands.group(name=None, cls=None, **attrs)
 
 .. autodecorator:: steam.ext.commands.cooldown
 
 .. autoclass:: steam.ext.commands.Command
     :members:
     :special-members: __call__
+    :exclude-members: error, before_invoke
+
+    .. automethod:: error()
+        :decorator:
+
+    .. automethod:: before_invoke()
+        :decorator:
+
+    .. automethod:: after_invoke()
+        :decorator:
 
 .. autoclass:: steam.ext.commands.GroupCommand
     :members:
     :inherited-members:
     :special-members: __call__
+    :exclude-members: error, command, group, before_invoke, after_invoke
 
+    .. automethod:: error()
+        :decorator:
+
+    .. automethod:: command(name=None, cls=None, **attrs)
+        :decorator:
+
+    .. automethod:: group(name=None, cls=None, **attrs)
+        :decorator:
+
+    .. automethod:: before_invoke()
+        :decorator:
+
+    .. automethod:: after_invoke()
+        :decorator:
 
 Help Command
 ------------
@@ -97,7 +122,7 @@ Cogs
     :members:
     :exclude-members: listener
 
-    .. automethod:: listener
+    .. automethod:: listener(name=None)
         :decorator:
 
 
@@ -206,11 +231,12 @@ An invocation of ``!command some string=long`` would pass ``"some"`` to ``argume
 Converters
 -----------
 
-.. autodecorator:: steam.ext.commands.converter(converter)
+.. autodecorator:: steam.ext.commands.converter_for
 
 .. autoclass:: steam.ext.commands.Converter()
     :members:
     :special-members: __class_getitem__
+    :exclude-members: register
 
     .. automethod:: register
         :decorator:

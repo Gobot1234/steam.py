@@ -106,10 +106,12 @@ class Context(Messageable):
 
     @property
     def valid(self) -> bool:
+        """:class:`bool`: Whether or not the context could be invoked."""
         return self.prefix is not None and self.command is not None
 
     @property
     def invoked_without_command(self) -> bool:
+        """:class:`bool`: Whether or not the command was invoked with a subcommand."""
         return hasattr(self.command, "__commands__") and not self.shlex.in_stream[
             : self.shlex.position
         ].strip().startswith(tuple(self.command.__commands__))

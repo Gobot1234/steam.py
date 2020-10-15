@@ -89,9 +89,10 @@ class Client:
     state: :class:`~steam.EPersonaState`
         The state to show your account as on connect.
 
-        .. note::
-            Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state updates
-            and by extension :meth:`on_user_update` will stop being dispatched.
+        Note
+        ----
+        Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state updates
+        and by extension :meth:`on_user_update` will stop being dispatched.
 
     ui_mode: :class:`~steam.EUIMode`
         The UI mode to set your status to on connect.
@@ -159,7 +160,8 @@ class Client:
     async def code(self) -> str:
         """|coro|
 
-        .. warning::
+        Warning
+        -------
             Will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed to
             :meth:`run` or :meth:`start` blocking exiting until one is entered.
 
@@ -285,9 +287,9 @@ class Client:
         It is not recommended to subclass this method, it is normally favourable to subclass :meth:`start` as it is a
         :ref:`coroutine <coroutine>`.
 
-        .. note::
-
-            This takes the same arguments as :meth:`start`.
+        Note
+        ----
+        This takes the same arguments as :meth:`start`.
         """
 
         async def runner() -> None:
@@ -787,23 +789,18 @@ class Client:
 
         async def on_ready(self) -> None:
             """|coro|
-            Called after a successful login and the client has handled setting up trade and notification polling,
-            along with setup the confirmation manager.
+            Called after a successful login and the client has handled setting up everything.
 
-            .. note::
-                In future this will be called when the client is done preparing the data received from Steam.
-                Usually after login to a CM is successful.
-
-            .. warning::
-
-                This function is not guaranteed to be the first event called. Likewise, this function is **not**
-                guaranteed to only be called once. This library implements reconnection logic and will therefore
-                end up calling this event whenever a CM disconnects.
+            Warnings
+            --------
+            This function is not guaranteed to be the first event called. Likewise, this function is **not**
+            guaranteed to only be called once. This library implements reconnection logic and will therefore
+            end up calling this event whenever a CM disconnects.
             """
 
         async def on_login(self) -> None:
             """|coro|
-            Called when the client has logged into https://steamcommunity.com and the :attr:`user` is setup.
+            Called when the client has logged into https://steamcommunity.com.
             """
 
         async def on_logout(self) -> None:
@@ -877,9 +874,10 @@ class Client:
             """|coro|
             Called when the client or the trade partner cancels a trade offer.
 
-            .. note::
-                This is called when the trade state becomes :attr:`~steam.ETradeOfferState.Canceled` and
-                :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`.
+            Note
+            ----
+            This is called when the trade state becomes :attr:`~steam.ETradeOfferState.Canceled` and
+            :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`.
 
             Parameters
             ----------
