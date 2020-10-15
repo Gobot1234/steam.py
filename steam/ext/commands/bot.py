@@ -47,9 +47,10 @@ from .cog import Cog, ExtensionType
 from .commands import CheckReturnType, Command, GroupMixin, HookFunction, HookDecoType, check
 from .context import Context
 from .converters import CONVERTERS, Converter, Converters
-from .errors import CommandDisabled, CommandError, CommandNotFound
-from .help import HelpCommand
+from .errors import CommandNotFound
+from .help import HelpCommand, DefaultHelpCommand
 from .utils import Shlex
+from ...utils import maybe_coroutine
 
 if TYPE_CHECKING:
     import datetime
@@ -223,6 +224,10 @@ class Bot(GroupMixin, Client):
                 self.add_command(attr)
 
         self.help_command = help_command
+
+        self.checks: list[CheckReturnType] = []
+        self._before_hook = None
+        self._after_hook = None
 
     @property
     def cogs(self) -> Mapping[str, Cog]:
@@ -432,6 +437,86 @@ class Bot(GroupMixin, Client):
 
         return decorator
 
+    def check(
+        self, predicate: Optional[Union[Callable[[CheckType], CheckReturnType], CheckType]] = None
+    ) -> Union[Callable[[CheckType], CheckReturnType], CheckReturnType]:
+        """|maybecallabledeco|
+        Register a global check for all commands. This is similar to :func:`commands.check`.
+        """
+        def decorator(predicate: CheckType) -> CheckReturnType:
+            predicate = check(predicate)
+            self.add_check(predicate)
+            return predicate
+
+        return decorator(predicate) if predicate is not None else lambda predicate: decorator(predicate)
+
+    def add_check(self, predicate: CheckReturnType) -> None:
+        """Add a global check to the bot.
+
+        Parameters
+        ----------
+        predicate
+            The check to add.
+        """
+        self.checks.append(predicate)
+
+    def remove_check(self, predicate: CheckReturnType) -> None:
+        """Remove a global check from the bot.
+
+        Parameters
+        ----------
+        predicate
+            The check to remove.
+        """
+        try:
+            self.checks.remove(predicate)
+        except ValueError:
+            pass
+
+    async def can_run(self, ctx: Context) -> bool:
+        """|coro|
+        Whether or not the context's command can be ran.
+
+        Parameters
+        ----------
+        ctx: :class:`~steam.ext.commands.Context`
+            The invocation context.
+
+        Returns
+        -------
+        :class:`bool`
+        """
+        for check in self.checks:
+            if not await maybe_coroutine(check, ctx):
+                return False
+        return await ctx.command.can_run(ctx)
+
+    def before_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
+        """|maybecallabledeco|
+        Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
+        """
+
+        def decorator(coro: HookFunction) -> HookFunction:
+            if asyncio.iscoroutinefunction(coro):
+                raise TypeError("Hooks must be coroutines")
+            self._before_hook = coro
+            return coro
+
+        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+
+    def after_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
+        """|maybecallabledeco|
+        Register a :ref:`coroutine <coroutine>` to be ran after the command has been invoked.
+        """
+
+        def decorator(coro: HookFunction) -> HookFunction:
+            if asyncio.iscoroutinefunction(coro):
+                raise TypeError("Hooks must be coroutines")
+            self._after_hook = coro
+            return coro
+
+        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+
     async def on_message(self, message: Message) -> None:
         """|coro|
         Called when a message is created.
@@ -471,36 +556,17 @@ class Bot(GroupMixin, Client):
         ctx: :class:`.Context`
             The invocation context.
         """
-        if not ctx.prefix:
-            return
-        if ctx.command is None:
-            raise CommandNotFound(f"The command {ctx.invoked_with!r} was not found")
-        try:
-            command = ctx.command
-
-            if not command.enabled:
-                raise CommandDisabled(command)
-
+        if ctx.command is not None:
             self.dispatch("command", ctx)
-            for cooldown in command.cooldown:
-                cooldown(ctx)
-
             try:
-                await command._parse_arguments(ctx)
-            except Exception as exc:
-                return await self.on_command_error(ctx, exc)
-
-            await command.can_run(ctx)
-            try:
-                await command.callback(*ctx.args, **ctx.kwargs)
+                await ctx.command.invoke(ctx)
             except Exception as exc:
                 await self.on_command_error(ctx, exc)
-
-        except CommandError as exc:
+            else:
+                self.dispatch("command_completion", ctx)
+        elif ctx.invoked_with:
+            exc = CommandNotFound(f"The command {ctx.invoked_with!r} was not found")
             await self.on_command_error(ctx, exc)
-
-        else:
-            self.dispatch("command_completion", ctx)
 
     async def get_context(self, message: Message, *, cls: type[Context] = Context) -> Context:
         """|coro|

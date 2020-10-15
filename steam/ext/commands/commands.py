@@ -48,15 +48,17 @@ from typing import (
 )
 
 from chardet import detect
-from typing_extensions import Literal, get_args, get_origin
+from typing_extensions import get_args, get_origin
 
 from ...errors import ClientException
+from ...models import FunctionType
 from ...utils import cached_property, maybe_coroutine
 from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import (
     BadArgument,
     CheckFailure,
+    CommandOnCooldown,
     DuplicateKeywordArgument,
     MissingRequiredArgument,
     NotOwner,
@@ -81,9 +83,23 @@ __all__ = (
 
 CheckType = Callable[["Context"], Union[bool, Coroutine[Any, Any, bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
-CommandDeco = Callable[[MaybeCommand], MaybeCommand]
-MaybeCommandDeco = Union[CommandDeco, MaybeCommand]
+MaybeCommandDeco = Union["CommandDeco", MaybeCommand]
 CommandErrorFunctionType = Callable[["Context", Exception], Coroutine[Any, Any, None]]
+HookDecoType = Union[Callable[["HookFunction"], "HookFunction"], "HookFunction"]
+
+
+class CommandDeco(FunctionType):
+    def __call__(self, func: MaybeCommand) -> MaybeCommand:
+        ...
+
+
+class CheckReturnType(CommandDeco):
+    predicate: CheckType
+
+
+class HookFunction(FunctionType):
+    async def __call__(self, ctx: Context) -> None:
+        ...
 
 
 @converters.converter_for(bool)
@@ -127,7 +143,7 @@ class Command:
         except AttributeError:
             checks = kwargs.get("checks", [])
         finally:
-            self.checks: list[CheckType] = checks
+            self.checks: list[CheckReturnType] = checks
 
         try:
             cooldown = func.__commands_cooldown__
@@ -155,6 +171,9 @@ class Command:
         for alias in self.aliases:
             if not isinstance(alias, str):
                 raise TypeError("A commands aliases should be an iterable only containing strings")
+
+        self._before_hook = None
+        self._after_hook = None
 
     def __str__(self) -> str:
         return self.qualified_name
@@ -264,13 +283,79 @@ class Command:
             async def on_error(ctx, error):
                 print(f'{ctx.command.name} raised an exception {error}')
         """
-        if not asyncio.iscoroutinefunction(func):
-            raise TypeError(f"Error handler for {self.name} must be a coroutine")
-        self.on_error = func
-        return func
+
+        def decorator(coro: CommandErrorFunctionType) -> CommandErrorFunctionType:
+            if not asyncio.iscoroutinefunction(coro):
+                raise TypeError(f"Error handler for {self.name} must be a coroutine")
+            self.on_error = coro
+            return coro
+
+        return decorator(coro) if callable(coro) else lambda coro: decorator(coro)
+
+    def before_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
+        """|maybecallabledeco|
+        Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
+        """
+
+        def decorator(coro: HookFunction) -> HookFunction:
+            if asyncio.iscoroutinefunction(coro):
+                raise TypeError("Hooks must be coroutines")
+            self._before_hook = coro
+            return coro
+
+        return decorator(coro) if callable(coro) else lambda coro: decorator(coro)
+
+    def after_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
+        """|maybecallabledeco|
+        Register a :ref:`coroutine <coroutine>` to be ran after the command has been invoked.
+        """
+
+        def decorator(coro: HookFunction) -> HookFunction:
+            if asyncio.iscoroutinefunction(coro):
+                raise TypeError("Hooks must be coroutines")
+            self._after_hook = coro
+            return coro
+
+        return decorator(coro) if callable(coro) else lambda coro: decorator(coro)
+
+    async def invoke(self, ctx: Context) -> None:
+        """|coro|
+        Invoke the callback the command holds.
+
+        Parameters
+        ----------
+        ctx: :class:`~steam.ext.commands.Context`
+            The invocation context.
+        """
+        try:
+            if not await ctx.bot.can_run(ctx):
+                raise CheckFailure("You failed to pass one of the checks for this command")
+            await self._parse_arguments(ctx)
+            await self._call_before_invoke(ctx)
+            await self(ctx, *ctx.args, **ctx.kwargs)
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            ctx.command_failed = True
+            raise
+        finally:
+            if self._after_hook is not None:
+                await self._after_hook(ctx)
+
+    async def _call_before_invoke(self, ctx: Context) -> None:
+        if self._before_hook is not None:
+            await self._before_hook(ctx)
+        if ctx.bot._before_hook is not None:
+            await ctx.bot._before_hook(ctx)
+
+    async def _call_after_invoke(self, ctx: Context) -> None:
+        if self._after_hook is not None:
+            await self._after_hook(ctx)
+        if ctx.bot._after_hook is not None:
+            await ctx.bot._after_hook(ctx)
 
     async def _parse_arguments(self, ctx: Context) -> None:
-        args = [ctx] if self.cog is None else [self.cog, ctx]
+        args = []
         kwargs = {}
 
         for name, param in self.clean_params.items():
@@ -329,6 +414,7 @@ class Command:
                     transformed = await self._transform(ctx, param, arg)
                     args.append(transformed)
                 break
+
         ctx.args = tuple(args)
         ctx.kwargs = kwargs
 
@@ -436,7 +522,12 @@ class Command:
             return False
         for check in self.checks:
             if not await maybe_coroutine(check, ctx):
-                raise CheckFailure("You failed to pass one of the checks for this command")
+                return False
+        for cooldown in self.cooldown:
+            try:
+                cooldown(ctx)
+            except CommandOnCooldown:
+                return False
         return True
 
 

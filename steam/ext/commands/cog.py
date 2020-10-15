@@ -118,6 +118,11 @@ class Cog:
         cls.__listeners__ = {}
         cls.__commands__ = {}
         for name, attr in inspect.getmembers(cls):
+            if name.startswith(("bot_", "cog_")) and getattr(Cog, name, None) is None:
+                raise ClientException(
+                    f'Methods prefixed with "bot_" or "cog_" are reserved for future use, {attr.__qualname__} is '
+                    f"therefore not allowed"
+                )
             if isinstance(attr, Command):
                 if attr.parent:  # ungrouped commands have no parent
                     continue
@@ -194,7 +199,20 @@ class Cog:
         -------
         :class:`bool`
         """
-        return True
+
+    async def bot_check(self, ctx: "commands.Context") -> bool:
+        """|maybecoro|
+        A special method that registers as a :meth:`commands.Bot.check` globally. This should return a boolean result.
+
+        Parameters
+        -----------
+        ctx: :class:`~commands.Context`
+            The invocation context.
+
+        Returns
+        -------
+        :class:`bool`
+        """
 
     def cog_unload(self) -> None:
         """A special method that is called when the cog gets removed.
@@ -203,13 +221,18 @@ class Cog:
         """
 
     def _inject(self, bot: Bot) -> None:
+        cls = self.__class__
+        if cls.bot_check is not Cog.bot_check:
+            bot.add_check(self.bot_check)
+
         for idx, command in enumerate(self.__commands__.values()):
             command.cog = self
-            command.checks.append(self.cog_check)
+            if cls.cog_check is not Cog.cog_check:
+                command.checks.append(self.cog_check)
             for name, value in self.command_attrs.items():
                 if name not in command.__original_kwargs__:
                     setattr(command, name, value)
-            setattr(self, command.callback.__name__, command)
+
             if isinstance(command, GroupMixin):
                 for child in command.children:
                     child.cog = self
