@@ -157,16 +157,13 @@ class Cog:
             The name of the event to listen for. Defaults to ``func.__name__``.
         """
 
-        if callable(name):
-            return cls.listener()
+        def decorator(coro: EventType) -> EventType:
+            if not inspect.iscoroutinefunction(coro):
+                raise TypeError(f"Listeners must be coroutines, {coro.__name__} is {type(coro).__name__}")
+            coro.__event_name__ = name or coro.__name__
+            return coro
 
-        def decorator(func: EventType) -> EventType:
-            if not asyncio.iscoroutinefunction(func):
-                raise TypeError(f"Listeners must be coroutines, {func.__name__} is {type(func).__name__}")
-            func.__event_name__ = name or func.__name__
-            return func
-
-        return decorator
+        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
 
     async def cog_command_error(self, ctx: "commands.Context", error: Exception) -> None:
         """|coro|

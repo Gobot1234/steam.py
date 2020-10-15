@@ -520,53 +520,63 @@ class GroupMixin:
 
     def command(
         self,
-        name: Union[Optional[str], CommandFunctionType] = None,
+        callback: Optional[CommandFunctionType] = None,
+        *,
+        name: Optional[str] = None,
         cls: Optional[type[Command]] = None,
         **attrs: Any,
     ) -> Union[Callable[[CommandFunctionType], Command], Command]:
-        """
+        """|maybecallabledeco|
         A decorator that invokes :func:`command` and adds the created :class:`Command` to the internal command list.
+
+        Parameters
+        ----------
+        name: Optional[:class:`str`]
+            The name of the command. Will default to ``callback.__name__``.
+        cls: type[:class:`GroupCommand`]
+            The class to construct the command from. Defaults to :class:`GroupCommand`.
+        **attrs:
+            The attributes to pass to the command's ``__init__``.
         """
         cls = cls or Command
 
-        if callable(name):
+        def decorator(callback: CommandFunctionType) -> Command:
             attrs.setdefault("parent", self)
-            result = command(name=name.__name__)(name)
+            result = command(callback, name=name, cls=cls, **attrs)
             self.add_command(result)
             return result
 
-        def decorator(func: CommandFunctionType) -> Command:
-            attrs.setdefault("parent", self)
-            result = command(name=name, cls=cls, **attrs)(func)
-            self.add_command(result)
-            return result
-
-        return decorator
+        return decorator(callback) if callback is not None else lambda callback: decorator(callback)
 
     def group(
         self,
+        callback: Optional[CommandFunctionType] = None,
+        *,
         name: Union[Optional[str], CommandFunctionType] = None,
         cls: Optional[type[GroupCommand]] = None,
         **attrs: Any,
     ) -> Union[Callable[[CommandFunctionType], GroupCommand], GroupCommand]:
-        """
+        """|maybecallabledeco|
         A decorator that invokes :func:`group` and adds the created :class:`GroupCommand` to the internal command list.
+
+        Parameters
+        ----------
+        name: Optional[:class:`str`]
+            The name of the command. Will default to ``callback.__name__``.
+        cls: type[:class:`GroupCommand`]
+            The class to construct the command from. Defaults to :class:`GroupCommand`.
+        **attrs:
+            The attributes to pass to the command's ``__init__``.
         """
         cls = cls or GroupCommand
 
-        if callable(name):
+        def decorator(callback: CommandFunctionType) -> GroupCommand:
             attrs.setdefault("parent", self)
-            result = group(name=name.__name__)(name)
+            result = group(callback, name=name, cls=cls, **attrs)
             self.add_command(result)
             return result
 
-        def decorator(func: CommandFunctionType) -> GroupCommand:
-            attrs.setdefault("parent", self)
-            result = group(name=name, cls=cls, **attrs)(func)
-            self.add_command(result)
-            return result
-
-        return decorator
+        return decorator(callback) if callback is not None else lambda callback: decorator(callback)
 
     @property
     def children(self) -> Generator[Command, None, None]:
@@ -589,50 +599,57 @@ class GroupCommand(GroupMixin, Command):
 
 
 def command(
-    name: Union[Optional[str], CommandFunctionType] = None, cls: type[Command] = Command, **attrs: Any
+    callback: Optional[CommandFunctionType] = None,
+    *,
+    name: Optional[str] = None,
+    cls: Optional[type[Command]] = None,
+    **attrs: Any,
 ) -> Union[Callable[[CommandFunctionType], Command], Command]:
-    """A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`Command`.
+    """|maybecallabledeco|
+    A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`Command`.
 
     Parameters
     ----------
     name: Optional[:class:`str`]
-        The name of the command. Will default to ``func.__name__``.
+        The name of the command. Will default to ``callback.__name__``.
     cls: type[:class:`Command`]
         The class to construct the command from. Defaults to :class:`Command`.
     **attrs:
         The attributes to pass to the command's ``__init__``.
     """
+    cls = cls or Command
 
-    def decorator(func: CommandFunctionType, name: str = name) -> Command:
-        if isinstance(func, Command):
+    def decorator(callback: CommandFunctionType) -> Command:
+        if isinstance(callback, Command):
             raise TypeError("Callback is already a command.")
-        return cls(func, name=name, **attrs)
+        return cls(callback, name=name, **attrs)
 
-    if callable(name):
-        return decorator(name, name=name.__name__)
-
-    return decorator
+    return decorator(callback) if callback is not None else lambda callback: decorator(callback)
 
 
 def group(
-    name: Union[Optional[str], CommandFunctionType] = None, cls: type[GroupCommand] = GroupCommand, **attrs: Any
+    callback: Optional[CommandFunctionType] = None,
+    name: Optional[str] = None,
+    cls: Optional[type[GroupCommand]] = None,
+    **attrs: Any,
 ) -> Union[Callable[[CommandFunctionType], GroupCommand], GroupCommand]:
-    """A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`GroupCommand`.
+    """|maybecallabledeco|
+    A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`GroupCommand`.
 
     Parameters
     ----------
     name: Optional[:class:`str`]
-        The name of the command. Will default to ``func.__name__``.
+        The name of the command. Will default to ``callback.__name__``.
     cls: type[:class:`GroupCommand`]
         The class to construct the command from. Defaults to :class:`GroupCommand`.
     **attrs:
         The attributes to pass to the command's ``__init__``.
     """
 
-    return command(name=name, cls=cls, attrs=attrs)
+    return command(callback, name=name, cls=cls or GroupCommand, attrs=attrs)
 
 
-def check(predicate: CheckType) -> CommandDeco:
+def check(predicate: CheckType) -> CheckReturnType:
     """
     A decorator that registers a function that *could be a* |coroutine_link|_ as a check to a command.
 
@@ -652,7 +669,7 @@ def check(predicate: CheckType) -> CommandDeco:
 
     Attributes
     ----------
-    predicate: Callable[[:class:`Context`], Awaitable[bool]]
+    predicate: Callable[[:class:`Context`], Awaitable[:class:`bool`]]
         The registered check, this will always be a wrapped in a :ref:`coroutine <coroutine>`
     """
 
@@ -680,7 +697,7 @@ def check(predicate: CheckType) -> CommandDeco:
     return decorator
 
 
-def is_owner(func: Optional[MaybeCommandDeco] = None) -> MaybeCommandDeco:
+def is_owner(command: Optional[MaybeCommandDeco] = None) -> MaybeCommandDeco:
     """
     A decorator that will only allow the bot's owner to invoke the command, relies on
     :attr:`~steam.ext.commands.Bot.owner_id` or :attr:`~steam.ext.commands.Bot.owner_ids`.
@@ -694,11 +711,7 @@ def is_owner(func: Optional[MaybeCommandDeco] = None) -> MaybeCommandDeco:
         raise NotOwner()
 
     decorator = check(predicate)
-
-    if callable(func):
-        return decorator(func)
-
-    return decorator
+    return decorator(command) if command is not None else lambda command: decorator(command)
 
 
 def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> CommandDeco:

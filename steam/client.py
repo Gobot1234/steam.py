@@ -183,7 +183,8 @@ class Client:
         return self._closed
 
     def event(self, coro: Optional[EventDeco] = None) -> EventDeco:
-        """A decorator that registers an event to listen to.
+        """|maybecallabledeco|
+        Register an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
 
@@ -198,17 +199,16 @@ class Client:
         :exc:`TypeError`
             The function passed is not a coroutine.
         """
-        if coro is None:
-            def wrap(coro: EventType) -> EventType:
-                return self.event(coro)
-            return wrap
 
-        if not asyncio.iscoroutinefunction(coro):
-            raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is not")
+        def decorator(coro: EventType) -> EventType:
+            if not asyncio.iscoroutinefunction(coro):
+                raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
 
-        setattr(self, coro.__name__, coro)
-        log.debug(f"{coro.__name__} has been registered as an event")
-        return coro
+            setattr(self, coro.__name__, coro)
+            log.debug(f"{coro.__name__} has been registered as an event")
+            return coro
+
+        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
 
     async def _run_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> None:
         try:
