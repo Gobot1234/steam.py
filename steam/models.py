@@ -76,7 +76,7 @@ class FunctionType(Protocol):
 
 
 class EventParser(FunctionType):
-    def __call__(self, cls: type, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
+    def __call__(self, __self__: type, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
         ...
 
 

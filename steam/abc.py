@@ -34,7 +34,7 @@ import abc
 import asyncio
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, NoReturn, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Tuple, Union, overload
 
 from typing_extensions import Final, TypedDict
 

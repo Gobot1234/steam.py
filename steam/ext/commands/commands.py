@@ -123,7 +123,7 @@ class Command:
     def __init__(self, func: CommandFunctionType, **kwargs: Any):
         self.name: str = kwargs.get("name") or func.__name__
         if not isinstance(self.name, str):
-            raise TypeError("Name of a command must be a string.")
+            raise TypeError("name must be a string.")
 
         self.callback = func
 
@@ -157,7 +157,7 @@ class Command:
         except AttributeError:
             special_converters = kwargs.get("special_converters", [])
         finally:
-            self.special_converters: list[converters.Converter] = special_converters
+            self.special_converters: list[type[converters.Converter]] = special_converters
 
         self.enabled = kwargs.get("enabled", True)
         self.brief: Optional[str] = kwargs.get("brief")
@@ -479,7 +479,7 @@ class Command:
                     return self._get_default(ctx, param)  # get the default if possible
                 except MissingRequiredArgument:
                     return None  # fall back to None
-            raise BadArgument(f"Failed to parse {argument} to any type")
+            raise BadArgument(f"Failed to parse {argument!r} to any type")
 
         try:
             return converter(argument)

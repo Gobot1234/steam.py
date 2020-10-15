@@ -29,6 +29,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional
 
 from ...abc import Channel, Message, Messageable, _EndPointReturnType
+from ...utils import cached_property
 
 if TYPE_CHECKING:
     from ...clan import Clan
@@ -72,7 +73,7 @@ class Context(Messageable):
     def __init__(self, **attrs: Any):
         self.bot: Bot = attrs.get("bot")
         self.message: Message = attrs.get("message")
-        self.prefix = attrs.get("prefix")
+        self.prefix: str = attrs.get("prefix")
 
         self.command: Optional[Command] = attrs.get("command")
         self.cog: Optional[Cog] = self.command.cog if self.command is not None else None
@@ -87,6 +88,7 @@ class Context(Messageable):
 
         self.args: Optional[tuple[Any, ...]] = None
         self.kwargs: Optional[dict[str, Any]] = None
+        self.command_failed: bool = False
 
     def _get_message_endpoint(self) -> _EndPointReturnType:
         return self.channel._get_message_endpoint()
@@ -109,19 +111,9 @@ class Context(Messageable):
         """:class:`bool`: Whether or not the context could be invoked."""
         return self.prefix is not None and self.command is not None
 
-    @property
+    @cached_property
     def invoked_without_command(self) -> bool:
         """:class:`bool`: Whether or not the command was invoked with a subcommand."""
         return hasattr(self.command, "__commands__") and not self.shlex.in_stream[
             : self.shlex.position
         ].strip().startswith(tuple(self.command.__commands__))
-
-    @property
-    def invoked_subcommand(self) -> Optional[Command]:
-        if self.invoked_without_command:
-            return None
-        old_position = self.shlex.position
-        try:
-            return self.bot.get_command(" ".join(self.shlex))
-        finally:
-            self.shlex.position = old_position

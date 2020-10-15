@@ -26,17 +26,18 @@ SOFTWARE.
 
 from __future__ import annotations
 
-import asyncio
 import inspect
 import sys
 import traceback
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from chardet import detect
 from typing_extensions import Final
 
-from ...client import EventType
+from ... import ClientException
+from ...client import EventDeco, EventType
+from ...models import FunctionType
 from ...utils import cached_property
 from .commands import Command, GroupMixin
 
@@ -52,29 +53,17 @@ __all__ = (
 )
 
 
-class InjectedListener:
-    """Injects the cog's "self" parameter into every event call auto-magically."""
-
-    __slots__ = ("func", "cog", "_is_coroutine")
-
-    def __init__(self, cog: Cog, func: EventType):
-        self.func = func
-        self.cog = cog
-        self._is_coroutine = asyncio.coroutines._is_coroutine  # marker for asyncio.iscoroutinefunction
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[None, None, None]:
-        return self.func(self.cog, *args, **kwargs)
+class ExtensionTypeFunction(FunctionType):
+    def __call__(self, bot: Bot) -> None:
+        ...
 
 
 # for a bit of type hinting
 class ExtensionType(ModuleType):
     """A class to mimic an extension's file structure."""
 
-    def setup(self, bot: Bot) -> None:
-        pass
-
-    def teardown(self, bot: Bot) -> None:
-        pass
+    setup: ExtensionTypeFunction
+    teardown: ExtensionTypeFunction
 
 
 class Cog:
@@ -107,7 +96,7 @@ class Cog:
     """
 
     __commands__: Final[dict[str, Command]]
-    __listeners__: Final[dict[str, list[InjectedListener]]]
+    __listeners__: Final[dict[str, list[EventType]]]
     command_attrs: Final[dict[str, Any]]
     qualified_name: Final[str]
 
@@ -124,9 +113,8 @@ class Cog:
                     f"therefore not allowed"
                 )
             if isinstance(attr, Command):
-                if attr.parent:  # ungrouped commands have no parent
-                    continue
-                cls.__commands__[name] = attr
+                if attr.parent is None:  # ungrouped commands have no parent
+                    cls.__commands__[name] = attr
             elif hasattr(attr, "__event_name__"):
                 try:
                     cls.__listeners__[attr.__event_name__].append(attr)
@@ -152,7 +140,7 @@ class Cog:
         return set(self.__commands__.values())
 
     @classmethod
-    def listener(cls, name: Optional[str] = None) -> Callable[[EventType], EventType]:
+    def listener(cls, coro: EventDeco = None, name: Optional[str] = None) -> Callable[[EventType], EventType]:
         """A decorator that registers a :ref:`coroutine <coroutine>` as a listener.
         Similar to :meth:`~steam.ext.commands.Bot.listen`
 
@@ -182,7 +170,7 @@ class Cog:
         error: :exc:`Exception`
             The error that happened.
         """
-        print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
+        print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     async def cog_check(self, ctx: "commands.Context") -> bool:

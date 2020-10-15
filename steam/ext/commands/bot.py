@@ -195,7 +195,7 @@ class Bot(GroupMixin, Client):
     """
 
     __cogs__: dict[str, Cog] = {}
-    __listeners__: dict[str, list[Union[EventType, InjectedListener]]] = {}
+    __listeners__: dict[str, list[EventType]] = {}
     __extensions__: dict[str, ExtensionType] = {}
 
     def __init__(
@@ -298,7 +298,7 @@ class Bot(GroupMixin, Client):
         module: ExtensionType = importlib.import_module(extension)
         if not hasattr(module, "setup"):
             del sys.modules[extension]
-            raise ImportError(f"Extension {extension} is missing a setup function")
+            raise ImportError(f"{extension!r} is missing a setup function", path=module.__file__, name=module.__name__)
 
         module.setup(self)
         self.__extensions__[extension] = module
@@ -443,6 +443,7 @@ class Bot(GroupMixin, Client):
         """|maybecallabledeco|
         Register a global check for all commands. This is similar to :func:`commands.check`.
         """
+
         def decorator(predicate: CheckType) -> CheckReturnType:
             predicate = check(predicate)
             self.add_check(predicate)
@@ -685,7 +686,7 @@ class Bot(GroupMixin, Client):
         if ctx.cog and ctx.cog is not self:
             return await ctx.cog.cog_command_error(ctx, error)
 
-        print(f"Ignoring exception in command {ctx.command.name}:", file=sys.stderr)
+        print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     if TYPE_CHECKING:
