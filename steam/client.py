@@ -108,8 +108,13 @@ class Client:
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
         if loop:
             import warnings
-
-            warnings.warn("The loop argument is deprecated and scheduled for removal in V.1", DeprecationWarning)
+            warnings.simplefilter("always", DeprecationWarning)  # turn off filter
+            warnings.warn(
+                "The loop argument is deprecated and scheduled for removal in V.1",
+                stacklevel=3,
+                category=DeprecationWarning,
+            )
+            warnings.simplefilter("default", DeprecationWarning)  # reset filter
             # now filled in start
         self.http = HTTPClient(client=self)
         self._connection = ConnectionState(client=self, http=self.http, **options)

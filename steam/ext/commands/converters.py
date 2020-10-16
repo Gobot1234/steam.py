@@ -277,10 +277,13 @@ class Converter(Protocol[T]):
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
             import warnings
 
+            warnings.simplefilter("always", DeprecationWarning)  # turn off filter
             warnings.warn(
                 "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1",
-                DeprecationWarning,
+                stacklevel=3,
+                category=DeprecationWarning,
             )
+            warnings.simplefilter("default", DeprecationWarning)  # reset filter
             CONVERTERS[cls] = cls
         else:
             if isinstance(converter_for, ForwardRef):
