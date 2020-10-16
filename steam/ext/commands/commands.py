@@ -57,8 +57,7 @@ from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import (
     BadArgument,
-    CheckFailure,
-    CommandOnCooldown,
+    CheckFailure, CommandDisabled, CommandOnCooldown,
     DuplicateKeywordArgument,
     MissingRequiredArgument,
     NotOwner,
@@ -328,10 +327,16 @@ class Command:
             The invocation context.
         """
         try:
+            if not self.enabled:
+                raise CommandDisabled(self)
+            for check in ctx.bot.checks:
+                if not await maybe_coroutine(check, ctx):
+                    raise CheckFailure("You failed to pass one of the checks for this command")
+            for check in self.checks:
+                if not await maybe_coroutine(check, ctx):
+                    raise CheckFailure("You failed to pass one of the checks for this command")
             for cooldown in self.cooldown:
                 cooldown(ctx)
-            if not await ctx.bot.can_run(ctx):
-                raise CheckFailure("You failed to pass one of the checks for this command")
             await self._parse_arguments(ctx)
             await self._call_before_invoke(ctx)
             await self(ctx, *ctx.args, **ctx.kwargs)
@@ -378,7 +383,7 @@ class Command:
                     args.append(await self._get_default(ctx, param))
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                arg = " ".join(ctx.shlex)
+                arg = ctx.shlex.in_stream[ctx.shlex.position:]
                 kwargs[name] = await (self._transform(ctx, param, arg) if arg else self._get_default(ctx, param))
                 break
             elif param.kind == param.VAR_KEYWORD:
@@ -464,7 +469,7 @@ class Command:
                     name = converter.__name__
                 except AttributeError:
                     name = converter.__class__.__name__
-                raise BadArgument(f"{argument} failed to convert to {name}") from exc
+                raise BadArgument(f"{argument!r} failed to convert to {name}") from exc
         origin = get_origin(converter)
         if origin is not None:
             for arg in get_args(converter):
@@ -736,6 +741,7 @@ def command(
 
 def group(
     callback: Optional[CommandFunctionType] = None,
+    *,
     name: Optional[str] = None,
     cls: Optional[type[GroupCommand]] = None,
     **attrs: Any,
@@ -811,10 +817,10 @@ def is_owner(command: Optional[MaybeCommandDeco] = None) -> MaybeCommandDeco:
     """
 
     def predicate(ctx: Context) -> bool:
-        if ctx.bot.owner_id:
-            return ctx.author.id64 == ctx.bot.owner_id
-        elif ctx.bot.owner_ids:
-            return ctx.author.id64 in ctx.bot.owner_ids
+        if ctx.bot.owner_id and ctx.author.id64 == ctx.bot.owner_id:
+            return True
+        if ctx.bot.owner_ids and ctx.author.id64 in ctx.bot.owner_ids:
+            return True
         raise NotOwner()
 
     decorator = check(predicate)
