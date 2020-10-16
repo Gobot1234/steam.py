@@ -428,14 +428,12 @@ class Bot(GroupMixin, Client):
         name: Optional[:class:`str`]
             The name of the event to listen for. Will default to ``func.__name__``.
         """
-        if callable(name):
-            return self.listen(name.__name__)
 
-        def decorator(func: EventType) -> EventType:
-            self.add_listener(func, name)
-            return func
+        def decorator(listener: EventType) -> EventType:
+            self.add_listener(listener, name)
+            return listener
 
-        return decorator
+        return decorator(name) if callable(name) else lambda listener: decorator(listener)
 
     def check(
         self, predicate: Optional[Union[Callable[[CheckType], CheckReturnType], CheckType]] = None

@@ -150,7 +150,7 @@ class Cog:
         return ret
 
     @classmethod
-    def listener(cls, coro: EventDeco = None, name: Optional[str] = None) -> Callable[[EventType], EventType]:
+    def listener(cls, name: Optional[str] = None) -> Callable[[EventType], EventType]:
         """A decorator that registers a :ref:`coroutine <coroutine>` as a listener.
         Similar to :meth:`~steam.ext.commands.Bot.listen`
 
@@ -166,7 +166,7 @@ class Cog:
             coro.__event_name__ = name or coro.__name__
             return coro
 
-        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+        return decorator(name) if callable(name) else lambda coro: decorator(coro)
 
     async def cog_command_error(self, ctx: "commands.Context", error: Exception) -> None:
         """|coro|
