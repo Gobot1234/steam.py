@@ -55,10 +55,13 @@ RequestType = Coroutine[None, None, Optional[Any]]
 
 
 async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
+    text = await r.text()
     try:
-        return await r.json()
-    except aiohttp.ContentTypeError:  # steam is too inconsistent to do this properly
-        return await r.text()
+        if "application/json" in r.headers["Content-Type"]:
+            return json.loads(text)
+    except KeyError:
+        pass
+    return text
 
 
 class HTTPClient:

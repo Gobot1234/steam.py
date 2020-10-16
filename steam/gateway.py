@@ -283,7 +283,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
 
 class SteamWebSocket:
-    parsers: dict[EMsg, EventParser] = dict()
+    parsers: dict[EMsg, EventParser] = {}
 
     __slots__ = (
         "socket",
@@ -514,11 +514,7 @@ class SteamWebSocket:
         self, name: str, check: Optional[Callable[[MsgBase], bool]] = None, timeout: float = 5.0, **kwargs: Any
     ) -> MsgBase:
         job_id = await self.send_um(name, **kwargs)
-        if check is None:
-
-            def check(msg: MsgBase) -> bool:
-                return msg.header.job_id_target == job_id
-
+        check = check or (lambda msg: msg.header.job_id_target == job_id)
         return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, predicate=check), timeout=timeout)
 
     async def change_presence(
