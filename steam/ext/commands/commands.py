@@ -328,6 +328,8 @@ class Command:
             The invocation context.
         """
         try:
+            for cooldown in self.cooldown:
+                cooldown(ctx)
             if not await ctx.bot.can_run(ctx):
                 raise CheckFailure("You failed to pass one of the checks for this command")
             await self._parse_arguments(ctx)
@@ -339,8 +341,7 @@ class Command:
             ctx.command_failed = True
             raise
         finally:
-            if self._after_hook is not None:
-                await self._after_hook(ctx)
+            await self._call_after_invoke(ctx)
 
     async def _call_before_invoke(self, ctx: Context) -> None:
         if self._before_hook is not None:
