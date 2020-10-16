@@ -252,6 +252,7 @@ class Converter(Protocol[T]):
         In this example ``is_cool``'s user parameter would be registered to the ``CustomUserConverter`` rather than
         the global :class:`UserConverter`.
         """
+
         def decorator(command: MaybeCommand) -> MaybeCommand:
             is_command = not isinstance(command, types.FunctionType)
             try:
