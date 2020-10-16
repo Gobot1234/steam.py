@@ -108,6 +108,7 @@ class Client:
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
         if loop:
             import warnings
+
             warnings.simplefilter("always", DeprecationWarning)  # turn off filter
             warnings.warn(
                 "The loop argument is deprecated and scheduled for removal in V.1",

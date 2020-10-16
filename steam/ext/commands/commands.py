@@ -57,7 +57,9 @@ from . import converters
 from .cooldown import BucketType, Cooldown
 from .errors import (
     BadArgument,
-    CheckFailure, CommandDisabled, CommandOnCooldown,
+    CheckFailure,
+    CommandDisabled,
+    CommandOnCooldown,
     DuplicateKeywordArgument,
     MissingRequiredArgument,
     NotOwner,
@@ -383,7 +385,7 @@ class Command:
                     args.append(await self._get_default(ctx, param))
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                arg = ctx.shlex.in_stream[ctx.shlex.position:]
+                arg = ctx.shlex.in_stream[ctx.shlex.position :]
                 kwargs[name] = await (self._transform(ctx, param, arg) if arg else self._get_default(ctx, param))
                 break
             elif param.kind == param.VAR_KEYWORD:
