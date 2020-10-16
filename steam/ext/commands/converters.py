@@ -252,22 +252,21 @@ class Converter(Protocol[T]):
         In this example ``is_cool``'s user parameter would be registered to the ``CustomUserConverter`` rather than
         the global :class:`UserConverter`.
         """
-        if command is None:
+        def decorator(command: MaybeCommand) -> MaybeCommand:
+            is_command = not isinstance(command, types.FunctionType)
+            try:
+                (command.special_converters if is_command else command.__special_converters__).append(cls)
+            except AttributeError:
+                if is_command:
+                    command.special_converters = [cls]
+                else:
+                    command.__special_converters__ = [cls]
+            return command
 
-            def wrap(func: MaybeCommand) -> MaybeCommand:
-                return cls.register(func)
+        return decorator(command) if command is not None else lambda command: decorator(command)
 
-            return wrap
-
-        is_command = not isinstance(command, types.FunctionType)
-        try:
-            (command.special_converters if is_command else command.__special_converters__).append(cls)
-        except AttributeError:
-            if is_command:
-                command.special_converters = [cls]
-            else:
-                command.__special_converters__ = [cls]
-        return command
+    def __init__(self):
+        pass
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()

@@ -267,7 +267,7 @@ class Command:
         else:
             return await self.callback(ctx, *args, **kwargs)
 
-    def error(self, coro: CommandErrorFunctionType) -> CommandErrorFunctionType:
+    def error(self, coro: Optional[CommandErrorFunctionType] = None) -> CommandErrorFunctionType:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to handle a commands ``on_error`` functionality similarly to
         :meth:`steam.ext.commands.Bot.on_command_error`.
@@ -290,7 +290,7 @@ class Command:
             self.on_error = coro
             return coro
 
-        return decorator(coro) if callable(coro) else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
 
     def before_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
         """|maybecallabledeco|
@@ -303,7 +303,7 @@ class Command:
             self._before_hook = coro
             return coro
 
-        return decorator(coro) if callable(coro) else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
 
     def after_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
         """|maybecallabledeco|
@@ -316,7 +316,7 @@ class Command:
             self._after_hook = coro
             return coro
 
-        return decorator(coro) if callable(coro) else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
 
     async def invoke(self, ctx: Context) -> None:
         """|coro|
@@ -378,7 +378,7 @@ class Command:
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
                 arg = " ".join(ctx.shlex)
-                kwargs[name] = await (self._get_default(ctx, param) if not arg else self._transform(ctx, param, arg))
+                kwargs[name] = await (self._transform(ctx, param, arg) if arg else self._get_default(ctx, param))
                 break
             elif param.kind == param.VAR_KEYWORD:
                 # same as **kwargs
