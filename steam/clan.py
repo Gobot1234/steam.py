@@ -185,7 +185,10 @@ class Clan(Commentable, comment_path="Clan"):
                 text = stat.text.split("Founded")[1].strip()
                 if ", " not in stat.text:
                     text = f"{text}, {datetime.utcnow().year}"
-                self.created_at = datetime.strptime(text, "%d %B, %Y")
+                try:
+                    self.created_at = datetime.strptime(text, "%d %B, %Y" if text.split()[0].isdigit() else "%B %d, %Y")
+                except ValueError:  # why do other countries have to exist
+                    self.created_at = None
             if "Language" in stat.text:
                 self.language = stat.text.split("Language")[1].strip()
             if "Location" in stat.text:
