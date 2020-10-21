@@ -629,7 +629,7 @@ class Bot(GroupMixin, Client):
         """
         prefixes = self.command_prefix
         if callable(prefixes):
-            prefixes = await utils.maybe_coroutine(prefixes, message)
+            prefixes = await utils.maybe_coroutine(prefixes, self, message)
         if isinstance(prefixes, str):
             prefixes = (prefixes,)
         else:
