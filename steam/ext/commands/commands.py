@@ -369,8 +369,9 @@ class Command:
         for name, param in self.clean_params.items():
             if param.kind == param.POSITIONAL_OR_KEYWORD:
                 is_greedy = get_origin(param.annotation) is converters.Greedy
-                len_original_args = len(args)
                 greedy_args = []
+                if ctx.shlex.position == ctx.shlex.end:
+                    args.append(await self._get_default(ctx, param))
                 for argument in ctx.shlex:
                     try:
                         transformed = await self._transform(ctx, param, argument)
@@ -380,9 +381,10 @@ class Command:
                         ctx.shlex.undo()  # undo last read string for the next argument
                         args.append(tuple(greedy_args))
                         break
-                    args.append(transformed) if not is_greedy else greedy_args.append(transformed)
-                if len(args) == len_original_args:  # no args were added so lex was empty
-                    args.append(await self._get_default(ctx, param))
+                    if not is_greedy:
+                        args.append(transformed)
+                        break
+                    greedy_args.append(transformed)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
                 arg = ctx.shlex.in_stream[ctx.shlex.position :]

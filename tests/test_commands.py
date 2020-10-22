@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
+import sys
 from typing import Tuple, Union
 
 import pytest
@@ -57,14 +59,10 @@ events: dict[str, Exception] = {}
 
 @contextlib.asynccontextmanager
 async def raises_command_error(
-    expected_exception: Union[type[commands.CommandError], tuple[type[commands.CommandError]]],
-    key: str,
+    expected_exception: Union[type[commands.CommandError], tuple[type[commands.CommandError]], ...],
 ):
     yield
-    try:
-        error = events[key]
-    except KeyError:
-        error = None
+    error = events.pop(sys._getframe(2).f_locals["message"].content, None)
     if not isinstance(error, expected_exception):
         pytest.fail(f"DID NOT RAISE {expected_exception}")
 
@@ -85,7 +83,7 @@ async def test_commands():
         assert isinstance(number, int)
 
     message.content = "!test_positional"
-    async with raises_command_error(commands.MissingRequiredArgument, message.content):
+    async with raises_command_error(commands.MissingRequiredArgument):
         await bot.process_commands(message)
 
     message.content = "!test_positional 1234"
@@ -94,7 +92,7 @@ async def test_commands():
     await bot.process_commands(message)
 
     message.content = "!test_positional string"
-    async with raises_command_error(commands.BadArgument, message.content):
+    async with raises_command_error(commands.BadArgument):
         await bot.process_commands(message)
 
     # VARIADIC
@@ -115,7 +113,7 @@ async def test_commands():
     await bot.process_commands(message)
 
     message.content = "!test_var 123 string"
-    async with raises_command_error(commands.BadArgument, message.content):
+    async with raises_command_error(commands.BadArgument):
         await bot.process_commands(message)
 
     # POSITIONAL ONLY
@@ -125,14 +123,14 @@ async def test_commands():
         assert isinstance(number, int)
 
     message.content = "!test_consume_rest"
-    async with raises_command_error(commands.MissingRequiredArgument, message.content):
+    async with raises_command_error(commands.MissingRequiredArgument):
         await bot.process_commands(message)
 
     message.content = "!test_consume_rest 123_123"
     await bot.process_commands(message)
 
     message.content = "!test_var 123_string"
-    async with raises_command_error(commands.BadArgument, message.content):
+    async with raises_command_error(commands.BadArgument):
         await bot.process_commands(message)
 
     bot.remove_command("test_consume_rest")
@@ -142,7 +140,7 @@ async def test_commands():
         assert isinstance(string, str)
         assert len(string.split()) == 3
 
-    message.content = "!test_consume_rest string string string"
+    message.content = "!test_consume_rest string string string'"
     await bot.process_commands(message)
 
     @bot.group()
@@ -158,3 +156,8 @@ async def test_commands():
 
     message.content = "!test_sub sub cool string string string"
     await bot.process_commands(message)
+
+    await asyncio.sleep(2)  # make sure everything is processed
+
+    if events:
+        pytest.fail("An error wasn't processed")
