@@ -26,7 +26,8 @@ SOFTWARE.
 
 from __future__ import annotations
 
-import time as _time
+import asyncio
+import time
 from typing import TYPE_CHECKING, Tuple, TypeVar, Union
 
 from ...enums import IntEnum
@@ -53,7 +54,7 @@ class BucketType(IntEnum):
     # fmt: off
     Default = 0  #: The default :class:`BucketType` this operates on a global basis.
     User    = 1  #: The :class:`BucketType` for a :class:`steam.User`.
-    Member  = 2  #: The :class:`BucketType` for a :class:`steam.User`.
+    Member  = 2  #: The :class:`BucketType` for a :class:`steam.User` and a :class:`steam.Clan`.
     Group   = 3  #: The :class:`BucketType` for a :class:`steam.User` in a :class:`steam.Clan` / :class:`steam.Group`.
     Clan    = 4  #: The :class:`BucketType` for a :class:`steam.Clan`.
     Role    = 5  #: The :class:`BucketType` for a :class:`steam.Role`.
@@ -61,12 +62,12 @@ class BucketType(IntEnum):
     Admin   = 7  #: The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`.
     # fmt: on
 
-    def get_bucket(self, message_or_context: Union[Message, Context]) -> T_Bucket:
+    def get_bucket(self, ctx: Union[Message, Context]) -> T_Bucket:
         """Get a bucket for a message or context.
 
         Parameters
         ----------
-        message_or_context: Union[:class:`steam.Message`, :class:`steam.ext.commands.Context`]
+        ctx: Union[:class:`steam.Message`, :class:`commands.Context`]
             The message or context to get the bucket for.
 
         Returns
@@ -74,7 +75,6 @@ class BucketType(IntEnum):
         Union[:class:`int`, tuple[:class:`int`, ...]]
             The key for the bucket.
         """
-        ctx = message_or_context
         if self == BucketType.Default:
             return 0
         elif self == BucketType.User:
@@ -94,41 +94,61 @@ class BucketType(IntEnum):
 
 
 class Cooldown:
+    """The class that holds a command's cooldown.
+
+    Attributes
+    ----------
+    bucket: :class:`BucketType`
+        The bucket that should be used to determine this command's cooldown.
+    """
+
     def __init__(self, rate: int, per: float, bucket: BucketType):
         self._rate = rate
         self._per = per
         self.bucket = bucket
-        self._last_update = 0.0
-        self._last_called_by: list[tuple[T_Bucket, float]] = []
+        self.reset()
 
     def reset(self) -> None:
-        self._last_update = 0.0
-        self._last_called_by = []
+        """Reset the command's cooldown."""
+        self._queue: dict[float, T_Bucket] = {}
 
-    def verify_cache(self):
-        now = _time.time()
-        for _, time in self._last_called_by:
-            if now >= time + self._per:
-                self._last_called_by.pop(0)
+    def _calls(self, bucket: T_Bucket) -> list[tuple[float, T_Bucket], ...]:
+        return [(t, b) for t, b in self._queue.items() if b == bucket]
 
-    def get_tokens(self, bucket: BucketType) -> float:
-        now = _time.time()
-        if (
-            self._last_update + self._per >= now
-            and len(self._last_called_by) >= self._rate
-            and bucket in (b for b, t in self._last_called_by)
-        ):
-            return self._last_update + self._per - now
+    async def expire_cache(self, bucket: T_Bucket, now: float) -> None:
+        self._queue[now] = bucket
+        await asyncio.sleep(self._per)
+        self._queue.pop(now, None)
+
+    def get_retry_after(self, bucket: T_Bucket, now: float) -> float:
+        """Get the retry after for a command.
+
+        Parameters
+        ----------
+        bucket: Union[:class:`int`, tuple[:class:`int`, ...]]
+            The bucket to find in the cache.
+        now: :class:`float`
+            The UNIX timestamp to find times after.
+        """
+        calls = self._calls(bucket)
+        if not calls:
+            return 0.0
+        last_call = calls[0][0]
+        if last_call + self._per >= now and len(calls) >= self._rate:
+            return last_call + self._per - now
         return 0.0
 
-    def __call__(self, message_or_context: Union[Message, Context]) -> None:
-        bucket = self.bucket.get_bucket(message_or_context)
-        now = _time.time()
+    def __call__(self, ctx: Union[Message, Context]) -> None:
+        """Invoke the command's cooldown properly and raise if the command is on cooldown.
 
-        self.verify_cache()
-        retry_after = self.get_tokens(bucket)
+        Parameters
+        ----------
+        ctx: Union[:class:`steam.Message`, :class:`commands.Context`]
+            The context for invocation to check for a cooldown on.
+        """
+        bucket = self.bucket.get_bucket(ctx)
+        now = time.time()
+        asyncio.create_task(self.expire_cache(bucket, now))
+        retry_after = self.get_retry_after(bucket, now)
         if retry_after:
             raise CommandOnCooldown(retry_after)
-
-        self._last_called_by.append((bucket, now))
-        self._last_update = _time.time()
