@@ -42,12 +42,12 @@ from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Mapping, O
 from typing_extensions import Literal, overload
 
 from ... import utils
-from ...client import Client, EventType, FunctionType, log
+from ...client import Client, EventType, log
 from ...utils import maybe_coroutine
 from .cog import Cog, ExtensionType
 from .commands import CheckReturnType, Command, GroupMixin, HookDecoType, HookFunction, check
 from .context import Context
-from .converters import CONVERTERS, Converter, Converters
+from .converters import CONVERTERS, Converters
 from .errors import CommandNotFound
 from .help import DefaultHelpCommand, HelpCommand
 from .utils import Shlex
@@ -114,20 +114,6 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
         return list(prefixes) + when_mentioned(bot, message)
 
     return inner
-
-
-class CommandFunctionType(FunctionType):
-    __commands_checks__: list[CheckType]
-    __commands_cooldown__: list[Cooldown]
-    __special_converters__: list[Converter]
-
-    @overload
-    async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
-        ...
-
-    @overload
-    async def __call__(self, cog: Cog, ctx: Context, *args: Any, **kwargs: Any) -> None:
-        ...
 
 
 def resolve_path(path: Path) -> str:

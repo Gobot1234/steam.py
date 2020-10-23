@@ -467,31 +467,32 @@ class SteamWebSocket:
 
     @register(EMsg.ClientLogOnResponse)
     async def handle_logon(self, msg: MsgProto[CMsgClientLogonResponse]) -> None:
-        if msg.body.eresult == EResult.OK:
-            log.debug("Logon completed")
+        if msg.body.eresult != EResult.OK:
+            if msg.body.eresult == EResult.InvalidPassword:
+                http = self._connection.http
+                await http.logout()
+                await http.login(http.username, http.password, shared_secret=http.shared_secret)
+            return await self.handle_close()
 
-            self.session_id = msg.session_id
-            self.cm_list.cell_id = msg.body.cell_id
+        log.debug("Logon completed")
 
-            interval = msg.body.out_of_game_heartbeat_seconds
-            self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
-            self._keep_alive.start()
-            log.debug("Heartbeat started.")
+        self.session_id = msg.session_id
+        self.cm_list.cell_id = msg.body.cell_id
 
-            await self.send_um("ChatRoom.GetMyChatRoomGroups#1_Request")
-            await self.change_presence(
-                games=self._connection._games,
-                state=self._connection._state,
-                ui_mode=self._connection._ui_mode,
-                flags=self._connection._flags,
-                force_kick=self._connection._force_kick,
-            )
-            return await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
-        if msg.body.eresult == EResult.InvalidPassword:
-            http = self._connection.http
-            await http.logout()
-            await http.login(http.username, http.password, shared_secret=http.shared_secret)
-        await self.handle_close()
+        interval = msg.body.out_of_game_heartbeat_seconds
+        self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
+        self._keep_alive.start()
+        log.debug("Heartbeat started.")
+
+        await self.send_um("ChatRoom.GetMyChatRoomGroups#1_Request")
+        await self.change_presence(
+            games=self._connection._games,
+            state=self._connection._state,
+            ui_mode=self._connection._ui_mode,
+            flags=self._connection._flags,
+            force_kick=self._connection._force_kick,
+        )
+        return await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
 
     @register(EMsg.Multi)
     async def handle_multi(self, msg: MsgProto[CMsgMulti]) -> None:

@@ -88,7 +88,7 @@ log = logging.getLogger(__name__)
 
 
 class ConnectionState:
-    parsers: dict[EMsg, EventParser] = dict()
+    parsers: dict[EMsg, EventParser] = {}
 
     __slots__ = (
         "http",
@@ -130,7 +130,7 @@ class ConnectionState:
         self.dispatch = client.dispatch
 
         self.handled_friends = asyncio.Event()
-        self._user_slots = set(User.__slots__) - {"_state"}
+        self._user_slots = set(User.__slots__) - {"_state", "_level"}  # TODO remove
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -647,7 +647,8 @@ class ConnectionState:
             after = self.get_user(user_id64)
             if after is None:  # they're private
                 continue
-            before = copy(after)
+
+            before = after.copy()
 
             try:
                 data = self.patch_user_from_ws(data, friend)
@@ -658,8 +659,8 @@ class ConnectionState:
                 self.dispatch("user_invite", invite)
 
             after._update(data)
-            old = [getattr(before, attr) for attr in self._user_slots]
-            new = [getattr(after, attr) for attr in self._user_slots]
+            old = [getattr(before, attr, None) for attr in self._user_slots]
+            new = [getattr(after, attr, None) for attr in self._user_slots]
             if old != new:
                 self.dispatch("user_update", before, after)
 

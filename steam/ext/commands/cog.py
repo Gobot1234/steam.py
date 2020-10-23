@@ -141,7 +141,7 @@ class Cog:
 
     @property
     def listeners(self) -> list[tuple[str, EventType]]:
-        """tuple[:class:`str`, Callable[..., Awaitable]:
+        """tuple[:class:`str`, Callable[..., Awaitable]]:
         A tuple of the events registered with the format (name, listener)"""
         ret = []
         for listeners in self.__listeners__.values():

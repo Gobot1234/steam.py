@@ -102,9 +102,9 @@ class Context(Messageable):
 
         Equivalent to::
 
-            await ctx.bot.invoke(ctx)
+            await ctx.command.invoke(ctx)
         """
-        await self.bot.invoke(self)
+        await self.command.invoke(self)
 
     @property
     def valid(self) -> bool:

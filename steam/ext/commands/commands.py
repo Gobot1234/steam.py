@@ -45,6 +45,7 @@ from typing import (
     OrderedDict,
     Union,
     get_type_hints,
+    overload,
 )
 
 from chardet import detect
@@ -68,7 +69,6 @@ from .errors import (
 from .utils import CaseInsensitiveDict, reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .bot import CommandFunctionType
     from .cog import Cog
     from .context import Context
 
@@ -86,6 +86,7 @@ CheckType = Callable[["Context"], Union[bool, Coroutine[Any, Any, bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
 MaybeCommandDeco = Union["CommandDeco", MaybeCommand]
 CommandErrorFunctionType = Callable[["Context", Exception], Coroutine[Any, Any, None]]
+HookFunction = Callable[["Context"], Coroutine[Any, Any, None]]
 HookDecoType = Union[Callable[["HookFunction"], "HookFunction"], "HookFunction"]
 
 
@@ -98,8 +99,17 @@ class CheckReturnType(CommandDeco):
     predicate: CheckType
 
 
-class HookFunction(FunctionType):
-    async def __call__(self, ctx: Context) -> None:
+class CommandFunctionType(FunctionType):
+    __commands_checks__: list[CheckType]
+    __commands_cooldown__: list[Cooldown]
+    __special_converters__: list[converters.Converter]
+
+    @overload
+    async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
+        ...
+
+    @overload
+    async def __call__(self, cog: Cog, ctx: Context, *args: Any, **kwargs: Any) -> None:
         ...
 
 
@@ -160,7 +170,7 @@ class Command:
         finally:
             self.special_converters: list[type[converters.Converter]] = special_converters
 
-        self.enabled = kwargs.get("enabled", True)
+        self.enabled: bool = kwargs.get("enabled", True)
         self.brief: Optional[str] = kwargs.get("brief")
         self.usage: Optional[str] = kwargs.get("usage")
         self.cog: Optional[Cog] = kwargs.get("cog")
@@ -192,14 +202,14 @@ class Command:
             - Put the imports in an ``if False:`` block or a constant named ``MYPY`` set to ``False`` (assuming you
               are using MyPy see https://mypy.readthedocs.io/en/stable/common_issues.html#import-cycles).
             - Use an else after the ``if typing.TYPE_CHECKING`` to set the imported values to something at runtime.
-            - Don't have circular imports :)
+            - Don't have circular imports :P
         """
         return self._callback
 
     @callback.setter
     def callback(self, function: CommandFunctionType) -> None:
         if not asyncio.iscoroutinefunction(function):
-            raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine.")
+            raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine function.")
 
         module = sys.modules[function.__module__]
 
@@ -350,6 +360,31 @@ class Command:
         finally:
             await self._call_after_invoke(ctx)
 
+    async def can_run(self, ctx: Context) -> bool:
+        """|coro|
+        Whether or not the command can be ran.
+
+        Parameters
+        ----------
+        ctx: :class:`~steam.ext.commands.Context`
+            The invocation context.
+
+        Returns
+        -------
+        :class:`bool`
+        """
+        if not self.enabled:
+            return False
+        for check in self.checks:
+            if not await maybe_coroutine(check, ctx):
+                return False
+        for cooldown in self.cooldown:
+            try:
+                cooldown(ctx)
+            except CommandOnCooldown:
+                return False
+        return True
+
     async def _call_before_invoke(self, ctx: Context) -> None:
         if self._before_hook is not None:
             await self._before_hook(ctx)
@@ -394,6 +429,8 @@ class Command:
                 # same as **kwargs
                 kv_pairs = [arg.split("=") for arg in ctx.shlex]
                 if not kv_pairs:
+                    if "default" in kwargs:
+                        raise DuplicateKeywordArgument("default")
                     kwargs["default"] = await self._get_default(ctx, param)
                     break
 
@@ -514,31 +551,6 @@ class Command:
                     name = param.default.__class__.__name__
                 raise BadArgument(f"{name} failed to return a default argument") from exc
         return param.default
-
-    async def can_run(self, ctx: Context) -> bool:
-        """|coro|
-        Whether or not the command can be ran.
-
-        Parameters
-        ----------
-        ctx: :class:`~steam.ext.commands.Context`
-            The invocation context.
-
-        Returns
-        -------
-        :class:`bool`
-        """
-        if not self.enabled:
-            return False
-        for check in self.checks:
-            if not await maybe_coroutine(check, ctx):
-                return False
-        for cooldown in self.cooldown:
-            try:
-                cooldown(ctx)
-            except CommandOnCooldown:
-                return False
-        return True
 
 
 class GroupMixin:

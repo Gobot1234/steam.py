@@ -67,7 +67,6 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    import betterproto
     from aiohttp import ClientSession
 
     from .clan import Clan
@@ -523,35 +522,12 @@ class BaseUser(Commentable):
 
     def __copy__(self) -> BaseUser:
         # can't use default implementation due to comment_path being read only
-        flag_value = 0
-        for flag in self.flags:
-            flag_value |= flag
-        data = {
-            "steamid": self.id64,
-            "personaname": self.name,
-            "realname": self.real_name,
-            "avatarfull": self.avatar_url,
-            "primaryclanid": self.primary_clan,
-            "loccountrycode": self.country,
-            "gameextrainfo": self.game.title if self.game else None,
-            "personastate": self.state,
-            "personastateflags": flag_value,
-            "communityvisibilitystate": self.privacy_state,
-            "commentpermission": self._is_commentable,
-            "profilestate": self._setup_profile,
-        }
-        if self.game is not None:
-            data.update({"gameid": self.game.id})
-        if self.created_at is not None:
-            data.update({"timecreated": self.created_at.timestamp()})
-        if self.last_logoff is not None:
-            data.update({"lastlogoff": self.last_logoff.timestamp()})
-        if self.last_logon is not None:
-            data.update({"last_logon": self.last_logon.timestamp()})
-        if self.last_seen_online is not None:
-            data.update({"last_seen_online": self.last_seen_online.timestamp()})
-
-        return self.__class__(state=self._state, data=data)
+        cls = self.__class__
+        user = cls.__new__(cls)
+        for name in self.__slots__:
+            if name != "comment_path":
+                setattr(user, name, getattr(self, name, None))
+        return user
 
     copy = __copy__
 
@@ -804,7 +780,7 @@ class Message:
         "_state",
     )
 
-    def __init__(self, channel: Channel, proto: betterproto.Message):
+    def __init__(self, channel: Channel, proto: Any):
         self._state: ConnectionState = channel._state
         self.channel = channel
         self.group: Optional[Group] = channel.group

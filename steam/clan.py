@@ -47,7 +47,6 @@ from .protobufs.steammessages_chat import (
 from .role import Role
 
 if TYPE_CHECKING:
-    from .channel import ClanChannel
     from .state import ConnectionState
     from .user import User
 
@@ -292,7 +291,8 @@ class Clan(Commentable, comment_path="Clan"):
     def __copy__(self) -> Clan:
         clan = self.__class__(state=self._state, id=self.id64)
         for name, attr in inspect.getmembers(self):
-            setattr(clan, name, attr)  # TODO do these need to be copied?
+            if name != "comment_path":
+                setattr(clan, name, attr)
         return clan
 
     copy = __copy__

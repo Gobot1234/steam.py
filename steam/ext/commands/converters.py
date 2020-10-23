@@ -234,7 +234,8 @@ class Converter(Protocol[T]):
 
     @classmethod
     def register(cls, command: Optional[RegisterDeco] = None) -> RegisterDeco:
-        """A decorator to register a converter to a specific command.
+        """|maybecallabledeco|
+        Register a converter to a specific command.
 
         Examples
         --------
@@ -244,7 +245,7 @@ class Converter(Protocol[T]):
                 async def convert(self, ctx: commands.Context, argument: str) -> steam.User:
                     ...
 
-            @bot.command()
+            @bot.command
             @CustomUserConverter.register
             async def is_cool(ctx, user: steam.User):
                 ...
