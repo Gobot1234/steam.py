@@ -283,11 +283,10 @@ class MsgHdrProtoBuf:
 
 
 class GCMsgHdr:
-    __slots__ = ("body", "header_version", "target_job_id", "source_job_id")
+    __slots__ = ("header_version", "target_job_id", "source_job_id")
     SIZE = 18
 
     def __init__(self, data: Optional[bytes] = None):
-        self.body = None
         self.header_version = 1
         self.target_job_id = -1
         self.source_job_id = -1
@@ -298,7 +297,6 @@ class GCMsgHdr:
     def __repr__(self) -> str:
         attrs = ("msg", "target_job_id", "source_job_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snakecase).items())
         return f'<GCMsgHdr {" ".join(resolved)}>'
 
     def __bytes__(self) -> bytes:
@@ -311,62 +309,13 @@ class GCMsgHdr:
             self.source_job_id,
         ) = struct.unpack_from("<Hqq", data)
 
-    # allow for consistency between headers
-
-    @property
-    def session_id(self) -> int:
-        return self.body.client_session_id
-
-    @session_id.setter
-    def session_id(self, value: int) -> None:
-        self.body.client_session_id = int(value)
-
-    @property
-    def steam_id(self) -> int:
-        return self.body.client_steam_id
-
-    @steam_id.setter
-    def steam_id(self, value: int) -> None:
-        self.body.client_steam_id = int(value)
-
-    @property
-    def job_name_target(self) -> str:
-        return self.body.target_job_name
-
-    @job_name_target.setter
-    def job_name_target(self, value: str) -> None:
-        self.body.target_job_name = value
-
-    @property
-    def job_id_source(self) -> int:
-        return int(self.body.job_id_source)
-
-    @job_id_source.setter
-    def job_id_source(self, value: int) -> None:
-        self.body.job_id_source = int(value)
-
-    @property
-    def job_id_target(self) -> int:
-        return int(self.body.job_id_target)
-
-    @job_id_target.setter
-    def job_id_target(self, value: int) -> None:
-        self.body.job_id_target = int(value)
-
-    @property
-    def eresult(self) -> EResult:
-        return EResult.try_value(self.body.eresult)
-
-    @property
-    def message(self) -> str:
-        return self.body.error_message
-
 
 class GCMsgHdrProto:
-    __slots__ = ("body", "header_length")
+    __slots__ = ("msg", "body", "header_length")
     SIZE = 8
 
     def __init__(self, data: Optional[bytes] = None):
+        self.msg: Optional[int] = None
         self.body = foobar.CMsgProtoBufHeader()
         self.header_length = 0
 
@@ -387,11 +336,10 @@ class GCMsgHdrProto:
     def parse(self, data: bytes) -> None:
         msg, self.header_length = struct.unpack_from("<Ii", data)
 
-        self.msg = EMsg(clear_proto_bit(msg))
+        self.msg = clear_proto_bit(msg)
 
         if self.header_length:
-            x = GCMsgHdrProto.SIZE
-            self.body = self.body.parse(data[x : x + self.header_length])
+            self.body = self.body.parse(data[self.SIZE : self.SIZE + self.header_length])
 
     # allow for consistency between headers
 
