@@ -124,7 +124,35 @@ def to_bool(argument: str) -> bool:
 
 
 class Command:
-    """A class to represent a command."""
+    """A class to represent a command.
+
+    Attributes
+    ----------
+    name: :class:`str`
+        The command's name.
+    help: Optional[:class:`str`]
+        The command's help docstring.
+    checks: list[Callable[[:class:`steam.ext.commands.Context`], Union[:class:`bool`, Awaitable[:class:`bool`]]
+        A list of the command's checks.
+    cooldown: list[:class:`.Cooldown`]
+        The command's cooldowns.
+    special_converters: list[type[converters.Converter]]
+        A list of the command's special converters as registered by :meth:`steam.ext.commands.Converter.register`.
+    enabled: :class:`bool`
+        Whether or not the command is enabled.
+    cog: Optional[:class:`~steam.ext.commands.Cog`]
+        The command's cog.
+    parent: Optional[:class:`Command`]
+        The command's parent.
+    description: :class:`str`
+        The command's description.
+    hidden: :class:`bool`
+        Whether or not the command is hidden.
+    aliases: Iterable[:class:`str`]
+        The command's aliases.
+    params: OrderedDict[:class:`str`, :class:`inspect.Parameter`]
+        The command's parameters.
+    """
 
     def __new__(cls, *args, **kwargs: Any) -> Command:
         self = super().__new__(cls)
