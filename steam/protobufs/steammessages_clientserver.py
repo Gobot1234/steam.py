@@ -1073,7 +1073,7 @@ class CMsgClientAppInfoUpdate(betterproto.Message):
 class CMsgClientAppInfoChanges(betterproto.Message):
     current_change_number: int = betterproto.uint32_field(1)
     force_full_update: bool = betterproto.bool_field(2)
-    app_i_ds: List[int] = betterproto.uint32_field(3)
+    app_ids: List[int] = betterproto.uint32_field(3)
 
 
 @dataclass
@@ -1086,7 +1086,7 @@ class CMsgClientAppInfoRequest(betterproto.Message):
 class CMsgClientAppInfoRequestApp(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     section_flags: int = betterproto.uint32_field(2)
-    section__c_r_c: List[int] = betterproto.uint32_field(3)
+    section_crc: List[int] = betterproto.uint32_field(3)
 
 
 @dataclass

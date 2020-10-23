@@ -110,7 +110,7 @@ class MsgBase(Generic[T]):
             resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
         else:
             resolved.append("body='!!! Failed To Parse !!!'")
-        return " ".join(resolved)
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:
         return bytes(self.header) + bytes(self.body)
@@ -166,11 +166,6 @@ class Msg(MsgBase[T]):
         .. describe:: x[y]
 
             Allows for type hinting of the messages body.
-            e.g.::
-
-                async def handle_multi(self, msg: MsgProto['CMsgMulti']) -> None:
-                    if msg.body.size_unzipped:  # this is now properly typed
-                        ...
 
     Parameters
     ----------
@@ -206,9 +201,6 @@ class Msg(MsgBase[T]):
         self.skip = self.header.SIZE
         super().__init__(msg, data, **kwargs)
 
-    def __repr__(self) -> str:
-        return f"<Msg {super().__repr__()}>"
-
     def parse(self) -> None:
         """Parse the payload/data into a protobuf."""
         if self.body is None:
@@ -228,12 +220,6 @@ class MsgProto(MsgBase[T]):
         .. describe:: x[y]
 
             Allows for type hinting of the messages body.
-            e.g.::
-
-                async def handle_multi(self, msg: MsgProto['CMsgMulti']) -> None:
-                    log.debug('Received a multi, unpacking')
-                    if msg.body.size_unzipped:  # this is now properly typed
-                        ...
 
     Parameters
     ----------
@@ -269,9 +255,6 @@ class MsgProto(MsgBase[T]):
         self.skip = self.header._full_size
         self.um_name = _um_name
         super().__init__(msg, data, **kwargs)
-
-    def __repr__(self) -> str:
-        return f"<MsgProto {super().__repr__()}>"
 
     def parse(self) -> None:
         """Parse the payload/data into a protobuf."""
