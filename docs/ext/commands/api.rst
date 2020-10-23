@@ -75,7 +75,7 @@ Command
 .. autoclass:: steam.ext.commands.Command
     :members:
     :special-members: __call__
-    :exclude-members: error, before_invoke
+    :exclude-members: error, before_invoke, after_invoke
 
     .. automethod:: error()
         :decorator:
@@ -107,12 +107,36 @@ Command
     .. automethod:: after_invoke()
         :decorator:
 
-Help Command
-------------
+Help Commands
+-------------
 
 .. autoclass:: steam.ext.commands.HelpCommand
     :members:
     :inherited-members:
+    :special-members: __call__
+    :exclude-members: error, before_invoke, after_invoke
+
+    .. automethod:: error()
+        :decorator:
+
+    .. automethod:: before_invoke()
+        :decorator:
+
+    .. automethod:: after_invoke()
+        :decorator:
+
+
+.. autoclass:: commands.DefaultHelpCommand
+    :members:
+    :inherited-members:
+    :special-members: __call__
+    :exclude-members: error, before_invoke, after_invoke
+
+    .. automethod:: before_invoke()
+        :decorator:
+
+    .. automethod:: after_invoke()
+        :decorator:
 
 
 Cogs
@@ -228,10 +252,16 @@ An invocation of ``!command some string=long`` would pass ``"some"`` to ``argume
     for non-string keys e.g. ``!ban user="reason to ban"``.
 
 
+Cooldowns
+----------
+
+.. autoclass:: steam.ext.commands.Cooldown
+    :members:
+
 Converters
 -----------
 
-.. autodecorator:: steam.ext.commands.converter_for
+.. autodecorator:: steam.ext.commands.converter_for()
 
 .. autoclass:: steam.ext.commands.Converter()
     :members:
