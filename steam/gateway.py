@@ -53,6 +53,7 @@ from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .models import register
 from .protobufs import EMsg, Msg, MsgBase, MsgProto
+from .protobufs.steammessages_clientserver_2 import CMsgGcClient
 
 if TYPE_CHECKING:
     from .client import Client
@@ -440,6 +441,13 @@ class SteamWebSocket:
 
         self._dispatch("socket_send", message)
         await self.send(bytes(message))
+
+    async def send_gc_message(self, msg: MsgBase):  # for ext's to send GC messages
+        message: MsgProto[CMsgGcClient] = MsgProto(EMsg.ClientToGC)
+        message.body.appid = message.header.body.routing_appid = self._connection.client.GAME
+        message.body.msgtype = utils.set_proto_bit(msg.header.msg) if utils.is_proto(msg.msg) else msg.header.msg
+        message.body.payload = bytes(msg)
+        await self.send_as_proto(message)
 
     async def close(self, code: int = 4000) -> None:
         message = MsgProto(EMsg.ClientLogOff)
