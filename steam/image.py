@@ -26,19 +26,35 @@ SOFTWARE.
 Based on https://github.com/Rapptz/discord.py/blob/master/discord/file.py
 """
 
+from __future__ import annotations
+
 import hashlib
 import imghdr
-import io
 import struct
 from time import time
-from typing import TYPE_CHECKING, Union
+from typing import Optional, TYPE_CHECKING, Union
+
+from typing_extensions import Literal, Protocol, runtime_checkable
 
 __all__ = ("Image",)
 
 if TYPE_CHECKING:
-    from os import PathLike
+    from _typeshed import AnyPath
 
-AnyPath = Union[str, bytes, "PathLike[str]", "PathLike[bytes]"]
+
+@runtime_checkable
+class SupportedIO(Protocol):
+    def read(self, byte: Optional[int] = None) -> bytes:
+        ...
+
+    def seek(self, position: int, whence: Optional[int] = None) -> int:
+        ...
+
+    def seekable(self) -> Literal[True]:
+        ...
+
+    def readable(self) -> Literal[True]:
+        ...
 
 
 class Image:
@@ -46,7 +62,7 @@ class Image:
 
     Parameters
     ----------
-    fp: Union[:class:`io.BufferedIOBase`, :class:`str`]
+    fp: Union[:class:`io.FileIO`, :class:`str`]
         An image or path-like to pass to :func:`open`.
     spoiler: :class:`bool`
         Whether or not to mark the image as a spoiler.
@@ -64,8 +80,8 @@ class Image:
 
     __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash")
 
-    def __init__(self, fp: Union[io.IOBase, AnyPath], *, spoiler: bool = False):
-        self.fp: io.IOBase = fp if isinstance(fp, io.IOBase) else open(fp, "rb")
+    def __init__(self, fp: Union[SupportedIO, AnyPath], *, spoiler: bool = False):
+        self.fp: SupportedIO = fp if isinstance(fp, SupportedIO) else open(fp, "rb")
 
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
@@ -74,17 +90,17 @@ class Image:
             raise ValueError("file is too large to upload")
 
         # from https://stackoverflow.com/questions/8032642
-        head = self.fp.read(24)
-        if len(head) != 24:
+        headers = self.fp.read(24)
+        if len(headers) != 24:
             raise ValueError("Opened file has no headers")
-        self.type = imghdr.what(None, head)
+        self.type = imghdr.what(None, headers)
         if self.type == "png":
-            check = struct.unpack(">i", head[4:8])[0]
+            check = struct.unpack(">i", headers[4:8])[0]
             if check != 0x0D0A1A0A:
-                raise ValueError("Opened file's headers do not match a standard PNG's headers")
-            width, height = struct.unpack(">ii", head[16:24])
+                raise ValueError("Opened file's headers do not match a standard PNGs headers")
+            width, height = struct.unpack(">ii", headers[16:24])
         elif self.type == "gif":
-            width, height = struct.unpack("<HH", head[6:10])
+            width, height = struct.unpack("<HH", headers[6:10])
         elif self.type == "jpeg":
             try:
                 self.fp.seek(0)  # read 0xff next
@@ -98,12 +114,12 @@ class Image:
                     ftype = ord(byte)
                     size = struct.unpack(">H", self.fp.read(2))[0] - 2
                 # we are at a SOFn block
-                self.fp.seek(1, 1)  # skip `precision' byte.
+                self.fp.seek(1, 1)  # skip 'precision' byte.
                 height, width = struct.unpack(">HH", self.fp.read(4))
             except Exception as exc:
                 raise ValueError from exc
         else:
-            raise TypeError("Unsupported file type passed")
+            raise TypeError("Unsupported file format passed")
         self.spoiler = spoiler
         self.width = width
         self.height = height
