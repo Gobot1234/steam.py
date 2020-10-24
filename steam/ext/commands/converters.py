@@ -276,15 +276,9 @@ class Converter(Protocol[T]):
         # the control flow for this is __class_getitem__ -> __init_subclass__ so this is ok-ish
         if converter_for is None:
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
-            import warnings
-
-            warnings.simplefilter("always", DeprecationWarning)  # turn off filter
-            warnings.warn(
-                "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1",
-                stacklevel=3,
-                category=DeprecationWarning,
+            utils.warn(
+                "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1"
             )
-            warnings.simplefilter("default", DeprecationWarning)  # reset filter
             CONVERTERS[cls] = cls
         else:
             if isinstance(converter_for, ForwardRef):

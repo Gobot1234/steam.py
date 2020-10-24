@@ -35,6 +35,7 @@ import html
 import json
 import re
 import sys
+import warnings
 from inspect import isawaitable
 from operator import attrgetter
 from typing import (
@@ -470,6 +471,16 @@ def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:
             yield iterable[i : i + size]
 
     return list(chunker())
+
+
+def warn(message: str, warning_type: type[Warning] = DeprecationWarning) -> None:
+    warnings.simplefilter("always", warning_type)  # turn off filter
+    warnings.warn(
+        message,
+        stacklevel=3,
+        category=warning_type,
+    )
+    warnings.simplefilter("default", warning_type)  # reset filter
 
 
 # everything below here is directly from discord.py's utils
