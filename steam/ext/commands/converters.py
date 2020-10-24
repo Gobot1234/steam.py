@@ -326,8 +326,10 @@ class UserConverter(Converter[User]):
 
     async def convert(self, ctx: Context, argument: str) -> User:
         try:
-            user = ctx.bot.get_user(argument) or await ctx.bot.fetch_user(argument)
+            user = ctx.bot.get_user(argument)
         except InvalidSteamID:
+            if argument.startswith("https://"):
+                return await self.convert(ctx, await utils.id64_from_url(argument, ctx.bot.http._session))
             search = re.search(r"\[mention=(\d+)]@\w+\[/mention]", argument)
             if search is not None:
                 return await self.convert(ctx, search.group(1))
@@ -348,8 +350,7 @@ class ChannelConverter(Converter[Channel]):
     async def convert(self, ctx: Context, argument: str) -> Channel:
         channel = None
         if argument.isdigit():
-            groups = ctx.bot._connection._combined.values()
-            for group in groups:
+            for group in ctx.bot._connection._combined.values():
                 channel = utils.find(lambda c: c.id == int(argument), group.channels)
                 if channel is not None:
                     break
@@ -372,6 +373,8 @@ class ClanConverter(Converter[Clan]):
         try:
             clan = ctx.bot.get_clan(argument)
         except InvalidSteamID:
+            if argument.startswith("https://"):
+                return await self.convert(ctx, await utils.id64_from_url(argument, ctx.bot.http._session))
             clan = utils.find(lambda c: c.name == argument, ctx.bot.clans)
         if clan is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
