@@ -342,14 +342,10 @@ class ChannelConverter(Converter[Channel]):
     """
 
     async def convert(self, ctx: Context, argument: str) -> Channel:
-        channel = None
-        if argument.isdigit():
-            for group in ctx.bot._connection._combined.values():
-                channel = utils.find(lambda c: c.id == int(argument), group.channels)
-                if channel is not None:
-                    break
-        else:
-            channel = utils.find(lambda c: c.name == argument, (ctx.clan or ctx.group).channels)
+        channel = utils.find(
+            lambda c: c.id == int(argument) if argument.isdigit() else lambda c: c.name == argument,
+            (ctx.clan or ctx.group).channels,
+        )
         if channel is None:
             raise BadArgument(f'Failed to convert "{argument}" to a channel')
         return channel
