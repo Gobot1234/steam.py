@@ -32,7 +32,7 @@ import hashlib
 import imghdr
 import struct
 from time import time
-from typing import Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from typing_extensions import Literal, Protocol, runtime_checkable
 
