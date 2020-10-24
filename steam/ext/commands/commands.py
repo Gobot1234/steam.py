@@ -49,7 +49,7 @@ from typing import (
 )
 
 from chardet import detect
-from typing_extensions import get_args, get_origin
+from typing_extensions import Literal, get_args, get_origin
 
 from ...errors import ClientException
 from ...models import FunctionType
@@ -541,19 +541,29 @@ class Command:
                 raise BadArgument(f"{argument!r} failed to convert to {name}") from exc
         origin = get_origin(converter)
         if origin is not None:
-            for arg in get_args(converter):
+            args = get_args(converter)
+            for arg in args:
                 converter = self._get_converter(arg)
                 try:
-                    return await self._convert(ctx, converter, param, argument)
+                    ret = await self._convert(ctx, converter, param, argument)
                 except BadArgument:
                     if origin is Union:
                         continue
                     raise
-            if origin is Union and type(None) in get_args(converter):  # typing.Optional
+                else:
+                    if origin is not Literal:
+                        return ret
+                    if arg == ret:
+                        return ret
+
+            if origin is Union and type(None) in args:  # typing.Optional
                 try:
                     return self._get_default(ctx, param)  # get the default if possible
                 except MissingRequiredArgument:
                     return None  # fall back to None
+            if origin is Literal:
+                raise BadArgument(f"Expected one of {', '.join(args)} not {argument!r}")
+
             raise BadArgument(f"Failed to parse {argument!r} to any type")
 
         try:
