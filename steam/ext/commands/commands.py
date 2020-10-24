@@ -865,9 +865,13 @@ def check(predicate: CheckType) -> CheckReturnType:
 
 
 def is_owner(command: Optional[MaybeCommandDeco] = None) -> MaybeCommandDeco:
-    """
-    A decorator that will only allow the bot's owner to invoke the command, relies on
-    :attr:`~steam.ext.commands.Bot.owner_id` or :attr:`~steam.ext.commands.Bot.owner_ids`.
+    """|maybecallabledeco|
+    A decorator that will only allow the bot's owner(s) to invoke the command.
+
+    Warning
+    -------
+    This relies on :attr:`~steam.ext.commands.Bot.owner_id` or :attr:`~steam.ext.commands.Bot.owner_ids` to be set to
+    function if they are not no one will be able to use these commands.
     """
 
     def predicate(ctx: Context) -> bool:

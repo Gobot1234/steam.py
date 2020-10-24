@@ -27,10 +27,10 @@ Bot
     .. automethod:: trade_history
         :async-for: trade
 
-    .. automethod:: command
+    .. automethod:: command(name=None, cls=None, **attrs)
         :decorator:
 
-    .. automethod:: group
+    .. automethod:: group(name=None, cls=None, **attrs)
         :decorator:
 
     .. automethod:: listen
@@ -70,7 +70,11 @@ Command
 
 .. autodecorator:: steam.ext.commands.group(name=None, cls=None, **attrs)
 
+.. autodecorator:: steam.ext.commands.check
+
 .. autodecorator:: steam.ext.commands.cooldown
+
+.. autodecorator:: steam.ext.commands.is_owner()
 
 .. autoclass:: steam.ext.commands.Command
     :members:
