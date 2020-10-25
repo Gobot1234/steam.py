@@ -1,4 +1,4 @@
-aiohttp>=3.6.0,<3.7.0
+aiohttp>=3.6.0,<3.8.0
 beautifulsoup4>=4.9.1
 rsa>=4.6
 betterproto>=1.2.5
