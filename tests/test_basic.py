@@ -4,8 +4,6 @@
 
 import sys
 
-import pytest
-
 import steam
 
 from . import IDENTITY_SECRET, PASSWORD, SHARED_SECRET, USERNAME
@@ -21,7 +19,7 @@ class Client(steam.Client):
         try:
             await super().start(USERNAME, PASSWORD, shared_secret=SHARED_SECRET, identity_secret=IDENTITY_SECRET)
         except steam.LoginError as exc:
-            if "captcha code" not in exc.args[0]:
+            if "too many login failures" not in exc.args[0]:
                 raise exc
             return
 
@@ -39,15 +37,11 @@ class Client(steam.Client):
         self.LOGOUT = True
 
 
-@pytest.mark.asyncio
-async def test_basic_events():
+def test_basic_events():
     if sys.version_info[:2] == (3, 8):  # only test on 3.9 and 3.7 as that's where the issues normally are
         return
     client = Client()
-    try:
-        await client.start()
-    finally:
-        await client.close()
+    client.run()
     assert client.LOGIN
     assert client.CONNECT
     assert client.READY
