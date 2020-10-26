@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import sys
-from typing import Tuple, Union
+from typing import Union
 
 import pytest
 
@@ -45,12 +44,6 @@ def test_greedy():
 
         @commands.command()
         async def greedy(ctx, param: commands.Greedy[str]):
-            pass
-
-    with pytest.raises(TypeError):
-
-        @commands.command()
-        async def greedy(ctx, param: commands.Greedy[Tuple[int]]):
             pass
 
 
@@ -156,8 +149,6 @@ async def test_commands():
 
     message.content = "!test_sub sub cool string string string"
     await bot.process_commands(message)
-
-    await asyncio.sleep(2)  # make sure everything is processed
 
     if events:
         pytest.fail("An error wasn't processed")
