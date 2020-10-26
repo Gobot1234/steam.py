@@ -502,14 +502,15 @@ class Greedy(Generic[T]):
     def __class_getitem__(cls, converter: GreedyTypes) -> Greedy[T]:
         """The main entry point for Greedy types."""
         if isinstance(converter, tuple) and len(converter) != 1:
-            raise TypeError("commands.Greedy only accepts one argument")
-        if (
-            converter in INVALID_GREEDY_TYPES
-            or get_origin(converter) is not None
-            or not isinstance(converter, (Converter, str))
-            and not callable(converter)
-        ):
-            raise TypeError(f"Cannot type-hint commands.Greedy with {converter!r}")
+            raise TypeError("Greedy[...] only accepts one argument")
+        if not (callable(converter) or isinstance(converter, Converter) or get_origin(converter) is not None):
+            raise TypeError(f"Greedy[...] expects a type or a Converter instance not {converter!r}")
+
+        if converter in INVALID_GREEDY_TYPES:
+            raise TypeError(f"Greedy[{converter.__name__}] is invalid")
+
+        if get_origin(converter) is Union and type(None) in get_args(converter):
+            raise TypeError(f"Greedy[{converter!r}] is invalid.")
         annotation = super().__class_getitem__(converter)
         annotation.converter = get_args(annotation)[0]
         return annotation
@@ -532,7 +533,6 @@ GreedyTypes = Union[
 ]
 INVALID_GREEDY_TYPES = (
     str,             # leads to parsing weirdness
-    None,            # how would this work
-    type(None),      # same as above
+    type(None),      # how would this work
     Greedy,          # Greedy[Greedy[int]] makes no sense
 )
