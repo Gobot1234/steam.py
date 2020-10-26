@@ -21,7 +21,7 @@ PROTOBUFS = {
     EMsg.ClientChangeStatus: steammessages_clientserver_friends.CMsgClientChangeStatus,
     EMsg.ClientFriendMsg: steammessages_clientserver_friends.CMsgClientFriendMsg,
     EMsg.ClientRedeemGuestPass: steammessages_clientserver_2.CMsgClientRedeemGuestPass,
-    EMsg.ClientGamesPlayed: steammessages_clientserver.CMsgClientGamesPlayed,
+    EMsg.ClientGamesPlayedWithDataBlob: steammessages_clientserver.CMsgClientGamesPlayed,
     EMsg.ClientRegisterKey: steammessages_clientserver_2.CMsgClientRegisterKey,
     EMsg.ClientPurchaseWithMachineID: steammessages_clientserver_2.CMsgClientPurchaseWithMachineID,
     EMsg.ClientLogOnResponse: steammessages_clientserver_login.CMsgClientLogonResponse,

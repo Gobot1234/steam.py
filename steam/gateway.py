@@ -250,7 +250,13 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
             log.debug(self.msg.format(self.heartbeat))
             coro = self.ws.send_as_proto(self.heartbeat)
-            f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
+            try:
+                f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
+            except (RuntimeError, RuntimeWarning):
+                # loop should be closing
+                if self.ws.loop.is_closed():
+                    return
+                raise
             # block until sending is complete
             total = 0
             while 1:
