@@ -116,10 +116,10 @@ class HTTPClient:
 
     async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Optional[Any]:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
+        payload = kwargs.get("data")
 
         for tries in range(5):
             async with self._session.request(method, url, **kwargs) as r:
-                payload = kwargs.get("data")
                 log.debug(
                     self.REQUEST_LOG.format(method=method, url=r.url, payload=f"PAYLOAD: {payload}", status=r.status)
                 )

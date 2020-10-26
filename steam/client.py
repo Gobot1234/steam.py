@@ -121,7 +121,7 @@ class Client:
 
         self._closed = True
         self._cm_list: Optional[CMServerList] = None
-        self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = dict()
+        self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
     @property
