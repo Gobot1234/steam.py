@@ -107,7 +107,8 @@ class Client:
 
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
         if loop:
-            utils.warn("The loop argument is deprecated and scheduled for removal in V.1")  # now filled in start
+            utils.warn("The loop argument is deprecated and scheduled for removal in V.1")
+        self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self)
         self._connection = ConnectionState(client=self, http=self.http, **options)
         self.ws: Optional[SteamWebSocket] = None
@@ -290,12 +291,16 @@ class Client:
         """
 
         async def runner() -> None:
+            asyncio.events.new_event_loop = old_new_event_loop
             try:
                 await self.start(*args, **kwargs)
             finally:
                 if not self.is_closed():
                     await self.close()
 
+        # we just have to monkey patch in support for using get_event_loop
+        old_new_event_loop = asyncio.new_event_loop
+        asyncio.events.new_event_loop = asyncio.get_event_loop
         try:
             asyncio.run(runner())
         except KeyboardInterrupt:
@@ -394,7 +399,6 @@ class Client:
         :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """
-        self.loop = asyncio.get_event_loop()
 
         self.username = username
         self.password = password

@@ -12,7 +12,7 @@ Key Features
 - Modern Pythonic API using ``async``/``await`` syntax
 - Command extension to aid with bot creation
 - Easy to use with an object oriented design
-- Fully typed
+- Fully typed hinted for faster development
 
 Installation
 --------------
@@ -84,5 +84,3 @@ Links
 
   - [Documentation](https://steampy.rtfd.io/en/latest/index.html)
   - [Official Discord Server](https://discord.gg/MQ68WUS)
-
-##### Please note this repo is under going rapid development, if you find any bugs please make a [new issue](https://github.com/Gobot1234/steam.py/issues/new).
