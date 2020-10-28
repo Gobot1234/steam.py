@@ -66,8 +66,8 @@ class MsgHdr:
     __slots__ = ("msg", "eresult", "job_name_target", "job_id_target", "job_id_source")
     SIZE = 20
 
-    def __init__(self, data: bytes = None):
-        self.msg = EMsg.Invalid
+    def __init__(self, data: Optional[bytes] = None):
+        self.msg = None
         self.eresult = EResult.Invalid
         self.job_name_target = None
         self.job_id_target = -1
@@ -127,8 +127,8 @@ class ExtendedMsgHdr:
     )
     SIZE = 36
 
-    def __init__(self, data: bytes = None):
-        self.msg = EMsg.Invalid
+    def __init__(self, data: Optional[bytes] = None):
+        self.msg = None
         self.header_size = 36
         self.header_version = 2
         self.job_name_target = None
@@ -201,7 +201,7 @@ class MsgHdrProtoBuf:
     __slots__ = ("body", "msg", "_full_size")
 
     def __init__(self, data: Optional[bytes] = None):
-        self.msg = EMsg.Invalid
+        self.msg = None
         self.body = steammessages_base.CMsgProtoBufHeader()
         self._full_size = 0
 
@@ -216,7 +216,7 @@ class MsgHdrProtoBuf:
 
     def __bytes__(self) -> bytes:
         proto_data = bytes(self.body)
-        return struct.pack("<II", set_proto_bit(self.msg.value), len(proto_data)) + proto_data
+        return struct.pack("<II", set_proto_bit(self.msg), len(proto_data)) + proto_data
 
     def parse(self, data: bytes) -> None:
         """Parse the header.
@@ -285,6 +285,7 @@ class MsgHdrProtoBuf:
 class GCMsgHdr:
     __slots__ = ("header_version", "target_job_id", "source_job_id")
     SIZE = 18
+    msg = None
 
     def __init__(self, data: Optional[bytes] = None):
         self.header_version = 1
@@ -295,9 +296,7 @@ class GCMsgHdr:
             self.parse(data)
 
     def __repr__(self) -> str:
-        attrs = ("msg", "target_job_id", "source_job_id")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f'<GCMsgHdr {" ".join(resolved)}>'
+        return f'<GCMsgHdr {" ".join(f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__)}>'
 
     def __bytes__(self) -> bytes:
         return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
@@ -315,7 +314,7 @@ class GCMsgHdrProto:
     SIZE = 8
 
     def __init__(self, data: Optional[bytes] = None):
-        self.msg: Optional[int] = None
+        self.msg = None
         self.body = foobar.CMsgProtoBufHeader()
         self.header_length = 0
 

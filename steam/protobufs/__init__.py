@@ -34,7 +34,7 @@ from typing import Any, Generic, Optional, Type, TypeVar, Union
 
 import betterproto
 
-from ..enums import Enum
+from ..enums import Enum, IntEnum
 from .emsg import *
 from .headers import *
 from .protobufs import *
@@ -52,12 +52,12 @@ def _Message__bool__(self: betterproto.Message) -> bool:
 betterproto.Message.__bool__ = _Message__bool__
 
 
-def get_cmsg(emsg: Union[EMsg, int]) -> GetProtoType:
+def get_cmsg(msg: IntEnum) -> GetProtoType:
     """Get a protobuf from its EMsg.
 
     Parameters
     ----------
-    emsg: Union[:class:`EMsg`, :class:`int`]
+    msg: Union[:class:`.IntEnum`]
         The EMsg of the protobuf.
 
     Returns
@@ -65,7 +65,7 @@ def get_cmsg(emsg: Union[EMsg, int]) -> GetProtoType:
     Optional[type[:class:`betterproto.Message`]]
         The uninitialized protobuf.
     """
-    return PROTOBUFS.get(EMsg.try_value(emsg))
+    return PROTOBUFS.get(msg)
 
 
 def get_um(name: str) -> GetProtoType:
@@ -87,7 +87,7 @@ def get_um(name: str) -> GetProtoType:
 class MsgBase(Generic[T]):
     __slots__ = ("header", "body", "payload", "skip")
 
-    def __init__(self, msg: EMsg, data: Optional[bytes], **kwargs: Any):
+    def __init__(self, msg: IntEnum, data: Optional[bytes], **kwargs: Any):
         self.msg = msg
         self.body: Optional[T] = None
         self.payload: Optional[bytes] = data[self.skip :] if data else None
@@ -122,13 +122,13 @@ class MsgBase(Generic[T]):
                 self.body.parse(self.payload)
 
     @property
-    def msg(self) -> EMsg:
-        """Union[:class:`.EMsg`, :class:`int`]: The :attr:`header.msg`."""
+    def msg(self) -> IntEnum:
+        """Union[:class:`IntEnum`]: The :attr:`header.msg`."""
         return self.header.msg
 
     @msg.setter
     def msg(self, value: int) -> None:
-        self.header.msg = EMsg.try_value(value)
+        self.header.msg = value
 
     @property
     def steam_id(self) -> Optional[int]:
@@ -273,4 +273,40 @@ class MsgProto(MsgBase[T]):
             else:
                 proto = get_cmsg(self.msg)
 
+            self._parse(proto)
+
+
+class GCMsg(MsgBase[T]):
+    def __init__(
+        self,
+        msg: IntEnum,
+        data: Optional[bytes] = None,
+        **kwargs,
+    ):
+        self.header = GCMsgHdr(data)
+        self.skip = self.header.SIZE
+        super().__init__(msg, data, **kwargs)
+
+    def parse(self) -> None:
+        """Parse the payload/data into a protobuf."""
+        if self.body is None:
+            proto = get_cmsg(self.msg)
+            self._parse(proto)
+
+
+class GCMsgProto(MsgBase[T]):
+    def __init__(
+        self,
+        msg: IntEnum,
+        data: Optional[bytes] = None,
+        **kwargs,
+    ):
+        self.header = GCMsgHdrProto(data)
+        self.skip = self.header.SIZE + self.header.header_length
+        super().__init__(msg, data, **kwargs)
+
+    def parse(self) -> None:
+        """Parse the payload/data into a protobuf."""
+        if self.body is None:
+            proto = get_cmsg(self.msg)
             self._parse(proto)
