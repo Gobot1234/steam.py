@@ -533,10 +533,6 @@ class BaseUser(Commentable):
     def __str__(self) -> str:
         return self.name
 
-
-
-    copy = __copy__
-
     @property
     def mention(self) -> str:
         """:class:`str`: The string used to mention the user."""
