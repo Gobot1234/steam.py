@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import inspect
 import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Tuple, Union, overload
@@ -346,6 +347,18 @@ class Commentable(SteamID):
     def __init_subclass__(cls, **kwargs: Any):
         cls.comment_path: Final[str] = kwargs.get("comment_path", "Profile")
 
+    def __copy__(self) -> Commentable:
+        cls = self.__class__
+        commentable = cls.__new__(cls)
+        for name, attr in inspect.getmembers(self):
+            try:
+                setattr(commentable, name, attr)
+            except AttributeError:
+                pass
+        return commentable
+
+    copy = __copy__
+
     async def comment(self, content: str) -> Comment:
         """|coro|
         Post a comment to a profile.
@@ -515,19 +528,12 @@ class BaseUser(Commentable):
     def __repr__(self) -> str:
         attrs = ("name", "state", "id", "type", "universe", "instance")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<User {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __str__(self) -> str:
         return self.name
 
-    def __copy__(self) -> BaseUser:
-        # can't use default implementation due to comment_path being read only
-        cls = self.__class__
-        user = cls.__new__(cls)
-        for name in self.__slots__:
-            if name != "comment_path":
-                setattr(user, name, getattr(self, name, None))
-        return user
+
 
     copy = __copy__
 

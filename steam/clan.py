@@ -288,15 +288,6 @@ class Clan(Commentable, comment_path="Clan"):
     def __len__(self) -> int:
         return self.member_count
 
-    def __copy__(self) -> Clan:
-        clan = self.__class__(state=self._state, id=self.id64)
-        for name, attr in inspect.getmembers(self):
-            if name != "comment_path":
-                setattr(clan, name, attr)
-        return clan
-
-    copy = __copy__
-
     async def fetch_members(self) -> list[SteamID]:
         """|coro|
         Fetches a clan's member list.

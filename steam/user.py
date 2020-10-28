@@ -284,11 +284,6 @@ class ClientUser(BaseUser):
         super().__init__(state, data)
         self.friends: list[User] = []
 
-    def __repr__(self) -> str:
-        attrs = ("name", "state", "id", "type", "universe", "instance")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<ClientUser {' '.join(resolved)}>"
-
     async def setup_profile(self) -> None:
         """|coro|
         Set up your profile if possible.

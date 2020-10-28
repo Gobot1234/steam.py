@@ -32,7 +32,6 @@ import logging
 import re
 import weakref
 from collections import deque
-from copy import copy
 from datetime import datetime
 from time import time
 from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
@@ -770,6 +769,6 @@ class ConnectionState:
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[CMsgClientAccountInfo]) -> None:
         if msg.body.persona_name != self.client.user.name:
-            before = copy(self.client.user)
-            self.client.user.name = msg.body.persona_name
+            before = self.client.user.copy()
+            self.client.user.name = msg.body.persona_name or self.client.user.name
             self.dispatch("user_update", before, self.client.user)
