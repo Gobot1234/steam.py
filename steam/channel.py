@@ -27,6 +27,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -83,9 +84,34 @@ class DMChannel(Channel):
     async def send(
         self, content: Optional[str] = None, *, trade: Optional[TradeOffer] = None, image: Optional[Image] = None
     ) -> None:
+        """|coro|
+        Send a message, trade or image to an :class:`User`.
+
+        Parameters
+        ----------
+        content: Optional[:class:`str`]
+           The message to send to the user.
+        trade: Optional[:class:`.TradeOffer`]
+           The trade offer to send to the user.
+
+           Note
+           ----
+           This will have its :attr:`~steam.TradeOffer.id` attribute updated after being sent.
+
+        image: Optional[:class:`.Image`]
+           The image to send to the user.
+
+        Raises
+        ------
+        :exc:`~steam.HTTPException`
+           Sending the message failed.
+        :exc:`~steam.Forbidden`
+           You do not have permission to send the message.
+        """
         await self.participant.send(content=content, trade=trade, image=image)
 
-    def typing(self) -> TypingContextManager:
+    @asynccontextmanager
+    async def typing(self) -> None:
         """Send a typing indicator continuously to the channel while in the context manager.
 
         Note
@@ -96,13 +122,20 @@ class DMChannel(Channel):
 
             async with ctx.channel.typing():
                 # do your expensive operations
-
-            # or
-
-            with ctx.channel.typing():
-                # do your expensive operations
         """
-        return TypingContextManager(self.participant)
+
+        async def inner() -> None:
+            while True:
+                await self._state.send_user_typing(self.participant)
+                await asyncio.sleep(5)
+
+        task = self._state.loop.create_task(inner())
+        yield
+        task.cancel()
+        try:
+            task.exception()
+        except Exception:
+            pass
 
     async def trigger_typing(self) -> None:
         """Send a typing indicator to the channel once.
@@ -112,43 +145,6 @@ class DMChannel(Channel):
         This only works in DMs.
         """
         await self._state.send_user_typing(self.participant)
-
-
-# this is basically straight from d.py
-
-
-def _typing_done_callback(future: asyncio.Future) -> None:
-    # just retrieve any exception and call it a day
-    try:
-        future.exception()
-    except (asyncio.CancelledError, Exception):
-        pass
-
-
-class TypingContextManager:
-    __slots__ = ("participant", "task", "_state")
-
-    def __init__(self, participant: "User"):
-        self._state = participant._state
-        self.participant = participant
-
-    async def send_typing(self) -> None:
-        while 1:
-            await self._state.send_user_typing(self.participant)
-            await asyncio.sleep(5)
-
-    def __enter__(self) -> None:
-        self.task = asyncio.create_task(self.send_typing())
-        return self.task.add_done_callback(_typing_done_callback)
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        self.task.cancel()
-
-    async def __aenter__(self) -> None:
-        return self.__enter__()
-
-    async def __aexit__(self, exc_type, exc, tb) -> None:
-        self.task.cancel()
 
 
 class _GroupChannel(Channel):
