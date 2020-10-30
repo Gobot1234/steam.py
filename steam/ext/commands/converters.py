@@ -37,6 +37,7 @@ from typing import (
     Dict,
     ForwardRef,
     Generic,
+    Iterator,
     NoReturn,
     Optional,
     Tuple,
@@ -273,7 +274,8 @@ class Converter(Protocol[T]):
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         converter_for = globals().pop("__current_converter", None)
-        # the control flow for this is __class_getitem__ -> __init_subclass__ so this is ok-ish
+        # the flow for this is __class_getitem__ -> type.__new__ (but that won't do anything) -> __init_subclass__ so
+        # this is alright
         if converter_for is None:
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
             utils.warn(
@@ -293,14 +295,14 @@ class Converter(Protocol[T]):
             CONVERTERS[converter_for] = cls
 
     def __class_getitem__(cls, converter_for: ConverterTypes) -> Converter[T]:
-        """The main entry point for Converters.
+        """The entry point for Converters.
 
         This method is called when :class:`.Converter` is subclassed to handle the argument that was passed as the
-        converter_for.
+        ``converter_for``.
 
         Note
         ----
-            This has similar behaviour to :attr:`~steam.ext.commands.Command.callback`, so see the note for that.
+        This has similar behaviour to :attr:`~steam.ext.commands.Command.callback`, so see the note for that.
         """
         if isinstance(converter_for, tuple) and len(converter_for) != 1:
             raise TypeError("commands.Converter only accepts one argument")
@@ -484,12 +486,16 @@ class Greedy(Generic[T]):
             await ctx.send(f"numbers: {numbers}, reason: {reason}")
 
     An invocation of ``"test 1 2 3 4 5 6 hello"`` would pass ``(1, 2, 3, 4, 5, 6)`` to ``numbers`` and ``"hello"`` to
-    ``reason``
+    ``reason``.
 
     Attributes
     ----------
     converter: T
         The converter the Greedy type holds.
+
+    Note
+    ----
+    Passing a tuple of length greater than one is shorthand for ``Greedy[Union[converter_tuple]]``.
     """
 
     converter: T
@@ -497,23 +503,46 @@ class Greedy(Generic[T]):
     def __new__(
         cls, *args: Any, **kwargs: Any
     ) -> NoReturn:  # give a more helpful message than typing._BaseGenericAlias.__call__
-        raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[converter]")
+        raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[...]")
 
     def __class_getitem__(cls, converter: GreedyTypes) -> Greedy[T]:
-        """The main entry point for Greedy types."""
-        if isinstance(converter, tuple) and len(converter) != 1:
-            raise TypeError("Greedy[...] only accepts one argument")
+        """The entry point for Greedy types."""
+        if isinstance(converter, tuple):
+            converter = converter[0] if len(converter) == 1 else Union[converter]
         if not (callable(converter) or isinstance(converter, Converter) or get_origin(converter) is not None):
             raise TypeError(f"Greedy[...] expects a type or a Converter instance not {converter!r}")
 
         if converter in INVALID_GREEDY_TYPES:
             raise TypeError(f"Greedy[{converter.__name__}] is invalid")
 
-        if get_origin(converter) is Union and type(None) in get_args(converter):
-            raise TypeError(f"Greedy[{converter!r}] is invalid.")
+        origin = get_origin(converter)
+        args = get_args(converter)
+        if origin is Union:
+            for arg in args:
+                if arg in INVALID_GREEDY_TYPES:
+                    raise TypeError(f"Greedy[{converter!r}] is invalid.")
+                if get_origin(arg) is Greedy:  # flatten Greedies similarly to Unions
+                    new_args = list(args)
+                    idx = new_args.index(arg)
+                    new_args.remove(arg)
+                    new_args.insert(idx, arg.converter)
+                    duplicate_free = []
+                    for t in new_args:
+                        if t not in duplicate_free:
+                            duplicate_free.append(t)
+                    return cls.__class_getitem__(tuple(duplicate_free))
+                if arg is Greedy:
+                    raise TypeError(f"Cannot use un-parametrized Greedy")
+        elif origin is Greedy:
+            converter = converter.converter
+
         annotation = super().__class_getitem__(converter)
         annotation.converter = get_args(annotation)[0]
         return annotation
+
+    if TYPE_CHECKING:
+        def __iter__(self) -> Iterator[T]:
+            ...
 
 
 # fmt: off
@@ -524,15 +553,14 @@ ConverterTypes = Union[
     Tuple[str],
 ]
 GreedyTypes = Union[
-    T,               # a class/type
-    str,             # should be a string with a ForwardRef to a class to be evaluated later
-    Tuple[T],        # for Greedy[int,] / Greedy[(int,)] to be valid
-    Tuple[str],      # same as above two points
-    BasicConverter,  # a callable simple converter
-    Converter,       # a Converter subclass
+    T,                # a class/type
+    str,              # should be a string with a ForwardRef to a class to be evaluated later
+    Tuple[T, ...],    # for Greedy[int,] / Greedy[(int,)] to be valid or Greedy[User, int] to be expanded to Union
+    Tuple[str, ...],  # same as above two points
+    BasicConverter,   # a callable simple converter
+    Converter,        # a Converter subclass
 ]
 INVALID_GREEDY_TYPES = (
-    str,             # leads to parsing weirdness
-    type(None),      # how would this work
-    Greedy,          # Greedy[Greedy[int]] makes no sense
+    str,              # leads to parsing weirdness
+    type(None),       # how would this work
 )
