@@ -30,11 +30,11 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Generic, Optional, Type, TypeVar, Union
+from typing import Any, Generic, Optional, Type, TypeVar
 
 import betterproto
 
-from ..enums import Enum, IntEnum
+from ..enums import IntEnum
 from .emsg import *
 from .headers import *
 from .protobufs import *
@@ -93,12 +93,8 @@ class MsgBase(Generic[T]):
         self.payload: Optional[bytes] = data[self.skip :] if data else None
 
         self.parse()
-        if kwargs:
-            for key, value in kwargs.items():
-                if isinstance(value, Enum):
-                    kwargs[key] = value.value
-            if self.body is not None:
-                self.body.from_dict(kwargs)
+        if kwargs and self.body is not None:
+            self.body.from_dict(kwargs)
 
     def __repr__(self) -> str:
         attrs = (
@@ -106,10 +102,8 @@ class MsgBase(Generic[T]):
             "header",
         )
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        if isinstance(self.body, betterproto.Message):
+        if self.body is not None:
             resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
-        else:
-            resolved.append("body='!!! Failed To Parse !!!'")
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:

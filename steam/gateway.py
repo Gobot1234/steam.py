@@ -52,7 +52,7 @@ from .enums import EPersonaState, EResult
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .models import register
-from .protobufs import EMsg, GCMsgProto, Msg, MsgBase, MsgProto
+from .protobufs import EMsg, GCMsg, GCMsgProto, Msg, MsgBase, MsgProto
 from .protobufs.steammessages_clientserver_2 import CMsgGcClient
 
 if TYPE_CHECKING:
@@ -448,10 +448,14 @@ class SteamWebSocket:
         self._dispatch("socket_send", message)
         await self.send(bytes(message))
 
-    async def send_gc_message(self, msg: GCMsgProto):  # for ext's to send GC messages
+    async def send_gc_message(self, msg: Union[GCMsgProto, GCMsg]):  # for ext's to send GC messages
+        try:
+            log.debug(f"Sending GC message {msg!r}")
+        except Exception:
+            log.debug(f"Send GC message {msg.msg}")
         message: MsgProto[CMsgGcClient] = MsgProto(EMsg.ClientToGC)
-        message.body.appid = message.header.body.routing_appid = self._connection.client.GAME
-        message.body.msgtype = utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg
+        message.body.appid = message.header.body.routing_appid = self._connection.client.GAME.id
+        message.body.msgtype = utils.set_proto_bit(msg.msg)
         message.body.payload = bytes(msg)
         await self.send_as_proto(message)
 

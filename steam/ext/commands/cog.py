@@ -36,7 +36,7 @@ from chardet import detect
 from typing_extensions import Final
 
 from ... import ClientException
-from ...client import EventDeco, EventType
+from ...client import EventType
 from ...models import FunctionType
 from ...utils import cached_property
 from .commands import Command, GroupMixin

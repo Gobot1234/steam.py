@@ -173,6 +173,7 @@ class User(BaseUser, Messageable):
             Note
             ----
             This will have its :attr:`~steam.TradeOffer.id` attribute updated after being sent.
+
         image: Optional[:class:`.Image`]
             The image to send to the user.
 

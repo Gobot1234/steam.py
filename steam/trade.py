@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generator, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterator, Optional, Union
 
 from typing_extensions import TypedDict
 
@@ -295,17 +295,19 @@ class Inventory:
     def __repr__(self) -> str:
         attrs = ("owner", "game")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<Inventory {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __len__(self) -> int:
         return self._total_inventory_count
 
-    def __iter__(self) -> Generator[Items, None, None]:
+    def __iter__(self) -> Iterator[Items]:
         return iter(self.items)
 
     def __contains__(self, item: Asset) -> bool:
         if not isinstance(item, Asset):
-            raise TypeError(f"unsupported operand type(s) for 'in': {item.__class__.__qualname__!r} and 'Inventory'")
+            raise TypeError(
+                f"unsupported operand type(s) for 'in': {item.__class__.__qualname__!r} and {self.__class__.__name__!r}"
+            )
         return item in self.items
 
     def _update(self, data: InventoryDict) -> None:

@@ -65,7 +65,6 @@ if TYPE_CHECKING:
     from ...trade import TradeOffer
     from ...user import User
     from .commands import CheckType
-    from .cooldown import Cooldown
 
 __all__ = (
     "Bot",

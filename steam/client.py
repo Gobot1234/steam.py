@@ -689,9 +689,10 @@ class Client:
         state: :class:`~steam.EPersonaState`
             The state to show your account as.
 
-            .. warning::
-                Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state
-                updates and by extension :meth:`on_user_update` will stop being dispatched.
+            Warning
+            -------
+            Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state updates
+            and by extension :meth:`on_user_update` will stop being dispatched.
 
         ui_mode: :class:`~steam.EUIMode`
             The UI mode to set your status to.
@@ -1069,9 +1070,9 @@ class Client:
         self,
         event: Literal["error"],
         *,
-        check: Optional[Callable[[str, Exception, Any, Any], bool]] = ...,
+        check: Optional[Callable[[str, Exception, tuple, dict], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> tuple[str, Exception, Any, Any]:
+    ) -> tuple[str, Exception, tuple, dict]:
         ...
 
     @overload
@@ -1081,7 +1082,7 @@ class Client:
         *,
         check: Optional[Callable[[Message], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> steam.Message:
+    ) -> Message:
         ...
 
     @overload
