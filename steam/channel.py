@@ -124,18 +124,22 @@ class DMChannel(Channel):
                 # do your expensive operations
         """
 
+        def suppress(task: asyncio.Task) -> None:
+            try:
+                task.exception()
+            except (asyncio.CancelledError, Exception):
+                pass
+
         async def inner() -> None:
             while True:
-                await self._state.send_user_typing(self.participant)
                 await asyncio.sleep(5)
+                await self._state.send_user_typing(self.participant)
 
+        await self._state.send_user_typing(self.participant)
         task = self._state.loop.create_task(inner())
+        task.add_done_callback(suppress)
         yield
         task.cancel()
-        try:
-            task.exception()
-        except Exception:
-            pass
 
     async def trigger_typing(self) -> None:
         """Send a typing indicator to the channel once.
