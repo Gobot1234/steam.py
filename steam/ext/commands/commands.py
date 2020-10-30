@@ -556,7 +556,7 @@ class Command:
                     if arg == ret:
                         return ret
 
-            if origin is Union and type(None) in args:  # typing.Optional
+            if origin is Union and args[-1] is type(None):  # typing.Optional
                 try:
                     return self._get_default(ctx, param)  # get the default if possible
                 except MissingRequiredArgument:
