@@ -115,6 +115,9 @@ class Cog:
             if isinstance(attr, Command):
                 if attr.parent is None:  # ungrouped commands have no parent
                     cls.__commands__[name] = attr
+                    for name, value in cls.command_attrs.items():
+                        if name not in attr.__original_kwargs__:
+                            setattr(attr, name, value)
             elif hasattr(attr, "__event_name__"):
                 try:
                     cls.__listeners__[attr.__event_name__].append(attr)
@@ -227,9 +230,6 @@ class Cog:
             command.cog = self
             if cls.cog_check is not Cog.cog_check:
                 command.checks.append(self.cog_check)
-            for name, value in self.command_attrs.items():
-                if name not in command.__original_kwargs__:
-                    setattr(command, name, value)
 
             if isinstance(command, GroupMixin):
                 for child in command.children:
