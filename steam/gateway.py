@@ -200,7 +200,7 @@ class CMServerList(AsyncIterator[CMServer]):
                 cm.score = (int(load) * 2) + latency
                 best_cms.append(cm)
         log.debug("Finished pinging CMs")
-        return sorted(best_cms, key=lambda cm: cm.score)
+        return sorted(best_cms, key=lambda cm: cm.score, reverse=True)
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool
