@@ -254,9 +254,10 @@ class Command:
             function = function.__func__
         function.__annotations__ = annotations  # replace the function's old annotations for later
         self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
-        for param in self.params.values():
-            if param.annotation is converters.Greedy:
-                raise TypeError(f"Cannot use un-parametrized Greedy with argument {param.name!r}")
+        try:
+            self.params.copy().popitem(last=False)
+        except KeyError:
+            raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
         self.module = module
         self._callback = function
 
@@ -268,11 +269,11 @@ class Command:
         if self.cog is not None:
             try:
                 params.popitem(last=False)  # cog's "self" param
-            except ValueError:
+            except KeyError:
                 raise ClientException(f'Callback for {self.name} command is missing a "self" parameter.') from None
         try:
             params.popitem(last=False)  # context param
-        except ValueError:
+        except KeyError:
             raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
         return params
 

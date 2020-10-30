@@ -228,6 +228,7 @@ class Cog:
 
         for idx, command in enumerate(self.__commands__.values()):
             command.cog = self
+            command.clean_params  # check if the command's params are valid on startup
             if cls.cog_check is not Cog.cog_check:
                 command.checks.append(self.cog_check)
 
