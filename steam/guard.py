@@ -181,7 +181,7 @@ class Confirmation:
     async def confirm(self) -> None:
         params = self._confirm_params("allow")
         params["op"] = "allow"
-        params["cid"] = self.data_confid
+        params["cid"] = self.data_conf_id
         params["ck"] = self.data_key
         resp = await self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
         self._assert_valid(resp)
@@ -189,7 +189,7 @@ class Confirmation:
     async def cancel(self) -> None:
         params = self._confirm_params("cancel")
         params["op"] = "cancel"
-        params["cid"] = self.data_confid
+        params["cid"] = self.data_conf_id
         params["ck"] = self.data_key
         resp = await self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
         self._assert_valid(resp)
