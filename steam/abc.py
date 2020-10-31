@@ -35,7 +35,7 @@ import asyncio
 import inspect
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Tuple, TypeVar, Union, overload
 
 from typing_extensions import Final, TypedDict
 
@@ -83,6 +83,8 @@ __all__ = (
     "Message",
     "Channel",
 )
+
+C = TypeVar("C", bound="Commentable")
 
 
 class UserDict(TypedDict):
@@ -347,7 +349,7 @@ class Commentable(SteamID):
     def __init_subclass__(cls, **kwargs: Any):
         cls.comment_path: Final[str] = kwargs.get("comment_path", "Profile")
 
-    def __copy__(self) -> Commentable:
+    def copy(self: C) -> C:
         cls = self.__class__
         commentable = cls.__new__(cls)
         for name, attr in inspect.getmembers(self):
@@ -357,7 +359,7 @@ class Commentable(SteamID):
                 pass
         return commentable
 
-    copy = __copy__
+    __copy__ = copy
 
     async def comment(self, content: str) -> Comment:
         """|coro|
