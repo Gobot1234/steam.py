@@ -157,8 +157,8 @@ class ConnectionState:
         self._trades: dict[int, TradeOffer] = {}
         self._groups: dict[int, Group] = {}
         self._clans: dict[int, Clan] = {}
-        self._confirmations: dict[str, Confirmation] = {}
-        self._confirmations_to_ignore: list[str] = []
+        self._confirmations: dict[int, Confirmation] = {}
+        self._confirmations_to_ignore: list[int] = []
         self._messages: deque[Message] = self.max_messages and deque(maxlen=self.max_messages)
         self.invites: dict[int, Union[UserInvite, ClanInvite]] = {}
 
@@ -230,8 +230,7 @@ class ConnectionState:
         return user
 
     def get_confirmation(self, id: int) -> Optional[Confirmation]:
-        confirmation = [c for c in self._confirmations.values() if c.trade_id == id]
-        return confirmation[0] if confirmation else None
+        return utils.find(lambda c: c.trade_id == id, self._confirmations.values())
 
     async def fetch_confirmation(self, id: int) -> Optional[Confirmation]:
         await self._fetch_confirmations()
@@ -377,7 +376,7 @@ class ConnectionState:
             "tag": tag,
         }
 
-    async def _fetch_confirmations(self) -> dict[str, Confirmation]:
+    async def _fetch_confirmations(self) -> dict[int, Confirmation]:
         params = self._create_confirmation_params("conf")
         headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
         resp = await self.request("GET", community_route("mobileconf/conf"), params=params, headers=headers)
@@ -392,18 +391,18 @@ class ConnectionState:
             return {}
         for confirmation in soup.select("#mobileconf_list .mobileconf_list_entry"):
             id = confirmation["id"]
-            confid = confirmation["data-confid"]
+            data_conf_id = confirmation["data-confid"]
             key = confirmation["data-key"]
             trade_id = int(confirmation.get("data-creator", 0))
             confirmation_id = id.split("conf")[1]
-            if confirmation_id in self._confirmations_to_ignore:
+            if trade_id in self._confirmations_to_ignore:
                 continue
-            self._confirmations[confirmation_id] = Confirmation(
-                self, confirmation_id, confid, key, trade_id, f"details{confid}"
+            self._confirmations[trade_id] = Confirmation(
+                self, confirmation_id, data_conf_id, key, trade_id, f"details{data_conf_id}"
             )
-        for confirmation_id in self._confirmations_to_ignore:
-            if confirmation_id in self._confirmations:
-                del self._confirmations[confirmation_id]
+        for trade_id in self._confirmations_to_ignore:
+            if trade_id in self._confirmations:
+                del self._confirmations[trade_id]
         return self._confirmations
 
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:

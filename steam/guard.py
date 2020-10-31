@@ -175,7 +175,7 @@ class Confirmation:
 
     def _assert_valid(self, resp: dict) -> None:
         if not resp.get("success", False):
-            self._state._confirmations_to_ignore.append(self.id)
+            self._state._confirmations_to_ignore.append(self.trade_id)
             raise ConfirmationError
 
     async def confirm(self) -> None:
