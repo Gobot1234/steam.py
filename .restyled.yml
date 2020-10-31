@@ -2,13 +2,6 @@
 
 enabled: true
 
-exclude:
-  - ".github/workflows/**/*" # https://github.com/restyled-io/restyler/issues/73
-
-changed_paths:
-  maximum: 1000
-  outcome: error
-
 auto: false
 
 pull_requests: true
