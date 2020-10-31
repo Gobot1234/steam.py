@@ -541,6 +541,7 @@ class Greedy(Generic[T]):
         return annotation
 
     if TYPE_CHECKING:
+
         def __iter__(self) -> Iterator[T]:
             ...
 
