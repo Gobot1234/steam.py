@@ -390,7 +390,7 @@ class HTTPClient:
             "partner": user_id64,
             "captcha": "",
         }
-        headers = {"Referer": community_route(f"/tradeoffer/{trade_id}")}
+        headers = {"Referer": community_route(f"tradeoffer/{trade_id}")}
         return self.request("POST", community_route(f"tradeoffer/{trade_id}/accept"), data=payload, headers=headers)
 
     def decline_user_trade(self, trade_id: int) -> RequestType:
