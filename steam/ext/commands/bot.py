@@ -322,7 +322,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        extension: :class:`str`
+        extension: Union[:class:`pathlib.Path`, :class:`str`]
             The name of the extension to reload.
         """
         if isinstance(extension, Path):

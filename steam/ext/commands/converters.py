@@ -87,7 +87,7 @@ Converters = Union[Type["Converter"], "BasicConverter"]
 RegisterDeco = Union[Callable[["MaybeCommand"], "MaybeCommand"], "MaybeCommand"]
 
 
-class ConverterDict(Dict[Any, Tuple[Converters, ...]]):
+class ConverterDict(Dict[type, Tuple[Converters, ...]]):
     def __setitem__(self, key: Any, value: Converters) -> None:
         try:
             old_value = self[key]
