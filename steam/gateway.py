@@ -40,7 +40,7 @@ import sys
 import threading
 import time
 import traceback
-from gzip import GzipFile
+from gzip import _GzipReader as GZipReader
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, Union
 
@@ -509,10 +509,7 @@ class SteamWebSocket:
         log.debug("Received a multi, unpacking")
         if msg.body.size_unzipped:
             log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
-            # aiofiles is overrated :P
-            bytes_io = await utils.to_thread(BytesIO, msg.body.message_body)
-            gzipped = await utils.to_thread(GzipFile, fileobj=bytes_io)
-            data = await utils.to_thread(gzipped.read)
+            data = GZipReader(BytesIO(msg.body.message_body)).readall()  # TODO can we be more low level?
             if len(data) != msg.body.size_unzipped:
                 return log.info(f"Unzipped size mismatch for multi payload {msg}, discarding")
         else:
