@@ -230,7 +230,7 @@ class ConnectionState:
         return user
 
     def get_confirmation(self, id: int) -> Optional[Confirmation]:
-        return utils.find(lambda c: c.trade_id == id, self._confirmations.values())
+        return self._confirmations.get(id)
 
     async def fetch_confirmation(self, id: int) -> Optional[Confirmation]:
         await self._fetch_confirmations()
