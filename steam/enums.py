@@ -53,6 +53,7 @@ __all__ = (
 )
 
 T = TypeVar("T")
+E = TypeVar("E", bound="Enum")
 
 
 def _is_descriptor(obj: Any) -> bool:
@@ -66,7 +67,7 @@ class EnumMeta(type):
         enum_class = super().__new__(mcs, name, bases, attrs)
         enum_new = enum_class.__new__
 
-        value_mapping: dict[int, Enum] = {}
+        value_mapping: dict[Any, Enum] = {}
         member_mapping: dict[str, Enum] = {}
         member_names: list[str] = []
 
@@ -88,7 +89,7 @@ class EnumMeta(type):
         set_attribute(enum_class, "_member_names_", member_names)
         return enum_class
 
-    def __call__(cls, value: Any) -> Enum:
+    def __call__(cls: type[E], value: Any) -> E:
         if value.__class__ is cls:
             return value
         try:
@@ -99,16 +100,16 @@ class EnumMeta(type):
     def __repr__(cls) -> str:
         return f"<enum {cls.__name__!r}>"
 
-    def __iter__(cls) -> Generator[Enum, None, None]:
+    def __iter__(cls: type[E]) -> Generator[E, None, None]:
         return (cls._member_map_[name] for name in cls._member_names_)
 
-    def __reversed__(cls) -> Generator[Enum, None, None]:
+    def __reversed__(cls: type[E]) -> Generator[E, None, None]:
         return (cls._member_map_[name] for name in reversed(cls._member_names_))
 
     def __len__(cls) -> int:
         return len(cls._member_names_)
 
-    def __getitem__(cls, key: str) -> Enum:
+    def __getitem__(cls: type[E], key: str) -> E:
         return cls._member_map_[key]
 
     def __setattr__(cls, name: str, value: Any) -> NoReturn:
@@ -117,16 +118,15 @@ class EnumMeta(type):
     def __delattr__(cls, name: str) -> NoReturn:
         raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
 
-    def __contains__(cls, member: Enum) -> bool:
+    def __contains__(cls: type[E], member: E) -> bool:
         if not isinstance(member, Enum):
             raise TypeError(
-                "unsupported operand type(s) for 'in':"
-                f" '{member.__class__.__qualname__}' and '{cls.__class__.__qualname__}'"
+                f"unsupported operand type(s) for 'in': {member.__class__.__qualname__!r} and {cls.__qualname__!r}"
             )
         return isinstance(member, cls) and member.name in cls._member_map_
 
     @property
-    def __members__(cls) -> Mapping[str, Enum]:
+    def __members__(cls: type[E]) -> Mapping[str, E]:
         return MappingProxyType(cls._member_map_)
 
 
@@ -151,7 +151,7 @@ class Enum(metaclass=EnumMeta):
         return f"<{self.__class__.__name__}.{self.name}: {self.value!r}>"
 
     @classmethod
-    def try_value(cls, value: T) -> Union[Enum, T]:
+    def try_value(cls: type[E], value: T) -> Union[E, T]:
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
@@ -173,7 +173,7 @@ if TYPE_CHECKING:
 
     class Enum(_Enum):
         @classmethod
-        def try_value(cls, value: T) -> Union[Enum, T]:
+        def try_value(cls: type[E], value: T) -> Union[E, T]:
             ...
 
     class IntEnum(int, Enum):
