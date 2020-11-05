@@ -33,6 +33,7 @@ and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 from __future__ import annotations
 
 import asyncio
+import attr
 import logging
 import random
 import struct
@@ -86,15 +87,10 @@ class EventListener(NamedTuple):
     future: asyncio.Future
 
 
+@attr.dataclass(slots=True)
 class CMServer:
-    __slots__ = ("url", "score")
-
-    def __init__(self, url: str, score: float = 0.0):
-        self.url = url
-        self.score = score
-
-    def __repr__(self):
-        return f"CMServer(url={self.url!r}, score={self.score})"
+    url: str
+    score: float = 0.0
 
 
 class ConnectionClosed(Exception):
@@ -117,9 +113,6 @@ class CMServerList(AsyncIterator[CMServer]):
         self.cell_id = 0
         if first_cm_to_try is not None:
             self.append(first_cm_to_try)
-
-    def __len__(self) -> int:
-        return len(self.cms)
 
     async def fill(self) -> None:
         if not await self.fetch_servers_from_api():
@@ -150,7 +143,11 @@ class CMServerList(AsyncIterator[CMServer]):
 
         resp = resp["response"]
         if resp["result"] != EResult.OK:
-            log.error(f'Fetching the CMList failed with Result: {EResult(resp["result"])} Message: {resp["message"]!r}')
+            log.error(
+                f"Fetching the CMList failed with\n"
+                f"Result: {EResult(resp['result'])!r}"
+                f"Message: {resp['message']!r}"
+            )
             return False
 
         websockets_list = resp["serverlist_websockets"]
@@ -168,13 +165,13 @@ class CMServerList(AsyncIterator[CMServer]):
             cm.score = 0.0
 
     def merge_list(self, hosts: list[str]) -> None:
-        total = len(self)
+        total = len(self.cms)
         urls = [cm.url for cm in self.cms]
-        for host in hosts:
-            if host not in urls:
-                self.cms.append(CMServer(host))
-        if len(self) > total:
-            log.debug(f"Added {len(self) - total} new CM server addresses.")
+        for url in hosts:
+            if url not in urls:
+                self.cms.append(CMServer(url))
+        if len(self.cms) > total:
+            log.debug(f"Added {len(self.cms) - total} new CM server addresses.")
 
     async def ping_cms(self, cms: Optional[list[CMServer]] = None, to_ping: int = 10) -> list[CMServer]:
         cms = self.cms or cms
@@ -185,10 +182,7 @@ class CMServerList(AsyncIterator[CMServer]):
             try:
                 resp = await self._state.http._session.get(f"https://{cm.url}/cmping/", timeout=5)
                 if resp.status != 200:
-                    try:
-                        self.cms.remove(cm)
-                    except ValueError:
-                        pass
+                    raise aiohttp.ClientError()
                 load = resp.headers["X-Steam-CMLoad"]
             except (KeyError, asyncio.TimeoutError, aiohttp.ClientError):
                 try:
@@ -204,25 +198,10 @@ class CMServerList(AsyncIterator[CMServer]):
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool
-    __slots__ = (
-        "ws",
-        "interval",
-        "heartbeat",
-        "heartbeat_timeout",
-        "msg",
-        "block_msg",
-        "behind_msg",
-        "latency",
-        "_stop_ev",
-        "_last_ack",
-        "_last_send",
-        "_main_thread_id",
-    )
-
-    def __init__(self, **kwargs: Any):
+    def __init__(self, ws: SteamWebSocket, interval: int):
         super().__init__()
-        self.ws: SteamWebSocket = kwargs.pop("ws")
-        self.interval: int = kwargs.pop("interval")
+        self.ws = ws
+        self.interval = interval
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
         self.heartbeat_timeout = 60
@@ -250,19 +229,13 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
             log.debug(self.msg.format(self.heartbeat))
             coro = self.ws.send_as_proto(self.heartbeat)
-            try:
-                f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
-            except (RuntimeError, RuntimeWarning):
-                # loop should be closing
-                if self.ws.loop.is_closed():
-                    return
-                raise
+            f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
             # block until sending is complete
             total = 0
-            while 1:
+            while True:
                 try:
                     f.result(timeout=10)
-                except asyncio.TimeoutError:
+                except asyncio.TimeoutError:  # alias to concurrent.futures.TimeoutError
                     total += 10
                     try:
                         frame = sys._current_frames()[self._main_thread_id]

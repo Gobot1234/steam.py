@@ -545,7 +545,7 @@ class HTTPClient:
         country: Optional[str],
         state: Optional[str],
         city: Optional[str],
-        avatar: Optional["Image"],
+        avatar: Optional[Image],
     ) -> None:
         if any((name, real_name, url, summary, country, state, city, avatar)):
             resp = await self.request("GET", url=community_route("my/edit"))
