@@ -121,12 +121,12 @@ def converter_for(converter_for: T) -> Callable[[RD], RD]:
     .. code-block:: python
 
         @commands.converter(commands.Command)  # this is the type hint used
-        def command_converter(self, argument: str) -> commands.Command:
+        def command_converter(argument: str) -> commands.Command:
             ...
 
         # then later
 
-        @bot.command()
+        @bot.command
         async def source(ctx, command: commands.Command):  # this then calls command_converter on invocation.
             ...
 
@@ -189,25 +189,36 @@ class Converter(Protocol[T]):
 
     A custom converter: ::
 
+        import re
+        from io import BytesIO
+
+        import aiohttp
+
+        import steam
+        from steam.ext import commands
+
+        bot = commands.Bot(command_prefix="!")
+
+
         class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
             async def convert(self, ctx: commands.Context, argument: str) -> steam.Image:
-                search = re.search(r"\[img src=(.*) ", argument)
+                search = re.search(r"\[img src=(?P<url>(?:.*)) ", argument)
                 if search is None:
                     raise commands.BadArgument(f"{argument!r} is not a recognised image url")
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(search.group(1)) as r:
-                        image_bytes = await r.read()
+                    async with session.get(search.group("url")) as r:
+                        image_bytes = BytesIO(await r.read())
                 try:
                     return steam.Image(image_bytes)
                 except (TypeError, ValueError):  # failed to convert to an image
                     raise commands.BadArgument("Cannot convert image") from None
 
-        # then later
 
-        @bot.command()
+        # then later
+        @bot.command
         async def set_avatar(ctx: commands.Context, *, avatar: steam.Image):
             await bot.user.edit(avatar=avatar)
-            await ctx.send('👌')
+            await ctx.send("👌")
 
         # invoked as
         # !set_avatar https://my_image_url.com
@@ -395,8 +406,8 @@ class GroupConverter(Converter[Group]):
 class GameConverter(Converter[Game]):
     """The converter that is used when the type-hint passed is :class:`~steam.Game`.
 
-    If the param is a digit it is assumed that the argument is the game's app id else it is assumed it is the game's
-    title.
+    If the param is a digit it is assumed that the argument is the :attr:`Game.id` else it is assumed it is the
+    :attr:`Game.title`.
     """
 
     async def convert(self, ctx: Context, argument: str) -> Game:
