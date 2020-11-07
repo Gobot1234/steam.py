@@ -16,9 +16,9 @@ class Client(steam.Client):
     LOGOUT = False
     failed_to_login = False
 
-    async def start(self) -> None:
+    async def start(self, *args, **kwargs) -> None:
         try:
-            await super().start(USERNAME, PASSWORD, shared_secret=SHARED_SECRET, identity_secret=IDENTITY_SECRET)
+            await super().start(*args, **kwargs)
         except steam.LoginError as exc:
             if "too many login failures" not in exc.args[0]:
                 raise exc
@@ -42,7 +42,7 @@ def test_basic_events():
     if sys.version_info[:2] == (3, 8):  # only test on 3.9 and 3.7 as that's where the issues normally are
         return
     client = Client()
-    client.run()
+    client.run(USERNAME, PASSWORD, shared_secret=SHARED_SECRET, identity_secret=IDENTITY_SECRET)
     if not client.failed_to_login:
         assert client.LOGIN
         assert client.CONNECT

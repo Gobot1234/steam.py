@@ -138,8 +138,8 @@ class PriceOverview:
     __slots__ = ("currency", "volume", "lowest_price", "median_price")
 
     def __init__(self, data: dict):
-        lowest_price = PRICE_REGEX.search(data["lowest_price"]).group("price")
-        median_price = PRICE_REGEX.search(data["median_price"]).group("price")
+        lowest_price = PRICE_REGEX.search(data["lowest_price"])["price"]
+        median_price = PRICE_REGEX.search(data["median_price"])["price"]
 
         try:
             self.lowest_price: float = float(lowest_price.replace(",", "."))

@@ -45,6 +45,7 @@ from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
 from .enums import *
 from .errors import *
+from .game import GameToDict
 from .group import Group
 from .guard import *
 from .invite import ClanInvite, UserInvite
@@ -130,7 +131,7 @@ class ConnectionState(Registerable):
         self.dispatch = client.dispatch
 
         self.handled_friends = asyncio.Event()
-        self._user_slots = set(User.__slots__) - {"_state", "_level"}  # TODO remove
+        self._user_slots = set(User.__slots__) - {"_state"}
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -138,7 +139,7 @@ class ConnectionState(Registerable):
         games = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games.append(game.to_dict())
-        self._games: list[dict] = games
+        self._games: list[GameToDict] = games
         self._state: EPersonaState = kwargs.get("state", EPersonaState.Online)
         self._ui_mode: Optional[EUIMode] = kwargs.get("ui_mode")
         flag: int = kwargs.get("flag")

@@ -307,9 +307,9 @@ class SteamWebSocket(Registerable):
         """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg, predicate: Optional[Callable[[MsgBase], bool]] = None) -> asyncio.Future:
+    def wait_for(self, emsg: EMsg, predicate: Callable[[MsgBase], bool] = return_true) -> asyncio.Future:
         future = self.loop.create_future()
-        entry = EventListener(emsg=emsg, predicate=predicate or return_true, future=future)
+        entry = EventListener(emsg=emsg, predicate=predicate, future=future)
         self.listeners.append(entry)
         return future
 
@@ -427,12 +427,15 @@ class SteamWebSocket(Registerable):
         except Exception:
             log.debug(f"Send GC message {msg.msg}")
         message: MsgProto[CMsgGcClient] = MsgProto(EMsg.ClientToGC)
-        message.body.appid = message.header.body.routing_appid = self._connection.client.GAME.id
+        try:
+            message.body.appid = message.header.body.routing_appid = self._connection.client.GAME.id
+        except AttributeError:
+            return utils.warn(f"Attempting to call {self.__class__.__name__}.send_gc_message without a GC Client")
         message.body.msgtype = utils.set_proto_bit(msg.msg)
         message.body.payload = bytes(msg)
         await self.send_as_proto(message)
 
-    async def close(self, code: int = 4000) -> None:
+    async def close(self, code: int = 1000) -> None:
         message = MsgProto(EMsg.ClientLogOff)
         message.steam_id = self.steam_id
         message.session_id = self.session_id
@@ -451,6 +454,7 @@ class SteamWebSocket(Registerable):
     @register(EMsg.ClientLogOnResponse)
     async def handle_logon(self, msg: MsgProto[CMsgClientLogonResponse]) -> None:
         if msg.body.eresult != EResult.OK:
+            log.debug(f"Failed to login with result: {EResult(msg.body.eresult)}")
             if msg.body.eresult == EResult.InvalidPassword:
                 http = self._connection.http
                 await http.logout()
@@ -501,7 +505,7 @@ class SteamWebSocket(Registerable):
 
     async def send_um_and_wait(
         self, name: str, check: Optional[Callable[[MsgBase], bool]] = None, timeout: float = 5.0, **kwargs: Any
-    ) -> MsgBase:
+    ) -> MsgProto:
         job_id = await self.send_um(name, **kwargs)
         check = check or (lambda msg: msg.header.job_id_target == job_id)
         return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, predicate=check), timeout=timeout)

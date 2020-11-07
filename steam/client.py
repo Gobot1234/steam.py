@@ -160,8 +160,8 @@ class Client:
 
         Warning
         -------
-            Will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed to
-            :meth:`run` or :meth:`start` blocking exiting until one is entered.
+        Will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed to
+        :meth:`run` or :meth:`start` blocking exiting until one is entered.
 
         Returns
         -------
@@ -428,14 +428,14 @@ class Client:
                     await self.ws.poll_event()
             except (
                 OSError,
+                ConnectionClosed,
                 aiohttp.ClientError,
                 ConnectionResetError,
                 asyncio.TimeoutError,
                 errors.HTTPException,
-            ):
-                self.dispatch("disconnect")
-            except ConnectionClosed as exc:
-                self._cm_list = exc.cm_list
+            ) as exc:
+                if isinstance(exc, ConnectionClosed):
+                    self._cm_list = exc.cm_list
                 self.dispatch("disconnect")
             finally:
                 if not self.is_closed():
