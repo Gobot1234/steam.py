@@ -113,11 +113,19 @@ class Cog:
                     f"therefore not allowed"
                 )
             if isinstance(attr, Command):
-                if attr.parent is None:  # ungrouped commands have no parent
+                if (
+                    attr.parent is None
+                ):  # ungrouped commands have no parent and we only want to add these to the class dict
                     cls.__commands__[name] = attr
+                else:
                     for name, value in cls.command_attrs.items():
-                        if name not in attr.__original_kwargs__:
-                            setattr(attr, name, value)
+                        for child in attr.children:
+                            if name not in child.__original_kwargs__:
+                                setattr(child, name, value)
+                for name, value in cls.command_attrs.items():
+                    if name not in attr.__original_kwargs__:
+                        setattr(attr, name, value)
+
             elif hasattr(attr, "__event_name__"):
                 try:
                     cls.__listeners__[attr.__event_name__].append(attr)
