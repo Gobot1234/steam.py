@@ -36,7 +36,7 @@ from chardet import detect
 from typing_extensions import Final
 
 from ... import ClientException
-from ...client import EventType
+from ...client import E, EventType
 from ...models import FunctionType
 from ...utils import cached_property
 from .commands import Command, GroupMixin
@@ -161,7 +161,7 @@ class Cog:
         return ret
 
     @classmethod
-    def listener(cls, name: Optional[str] = None) -> Callable[[EventType], EventType]:
+    def listener(cls, name: Optional[str] = None) -> Callable[[E], E]:
         """A decorator that registers a :ref:`coroutine <coroutine>` as a listener.
         Similar to :meth:`~steam.ext.commands.Bot.listen`
 
@@ -171,7 +171,7 @@ class Cog:
             The name of the event to listen for. Defaults to ``func.__name__``.
         """
 
-        def decorator(coro: EventType) -> EventType:
+        def decorator(coro: E) -> E:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Listeners must be coroutines, {coro.__name__} is {type(coro).__name__}")
             coro.__event_name__ = name or coro.__name__

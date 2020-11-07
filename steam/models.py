@@ -46,6 +46,8 @@ __all__ = (
     "PriceOverview",
     "Ban",
 )
+IE = TypeVar("IE", bound="IntEnum")
+E = TypeVar("E", bound="EventParser")
 
 
 def api_route(path: str) -> _URL:
@@ -69,24 +71,24 @@ class URL:
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
 
 
-class FunctionType(Protocol):
-    """A protocol mocking some of `types.FunctionType`"""
+if TYPE_CHECKING:
 
-    __code__: CodeType
-    __annotations__: dict[str, Any]
-    __globals__: dict[str, Any]
-    __name__: str
-    __qualname__: str
+    class FunctionType(FunctionType, Protocol):
+        pass
 
-    def __call__(self, *args, **kwargs) -> Any:
-        ...
+    class MethodType(MethodType, Protocol):
+        pass
 
 
-class EventParser(FunctionType):
-    # this is technically a bound method subclass, however implementing that is much more difficult
-    msg: IntEnum
+else:
+    MethodType = Protocol
+    FunctionType = Protocol
 
-    def __call__(self, __self__: type, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
+
+class EventParser(MethodType):
+    msg: IE
+
+    def __call__(self, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
         ...
 
 
@@ -105,8 +107,8 @@ class Registerable:
                     parsers[msg] = attr
 
 
-def register(msg: IntEnum) -> Callable[[EventParser], EventParser]:
-    def wrapper(callback: EventParser) -> EventParser:
+def register(msg: IE) -> Callable[[E], E]:
+    def wrapper(callback: E) -> E:
         @functools.wraps(callback)
         def inner(*args: Any, **kwargs: Any) -> Optional[Coroutine[None, None, None]]:
             return callback(*args, **kwargs)

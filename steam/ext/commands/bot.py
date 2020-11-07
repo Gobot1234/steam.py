@@ -42,10 +42,10 @@ from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Mapping, O
 from typing_extensions import Literal, overload
 
 from ... import utils
-from ...client import Client, EventType, log
+from ...client import Client, E, EventType, log
 from ...utils import maybe_coroutine
 from .cog import Cog, ExtensionType
-from .commands import CheckReturnType, Command, GroupMixin, HookDecoType, HookFunction, check
+from .commands import CheckReturnType, Command, GroupMixin, H, HookDecoType, check
 from .context import Context
 from .converters import CONVERTERS, Converters
 from .errors import CommandNotFound
@@ -405,7 +405,7 @@ class Bot(GroupMixin, Client):
         except (KeyError, ValueError):
             pass
 
-    def listen(self, name: Optional[str] = None) -> Callable[..., EventType]:
+    def listen(self, name: Optional[str] = None) -> Callable[[E], E]:
         """Register a function as a listener. Calls :meth:`add_listener`. Similar to :meth:`.Cog.listener`
 
         Parameters
@@ -414,7 +414,7 @@ class Bot(GroupMixin, Client):
             The name of the event to listen for. Will default to ``func.__name__``.
         """
 
-        def decorator(listener: EventType) -> EventType:
+        def decorator(listener: E) -> E:
             self.add_listener(listener, name)
             return listener
 
@@ -475,12 +475,12 @@ class Bot(GroupMixin, Client):
                 return False
         return await ctx.command.can_run(ctx)
 
-    def before_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
+    def before_invoke(self, coro: Optional[H] = None) -> HookDecoType:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
         """
 
-        def decorator(coro: HookFunction) -> HookFunction:
+        def decorator(coro: H) -> H:
             if asyncio.iscoroutinefunction(coro):
                 raise TypeError("Hooks must be coroutines")
             self._before_hook = coro
@@ -488,12 +488,12 @@ class Bot(GroupMixin, Client):
 
         return decorator(coro) if coro is not None else lambda coro: decorator(coro)
 
-    def after_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
+    def after_invoke(self, coro: Optional[H] = None) -> HookDecoType:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran after the command has been invoked.
         """
 
-        def decorator(coro: HookFunction) -> HookFunction:
+        def decorator(coro: H) -> H:
             if asyncio.iscoroutinefunction(coro):
                 raise TypeError("Hooks must be coroutines")
             self._after_hook = coro

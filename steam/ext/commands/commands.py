@@ -43,6 +43,7 @@ from typing import (
     Iterable,
     Optional,
     OrderedDict,
+    TypeVar,
     Union,
     get_type_hints,
     overload,
@@ -84,14 +85,18 @@ __all__ = (
 
 CheckType = Callable[["Context"], Union[bool, Coroutine[Any, Any, bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
+MC = TypeVar("MC", bound=MaybeCommand)
 MaybeCommandDeco = Union["CommandDeco", MaybeCommand]
+MCD = TypeVar("MCD", bound=MaybeCommandDeco)
 CommandErrorFunctionType = Callable[["Context", Exception], Coroutine[Any, Any, None]]
+E = TypeVar("E", bound=CommandErrorFunctionType)
 HookFunction = Callable[["Context"], Coroutine[Any, Any, None]]
-HookDecoType = Union[Callable[["HookFunction"], "HookFunction"], "HookFunction"]
+H = TypeVar("H", bound=HookFunction)
+HookDecoType = Union[Callable[[H], H], H]
 
 
 class CommandDeco(FunctionType):
-    def __call__(self, func: MaybeCommand) -> MaybeCommand:
+    def __call__(self, func: MC) -> MC:
         ...
 
 
@@ -102,7 +107,7 @@ class CheckReturnType(CommandDeco):
 class CommandFunctionType(FunctionType):
     __commands_checks__: list[CheckType]
     __commands_cooldown__: list[Cooldown]
-    __special_converters__: list[converters.Converter]
+    __special_converters__: list[type[converters.Converter]]
 
     @overload
     async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
@@ -307,7 +312,7 @@ class Command:
         else:
             return await self.callback(ctx, *args, **kwargs)
 
-    def error(self, coro: Optional[CommandErrorFunctionType] = None) -> CommandErrorFunctionType:
+    def error(self, coro: Optional[E] = None) -> E:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to handle a commands ``on_error`` functionality similarly to
         :meth:`steam.ext.commands.Bot.on_command_error`.
@@ -324,7 +329,7 @@ class Command:
                 print(f'{ctx.command.name} raised an exception {error}')
         """
 
-        def decorator(coro: CommandErrorFunctionType) -> CommandErrorFunctionType:
+        def decorator(coro: E) -> E:
             if not asyncio.iscoroutinefunction(coro):
                 raise TypeError(f"Error handler for {self.name} must be a coroutine")
             self.on_error = coro
@@ -841,7 +846,7 @@ def check(predicate: CheckType) -> CheckReturnType:
         The registered check, this will always be a wrapped in a :ref:`coroutine <coroutine>`
     """
 
-    def decorator(func: MaybeCommand) -> MaybeCommand:
+    def decorator(func: MC) -> MC:
         if isinstance(func, Command):
             func.checks.append(predicate)
         else:
@@ -865,7 +870,7 @@ def check(predicate: CheckType) -> CheckReturnType:
     return decorator
 
 
-def is_owner(command: Optional[MaybeCommandDeco] = None) -> MaybeCommandDeco:
+def is_owner(command: Optional[MCD] = None) -> MCD:
     """|maybecallabledeco|
     A decorator that will only allow the bot's owner(s) to invoke the command.
 
@@ -911,7 +916,7 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
     This can only be invoked a user every ten seconds.
     """
 
-    def decorator(func: MaybeCommand) -> MaybeCommand:
+    def decorator(func: MC) -> MC:
         if isinstance(func, Command):
             func.cooldown.append(Cooldown(rate, per, type))
         else:

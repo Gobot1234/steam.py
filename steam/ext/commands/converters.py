@@ -62,7 +62,7 @@ from .utils import reload_module_with_TYPE_CHECKING
 if TYPE_CHECKING:
     from steam.ext import commands
 
-    from .commands import MaybeCommand
+    from .commands import MC
     from .context import Context
 
 __all__ = (
@@ -85,6 +85,7 @@ __all__ = (
 T = TypeVar("T")
 Converters = Union[Type["Converter"], "BasicConverter"]
 RegisterDeco = Union[Callable[["MaybeCommand"], "MaybeCommand"], "MaybeCommand"]
+RD = TypeVar("RD", bound=RegisterDeco)
 
 
 class ConverterDict(Dict[type, Tuple[Converters, ...]]):
@@ -107,7 +108,7 @@ class BasicConverter(FunctionType):
 CONVERTERS = ConverterDict()
 
 
-def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter]:
+def converter_for(converter_for: T) -> Callable[[RD], RD]:
     """The recommended way to mark a function converter as such.
 
     Note
@@ -141,7 +142,7 @@ def converter_for(converter_for: T) -> Callable[[BasicConverter], BasicConverter
         The class that the converter can be type-hinted to to.
     """
 
-    def decorator(func: BasicConverter) -> BasicConverter:
+    def decorator(func: RD) -> RD:
         if not isinstance(func, types.FunctionType):
             raise TypeError(f"Excepted a function, received {func.__class__.__name__!r}")
         CONVERTERS[converter_for] = func
@@ -234,7 +235,7 @@ class Converter(Protocol[T]):
         raise NotImplementedError("Derived classes must implement this")
 
     @classmethod
-    def register(cls, command: Optional[RegisterDeco] = None) -> RegisterDeco:
+    def register(cls, command: Optional[RD] = None) -> RD:
         """|maybecallabledeco|
         Register a converter to a specific command.
 
@@ -255,7 +256,7 @@ class Converter(Protocol[T]):
         the global :class:`UserConverter`.
         """
 
-        def decorator(command: MaybeCommand) -> MaybeCommand:
+        def decorator(command: MC) -> MC:
             is_command = not isinstance(command, types.FunctionType)
             try:
                 (command.special_converters if is_command else command.__special_converters__).append(cls)

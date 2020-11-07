@@ -35,7 +35,7 @@ import datetime
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union, overload
 
 import aiohttp
 from typing_extensions import Literal, final
@@ -67,7 +67,8 @@ __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
 TASK_HAS_NAME = sys.version_info[:2] >= (3, 8)
-EventDeco = Union[Callable[["EventType"], "EventType"], "EventType"]
+E = TypeVar("E", bound="EventType")
+EventDeco = Union[Callable[[E], E], E]
 
 
 class EventType(FunctionType):
@@ -200,7 +201,7 @@ class Client:
             The function passed is not a coroutine.
         """
 
-        def decorator(coro: EventType) -> EventType:
+        def decorator(coro: E) -> E:
             if not asyncio.iscoroutinefunction(coro):
                 raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
 
@@ -352,7 +353,7 @@ class Client:
 
         if self.ws is not None:
             try:
-                await self.ws.handle_close()
+                await self.ws.handle_close(None)
             except ConnectionClosed:
                 pass
 
