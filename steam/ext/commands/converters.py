@@ -336,8 +336,6 @@ class UserConverter(Converter[User]):
         try:
             user = ctx.bot.get_user(argument)
         except InvalidSteamID:
-            if argument.startswith("https://"):
-                return await self.convert(ctx, await utils.id64_from_url(argument, ctx.bot.http._session))
             search = re.search(r"\[mention=(\d+)]@\w+\[/mention]", argument)
             if search is not None:
                 return await self.convert(ctx, search.group(1))
@@ -377,8 +375,6 @@ class ClanConverter(Converter[Clan]):
         try:
             clan = ctx.bot.get_clan(argument)
         except InvalidSteamID:
-            if argument.startswith("https://"):
-                return await self.convert(ctx, await utils.id64_from_url(argument, ctx.bot.http._session))
             clan = utils.find(lambda c: c.name == argument, ctx.bot.clans)
         if clan is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
