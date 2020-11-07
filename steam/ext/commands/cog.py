@@ -243,6 +243,7 @@ class Cog:
             if isinstance(command, GroupMixin):
                 for child in command.children:
                     child.cog = self
+                    child.clean_params  # check if the command's params are valid on startup
             try:
                 bot.add_command(command)
             except Exception:
