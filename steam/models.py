@@ -26,6 +26,8 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import functools
+import inspect
 import re
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
@@ -33,10 +35,12 @@ from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
 from typing_extensions import Final, Protocol
 from yarl import URL as _URL
 
+from .protobufs import EMsg, MsgProto
+
 if TYPE_CHECKING:
     from types import CodeType
 
-    from .protobufs import EMsg, MsgProto
+    from .enums import IntEnum
 
 __all__ = (
     "PriceOverview",
@@ -74,28 +78,43 @@ class FunctionType(Protocol):
     __name__: str
     __qualname__: str
 
+    def __call__(self, *args, **kwargs) -> Any:
+        ...
+
 
 class EventParser(FunctionType):
+    # this is technically a bound method subclass, however implementing that is much more difficult
+    msg: IntEnum
+
     def __call__(self, __self__: type, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
         ...
 
 
-class Registerer:
-    __slots__ = ("func", "emsg")
+class Registerable:
+    def __init__(self):
+        bases = tuple(reversed(self.__class__.__mro__[:-2]))  # skip Registerable and object
+        for idx, cls in enumerate(bases):
+            parsers = getattr(cls, tuple(cls.__annotations__)[0])
+            for name, attr in inspect.getmembers(cls):
+                if hasattr(attr, "__wrapped__"):
+                    msg = attr.__wrapped__.msg
+                    attr = getattr(self, name)
+                    if idx != 0 and not isinstance(msg, EMsg):
+                        base = bases[-1]
+                        parsers = getattr(base, tuple(base.__annotations__)[0])
+                    parsers[msg] = attr
 
-    def __init__(self, func: EventParser, emsg: EMsg):
-        self.func = func
-        self.emsg = emsg
 
-    def __set_name__(self, cls: type, _) -> None:
-        cls.parsers[self.emsg] = self.func
+def register(msg: IntEnum) -> Callable[[EventParser], EventParser]:
+    def wrapper(callback: EventParser) -> EventParser:
+        @functools.wraps(callback)
+        def inner(*args: Any, **kwargs: Any) -> Optional[Coroutine[None, None, None]]:
+            return callback(*args, **kwargs)
 
+        callback.msg = msg
+        return inner
 
-def register(emsg: EMsg) -> Callable[[EventParser], Registerer]:
-    def decorator(func: EventParser) -> Registerer:
-        return Registerer(func, emsg)
-
-    return decorator
+    return wrapper
 
 
 PRICE_REGEX = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")

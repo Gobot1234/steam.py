@@ -52,7 +52,7 @@ from . import utils
 from .enums import EPersonaState, EResult
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
-from .models import register
+from .models import Registerable, register
 from .protobufs import EMsg, GCMsg, GCMsgProto, Msg, MsgBase, MsgProto
 from .protobufs.steammessages_clientserver_2 import CMsgGcClient
 
@@ -262,7 +262,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
             log.warning(self.behind_msg.format(self.latency))
 
 
-class SteamWebSocket:
+class SteamWebSocket(Registerable):
     parsers: dict[EMsg, EventParser] = {}
 
     __slots__ = (
@@ -281,6 +281,7 @@ class SteamWebSocket:
     )
 
     def __init__(self, socket: aiohttp.ClientWebSocketResponse, *, loop: asyncio.AbstractEventLoop):
+        super().__init__()
         self.socket = socket
         self.loop = loop
 
@@ -383,8 +384,7 @@ class SteamWebSocket:
         except KeyError:
             log.debug(f"Ignoring event {msg!r}")
         else:
-            self_ = self if event_parser.__module__ == __name__ else self._connection
-            await utils.maybe_coroutine(event_parser, self_, msg)
+            await utils.maybe_coroutine(event_parser, msg)
 
         # remove the dispatched listener
         removed = []

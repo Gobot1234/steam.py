@@ -50,7 +50,7 @@ from .guard import *
 from .invite import ClanInvite, UserInvite
 from .message import *
 from .message import ClanMessage
-from .models import EventParser, community_route, register
+from .models import EventParser, Registerable, community_route, register
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_chat import (
     CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
@@ -86,7 +86,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class ConnectionState:
+class ConnectionState(Registerable):
     parsers: dict[EMsg, EventParser] = {}
 
     __slots__ = (
@@ -123,6 +123,7 @@ class ConnectionState:
     )
 
     def __init__(self, client: Client, http: HTTPClient, **kwargs: Any):
+        super().__init__()
         self.http = http
         self.request = http.request
         self.client = client
