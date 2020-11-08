@@ -618,6 +618,11 @@ class GroupMixin:
         super().__init__(*args, **kwargs)
 
     @property
+    def all_commands(self) -> list[Command]:
+        """list[:class:`Command`]: A list of the loaded commands."""
+        return list(self.__commands__.values())
+
+    @property
     def commands(self) -> set[Command]:
         """set[:class:`Command`]: A set of the loaded commands without duplicates."""
         return set(self.__commands__.values())
