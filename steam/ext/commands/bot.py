@@ -572,31 +572,25 @@ class Bot(GroupMixin, Client):
         if prefix is None:
             return cls(message=message, prefix=prefix, bot=self)
 
-        content = message.content[len(prefix) :].strip()
-        if not content:
+        lex = Shlex(message.content)
+        lex.position = len(prefix)
+        if lex.read() is None:
             return cls(message=message, prefix=prefix, bot=self)
 
-        lex = Shlex(content)
+        lex.undo()
+
         invoked_with = lex.read()
-        command = self.__commands__.get(invoked_with)
-        if isinstance(command, Command):
-            for argument in lex:
-                if isinstance(command, GroupMixin):
-                    new_commands = command.__commands__.get(argument)
-                    if new_commands is not None:
-                        command = new_commands
-                        continue
-                lex.undo()
-                break
-            return cls(
-                bot=self,
-                message=message,
-                shlex=lex,
-                prefix=prefix,
-                invoked_with=invoked_with,
-                command=command,
-            )
-        return cls(bot=self, message=message, shlex=lex, prefix=prefix, invoked_with=invoked_with)
+        command = None
+        if invoked_with is not None:
+            command = self.__commands__.get(invoked_with)
+        return cls(
+            bot=self,
+            message=message,
+            lex=lex,
+            prefix=prefix,
+            invoked_with=invoked_with,
+            command=command,
+        )
 
     async def get_prefix(self, message: Message) -> Optional[str]:
         """|coro|

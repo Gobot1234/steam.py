@@ -775,6 +775,17 @@ class GroupCommand(GroupMixin, Command):
     def __init__(self, func: CommandFunctionType, **kwargs: Any):
         super().__init__(func, **kwargs)
 
+    async def invoke(self, ctx: Context) -> None:
+        command = self
+        for command_name in ctx.lex:
+            try:
+                command.__commands__[command_name]
+            except KeyError:
+                ctx.lex.undo()
+                break
+
+        await (super().invoke(ctx) if command is self else command.invoke(ctx))  # type: ignore
+
 
 def command(
     callback: Optional[CommandFunctionType] = None,
