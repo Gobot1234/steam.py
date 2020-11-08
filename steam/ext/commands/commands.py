@@ -819,7 +819,7 @@ def group(
         The attributes to pass to the command's ``__init__``.
     """
 
-    return command(callback, name=name, cls=cls or GroupCommand, attrs=attrs)
+    return command(callback, name=name, cls=cls or GroupCommand, **attrs)
 
 
 def check(predicate: CheckType) -> CheckReturnType:

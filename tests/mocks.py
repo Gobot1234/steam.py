@@ -67,7 +67,7 @@ class MockGroupChannel(steam.GroupChannel, DataclassesMock):
 class MockMessage(steam.Message, DataclassesMock):
     def __init__(self, channel, content: Optional[str] = None):
         proto = CChatRoomIncomingChatMessageNotification(message=content or "a message")
-        steam.Message.__init__(self, channel, proto)
+        super().__init__(self, channel, proto)
         self.author = USER
 
 
