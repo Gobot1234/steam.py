@@ -13,7 +13,7 @@ from tests.mocks import GROUP_CHANNEL, MockGroupMessage
 
 CE = TypeVar("CE", bound=commands.CommandError)
 T = TypeVar("T")
-IsInstanceable = Union[type[T], tuple[type[T], ...]]
+IsInstanceable = Union["type[T]", "tuple[type[T], ...]"]
 
 
 def test_command():
