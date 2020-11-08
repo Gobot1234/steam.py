@@ -439,15 +439,15 @@ class Command:
             if param.kind == param.POSITIONAL_OR_KEYWORD:
                 is_greedy = get_origin(param.annotation) is converters.Greedy
                 greedy_args = []
-                if ctx.shlex.position == ctx.shlex.end:
+                if ctx.lex.position == ctx.lex.end:
                     args.append(await self._get_default(ctx, param))
-                for argument in ctx.shlex:
+                for argument in ctx.lex:
                     try:
                         transformed = await self._transform(ctx, param, argument)
                     except BadArgument:
                         if not is_greedy:
                             raise
-                        ctx.shlex.undo()  # undo last read string for the next argument
+                        ctx.lex.undo()  # undo last read string for the next argument
                         args.append(tuple(greedy_args))
                         break
                     if not is_greedy:
@@ -456,12 +456,12 @@ class Command:
                     greedy_args.append(transformed)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                arg = ctx.shlex.in_stream[ctx.shlex.position :]
+                arg = ctx.lex.in_stream[ctx.lex.position :]
                 kwargs[name] = await (self._transform(ctx, param, arg) if arg else self._get_default(ctx, param))
                 break
             elif param.kind == param.VAR_KEYWORD:
                 # same as **kwargs
-                kv_pairs = [arg.split("=") for arg in ctx.shlex]
+                kv_pairs = [arg.split("=") for arg in ctx.lex]
                 if not kv_pairs:
                     if "default" in kwargs:
                         raise DuplicateKeywordArgument("default")
@@ -491,7 +491,7 @@ class Command:
                     raise UnmatchedKeyValuePair("Unmatched key-value pair passed") from None
             elif param.kind == param.VAR_POSITIONAL:
                 # same as *args
-                for arg in ctx.shlex:
+                for arg in ctx.lex:
                     transformed = await self._transform(ctx, param, arg)
                     args.append(transformed)
                 break

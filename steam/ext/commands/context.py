@@ -77,7 +77,7 @@ class Context(Messageable):
 
         self.command: Optional[Command] = attrs.get("command")
         self.cog: Optional[Cog] = self.command.cog if self.command is not None else None
-        self.shlex: Optional[Shlex] = attrs.get("shlex")
+        self.lex: Optional[Shlex] = attrs.get("lex")
         self.invoked_with: Optional[str] = attrs.get("invoked_with")
 
         self.author: User = self.message.author
@@ -114,6 +114,6 @@ class Context(Messageable):
     @cached_property
     def invoked_without_command(self) -> bool:
         """:class:`bool`: Whether or not the command was invoked with a subcommand."""
-        return hasattr(self.command, "__commands__") and not self.shlex.in_stream[
-            : self.shlex.position
-        ].strip().startswith(tuple(self.command.__commands__))
+        return hasattr(self.command, "__commands__") and not self.lex.in_stream[: self.lex.position].strip().startswith(
+            tuple(self.command.__commands__)
+        )
