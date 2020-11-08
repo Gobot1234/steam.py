@@ -75,7 +75,6 @@ class CaseInsensitiveDict(Dict[str, _VT], Generic[_VT]):
         return super().pop(k.lower())
 
 
-_WHITE_SPACE = tuple(" ")
 _QUOTES = tuple('"')
 
 
@@ -125,7 +124,7 @@ class Shlex:
         characters = []
         for character in self.in_stream[self.position :]:
             self.position += 1
-            if character in _WHITE_SPACE:
+            if character.isspace():
                 break
 
             if character in _QUOTES:
@@ -139,8 +138,11 @@ class Shlex:
                 characters.pop()
             characters.append(character)
 
-        self._undo_pushback.append(start)
-        return remove_quotes("".join(characters))
+        ret = remove_quotes("".join(characters))
+        if ret:
+            self._undo_pushback.append(start)
+            return ret
+        return self.read()
 
     def undo(self) -> None:
         try:
@@ -158,7 +160,7 @@ class Shlex:
         return f"<Shlex {' '.join(resolved)}>"
 
     def __iter__(self) -> Generator[str, None, None]:
-        while 1:
+        while True:
             token = self.read()
             if token is None:
                 break
