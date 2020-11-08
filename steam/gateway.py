@@ -33,7 +33,6 @@ and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 from __future__ import annotations
 
 import asyncio
-import attr
 import logging
 import random
 import struct
@@ -46,6 +45,7 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, Union
 
 import aiohttp
+import attr
 from typing_extensions import Literal
 
 from . import utils

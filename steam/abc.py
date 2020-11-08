@@ -254,7 +254,7 @@ class SteamID(metaclass=abc.ABCMeta):
         if instance is not None:
             parts.append(instance)
 
-        return f'[{":".join(map(str, parts))}]'
+        return f"[{':'.join(map(str, parts))}]"
 
     @property
     def invite_code(self) -> Optional[str]:

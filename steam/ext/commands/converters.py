@@ -84,7 +84,7 @@ __all__ = (
 
 T = TypeVar("T")
 Converters = Union[Type["Converter"], "BasicConverter"]
-RegisterDeco = Union[Callable[["MaybeCommand"], "MaybeCommand"], "MaybeCommand"]
+RegisterDeco = Union[Callable[["MC"], "MC"], "MC"]
 RD = TypeVar("RD", bound=RegisterDeco)
 
 
