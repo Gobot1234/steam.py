@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from .abc import BaseUser
     from .clan import Clan
     from .state import ConnectionState
-    from .trade import TradeOffer
+    from .trade import DescriptionDict, TradeOffer
 
 T = TypeVar("T")
 MaybeCoro = Callable[[T], Union[bool, Coroutine[None, None, bool]]]
@@ -133,7 +133,7 @@ class AsyncIterator(Generic[T]):
 
         return self.find(predicate)
 
-    async def find(self, predicate: MaybeCoro) -> Optional[T]:
+    async def find(self, predicate: MaybeCoro[T]) -> Optional[T]:
         """|coro|
         A helper function which is similar to :func:`~steam.utils.find` except it runs over the :class:`AsyncIterator`.
         However unlike :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
@@ -282,7 +282,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
 
         descriptions = resp.get("descriptions", [])
 
-        async def process_trade(data: dict, descriptions: dict) -> None:
+        async def process_trade(data: dict, descriptions: DescriptionDict) -> None:
             if not self.after.timestamp() < data["time_init"] < self.before.timestamp():
                 return
             for item in descriptions:

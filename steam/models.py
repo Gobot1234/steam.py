@@ -30,7 +30,7 @@ import functools
 import inspect
 import re
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar
 
 from typing_extensions import Final, Protocol
 from yarl import URL as _URL
@@ -38,7 +38,7 @@ from yarl import URL as _URL
 from .protobufs import EMsg, MsgProto
 
 if TYPE_CHECKING:
-    from types import CodeType
+    from types import FunctionType, MethodType
 
     from .enums import IntEnum
 

@@ -82,14 +82,9 @@ IntOrStr = Union[int, str]
 ETypeType = Union[
     EType,
     Literal[
-        "Invalid", "Individual",
-        "Multiseat", "GameServer",
-        "AnonGameServer", "Pending",
-        "ContentServer", "Clan",
-        "Chat", "ConsoleUser",
-        "AnonUser", "Max",
-        0, 1, 2, 3, 4, 5, 6,
-        7, 8, 9, 10, 11,
+        "Invalid", "Individual", "Multiseat", "GameServer", "AnonGameServer", "Pending", "ContentServer", "Clan",
+        "Chat", "ConsoleUser", "AnonUser", "Max",
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
     ],
 ]
 EUniverseType = Union[EUniverse, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6]]
