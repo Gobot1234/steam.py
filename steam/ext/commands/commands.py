@@ -213,7 +213,7 @@ class Command:
         self.brief: Optional[str] = kwargs.get("brief")
         self.usage: Optional[str] = kwargs.get("usage")
         self.cog: Optional[Cog] = kwargs.get("cog")
-        self.parent: Optional[Command] = kwargs.get("parent")
+        self.parent: Optional[GroupMixin] = kwargs.get("parent")
         self.description: str = inspect.cleandoc(kwargs.get("description", ""))
         self.hidden: bool = kwargs.get("hidden", False)
         self.aliases: Iterable[str] = kwargs.get("aliases", [])
@@ -604,14 +604,22 @@ class Command:
 
 
 class GroupMixin:
+    """Mixin for something that can have commands registered under it.
+
+    Attributes
+    ----------
+    case_insensitive: :class:`bool`
+        Whether or not commands should be invoke-able case insensitively.
+    """
+
     def __init__(self, *args: Any, **kwargs: Any):
-        self.case_insensitive = kwargs.get("case_insensitive", False)
-        self.__commands__: dict[str, Command] = CaseInsensitiveDict() if self.case_insensitive else dict()
+        self.case_insensitive: bool = kwargs.get("case_insensitive", False)
+        self.__commands__: dict[str, Command] = CaseInsensitiveDict() if self.case_insensitive else {}
         super().__init__(*args, **kwargs)
 
     @property
     def commands(self) -> set[Command]:
-        """set[:class:`Command`]: A set of the loaded commands."""
+        """set[:class:`Command`]: A set of the loaded commands without duplicates."""
         return set(self.__commands__.values())
 
     def add_command(self, command: Command) -> None:
@@ -627,12 +635,6 @@ class GroupMixin:
 
         if command.name in self.__commands__:
             raise ClientException(f"The command {command.name} is already registered.")
-
-        if isinstance(self, Command):
-            command.parent = self
-
-        if isinstance(command.parent, GroupMixin) and command.parent is not self:
-            return command.parent.add_command(command)
 
         self.__commands__[command.name] = command
         for alias in command.aliases:
