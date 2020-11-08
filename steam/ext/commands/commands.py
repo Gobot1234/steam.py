@@ -325,14 +325,14 @@ class Command:
 
         Example: ::
 
-            @bot.command()
-            async def raise_an_error(ctx):
-                raise Exception('oh no an error')
+            @bot.command
+            async def raise_an_error(ctx: commands.Context):
+                raise Exception("oh no an error")
 
 
             @raise_an_error.error
-            async def on_error(ctx, error):
-                print(f'{ctx.command.name} raised an exception {error}')
+            async def on_error(ctx: commands.Context, error: Exception):
+                await ctx.send(f"{ctx.command.name} raised an exception {error!r}")
         """
 
         def decorator(coro: E) -> E:
