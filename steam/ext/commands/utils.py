@@ -75,9 +75,6 @@ class CaseInsensitiveDict(Dict[str, _VT], Generic[_VT]):
         return super().pop(k.lower())
 
 
-_QUOTES = tuple('"')
-
-
 class MissingClosingQuotation(Exception):
     def __init__(self, position: int):
         self.position = position
@@ -100,7 +97,7 @@ def remove_quotes(string: str) -> str:
     >>> remove_quotes('"quoted all the way"')
     ... 'quoted all the way'
     """
-    return string[1:-1] if (string[-1:], string[:1]) == _QUOTES * 2 else string
+    return string[1:-1] if (string[-1:], string[:1]) == ('"', '"') else string
 
 
 class Shlex:
@@ -127,7 +124,7 @@ class Shlex:
             if character.isspace():
                 break
 
-            if character in _QUOTES:
+            if character == '"':
                 before = self.position
                 if self.in_stream[before - 2] != "\\":  # quote is escaped carry on searching
                     end_of_quote = _end_of_quote_finder(self.in_stream, before)
