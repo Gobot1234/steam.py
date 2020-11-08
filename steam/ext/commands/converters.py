@@ -299,10 +299,10 @@ class Converter(Protocol[T]):
                 module = sys.modules[cls.__module__]
                 reload_module_with_TYPE_CHECKING(module)
                 str_value = converter_for.__forward_arg__
-                evaluated_value = module.__dict__.get(str_value)
-                if evaluated_value is None:
-                    raise NameError(f"{str_value!r} was not able to be evaluated to a type")
-                converter_for = evaluated_value
+                try:
+                    converter_for = module.__dict__[str_value]
+                except KeyError:
+                    raise NameError(f"{str_value!r} was not able to be evaluated to a type") from None
             cls.converter_for = converter_for
             CONVERTERS[converter_for] = cls
 
