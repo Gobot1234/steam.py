@@ -159,6 +159,12 @@ class Command:
         The command's parameters.
     """
 
+    DECORATORS: set[str] = {
+        "on_error",
+        "_before_hook",
+        "_after_hook",
+    }
+
     def __new__(cls, *args, **kwargs: Any) -> Command:
         self = super().__new__(cls)
         self.__original_kwargs__ = kwargs.copy()

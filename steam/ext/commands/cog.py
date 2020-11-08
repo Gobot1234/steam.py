@@ -244,6 +244,12 @@ class Cog:
                 for child in command.children:
                     child.cog = self
                     child.clean_params  # check if the command's params are valid on startup
+
+            for decorator in Command.DECORATORS:
+                command_deco = getattr(command, decorator, None)
+                if command_deco is not None:
+                    setattr(command, command_deco.__name__, getattr(self, command_deco.__name__))
+
             try:
                 bot.add_command(command)
             except Exception:
