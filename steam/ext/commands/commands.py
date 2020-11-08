@@ -34,6 +34,7 @@ import asyncio
 import functools
 import inspect
 import sys
+from time import time
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -419,10 +420,11 @@ class Command:
             if not await maybe_coroutine(check, ctx):
                 return False
         for cooldown in self.cooldown:
-            try:
-                cooldown(ctx)
-            except CommandOnCooldown:
+            bucket = cooldown.bucket.get_bucket(ctx)
+            retry_after = cooldown.get_retry_after(bucket, time())
+            if retry_after:
                 return False
+
         return True
 
     async def _call_before_invoke(self, ctx: Context) -> None:
