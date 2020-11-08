@@ -481,7 +481,7 @@ class Bot(GroupMixin, Client):
         """
 
         def decorator(coro: H) -> H:
-            if asyncio.iscoroutinefunction(coro):
+            if not asyncio.iscoroutinefunction(coro):
                 raise TypeError("Hooks must be coroutines")
             self._before_hook = coro
             return coro
@@ -494,7 +494,7 @@ class Bot(GroupMixin, Client):
         """
 
         def decorator(coro: H) -> H:
-            if asyncio.iscoroutinefunction(coro):
+            if not asyncio.iscoroutinefunction(coro):
                 raise TypeError("Hooks must be coroutines")
             self._after_hook = coro
             return coro

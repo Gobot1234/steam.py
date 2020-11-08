@@ -349,7 +349,7 @@ class Command:
         """
 
         def decorator(coro: HookFunction) -> HookFunction:
-            if asyncio.iscoroutinefunction(coro):
+            if not asyncio.iscoroutinefunction(coro):
                 raise TypeError("Hooks must be coroutines")
             self._before_hook = coro
             return coro
@@ -362,7 +362,7 @@ class Command:
         """
 
         def decorator(coro: HookFunction) -> HookFunction:
-            if asyncio.iscoroutinefunction(coro):
+            if not asyncio.iscoroutinefunction(coro):
                 raise TypeError("Hooks must be coroutines")
             self._after_hook = coro
             return coro
