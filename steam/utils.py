@@ -131,8 +131,6 @@ def make_id64(
 
     Raises
     ------
-    :exc:`TypeError`
-        Too many arguments have been given.
     :exc:`.InvalidSteamID`
         The created SteamID would be invalid.
 
@@ -167,11 +165,10 @@ def make_id64(
             raise InvalidSteamID(id, "it is too large" if id > 2 ** 64 else "it is too small")
     # textual input e.g. [g:1:4]
     else:
-        result = id2_to_tuple(id) or id3_to_tuple(id)
-        if result is None:
-            raise InvalidSteamID(id, "it cannot be parsed")
-
-        id, type, universe, instance = result
+        try:
+            id, type, universe, instance = id2_to_tuple(id) or id3_to_tuple(id)
+        except TypeError:
+            raise InvalidSteamID(id, "it cannot be parsed") from None
 
     try:
         type = EType(type) if isinstance(type, int) else EType[type]
@@ -185,7 +182,7 @@ def make_id64(
     if instance is None:
         instance = 1 if type in (EType.Individual, EType.GameServer) else 0
 
-    return int(universe) << 56 | int(type) << 52 | int(instance) << 32 | id
+    return universe << 56 | type << 52 | instance << 32 | id
 
 
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<reminder>[0-1]):(?P<id>\d+)")
