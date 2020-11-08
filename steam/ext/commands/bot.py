@@ -545,12 +545,12 @@ class Bot(GroupMixin, Client):
             try:
                 await ctx.command.invoke(ctx)
             except Exception as exc:
-                await self.on_command_error(ctx, exc)
+                self.dispatch("command_error", ctx, exc)
             else:
                 self.dispatch("command_completion", ctx)
         elif ctx.invoked_with:
             exc = CommandNotFound(f"The command {ctx.invoked_with!r} was not found")
-            await self.on_command_error(ctx, exc)
+            self.dispatch("command_error", ctx, exc)
 
     async def get_context(self, message: Message, *, cls: type[Context] = Context) -> Context:
         """|coro|
@@ -650,10 +650,7 @@ class Bot(GroupMixin, Client):
         error: :exc:`Exception`
             The error that was raised.
         """
-        default = self.__listeners__.get("on_command_error")
-        if default != self.on_command_error and default is not None:
-            for listener in default:
-                await listener(ctx, error)
+        if self.__listeners__.get("on_command_error"):
             return
 
         if hasattr(ctx.command, "on_error"):
