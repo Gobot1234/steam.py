@@ -569,7 +569,7 @@ class Bot(GroupMixin, Client):
             The context for the message.
         """
         prefix = await self.get_prefix(message)
-        if not prefix:
+        if prefix is None:
             return cls(message=message, prefix=prefix, bot=self)
 
         content = message.content[len(prefix) :].strip()
@@ -628,7 +628,6 @@ class Bot(GroupMixin, Client):
                 raise TypeError(f"command_prefix must return an iterable of strings not {type(prefix)}")
             if message.content.startswith(prefix):
                 return prefix
-        return None
 
     def get_cog(self, name: str) -> Optional[Cog]:
         """Get a loaded cog.
