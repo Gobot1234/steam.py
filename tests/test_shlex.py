@@ -10,8 +10,8 @@ test_strings: list[tuple[str, list[str]]] = [
     ('foo "bar baz"', ["foo", "bar baz"]),
     ('foo \\"bar baz', ["foo", '"bar', "baz"]),
     ('foo bar baz\\"', ["foo", "bar", 'baz"']),
+    ("foo     bar       baz     ", ["foo", "bar", "baz"]),
     ("'", ["'"]),
-    ("print('some\nepic\nstring')", ["print('some\nepic\nstring')"]),
 ]
 
 
