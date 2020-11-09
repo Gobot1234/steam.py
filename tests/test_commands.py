@@ -18,7 +18,8 @@ T = TypeVar("T")
 IsInstanceable = Union["type[T]", "tuple[type[T], ...]"]
 
 
-def test_command():
+@pytest.mark.asyncio
+async def test_commands():
     with pytest.raises(TypeError):
 
         @commands.command

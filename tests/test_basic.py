@@ -4,6 +4,8 @@
 
 import sys
 
+import pytest
+
 import steam
 
 from . import IDENTITY_SECRET, PASSWORD, SHARED_SECRET, USERNAME
@@ -38,9 +40,8 @@ class Client(steam.Client):
         self.LOGOUT = True
 
 
+@pytest.mark.skip_if(sys.version_info[:2] == (3, 8))  # only test on 3.9 and 3.7 as that's where the issues normally are
 def test_basic_events():
-    if sys.version_info[:2] == (3, 8):  # only test on 3.9 and 3.7 as that's where the issues normally are
-        return
     client = Client()
     client.run(USERNAME, PASSWORD, shared_secret=SHARED_SECRET, identity_secret=IDENTITY_SECRET)
     if not client.failed_to_login:
