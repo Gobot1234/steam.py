@@ -788,8 +788,8 @@ class GroupCommand(GroupMixin, Command):
         command = self
         for command_name in ctx.lex:
             try:
-                command.__commands__[command_name]
-            except KeyError:
+                command = command.__commands__[command_name]
+            except (AttributeError, KeyError):
                 ctx.lex.undo()
                 break
 

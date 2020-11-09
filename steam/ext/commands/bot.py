@@ -574,15 +574,13 @@ class Bot(GroupMixin, Client):
 
         lex = Shlex(message.content)
         lex.position = len(prefix)
-        if lex.read() is None:
+        invoked_with = lex.read()
+
+        if invoked_with is None:
             return cls(message=message, prefix=prefix, bot=self)
 
-        lex.undo()
+        command = self.__commands__.get(invoked_with)
 
-        invoked_with = lex.read()
-        command = None
-        if invoked_with is not None:
-            command = self.__commands__.get(invoked_with)
         return cls(
             bot=self,
             message=message,

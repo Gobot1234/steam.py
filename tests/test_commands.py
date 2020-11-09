@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import contextlib
 from copy import copy
-from typing import TypeVar, Union, AsyncGenerator, Optional
+from io import StringIO
+from typing import AsyncGenerator, Generator, Optional, TypeVar, Union
 
 import pytest
 
+import steam
 from steam.ext import commands
 from tests.mocks import GROUP_CHANNEL, MockGroupMessage
 
@@ -19,21 +21,44 @@ IsInstanceable = Union["type[T]", "tuple[type[T], ...]"]
 def test_command():
     with pytest.raises(TypeError):
 
-        @commands.command()
+        @commands.command
         def not_valid(ctx):
-            pass
+            ...
 
     with pytest.raises(TypeError):
 
         @commands.command(name=123)
-        async def _123(ctx):
-            pass
+        async def _123(ctx) -> None:
+            ...
 
     with pytest.raises(TypeError):
 
         @commands.command(aliases=[1, 2, 3])
-        async def _123(ctx):
-            pass
+        async def _123(ctx) -> None:
+            ...
+
+    with pytest.raises(steam.ClientException):
+
+        @commands.command
+        async def not_valid() -> None:
+            ...
+
+    class MyCog(commands.Cog):
+        with pytest.raises(steam.ClientException):
+
+            @commands.command
+            async def not_even_close() -> None:
+                ...
+
+    bot = TestBot()
+
+    class MyCog(commands.Cog):
+        @commands.command
+        async def not_valid(self) -> None:
+            ...
+
+    with pytest.raises(steam.ClientException):
+        bot.add_cog(MyCog())
 
 
 def test_greedy():
@@ -82,11 +107,14 @@ class TestBot(commands.Bot):
         yield
 
     async def process_commands(
-        self, arguments: str, exception: Optional[type[CE]], command: Optional[commands.Command] = None
+        self,
+        arguments: Optional[str] = None,
+        exception: Optional[type[CE]] = None,
+        command: Optional[commands.Command] = None,
     ) -> None:
         command = command or list(self.__commands__.values())[-1]
         self.message = copy(self.message)
-        self.message.content = f"{command.qualified_name} {arguments}".strip()
+        self.message.content = f"{command.qualified_name} {arguments or ''}".strip()
 
         if exception is not None:
 
@@ -206,3 +234,56 @@ async def test_positional_only_commands():
 
     for args, excepted_exception in inputs:
         await bot.process_commands(args, excepted_exception, command=sub)
+
+
+@pytest.mark.asyncio
+async def test_group_commands() -> None:
+    bot = TestBot()
+
+    @contextlib.contextmanager
+    def writes_to_console(msg: str) -> Generator[None, None, None]:
+        stdout = StringIO()
+        with contextlib.redirect_stdout(stdout):
+            yield
+
+        assert msg == stdout.getvalue().strip()
+
+    @bot.group
+    async def parent(ctx):
+        print("In parent")
+
+    @parent.group
+    async def child(ctx):
+        print("In child")
+
+    @child.command
+    async def grand_child(ctx):
+        print("In grand child")
+
+    @parent.group
+    async def other_child(ctx):
+        print("In other child")
+
+    assert bot.get_command("parent") is parent
+
+    with writes_to_console("In parent"):
+        await bot.process_commands(command=parent)
+
+    assert bot.get_command("child") is None
+    assert bot.get_command("parent child") is child
+
+    with writes_to_console("In child"):
+        await bot.process_commands(command=child)
+
+    assert bot.get_command("grand_child") is None
+    assert bot.get_command("child grand_child") is None
+    assert bot.get_command("parent child grand_child") is grand_child
+
+    with writes_to_console("In grand child"):
+        await bot.process_commands(command=grand_child)
+
+    assert bot.get_command("other_child") is None
+    assert bot.get_command("parent other_child") is other_child
+
+    with writes_to_console("In other child"):
+        await bot.process_commands(command=other_child)
