@@ -558,8 +558,8 @@ class Greedy(Generic[T]):
 ConverterTypes = Union[
     T,
     str,
-    Tuple[T],
-    Tuple[str],
+    Tuple[T, ...],
+    Tuple[str, ...],
 ]
 GreedyTypes = Union[
     T,                # a class/type
