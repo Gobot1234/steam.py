@@ -1,9 +1,10 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import annotations
 
 import pytest
 
-from steam.ext.commands.utils import Shlex, MissingClosingQuotation
-
+from steam.ext.commands.utils import MissingClosingQuotation, Shlex
 
 test_strings: list[tuple[str, list[str]]] = [
     ("foo bar baz", ["foo", "bar", "baz"]),

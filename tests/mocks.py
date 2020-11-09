@@ -3,16 +3,16 @@
 """A collection of custom mock objects"""
 
 from typing import Optional
+from unittest.mock import MagicMock
 
 import steam
 from steam.protobufs.steammessages_chat import (
+    CChatRoomGetChatRoomGroupSummaryResponse,
     CChatRoomIncomingChatMessageNotification,
     CChatRoomState,
-    CChatRoomGetChatRoomGroupSummaryResponse,
 )
 
 from .test_bot import bot
-from unittest.mock import MagicMock
 
 USER_DATA = {
     "steamid": 1234567890,

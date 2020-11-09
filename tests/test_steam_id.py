@@ -27,18 +27,18 @@ SOFTWARE.
 Mostly from https://github.com/ValvePython/steam/blob/master/tests/test_steamid.py
 """
 
-from typing import List
+from __future__ import annotations
 
 import pytest
 
-from steam import EType, EUniverse, SteamID, InvalidSteamID
+from steam import EType, EUniverse, InvalidSteamID, SteamID
 
 
 def create_id64(id: int, type: int, universe: int, instance: int) -> int:
-    return (universe << 56) | (type << 52) | (instance << 32) | id
+    return universe << 56 | type << 52 | instance << 32 | id
 
 
-def compare(steam_id: SteamID, test_list: List[int]) -> None:
+def compare(steam_id: SteamID, test_list: list[int]) -> None:
     assert steam_id.id == test_list[0]
     assert steam_id.type == test_list[1]
     assert steam_id.universe == test_list[2]

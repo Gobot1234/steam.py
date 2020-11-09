@@ -26,6 +26,7 @@ def main(ctx: click.Context, test: bool, format: bool):
         isort.main.main(
             [
                 "steam",
+                "tests",
                 "--combine-as",
                 "--profile",
                 "black",
