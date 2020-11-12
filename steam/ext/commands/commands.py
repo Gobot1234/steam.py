@@ -223,6 +223,7 @@ class Command:
             if not isinstance(alias, str):
                 raise TypeError("A commands aliases should be an iterable only containing strings")
 
+        self.on_error = None
         self._before_hook = None
         self._after_hook = None
 

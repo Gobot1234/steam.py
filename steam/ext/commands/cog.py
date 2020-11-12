@@ -229,7 +229,7 @@ class Cog:
 
             for decorator in Command.DECORATORS:
                 command_deco = getattr(command, decorator, None)
-                if command_deco is not None:
+                if command_deco is not None:  # update any unbound decorators
                     setattr(command, command_deco.__name__, getattr(self, command_deco.__name__))
 
             try:

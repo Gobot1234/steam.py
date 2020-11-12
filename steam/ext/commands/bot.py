@@ -651,7 +651,7 @@ class Bot(GroupMixin, Client):
         if self.__listeners__.get("on_command_error"):
             return
 
-        if hasattr(ctx.command, "on_error"):
+        if getattr(ctx.command, "on_error", None) is not None:
             return await ctx.command.on_error(ctx, error)
 
         if ctx.cog and ctx.cog is not self:
