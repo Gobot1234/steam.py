@@ -94,6 +94,9 @@ E = TypeVar("E", bound=CommandErrorFunctionType)
 HookFunction = Callable[["Context"], Coroutine[Any, Any, None]]
 H = TypeVar("H", bound=HookFunction)
 HookDecoType = Union[Callable[[H], H], H]
+C = TypeVar("C", bound="Command")
+GC = TypeVar("GC", bound="GroupCommand")
+CFT = TypeVar("CFT", bound="CommandFunctionType")
 
 
 class CommandDeco(FunctionType):
@@ -166,12 +169,12 @@ class Command:
         "_after_hook",
     }
 
-    def __new__(cls, *args, **kwargs: Any) -> Command:
+    def __new__(cls, *args: Any, **kwargs: Any) -> Command:
         self = super().__new__(cls)
         self.__original_kwargs__ = kwargs.copy()
         return self
 
-    def __init__(self, func: CommandFunctionType, **kwargs: Any):
+    def __init__(self, func: CFT, **kwargs: Any):
         self.name: str = kwargs.get("name") or func.__name__
         if not isinstance(self.name, str):
             raise TypeError("name must be a string.")
@@ -231,7 +234,7 @@ class Command:
         return self.qualified_name
 
     @property
-    def callback(self) -> CommandFunctionType:
+    def callback(self) -> CFT:
         """The internal callback the command holds.
 
         Note
@@ -706,14 +709,36 @@ class GroupMixin:
 
         return command
 
+    @overload
     def command(
         self,
-        callback: Optional[CommandFunctionType] = None,
+        *,
+        name: Optional[str] = ...,
+        cls: Optional[type[C]] = ...,
+        help: Optional[str] = ...,
+        brief: Optional[str] = ...,
+        usage: Optional[str] = ...,
+        description: Optional[str] = ...,
+        aliases: Optional[Iterable[str]] = ...,
+        checks: list[CheckReturnType] = ...,
+        cooldown: list[Cooldown] = ...,
+        special_converters: list[type[converters.Converters]] = ...,
+        cog: Optional[Cog] = ...,
+        parent: Optional[Command] = ...,
+        enabled: bool = ...,
+        hidden: bool = ...,
+        case_insensitive: bool = ...,
+    ) -> Union[Callable[[CFT], C], C]:
+        ...
+
+    def command(
+        self,
+        callback: Optional[CFT] = None,
         *,
         name: Optional[str] = None,
-        cls: Optional[type[Command]] = None,
+        cls: Optional[type[C]] = None,
         **attrs: Any,
-    ) -> Union[Callable[[CommandFunctionType], Command], Command]:
+    ) -> Union[Callable[[CFT], C], C]:
         """|maybecallabledeco|
         A decorator that invokes :func:`command` and adds the created :class:`Command` to the internal command list.
 
@@ -728,7 +753,7 @@ class GroupMixin:
         """
         cls = cls or Command
 
-        def decorator(callback: CommandFunctionType) -> Command:
+        def decorator(callback: CFT) -> C:
             attrs.setdefault("parent", self)
             result = command(callback, name=name, cls=cls, **attrs)
             self.add_command(result)
@@ -736,14 +761,36 @@ class GroupMixin:
 
         return decorator(callback) if callback is not None else lambda callback: decorator(callback)
 
+    @overload
     def group(
         self,
-        callback: Optional[CommandFunctionType] = None,
         *,
-        name: Union[Optional[str], CommandFunctionType] = None,
-        cls: Optional[type[GroupCommand]] = None,
+        name: Optional[str] = ...,
+        cls: Optional[type[GC]] = ...,
+        help: Optional[str] = ...,
+        brief: Optional[str] = ...,
+        usage: Optional[str] = ...,
+        description: Optional[str] = ...,
+        aliases: Optional[Iterable[str]] = ...,
+        checks: list[CheckReturnType] = ...,
+        cooldown: list[Cooldown] = ...,
+        special_converters: list[type[converters.Converters]] = ...,
+        cog: Optional[Cog] = ...,
+        parent: Optional[Command] = ...,
+        enabled: bool = ...,
+        hidden: bool = ...,
+        case_insensitive: bool = ...,
+    ) -> Union[Callable[[CFT], GC], GC]:
+        ...
+
+    def group(
+        self,
+        callback: Optional[CFT] = None,
+        *,
+        name: Optional[str] = None,
+        cls: Optional[type[GC]] = None,
         **attrs: Any,
-    ) -> Union[Callable[[CommandFunctionType], GroupCommand], GroupCommand]:
+    ) -> Union[Callable[[CFT], GC], GC]:
         """|maybecallabledeco|
         A decorator that invokes :func:`group` and adds the created :class:`GroupCommand` to the internal command list.
 
@@ -758,7 +805,7 @@ class GroupMixin:
         """
         cls = cls or GroupCommand
 
-        def decorator(callback: CommandFunctionType) -> GroupCommand:
+        def decorator(callback: CFT) -> GC:
             attrs.setdefault("parent", self)
             result = group(callback, name=name, cls=cls, **attrs)
             self.add_command(result)
@@ -797,13 +844,35 @@ class GroupCommand(GroupMixin, Command):
         await (super().invoke(ctx) if command is self else command.invoke(ctx))  # type: ignore
 
 
+@overload
 def command(
-    callback: Optional[CommandFunctionType] = None,
+    *,
+    name: Optional[str] = ...,
+    cls: Optional[type[C]] = ...,
+    help: Optional[str] = ...,
+    brief: Optional[str] = ...,
+    usage: Optional[str] = ...,
+    description: Optional[str] = ...,
+    aliases: Optional[Iterable[str]] = ...,
+    checks: list[CheckReturnType] = ...,
+    cooldown: list[Cooldown] = ...,
+    special_converters: list[type[converters.Converters]] = ...,
+    cog: Optional[Cog] = ...,
+    parent: Optional[Command] = ...,
+    enabled: bool = ...,
+    hidden: bool = ...,
+    case_insensitive: bool = ...,
+) -> Union[Callable[[CommandFunctionType], C], C]:
+    ...
+
+
+def command(
+    callback: Optional[CFT] = None,
     *,
     name: Optional[str] = None,
-    cls: Optional[type[Command]] = None,
+    cls: Optional[type[C]] = None,
     **attrs: Any,
-) -> Union[Callable[[CommandFunctionType], Command], Command]:
+) -> Union[Callable[[CFT], C], C]:
     """|maybecallabledeco|
     A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`Command`.
 
@@ -818,7 +887,7 @@ def command(
     """
     cls = cls or Command
 
-    def decorator(callback: CommandFunctionType) -> Command:
+    def decorator(callback: CFT) -> C:
         if isinstance(callback, Command):
             raise TypeError("Callback is already a command.")
         return cls(callback, name=name, **attrs)
@@ -826,13 +895,35 @@ def command(
     return decorator(callback) if callback is not None else lambda callback: decorator(callback)
 
 
+@overload
 def group(
-    callback: Optional[CommandFunctionType] = None,
+    *,
+    name: Optional[str] = ...,
+    cls: Optional[type[GC]] = ...,
+    help: Optional[str] = ...,
+    brief: Optional[str] = ...,
+    usage: Optional[str] = ...,
+    description: Optional[str] = ...,
+    aliases: Optional[Iterable[str]] = ...,
+    checks: list[CheckReturnType] = ...,
+    cooldown: list[Cooldown] = ...,
+    special_converters: list[type[converters.Converters]] = ...,
+    cog: Optional[Cog] = ...,
+    parent: Optional[Command] = ...,
+    enabled: bool = ...,
+    hidden: bool = ...,
+    case_insensitive: bool = ...,
+) -> Union[Callable[[CFT], GC], GC]:
+    ...
+
+
+def group(
+    callback: Optional[CFT] = None,
     *,
     name: Optional[str] = None,
-    cls: Optional[type[GroupCommand]] = None,
+    cls: Optional[type[GC]] = None,
     **attrs: Any,
-) -> Union[Callable[[CommandFunctionType], GroupCommand], GroupCommand]:
+) -> Union[Callable[[CFT], GC], GC]:
     """|maybecallabledeco|
     A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`GroupCommand`.
 
