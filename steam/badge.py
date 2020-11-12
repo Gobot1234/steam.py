@@ -64,7 +64,7 @@ class Badge:
         self.xp: int = data["xp"]
         self.completion_time = datetime.utcfromtimestamp(data["completion_time"])
         self.scarcity: int = data["scarcity"]
-        self.game = Game(data["appid"]) if "appid" in data else None
+        self.game = Game(id=data["appid"]) if "appid" in data else None
 
     def __repr__(self) -> str:
         attrs = ("id", "level", "xp", "game")

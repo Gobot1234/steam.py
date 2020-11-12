@@ -400,11 +400,9 @@ Games can be manually constructed using there app id eg:
 
 .. code-block:: python3
 
-    my_rust_instance = steam.Game(252490, "Rust")
-    # this can then be used for trading
-    # a game title is not required for this
-    # but it is for setting in game statuses
-    # if the game isn't a Steam game.
+    my_rust_instance = steam.Game(id=252490, title="Rust")
+    # this can then be used for trading a game title is not required for this
+    # but it is for setting in game statuses if the game isn't a Steam game.
 
 .. autofunction:: steam.CUSTOM_GAME
 
