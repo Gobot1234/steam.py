@@ -29,7 +29,6 @@ from __future__ import annotations
 import inspect
 import sys
 import traceback
-from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from chardet import detect
@@ -37,7 +36,6 @@ from typing_extensions import Final
 
 from ... import ClientException
 from ...client import E, EventType
-from ...models import FunctionType
 from ...utils import cached_property
 from .commands import Command, GroupMixin
 
@@ -47,23 +45,7 @@ if TYPE_CHECKING:
     from .bot import Bot
     from .context import Context
 
-__all__ = (
-    "Cog",
-    "ExtensionType",
-)
-
-
-class ExtensionTypeFunction(FunctionType):
-    def __call__(self, bot: Bot) -> None:
-        ...
-
-
-# for a bit of type hinting
-class ExtensionType(ModuleType):
-    """A class to mimic an extension's file structure."""
-
-    setup: ExtensionTypeFunction
-    teardown: ExtensionTypeFunction
+__all__ = ("Cog",)
 
 
 class Cog:

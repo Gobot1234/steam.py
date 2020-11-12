@@ -36,7 +36,7 @@ import inspect
 import sys
 import traceback
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Mapping, Optional, Union
 
 from typing_extensions import Literal, overload
@@ -44,7 +44,7 @@ from typing_extensions import Literal, overload
 from ... import utils
 from ...client import Client, E, EventType, log
 from ...utils import maybe_coroutine
-from .cog import Cog, ExtensionType
+from .cog import Cog
 from .commands import CheckReturnType, Command, GroupMixin, H, HookDecoType, check
 from .context import Context
 from .converters import CONVERTERS, Converters
@@ -181,7 +181,7 @@ class Bot(GroupMixin, Client):
 
     __cogs__: dict[str, Cog] = {}
     __listeners__: dict[str, list[EventType]] = {}
-    __extensions__: dict[str, ExtensionType] = {}
+    __extensions__: dict[str, ModuleType] = {}
 
     def __init__(
         self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = DefaultHelpCommand(), **options: Any
@@ -220,8 +220,8 @@ class Bot(GroupMixin, Client):
         return MappingProxyType(self.__cogs__)
 
     @property
-    def extensions(self) -> Mapping[str, ExtensionType]:
-        """Mapping[:class:`str`, :class:`ExtensionType`]: A read only mapping of any loaded extensions."""
+    def extensions(self) -> Mapping[str, ModuleType]:
+        """Mapping[:class:`str`, :class:`ModuleType`]: A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
     @property
@@ -280,7 +280,7 @@ class Bot(GroupMixin, Client):
         if extension in self.__extensions__:
             return
 
-        module: ExtensionType = importlib.import_module(extension)
+        module = importlib.import_module(extension)
         if not hasattr(module, "setup"):
             del sys.modules[extension]
             raise ImportError(f"{extension!r} is missing a setup function", path=module.__file__, name=module.__name__)
@@ -300,7 +300,7 @@ class Bot(GroupMixin, Client):
             extension = resolve_path(extension)
 
         try:
-            module: ExtensionType = self.__extensions__[extension]
+            module = self.__extensions__[extension]
         except KeyError:
             raise ModuleNotFoundError(
                 f"The extension {extension!r} was not found", name=extension, path=extension
