@@ -32,8 +32,6 @@ USER_DATA = {
 
 
 class DataclassesMock:
-    __slots__ = ()
-
     def __getattribute__(self, item):
         try:
             return super().__getattribute__(item)

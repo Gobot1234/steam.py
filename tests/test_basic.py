@@ -3,6 +3,7 @@
 """A basic integration test"""
 
 import sys
+from typing import Any
 
 import pytest
 
@@ -18,7 +19,7 @@ class Client(steam.Client):
     LOGOUT = False
     failed_to_login = False
 
-    async def start(self, *args, **kwargs) -> None:
+    async def start(self, *args: Any, **kwargs: Any) -> None:
         try:
             await super().start(*args, **kwargs)
         except steam.LoginError as exc:
@@ -40,8 +41,12 @@ class Client(steam.Client):
         self.LOGOUT = True
 
 
-@pytest.mark.skip_if(sys.version_info[:2] == (3, 8))  # only test on 3.9 and 3.7 as that's where the issues normally are
-def test_basic_events():
+@pytest.mark.skipif(
+    sys.version_info[:2] == (3, 8),
+    reason="If there are issues they are normally present in one of the 2 versions, "
+           "aswell, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer"
+)
+def test_basic_events() -> None:
     client = Client()
     client.run(USERNAME, PASSWORD, shared_secret=SHARED_SECRET, identity_secret=IDENTITY_SECRET)
     if not client.failed_to_login:

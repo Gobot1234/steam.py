@@ -11,7 +11,7 @@ import pytest
 
 import steam
 from steam.ext import commands
-from tests.mocks import GROUP_CHANNEL, MockGroupMessage
+from tests.mocks import GROUP_MESSAGE
 
 CE = TypeVar("CE", bound=commands.CommandError)
 T = TypeVar("T")
@@ -23,19 +23,19 @@ async def test_commands():
     with pytest.raises(TypeError):
 
         @commands.command
-        def not_valid(ctx):
+        def not_valid(_):
             ...
 
     with pytest.raises(TypeError):
 
         @commands.command(name=123)
-        async def _123(ctx) -> None:
+        async def _123(_) -> None:
             ...
 
     with pytest.raises(TypeError):
 
         @commands.command(aliases=[1, 2, 3])
-        async def _123(ctx) -> None:
+        async def _123(_) -> None:
             ...
 
     with pytest.raises(steam.ClientException):
@@ -66,20 +66,20 @@ def test_greedy():
     with pytest.raises(TypeError):
 
         @commands.command()
-        async def greedy(ctx, param: commands.Greedy[None]):
+        async def greedy(_, param: commands.Greedy[None]):
             pass
 
     with pytest.raises(TypeError):
 
         @commands.command()
-        async def greedy(ctx, param: commands.Greedy[str]):
+        async def greedy(_, param: commands.Greedy[str]):
             pass
 
 
 class TestBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="")
-        self.message = MockGroupMessage(GROUP_CHANNEL)
+        self.MESSAGE = GROUP_MESSAGE
 
     @contextlib.asynccontextmanager
     async def raises_command_error(
@@ -114,24 +114,27 @@ class TestBot(commands.Bot):
         command: Optional[commands.Command] = None,
     ) -> None:
         command = command or list(self.__commands__.values())[-1]
-        self.message = copy(self.message)
-        self.message.content = f"{command.qualified_name} {arguments or ''}".strip()
+        message = copy(self.MESSAGE)
+        message.content = f"{command.qualified_name} {arguments or ''}".strip()
 
         if exception is not None:
 
-            async with self.raises_command_error(exception, self.message.content):
-                await super().process_commands(self.message)
+            async with self.raises_command_error(exception, message.content):
+                await super().process_commands(message)
 
         else:
 
-            async with self.returns_command_completion(self.message.content):
-                await super().process_commands(self.message)
+            async with self.returns_command_completion(message.content):
+                await super().process_commands(message)
 
     async def on_error(self, event: str, error: Exception, *args, **kwargs):
-        ctx: commands.Context = args[0]
-        lex = ctx.lex
-        message = ctx.message
-        command = ctx.command
+        ctx: commands.Context = args[0]  # expose some locals
+        try:
+            lex = ctx.lex
+            message = ctx.message
+            command = ctx.command
+        except AttributeError:
+            pass
         raise SystemExit  # we need to propagate a SystemExit for pytest to be able to pick up errors
 
 
@@ -250,19 +253,19 @@ async def test_group_commands() -> None:
         assert msg == stdout.getvalue().strip()
 
     @bot.group
-    async def parent(ctx):
+    async def parent(_) -> None:
         print("In parent")
 
     @parent.group
-    async def child(ctx):
+    async def child(_) -> None:
         print("In child")
 
     @child.command
-    async def grand_child(ctx):
+    async def grand_child(_) -> None:
         print("In grand child")
 
     @parent.group
-    async def other_child(ctx):
+    async def other_child(_) -> None:
         print("In other child")
 
     assert bot.get_command("parent") is parent
