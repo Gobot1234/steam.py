@@ -412,7 +412,11 @@ class SteamWebSocket(Registerable):
 
     async def send(self, data: bytes) -> None:
         self._dispatch("socket_raw_send", data)
-        await self.socket.send_bytes(data=data)
+        try:
+            await self.socket.send_bytes(data=data)
+        except ConnectionResetError:
+            log.info("Connection closed")
+            await self.handle_close()
 
     async def send_as_proto(self, message: MsgBase) -> None:
         message.steam_id = self.steam_id
