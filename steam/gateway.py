@@ -217,7 +217,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         while not self._stop_ev.wait(self.interval):
             if self._last_ack + self.heartbeat_timeout < time.perf_counter():
                 log.warning(f"Server {self.ws.cm} has stopped responding to the gateway. Closing and restarting.")
-                coro = self.ws.handle_close(None)
+                coro = self.ws.handle_close()
                 f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
 
                 try:
@@ -358,7 +358,7 @@ class SteamWebSocket(Registerable):
                 raise WebSocketClosure
             log.debug(f"Dropped unexpected message type: {message}")
         except WebSocketClosure:
-            await self.handle_close(None)
+            await self.handle_close()
 
     async def receive(self, message: bytes) -> None:
         self._dispatch("socket_raw_receive", message)
@@ -442,7 +442,7 @@ class SteamWebSocket(Registerable):
         await self.socket.close(code=code, message=bytes(message))
 
     @register(EMsg.ClientLoggedOff)
-    async def handle_close(self, _) -> None:
+    async def handle_close(self, _=None) -> None:
         if not self.socket.closed:
             await self.close()
             self.cm_list.queue.pop()  # pop the disconnected cm
@@ -460,7 +460,7 @@ class SteamWebSocket(Registerable):
                 http = self._connection.http
                 await http.logout()
                 await http.login(http.username, http.password, shared_secret=http.shared_secret)
-            return await self.handle_close(None)
+            return await self.handle_close()
 
         log.debug("Logon completed")
 

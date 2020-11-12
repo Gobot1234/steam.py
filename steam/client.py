@@ -353,7 +353,7 @@ class Client:
 
         if self.ws is not None:
             try:
-                await self.ws.handle_close(None)
+                await self.ws.handle_close()
             except ConnectionClosed:
                 pass
 
