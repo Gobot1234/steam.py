@@ -113,25 +113,25 @@ class Game:
     )
 
     @overload
-    def __init__(self, id: Union[int, str], *, context_id: Optional[int] = 2):
+    def __init__(self, *, id: Union[int, str], context_id: Optional[int] = 2):
         ...
 
     @overload
-    def __init__(self, title: str, *, context_id: Optional[int] = 2):
+    def __init__(self, *, title: str, context_id: Optional[int] = 2):
         ...
 
     @overload
-    def __init__(self, id: Union[int, str], title: str, *, context_id: Optional[int] = 2):
+    def __init__(self, *, id: Union[int, str], title: str, context_id: Optional[int] = 2):
         ...
 
     @overload
     def __init__(
-        self, id: Optional[Union[int, str]] = None, title: Optional[str] = None, *, context_id: Optional[int] = 2
+        self, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = 2
     ):
         ...
 
     def __init__(
-        self, id: Optional[Union[int, str]] = None, title: Optional[str] = None, *, context_id: Optional[int] = 2
+        self, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = 2
     ):
         if title is None and id is None:
             raise TypeError("__init__() missing a required positional argument: 'id' or 'title'")

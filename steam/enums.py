@@ -54,6 +54,7 @@ __all__ = (
 
 T = TypeVar("T")
 E = TypeVar("E", bound="Enum")
+IE = TypeVar("IE", bound="IntEnum")
 
 
 def _is_descriptor(obj: Any) -> bool:

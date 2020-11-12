@@ -34,14 +34,14 @@ from typing import Any, Generic, Optional, Type, TypeVar
 
 import betterproto
 
-from ..enums import IntEnum
+from ..enums import IntEnum, IE
 from .emsg import *
 from .headers import *
 from .protobufs import *
 from .unified import *
 
 T = TypeVar("T", bound=betterproto.Message)
-AllowedHeaders = (ExtendedMsgHdr, MsgHdrProtoBuf)
+AllowedHeaders = (ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdrProto)
 GetProtoType = Optional[Type[betterproto.Message]]
 
 
@@ -87,8 +87,8 @@ def get_um(name: str) -> GetProtoType:
 class MsgBase(Generic[T]):
     __slots__ = ("header", "body", "payload", "skip")
 
-    def __init__(self, msg: IntEnum, data: Optional[bytes], **kwargs: Any):
-        self.msg = msg
+    def __init__(self, msg: IE, data: Optional[bytes], **kwargs: Any):
+        self.msg: IE = msg
         self.body: Optional[T] = None
         self.payload: Optional[bytes] = data[self.skip :] if data else None
 
@@ -116,8 +116,8 @@ class MsgBase(Generic[T]):
                 self.body.parse(self.payload)
 
     @property
-    def msg(self) -> IntEnum:
-        """Union[:class:`IntEnum`]: The :attr:`header.msg`."""
+    def msg(self) -> IE:
+        """:class:`IntEnum`: The :attr:`header.msg`."""
         return self.header.msg
 
     @msg.setter
@@ -273,7 +273,7 @@ class MsgProto(MsgBase[T]):
 class GCMsg(MsgBase[T]):
     def __init__(
         self,
-        msg: IntEnum,
+        msg: IE,
         data: Optional[bytes] = None,
         **kwargs,
     ):
@@ -291,7 +291,7 @@ class GCMsg(MsgBase[T]):
 class GCMsgProto(MsgBase[T]):
     def __init__(
         self,
-        msg: IntEnum,
+        msg: IE,
         data: Optional[bytes] = None,
         **kwargs,
     ):

@@ -38,15 +38,13 @@ from yarl import URL as _URL
 from .protobufs import EMsg, MsgProto
 
 if TYPE_CHECKING:
-    from types import FunctionType, MethodType
-
-    from .enums import IntEnum
+    from .enums import IE
 
 __all__ = (
     "PriceOverview",
     "Ban",
 )
-IE = TypeVar("IE", bound="IntEnum")
+
 E = TypeVar("E", bound="EventParser")
 
 
@@ -72,17 +70,10 @@ class URL:
 
 
 if TYPE_CHECKING:
-
-    class FunctionType(FunctionType, Protocol):
-        pass
-
-    class MethodType(MethodType, Protocol):
-        pass
-
-
+    from types import FunctionType as FunctionType, MethodType as MethodType
 else:
-    MethodType = Protocol
-    FunctionType = Protocol
+    MethodType = object
+    FunctionType = object
 
 
 class EventParser(MethodType):
