@@ -113,28 +113,28 @@ class Game:
     )
 
     @overload
-    def __init__(self, *, id: Union[int, str], context_id: Optional[int] = 2):
+    def __init__(self, *, id: Union[int, str], context_id: Optional[int] = None):
         ...
 
     @overload
-    def __init__(self, *, title: str, context_id: Optional[int] = 2):
+    def __init__(self, *, title: str, context_id: Optional[int] = None):
         ...
 
     @overload
-    def __init__(self, *, id: Union[int, str], title: str, context_id: Optional[int] = 2):
+    def __init__(self, *, id: Union[int, str], title: str, context_id: Optional[int] = None):
         ...
 
     @overload
     def __init__(
-        self, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = 2
+        self, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = None
     ):
         ...
 
     def __init__(
-        self, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = 2
+        self, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = None
     ):
         if title is None and id is None:
-            raise TypeError("__init__() missing a required positional argument: 'id' or 'title'")
+            raise TypeError("__init__() missing a required keyword argument: 'id' or 'title'")
         if title is None:
             try:
                 id = int(id)
@@ -164,7 +164,7 @@ class Game:
 
         self.id: int = id
         self.title: Optional[str] = title
-        self.context_id: Optional[int] = context_id
+        self.context_id: Optional[int] = 2 if context_id is None else context_id
 
         self.total_play_time: Optional[int] = None
         self.icon_url: Optional[str] = None
