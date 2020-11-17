@@ -72,8 +72,8 @@ def test_from_id():
     compare(SteamID("123"), [123, EType.Individual, EUniverse.Public, 1])
     compare(SteamID(12345678), [12345678, EType.Individual, EUniverse.Public, 1])
     compare(SteamID("12345678"), [12345678, EType.Individual, EUniverse.Public, 1])
-    compare(SteamID(0xFFFFFFFF), [0xFFFFFFFF, EType.Individual, EUniverse.Public, 1])
-    compare(SteamID(str(0xFFFFFFFF)), [0xFFFFFFFF, EType.Individual, EUniverse.Public, 1])
+    compare(SteamID(0xffffffff), [0xffffffff, EType.Individual, EUniverse.Public, 1])
+    compare(SteamID(str(0xffffffff)), [0xffffffff, EType.Individual, EUniverse.Public, 1])
 
 
 def test_arg_steam64():
