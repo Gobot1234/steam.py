@@ -69,7 +69,6 @@ if TYPE_CHECKING:
     from .client import Client
     from .comment import Comment
     from .gateway import SteamWebSocket
-    from .http import HTTPClient
     from .protobufs.steammessages_chat import (
         CChatRoomChatRoomHeaderStateNotification as GroupStateUpdate,
         CChatRoomGetMyChatRoomGroupsResponse as MyChatRooms,
@@ -123,12 +122,12 @@ class ConnectionState(Registerable):
         "_force_kick",
     )
 
-    def __init__(self, client: Client, http: HTTPClient, **kwargs: Any):
+    def __init__(self, client: Client, **kwargs: Any):
         super().__init__()
-        self.http = http
-        self.request = http.request
         self.client = client
         self.dispatch = client.dispatch
+        self.http = client.http
+        self.request = self.http.request
 
         self.handled_friends = asyncio.Event()
         self._user_slots = set(User.__slots__) - {"_state"}
@@ -251,9 +250,9 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return None
-        if msg.header.eresult == EResult.Busy:
+        if msg.header.body.eresult == EResult.Busy:
             raise WSNotFound(msg)
-        if msg.header.eresult != EResult.OK:
+        if msg.header.body.eresult != EResult.OK:
             raise WSException(msg)
 
         return await Clan._from_proto(self, msg.body)
@@ -439,9 +438,9 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.eresult == EResult.LimitExceeded:
+        if msg.header.body.eresult == EResult.LimitExceeded:
             raise WSForbidden(msg)
-        if msg.header.eresult != EResult.OK:
+        if msg.header.body.eresult != EResult.OK:
             raise WSException(msg)
 
         proto = UserMessageNotification(
@@ -473,11 +472,11 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.eresult == EResult.LimitExceeded:
+        if msg.header.body.eresult == EResult.LimitExceeded:
             raise WSForbidden(msg)
-        if msg.header.eresult == EResult.InvalidParameter:
+        if msg.header.body.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        if msg.header.eresult != EResult.OK:
+        if msg.header.body.eresult != EResult.OK:
             raise WSException(msg)
 
         proto = GroupMessageNotification(
@@ -500,9 +499,9 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.eresult == EResult.InvalidParameter:
+        if msg.header.body.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.header.eresult != EResult.OK:
+        elif msg.header.body.eresult != EResult.OK:
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
@@ -510,9 +509,9 @@ class ConnectionState(Registerable):
             msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
         except asyncio.TimeoutError:
             return
-        if msg.header.eresult == EResult.InvalidParameter:
+        if msg.header.body.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.header.eresult != EResult.OK:
+        elif msg.header.body.eresult != EResult.OK:
             raise WSException(msg)
 
     async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
@@ -522,9 +521,9 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.eresult == EResult.InvalidParameter:
+        if msg.header.body.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.header.eresult != EResult.OK:
+        elif msg.header.body.eresult != EResult.OK:
             raise WSException(msg)
 
     async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
@@ -534,16 +533,16 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.eresult == EResult.InvalidParameter:
+        if msg.header.body.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.header.eresult != EResult.OK:
+        elif msg.header.body.eresult != EResult.OK:
             raise WSException(msg)
 
     # parsers
 
     @register(EMsg.ServiceMethod)
     async def parse_service_method(self, msg: MsgProto) -> None:
-        if msg.header.job_name_target == "FriendMessagesClient.IncomingMessage#1":
+        if msg.header.body.job_name_target == "FriendMessagesClient.IncomingMessage#1":
             msg: MsgProto[UserMessageNotification]
             user_id64 = msg.body.steamid_friend
             author = self.get_user(user_id64) or await self.fetch_user(user_id64)
@@ -560,7 +559,7 @@ class ConnectionState(Registerable):
                 when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
                 self.dispatch("typing", author, when)
 
-        elif msg.header.job_name_target == "ChatRoomClient.NotifyIncomingChatMessage#1":
+        elif msg.header.body.job_name_target == "ChatRoomClient.NotifyIncomingChatMessage#1":
             msg: MsgProto[GroupMessageNotification]
             destination = self._combined.get(msg.body.chat_group_id)
             if destination is None:
@@ -578,7 +577,7 @@ class ConnectionState(Registerable):
             self._messages.append(message)
             self.dispatch("message", message)
 
-        elif msg.header.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
+        elif msg.header.body.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
             msg: MsgProto[GroupStateUpdate]
             destination = self._combined.get(msg.body.header_state.chat_group_id)
             if destination is None:
@@ -589,7 +588,7 @@ class ConnectionState(Registerable):
             else:
                 destination._from_proto(msg.body.header_state)
 
-        elif msg.header.job_name_target == "ChatRoomClient.NotifyChatGroupUserStateChanged#1":
+        elif msg.header.body.job_name_target == "ChatRoomClient.NotifyChatGroupUserStateChanged#1":
             msg: MsgProto[GroupAction]
             if msg.body.user_action == "Joined":  # join group
                 if msg.body.group_summary.clanid:
@@ -613,7 +612,7 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
-        if msg.header.job_name_target == "ChatRoom.GetMyChatRoomGroups#1":
+        if msg.header.body.job_name_target == "ChatRoom.GetMyChatRoomGroups#1":
             msg: MsgProto[MyChatRooms]
             for group in msg.body.chat_room_groups:
                 if group.group_summary.clanid:  # received a clan

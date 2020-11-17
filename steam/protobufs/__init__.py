@@ -41,7 +41,7 @@ from .protobufs import *
 from .unified import *
 
 T = TypeVar("T", bound=betterproto.Message)
-AllowedHeaders = (ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdrProto)
+ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdrProto)
 GetProtoType = Optional[Type[betterproto.Message]]
 
 
@@ -127,62 +127,32 @@ class MsgBase(Generic[T]):
     @property
     def steam_id(self) -> Optional[int]:
         """Optional[:class:`int`]: The :attr:`header`'s 64 bit Steam ID."""
-        return self.header.steam_id if isinstance(self.header, AllowedHeaders) else None
+        return self.header.body.steam_id if isinstance(self.header, ALLOWED_HEADERS) else None
 
     @steam_id.setter
     def steam_id(self, value: int) -> None:
-        if isinstance(self.header, AllowedHeaders):
-            self.header.steam_id = value
+        if isinstance(self.header, ALLOWED_HEADERS):
+            self.header.body.steam_id = value
 
     @property
     def session_id(self) -> Optional[int]:
         """Optional[:class:`int`]: The :attr:`header`'s session ID."""
-        return self.header.session_id if isinstance(self.header, AllowedHeaders) else None
+        return self.header.body.session_id if isinstance(self.header, ALLOWED_HEADERS) else None
 
     @session_id.setter
     def session_id(self, value: int) -> None:
-        if isinstance(self.header, AllowedHeaders):
-            self.header.session_id = value
+        if isinstance(self.header, ALLOWED_HEADERS):
+            self.header.body.session_id = value
 
     def parse(self) -> None:
-        raise NotImplementedError
+        """Parse the payload/data into a protobuf."""
+        if self.body is None:
+            proto = get_cmsg(self.msg)
+            self._parse(proto)
 
 
 class Msg(MsgBase[T]):
-    """A wrapper around received protobuf messages.
-
-    .. container:: operations
-
-        .. describe:: bytes(x)
-
-            Returns the sterilised message.
-
-        .. describe:: x[y]
-
-            Allows for type hinting of the messages body.
-
-    Parameters
-    ----------
-    msg: :class:`EMsg`
-        The emsg for the message.
-    data: Optional[:class:`bytes`]
-        The raw data for the message.
-    extended: :class:`bool`
-        Which header type to use, ``True`` uses :class:`.ExtendedMsgHdr` else it's :class:`.MsgHdr`.
-    **kwargs
-        Any keyword-arguments to construct the :attr:`body` with.
-
-    Attributes
-    ----------
-    header: Union[:class:`.ExtendedMsgHdr`, :class:`.MsgHdr`]
-        The message's header.
-    msg: :class:`.EMsg`
-        The emsg for the message.
-    body: :class:`betterproto.Message`
-        The instance of the protobuf.
-    payload: :class:`bytes`
-        The raw data for the message.
-    """
+    """A wrapper around received messages."""
 
     def __init__(
         self,
@@ -195,46 +165,9 @@ class Msg(MsgBase[T]):
         self.skip = self.header.SIZE
         super().__init__(msg, data, **kwargs)
 
-    def parse(self) -> None:
-        """Parse the payload/data into a protobuf."""
-        if self.body is None:
-            proto = get_cmsg(self.msg)
-            self._parse(proto)
-
 
 class MsgProto(MsgBase[T]):
-    """A wrapper around received protobuf messages.
-
-    .. container:: operations
-
-        .. describe:: bytes(x)
-
-            Returns the sterilised message.
-
-        .. describe:: x[y]
-
-            Allows for type hinting of the messages body.
-
-    Parameters
-    ----------
-    msg: :class:`.EMsg`
-        The emsg for the message.
-    data: Optional[:class:`bytes`]
-        The raw data for the message.
-    **kwargs
-        Any keyword-arguments to construct the :attr:`body` with.
-
-    Attributes
-    ----------
-    header: Union[:class:`.ExtendedMsgHdr`, :class:`.MsgHdr`]
-        The message's header.
-    msg: :class:`.EMsg`
-        The emsg for the message.
-    body: :class:`betterproto.Message`
-        The instance of the protobuf.
-    payload: :class:`bytes`
-        The raw data for the message.
-    """
+    """A wrapper around received protobuf messages."""
 
     __slots__ = ("um_name",)
 
@@ -242,12 +175,12 @@ class MsgProto(MsgBase[T]):
         self,
         msg: EMsg,
         data: Optional[bytes] = None,
-        _um_name: Optional[str] = None,
+        um_name: Optional[str] = None,
         **kwargs: Any,
     ):
         self.header = MsgHdrProtoBuf(data)
         self.skip = self.header._full_size
-        self.um_name = _um_name
+        self.um_name = um_name
         super().__init__(msg, data, **kwargs)
 
     def parse(self) -> None:
@@ -259,10 +192,10 @@ class MsgProto(MsgBase[T]):
                 EMsg.ServiceMethodSendToClient,
                 EMsg.ServiceMethodCallFromClient,
             ):
-                name = self.header.job_name_target or self.um_name
+                name = self.header.body.job_name_target or self.um_name
                 proto = get_um(f"{name}_Response" if self.msg == EMsg.ServiceMethodResponse else name)
                 if name:
-                    self.header.job_name_target = name.replace("_Request", "").replace("_Response", "")
+                    self.header.body.job_name_target = name.replace("_Request", "").replace("_Response", "")
 
             else:
                 proto = get_cmsg(self.msg)
@@ -271,6 +204,8 @@ class MsgProto(MsgBase[T]):
 
 
 class GCMsg(MsgBase[T]):
+    """A wrapper around received GC messages, mainly for extensions."""
+
     def __init__(
         self,
         msg: IE,
@@ -281,14 +216,10 @@ class GCMsg(MsgBase[T]):
         self.skip = self.header.SIZE
         super().__init__(msg, data, **kwargs)
 
-    def parse(self) -> None:
-        """Parse the payload/data into a protobuf."""
-        if self.body is None:
-            proto = get_cmsg(self.msg)
-            self._parse(proto)
-
 
 class GCMsgProto(MsgBase[T]):
+    """A wrapper around received GC protobuf messages, mainly for extensions."""
+
     def __init__(
         self,
         msg: IE,
@@ -298,9 +229,3 @@ class GCMsgProto(MsgBase[T]):
         self.header = GCMsgHdrProto(data)
         self.skip = self.header.SIZE + self.header.header_length
         super().__init__(msg, data, **kwargs)
-
-    def parse(self) -> None:
-        """Parse the payload/data into a protobuf."""
-        if self.body is None:
-            proto = get_cmsg(self.msg)
-            self._parse(proto)

@@ -502,16 +502,16 @@ class SteamWebSocket(Registerable):
             data = data[4 + size :]
 
     async def send_um(self, name: str, **kwargs: Any) -> int:
-        msg = MsgProto(EMsg.ServiceMethodCallFromClient, _um_name=name, **kwargs)
-        msg.header.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
+        msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
+        msg.header.body.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
-        return msg.header.job_id_source
+        return msg.header.body.job_id_source
 
     async def send_um_and_wait(
         self, name: str, check: Optional[Callable[[MsgBase], bool]] = None, timeout: float = 5.0, **kwargs: Any
     ) -> MsgProto:
         job_id = await self.send_um(name, **kwargs)
-        check = check or (lambda msg: msg.header.job_id_target == job_id)
+        check = check or (lambda msg: msg.header.body.job_id_target == job_id)
         return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, predicate=check), timeout=timeout)
 
     async def change_presence(

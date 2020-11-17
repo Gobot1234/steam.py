@@ -28,14 +28,16 @@ This is an updated copy of
 https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 """
 
+from __future__ import annotations
+
 import struct
-from typing import Optional
+from typing import Any, Optional
 
 from stringcase import snakecase
 
 from ..enums import EResult
 from ..utils import clear_proto_bit, set_proto_bit
-from . import foobar, steammessages_base
+from . import steammessages_base
 from .emsg import EMsg
 
 __all__ = (
@@ -47,21 +49,18 @@ __all__ = (
 )
 
 
+class _ExtendedMsgHdrBody:
+    __slots__ = ("msg",)
+
+    def __init__(self, msg: ExtendedMsgHdr):
+        self.msg = msg
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self.msg, item)
+
+
 class MsgHdr:
-    """The standard message header.
-
-    .. container:: operations
-
-        .. describe:: bytes(x)
-
-            Returns the sterilised header.
-
-    Attributes
-    ----------
-    msg: :class:`EMsg`
-    job_id_target: :class:`int`
-    job_id_source: :class:`int`
-    """
+    """The message header for :class:`steam.protobufs.Msg` objects."""
 
     __slots__ = ("msg", "eresult", "job_name_target", "job_id_target", "job_id_source")
     SIZE = 20
@@ -77,44 +76,22 @@ class MsgHdr:
 
     def __repr__(self) -> str:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in ("msg", "job_id_target", "job_id_source")]
-        return f'<MsgHdr {" ".join(resolved)}>'
+        return f"<MsgHdr {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:
         return struct.pack("<Iqq", self.msg, self.job_id_target, self.job_id_source)
 
     def parse(self, data: bytes) -> None:
-        """Parse the header.
-
-        Parameters
-        ----------
-        data: :class:`bytes`
-        """
+        """Parse the header."""
         msg, self.job_id_target, self.job_id_source = struct.unpack_from("<Iqq", data)
         self.msg = EMsg(msg)
 
 
 class ExtendedMsgHdr:
-    """The extended standard message header.
-
-    .. container:: operations
-
-        .. describe:: bytes(x)
-
-            Returns the sterilised header.
-
-    Attributes
-    ----------
-    msg: :class:`EMsg`
-    job_id_target: :class:`int`
-    job_id_source: :class:`int`
-    steam_id: :class:`str`
-    session_id: :class:`int`
-    header_size: :class:`int`
-    header_version: :class:`int`
-    header_canary: :class:`int`
-    """
+    """The extended message header for :class:`steam.protobufs.Msg` objects."""
 
     __slots__ = (
+        "body",
         "msg",
         "steam_id",
         "session_id",
@@ -140,10 +117,12 @@ class ExtendedMsgHdr:
         if data:
             self.parse(data)
 
+        self.body = _ExtendedMsgHdrBody(self)
+
     def __repr__(self) -> str:
         attrs = ("msg", "steam_id", "session_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f'<ExtendedMsgHdr {" ".join(resolved)}>'
+        return f"<ExtendedMsgHdr {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:
         return struct.pack(
@@ -159,12 +138,7 @@ class ExtendedMsgHdr:
         )
 
     def parse(self, data: bytes) -> None:
-        """Parse the header.
-
-        Parameters
-        ----------
-        data: :class:`bytes`
-        """
+        """Parse the header."""
         (
             msg,
             self.header_size,
@@ -183,19 +157,7 @@ class ExtendedMsgHdr:
 
 
 class MsgHdrProtoBuf:
-    """The message header for :class:`steam.protobufs.MsgProto` objects.
-
-    .. container:: operations
-
-        .. describe:: bytes(x)
-
-            Returns the sterilised header.
-
-    Attributes
-    ----------
-    msg: :class:`EMsg`
-    body: :class:`protobufs.steammessages_base.CMsgProtoBufHeader`
-    """
+    """The message header for :class:`steam.protobufs.MsgProto` objects."""
 
     SIZE = 8
     __slots__ = ("body", "msg", "_full_size")
@@ -219,70 +181,17 @@ class MsgHdrProtoBuf:
         return struct.pack("<II", set_proto_bit(self.msg), len(proto_data)) + proto_data
 
     def parse(self, data: bytes) -> None:
-        """Parse the header.
-
-        Parameters
-        ----------
-        data: :class:`bytes`
-        """
+        """Parse the header."""
         msg, proto_length = struct.unpack_from("<II", data)
 
         self.msg = EMsg(clear_proto_bit(msg))
         self._full_size = self.SIZE + proto_length
         self.body.parse(data[self.SIZE : self._full_size])
 
-    # allow for consistency between headers
-
-    @property
-    def session_id(self) -> int:
-        return self.body.client_sessionid
-
-    @session_id.setter
-    def session_id(self, value: int) -> None:
-        self.body.client_sessionid = int(value)
-
-    @property
-    def steam_id(self) -> int:
-        return self.body.steamid
-
-    @steam_id.setter
-    def steam_id(self, value: int) -> None:
-        self.body.steamid = int(value)
-
-    @property
-    def job_name_target(self) -> str:
-        return self.body.target_job_name
-
-    @job_name_target.setter
-    def job_name_target(self, value: str) -> None:
-        self.body.target_job_name = value
-
-    @property
-    def job_id_source(self) -> int:
-        return int(self.body.jobid_source)
-
-    @job_id_source.setter
-    def job_id_source(self, value: int) -> None:
-        self.body.jobid_source = int(value)
-
-    @property
-    def job_id_target(self) -> int:
-        return int(self.body.jobid_target)
-
-    @job_id_target.setter
-    def job_id_target(self, value: int) -> None:
-        self.body.jobid_target = int(value)
-
-    @property
-    def eresult(self) -> EResult:
-        return EResult.try_value(self.body.eresult)
-
-    @property
-    def message(self) -> str:
-        return self.body.error_message
-
 
 class GCMsgHdr:
+    """The message header for :class:`steam.protobufs.MsgProto` objects."""
+
     __slots__ = ("header_version", "target_job_id", "source_job_id")
     SIZE = 18
     msg = None
@@ -315,7 +224,7 @@ class GCMsgHdrProto:
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
-        self.body = foobar.CMsgProtoBufHeader()
+        self.body = steammessages_base.CMsgProtoBufHeader()
         self.header_length = 0
 
         if data:
@@ -339,53 +248,3 @@ class GCMsgHdrProto:
 
         if self.header_length:
             self.body = self.body.parse(data[self.SIZE : self.SIZE + self.header_length])
-
-    # allow for consistency between headers
-
-    @property
-    def session_id(self) -> int:
-        return self.body.client_session_id
-
-    @session_id.setter
-    def session_id(self, value: int) -> None:
-        self.body.client_session_id = int(value)
-
-    @property
-    def steam_id(self) -> int:
-        return self.body.client_steam_id
-
-    @steam_id.setter
-    def steam_id(self, value: int) -> None:
-        self.body.client_steam_id = int(value)
-
-    @property
-    def job_name_target(self) -> str:
-        return self.body.target_job_name
-
-    @job_name_target.setter
-    def job_name_target(self, value: str) -> None:
-        self.body.target_job_name = value
-
-    @property
-    def job_id_source(self) -> int:
-        return int(self.body.job_id_source)
-
-    @job_id_source.setter
-    def job_id_source(self, value: int) -> None:
-        self.body.job_id_source = int(value)
-
-    @property
-    def job_id_target(self) -> int:
-        return int(self.body.job_id_target)
-
-    @job_id_target.setter
-    def job_id_target(self, value: int) -> None:
-        self.body.job_id_target = int(value)
-
-    @property
-    def eresult(self) -> EResult:
-        return EResult.try_value(self.body.eresult)
-
-    @property
-    def message(self) -> str:
-        return self.body.error_message
