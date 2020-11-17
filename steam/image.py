@@ -89,7 +89,7 @@ class Image:
                 self.fp.seek(0)  # read 0xff next
                 size = 2
                 ftype = 0
-                while not 0xC0 <= ftype <= 0xCF or ftype in (0xC4, 0xC8, 0xCC):
+                while not 0xc0 <= ftype <= 0xcf or ftype in (0xc4, 0xc8, 0xcc):
                     self.fp.seek(size, 1)
                     byte = self.fp.read(1)
                     while ord(byte) == 0xff:
