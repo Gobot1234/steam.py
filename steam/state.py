@@ -632,9 +632,8 @@ class ConnectionState(Registerable):
     def parse_cm_list_update(self, msg: MsgProto[CMsgClientCMList]) -> None:
         log.debug("Updating CM list")
         cms = msg.body.cm_websocket_addresses
-        self.ws.cm_list.clear()
         self.ws.cm_list.merge_list(cms)
-        self.client.loop.create_task(self.ws.cm_list.ping_cms(to_ping=len(cms)))
+        self.loop.create_task(self.ws.cm_list.ping_cms(to_ping=len(cms)))
         # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)

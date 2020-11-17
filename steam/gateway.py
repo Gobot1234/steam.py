@@ -153,14 +153,13 @@ class CMServerList(AsyncIterator[CMServer]):
         websockets_list = resp["serverlist_websockets"]
         log.debug(f"Received {len(websockets_list)} servers from WebAPI")
 
-        self.clear()
         self.cell_id = cell_id
         self.merge_list(websockets_list)
 
         return True
 
     def reset_all(self) -> None:
-        log.debug("Marking all CM servers as Good.")
+        log.debug("Marking all CM servers as good.")
         for cm in self.cms:
             cm.score = 0.0
 
@@ -182,14 +181,14 @@ class CMServerList(AsyncIterator[CMServer]):
             try:
                 resp = await self._state.http._session.get(f"https://{cm.url}/cmping/", timeout=5)
                 if resp.status != 200:
-                    raise aiohttp.ClientError()
-                load = resp.headers["X-Steam-CMLoad"]
+                    raise aiohttp.ClientError
             except (KeyError, asyncio.TimeoutError, aiohttp.ClientError):
                 try:
                     self.cms.remove(cm)
                 except ValueError:
                     pass
             else:
+                load = resp.headers["X-Steam-CMLoad"]
                 latency = time.perf_counter() - start
                 cm.score = (int(load) * 2) + latency
                 best_cms.append(cm)
