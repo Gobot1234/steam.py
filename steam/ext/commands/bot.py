@@ -45,7 +45,7 @@ from ... import utils
 from ...client import Client, E, EventType, log
 from ...utils import maybe_coroutine
 from .cog import Cog
-from .commands import CheckReturnType, Command, GroupMixin, H, HookDecoType, check, CH, CHR
+from .commands import CH, CHR, CheckReturnType, Command, GroupMixin, H, HookDecoType, check
 from .context import Context
 from .converters import CONVERTERS, Converters
 from .errors import CommandNotFound

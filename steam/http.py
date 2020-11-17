@@ -42,7 +42,7 @@ from bs4 import BeautifulSoup
 
 from . import __version__, errors, utils
 from .models import URL, api_route, community_route
-from .user import ClientUser
+from .user import BaseUser, ClientUser
 
 if TYPE_CHECKING:
     from .client import Client
@@ -208,6 +208,12 @@ class HTTPClient:
             await self.request("POST", url=url, data=data)
 
         self.api_key = self._client.api_key = await self.get_api_key()
+        if self.api_key is None:
+            log.info("Failed to get API key")
+            BaseUser._patch_without_api()
+            utils.warn("Some methods of User objects are not available as no API key can be generated", UserWarning)
+            await self.request("GET", community_route("home"))
+
         cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
         self.session_id = cookies["sessionid"].value
 
@@ -656,15 +662,13 @@ class HTTPClient:
         )
         await self.request("POST", community_route("chat/commitfileupload"), data=payload)
 
-    async def get_api_key(self) -> str:
+    async def get_api_key(self) -> Optional[str]:
         resp = await self.request("GET", community_route("dev/apikey"))
-        if "<h2>Access Denied</h2>" in resp:
-            raise errors.LoginError(
-                "Access denied, you will need to generate a key yourself: https://steamcommunity.com/dev/apikey"
-            )
-        error = "You must have a validated email address to create a Steam Web API key"
-        if error in resp:
-            raise errors.LoginError(error)
+        if (
+            "<h2>Access Denied</h2>" in resp
+            or "You must have a validated email address to create a Steam Web API key" in resp
+        ):
+            return
 
         match = re.findall(r"<p>Key: ([0-9A-F]+)</p>", resp)
         if match:

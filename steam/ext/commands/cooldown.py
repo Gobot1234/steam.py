@@ -34,7 +34,7 @@ from ...enums import IntEnum
 from .errors import CommandOnCooldown
 
 if TYPE_CHECKING:
-    from ...abc import Messageable, Message
+    from ...abc import Message, Messageable
 
 __all__ = (
     "BucketType",

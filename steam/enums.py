@@ -146,10 +146,10 @@ class Enum(metaclass=EnumMeta):
         return True  # an enum member with a zero value would return False otherwise
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}.{self.name}"
+        return self.name
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}.{self.name}: {self.value!r}>"
+        return f"{self.__class__.__name__}.{self.name}"
 
     @classmethod
     def try_value(cls: type[E], value: T) -> Union[E, T]:
@@ -169,8 +169,91 @@ class IntEnum(Enum, int):
         return self
 
 
+'''
+class IntFlag(IntEnum):
+    def __contains__(self, other):
+        if not isinstance(other, self.__class__):
+            raise TypeError(
+                f"unsupported operand type(s) for 'in': {other.__class__.__qualname__!r} and "
+                f"{self.__class__.__qualname__!r}"
+            )
+        return other.value & self.value == other.value
+
+    def __repr__(self):
+        cls = self.__class__
+        if self._name_ is not None:
+            return '<%s.%s: %r>' % (cls.__name__, self._name_, self._value_)
+        members, uncovered = _decompose(cls, self._value_)
+        return '<%s.%s: %r>' % (
+                cls.__name__,
+                '|'.join([str(m._name_ or m._value_) for m in members]),
+                self._value_,
+                )
+
+    def __str__(self):
+        cls = self.__class__
+        if self._name_ is not None:
+            return '%s.%s' % (cls.__name__, self._name_)
+        members, uncovered = _decompose(cls, self._value_)
+        if len(members) == 1 and members[0]._name_ is None:
+            return '%s.%r' % (cls.__name__, members[0]._value_)
+        else:
+            return '%s.%s' % (
+                    cls.__name__,
+                    '|'.join([str(m._name_ or m._value_) for m in members]),
+                    )
+
+    def __bool__(self):
+        return bool(self.value)
+
+    def __or__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self.__class__.__new__(self.value | other.value)
+
+    def __and__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self.__class__(self.value & other.value)
+
+    def __xor__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self.__class__(self.value ^ other.value)
+
+    def __invert__(self):
+        members, uncovered = _decompose(self.__class__, self._value_)
+        inverted = self.__class__(0)
+        for m in self.__class__:
+            if m not in members and not (m._value_ & self._value_):
+                inverted = inverted | m
+        return self.__class__(inverted)
+
+    @classmethod
+    def components(cls, flag: int) -> list[EPersonaStateFlag]:
+        """A helper function to breakdown a flag into its component parts.
+
+        Parameters
+        ----------
+        flag: :class:`int`
+            The flag to break down.
+
+        Returns
+        -------
+        list[:class:`EPersonaStateFlag`]
+            The resolved flags.
+        """
+        flags = [enum for value, enum in cls._value_map_.items() if value & flag]
+        value = 0
+        for f in flags:
+            value |= f
+        return flags if value == flag else []
+'''
+
+IntFlag = IntEnum
+
 if TYPE_CHECKING:
-    from enum import Enum as _Enum
+    from enum import Enum as _Enum, IntFlag as IntFlag
 
     class Enum(_Enum):
         @classmethod
@@ -338,7 +421,7 @@ class ETypeChar(IntEnum):
     a = EType.AnonUser        #: The character used for :class:`~steam.EType.Invalid`.
 
 
-class EInstanceFlag(IntEnum):
+class EInstanceFlag(IntFlag):
     MMSLobby = 0x20000  #: The Steam ID is for a MMS Lobby.
     Lobby    = 0x40000  #: The Steam ID is for a Lobby.
     Clan     = 0x80000  #: The Steam ID is for a Clan.
@@ -367,7 +450,7 @@ class EPersonaState(IntEnum):
     Max            = 8  #: The total number of states. Only used for looping and validation.
 
 
-class EPersonaStateFlag(IntEnum):
+class EPersonaStateFlag(IntFlag):
     NONE                 = 0
     HasRichPresence      = 1
     InJoinableGame       = 2
