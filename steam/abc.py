@@ -137,7 +137,6 @@ class SteamID(metaclass=abc.ABCMeta):
 
     __slots__ = (
         "__BASE",
-        "__weakref__",
     )
 
     @overload
@@ -341,7 +340,10 @@ class SteamID(metaclass=abc.ABCMeta):
 class Commentable(SteamID):
     """A mixin that implements commenting functionality"""
 
-    __slots__ = ("comment_path",)
+    __slots__ = (
+        "comment_path",
+        "__weakref__",
+    )
 
     _state: ConnectionState
     comment_path: str
@@ -734,11 +736,10 @@ class Messageable(metaclass=abc.ABCMeta):
 class Channel(Messageable):
     __slots__ = ("clan", "group", "_state")
 
-    _state: ConnectionState
-
     def __init__(self):
         self.clan: Optional[Clan] = None
         self.group: Optional[Group] = None
+        self._state: ConnectionState
 
 
 def _clean_up_content(content: str) -> str:

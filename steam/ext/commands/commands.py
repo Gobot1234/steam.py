@@ -62,7 +62,6 @@ from .errors import (
     BadArgument,
     CheckFailure,
     CommandDisabled,
-    CommandOnCooldown,
     DuplicateKeywordArgument,
     MissingRequiredArgument,
     NotOwner,
@@ -97,6 +96,8 @@ HookDecoType = Union[Callable[[H], H], H]
 C = TypeVar("C", bound="Command")
 GC = TypeVar("GC", bound="GroupCommand")
 CFT = TypeVar("CFT", bound="CommandFunctionType")
+CHR = TypeVar("CHR", bound="CheckReturnType")
+CH = TypeVar("CH", bound=Callable[[CheckType], "CheckReturnType"])
 
 
 class CommandDeco(FunctionType):
@@ -169,7 +170,7 @@ class Command:
         "_after_hook",
     }
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> Command:
+    def __new__(cls: type[C], *args: Any, **kwargs: Any) -> C:
         self = super().__new__(cls)
         self.__original_kwargs__ = kwargs.copy()
         return self
@@ -251,7 +252,7 @@ class Command:
         return self._callback
 
     @callback.setter
-    def callback(self, function: CommandFunctionType) -> None:
+    def callback(self, function: CFT) -> None:
         if not asyncio.iscoroutinefunction(function):
             raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine function.")
 
@@ -274,7 +275,7 @@ class Command:
             self.params.copy().popitem(last=False)
         except KeyError:
             raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
-        self.module = module
+        self.module = function.__module__
         self._callback = function
 
     @cached_property
@@ -724,7 +725,7 @@ class GroupMixin:
         cooldown: list[Cooldown] = ...,
         special_converters: list[type[converters.Converters]] = ...,
         cog: Optional[Cog] = ...,
-        parent: Optional[Command] = ...,
+        parent: Optional[GroupMixin] = ...,
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
@@ -776,7 +777,7 @@ class GroupMixin:
         cooldown: list[Cooldown] = ...,
         special_converters: list[type[converters.Converters]] = ...,
         cog: Optional[Cog] = ...,
-        parent: Optional[Command] = ...,
+        parent: Optional[GroupMixin] = ...,
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
@@ -841,7 +842,7 @@ class GroupCommand(GroupMixin, Command):
                 ctx.lex.undo()
                 break
 
-        await (super().invoke(ctx) if command is self else command.invoke(ctx))  # type: ignore
+        await (super().invoke(ctx) if command is self else command.invoke(ctx))
 
 
 @overload
@@ -862,7 +863,7 @@ def command(
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
-) -> Union[Callable[[CommandFunctionType], C], C]:
+) -> Union[Callable[[CFT], C], C]:
     ...
 
 
@@ -975,7 +976,7 @@ def check(predicate: CheckType) -> CheckReturnType:
 
         return func
 
-    if inspect.iscoroutinefunction(predicate):
+    if asyncio.iscoroutinefunction(predicate):
         decorator.predicate = predicate
     else:
 

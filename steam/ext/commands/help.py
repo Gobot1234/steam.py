@@ -74,37 +74,36 @@ class HelpCommand(Command):
             - :meth:`command_not_found`
         """
         self.context = ctx
-        try:
-            bot = ctx.bot
-            if content is None:
-                mapping = self.get_bot_mapping()
-                return await self.send_help(mapping)
-            # check if it's a cog
-            cog = bot.get_cog(content)
-            if cog is not None:
-                return await self.send_cog_help(cog)
-            command = bot.get_command(content)
-            if command is not None:
-                return await (
-                    self.send_group_help(command)
-                    if isinstance(command, GroupCommand)
-                    else self.send_command_help(command)
-                )
+        bot = ctx.bot
+        if content is None:
+            mapping = self.get_bot_mapping()
+            return await self.send_help(mapping)
+        # check if it's a cog
+        cog = bot.get_cog(content)
+        if cog is not None:
+            return await self.send_cog_help(cog)
+        command = bot.get_command(content)
+        if command is not None:
+            return await (
+                self.send_group_help(command) if isinstance(command, GroupCommand) else self.send_command_help(command)
+            )
 
-            await self.command_not_found(content)
-        finally:
-            del self.context
+        await self.command_not_found(content)
 
-    @abc.abstractmethod
     def get_bot_mapping(self) -> "dict[Optional[str], list[commands.Command]]":
         """
         Generate a mapping of the bot's commands. It's not normally necessary to subclass this.
 
         Returns
         -------
-        dict[Optional[str], list[Command]]
+        dict[Optional[:class:`str`], list[:class:`Command`]]
             The mapping of commands passed to :meth:`send_help`.
         """
+        bot = self.context.bot
+        mapping = {cog.qualified_name: list(cog.commands) for name, cog in bot.cogs.items() if cog.commands}
+        categorized_commands = [command for c in mapping.values() for command in c]
+        mapping[None] = [c for c in bot.commands if c not in categorized_commands]
+        return mapping
 
     @abc.abstractmethod
     async def send_help(self, mapping: "dict[Optional[str], list[commands.Command]]") -> None:
@@ -122,8 +121,10 @@ class HelpCommand(Command):
         """|coro|
         The method called with a cog is passed as an argument.
 
-        .. note::
-            This is case-sensitive.
+        Note
+        ----
+        Cogs are case-sensitive.
+
 
         Parameters
         ----------
@@ -196,33 +197,7 @@ class DefaultHelpCommand(HelpCommand):
         except (IndexError, AttributeError):
             return ""
 
-    def get_bot_mapping(self) -> "dict[Optional[str], list[commands.Command]]":
-        """
-        Generate a mapping of the bot's commands. It's not normally necessary to subclass this.
-
-        Returns
-        -------
-        dict[Optional[str], list[Command]]
-            The mapping of commands passed to :meth:`send_help`.
-        """
-        bot = self.context.bot
-        mapping = {name: list(cog.commands) for name, cog in bot.__cogs__.items()}
-        categorized_commands = []
-        for l in mapping.values():
-            for command in l:
-                categorized_commands.append(command)
-        mapping[None] = [c for c in bot.commands if c not in categorized_commands]
-        return mapping
-
     async def send_help(self, mapping: "dict[Optional[str], list[commands.Command]]") -> None:
-        """|coro|
-        Send the basic help message for the bot's command.
-
-        Parameters
-        ----------
-        mapping: dict[Optional[commands.Cog], list[commands.Command]]
-            The mapping from :meth:`get_bot_mapping`.
-        """
         message = ["/pre"]
         for cog_name, commands in mapping.items():
             (
@@ -235,42 +210,16 @@ class DefaultHelpCommand(HelpCommand):
         await self.context.send("\n".join(message))
 
     async def send_cog_help(self, cog: "commands.Cog") -> None:
-        """|coro|
-        The method called with a cog is passed as an argument.
-
-        .. note::
-            This is case-sensitive.
-
-        Parameters
-        ----------
-        cog: :class:`~steam.ext.commands.Cog`
-            The cog that was passed as an argument.
-        """
         message = [f"/pre {cog.qualified_name}'s commands"]
-        for name, command in sorted({c.name: c for c in cog.commands}):
+        for name in sorted(c.name for c in cog.commands):
+            command = cog.__commands__[name]
             message.append(f'{name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
     async def send_command_help(self, command: "commands.Command") -> None:
-        """|coro|
-        The method called when a normal command is passed as an argument.
-
-        Parameters
-        ----------
-        command: :class:`~steam.ext.commands.Command`
-            The command that was passed as an argument.
-        """
         await self.context.send(f"/pre Help with {command.name}:\n\n{command.help}")
 
     async def send_group_help(self, command: "commands.GroupCommand") -> None:
-        """|coro|
-        The method called when a group command is passed as an argument.
-
-        Parameters
-        ----------
-        command: :class:`~steam.ext.commands.GroupCommand`
-            The command that was passed as an argument.
-        """
         msg = [f"/pre Help with {command.name}:\n\n{command.help}"]
         sub_commands = "\n".join(c.name for c in command.children)
         if sub_commands:

@@ -45,7 +45,7 @@ from ... import utils
 from ...client import Client, E, EventType, log
 from ...utils import maybe_coroutine
 from .cog import Cog
-from .commands import CheckReturnType, Command, GroupMixin, H, HookDecoType, check
+from .commands import CheckReturnType, Command, GroupMixin, H, HookDecoType, check, CH, CHR
 from .context import Context
 from .converters import CONVERTERS, Converters
 from .errors import CommandNotFound
@@ -64,7 +64,6 @@ if TYPE_CHECKING:
     from ...message import Message
     from ...trade import TradeOffer
     from ...user import User
-    from .commands import CheckType
 
 __all__ = (
     "Bot",
@@ -96,13 +95,14 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
 
         bot = commands.Bot(command_prefix=commands.when_mentioned_or('!'))
 
-    .. note::
-        This callable returns another callable, so if this is done inside a custom callable, you must call the
-        returned callable, for example: ::
+    Note
+    ----
+    This callable returns another callable, so if this is done inside a custom callable, you must call the
+    returned callable, for example: ::
 
-            async def get_prefix(bot, message):
-                extras = await prefixes_for(message.guild)  # returns a list
-                return commands.when_mentioned_or(*extras)(bot, message)
+        async def get_prefix(bot, message):
+            extras = await prefixes_for(message.guild)  # returns a list
+            return commands.when_mentioned_or(*extras)(bot, message)
 
     See Also
     ---------
@@ -137,18 +137,18 @@ class Bot(GroupMixin, Client):
             - Callable[[:class:`Bot`, :class:`~steam.Message`], Union[:class:`str`, Iterable[:class:`str`]]
             - Callable[[:class:`Bot`, :class:`~steam.Message`], Awaitable[Union[:class:`str`, Iterable[:class:`str`]]]
 
-        .. note::
+        Note
+        ----
+        The first prefix matched when getting context will always be returned,
+        ensure that no prefix matches a longer prefix later in the sequence.
+        e.g. ::
 
-            The first prefix matched when getting context will always be returned,
-            ensure that no prefix matches a longer prefix later in the sequence.
-            e.g. ::
+            bot = commands.Bot(command_prefix=('!', '!?'))
+            # the '!?' prefix will never be matched as the previous
+            # prefix would match the '!' at the start of the message
 
-                bot = commands.Bot(command_prefix=('!', '!?'))
-                # the '!?' prefix will never be matched as the previous
-                # prefix would match the '!' at the start of the message
-
-            This is especially important when passing an empty string,
-            it should always be last as no prefix after it will be matched.
+        This is especially important when passing an empty string,
+        it should always be last as no prefix after it will be matched.
 
     owner_id: :class:`int`
         The Steam ID of the owner, this is converted to their 64 bit ID representation upon initialization.
@@ -164,9 +164,10 @@ class Bot(GroupMixin, Client):
     state: :class:`~steam.EPersonaState`
         The state to show your account as on connect.
 
-        .. note::
-            Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state
-            updates and by extension :meth:`on_user_update` will stop being dispatched.
+        Note
+        ----
+        Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state
+        updates and by extension :meth:`on_user_update` will stop being dispatched.
 
     ui_mode: :class:`~steam.EUIMode`
         The UI mode to set your status to on connect.
@@ -405,8 +406,19 @@ class Bot(GroupMixin, Client):
         except (KeyError, ValueError):
             pass
 
+    @classmethod
+    @overload
+    def listen(cls, coro: E) -> E:
+        ...
+
+    @classmethod
+    @overload
+    def listen(cls, name: Optional[str] = None) -> Callable[[E], E]:
+        ...
+
     def listen(self, name: Optional[str] = None) -> Callable[[E], E]:
-        """Register a function as a listener. Calls :meth:`add_listener`. Similar to :meth:`.Cog.listener`
+        """|maybecallabledeco|
+        Register a function as a listener. Calls :meth:`add_listener`. Similar to :meth:`.Cog.listener`
 
         Parameters
         ----------
@@ -414,20 +426,18 @@ class Bot(GroupMixin, Client):
             The name of the event to listen for. Will default to ``func.__name__``.
         """
 
-        def decorator(listener: E) -> E:
-            self.add_listener(listener, name)
-            return listener
+        def decorator(coro: E) -> E:
+            self.add_listener(coro, name if not callable(name) else coro.__name__)
+            return coro
 
         return decorator(name) if callable(name) else lambda listener: decorator(listener)
 
-    def check(
-        self, predicate: Optional[Union[Callable[[CheckType], CheckReturnType], CheckType]] = None
-    ) -> Union[Callable[[CheckType], CheckReturnType], CheckReturnType]:
+    def check(self, predicate: Optional[Union[CH, CHR]] = None) -> Union[CH, CHR]:
         """|maybecallabledeco|
         Register a global check for all commands. This is similar to :func:`commands.check`.
         """
 
-        def decorator(predicate: CheckType) -> CheckReturnType:
+        def decorator(predicate: CH) -> CHR:
             predicate = check(predicate)
             self.add_check(predicate)
             return predicate

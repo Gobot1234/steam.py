@@ -32,7 +32,7 @@ import re
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar
 
-from typing_extensions import Final, Protocol
+from typing_extensions import Final
 from yarl import URL as _URL
 
 from .protobufs import EMsg, MsgProto

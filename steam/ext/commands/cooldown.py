@@ -34,9 +34,7 @@ from ...enums import IntEnum
 from .errors import CommandOnCooldown
 
 if TYPE_CHECKING:
-    from ...message import Message
-    from .context import Context
-
+    from ...abc import Messageable, Message
 
 __all__ = (
     "BucketType",
@@ -62,12 +60,12 @@ class BucketType(IntEnum):
     Admin   = 7  #: The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`.
     # fmt: on
 
-    def get_bucket(self, ctx: Union[Message, Context]) -> T_Bucket:
+    def get_bucket(self, ctx: Union[Message, Messageable]) -> T_Bucket:
         """Get a bucket for a message or context.
 
         Parameters
         ----------
-        ctx: Union[:class:`steam.Message`, :class:`commands.Context`]
+        ctx: Union[:class:`steam.Message`, :class:`steam.abc.Messageable`]
             The message or context to get the bucket for.
 
         Returns
@@ -138,12 +136,12 @@ class Cooldown:
             return last_call + self._per - now
         return 0.0
 
-    def __call__(self, ctx: Union[Message, Context]) -> None:
+    def __call__(self, ctx: Union[Message, Messageable]) -> None:
         """Invoke the command's cooldown properly and raise if the command is on cooldown.
 
         Parameters
         ----------
-        ctx: Union[:class:`steam.Message`, :class:`commands.Context`]
+        ctx: Union[:class:`steam.Message`, :class:`steam.abc.Messageable`]
             The context for invocation to check for a cooldown on.
         """
         bucket = self.bucket.get_bucket(ctx)

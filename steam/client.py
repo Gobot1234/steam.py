@@ -111,7 +111,7 @@ class Client:
             utils.warn("The loop argument is deprecated and scheduled for removal in V.1")
         self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self)
-        self._connection = ConnectionState(client=self, http=self.http, **options)
+        self._connection = ConnectionState(client=self, **options)
         self.ws: Optional[SteamWebSocket] = None
 
         self.username: Optional[str] = None
@@ -183,7 +183,7 @@ class Client:
         """:class:`bool`: Indicates if connection is closed to the API or CMs."""
         return self._closed
 
-    def event(self, coro: Optional[E] = None) -> E:
+    def event(self, coro: Optional[EventDeco] = None) -> EventDeco:
         """|maybecallabledeco|
         Register an event to listen to.
 
@@ -196,7 +196,7 @@ class Client:
                 print('Ready!')
 
         Raises
-        --------
+        ------
         :exc:`TypeError`
             The function passed is not a coroutine.
         """

@@ -29,7 +29,7 @@ from __future__ import annotations
 import inspect
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, overload
 
 from chardet import detect
 from typing_extensions import Final
@@ -143,9 +143,20 @@ class Cog:
         return ret
 
     @classmethod
+    @overload
+    def listener(cls, coro: E) -> E:
+        ...
+
+    @classmethod
+    @overload
     def listener(cls, name: Optional[str] = None) -> Callable[[E], E]:
-        """A decorator that registers a :ref:`coroutine <coroutine>` as a listener.
-        Similar to :meth:`~steam.ext.commands.Bot.listen`
+        ...
+
+    @classmethod
+    def listener(cls, name: Optional[str] = None) -> Callable[[E], E]:
+        """|maybecallabledeco|
+        A decorator that registers a :ref:`coroutine <coroutine>` as a listener. Similar to
+        :meth:`~steam.ext.commands.Bot.listen`
 
         Parameters
         ----------
@@ -156,7 +167,7 @@ class Cog:
         def decorator(coro: E) -> E:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Listeners must be coroutines, {coro.__name__} is {type(coro).__name__}")
-            coro.__event_name__ = name or coro.__name__
+            coro.__event_name__ = name if not callable(name) else coro.__name__
             return coro
 
         return decorator(name) if callable(name) else lambda coro: decorator(coro)
@@ -241,9 +252,8 @@ class Cog:
                 raise
 
         for name, listeners in self.__listeners__.items():
-            for idx, listener in enumerate(listeners):
+            for listener in listeners:
                 listener = getattr(self, listener.__name__)  # get the bound method version
-                self.__listeners__[name][idx] = listener  # edit the original
                 bot.add_listener(listener, name)
 
     def _eject(self, bot: Bot) -> None:

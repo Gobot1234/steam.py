@@ -51,7 +51,6 @@ __all__ = (
 Items = Union["Item", "Asset"]
 
 
-# TypedDicts to help visualise the data you receive
 class AssetToDict(TypedDict):
     assetid: str
     amount: int
@@ -112,7 +111,7 @@ class TradeOfferDict(TypedDict):
     items_to_receive: list[ItemDict]
     is_our_offer: bool
     from_real_time_trade: bool
-    confirmation_method: int  # 2 is mobile not a clue what other values are
+    confirmation_method: int  # 2 is mobile 1 might be email? not a clue what other values are
 
 
 class Asset:
@@ -466,9 +465,8 @@ class TradeOffer:
         trade._has_been_sent = True
         trade._state = state
         trade._update(data)
-        trade.partner = await state.client.fetch_user(data["accountid_other"]) or SteamID(
-            data["accountid_other"]
-        )  # the account is private :(
+        user_id = data["accountid_other"]
+        trade.partner = await state.client.fetch_user(user_id) or SteamID(user_id)  # the account is private :(
         return trade
 
     def __repr__(self) -> str:

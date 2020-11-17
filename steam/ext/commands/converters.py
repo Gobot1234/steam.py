@@ -108,7 +108,7 @@ class BasicConverter(FunctionType):
 CONVERTERS = ConverterDict()
 
 
-def converter_for(converter_for: T) -> Callable[[RD], RD]:
+def converter_for(converter_for: T) -> Callable[[MC], MC]:
     """The recommended way to mark a function converter as such.
 
     Note
@@ -142,7 +142,7 @@ def converter_for(converter_for: T) -> Callable[[RD], RD]:
         The class that the converter can be type-hinted to to.
     """
 
-    def decorator(func: RD) -> RD:
+    def decorator(func: MC) -> MC:
         if not isinstance(func, types.FunctionType):
             raise TypeError(f"Excepted a function, received {func.__class__.__name__!r}")
         CONVERTERS[converter_for] = func
@@ -158,14 +158,14 @@ class Converter(Protocol[T]):
 
     Note
     ----
-    All of the converters derived from :class:`.Converter` or marked with the :func:`.converter_for` decorator can
+    All of the converters derived from :class:`Converter` or marked with the :func:`converter_for` decorator can
     be accessed via :attr:`~steam.ext.commands.Bot.converters`.
 
     Some custom dataclasses from this library can be type-hinted without the need for a custom converter:
 
         - :class:`~steam.User`.
-        - :class:`~steam.Channel`
-        - :class:`~steam.abc.Clan`
+        - :class:`~steam.abc.Channel`
+        - :class:`~steam.Clan`
         - :class:`~steam.Group`
         - :class:`~steam.Game`
 
@@ -189,18 +189,8 @@ class Converter(Protocol[T]):
 
     A custom converter: ::
 
-        import re
-        from io import BytesIO
-
-        import aiohttp
-
-        import steam
-        from steam.ext import commands
-
-        bot = commands.Bot(command_prefix="!")
-
-
         class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
+
             async def convert(self, ctx: commands.Context, argument: str) -> steam.Image:
                 search = re.search(r"\[img src=(?P<url>(?:.*)) ", argument)
                 if search is None:
