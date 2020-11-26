@@ -37,7 +37,7 @@ from time import time
 from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
 
 from bs4 import BeautifulSoup
-from stringcase import snakecase
+from betterproto import snake_case
 
 from . import utils
 from .abc import SteamID, UserDict
@@ -638,7 +638,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientPersonaState)
     async def parse_persona_state_update(self, msg: MsgProto[CMsgClientPersonaState]) -> None:
         for friend in msg.body.friends:
-            data: UserDict = friend.to_dict(snakecase)
+            data: UserDict = friend.to_dict(snake_case)
             if not data:
                 continue
             user_id64 = friend.friendid

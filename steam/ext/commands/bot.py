@@ -37,7 +37,7 @@ import sys
 import traceback
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Mapping, Optional, TypeVar, Union
 
 from typing_extensions import Literal, overload
 
@@ -76,6 +76,7 @@ StrOrIterStr = Union[str, Iterable[str]]
 CommandPrefixType = Union[
     StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Coroutine[Any, Any, StrOrIterStr]]]
 ]
+C = TypeVar("C", bound="Context")
 
 
 def when_mentioned(bot: Bot, message: Message) -> list[str]:
@@ -101,7 +102,7 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
     returned callable, for example: ::
 
         async def get_prefix(bot, message):
-            extras = await prefixes_for(message.guild)  # returns a list
+            extras = await prefixes_for(message.clan)  # returns a list
             return commands.when_mentioned_or(*extras)(bot, message)
 
     See Also
@@ -237,7 +238,12 @@ class Bot(GroupMixin, Client):
         return self._help_command
 
     @help_command.setter
-    def help_command(self, value: HelpCommand) -> None:
+    def help_command(self, value: Optional[HelpCommand]) -> None:
+        if value is None:
+            self.remove_command("help")
+            self._help_command = None
+            return
+
         if not isinstance(value, HelpCommand):
             raise TypeError("help_command should derive from commands.HelpCommand")
         self.add_command(value)
@@ -492,7 +498,7 @@ class Bot(GroupMixin, Client):
 
         def decorator(coro: H) -> H:
             if not asyncio.iscoroutinefunction(coro):
-                raise TypeError("Hooks must be coroutines")
+                raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
             self._before_hook = coro
             return coro
 
@@ -505,7 +511,7 @@ class Bot(GroupMixin, Client):
 
         def decorator(coro: H) -> H:
             if not asyncio.iscoroutinefunction(coro):
-                raise TypeError("Hooks must be coroutines")
+                raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
             self._after_hook = coro
             return coro
 
@@ -562,7 +568,7 @@ class Bot(GroupMixin, Client):
             exc = CommandNotFound(f"The command {ctx.invoked_with!r} was not found")
             self.dispatch("command_error", ctx, exc)
 
-    async def get_context(self, message: Message, *, cls: type[Context] = Context) -> Context:
+    async def get_context(self, message: Message, *, cls: type[C] = Context) -> C:
         """|coro|
         Get context for a certain message.
 

@@ -344,10 +344,10 @@ class Commentable(SteamID):
     )
 
     _state: ConnectionState
-    comment_path: str
+    comment_path: Final[str]
 
     def __init_subclass__(cls, **kwargs: Any):
-        cls.comment_path: Final[str] = kwargs.get("comment_path", "Profile")
+        cls.comment_path = kwargs.get("comment_path", "Profile")
 
     def copy(self: C) -> C:
         cls = self.__class__

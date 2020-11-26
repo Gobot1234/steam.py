@@ -354,9 +354,9 @@ class Command:
         Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
         """
 
-        def decorator(coro: HookFunction) -> HookFunction:
+        def decorator(coro: H) -> H:
             if not asyncio.iscoroutinefunction(coro):
-                raise TypeError("Hooks must be coroutines")
+                raise TypeError(f"Hook for {self.name} must be a coroutine")
             self._before_hook = coro
             return coro
 
@@ -367,9 +367,9 @@ class Command:
         Register a :ref:`coroutine <coroutine>` to be ran after the command has been invoked.
         """
 
-        def decorator(coro: HookFunction) -> HookFunction:
+        def decorator(coro: H) -> H:
             if not asyncio.iscoroutinefunction(coro):
-                raise TypeError("Hooks must be coroutines")
+                raise TypeError(f"Hook for {self.name} must be a coroutine")
             self._after_hook = coro
             return coro
 
@@ -890,7 +890,7 @@ def command(
 
     def decorator(callback: CFT) -> C:
         if isinstance(callback, Command):
-            raise TypeError("Callback is already a command.")
+            raise TypeError("callback is already a command.")
         return cls(callback, name=name, **attrs)
 
     return decorator(callback) if callback is not None else lambda callback: decorator(callback)
