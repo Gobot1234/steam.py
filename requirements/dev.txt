@@ -3,4 +3,3 @@ isort
 flake8
 pytest
 pytest-asyncio
-pyyaml
