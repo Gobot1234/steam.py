@@ -578,17 +578,14 @@ class Bot(GroupMixin, Client):
         :class:`.Context`
             The context for the message.
         """
+        lex = Shlex(message.content)
+
         prefix = await self.get_prefix(message)
         if prefix is None:
-            return cls(message=message, prefix=prefix, bot=self)
+            return cls(bot=self, message=message, lex=lex, prefix=prefix)
 
-        lex = Shlex(message.content)
         lex.position = len(prefix)
         invoked_with = lex.read()
-
-        if invoked_with is None:
-            return cls(message=message, prefix=prefix, bot=self)
-
         command = self.__commands__.get(invoked_with)
 
         return cls(
