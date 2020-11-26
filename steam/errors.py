@@ -85,25 +85,30 @@ class HTTPException(SteamException):
         Could be an empty string if no message can parsed.
     status: :class:`int`
         The status code of the HTTP request.
-    code: Union[:class:`.EResult`, :class:`int`]
+    code: :class:`.EResult`
         The Steam specific error code for the failure.
-        It will attempt to find a matching a :class:`.EResult` for the value.
     """
 
     def __init__(self, response: ClientResponse, data: Optional[Any]):
         self.response = response
         self.status = response.status
-        self.code = 0
+        self.code = EResult.Invalid
         self.message = ""
 
         if data:
             if isinstance(data, dict):
                 if len(data) != 1 and data.get("success", False):  # ignore {'success': False} as the message
                     message = data.get("message") or str(list(data.values())[0])
-                    code = data.get("result") or CODE_FINDER.findall(message)
+                    code = (
+                        data.get("result") or  # try the data if possible
+                        response.headers.get("X-EResult") or  # then the headers
+                        CODE_FINDER.findall(message)  # finally the message
+                    )
                     if code:
-                        self.code = EResult.try_value(int(code[0]))
-                    self.message = CODE_FINDER.sub("", message)
+                        if isinstance(code, list):
+                            self.message = CODE_FINDER.sub("", message)
+                            code = code[0]
+                        self.code = EResult.try_value(int(code))
             else:
                 text = BeautifulSoup(data, "html.parser").get_text("\n")
                 self.message = text or ""
@@ -111,7 +116,7 @@ class HTTPException(SteamException):
         self.message = self.message.replace("  ", " ")
         super().__init__(
             f"{response.status} {response.reason} (error code: {self.code})"
-            f'{f": {self.message}" if self.message else ""}'
+            f"{f': {self.message}' if self.message else ''}"
         )
 
 
@@ -140,7 +145,7 @@ class WSException(SteamException):
         The received protobuf.
     message: Optional[:class:`str`]
         The message that Steam sent back with the request, could be ``None``.
-    code: Union[:class:`~steam.EResult`, :class:`int`]
+    code: :class:`~steam.EResult`
         The Steam specific error code for the failure. It will attempt to find a matching a :class:`~steam.EResult`
         for the value.
     """
@@ -150,8 +155,8 @@ class WSException(SteamException):
         self.code = EResult.try_value(msg.header.eresult)
         self.message = getattr(msg.header, "error_message", None)
         super().__init__(
-            f"The request {msg.header.job_name_target} failed. (error code:  {self.code!r})"
-            f'{f": {self.message}" if self.message else ""}'
+            f"The request {msg.header.job_name_target} failed. (error code: {self.code!r})"
+            f"{f': {self.message}' if self.message else ''}"
         )
 
 
