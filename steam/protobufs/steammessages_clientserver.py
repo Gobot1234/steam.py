@@ -17,13 +17,13 @@ class EMMSLobbyStatus(betterproto.Enum):
     NotAMember = 3
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUDSP2PSessionStarted(betterproto.Message):
     steamid_remote: float = betterproto.fixed64_field(1)
     appid: int = betterproto.int32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUDSP2PSessionEnded(betterproto.Message):
     steamid_remote: float = betterproto.fixed64_field(1)
     appid: int = betterproto.int32_field(2)
@@ -37,26 +37,26 @@ class CMsgClientUDSP2PSessionEnded(betterproto.Message):
     time_to_connect_ms: int = betterproto.int32_field(10)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientRegisterAuthTicketWithCM(betterproto.Message):
     protocol_version: int = betterproto.uint32_field(1)
     ticket: bytes = betterproto.bytes_field(3)
     client_instance_id: int = betterproto.uint64_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientTicketAuthComplete(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     game_id: float = betterproto.fixed64_field(2)
     estate: int = betterproto.uint32_field(3)
     eauth_session_response: int = betterproto.uint32_field(4)
-    d_e_p_r_e_c_a_t_e_d_ticket: bytes = betterproto.bytes_field(5)
+    deprecated_ticket: bytes = betterproto.bytes_field(5)
     ticket_crc: int = betterproto.uint32_field(6)
     ticket_sequence: int = betterproto.uint32_field(7)
     owner_steam_id: float = betterproto.fixed64_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientCMList(betterproto.Message):
     cm_addresses: List[int] = betterproto.uint32_field(1)
     cm_ports: List[int] = betterproto.uint32_field(2)
@@ -64,7 +64,7 @@ class CMsgClientCMList(betterproto.Message):
     percent_default_to_websocket: int = betterproto.uint32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientP2PConnectionInfo(betterproto.Message):
     steam_id_dest: float = betterproto.fixed64_field(1)
     steam_id_src: float = betterproto.fixed64_field(2)
@@ -74,7 +74,7 @@ class CMsgClientP2PConnectionInfo(betterproto.Message):
     rendezvous: bytes = betterproto.bytes_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientP2PConnectionFailInfo(betterproto.Message):
     steam_id_dest: float = betterproto.fixed64_field(1)
     steam_id_src: float = betterproto.fixed64_field(2)
@@ -85,53 +85,53 @@ class CMsgClientP2PConnectionFailInfo(betterproto.Message):
     close_message: str = betterproto.string_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientNetworkingCertRequest(betterproto.Message):
     key_data: bytes = betterproto.bytes_field(2)
     app_id: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientNetworkingCertReply(betterproto.Message):
     cert: bytes = betterproto.bytes_field(4)
     ca_key_id: float = betterproto.fixed64_field(5)
     ca_signature: bytes = betterproto.bytes_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientNetworkingMobileCertRequest(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientNetworkingMobileCertReply(betterproto.Message):
     encoded_cert: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetAppOwnershipTicket(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetAppOwnershipTicketResponse(betterproto.Message):
     eresult: int = betterproto.uint32_field(1)
     app_id: int = betterproto.uint32_field(2)
     ticket: bytes = betterproto.bytes_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientSessionToken(betterproto.Message):
     token: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGameConnectTokens(betterproto.Message):
     max_tokens_to_keep: int = betterproto.uint32_field(1)
     tokens: List[bytes] = betterproto.bytes_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSServerType(betterproto.Message):
     app_id_served: int = betterproto.uint32_field(1)
     flags: int = betterproto.uint32_field(2)
@@ -142,17 +142,17 @@ class CMsgGSServerType(betterproto.Message):
     game_query_port: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSStatusReply(betterproto.Message):
     is_secure: bool = betterproto.bool_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSPlayerList(betterproto.Message):
     players: List["CMsgGSPlayerListPlayer"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSPlayerListPlayer(betterproto.Message):
     steam_id: int = betterproto.uint64_field(1)
     deprecated_public_ip: int = betterproto.uint32_field(2)
@@ -160,7 +160,7 @@ class CMsgGSPlayerListPlayer(betterproto.Message):
     public_ip: "CMsgIpAddress" = betterproto.message_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSUserPlaying(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     deprecated_public_ip: int = betterproto.uint32_field(2)
@@ -168,19 +168,19 @@ class CMsgGSUserPlaying(betterproto.Message):
     public_ip: "CMsgIpAddress" = betterproto.message_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSDisconnectNotice(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGamesPlayed(betterproto.Message):
     games_played: List["CMsgClientGamesPlayedGamePlayed"] = betterproto.message_field(1)
     client_os_type: int = betterproto.uint32_field(2)
     cloud_gaming_platform: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGamesPlayedGamePlayed(betterproto.Message):
     steam_id_gs: int = betterproto.uint64_field(1)
     game_id: float = betterproto.fixed64_field(2)
@@ -208,26 +208,26 @@ class CMsgClientGamesPlayedGamePlayed(betterproto.Message):
     controller_connection_type: int = betterproto.uint32_field(24)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSApprove(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     owner_steam_id: float = betterproto.fixed64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSDeny(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     edeny_reason: int = betterproto.int32_field(2)
     deny_string: str = betterproto.string_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgGSKick(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     edeny_reason: int = betterproto.int32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAuthList(betterproto.Message):
     tokens_left: int = betterproto.uint32_field(1)
     last_request_seq: int = betterproto.uint32_field(2)
@@ -237,20 +237,20 @@ class CMsgClientAuthList(betterproto.Message):
     message_sequence: int = betterproto.uint32_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAuthListAck(betterproto.Message):
     ticket_crc: List[int] = betterproto.uint32_field(1)
     app_ids: List[int] = betterproto.uint32_field(2)
     message_sequence: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLicenseList(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     licenses: List["CMsgClientLicenseListLicense"] = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLicenseListLicense(betterproto.Message):
     package_id: int = betterproto.uint32_field(1)
     time_created: float = betterproto.fixed32_field(2)
@@ -271,7 +271,7 @@ class CMsgClientLicenseListLicense(betterproto.Message):
     access_token: int = betterproto.uint64_field(17)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSSetScore(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     leaderboard_id: int = betterproto.int32_field(2)
@@ -280,7 +280,7 @@ class CMsgClientLBSSetScore(betterproto.Message):
     upload_score_method: int = betterproto.int32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSSetScoreResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     leaderboard_entry_count: int = betterproto.int32_field(2)
@@ -289,19 +289,19 @@ class CMsgClientLBSSetScoreResponse(betterproto.Message):
     global_rank_new: int = betterproto.int32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSSetUGC(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     leaderboard_id: int = betterproto.int32_field(2)
     ugc_id: float = betterproto.fixed64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSSetUGCResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSFindOrCreateLB(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     leaderboard_sort_method: int = betterproto.int32_field(2)
@@ -310,7 +310,7 @@ class CMsgClientLBSFindOrCreateLB(betterproto.Message):
     leaderboard_name: str = betterproto.string_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSFindOrCreateLBResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     leaderboard_id: int = betterproto.int32_field(2)
@@ -320,7 +320,7 @@ class CMsgClientLBSFindOrCreateLBResponse(betterproto.Message):
     leaderboard_name: str = betterproto.string_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSGetLBEntries(betterproto.Message):
     app_id: int = betterproto.int32_field(1)
     leaderboard_id: int = betterproto.int32_field(2)
@@ -330,14 +330,14 @@ class CMsgClientLBSGetLBEntries(betterproto.Message):
     steamids: List[float] = betterproto.fixed64_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSGetLBEntriesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     leaderboard_entry_count: int = betterproto.int32_field(2)
     entries: List["CMsgClientLBSGetLBEntriesResponseEntry"] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientLBSGetLBEntriesResponseEntry(betterproto.Message):
     steam_id_user: float = betterproto.fixed64_field(1)
     global_rank: int = betterproto.int32_field(2)
@@ -346,19 +346,19 @@ class CMsgClientLBSGetLBEntriesResponseEntry(betterproto.Message):
     ugc_id: float = betterproto.fixed64_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppMinutesPlayedData(betterproto.Message):
     minutes_played: List["CMsgClientAppMinutesPlayedDataAppMinutesPlayedData"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppMinutesPlayedDataAppMinutesPlayedData(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     forever: int = betterproto.int32_field(2)
     last_two_weeks: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientIsLimitedAccount(betterproto.Message):
     bis_limited_account: bool = betterproto.bool_field(1)
     bis_community_banned: bool = betterproto.bool_field(2)
@@ -366,23 +366,23 @@ class CMsgClientIsLimitedAccount(betterproto.Message):
     bis_limited_account_allowed_to_invite_friends: bool = betterproto.bool_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientRequestedClientStats(betterproto.Message):
     stats_to_send: List["CMsgClientRequestedClientStatsStatsToSend"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientRequestedClientStatsStatsToSend(betterproto.Message):
     client_stat: int = betterproto.uint32_field(1)
     stat_aggregate_method: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStat2(betterproto.Message):
     stat_detail: List["CMsgClientStat2StatDetail"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStat2StatDetail(betterproto.Message):
     client_stat: int = betterproto.uint32_field(1)
     ll_value: int = betterproto.int64_field(2)
@@ -392,7 +392,7 @@ class CMsgClientStat2StatDetail(betterproto.Message):
     app_id: int = betterproto.uint32_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSSetRatelimitPolicyOnClient(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     enable_rate_limits: bool = betterproto.bool_field(2)
@@ -400,7 +400,7 @@ class CMsgClientMMSSetRatelimitPolicyOnClient(betterproto.Message):
     milliseconds_per_data_update: int = betterproto.int32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSCreateLobby(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     max_members: int = betterproto.int32_field(2)
@@ -413,21 +413,21 @@ class CMsgClientMMSCreateLobby(betterproto.Message):
     public_ip: "CMsgIpAddress" = betterproto.message_field(9)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSCreateLobbyResponse(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     eresult: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSJoinLobby(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     persona_name: str = betterproto.string_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSJoinLobbyResponse(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -440,27 +440,27 @@ class CMsgClientMMSJoinLobbyResponse(betterproto.Message):
     members: List["CMsgClientMMSJoinLobbyResponseMember"] = betterproto.message_field(9)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSJoinLobbyResponseMember(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     persona_name: str = betterproto.string_field(2)
     metadata: bytes = betterproto.bytes_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSLeaveLobby(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSLeaveLobbyResponse(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     eresult: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSGetLobbyList(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     num_lobbies_requested: int = betterproto.int32_field(3)
@@ -470,7 +470,7 @@ class CMsgClientMMSGetLobbyList(betterproto.Message):
     public_ip: "CMsgIpAddress" = betterproto.message_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSGetLobbyListFilter(betterproto.Message):
     key: str = betterproto.string_field(1)
     value: str = betterproto.string_field(2)
@@ -478,14 +478,14 @@ class CMsgClientMMSGetLobbyListFilter(betterproto.Message):
     filter_type: int = betterproto.int32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSGetLobbyListResponse(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     eresult: int = betterproto.int32_field(3)
     lobbies: List["CMsgClientMMSGetLobbyListResponseLobby"] = betterproto.message_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSGetLobbyListResponseLobby(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     max_members: int = betterproto.int32_field(2)
@@ -497,7 +497,7 @@ class CMsgClientMMSGetLobbyListResponseLobby(betterproto.Message):
     weight: int = betterproto.int64_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSSetLobbyData(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -508,20 +508,20 @@ class CMsgClientMMSSetLobbyData(betterproto.Message):
     metadata: bytes = betterproto.bytes_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSSetLobbyDataResponse(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     eresult: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSGetLobbyData(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSLobbyData(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -536,14 +536,14 @@ class CMsgClientMMSLobbyData(betterproto.Message):
     owner_should_accept_changes: bool = betterproto.bool_field(11)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSLobbyDataMember(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     persona_name: str = betterproto.string_field(2)
     metadata: bytes = betterproto.bytes_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSSendLobbyChatMsg(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -551,7 +551,7 @@ class CMsgClientMMSSendLobbyChatMsg(betterproto.Message):
     lobby_message: bytes = betterproto.bytes_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSLobbyChatMsg(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -559,28 +559,28 @@ class CMsgClientMMSLobbyChatMsg(betterproto.Message):
     lobby_message: bytes = betterproto.bytes_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSSetLobbyOwner(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     steam_id_new_owner: float = betterproto.fixed64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSSetLobbyOwnerResponse(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     eresult: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSSetLobbyLinked(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     steam_id_lobby2: float = betterproto.fixed64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSSetLobbyGameServer(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -590,7 +590,7 @@ class CMsgClientMMSSetLobbyGameServer(betterproto.Message):
     game_server_ip: "CMsgIpAddress" = betterproto.message_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSLobbyGameServerSet(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -600,7 +600,7 @@ class CMsgClientMMSLobbyGameServerSet(betterproto.Message):
     game_server_ip: "CMsgIpAddress" = betterproto.message_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSUserJoinedLobby(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -608,7 +608,7 @@ class CMsgClientMMSUserJoinedLobby(betterproto.Message):
     persona_name: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSUserLeftLobby(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -616,14 +616,14 @@ class CMsgClientMMSUserLeftLobby(betterproto.Message):
     persona_name: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSInviteToLobby(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     steam_id_user_invited: float = betterproto.fixed64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSGetLobbyStatus(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
@@ -631,14 +631,14 @@ class CMsgClientMMSGetLobbyStatus(betterproto.Message):
     claim_ownership: bool = betterproto.bool_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientMMSGetLobbyStatusResponse(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steam_id_lobby: float = betterproto.fixed64_field(2)
     lobby_status: "EMMSLobbyStatus" = betterproto.enum_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientInviteToGame(betterproto.Message):
     steam_id_dest: float = betterproto.fixed64_field(1)
     steam_id_src: float = betterproto.fixed64_field(2)
@@ -646,7 +646,7 @@ class CMsgClientInviteToGame(betterproto.Message):
     remote_play: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientChatInvite(betterproto.Message):
     steam_id_invited: float = betterproto.fixed64_field(1)
     steam_id_chat: float = betterproto.fixed64_field(2)
@@ -657,13 +657,13 @@ class CMsgClientChatInvite(betterproto.Message):
     game_id: float = betterproto.fixed64_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientConnectionStats(betterproto.Message):
     stats_logon: "CMsgClientConnectionStatsStats_Logon" = betterproto.message_field(1)
     stats_vconn: "CMsgClientConnectionStatsStats_VConn" = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientConnectionStatsStats_Logon(betterproto.Message):
     connect_attempts: int = betterproto.int32_field(1)
     connect_successes: int = betterproto.int32_field(2)
@@ -674,7 +674,7 @@ class CMsgClientConnectionStatsStats_Logon(betterproto.Message):
     count_bad_cms: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientConnectionStatsStats_UDP(betterproto.Message):
     pkts_sent: int = betterproto.uint64_field(1)
     bytes_sent: int = betterproto.uint64_field(2)
@@ -683,7 +683,7 @@ class CMsgClientConnectionStatsStats_UDP(betterproto.Message):
     bytes_recv: int = betterproto.uint64_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientConnectionStatsStats_VConn(betterproto.Message):
     connections_udp: int = betterproto.uint32_field(1)
     connections_tcp: int = betterproto.uint32_field(2)
@@ -707,19 +707,19 @@ class CMsgClientConnectionStatsStats_VConn(betterproto.Message):
     mem_pool_msg_in_use: int = betterproto.uint32_field(20)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientServersAvailable(betterproto.Message):
     server_types_available: List["CMsgClientServersAvailableServer_Types_Available"] = betterproto.message_field(1)
     server_type_for_auth_services: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientServersAvailableServer_Types_Available(betterproto.Message):
     server: int = betterproto.uint32_field(1)
     changed: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetUserStats(betterproto.Message):
     game_id: float = betterproto.fixed64_field(1)
     crc_stats: int = betterproto.uint32_field(2)
@@ -727,7 +727,7 @@ class CMsgClientGetUserStats(betterproto.Message):
     steam_id_for_user: float = betterproto.fixed64_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetUserStatsResponse(betterproto.Message):
     game_id: float = betterproto.fixed64_field(1)
     eresult: int = betterproto.int32_field(2)
@@ -737,19 +737,19 @@ class CMsgClientGetUserStatsResponse(betterproto.Message):
     achievement_blocks: List["CMsgClientGetUserStatsResponseAchievement_Blocks"] = betterproto.message_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetUserStatsResponseStats(betterproto.Message):
     stat_id: int = betterproto.uint32_field(1)
     stat_value: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetUserStatsResponseAchievement_Blocks(betterproto.Message):
     achievement_id: int = betterproto.uint32_field(1)
     unlock_time: List[float] = betterproto.fixed32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStoreUserStatsResponse(betterproto.Message):
     game_id: float = betterproto.fixed64_field(1)
     eresult: int = betterproto.int32_field(2)
@@ -760,13 +760,13 @@ class CMsgClientStoreUserStatsResponse(betterproto.Message):
     stats_out_of_date: bool = betterproto.bool_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStoreUserStatsResponseStats_Failed_Validation(betterproto.Message):
     stat_id: int = betterproto.uint32_field(1)
     reverted_stat_value: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStoreUserStats2(betterproto.Message):
     game_id: float = betterproto.fixed64_field(1)
     settor_steam_id: float = betterproto.fixed64_field(2)
@@ -776,13 +776,13 @@ class CMsgClientStoreUserStats2(betterproto.Message):
     stats: List["CMsgClientStoreUserStats2Stats"] = betterproto.message_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStoreUserStats2Stats(betterproto.Message):
     stat_id: int = betterproto.uint32_field(1)
     stat_value: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStatsUpdated(betterproto.Message):
     steam_id: float = betterproto.fixed64_field(1)
     game_id: float = betterproto.fixed64_field(2)
@@ -790,36 +790,36 @@ class CMsgClientStatsUpdated(betterproto.Message):
     updated_stats: List["CMsgClientStatsUpdatedUpdated_Stats"] = betterproto.message_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStatsUpdatedUpdated_Stats(betterproto.Message):
     stat_id: int = betterproto.uint32_field(1)
     stat_value: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStoreUserStats(betterproto.Message):
     game_id: float = betterproto.fixed64_field(1)
     explicit_reset: bool = betterproto.bool_field(2)
     stats_to_store: List["CMsgClientStoreUserStatsStats_To_Store"] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientStoreUserStatsStats_To_Store(betterproto.Message):
     stat_id: int = betterproto.uint32_field(1)
     stat_value: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetClientDetails(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientReportOverlayDetourFailure(betterproto.Message):
     failure_strings: List[str] = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetClientDetailsResponse(betterproto.Message):
     package_version: int = betterproto.uint32_field(1)
     protocol_version: int = betterproto.uint32_field(8)
@@ -831,14 +831,14 @@ class CMsgClientGetClientDetailsResponse(betterproto.Message):
     games_running: List["CMsgClientGetClientDetailsResponseGame"] = betterproto.message_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetClientDetailsResponseGame(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     extra_info: str = betterproto.string_field(2)
     time_running_sec: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetClientAppList(betterproto.Message):
     media: bool = betterproto.bool_field(1)
     tools: bool = betterproto.bool_field(2)
@@ -848,13 +848,13 @@ class CMsgClientGetClientAppList(betterproto.Message):
     comics: bool = betterproto.bool_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetClientAppListResponse(betterproto.Message):
     apps: List["CMsgClientGetClientAppListResponseApp"] = betterproto.message_field(1)
     bytes_available: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetClientAppListResponseApp(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     category: str = betterproto.string_field(2)
@@ -873,44 +873,44 @@ class CMsgClientGetClientAppListResponseApp(betterproto.Message):
     dlcs: List["CMsgClientGetClientAppListResponseAppDLC"] = betterproto.message_field(9)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientGetClientAppListResponseAppDLC(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     installed: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientInstallClientApp(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientInstallClientAppResponse(betterproto.Message):
     result: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUninstallClientApp(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUninstallClientAppResponse(betterproto.Message):
     result: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientSetClientAppUpdateState(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     update: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientSetClientAppUpdateStateResponse(betterproto.Message):
     result: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSUploadFileRequest(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     file_size: int = betterproto.uint32_field(2)
@@ -924,7 +924,7 @@ class CMsgClientUFSUploadFileRequest(betterproto.Message):
     can_encrypt: bool = betterproto.bool_field(10)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSUploadFileResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     sha_file: bytes = betterproto.bytes_field(2)
@@ -936,12 +936,12 @@ class CMsgClientUFSUploadFileResponse(betterproto.Message):
     encrypt_file: bool = betterproto.bool_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSUploadCommit(betterproto.Message):
     files: List["CMsgClientUFSUploadCommitFile"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSUploadCommitFile(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     app_id: int = betterproto.uint32_field(2)
@@ -950,62 +950,62 @@ class CMsgClientUFSUploadCommitFile(betterproto.Message):
     file_name: str = betterproto.string_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSUploadCommitResponse(betterproto.Message):
     files: List["CMsgClientUFSUploadCommitResponseFile"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSUploadCommitResponseFile(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     app_id: int = betterproto.uint32_field(2)
     sha_file: bytes = betterproto.bytes_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSFileChunk(betterproto.Message):
     sha_file: bytes = betterproto.bytes_field(1)
     file_start: int = betterproto.uint32_field(2)
     data: bytes = betterproto.bytes_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSTransferHeartbeat(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSUploadFileFinished(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     sha_file: bytes = betterproto.bytes_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSDeleteFileRequest(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     file_name: str = betterproto.string_field(2)
     is_explicit_delete: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSDeleteFileResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     file_name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSGetFileListForApp(betterproto.Message):
     apps_to_query: List[int] = betterproto.uint32_field(1)
     send_path_prefixes: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSGetFileListForAppResponse(betterproto.Message):
     files: List["CMsgClientUFSGetFileListForAppResponseFile"] = betterproto.message_field(1)
     path_prefixes: List[str] = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSGetFileListForAppResponseFile(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     file_name: str = betterproto.string_field(2)
@@ -1017,14 +1017,14 @@ class CMsgClientUFSGetFileListForAppResponseFile(betterproto.Message):
     path_prefix_index: int = betterproto.uint32_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSDownloadRequest(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     file_name: str = betterproto.string_field(2)
     can_handle_http: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSDownloadResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     app_id: int = betterproto.uint32_field(2)
@@ -1041,19 +1041,19 @@ class CMsgClientUFSDownloadResponse(betterproto.Message):
     encrypted: bool = betterproto.bool_field(13)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSLoginRequest(betterproto.Message):
     protocol_version: int = betterproto.uint32_field(1)
     am_session_token: int = betterproto.uint64_field(2)
     apps: List[int] = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSLoginResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientWalletInfoUpdate(betterproto.Message):
     has_wallet: bool = betterproto.bool_field(1)
     balance: int = betterproto.int32_field(2)
@@ -1063,66 +1063,66 @@ class CMsgClientWalletInfoUpdate(betterproto.Message):
     balance64_delayed: int = betterproto.int64_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppInfoUpdate(betterproto.Message):
     last_changenumber: int = betterproto.uint32_field(1)
     send_changelist: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppInfoChanges(betterproto.Message):
     current_change_number: int = betterproto.uint32_field(1)
     force_full_update: bool = betterproto.bool_field(2)
     app_ids: List[int] = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppInfoRequest(betterproto.Message):
     apps: List["CMsgClientAppInfoRequestApp"] = betterproto.message_field(1)
     supports_batches: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppInfoRequestApp(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     section_flags: int = betterproto.uint32_field(2)
     section_crc: List[int] = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppInfoResponse(betterproto.Message):
     apps: List["CMsgClientAppInfoResponseApp"] = betterproto.message_field(1)
     apps_unknown: List[int] = betterproto.uint32_field(2)
     apps_pending: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppInfoResponseApp(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     change_number: int = betterproto.uint32_field(2)
     sections: List["CMsgClientAppInfoResponseAppSection"] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAppInfoResponseAppSection(betterproto.Message):
     section_id: int = betterproto.uint32_field(1)
     section_kv: bytes = betterproto.bytes_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPackageInfoRequest(betterproto.Message):
     package_ids: List[int] = betterproto.uint32_field(1)
     meta_data_only: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPackageInfoResponse(betterproto.Message):
     packages: List["CMsgClientPackageInfoResponsePackage"] = betterproto.message_field(1)
     packages_unknown: List[int] = betterproto.uint32_field(2)
     packages_pending: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPackageInfoResponsePackage(betterproto.Message):
     package_id: int = betterproto.uint32_field(1)
     change_number: int = betterproto.uint32_field(2)
@@ -1130,7 +1130,7 @@ class CMsgClientPackageInfoResponsePackage(betterproto.Message):
     buffer: bytes = betterproto.bytes_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSChangesSinceRequest(betterproto.Message):
     since_change_number: int = betterproto.uint32_field(1)
     send_app_info_changes: bool = betterproto.bool_field(2)
@@ -1139,7 +1139,7 @@ class CMsgClientPICSChangesSinceRequest(betterproto.Message):
     num_package_info_cached: int = betterproto.uint32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSChangesSinceResponse(betterproto.Message):
     current_change_number: int = betterproto.uint32_field(1)
     since_change_number: int = betterproto.uint32_field(2)
@@ -1150,21 +1150,21 @@ class CMsgClientPICSChangesSinceResponse(betterproto.Message):
     force_full_package_update: bool = betterproto.bool_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSChangesSinceResponsePackageChange(betterproto.Message):
     packageid: int = betterproto.uint32_field(1)
     change_number: int = betterproto.uint32_field(2)
     needs_token: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSChangesSinceResponseAppChange(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     change_number: int = betterproto.uint32_field(2)
     needs_token: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSProductInfoRequest(betterproto.Message):
     packages: List["CMsgClientPICSProductInfoRequestPackageInfo"] = betterproto.message_field(1)
     apps: List["CMsgClientPICSProductInfoRequestAppInfo"] = betterproto.message_field(2)
@@ -1173,20 +1173,20 @@ class CMsgClientPICSProductInfoRequest(betterproto.Message):
     supports_package_tokens: int = betterproto.uint32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSProductInfoRequestAppInfo(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     access_token: int = betterproto.uint64_field(2)
     only_public: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSProductInfoRequestPackageInfo(betterproto.Message):
     packageid: int = betterproto.uint32_field(1)
     access_token: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSProductInfoResponse(betterproto.Message):
     apps: List["CMsgClientPICSProductInfoResponseAppInfo"] = betterproto.message_field(1)
     unknown_appids: List[int] = betterproto.uint32_field(2)
@@ -1198,7 +1198,7 @@ class CMsgClientPICSProductInfoResponse(betterproto.Message):
     http_host: str = betterproto.string_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSProductInfoResponseAppInfo(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     change_number: int = betterproto.uint32_field(2)
@@ -1209,7 +1209,7 @@ class CMsgClientPICSProductInfoResponseAppInfo(betterproto.Message):
     size: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSProductInfoResponsePackageInfo(betterproto.Message):
     packageid: int = betterproto.uint32_field(1)
     change_number: int = betterproto.uint32_field(2)
@@ -1219,13 +1219,13 @@ class CMsgClientPICSProductInfoResponsePackageInfo(betterproto.Message):
     size: int = betterproto.uint32_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSAccessTokenRequest(betterproto.Message):
     packageids: List[int] = betterproto.uint32_field(1)
     appids: List[int] = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSAccessTokenResponse(betterproto.Message):
     package_access_tokens: List["CMsgClientPICSAccessTokenResponsePackageToken"] = betterproto.message_field(1)
     package_denied_tokens: List[int] = betterproto.uint32_field(2)
@@ -1233,24 +1233,24 @@ class CMsgClientPICSAccessTokenResponse(betterproto.Message):
     app_denied_tokens: List[int] = betterproto.uint32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSAccessTokenResponsePackageToken(betterproto.Message):
     packageid: int = betterproto.uint32_field(1)
     access_token: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientPICSAccessTokenResponseAppToken(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     access_token: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSGetUGCDetails(betterproto.Message):
     hcontent: float = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSGetUGCDetailsResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     url: str = betterproto.string_field(2)
@@ -1263,13 +1263,13 @@ class CMsgClientUFSGetUGCDetailsResponse(betterproto.Message):
     file_encoded_sha1: str = betterproto.string_field(9)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSGetSingleFileInfo(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     file_name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSGetSingleFileInfoResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     app_id: int = betterproto.uint32_field(2)
@@ -1280,66 +1280,66 @@ class CMsgClientUFSGetSingleFileInfoResponse(betterproto.Message):
     is_explicit_delete: bool = betterproto.bool_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSShareFile(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     file_name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUFSShareFileResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     hcontent: float = betterproto.fixed64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAMGetClanOfficers(betterproto.Message):
     steamid_clan: float = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAMGetClanOfficersResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     steamid_clan: float = betterproto.fixed64_field(2)
     officer_count: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAMGetPersonaNameHistory(betterproto.Message):
     id_count: int = betterproto.int32_field(1)
     ids: List["CMsgClientAMGetPersonaNameHistoryIdInstance"] = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAMGetPersonaNameHistoryIdInstance(betterproto.Message):
     steamid: float = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAMGetPersonaNameHistoryResponse(betterproto.Message):
     responses: List["CMsgClientAMGetPersonaNameHistoryResponseNameTableInstance"] = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAMGetPersonaNameHistoryResponseNameTableInstance(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     steamid: float = betterproto.fixed64_field(2)
     names: List["CMsgClientAMGetPersonaNameHistoryResponseNameTableInstanceNameInstance"] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientAMGetPersonaNameHistoryResponseNameTableInstanceNameInstance(betterproto.Message):
     name_since: float = betterproto.fixed32_field(1)
     name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientDeregisterWithServer(betterproto.Message):
     eservertype: int = betterproto.uint32_field(1)
     app_id: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientClanState(betterproto.Message):
     steamid_clan: float = betterproto.fixed64_field(1)
     clan_account_flags: int = betterproto.uint32_field(3)
@@ -1350,13 +1350,13 @@ class CMsgClientClanState(betterproto.Message):
     chat_room_private: bool = betterproto.bool_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientClanStateNameInfo(betterproto.Message):
     clan_name: str = betterproto.string_field(1)
     sha_avatar: bytes = betterproto.bytes_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientClanStateUserCounts(betterproto.Message):
     members: int = betterproto.uint32_field(1)
     online: int = betterproto.uint32_field(2)
@@ -1365,7 +1365,7 @@ class CMsgClientClanStateUserCounts(betterproto.Message):
     chat_room_members: int = betterproto.uint32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientClanStateEvent(betterproto.Message):
     gid: float = betterproto.fixed64_field(1)
     event_time: int = betterproto.uint32_field(2)
@@ -1374,7 +1374,7 @@ class CMsgClientClanStateEvent(betterproto.Message):
     just_posted: bool = betterproto.bool_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CMsgClientUnsignedInstallScript(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     file_name: str = betterproto.string_field(2)

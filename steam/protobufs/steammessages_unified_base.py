@@ -12,6 +12,6 @@ class EProtoExecutionSite(betterproto.Enum):
     SteamClient = 2
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class NoResponse(betterproto.Message):
     pass

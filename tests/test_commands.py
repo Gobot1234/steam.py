@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import annotations
-
 import contextlib
 from copy import copy
 from io import StringIO
-from typing import AsyncGenerator, Generator, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, AsyncGenerator, Generator, Optional, TypeVar, Union
 
 import pytest
 
@@ -16,6 +14,9 @@ from tests.mocks import GROUP_MESSAGE
 CE = TypeVar("CE", bound=commands.CommandError)
 T = TypeVar("T")
 IsInstanceable = Union["type[T]", "tuple[type[T], ...]"]
+
+if TYPE_CHECKING:
+    SomeCoolType = int
 
 
 @pytest.mark.asyncio
@@ -62,18 +63,44 @@ async def test_commands():
         bot.add_cog(MyCog())
 
 
+def test_annotations() -> None:
+    @commands.command
+    async def cool(ctx: "OopsATypo"):
+        ...
+
+    @commands.command
+    async def cool_ctx(ctx: "SomeCoolType") -> None:
+        ...
+
+    assert cool_ctx.params.popitem()[1].annotation == "SomeCoolType"  # not evaluated cause its on ctx
+
+    @commands.command
+    async def some_cool_command(ctx, cool_type: "SomeCoolType") -> None:
+        ...
+
+    assert some_cool_command.clean_params.popitem()[1].annotation is SomeCoolType  # should be evaluated
+
+    users = Union[steam.User, int, str]
+
+    @commands.command
+    async def get_an_user(ctx, user: "users") -> None:
+        ...
+
+    assert get_an_user.clean_params.popitem()[1].annotation == users
+
+
 def test_greedy():
     with pytest.raises(TypeError):
 
-        @commands.command()
-        async def greedy(_, param: commands.Greedy[None]):
-            pass
+        @commands.command
+        async def greedy(_, param: commands.Greedy[None]) -> None:
+            ...
 
     with pytest.raises(TypeError):
 
-        @commands.command()
-        async def greedy(_, param: commands.Greedy[str]):
-            pass
+        @commands.command
+        async def greedy(_, param: commands.Greedy[str]) -> None:
+            ...
 
 
 class TestBot(commands.Bot):
@@ -83,7 +110,7 @@ class TestBot(commands.Bot):
 
     @contextlib.asynccontextmanager
     async def raises_command_error(
-        self, expected_errors: IsInstanceable[type[CE]], content: str
+        self, expected_errors: "IsInstanceable[type[CE]]", content: str
     ) -> AsyncGenerator[None, None]:
         expected_errors = (expected_errors,) if not isinstance(expected_errors, tuple) else expected_errors
 
@@ -128,12 +155,12 @@ class TestBot(commands.Bot):
                 await super().process_commands(message)
 
     async def on_error(self, event: str, error: Exception, *args, **kwargs):
-        ctx: commands.Context = args[0]  # expose some locals
         try:
+            ctx: commands.Context = args[0]  # expose some locals
             lex = ctx.lex
             message = ctx.message
             command = ctx.command
-        except AttributeError:
+        except (IndexError, AttributeError):
             pass
         raise SystemExit  # we need to propagate a SystemExit for pytest to be able to pick up errors
 

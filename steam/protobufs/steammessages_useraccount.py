@@ -26,19 +26,19 @@ class EExternalAccountType(betterproto.Enum):
     FacebookPage = 7
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountGetAvailableValveDiscountPromotionsRequest(betterproto.Message):
     country_code: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountGetAvailableValveDiscountPromotionsResponse(betterproto.Message):
     promotions: List[
         "CUserAccountGetAvailableValveDiscountPromotionsResponseValveDiscountPromotionDetails"
     ] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountGetAvailableValveDiscountPromotionsResponseValveDiscountPromotionDetails(betterproto.Message):
     promotionid: int = betterproto.uint32_field(1)
     promotion_description: str = betterproto.string_field(2)
@@ -53,36 +53,36 @@ class CUserAccountGetAvailableValveDiscountPromotionsResponseValveDiscountPromot
     max_use_count: int = betterproto.int32_field(11)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountGetAccountLinkStatusRequest(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountGetAccountLinkStatusResponse(betterproto.Message):
     pwid: int = betterproto.uint32_field(1)
     identity_verification: int = betterproto.uint32_field(2)
     performed_age_verification: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountCancelLicenseForAppRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountCancelLicenseForAppResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountCreateFriendInviteTokenRequest(betterproto.Message):
     invite_limit: int = betterproto.uint32_field(1)
     invite_duration: int = betterproto.uint32_field(2)
     invite_note: str = betterproto.string_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountCreateFriendInviteTokenResponse(betterproto.Message):
     invite_token: str = betterproto.string_field(1)
     invite_limit: int = betterproto.uint64_field(2)
@@ -91,61 +91,61 @@ class CUserAccountCreateFriendInviteTokenResponse(betterproto.Message):
     valid: bool = betterproto.bool_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountGetFriendInviteTokensRequest(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountGetFriendInviteTokensResponse(betterproto.Message):
     tokens: List["CUserAccountCreateFriendInviteTokenResponse"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountViewFriendInviteTokenRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     invite_token: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountViewFriendInviteTokenResponse(betterproto.Message):
     valid: bool = betterproto.bool_field(1)
     steamid: int = betterproto.uint64_field(2)
     invite_duration: int = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountRedeemFriendInviteTokenRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     invite_token: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountRedeemFriendInviteTokenResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountRevokeFriendInviteTokenRequest(betterproto.Message):
     invite_token: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountRevokeFriendInviteTokenResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountRegisterCompatToolRequest(betterproto.Message):
     compat_tool: int = betterproto.uint32_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserAccountRegisterCompatToolResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CAccountLinkingGetLinkedAccountInfoRequest(betterproto.Message):
     account_type: "EInternalAccountType" = betterproto.enum_field(1)
     account_id: int = betterproto.uint64_field(2)
@@ -153,14 +153,14 @@ class CAccountLinkingGetLinkedAccountInfoRequest(betterproto.Message):
     return_access_token: bool = betterproto.bool_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CAccountLinkingGetLinkedAccountInfoResponse(betterproto.Message):
     external_accounts: List[
         "CAccountLinkingGetLinkedAccountInfoResponseCExternalAccountTupleResponse"
     ] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CAccountLinkingGetLinkedAccountInfoResponseCExternalAccountTupleResponse(betterproto.Message):
     external_type: "EExternalAccountType" = betterproto.enum_field(1)
     external_id: str = betterproto.string_field(2)
@@ -171,7 +171,7 @@ class CAccountLinkingGetLinkedAccountInfoResponseCExternalAccountTupleResponse(b
     is_valid: bool = betterproto.bool_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEmbeddedClientAuthorizeCurrentDeviceRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     appid: int = betterproto.uint32_field(2)
@@ -179,7 +179,7 @@ class CEmbeddedClientAuthorizeCurrentDeviceRequest(betterproto.Message):
     deviceid: int = betterproto.uint32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEmbeddedClientToken(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     client_token: bytes = betterproto.bytes_field(2)
@@ -187,7 +187,7 @@ class CEmbeddedClientToken(betterproto.Message):
     deviceid: int = betterproto.uint32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEmbeddedClientAuthorizeDeviceResponse(betterproto.Message):
     result: int = betterproto.uint32_field(1)
     token: "CEmbeddedClientToken" = betterproto.message_field(2)

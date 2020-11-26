@@ -8,40 +8,40 @@ from typing import List
 import betterproto
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconGetTradeOfferAccessTokenRequest(betterproto.Message):
     generate_new_token: bool = betterproto.bool_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconGetTradeOfferAccessTokenResponse(betterproto.Message):
     trade_offer_access_token: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconClientGetItemShopOverlayAuthUrlRequest(betterproto.Message):
     return_url: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconClientGetItemShopOverlayAuthUrlResponse(betterproto.Message):
     url: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconGetAssetClassInfoRequest(betterproto.Message):
     language: str = betterproto.string_field(1)
     appid: int = betterproto.uint32_field(2)
     classes: List["CEconGetAssetClassInfoRequestClass"] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconGetAssetClassInfoRequestClass(betterproto.Message):
     classid: int = betterproto.uint64_field(1)
     instanceid: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconItemDescriptionLine(betterproto.Message):
     type: str = betterproto.string_field(1)
     value: str = betterproto.string_field(2)
@@ -49,13 +49,13 @@ class CEconItemDescriptionLine(betterproto.Message):
     label: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconItemAction(betterproto.Message):
     link: str = betterproto.string_field(1)
     name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconItemDescription(betterproto.Message):
     appid: int = betterproto.int32_field(1)
     classid: int = betterproto.uint64_field(2)
@@ -89,7 +89,7 @@ class CEconItemDescription(betterproto.Message):
     market_sell_country_restriction: str = betterproto.string_field(31)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconItemTag(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     category: str = betterproto.string_field(2)
@@ -99,6 +99,6 @@ class CEconItemTag(betterproto.Message):
     color: str = betterproto.string_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CEconGetAssetClassInfoResponse(betterproto.Message):
     descriptions: List["CEconItemDescription"] = betterproto.message_field(1)

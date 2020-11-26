@@ -8,6 +8,7 @@ from . import (
     steammessages_player,
     steammessages_twofactor,
     steammessages_useraccount,
+    steammessages_webui_friends,
 )
 
 __all__ = ("UMS",)
@@ -153,5 +154,6 @@ UMS = {
     "UserAccount.RedeemFriendInviteToken#1_Request": steammessages_useraccount.CUserAccountRedeemFriendInviteTokenRequest,
     "UserAccount.RedeemFriendInviteToken#1_Response": steammessages_useraccount.CUserAccountRedeemFriendInviteTokenResponse,
     "UserAccount.RevokeFriendInviteToken#1_Request": steammessages_useraccount.CUserAccountRevokeFriendInviteTokenRequest,
-    "UserAccount.RevokeFriendInviteToken#1_Response": steammessages_useraccount.CUserAccountRevokeFriendInviteTokenResponse,
+    "Community.GetCommentThread#1_Request": steammessages_webui_friends.CCommunityGetCommentThreadRequest,
+    "Community.GetCommentThread#1_Response": steammessages_webui_friends.CCommunityGetCommentThreadResponse,
 }

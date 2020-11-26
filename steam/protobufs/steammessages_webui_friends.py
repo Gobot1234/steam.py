@@ -11,42 +11,42 @@ from .steammessages_base import CcddbAppDetailCommon, CClanMatchEventByRange, CM
 from .steammessages_clientserver_friends import CMsgClientFriendsList
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetAppsRequest(betterproto.Message):
     appids: List[int] = betterproto.int32_field(1)
     language: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetAppsResponse(betterproto.Message):
     apps: List["CcddbAppDetailCommon"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetAppRichPresenceLocalizationRequest(betterproto.Message):
     appid: int = betterproto.int32_field(1)
     language: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetAppRichPresenceLocalizationResponse(betterproto.Message):
     appid: int = betterproto.int32_field(1)
     token_lists: List["CCommunityGetAppRichPresenceLocalizationResponseTokenList"] = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetAppRichPresenceLocalizationResponseToken(betterproto.Message):
     name: str = betterproto.string_field(1)
     value: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetAppRichPresenceLocalizationResponseTokenList(betterproto.Message):
     language: str = betterproto.string_field(1)
     tokens: List["CCommunityGetAppRichPresenceLocalizationResponseToken"] = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetCommentThreadRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     comment_thread_type: int = betterproto.uint32_field(2)
@@ -62,7 +62,7 @@ class CCommunityGetCommentThreadRequest(betterproto.Message):
     oldest_first: bool = betterproto.bool_field(12)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityComment(betterproto.Message):
     gidcomment: int = betterproto.fixed64_field(1)
     steamid: int = betterproto.fixed64_field(2)
@@ -77,7 +77,7 @@ class CCommunityComment(betterproto.Message):
     upvoted_by_user: bool = betterproto.bool_field(11)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetCommentThreadResponse(betterproto.Message):
     comments: List["CCommunityComment"] = betterproto.message_field(1)
     deleted_comments: List["CCommunityComment"] = betterproto.message_field(2)
@@ -96,7 +96,7 @@ class CCommunityGetCommentThreadResponse(betterproto.Message):
     can_post: bool = betterproto.bool_field(15)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityPostCommentToThreadResponse(betterproto.Message):
     gidcomment: int = betterproto.fixed64_field(1)
     commentthreadid: int = betterproto.fixed64_field(2)
@@ -104,12 +104,12 @@ class CCommunityPostCommentToThreadResponse(betterproto.Message):
     upvotes: int = betterproto.int32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityDeleteCommentFromThreadResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityRateCommentThreadResponse(betterproto.Message):
     gidcomment: int = betterproto.uint64_field(1)
     commentthreadid: int = betterproto.uint64_field(2)
@@ -118,7 +118,7 @@ class CCommunityRateCommentThreadResponse(betterproto.Message):
     has_upvoted: bool = betterproto.bool_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetCommentThreadRatingsResponse(betterproto.Message):
     commentthreadid: int = betterproto.uint64_field(1)
     gidcomment: int = betterproto.uint64_field(2)
@@ -127,53 +127,53 @@ class CCommunityGetCommentThreadRatingsResponse(betterproto.Message):
     upvoter_accountids: List[int] = betterproto.uint32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityRateClanAnnouncementRequest(betterproto.Message):
     announcementid: int = betterproto.uint64_field(1)
     vote_up: bool = betterproto.bool_field(2)
     clan_accountid: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityRateClanAnnouncementResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetClanAnnouncementVoteForUserRequest(betterproto.Message):
     announcementid: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetClanAnnouncementVoteForUserResponse(betterproto.Message):
     voted_up: bool = betterproto.bool_field(1)
     voted_down: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetAvatarHistoryResponse(betterproto.Message):
     avatars: List["CCommunityGetAvatarHistoryResponseAvatarData"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetAvatarHistoryResponseAvatarData(betterproto.Message):
     avatar_sha1: str = betterproto.string_field(1)
     user_uploaded: bool = betterproto.bool_field(2)
     timestamp: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CAppPriority(betterproto.Message):
     priority: int = betterproto.uint32_field(1)
     appid: List[int] = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetUserPartnerEventNewsResponse(betterproto.Message):
     results: List["CClanMatchEventByRange"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityPartnerEventResult(betterproto.Message):
     clanid: int = betterproto.uint32_field(1)
     event_gid: int = betterproto.fixed64_field(2)
@@ -184,48 +184,48 @@ class CCommunityPartnerEventResult(betterproto.Message):
     user_app_priority: int = betterproto.int32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetBestEventsForUserResponse(betterproto.Message):
     results: List["CCommunityPartnerEventResult"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityClearUserPartnerEventsAppPrioritiesResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityPartnerEventsAppPriority(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     user_app_priority: int = betterproto.int32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetUserPartnerEventsAppPrioritiesResponse(betterproto.Message):
     priorities: List["CCommunityPartnerEventsAppPriority"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityClearSinglePartnerEventsAppPriorityResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityPartnerEventsShowMoreForAppResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityPartnerEventsShowLessForAppResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityMarkPartnerEventsForUserRequest(betterproto.Message):
     markings: List["CCommunityMarkPartnerEventsForUserRequestPartnerEventMarking"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityMarkPartnerEventsForUserRequestPartnerEventMarking(betterproto.Message):
     clanid: int = betterproto.uint32_field(1)
     event_gid: int = betterproto.fixed64_field(2)
@@ -234,17 +234,17 @@ class CCommunityMarkPartnerEventsForUserRequestPartnerEventMarking(betterproto.M
     mark_read: bool = betterproto.bool_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityMarkPartnerEventsForUserResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetUserPartnerEventViewStatusResponse(betterproto.Message):
     events: List["CCommunityGetUserPartnerEventViewStatusResponsePartnerEvent"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CCommunityGetUserPartnerEventViewStatusResponsePartnerEvent(betterproto.Message):
     event_gid: int = betterproto.fixed64_field(1)
     last_shown_time: int = betterproto.uint32_field(2)
@@ -252,7 +252,7 @@ class CCommunityGetUserPartnerEventViewStatusResponsePartnerEvent(betterproto.Me
     clan_account_id: int = betterproto.uint32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CPlayerGetFavoriteBadgeResponse(betterproto.Message):
     has_favorite_badge: bool = betterproto.bool_field(1)
     badgeid: int = betterproto.uint32_field(2)
@@ -263,12 +263,12 @@ class CPlayerGetFavoriteBadgeResponse(betterproto.Message):
     level: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CPlayerSetFavoriteBadgeResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class ProfileCustomizationSlot(betterproto.Message):
     slot: int = betterproto.uint32_field(1)
     appid: int = betterproto.uint32_field(2)
@@ -284,7 +284,7 @@ class ProfileCustomizationSlot(betterproto.Message):
     item_instanceid: int = betterproto.uint64_field(12)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class ProfileCustomization(betterproto.Message):
     customization_type: int = betterproto.int32_field(1)
     large: bool = betterproto.bool_field(2)
@@ -293,40 +293,40 @@ class ProfileCustomization(betterproto.Message):
     customization_style: int = betterproto.int32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class ProfileTheme(betterproto.Message):
     theme_id: str = betterproto.string_field(1)
     title: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CPlayerGetProfileCustomizationResponse(betterproto.Message):
     customizations: List["ProfileCustomization"] = betterproto.message_field(1)
     slots_available: int = betterproto.uint32_field(2)
     profile_theme: "ProfileTheme" = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CPlayerGetProfileThemesAvailableResponse(betterproto.Message):
     profile_themes: List["ProfileTheme"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CPlayerSetProfileThemeResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CWebRtcClientInitiateWebRtcConnectionRequest(betterproto.Message):
     sdp: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CWebRtcClientInitiateWebRtcConnectionResponse(betterproto.Message):
     remote_description: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CWebRtcWebRtcSessionConnectedNotification(betterproto.Message):
     ssrc: int = betterproto.uint32_field(1)
     client_ip: int = betterproto.uint32_field(2)
@@ -335,7 +335,7 @@ class CWebRtcWebRtcSessionConnectedNotification(betterproto.Message):
     server_port: int = betterproto.uint32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CWebRtcWebRtcUpdateRemoteDescriptionNotification(betterproto.Message):
     remote_description: str = betterproto.string_field(1)
     remote_description_version: int = betterproto.uint64_field(2)
@@ -344,13 +344,13 @@ class CWebRtcWebRtcUpdateRemoteDescriptionNotification(betterproto.Message):
     ] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CWebRtcWebRtcUpdateRemoteDescriptionNotificationCssrcToAccountIdMapping(betterproto.Message):
     ssrc: int = betterproto.uint32_field(1)
     accountid: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CWebRtcClientAcknowledgeUpdatedRemoteDescriptionRequest(betterproto.Message):
     ip_webrtc_server: int = betterproto.uint32_field(1)
     port_webrtc_server: int = betterproto.uint32_field(2)
@@ -359,68 +359,68 @@ class CWebRtcClientAcknowledgeUpdatedRemoteDescriptionRequest(betterproto.Messag
     remote_description_version: int = betterproto.uint64_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CWebRtcClientAcknowledgeUpdatedRemoteDescriptionResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatRequestOneOnOneChatRequest(betterproto.Message):
     steamid_partner: int = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatRequestOneOnOneChatResponse(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatOneOnOneChatRequestedNotification(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     steamid_partner: int = betterproto.fixed64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatAnswerOneOnOneChatRequest(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     steamid_partner: int = betterproto.fixed64_field(2)
     accepted_request: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatAnswerOneOnOneChatResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatOneOnOneChatRequestResponseNotification(betterproto.Message):
     voicechat_id: int = betterproto.fixed64_field(1)
     steamid_partner: int = betterproto.fixed64_field(2)
     accepted_request: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatEndOneOnOneChatRequest(betterproto.Message):
     steamid_partner: int = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatEndOneOnOneChatResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatLeaveOneOnOneChatRequest(betterproto.Message):
     steamid_partner: int = betterproto.fixed64_field(1)
     voice_chatid: int = betterproto.fixed64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatLeaveOneOnOneChatResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatUserJoinedVoiceChatNotification(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     user_steamid: int = betterproto.fixed64_field(2)
@@ -431,7 +431,7 @@ class CVoiceChatUserJoinedVoiceChatNotification(betterproto.Message):
     user_sessionid: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatUserVoiceStatusNotification(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     user_steamid: int = betterproto.fixed64_field(2)
@@ -441,13 +441,13 @@ class CVoiceChatUserVoiceStatusNotification(betterproto.Message):
     user_webaudio_sample_rate: int = betterproto.int32_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatAllMembersStatusNotification(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     users: List["CVoiceChatUserVoiceStatusNotification"] = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatUpdateVoiceChatWebRtcDataRequest(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     ip_webrtc_server: int = betterproto.uint32_field(2)
@@ -459,28 +459,28 @@ class CVoiceChatUpdateVoiceChatWebRtcDataRequest(betterproto.Message):
     has_audio_worklets_support: bool = betterproto.bool_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatUpdateVoiceChatWebRtcDataResponse(betterproto.Message):
     send_client_voice_logs: bool = betterproto.bool_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatUploadClientVoiceChatLogsRequest(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     client_voice_logs_new_lines: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatUploadClientVoiceChatLogsResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatLeaveVoiceChatResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatUserLeftVoiceChatNotification(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     user_steamid: int = betterproto.fixed64_field(2)
@@ -491,7 +491,7 @@ class CVoiceChatUserLeftVoiceChatNotification(betterproto.Message):
     user_sessionid: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CVoiceChatVoiceChatEndedNotification(betterproto.Message):
     voice_chatid: int = betterproto.fixed64_field(1)
     one_on_one_steamid_lower: int = betterproto.fixed64_field(2)
@@ -500,24 +500,24 @@ class CVoiceChatVoiceChatEndedNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvCreateBroadcastChannelResponse(betterproto.Message):
     broadcast_channel_id: int = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelIdResponse(betterproto.Message):
     broadcast_channel_id: int = betterproto.fixed64_field(1)
     unique_name: str = betterproto.string_field(2)
     steamid: int = betterproto.fixed64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvSetBroadcastChannelProfileResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelProfileResponse(betterproto.Message):
     unique_name: str = betterproto.string_field(1)
     owner_steamid: int = betterproto.fixed64_field(2)
@@ -531,29 +531,29 @@ class CSteamTvGetBroadcastChannelProfileResponse(betterproto.Message):
     is_partnered: bool = betterproto.bool_field(10)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvSetBroadcastChannelImageResponse(betterproto.Message):
     replace_image_hash: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelImagesResponse(betterproto.Message):
     images: List["CSteamTvGetBroadcastChannelImagesResponseImages"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelImagesResponseImages(betterproto.Message):
     image_type: int = betterproto.int32_field(1)
     image_path: str = betterproto.string_field(2)
     image_index: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelLinksResponse(betterproto.Message):
     links: List["CSteamTvGetBroadcastChannelLinksResponseLinks"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelLinksResponseLinks(betterproto.Message):
     link_index: int = betterproto.uint32_field(1)
     url: str = betterproto.string_field(2)
@@ -564,7 +564,7 @@ class CSteamTvGetBroadcastChannelLinksResponseLinks(betterproto.Message):
     height: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvSetBroadcastChannelLinkRegionsRequestLinks(betterproto.Message):
     link_index: int = betterproto.uint32_field(1)
     url: str = betterproto.string_field(2)
@@ -575,12 +575,12 @@ class CSteamTvSetBroadcastChannelLinkRegionsRequestLinks(betterproto.Message):
     height: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvSetBroadcastChannelLinkRegionsResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelStatusResponse(betterproto.Message):
     is_live: bool = betterproto.bool_field(1)
     is_disabled: bool = betterproto.bool_field(2)
@@ -595,7 +595,7 @@ class CSteamTvGetBroadcastChannelStatusResponse(betterproto.Message):
     broadcast_session_id: int = betterproto.uint64_field(11)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class GetBroadcastChannelEntry(betterproto.Message):
     broadcast_channel_id: int = betterproto.fixed64_field(1)
     unique_name: str = betterproto.string_field(2)
@@ -618,38 +618,38 @@ class GetBroadcastChannelEntry(betterproto.Message):
     is_partnered: bool = betterproto.bool_field(19)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetFollowedChannelsResponse(betterproto.Message):
     results: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetSubscribedChannelsResponse(betterproto.Message):
     results: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvFollowBroadcastChannelResponse(betterproto.Message):
     is_followed: bool = betterproto.bool_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvSubscribeBroadcastChannelResponse(betterproto.Message):
     is_subscribed: bool = betterproto.bool_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvReportBroadcastChannelResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelInteractionResponse(betterproto.Message):
     is_followed: bool = betterproto.bool_field(1)
     is_subscribed: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGame(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     name: str = betterproto.string_field(2)
@@ -661,29 +661,29 @@ class CSteamTvGame(betterproto.Message):
     publisher: str = betterproto.string_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetGamesResponse(betterproto.Message):
     results: List["CSteamTvGame"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetChannelsResponse(betterproto.Message):
     results: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelBroadcastersResponse(betterproto.Message):
     broadcasters: List["CSteamTvGetBroadcastChannelBroadcastersResponseBroadcaster"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelBroadcastersResponseBroadcaster(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     name: str = betterproto.string_field(2)
     rtmp_token: str = betterproto.string_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvChatBan(betterproto.Message):
     issuer_steamid: int = betterproto.fixed64_field(1)
     chatter_steamid: int = betterproto.fixed64_field(2)
@@ -692,7 +692,7 @@ class CSteamTvChatBan(betterproto.Message):
     name: str = betterproto.string_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvAddChatBanRequest(betterproto.Message):
     broadcast_channel_id: int = betterproto.fixed64_field(1)
     chatter_steamid: int = betterproto.fixed64_field(2)
@@ -701,143 +701,143 @@ class CSteamTvAddChatBanRequest(betterproto.Message):
     undo: bool = betterproto.bool_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvAddChatBanResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetChatBansResponse(betterproto.Message):
     results: List["CSteamTvChatBan"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvAddChatModeratorRequest(betterproto.Message):
     broadcast_channel_id: int = betterproto.fixed64_field(1)
     moderator_steamid: int = betterproto.fixed64_field(2)
     undo: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvAddChatModeratorResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetChatModeratorsRequest(betterproto.Message):
     broadcast_channel_id: int = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvChatModerator(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetChatModeratorsResponse(betterproto.Message):
     results: List["CSteamTvChatModerator"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvAddWordBanResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetWordBansResponse(betterproto.Message):
     results: List[str] = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvJoinChatRequest(betterproto.Message):
     broadcast_channel_id: int = betterproto.fixed64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvJoinChatResponse(betterproto.Message):
     chat_id: int = betterproto.fixed64_field(1)
     view_url_template: str = betterproto.string_field(2)
     flair_group_ids: List[int] = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvSearchResponse(betterproto.Message):
     results: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetSteamTvUserSettingsResponse(betterproto.Message):
     stream_live_email: bool = betterproto.bool_field(1)
     stream_live_notification: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvSetSteamTvUserSettingsResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetMyBroadcastChannelsResponse(betterproto.Message):
     results: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageTemplateTakeover(betterproto.Message):
     broadcasts: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageTemplateSingleGame(betterproto.Message):
     broadcasts: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
     appid: int = betterproto.uint32_field(2)
     title: str = betterproto.string_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class GameListEntry(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     game_name: str = betterproto.string_field(2)
     broadcast: "GetBroadcastChannelEntry" = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageTemplateGameList(betterproto.Message):
     entries: List["GameListEntry"] = betterproto.message_field(1)
     title: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageTemplateQuickExplore(betterproto.Message):
     broadcasts: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
     title: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageTemplateConveyorBelt(betterproto.Message):
     broadcasts: List["GetBroadcastChannelEntry"] = betterproto.message_field(1)
     title: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageTemplateWatchParty(betterproto.Message):
     broadcast: "GetBroadcastChannelEntry" = betterproto.message_field(1)
     title: str = betterproto.string_field(2)
     chat_group_id: int = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageTemplateDeveloper(betterproto.Message):
     broadcast: "GetBroadcastChannelEntry" = betterproto.message_field(1)
     title: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageTemplateEvent(betterproto.Message):
     title: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvHomePageContentRow(betterproto.Message):
     template_type: int = betterproto.int32_field(1)
     takeover: "CSteamTvHomePageTemplateTakeover" = betterproto.message_field(2)
@@ -850,12 +850,12 @@ class CSteamTvHomePageContentRow(betterproto.Message):
     event: "CSteamTvHomePageTemplateEvent" = betterproto.message_field(9)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetHomePageContentsResponse(betterproto.Message):
     rows: List["CSteamTvHomePageContentRow"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvBroadcastClipInfo(betterproto.Message):
     broadcast_clip_id: int = betterproto.uint64_field(1)
     channel_id: int = betterproto.uint64_field(2)
@@ -868,83 +868,83 @@ class CSteamTvBroadcastClipInfo(betterproto.Message):
     thumbnail_path: str = betterproto.string_field(9)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSteamTvGetBroadcastChannelClipsResponse(betterproto.Message):
     clips: List["CSteamTvBroadcastClipInfo"] = betterproto.message_field(1)
     thumbnail_host: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListCategory(betterproto.Message):
     groupid: int = betterproto.uint32_field(1)
     name: str = betterproto.string_field(2)
     accountid_members: List[int] = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListGetCategoriesRequest(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListGetCategoriesResponse(betterproto.Message):
     categories: List["CFriendsListCategory"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListFavoriteEntry(betterproto.Message):
     accountid: int = betterproto.uint32_field(1)
     clanid: int = betterproto.uint32_field(2)
     chat_group_id: int = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListGetFavoritesRequest(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListGetFavoritesResponse(betterproto.Message):
     favorites: List["CFriendsListFavoriteEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListSetFavoritesRequest(betterproto.Message):
     favorites: List["CFriendsListFavoriteEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListSetFavoritesResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListFavoritesChangedNotification(betterproto.Message):
     favorites: List["CFriendsListFavoriteEntry"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListGetFriendsListRequest(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsListGetFriendsListResponse(betterproto.Message):
     friendslist: "CMsgClientFriendsList" = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CClanRespondToClanInviteRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     accept: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CClanRespondToClanInviteResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CClientMetricsClientBootstrapRequestInfo(betterproto.Message):
     original_hostname: str = betterproto.string_field(1)
     actual_hostname: str = betterproto.string_field(2)
@@ -958,7 +958,7 @@ class CClientMetricsClientBootstrapRequestInfo(betterproto.Message):
     num_retries: int = betterproto.uint32_field(10)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CClientMetricsClientBootstrapSummary(betterproto.Message):
     launcher_type: int = betterproto.uint32_field(1)
     steam_realm: int = betterproto.uint32_field(2)
@@ -969,12 +969,12 @@ class CClientMetricsClientBootstrapSummary(betterproto.Message):
     package_requests: List["CClientMetricsClientBootstrapRequestInfo"] = betterproto.message_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CProductImpressionsFromClientNotification(betterproto.Message):
     impressions: List["CProductImpressionsFromClientNotificationImpression"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CProductImpressionsFromClientNotificationImpression(betterproto.Message):
     type: int = betterproto.int32_field(1)
     appid: int = betterproto.uint32_field(2)

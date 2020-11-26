@@ -8,18 +8,18 @@ from typing import List
 import betterproto
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CGameServersGetServerListRequest(betterproto.Message):
     filter: str = betterproto.string_field(1)
     limit: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CGameServersGetServerListResponse(betterproto.Message):
     servers: List["CGameServersGetServerListResponseServer"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CGameServersGetServerListResponseServer(betterproto.Message):
     addr: str = betterproto.string_field(1)
     gameport: int = betterproto.uint32_field(2)
@@ -41,22 +41,22 @@ class CGameServersGetServerListResponseServer(betterproto.Message):
     gametype: str = betterproto.string_field(18)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CGameServersGetServerSteamIDsByIpRequest(betterproto.Message):
     server_ips: List[str] = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CGameServersIPsWithSteamIDsResponse(betterproto.Message):
     servers: List["CGameServersIPsWithSteamIDsResponseServer"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CGameServersIPsWithSteamIDsResponseServer(betterproto.Message):
     addr: str = betterproto.string_field(1)
     steamid: int = betterproto.fixed64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CGameServersGetServerIPsBySteamIDRequest(betterproto.Message):
     server_steamids: List[int] = betterproto.fixed64_field(1)

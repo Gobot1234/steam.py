@@ -8,7 +8,7 @@ from typing import List
 import betterproto
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendMessagesGetRecentMessagesRequest(betterproto.Message):
     steamid1: int = betterproto.fixed64_field(1)
     steamid2: int = betterproto.fixed64_field(2)
@@ -21,13 +21,13 @@ class CFriendMessagesGetRecentMessagesRequest(betterproto.Message):
     ordinal_last: int = betterproto.uint32_field(9)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendMessagesGetRecentMessagesResponse(betterproto.Message):
     messages: List["CFriendMessagesGetRecentMessagesResponseFriendMessage"] = betterproto.message_field(1)
     more_available: bool = betterproto.bool_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendMessagesGetRecentMessagesResponseFriendMessage(betterproto.Message):
     accountid: int = betterproto.uint32_field(1)
     timestamp: int = betterproto.uint32_field(2)
@@ -35,13 +35,13 @@ class CFriendMessagesGetRecentMessagesResponseFriendMessage(betterproto.Message)
     ordinal: int = betterproto.uint32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsMessagesGetActiveMessageSessionsRequest(betterproto.Message):
     lastmessage_since: int = betterproto.uint32_field(1)
     only_sessions_with_messages: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsMessagesGetActiveMessageSessionsResponse(betterproto.Message):
     message_sessions: List[
         "CFriendsMessagesGetActiveMessageSessionsResponseFriendMessageSession"
@@ -49,7 +49,7 @@ class CFriendsMessagesGetActiveMessageSessionsResponse(betterproto.Message):
     timestamp: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendsMessagesGetActiveMessageSessionsResponseFriendMessageSession(betterproto.Message):
     accountid_friend: int = betterproto.uint32_field(1)
     last_message: int = betterproto.uint32_field(2)
@@ -57,7 +57,7 @@ class CFriendsMessagesGetActiveMessageSessionsResponseFriendMessageSession(bette
     unread_message_count: int = betterproto.uint32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendMessagesSendMessageRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)
@@ -68,7 +68,7 @@ class CFriendMessagesSendMessageRequest(betterproto.Message):
     client_message_id: str = betterproto.string_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendMessagesSendMessageResponse(betterproto.Message):
     modified_message: str = betterproto.string_field(1)
     server_timestamp: int = betterproto.uint32_field(2)
@@ -76,13 +76,13 @@ class CFriendMessagesSendMessageResponse(betterproto.Message):
     message_without_bb_code: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendMessagesAckMessageNotification(betterproto.Message):
     steamid_partner: int = betterproto.fixed64_field(1)
     timestamp: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CFriendMessagesIncomingMessageNotification(betterproto.Message):
     steamid_friend: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)

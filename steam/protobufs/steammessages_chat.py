@@ -62,22 +62,17 @@ class EChatRoomMemberStateChange(betterproto.Enum):
     RolesChanged = 12
 
 
-@dataclass
-class CChat_RequestFriendPersonaStates_Request(betterproto.Message):
-    pass
-
-
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRequestFriendPersonaStatesRequest(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRequestFriendPersonaStatesResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomCreateChatRoomGroupRequest(betterproto.Message):
     steamid_partner: int = betterproto.fixed64_field(1)
     steamid_invited: int = betterproto.fixed64_field(2)
@@ -87,14 +82,14 @@ class CChatRoomCreateChatRoomGroupRequest(betterproto.Message):
     watching_broadcast_channel_id: int = betterproto.uint64_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRole(betterproto.Message):
     role_id: int = betterproto.uint64_field(1)
     name: str = betterproto.string_field(2)
     ordinal: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoleActions(betterproto.Message):
     role_id: int = betterproto.uint64_field(1)
     can_create_rename_delete_channel: bool = betterproto.bool_field(2)
@@ -110,7 +105,7 @@ class CChatRoleActions(betterproto.Message):
     can_set_watching_broadcast: bool = betterproto.bool_field(12)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatPartyBeacon(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     steamid_owner: int = betterproto.fixed64_field(2)
@@ -118,7 +113,7 @@ class CChatPartyBeacon(betterproto.Message):
     game_metadata: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGroupHeaderState(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_name: str = betterproto.string_field(2)
@@ -137,7 +132,7 @@ class CChatRoomGroupHeaderState(betterproto.Message):
     avatar_ugc_url: str = betterproto.string_field(25)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomMember(betterproto.Message):
     accountid: int = betterproto.uint32_field(1)
     state: "EChatRoomJoinState" = betterproto.enum_field(3)
@@ -146,7 +141,7 @@ class CChatRoomMember(betterproto.Message):
     role_ids: List[int] = betterproto.uint64_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomState(betterproto.Message):
     chat_id: int = betterproto.uint64_field(1)
     chat_name: str = betterproto.string_field(2)
@@ -158,7 +153,7 @@ class CChatRoomState(betterproto.Message):
     accountid_last_message: int = betterproto.uint32_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGroupState(betterproto.Message):
     header_state: "CChatRoomGroupHeaderState" = betterproto.message_field(1)
     members: List["CChatRoomMember"] = betterproto.message_field(2)
@@ -167,7 +162,7 @@ class CChatRoomGroupState(betterproto.Message):
     kicked: List["CChatRoomMember"] = betterproto.message_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserChatRoomState(betterproto.Message):
     chat_id: int = betterproto.uint64_field(1)
     time_joined: int = betterproto.uint32_field(2)
@@ -179,7 +174,7 @@ class CUserChatRoomState(betterproto.Message):
     time_first_unread: int = betterproto.uint32_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CUserChatRoomGroupState(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     time_joined: int = betterproto.uint32_field(2)
@@ -190,261 +185,261 @@ class CUserChatRoomGroupState(betterproto.Message):
     unread_indicator_muted: bool = betterproto.bool_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomCreateChatRoomGroupResponse(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     state: "CChatRoomGroupState" = betterproto.message_field(2)
     user_chat_state: "CUserChatRoomGroupState" = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSaveChatRoomGroupRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSaveChatRoomGroupResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomRenameChatRoomGroupRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomRenameChatRoomGroupResponse(betterproto.Message):
     name: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetChatRoomGroupTaglineRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     tagline: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetChatRoomGroupTaglineResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetChatRoomGroupAvatarRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     avatar_sha: bytes = betterproto.bytes_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetChatRoomGroupAvatarResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetChatRoomGroupWatchingBroadcastRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     watching_broadcast_accountid: int = betterproto.uint32_field(2)
     watching_broadcast_channel_id: int = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetChatRoomGroupWatchingBroadcastResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomJoinMiniGameForChatRoomGroupRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomJoinMiniGameForChatRoomGroupResponse(betterproto.Message):
     minigame_id: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomEndMiniGameForChatRoomGroupRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
     minigame_id: int = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomEndMiniGameForChatRoomGroupResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomMuteUserRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     steamid: int = betterproto.fixed64_field(2)
     expiration: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomMuteUserResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomKickUserRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     steamid: int = betterproto.fixed64_field(2)
     expiration: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomKickUserResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetUserBanStateRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     steamid: int = betterproto.fixed64_field(2)
     ban_state: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetUserBanStateResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomRevokeInviteRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     steamid: int = betterproto.fixed64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomRevokeInviteResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomCreateRoleRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomCreateRoleResponse(betterproto.Message):
     actions: "CChatRoleActions" = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetRolesRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetRolesResponse(betterproto.Message):
     roles: List["CChatRole"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomRenameRoleRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     role_id: int = betterproto.uint64_field(2)
     name: str = betterproto.string_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomRenameRoleResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomReorderRoleRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     role_id: int = betterproto.uint64_field(2)
     ordinal: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomReorderRoleResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteRoleRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     role_id: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteRoleResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetRoleActionsRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     role_id: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetRoleActionsResponse(betterproto.Message):
     actions: List["CChatRoleActions"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomReplaceRoleActionsRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     role_id: int = betterproto.uint64_field(2)
     actions: "CChatRoleActions" = betterproto.message_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomReplaceRoleActionsResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomAddRoleToUserRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     role_id: int = betterproto.uint64_field(3)
     steamid: int = betterproto.fixed64_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomAddRoleToUserResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetRolesForUserRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     steamid: int = betterproto.fixed64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetRolesForUserResponse(betterproto.Message):
     role_ids: List[int] = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteRoleFromUserRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     role_id: int = betterproto.uint64_field(3)
     steamid: int = betterproto.fixed64_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteRoleFromUserResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomJoinChatRoomGroupRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     invite_code: str = betterproto.string_field(2)
     chat_id: int = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomJoinChatRoomGroupResponse(betterproto.Message):
     state: "CChatRoomGroupState" = betterproto.message_field(1)
     user_chat_state: "CUserChatRoomGroupState" = betterproto.message_field(3)
@@ -452,7 +447,7 @@ class CChatRoomJoinChatRoomGroupResponse(betterproto.Message):
     time_expire: int = betterproto.uint32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomInviteFriendToChatRoomGroupRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     steamid: int = betterproto.fixed64_field(2)
@@ -460,69 +455,69 @@ class CChatRoomInviteFriendToChatRoomGroupRequest(betterproto.Message):
     skip_friendsui_check: bool = betterproto.bool_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomInviteFriendToChatRoomGroupResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomLeaveChatRoomGroupRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomLeaveChatRoomGroupResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomCreateChatRoomRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     name: str = betterproto.string_field(2)
     allow_voice: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomCreateChatRoomResponse(betterproto.Message):
     chat_room: "CChatRoomState" = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteChatRoomRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteChatRoomResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomRenameChatRoomRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
     name: str = betterproto.string_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomRenameChatRoomResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomReorderChatRoomRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
     move_after_chat_id: int = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomReorderChatRoomResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSendChatMessageRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
@@ -530,7 +525,7 @@ class CChatRoomSendChatMessageRequest(betterproto.Message):
     echo_to_sender: bool = betterproto.bool_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSendChatMessageResponse(betterproto.Message):
     modified_message: str = betterproto.string_field(1)
     server_timestamp: int = betterproto.uint32_field(2)
@@ -538,29 +533,29 @@ class CChatRoomSendChatMessageResponse(betterproto.Message):
     message_without_bb_code: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomJoinVoiceChatRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomJoinVoiceChatResponse(betterproto.Message):
     voice_chatid: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomLeaveVoiceChatRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomLeaveVoiceChatResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetMessageHistoryRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
@@ -571,20 +566,20 @@ class CChatRoomGetMessageHistoryRequest(betterproto.Message):
     max_count: int = betterproto.uint32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class ServerMessage(betterproto.Message):
     message: "EChatRoomServerMessage" = betterproto.enum_field(1)
     string_param: str = betterproto.string_field(2)
     accountid_param: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetMessageHistoryResponse(betterproto.Message):
     messages: List["CChatRoomGetMessageHistoryResponseChatMessage"] = betterproto.message_field(1)
     more_available: bool = betterproto.bool_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetMessageHistoryResponseChatMessage(betterproto.Message):
     sender: int = betterproto.uint32_field(1)
     server_timestamp: int = betterproto.uint32_field(2)
@@ -594,12 +589,12 @@ class CChatRoomGetMessageHistoryResponseChatMessage(betterproto.Message):
     deleted: bool = betterproto.bool_field(6)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetMyChatRoomGroupsRequest(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetChatRoomGroupSummaryResponse(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_group_name: str = betterproto.string_field(2)
@@ -624,76 +619,76 @@ class CChatRoomGetChatRoomGroupSummaryResponse(betterproto.Message):
     avatar_ugc_url: str = betterproto.string_field(21)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSummaryPair(betterproto.Message):
     user_chat_group_state: "CUserChatRoomGroupState" = betterproto.message_field(1)
     group_summary: "CChatRoomGetChatRoomGroupSummaryResponse" = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetMyChatRoomGroupsResponse(betterproto.Message):
     chat_room_groups: List["CChatRoomSummaryPair"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetChatRoomGroupStateRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetChatRoomGroupStateResponse(betterproto.Message):
     state: "CChatRoomGroupState" = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetChatRoomGroupSummaryRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetAppChatRoomGroupForceActiveRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     requesting_app_id: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetAppChatRoomGroupForceActiveResponse(betterproto.Message):
     result: int = betterproto.uint32_field(1)
     accounts_in_channel: List[int] = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetAppChatRoomGroupStopForceActiveNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     requesting_app_id: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomAckChatMessageNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
     timestamp: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomCreateInviteLinkRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     seconds_valid: int = betterproto.uint32_field(2)
     chat_id: int = betterproto.uint64_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomCreateInviteLinkResponse(betterproto.Message):
     invite_code: str = betterproto.string_field(1)
     seconds_valid: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteLinkInfoRequest(betterproto.Message):
     invite_code: str = betterproto.string_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteLinkInfoResponse(betterproto.Message):
     steamid_sender: int = betterproto.fixed64_field(3)
     time_expires: int = betterproto.uint32_field(4)
@@ -704,7 +699,7 @@ class CChatRoomGetInviteLinkInfoResponse(betterproto.Message):
     banned: bool = betterproto.bool_field(11)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteInfoRequest(betterproto.Message):
     steamid_invitee: int = betterproto.fixed64_field(1)
     chat_group_id: int = betterproto.uint64_field(2)
@@ -712,24 +707,24 @@ class CChatRoomGetInviteInfoRequest(betterproto.Message):
     invite_code: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteInfoResponse(betterproto.Message):
     group_summary: "CChatRoomGetChatRoomGroupSummaryResponse" = betterproto.message_field(1)
     time_kick_expire: int = betterproto.uint32_field(2)
     banned: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteLinksForGroupRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteLinksForGroupResponse(betterproto.Message):
     invite_links: List["CChatRoomGetInviteLinksForGroupResponseLinkInfo"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteLinksForGroupResponseLinkInfo(betterproto.Message):
     invite_code: str = betterproto.string_field(1)
     steamid_creator: int = betterproto.fixed64_field(2)
@@ -737,17 +732,17 @@ class CChatRoomGetInviteLinksForGroupResponseLinkInfo(betterproto.Message):
     chat_id: int = betterproto.uint64_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetBanListRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetBanListResponse(betterproto.Message):
     bans: List["CChatRoomGetBanListResponseBanInfo"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetBanListResponseBanInfo(betterproto.Message):
     accountid: int = betterproto.uint32_field(1)
     accountid_actor: int = betterproto.uint32_field(2)
@@ -755,48 +750,48 @@ class CChatRoomGetBanListResponseBanInfo(betterproto.Message):
     ban_reason: str = betterproto.string_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteListRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGroupInvite(betterproto.Message):
     accountid: int = betterproto.uint32_field(1)
     accountid_actor: int = betterproto.uint32_field(2)
     time_invited: int = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomGetInviteListResponse(betterproto.Message):
     invites: List["CChatRoomGroupInvite"] = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteInviteLinkRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     invite_code: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteInviteLinkResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetSessionActiveChatRoomGroupsRequest(betterproto.Message):
     chat_group_ids: List[int] = betterproto.uint64_field(1)
     chat_groups_data_requested: List[int] = betterproto.uint64_field(2)
     virtualize_members_threshold: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetSessionActiveChatRoomGroupsResponse(betterproto.Message):
     chat_states: List["CChatRoomGroupState"] = betterproto.message_field(1)
     virtualize_members_chat_group_ids: List[int] = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetUserChatGroupPreferencesRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_group_preferences: "CChatRoomSetUserChatGroupPreferencesRequestChatGroupPreferences" = (
@@ -807,14 +802,14 @@ class CChatRoomSetUserChatGroupPreferencesRequest(betterproto.Message):
     ] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetUserChatGroupPreferencesRequestChatGroupPreferences(betterproto.Message):
     desktop_notification_level: "EChatRoomNotificationLevel" = betterproto.enum_field(1)
     mobile_notification_level: "EChatRoomNotificationLevel" = betterproto.enum_field(2)
     unread_indicator_muted: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetUserChatGroupPreferencesRequestChatRoomPreferences(betterproto.Message):
     chat_id: int = betterproto.uint64_field(1)
     desktop_notification_level: "EChatRoomNotificationLevel" = betterproto.enum_field(2)
@@ -822,30 +817,30 @@ class CChatRoomSetUserChatGroupPreferencesRequestChatRoomPreferences(betterproto
     unread_indicator_muted: bool = betterproto.bool_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSetUserChatGroupPreferencesResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteChatMessagesRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
     messages: List["CChatRoomDeleteChatMessagesRequestMessage"] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteChatMessagesRequestMessage(betterproto.Message):
     server_timestamp: int = betterproto.uint32_field(1)
     ordinal: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomDeleteChatMessagesResponse(betterproto.Message):
     pass
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomUpdateMemberListViewNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     view_id: int = betterproto.uint64_field(2)
@@ -857,7 +852,7 @@ class CChatRoomUpdateMemberListViewNotification(betterproto.Message):
     persona_unsubscribe_accountids: List[int] = betterproto.int32_field(8)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSearchMembersRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     search_id: int = betterproto.uint64_field(2)
@@ -865,48 +860,48 @@ class CChatRoomSearchMembersRequest(betterproto.Message):
     max_results: int = betterproto.int32_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSearchMembersResponse(betterproto.Message):
     matching_members: List["CChatRoomSearchMembersResponseMemberMatch"] = betterproto.message_field(1)
     status_flags: int = betterproto.uint32_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomSearchMembersResponseMemberMatch(betterproto.Message):
     accountid: int = betterproto.int32_field(1)
     persona: "CMsgClientPersonaStateFriend" = betterproto.message_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CClanChatRoomsGetClanChatRoomInfoRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     autocreate: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CClanChatRoomsGetClanChatRoomInfoResponse(betterproto.Message):
     chat_group_summary: "CChatRoomGetChatRoomGroupSummaryResponse" = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CClanChatRoomsSetClanChatRoomPrivateRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     chat_room_private: bool = betterproto.bool_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CClanChatRoomsSetClanChatRoomPrivateResponse(betterproto.Message):
     chat_room_private: bool = betterproto.bool_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatMentions(betterproto.Message):
     mention_all: bool = betterproto.bool_field(1)
     mention_here: bool = betterproto.bool_field(2)
     mention_accountids: List[int] = betterproto.uint32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomIncomingChatMessageNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
@@ -920,46 +915,46 @@ class CChatRoomIncomingChatMessageNotification(betterproto.Message):
     chat_name: str = betterproto.string_field(10)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomChatMessageModifiedNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
     messages: List["CChatRoomChatMessageModifiedNotificationChatMessage"] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomChatMessageModifiedNotificationChatMessage(betterproto.Message):
     server_timestamp: int = betterproto.uint32_field(1)
     ordinal: int = betterproto.uint32_field(2)
     deleted: bool = betterproto.bool_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomMemberStateChangeNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     member: "CChatRoomMember" = betterproto.message_field(2)
     change: "EChatRoomMemberStateChange" = betterproto.enum_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomChatRoomHeaderStateNotification(betterproto.Message):
     header_state: "CChatRoomGroupHeaderState" = betterproto.message_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomChatRoomGroupRoomsChangeNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     default_chat_id: int = betterproto.uint64_field(2)
     chat_rooms: List["CChatRoomState"] = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomNotifyShouldRejoinChatRoomVoiceChatNotification(betterproto.Message):
     chat_id: int = betterproto.uint64_field(1)
     chat_group_id: int = betterproto.uint64_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class ChatRoomClientNotifyChatGroupUserStateChangedNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     user_chat_group_state: "CUserChatRoomGroupState" = betterproto.message_field(2)
@@ -967,12 +962,12 @@ class ChatRoomClientNotifyChatGroupUserStateChangedNotification(betterproto.Mess
     user_action: "EChatRoomMemberStateChange" = betterproto.enum_field(4)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class ChatRoomClientNotifyChatRoomDisconnectNotification(betterproto.Message):
     chat_group_ids: List[int] = betterproto.uint64_field(1)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomMemberListView(betterproto.Message):
     start: int = betterproto.int32_field(3)
     end: int = betterproto.int32_field(4)
@@ -981,14 +976,14 @@ class CChatRoomMemberListView(betterproto.Message):
     server_changenumber: int = betterproto.int32_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomMemberSummaryCounts(betterproto.Message):
     ingame: int = betterproto.int32_field(1)
     online: int = betterproto.int32_field(2)
     offline: int = betterproto.int32_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomClientMemberListViewUpdatedNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     view_id: int = betterproto.uint64_field(2)
@@ -999,14 +994,14 @@ class CChatRoomClientMemberListViewUpdatedNotification(betterproto.Message):
     subscribed_personas: List["CMsgClientPersonaStateFriend"] = betterproto.message_field(7)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatRoomClientMemberListViewUpdatedNotificationMemberListViewEntry(betterproto.Message):
     rank: int = betterproto.int32_field(1)
     accountid: int = betterproto.uint32_field(2)
     persona: "CMsgClientPersonaStateFriend" = betterproto.message_field(3)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatUsabilityClientUsabilityMetricsNotification(betterproto.Message):
     metrics_run_id: int = betterproto.uint32_field(1)
     client_build: int = betterproto.uint32_field(2)
@@ -1018,7 +1013,7 @@ class CChatUsabilityClientUsabilityMetricsNotification(betterproto.Message):
     metrics: "CChatUsabilityClientUsabilityMetricsNotificationMetrics" = betterproto.message_field(13)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatUsabilityClientUsabilityMetricsNotificationSettings(betterproto.Message):
     notifications_show_ingame: bool = betterproto.bool_field(1)
     notifications_show_online: bool = betterproto.bool_field(2)
@@ -1047,7 +1042,7 @@ class CChatUsabilityClientUsabilityMetricsNotificationSettings(betterproto.Messa
     animated_avatars: bool = betterproto.bool_field(25)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatUsabilityClientUsabilityMetricsNotificationVoiceSettings(betterproto.Message):
     voice_input_gain: float = betterproto.float_field(1)
     voice_output_gain: float = betterproto.float_field(2)
@@ -1062,7 +1057,7 @@ class CChatUsabilityClientUsabilityMetricsNotificationVoiceSettings(betterproto.
     play_ptt_sounds: bool = betterproto.bool_field(11)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatUsabilityClientUsabilityMetricsNotificationUiState(betterproto.Message):
     friends_list_height: int = betterproto.int32_field(1)
     friends_list_width: int = betterproto.int32_field(2)
@@ -1084,7 +1079,7 @@ class CChatUsabilityClientUsabilityMetricsNotificationUiState(betterproto.Messag
     in_group_voice_chat: bool = betterproto.bool_field(16)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatUsabilityClientUsabilityMetricsNotificationUiStateCategoryCollapseState(betterproto.Message):
     in_game_collapsed: bool = betterproto.bool_field(1)
     online_collapsed: bool = betterproto.bool_field(2)
@@ -1093,7 +1088,7 @@ class CChatUsabilityClientUsabilityMetricsNotificationUiStateCategoryCollapseSta
     categories_collapsed: int = betterproto.int32_field(5)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatUsabilityClientUsabilityMetricsNotificationMetrics(betterproto.Message):
     friends_count: int = betterproto.int32_field(1)
     friends_category_count: int = betterproto.int32_field(2)
@@ -1107,6 +1102,6 @@ class CChatUsabilityClientUsabilityMetricsNotificationMetrics(betterproto.Messag
     group_chat_favorite_count: int = betterproto.int32_field(10)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CChatUsabilityRequestClientUsabilityMetricsNotification(betterproto.Message):
     metrics_run_id: int = betterproto.uint32_field(1)

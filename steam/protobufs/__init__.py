@@ -29,8 +29,7 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 
 from __future__ import annotations
 
-import dataclasses
-from typing import Any, Generic, Optional, Type, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 import betterproto
 
@@ -41,15 +40,9 @@ from .protobufs import *
 from .unified import *
 
 T = TypeVar("T", bound=betterproto.Message)
+M = TypeVar("M", bound="MsgBase")
+GetProtoType = Optional["type[betterproto.Message]"]
 ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdrProto)
-GetProtoType = Optional[Type[betterproto.Message]]
-
-
-def _Message__bool__(self: betterproto.Message) -> bool:
-    return any(getattr(self, field.name) for field in dataclasses.fields(self))
-
-
-betterproto.Message.__bool__ = _Message__bool__
 
 
 def get_cmsg(msg: IntEnum) -> GetProtoType:
@@ -87,6 +80,9 @@ def get_um(name: str) -> GetProtoType:
 class MsgBase(Generic[T]):
     __slots__ = ("header", "body", "payload", "skip")
 
+    def __new__(cls: type[M], *args: Any, **kwargs: Any) -> M:
+        return object.__new__(cls)  # see https://bugs.python.org/issue39168 for the rational behind this
+
     def __init__(self, msg: IE, data: Optional[bytes], **kwargs: Any):
         self.msg: IE = msg
         self.body: Optional[T] = None
@@ -111,7 +107,7 @@ class MsgBase(Generic[T]):
 
     def _parse(self, proto: Optional[type[T]]) -> None:
         if proto:
-            self.body: T = proto()
+            self.body = proto()
             if self.payload:
                 self.body.parse(self.payload)
 
