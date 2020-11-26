@@ -134,13 +134,9 @@ class Cog:
 
     @property
     def listeners(self) -> list[tuple[str, EventType]]:
-        """tuple[:class:`str`, Callable[..., Awaitable]]:
-        A tuple of the events registered with the format (name, listener)"""
-        ret = []
-        for listeners in self.__listeners__.values():
-            for listener in listeners:
-                ret.append((listener.__name__, listener))
-        return ret
+        """list[tuple[:class:`str`, Callable[..., Awaitable]]]:
+        A list of tuples of the events registered with the format (name, listener)"""
+        return [(listener.__name__, listener) for listeners in self.__listeners__.values() for listener in listeners]
 
     @classmethod
     @overload
@@ -229,14 +225,14 @@ class Cog:
 
         for idx, command in enumerate(self.__commands__.values()):
             command.cog = self
-            command.clean_params  # check if the command's params are valid on startup
             if cls.cog_check is not Cog.cog_check:
                 command.checks.append(self.cog_check)
 
             if isinstance(command, GroupMixin):
                 for child in command.children:
+                    del child.clean_params  # clear any previous params
                     child.cog = self
-                    child.clean_params  # check if the command's params are valid on startup
+                    child.clean_params  # check the new params
 
             for decorator in Command.DECORATORS:
                 command_deco = getattr(command, decorator, None)

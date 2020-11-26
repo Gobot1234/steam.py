@@ -46,7 +46,6 @@ from typing import (
     OrderedDict,
     TypeVar,
     Union,
-    get_type_hints,
     overload,
 )
 
@@ -54,6 +53,7 @@ from chardet import detect
 from typing_extensions import Literal, get_args, get_origin
 
 from ...errors import ClientException
+from ...channel import DMChannel
 from ...models import FunctionType
 from ...utils import cached_property, maybe_coroutine
 from . import converters
@@ -257,24 +257,35 @@ class Command:
             raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine function.")
 
         module = sys.modules[function.__module__]
+        function = function.__func__ if inspect.ismethod(function) else function  # HelpCommand.command_callback
 
-        try:
-            annotations = get_type_hints(function, module.__dict__)
-        except NameError as exc:
-            reload_module_with_TYPE_CHECKING(module)
-            try:
-                annotations = get_type_hints(function, module.__dict__)
-            except NameError:
-                raise exc from None
-
-        while inspect.ismethod(function):  # HelpCommand.command_callback
-            function = function.__func__
-        function.__annotations__ = annotations  # replace the function's old annotations for later
         self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
-        try:
-            self.params.copy().popitem(last=False)
-        except KeyError:
+
+        if not self.params:
             raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
+
+        for idx, (key, value) in enumerate(self.params.items()):
+            if isinstance(value.annotation, str):
+                globals = module.__dict__
+                locals = sys._getframe(4).f_locals  # ewh
+
+                try:
+                    self.params[key] = value.replace(annotation=eval(value.annotation, globals, locals))
+                except NameError as exc:
+                    if len(self.params) == 1 or key == "ctx" and idx == 1:
+                        # we can be sure if there is only one param it is fine to ignore NameErrors as it will always
+                        # be context, however if there is more than param checking this gets harder so currently if
+                        # you have a param in the 1st index called ctx and it's NameErrored, its going to be ignored.
+                        # I might change this in the future depending on how commands are registered in Cogs.
+                        continue
+
+                    reload_module_with_TYPE_CHECKING(module)
+
+                    try:
+                        self.params[key] = value.replace(annotation=eval(value.annotation, globals, locals))
+                    except NameError:
+                        raise exc from None
+
         self.module = function.__module__
         self._callback = function
 
@@ -282,6 +293,7 @@ class Command:
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
         """OrderedDict[:class:`str`, :class:`inspect.Parameter`]:
         The command's parameters without ``"self"`` and ``"ctx"``."""
+        print("calling", self.name)
         params = self.params.copy()
         if self.cog is not None:
             try:
@@ -648,6 +660,12 @@ class GroupMixin:
         if command.name in self.__commands__:
             raise ClientException(f"The command {command.name} is already registered.")
 
+        for param in command.clean_params.values():
+            if isinstance(param.annotation, str):
+                raise ClientException(
+                    f"Please rename the parameter {param.name} or make its annotation defined at runtime"
+                )
+
         self.__commands__[command.name] = command
         for alias in command.aliases:
             if alias in self.__commands__:
@@ -1005,6 +1023,21 @@ def is_owner(command: Optional[MCD] = None) -> MCD:
         if ctx.bot.owner_ids and ctx.author.id64 in ctx.bot.owner_ids:
             return True
         raise NotOwner()
+
+    decorator = check(predicate)
+    return decorator(command) if command is not None else lambda command: decorator(command)
+
+
+def dm_only(command: Optional[MCD] = None) -> MCD:
+    """|maybecallabledeco|
+    A decorator that will make a command only invokable in a :class:`steam.DMChannel`.
+    """
+
+    def predicate(ctx: Context) -> bool:
+        if isinstance(ctx.channel, DMChannel):
+            return True
+
+        raise DMChannelOnly()
 
     decorator = check(predicate)
     return decorator(command) if command is not None else lambda command: decorator(command)
