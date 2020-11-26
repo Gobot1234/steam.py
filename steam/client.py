@@ -1029,37 +1029,13 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["connect"],
-        *,
-        check: Optional[Callable[[], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> None:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["disconnect"],
-        *,
-        check: Optional[Callable[[], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> None:
-        ...
-
-    @overload  # don't know why you'd do this
-    async def wait_for(
-        self,
-        event: Literal["ready"],
-        *,
-        check: Optional[Callable[[], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> None:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["login"],
+        event: Literal[
+            "connect",
+            "disconnect",
+            "ready",
+            "login",
+            "logout",
+        ],
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
@@ -1119,67 +1095,15 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["trade_receive"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_send"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_accept"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_decline"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_cancel"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_expire"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_counter"],
+        event: Literal[
+            "trade_receive",
+            "trade_send",
+            "trade_accept",
+            "trade_decline",
+            "trade_cancel",
+            "trade_expire",
+            "trade_counter",
+        ],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,

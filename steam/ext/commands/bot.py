@@ -670,7 +670,7 @@ class Bot(GroupMixin, Client):
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    if TYPE_CHECKING:
+    if TYPE_CHECKING:  # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs
 
         async def on_command(self, ctx: "commands.Context") -> None:
             """|coro|
@@ -695,37 +695,13 @@ class Bot(GroupMixin, Client):
     @overload
     async def wait_for(
         self,
-        event: Literal["connect"],
-        *,
-        check: Optional[Callable[[], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> None:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["disconnect"],
-        *,
-        check: Optional[Callable[[], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> None:
-        ...
-
-    @overload  # don't know why you'd do this
-    async def wait_for(
-        self,
-        event: Literal["ready"],
-        *,
-        check: Optional[Callable[[], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> None:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["login"],
+        event: Literal[
+            "connect",
+            "disconnect",
+            "ready",
+            "login",
+            "logout",
+        ],
         *,
         check: Optional[Callable[[], bool]] = ...,
         timeout: Optional[float] = ...,
@@ -785,67 +761,15 @@ class Bot(GroupMixin, Client):
     @overload
     async def wait_for(
         self,
-        event: Literal["trade_receive"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_send"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_accept"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_decline"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_cancel"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_expire"],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["trade_counter"],
+        event: Literal[
+            "trade_receive",
+            "trade_send",
+            "trade_accept",
+            "trade_decline",
+            "trade_cancel",
+            "trade_expire",
+            "trade_counter",
+        ],
         *,
         check: Optional[Callable[[TradeOffer], bool]] = ...,
         timeout: Optional[float] = ...,
@@ -925,17 +849,10 @@ class Bot(GroupMixin, Client):
     @overload
     async def wait_for(
         self,
-        event: Literal["command"],
-        *,
-        check: Optional[Callable[[Context], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> Context:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["command_completion"],
+        event: Literal[
+            "command",
+            "command_completion",
+        ],
         *,
         check: Optional[Callable[[Context], bool]] = ...,
         timeout: Optional[float] = ...,
