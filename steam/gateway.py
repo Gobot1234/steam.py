@@ -83,7 +83,7 @@ def return_true(*_, **__) -> Literal[True]:
 
 class EventListener(NamedTuple):
     emsg: EMsg
-    predicate: Callable[[MsgBase], bool]
+    check: Callable[[MsgBase], bool]
     future: asyncio.Future
 
 
@@ -306,9 +306,9 @@ class SteamWebSocket(Registerable):
         """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg, predicate: Callable[[MsgBase], bool] = return_true) -> asyncio.Future:
+    def wait_for(self, emsg: EMsg, check: Callable[[MsgBase], bool] = return_true) -> asyncio.Future[Msgs]:
         future = self.loop.create_future()
-        entry = EventListener(emsg=emsg, predicate=predicate, future=future)
+        entry = EventListener(emsg=emsg, check=check, future=future)
         self.listeners.append(entry)
         return future
 
@@ -397,7 +397,7 @@ class SteamWebSocket(Registerable):
                 continue
 
             try:
-                valid = entry.predicate(msg)
+                valid = entry.check(msg)
             except Exception as exc:
                 future.set_exception(exc)
                 removed.append(idx)
@@ -512,7 +512,7 @@ class SteamWebSocket(Registerable):
     ) -> MsgProto:
         job_id = await self.send_um(name, **kwargs)
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)
-        return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, predicate=check), timeout=timeout)
+        return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, check=check), timeout=timeout)
 
     async def change_presence(
         self,
