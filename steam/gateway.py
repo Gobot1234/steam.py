@@ -42,7 +42,7 @@ import time
 import traceback
 from gzip import _GzipReader as GZipReader
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 
 import aiohttp
 import attr
@@ -75,16 +75,18 @@ __all__ = (
 
 log = logging.getLogger(__name__)
 Msgs = Union[MsgProto, Msg]
+M = TypeVar("M", bound=MsgBase)
 
 
 def return_true(*_, **__) -> Literal[True]:
     return True
 
 
-class EventListener(NamedTuple):
+@attr.dataclass(slots=True)
+class EventListener:
     emsg: EMsg
-    check: Callable[[MsgBase], bool]
-    future: asyncio.Future
+    check: Callable[[M], bool]
+    future: asyncio.Future[M]
 
 
 @attr.dataclass(slots=True)
@@ -306,7 +308,7 @@ class SteamWebSocket(Registerable):
         """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg, check: Callable[[MsgBase], bool] = return_true) -> asyncio.Future[Msgs]:
+    def wait_for(self, emsg: EMsg, check: Callable[[M], bool] = return_true) -> asyncio.Future[M]:
         future = self.loop.create_future()
         entry = EventListener(emsg=emsg, check=check, future=future)
         self.listeners.append(entry)
@@ -424,7 +426,7 @@ class SteamWebSocket(Registerable):
         self._dispatch("socket_send", message)
         await self.send(bytes(message))
 
-    async def send_gc_message(self, msg: Union[GCMsgProto, GCMsg]):  # for ext's to send GC messages
+    async def send_gc_message(self, msg: Union[GCMsgProto, GCMsg]) -> None:  # for ext's to send GC messages
         try:
             log.debug(f"Sending GC message {msg!r}")
         except Exception:
@@ -465,8 +467,6 @@ class SteamWebSocket(Registerable):
                 await http.login(http.username, http.password, shared_secret=http.shared_secret)
             return await self.handle_close()
 
-        log.debug("Logon completed")
-
         self.session_id = msg.session_id
         self.cm_list.cell_id = msg.body.cell_id
 
@@ -483,7 +483,9 @@ class SteamWebSocket(Registerable):
             flags=self._connection._flags,
             force_kick=self._connection._force_kick,
         )
-        return await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
+        await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
+
+        log.debug("Logon completed")
 
     @register(EMsg.Multi)
     async def handle_multi(self, msg: MsgProto[CMsgMulti]) -> None:

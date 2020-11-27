@@ -166,7 +166,7 @@ class Game:
         self.title: Optional[str] = title
         self.context_id: Optional[int] = 2 if context_id is None else context_id
 
-        self.total_play_time: Optional[int] = None
+        self.total_play_time: Optional[timedelta] = None
         self.icon_url: Optional[str] = None
         self.logo_url: Optional[str] = None
         self._stats_visible: Optional[bool] = None

@@ -43,7 +43,6 @@ from typing_extensions import Literal, overload
 
 from ... import utils
 from ...client import Client, E, EventType, log
-from ...utils import maybe_coroutine
 from .cog import Cog
 from .commands import CH, CHR, CheckReturnType, Command, GroupMixin, H, HookDecoType, check
 from .context import Context
@@ -198,17 +197,13 @@ class Bot(GroupMixin, Client):
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
 
-        for name, attr in inspect.getmembers(self):  # traverse the MRO for any commands added in a Bot subclass
-            if isinstance(attr, Command):
-                if attr.parent:  # if it's a sub-command don't add it to the global commands
-                    continue
+        for command in self.children:
+            command.cog = self
 
-                if isinstance(attr, GroupMixin):
-                    for child in attr.children:
-                        child.cog = self
+            if isinstance(command, GroupMixin):
+                continue
 
-                attr.cog = self
-                self.add_command(attr)
+            self.add_command(command)
 
         self.help_command = help_command
 
@@ -436,7 +431,7 @@ class Bot(GroupMixin, Client):
             self.add_listener(coro, name if not callable(name) else coro.__name__)
             return coro
 
-        return decorator(name) if callable(name) else lambda listener: decorator(listener)
+        return decorator(name) if callable(name) else decorator
 
     def check(self, predicate: Optional[Union[CH, CHR]] = None) -> Union[CH, CHR]:
         """|maybecallabledeco|
@@ -448,7 +443,7 @@ class Bot(GroupMixin, Client):
             self.add_check(predicate)
             return predicate
 
-        return decorator(predicate) if predicate is not None else lambda predicate: decorator(predicate)
+        return decorator(predicate) if predicate is not None else decorator
 
     def add_check(self, predicate: CheckReturnType) -> None:
         """Add a global check to the bot.
@@ -487,7 +482,7 @@ class Bot(GroupMixin, Client):
         :class:`bool`
         """
         for check in self.checks:
-            if not await maybe_coroutine(check, ctx):
+            if not await utils.maybe_coroutine(check, ctx):
                 return False
         return await ctx.command.can_run(ctx)
 
@@ -502,7 +497,7 @@ class Bot(GroupMixin, Client):
             self._before_hook = coro
             return coro
 
-        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else decorator
 
     def after_invoke(self, coro: Optional[H] = None) -> HookDecoType:
         """|maybecallabledeco|
@@ -515,7 +510,7 @@ class Bot(GroupMixin, Client):
             self._after_hook = coro
             return coro
 
-        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else decorator
 
     async def on_message(self, message: Message) -> None:
         """|coro|

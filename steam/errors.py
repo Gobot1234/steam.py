@@ -100,9 +100,9 @@ class HTTPException(SteamException):
                 if len(data) != 1 and data.get("success", False):  # ignore {'success': False} as the message
                     message = data.get("message") or str(list(data.values())[0])
                     code = (
-                        data.get("result") or  # try the data if possible
-                        response.headers.get("X-EResult") or  # then the headers
-                        CODE_FINDER.findall(message)  # finally the message
+                        data.get("result")  # try the data if possible
+                        or response.headers.get("X-EResult") # then the headers
+                        or CODE_FINDER.findall(message)  # finally the message
                     )
                     if code:
                         if isinstance(code, list):

@@ -62,8 +62,8 @@ from .errors import (
     BadArgument,
     CheckFailure,
     CommandDisabled,
-    DuplicateKeywordArgument,
     DMChannelOnly,
+    DuplicateKeywordArgument,
     MissingRequiredArgument,
     NotOwner,
     UnmatchedKeyValuePair,
@@ -71,6 +71,7 @@ from .errors import (
 from .utils import CaseInsensitiveDict, reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .bot import Bot
     from .cog import Cog
     from .context import Context
 
@@ -173,7 +174,7 @@ class Command:
 
     def __new__(cls: type[C], *args: Any, **kwargs: Any) -> C:
         self = super().__new__(cls)
-        self.__original_kwargs__ = kwargs.copy()
+        self.__original_kwargs__: dict[str, Any] = kwargs.copy()
         return self
 
     def __init__(self, func: CFT, **kwargs: Any):
@@ -218,7 +219,7 @@ class Command:
         self.enabled: bool = kwargs.get("enabled", True)
         self.brief: Optional[str] = kwargs.get("brief")
         self.usage: Optional[str] = kwargs.get("usage")
-        self.cog: Optional[Cog] = kwargs.get("cog")
+        self.cog: Optional[Union[Cog, Bot]] = kwargs.get("cog")
         self.parent: Optional[GroupMixin] = kwargs.get("parent")
         self.description: str = inspect.cleandoc(kwargs.get("description", ""))
         self.hidden: bool = kwargs.get("hidden", False)
@@ -359,7 +360,7 @@ class Command:
             self.on_error = coro
             return coro
 
-        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else decorator
 
     def before_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
         """|maybecallabledeco|
@@ -372,7 +373,7 @@ class Command:
             self._before_hook = coro
             return coro
 
-        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else decorator
 
     def after_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
         """|maybecallabledeco|
@@ -385,7 +386,7 @@ class Command:
             self._after_hook = coro
             return coro
 
-        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else decorator
 
     async def invoke(self, ctx: Context) -> None:
         """|coro|
@@ -731,6 +732,7 @@ class GroupMixin:
     @overload
     def command(
         self,
+        callback: Optional[CFT] = None,
         *,
         name: Optional[str] = ...,
         cls: Optional[type[C]] = ...,
@@ -778,11 +780,12 @@ class GroupMixin:
             self.add_command(result)
             return result
 
-        return decorator(callback) if callback is not None else lambda callback: decorator(callback)
+        return decorator(callback) if callback is not None else decorator
 
     @overload
     def group(
         self,
+        callback: Optional[CFT] = None,
         *,
         name: Optional[str] = ...,
         cls: Optional[type[GC]] = ...,
@@ -830,7 +833,7 @@ class GroupMixin:
             self.add_command(result)
             return result
 
-        return decorator(callback) if callback is not None else lambda callback: decorator(callback)
+        return decorator(callback) if callback is not None else decorator
 
     @property
     def children(self) -> Generator[Command, None, None]:
@@ -865,6 +868,7 @@ class GroupCommand(GroupMixin, Command):
 
 @overload
 def command(
+    callback: Optional[CFT] = None,
     *,
     name: Optional[str] = ...,
     cls: Optional[type[C]] = ...,
@@ -911,11 +915,12 @@ def command(
             raise TypeError("callback is already a command.")
         return cls(callback, name=name, **attrs)
 
-    return decorator(callback) if callback is not None else lambda callback: decorator(callback)
+    return decorator(callback) if callback is not None else decorator
 
 
 @overload
 def group(
+    callback: Optional[CFT] = None,
     *,
     name: Optional[str] = ...,
     cls: Optional[type[GC]] = ...,
@@ -1025,7 +1030,7 @@ def is_owner(command: Optional[MCD] = None) -> MCD:
         raise NotOwner()
 
     decorator = check(predicate)
-    return decorator(command) if command is not None else lambda command: decorator(command)
+    return decorator(command) if command is not None else decorator
 
 
 def dm_only(command: Optional[MCD] = None) -> MCD:
@@ -1040,7 +1045,7 @@ def dm_only(command: Optional[MCD] = None) -> MCD:
         raise DMChannelOnly()
 
     decorator = check(predicate)
-    return decorator(command) if command is not None else lambda command: decorator(command)
+    return decorator(command) if command is not None else decorator
 
 
 def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> CommandDeco:

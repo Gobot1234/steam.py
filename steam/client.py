@@ -209,7 +209,7 @@ class Client:
             log.debug(f"{coro.__name__} has been registered as an event")
             return coro
 
-        return decorator(coro) if coro is not None else lambda coro: decorator(coro)
+        return decorator(coro) if coro is not None else decorator
 
     async def _run_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> None:
         try:

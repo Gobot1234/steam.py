@@ -63,7 +63,7 @@ def _is_descriptor(obj: Any) -> bool:
 
 
 class EnumMeta(type):
-    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> type:
+    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> EnumMeta:
         set_attribute = super().__setattr__
         enum_class = super().__new__(mcs, name, bases, attrs)
         enum_new = enum_class.__new__

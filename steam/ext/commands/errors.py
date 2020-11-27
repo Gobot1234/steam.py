@@ -143,8 +143,15 @@ class NotOwner(CheckFailure):
         super().__init__("You do not own this bot")
 
 
-class DMChannelOnly(CheckFailure):  # TODO docs
-    ...
+class DMChannelOnly(CheckFailure):
+    """Exception raised the user does not own the bot.
+
+    Subclass of :exc:`CheckFailure`.
+    """
+    
+    def __init__(self):
+        super().__init__("This command can only be used in DMs")
+
 
 class CommandOnCooldown(CommandError):
     """Exception raised when a command is still on cooldown.

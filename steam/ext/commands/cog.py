@@ -35,12 +35,12 @@ from chardet import detect
 from typing_extensions import Final
 
 from ... import ClientException
-from ...client import E, EventType
 from ...utils import cached_property
 from .commands import Command, GroupMixin
 
 if TYPE_CHECKING:
     from steam.ext import commands
+    from ...client import E, EventType
 
     from .bot import Bot
     from .context import Context
@@ -77,17 +77,17 @@ class Cog:
                     ...
     """
 
-    __commands__: Final[dict[str, Command]]
-    __listeners__: Final[dict[str, list[EventType]]]
-    command_attrs: Final[dict[str, Any]]
-    qualified_name: Final[str]
+    __commands__: Final[dict[str, Command]]  # type: ignore
+    __listeners__: Final[dict[str, list[EventType]]]  # type: ignore
+    command_attrs: Final[dict[str, Any]]  # type: ignore
+    qualified_name: Final[str]  # type: ignore
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        cls.qualified_name = kwargs.get("name") or cls.__name__
-        cls.command_attrs = kwargs.get("command_attrs", {})
+        cls.qualified_name = kwargs.get("name") or cls.__name__  # type: ignore
+        cls.command_attrs = kwargs.get("command_attrs", {})  # type: ignore
 
-        cls.__listeners__ = {}
-        cls.__commands__ = {}
+        cls.__listeners__ = {}  # type: ignore
+        cls.__commands__ = {}  # type: ignore
         for name, attr in inspect.getmembers(cls):
             if name.startswith(("bot_", "cog_")) and getattr(Cog, name, None) is None:
                 raise ClientException(
@@ -95,15 +95,14 @@ class Cog:
                     f"therefore not allowed"
                 )
             if isinstance(attr, Command):
-                if (
-                    attr.parent is None
-                ):  # ungrouped commands have no parent and we only want to add these to the class dict
-                    cls.__commands__[name] = attr
-                else:
+                if isinstance(attr, GroupMixin):
                     for name, value in cls.command_attrs.items():
                         for child in attr.children:
                             if name not in child.__original_kwargs__:
                                 setattr(child, name, value)
+                else:
+                    cls.__commands__[name] = attr
+
                 for name, value in cls.command_attrs.items():
                     if name not in attr.__original_kwargs__:
                         setattr(attr, name, value)
@@ -166,7 +165,7 @@ class Cog:
             coro.__event_name__ = name if not callable(name) else coro.__name__
             return coro
 
-        return decorator(name) if callable(name) else lambda coro: decorator(coro)
+        return decorator(name) if callable(name) else decorator
 
     async def cog_command_error(self, ctx: "commands.Context", error: Exception) -> None:
         """|coro|

@@ -49,7 +49,7 @@ async def test_commands():
         with pytest.raises(steam.ClientException):
 
             @commands.command
-            async def not_even_close() -> None:
+            async def not_even_close() -> None:  # noqa
                 ...
 
     bot = TestBot()
@@ -154,9 +154,7 @@ class TestBot(commands.Bot):
             async with self.returns_command_completion(message.content):
                 await super().process_commands(message)
 
-    async def on_error(
-        self, event: str, error: Exception, *args: Any, **kwargs: Any,
-    ) -> None:
+    async def on_error(self, event: str, error: Exception, *args: Any, **kwargs: Any) -> None:
         try:
             ctx: commands.Context = args[0]  # expose some locals
             lex = ctx.lex

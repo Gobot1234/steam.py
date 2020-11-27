@@ -36,8 +36,8 @@ from datetime import datetime
 from time import time
 from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
 
-from bs4 import BeautifulSoup
 from betterproto import snake_case
+from bs4 import BeautifulSoup
 
 from . import utils
 from .abc import SteamID, UserDict

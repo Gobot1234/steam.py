@@ -268,10 +268,10 @@ class Converter(Protocol[T]):
                     command.__special_converters__ = [cls]
             return command
 
-        return decorator(command) if command is not None else lambda command: decorator(command)
+        return decorator(command) if command is not None else decorator
 
     def __init__(self):
-        pass
+        ...
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()

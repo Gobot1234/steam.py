@@ -63,6 +63,7 @@ from .utils import (
     EUniverseType,
     InstanceType,
     IntOrStr,
+    cached_property,
     id64_from_url,
     make_id64,
 )
@@ -160,7 +161,7 @@ class SteamID(metaclass=abc.ABCMeta):
     ):
         self.__BASE: Final[int] = make_id64(id, type, universe, instance)
 
-    def __int__(self):
+    def __int__(self) -> int:
         return self.__BASE
 
     def __eq__(self, other: Any) -> bool:
@@ -183,7 +184,7 @@ class SteamID(metaclass=abc.ABCMeta):
         """:class:`int`: The instance of the SteamID."""
         return (int(self) >> 32) & 0xfffff
 
-    @property
+    @cached_property
     def type(self) -> EType:
         """:class:`~steam.EType`: The Steam type of the SteamID."""
         return EType((int(self) >> 52) & 0xf)
@@ -344,10 +345,10 @@ class Commentable(SteamID):
     )
 
     _state: ConnectionState
-    comment_path: Final[str]
+    comment_path: Final[str]  # type: ignore
 
     def __init_subclass__(cls, **kwargs: Any):
-        cls.comment_path = kwargs.get("comment_path", "Profile")
+        cls.comment_path = kwargs.get("comment_path", "Profile")  # type: ignore
 
     def copy(self: C) -> C:
         cls = self.__class__
