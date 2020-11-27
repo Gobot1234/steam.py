@@ -30,7 +30,7 @@ import asyncio
 from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
-from .abc import BaseUser, Messageable, _EndPointReturnType
+from .abc import BaseUser, Messageable, UserDict, _EndPointReturnType
 from .errors import ClientException, ConfirmationError
 from .models import community_route
 
@@ -56,10 +56,6 @@ class User(BaseUser, Messageable):
         .. describe:: x == y
 
             Checks if two users are equal.
-
-        .. describe:: x != y
-
-            Checks if two users are not equal.
 
         .. describe:: str(x)
 
@@ -237,10 +233,6 @@ class ClientUser(BaseUser):
 
             Checks if two users are equal.
 
-        .. describe:: x != y
-
-            Checks if two users are not equal.
-
         .. describe:: str(x)
 
             Returns the user's name.
@@ -281,7 +273,7 @@ class ClientUser(BaseUser):
 
     __slots__ = ("friends",)
 
-    def __init__(self, state: ConnectionState, data: dict):
+    def __init__(self, state: ConnectionState, data: UserDict):
         super().__init__(state, data)
         self.friends: list[User] = []
 

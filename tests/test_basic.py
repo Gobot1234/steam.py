@@ -13,11 +13,11 @@ from . import IDENTITY_SECRET, PASSWORD, SHARED_SECRET, USERNAME
 
 
 class Client(steam.Client):
-    LOGIN = False
-    CONNECT = False
-    READY = False
-    LOGOUT = False
-    failed_to_login = False
+    LOGIN: bool = False
+    CONNECT: bool = False
+    READY: bool = False
+    LOGOUT: bool = False
+    failed_to_login: bool = False
 
     async def start(self, *args: Any, **kwargs: Any) -> None:
         try:
@@ -27,24 +27,20 @@ class Client(steam.Client):
                 raise exc
             self.failed_to_login = True
 
-    async def on_login(self) -> None:
-        self.LOGIN = True
+    def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
+        if event.upper() in self.__annotations__:
+            setattr(self, event.upper(), True)
 
-    async def on_connect(self) -> None:
-        self.CONNECT = True
+        super().dispatch(event, *args, **kwargs)
 
     async def on_ready(self) -> None:
-        self.READY = True
         await self.close()
-
-    async def on_logout(self) -> None:
-        self.LOGOUT = True
 
 
 @pytest.mark.skipif(
     sys.version_info[:2] == (3, 8),
     reason="If there are issues they are normally present in one of the 2 versions, "
-    "aswell, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
+    "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
 )
 def test_basic_events() -> None:
     client = Client()

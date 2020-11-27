@@ -313,7 +313,7 @@ URL_REGEX = re.compile(
 
 
 async def id64_from_url(
-    url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None, timeout: float = 30
+    url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None, timeout: float = 30.0
 ) -> Optional[int]:
     """Takes a Steam Community url and returns steam64 or ``None``.
 
@@ -354,7 +354,7 @@ async def id64_from_url(
     if search is None:
         return None
 
-    gave_session = bool(session)
+    gave_session = session is not None
     session = session or aiohttp.ClientSession()
 
     try:
@@ -410,32 +410,21 @@ else:
         return loop.run_in_executor(None, partial)
 
 
-if sys.version_info[:2] >= (3, 8):
-    from functools import cached_property
-else:
-    _NOT_FOUND = object()
+class cached_property(Generic[_T]):
+    __slots__ = ("function", "__doc__")
 
-    class cached_property(Generic[_T]):
-        __slots__ = ("func", "attr_name", "__doc__")
+    def __init__(self, function: Callable[[Any], _T]):
+        self.function = function
+        self.__doc__ = getattr(function, "__doc__", None)
 
-        def __init__(self, func: Callable[[Any], _T]):
-            self.func = func
-            self.attr_name: Optional[str] = None
-            self.__doc__ = func.__doc__
+    def __get__(self, instance: Optional[Any], _) -> Union[_T, cached_property]:
+        if instance is None:
+            return self
 
-        def __set_name__(self, _, name: str) -> None:
-            if self.attr_name is None:
-                self.attr_name = name
+        value = self.function(instance)
+        setattr(instance, self.function.__name__, value)
 
-        def __get__(self, instance: Optional[Any], _) -> Union[_T, cached_property]:
-            if instance is None:
-                return self
-            cache = instance.__dict__  # errors here for classes with slots
-            value = cache.get(self.attr_name, _NOT_FOUND)
-            if value is _NOT_FOUND:
-                value = self.func(instance)
-                cache[self.attr_name] = value
-            return value
+        return value
 
 
 def ainput(prompt: str = "") -> Coroutine[None, None, str]:
@@ -477,14 +466,12 @@ def warn(message: str, warning_type: type[Warning] = DeprecationWarning) -> None
 
 # everything below here is directly from discord.py's utils
 # https://github.com/Rapptz/discord.py/blob/master/discord/utils.py
-
-
 def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T]:
     """A helper to return the first element found in the sequence.
 
     Parameters
     -----------
-    predicate: Callable[[T], bool]
+    predicate: Callable[[T], :class:`bool`]
         A function that returns a boolean and takes an element from the ``iterable`` as its first argument.
     iterable: Iterable[T]
         The iterable to search through.

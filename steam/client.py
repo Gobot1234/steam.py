@@ -425,7 +425,7 @@ class Client:
                 self.token = resp["token"]
                 coro = SteamWebSocket.from_client(self, cm_list=self._cm_list)
                 self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
-                while 1:
+                while True:
                     await self.ws.poll_event()
             except (
                 OSError,
@@ -513,9 +513,7 @@ class Client:
             The user or ``None`` if the user was not found.
         """
         id64 = await utils.id64_from_url(community_route(f"id/{name}"), self.http._session)
-        if id64 is None:
-            return None
-        return await self._connection.fetch_user(id64)
+        return await self._connection.fetch_user(id64) if id64 is not None else None
 
     def get_trade(self, id: int) -> Optional[TradeOffer]:
         """Get a trade from cache with a matching ID.

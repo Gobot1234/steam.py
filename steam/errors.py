@@ -36,7 +36,7 @@ from .enums import EResult
 if TYPE_CHECKING:
     from aiohttp import ClientResponse
 
-    from .protobufs import MsgBase
+    from .gateway import Msgs
 
 
 __all__ = (
@@ -64,8 +64,7 @@ class SteamException(Exception):
 
 
 class ClientException(SteamException):
-    """Exception that's thrown when something isn't possible
-    but is handled by the client.
+    """Exception that's thrown when something in the client fails.
 
     Subclass of :exc:`SteamException`.
     """
@@ -150,10 +149,10 @@ class WSException(SteamException):
         for the value.
     """
 
-    def __init__(self, msg: MsgBase):
+    def __init__(self, msg: Msgs):
         self.msg = msg
-        self.code = EResult.try_value(msg.header.eresult)
-        self.message = getattr(msg.header, "error_message", None)
+        self.code = msg.eresult or EResult.Invalid
+        self.message = getattr(msg.header.body, "error_message", None)
         super().__init__(
             f"The request {msg.header.job_name_target} failed. (error code: {self.code!r})"
             f"{f': {self.message}' if self.message else ''}"
@@ -169,23 +168,23 @@ class WSForbidden(WSException):
 
 
 class WSNotFound(WSException):
-    """Exception that's thrown when the websocket returns
-    an :class:`.EResult` that means the object wasn't found.
+    """Exception that's thrown when the websocket returns an :class:`.EResult` that means the object wasn't found.
     Similar to :exc:`NotFound`.
 
     Subclass of :exc:`WSException`.
     """
 
 
-class LoginError(ClientException):
+class LoginError(SteamException):
     """Exception that's thrown when a login fails.
 
-    Subclass of :exc:`ClientException`.
+    Subclass of :exc:`SteamException`.
     """
 
 
 class InvalidCredentials(LoginError):
     """Exception that's thrown when credentials are incorrect.
+
     Subclass of :exc:`LoginError`.
     """
 
@@ -215,6 +214,11 @@ class InvalidSteamID(SteamException):
     """Exception that's thrown when a SteamID cannot be valid.
 
     Subclass of :exc:`SteamException`.
+
+    Attributes
+    ----------
+    id: :class:`int`
+        The invalid id.
     """
 
     def __init__(self, id: Any, msg: Optional[str] = None):

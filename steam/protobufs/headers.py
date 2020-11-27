@@ -31,7 +31,7 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 from __future__ import annotations
 
 import struct
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from betterproto import snake_case
 
@@ -49,10 +49,10 @@ __all__ = (
 )
 
 
-class _ExtendedMsgHdrBody:
+class _MsgHdrBody:
     __slots__ = ("msg",)
 
-    def __init__(self, msg: ExtendedMsgHdr):
+    def __init__(self, msg: Union[MsgHdr, ExtendedMsgHdr]):
         self.msg = msg
 
     def __getattr__(self, item: str) -> Any:
@@ -62,7 +62,7 @@ class _ExtendedMsgHdrBody:
 class MsgHdr:
     """The message header for :class:`steam.protobufs.Msg` objects."""
 
-    __slots__ = ("msg", "eresult", "job_name_target", "job_id_target", "job_id_source")
+    __slots__ = ("msg", "eresult", "job_name_target", "job_id_target", "job_id_source", "body")
     SIZE = 20
 
     def __init__(self, data: Optional[bytes] = None):
@@ -74,8 +74,11 @@ class MsgHdr:
         if data:
             self.parse(data)
 
+        self.body = _MsgHdrBody(self)
+
     def __repr__(self) -> str:
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in ("msg", "job_id_target", "job_id_source")]
+        attrs = ("msg", "job_id_target", "job_id_source")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<MsgHdr {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:
@@ -117,7 +120,7 @@ class ExtendedMsgHdr:
         if data:
             self.parse(data)
 
-        self.body = _ExtendedMsgHdrBody(self)
+        self.body = _MsgHdrBody(self)
 
     def __repr__(self) -> str:
         attrs = ("msg", "steam_id", "session_id")

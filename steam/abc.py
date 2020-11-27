@@ -130,9 +130,9 @@ class SteamID(metaclass=abc.ABCMeta):
     type: Union[:class:`.EType`, :class:`int`, :class:`str`]
         The EType for the Steam ID.
     universe: Union[:class:`.EUniverse`, :class:`int`, :class:`str`]
-        The EUniverse of the account.
-    instance: Union[:class:`int`, :class:`str`]
-        The instance of the account.
+        The EUniverse for the Steam ID.
+    instance: :class:`int`
+        The instance for the Steam ID.
     """
 
     __slots__ = ("__BASE",)
@@ -434,10 +434,6 @@ class BaseUser(Commentable):
         .. describe:: x == y
 
             Checks if two users are equal.
-
-        .. describe:: x != y
-
-            Checks if two users are not equal.
 
         .. describe:: str(x)
 

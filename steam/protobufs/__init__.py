@@ -33,7 +33,7 @@ from typing import Any, Generic, Optional, TypeVar
 
 import betterproto
 
-from ..enums import IE, IntEnum
+from ..enums import EResult, IE, IntEnum
 from .emsg import *
 from .headers import *
 from .protobufs import *
@@ -139,6 +139,12 @@ class MsgBase(Generic[T]):
     def session_id(self, value: int) -> None:
         if isinstance(self.header, ALLOWED_HEADERS):
             self.header.body.session_id = value
+
+    @property
+    def eresult(self) -> Optional[EResult]:
+        """Optional[:class:`.EResult`]: The :attr:`header`'s eresult."""
+        if isinstance(self.header, ALLOWED_HEADERS):
+            return EResult.try_value(self.header.body.eresult)
 
     def parse(self) -> None:
         """Parse the payload/data into a protobuf."""

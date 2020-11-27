@@ -47,7 +47,7 @@ from .user import BaseUser, ClientUser
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
-    from .user import User
+    from .user import User, UserDict
 
 log = logging.getLogger(__name__)
 StrOrURL = aiohttp.client.StrOrURL
@@ -134,8 +134,8 @@ class HTTPClient:
 
                 # we are being rate limited
                 elif r.status == 429:
-                    # I haven't been able to get any X-Retry-After headers
-                    # from the API but we should probably still handle it
+                    # I haven't been able to get any X-Retry-After headers from the API but we should probably still
+                    # handle it
                     try:
                         await asyncio.sleep(float(r.headers["X-Retry-After"]))
                     except KeyError:  # steam being un-helpful as usual
@@ -195,6 +195,7 @@ class HTTPClient:
             captcha_text = await utils.ainput(">>> ")
             self._captcha_text = captcha_text.strip()
             return await self.login(username, password, shared_secret)
+
         if not resp["success"]:
             raise errors.InvalidCredentials(resp.get("message", "An unexpected error occurred"))
 
@@ -280,13 +281,17 @@ class HTTPClient:
                 return resp
             return await self._send_login_request()
         except Exception as exc:
-            raise errors.LoginError from exc
+            try:
+                msg = exc.args[0]
+            except IndexError:
+                msg = None
+            raise errors.LoginError(msg) from exc
 
     def get_user(self, user_id64: int) -> RequestType:
         params = {"key": self.api_key, "steamids": user_id64}
         return self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
 
-    async def get_users(self, user_id64s: list[int]) -> list[dict]:
+    async def get_users(self, user_id64s: list[int]) -> list[UserDict]:
         ret = []
         if user_id64s == [0]:  # FIXME bandaid
             return ret
