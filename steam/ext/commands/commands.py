@@ -294,7 +294,6 @@ class Command:
     def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
         """OrderedDict[:class:`str`, :class:`inspect.Parameter`]:
         The command's parameters without ``"self"`` and ``"ctx"``."""
-        print("calling", self.name)
         params = self.params.copy()
         if self.cog is not None:
             try:
