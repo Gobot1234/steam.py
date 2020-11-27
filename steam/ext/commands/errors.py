@@ -143,6 +143,9 @@ class NotOwner(CheckFailure):
         super().__init__("You do not own this bot")
 
 
+class DMChannelOnly(CheckFailure):  # TODO docs
+    ...
+
 class CommandOnCooldown(CommandError):
     """Exception raised when a command is still on cooldown.
 
