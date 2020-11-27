@@ -63,6 +63,7 @@ from .errors import (
     CheckFailure,
     CommandDisabled,
     DuplicateKeywordArgument,
+    DMChannelOnly,
     MissingRequiredArgument,
     NotOwner,
     UnmatchedKeyValuePair,
