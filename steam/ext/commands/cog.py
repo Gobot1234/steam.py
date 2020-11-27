@@ -40,8 +40,8 @@ from .commands import Command, GroupMixin
 
 if TYPE_CHECKING:
     from steam.ext import commands
-    from ...client import E, EventType
 
+    from ...client import E, EventType
     from .bot import Bot
     from .context import Context
 

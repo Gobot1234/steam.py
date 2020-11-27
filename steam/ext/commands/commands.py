@@ -52,8 +52,8 @@ from typing import (
 from chardet import detect
 from typing_extensions import Literal, get_args, get_origin
 
-from ...errors import ClientException
 from ...channel import DMChannel
+from ...errors import ClientException
 from ...models import FunctionType
 from ...utils import cached_property, maybe_coroutine
 from . import converters

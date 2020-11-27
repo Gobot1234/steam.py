@@ -148,7 +148,7 @@ class DMChannelOnly(CheckFailure):
 
     Subclass of :exc:`CheckFailure`.
     """
-    
+
     def __init__(self):
         super().__init__("This command can only be used in DMs")
 

@@ -101,7 +101,7 @@ class HTTPException(SteamException):
                     message = data.get("message") or str(list(data.values())[0])
                     code = (
                         data.get("result")  # try the data if possible
-                        or response.headers.get("X-EResult") # then the headers
+                        or response.headers.get("X-EResult")  # then the headers
                         or CODE_FINDER.findall(message)  # finally the message
                     )
                     if code:

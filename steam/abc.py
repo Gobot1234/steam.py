@@ -63,7 +63,6 @@ from .utils import (
     EUniverseType,
     InstanceType,
     IntOrStr,
-    cached_property,
     id64_from_url,
     make_id64,
 )
@@ -184,7 +183,7 @@ class SteamID(metaclass=abc.ABCMeta):
         """:class:`int`: The instance of the SteamID."""
         return (int(self) >> 32) & 0xfffff
 
-    @cached_property
+    @property
     def type(self) -> EType:
         """:class:`~steam.EType`: The Steam type of the SteamID."""
         return EType((int(self) >> 52) & 0xf)
