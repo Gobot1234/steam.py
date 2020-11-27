@@ -3,7 +3,7 @@
 import contextlib
 from copy import copy
 from io import StringIO
-from typing import TYPE_CHECKING, AsyncGenerator, Generator, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator, Optional, TypeVar, Union
 
 import pytest
 
@@ -65,7 +65,7 @@ async def test_commands():
 
 def test_annotations() -> None:
     @commands.command
-    async def cool(ctx: "OopsATypo"):
+    async def cool(ctx: "OopsATypo"):  # noqa
         ...
 
     @commands.command
@@ -137,7 +137,7 @@ class TestBot(commands.Bot):
     async def process_commands(
         self,
         arguments: Optional[str] = None,
-        exception: Optional[type[CE]] = None,
+        exception: Optional["type[CE]"] = None,
         command: Optional[commands.Command] = None,
     ) -> None:
         command = command or list(self.__commands__.values())[-1]
@@ -154,7 +154,9 @@ class TestBot(commands.Bot):
             async with self.returns_command_completion(message.content):
                 await super().process_commands(message)
 
-    async def on_error(self, event: str, error: Exception, *args, **kwargs):
+    async def on_error(
+        self, event: str, error: Exception, *args: Any, **kwargs: Any,
+    ) -> None:
         try:
             ctx: commands.Context = args[0]  # expose some locals
             lex = ctx.lex
