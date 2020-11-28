@@ -197,12 +197,11 @@ class Bot(GroupMixin, Client):
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
 
-        for command in self.children:
+        for _, command in inspect.getmembers(self, lambda attr: isinstance(attr, Command)):
             command.cog = self
 
             if isinstance(command, GroupMixin):
                 continue
-
             self.add_command(command)
 
         self.help_command = help_command

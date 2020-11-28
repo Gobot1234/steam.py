@@ -146,9 +146,7 @@ class CMServerList(AsyncIterator[CMServer]):
         resp = resp["response"]
         if resp["result"] != EResult.OK:
             log.error(
-                f"Fetching the CMList failed with\n"
-                f"Result: {EResult(resp['result'])!r}"
-                f"Message: {resp['message']!r}"
+                f"Fetching the CMList failed with: Result: {EResult(resp['result'])!r}. Message: {resp['message']!r}"
             )
             return False
 
@@ -184,13 +182,13 @@ class CMServerList(AsyncIterator[CMServer]):
                 resp = await self._state.http._session.get(f"https://{cm.url}/cmping/", timeout=5)
                 if resp.status != 200:
                     raise aiohttp.ClientError
+                load = resp.headers["X-Steam-CMLoad"]
             except (KeyError, asyncio.TimeoutError, aiohttp.ClientError):
                 try:
                     self.cms.remove(cm)
                 except ValueError:
                     pass
             else:
-                load = resp.headers["X-Steam-CMLoad"]
                 latency = time.perf_counter() - start
                 cm.score = (int(load) * 2) + latency
                 best_cms.append(cm)
@@ -371,13 +369,8 @@ class SteamWebSocket(Registerable):
             msg = MsgProto(emsg, message) if utils.is_proto(emsg_value) else Msg(emsg, message, extended=True)
         except Exception as exc:
             return log.error(f"Failed to deserialize message: {emsg!r}, {message!r}", exc_info=exc)
-        else:
-            try:
-                log.debug(
-                    f"Socket has received {msg!r} from the websocket."
-                )  # see https://github.com/danielgtaylor/python-betterproto/issues/133
-            except Exception:
-                pass
+
+        log.debug(f"Socket has received {msg!r} from the websocket.")
         self._dispatch("socket_receive", msg)
 
         try:

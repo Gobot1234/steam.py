@@ -90,7 +90,6 @@ C = TypeVar("C", bound="Commentable")
 class UserDict(TypedDict):
     steamid: str
     personaname: str
-    steamid: str
     primaryclanid: str
     profileurl: str
     realname: str
@@ -778,6 +777,8 @@ class Message:
         "clan",
         "_state",
     )
+    author: User
+    created_at: datetime
 
     def __init__(self, channel: Channel, proto: Any):
         self._state: ConnectionState = channel._state
@@ -785,9 +786,7 @@ class Message:
         self.group: Optional[Group] = channel.group
         self.clan: Optional[Clan] = channel.clan
         self.content: str = _clean_up_content(proto.message)
-        self.clean_content: str = proto.message_no_bbcode or self.content
-        self.author: User
-        self.created_at: datetime
+        self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
 
     def __repr__(self) -> str:
         attrs = ("author", "channel")

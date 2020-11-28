@@ -250,9 +250,9 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return None
-        if msg.header.body.eresult == EResult.Busy:
+        if msg.eresult == EResult.Busy:
             raise WSNotFound(msg)
-        if msg.header.body.eresult != EResult.OK:
+        if msg.eresult != EResult.OK:
             raise WSException(msg)
 
         return await Clan._from_proto(self, msg.body)
@@ -438,9 +438,9 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.body.eresult == EResult.LimitExceeded:
+        if msg.eresult == EResult.LimitExceeded:
             raise WSForbidden(msg)
-        if msg.header.body.eresult != EResult.OK:
+        if msg.eresult != EResult.OK:
             raise WSException(msg)
 
         proto = UserMessageNotification(
@@ -472,11 +472,11 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.body.eresult == EResult.LimitExceeded:
+        if msg.eresult == EResult.LimitExceeded:
             raise WSForbidden(msg)
-        if msg.header.body.eresult == EResult.InvalidParameter:
+        if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        if msg.header.body.eresult != EResult.OK:
+        if msg.eresult != EResult.OK:
             raise WSException(msg)
 
         proto = GroupMessageNotification(
@@ -499,9 +499,9 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.body.eresult == EResult.InvalidParameter:
+        if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.header.body.eresult != EResult.OK:
+        elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
@@ -509,9 +509,9 @@ class ConnectionState(Registerable):
             msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
         except asyncio.TimeoutError:
             return
-        if msg.header.body.eresult == EResult.InvalidParameter:
+        if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.header.body.eresult != EResult.OK:
+        elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
     async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
@@ -521,9 +521,9 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.body.eresult == EResult.InvalidParameter:
+        if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.header.body.eresult != EResult.OK:
+        elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
     async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
@@ -533,7 +533,7 @@ class ConnectionState(Registerable):
             )
         except asyncio.TimeoutError:
             return
-        if msg.header.body.eresult == EResult.InvalidParameter:
+        if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.header.body.eresult != EResult.OK:
             raise WSException(msg)
@@ -761,7 +761,7 @@ class ConnectionState(Registerable):
 
                 if self._trades_task is None or self._trades_task.done():
                     await self._poll_trades()
-                    self._trades_task = self.client.loop.create_task(poll_trades())  # watch trades for changes
+                    self._trades_task = self.loop.create_task(poll_trades())  # watch trades for changes
         if msg.body:
             await self.http.clear_notifications()
 
