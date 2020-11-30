@@ -183,6 +183,14 @@ class Client:
         """:class:`bool`: Indicates if connection is closed to the API or CMs."""
         return self._closed
 
+    @overload
+    def event(self, coro: Literal[None] = ...) -> Callable[[E], E]:
+        ...
+
+    @overload
+    def event(self, coro: E) -> E:
+        ...
+
     def event(self, coro: Optional[EventDeco] = None) -> EventDeco:
         """|maybecallabledeco|
         Register an event to listen to.

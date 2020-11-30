@@ -44,9 +44,10 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 
-from typing_extensions import Protocol, get_args, get_origin, runtime_checkable
+from typing_extensions import Literal, Protocol, get_args, get_origin, runtime_checkable
 
 from ... import utils
 from ...channel import Channel
@@ -84,8 +85,6 @@ __all__ = (
 
 T = TypeVar("T")
 Converters = Union[Type["Converter"], "BasicConverter"]
-RegisterDeco = Union[Callable[["MC"], "MC"], "MC"]
-RD = TypeVar("RD", bound=RegisterDeco)
 
 
 class ConverterDict(Dict[type, Tuple[Converters, ...]]):
@@ -236,6 +235,16 @@ class Converter(Protocol[T]):
         raise NotImplementedError("Derived classes must implement this")
 
     @classmethod
+    @overload
+    def register(cls, command: Literal[None] = ...) -> Callable[["MC"], "MC"]:
+        ...
+
+    @classmethod
+    @overload
+    def register(cls, command: MC) -> MC:
+        ...
+
+    @classmethod
     def register(cls, command: Optional[RD] = None) -> RD:
         """|maybecallabledeco|
         Register a converter to a specific command.
@@ -269,9 +278,6 @@ class Converter(Protocol[T]):
             return command
 
         return decorator(command) if command is not None else decorator
-
-    def __init__(self):
-        ...
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
@@ -540,7 +546,7 @@ class Greedy(Generic[T]):
 
     if TYPE_CHECKING:
 
-        def __iter__(self) -> Iterator[T]:
+        def __iter__(self) -> Iterator[T]:  # make Unions and stuff sort of work
             ...
 
 

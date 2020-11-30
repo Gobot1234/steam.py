@@ -88,13 +88,9 @@ __all__ = (
 CheckType = Callable[["Context"], Union[bool, Coroutine[Any, Any, bool]]]
 MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
 MC = TypeVar("MC", bound=MaybeCommand)
-MaybeCommandDeco = Union["CommandDeco", MaybeCommand]
-MCD = TypeVar("MCD", bound=MaybeCommandDeco)
-CommandErrorFunctionType = Callable[["Context", Exception], Coroutine[Any, Any, None]]
-E = TypeVar("E", bound=CommandErrorFunctionType)
-HookFunction = Callable[["Context"], Coroutine[Any, Any, None]]
-H = TypeVar("H", bound=HookFunction)
-HookDecoType = Union[Callable[[H], H], H]
+MCD = TypeVar("MCD", bound=Union["CommandDeco", MaybeCommand])
+E = TypeVar("E", bound=Callable[["Context", Exception], Coroutine[Any, Any, None]])
+H = TypeVar("H", bound=Callable[["Context"], Coroutine[Any, Any, None]])
 C = TypeVar("C", bound="Command")
 GC = TypeVar("GC", bound="GroupCommand")
 CFT = TypeVar("CFT", bound="CommandFunctionType")
@@ -103,7 +99,7 @@ CH = TypeVar("CH", bound=Callable[[CheckType], "CheckReturnType"])
 
 
 class CommandDeco(FunctionType):
-    def __call__(self, func: MC) -> MC:
+    def __call__(self, command: MC) -> MC:
         ...
 
 
@@ -166,7 +162,7 @@ class Command:
         The command's parameters.
     """
 
-    DECORATORS: set[str] = {
+    DECORATORS: set[str] = {  # used in Cog._inject to update any unbound methods
         "on_error",
         "_before_hook",
         "_after_hook",
@@ -337,7 +333,14 @@ class Command:
         else:
             return await self.callback(ctx, *args, **kwargs)
 
-    def error(self, coro: Optional[E] = None) -> E:
+    @overload
+    def error(self, coro: Literal[None] = ...) -> Callable[[E], E]:
+        ...
+
+    def error(self, coro: E) -> E:
+        ...
+
+    def error(self, coro: Optional[E] = None) -> Union[Callable[[E], E], E]:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to handle a commands ``on_error`` functionality similarly to
         :meth:`steam.ext.commands.Bot.on_command_error`.
@@ -345,12 +348,12 @@ class Command:
         Example: ::
 
             @bot.command
-            async def raise_an_error(ctx: commands.Context):
+            async def raise_an_error(ctx: commands.Context) -> None:
                 raise Exception("oh no an error")
 
 
             @raise_an_error.error
-            async def on_error(ctx: commands.Context, error: Exception):
+            async def on_error(ctx: commands.Context, error: Exception) -> None:
                 await ctx.send(f"{ctx.command.name} raised an exception {error!r}")
         """
 
@@ -362,7 +365,15 @@ class Command:
 
         return decorator(coro) if coro is not None else decorator
 
-    def before_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
+    @overload
+    def before_invoke(self, coro: Literal[None] = ...) -> Callable[[H], H]:
+        ...
+
+    @overload
+    def before_invoke(self, coro: H) -> H:
+        ...
+
+    def before_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
         """
@@ -375,7 +386,15 @@ class Command:
 
         return decorator(coro) if coro is not None else decorator
 
-    def after_invoke(self, coro: Optional[HookFunction] = None) -> HookDecoType:
+    @overload
+    def after_invoke(self, coro: Literal[None] = ...) -> Callable[[H], H]:
+        ...
+
+    @overload
+    def after_invoke(self, coro: H) -> H:
+        ...
+
+    def after_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran after the command has been invoked.
         """
@@ -732,7 +751,13 @@ class GroupMixin:
     @overload
     def command(
         self,
-        callback: Optional[CFT] = None,
+        callback: CFT,
+    ) -> C:
+        ...
+
+    @overload
+    def command(
+        self,
         *,
         name: Optional[str] = ...,
         cls: Optional[type[C]] = ...,
@@ -749,7 +774,7 @@ class GroupMixin:
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
-    ) -> Union[Callable[[CFT], C], C]:
+    ) -> Callable[[CFT], C]:
         ...
 
     def command(
@@ -785,7 +810,13 @@ class GroupMixin:
     @overload
     def group(
         self,
-        callback: Optional[CFT] = None,
+        callback: CFT,
+    ) -> GC:
+        ...
+
+    @overload
+    def group(
+        self,
         *,
         name: Optional[str] = ...,
         cls: Optional[type[GC]] = ...,
@@ -802,7 +833,7 @@ class GroupMixin:
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
-    ) -> Union[Callable[[CFT], GC], GC]:
+    ) -> Callable[[CFT], GC]:
         ...
 
     def group(
@@ -868,7 +899,13 @@ class GroupCommand(GroupMixin, Command):
 
 @overload
 def command(
-    callback: Optional[CFT] = None,
+    callback: CFT,
+) -> C:
+    ...
+
+
+@overload
+def command(
     *,
     name: Optional[str] = ...,
     cls: Optional[type[C]] = ...,
@@ -885,7 +922,7 @@ def command(
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
-) -> Union[Callable[[CFT], C], C]:
+) -> Callable[[CFT], C]:
     ...
 
 
@@ -920,7 +957,13 @@ def command(
 
 @overload
 def group(
-    callback: Optional[CFT] = None,
+    callback: CFT,
+) -> GC:
+    ...
+
+
+@overload
+def group(
     *,
     name: Optional[str] = ...,
     cls: Optional[type[GC]] = ...,
@@ -937,7 +980,7 @@ def group(
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
-) -> Union[Callable[[CFT], GC], GC]:
+) -> Callable[[CFT], GC]:
     ...
 
 
@@ -972,13 +1015,13 @@ def check(predicate: CheckType) -> CheckReturnType:
 
     Usage::
 
-        def is_mod(ctx):
-            return ctx.author in ctx.clan.mods
+        def is_mod(ctx: commands.Context) -> bool:
+            return ctx.clan and ctx.author in ctx.clan.mods
 
         @commands.check(is_mod)
-        @bot.command()
-        async def kick(ctx, user: steam.User):
-            # implementation here
+        @bot.command
+        async def kick(ctx: commands.Context, user: steam.User) -> None:
+            ...
 
     This will raise an :exc:`steam.ext.commands.CheckFailure` if the user is not an a mod in the clan.
 
@@ -1012,6 +1055,16 @@ def check(predicate: CheckType) -> CheckReturnType:
     return decorator
 
 
+@overload
+def is_owner(command: Literal[None] = ...) -> MCD:
+    ...
+
+
+@overload
+def is_owner(command: MCD) -> MCD:
+    ...
+
+
 def is_owner(command: Optional[MCD] = None) -> MCD:
     """|maybecallabledeco|
     A decorator that will only allow the bot's owner(s) to invoke the command.
@@ -1031,6 +1084,16 @@ def is_owner(command: Optional[MCD] = None) -> MCD:
 
     decorator = check(predicate)
     return decorator(command) if command is not None else decorator
+
+
+@overload
+def dm_only(command: Literal[None] = ...) -> MCD:
+    ...
+
+
+@overload
+def dm_only(command: MCD) -> MCD:
+    ...
 
 
 def dm_only(command: Optional[MCD] = None) -> MCD:
@@ -1067,19 +1130,19 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
 
         @bot.command
         @commands.cooldown(rate=1, per=10, commands.BucketType.User)
-        async def once_every_ten_seconds(ctx):
+        async def once_every_ten_seconds(ctx: commands.Context) -> None:
             ...
 
     This can only be invoked a user every ten seconds.
     """
 
-    def decorator(func: MC) -> MC:
-        if isinstance(func, Command):
-            func.cooldown.append(Cooldown(rate, per, type))
+    def decorator(command: MC) -> MC:
+        if isinstance(command, Command):
+            command.cooldown.append(Cooldown(rate, per, type))
         else:
-            if not hasattr(func, "__commands_cooldown__"):
-                func.__commands_cooldown__ = []
-            func.__commands_cooldown__.append(Cooldown(rate, per, type))
-        return func
+            if not hasattr(command, "__commands_cooldown__"):
+                command.__commands_cooldown__ = []
+            command.__commands_cooldown__.append(Cooldown(rate, per, type))
+        return command
 
     return decorator
