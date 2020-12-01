@@ -33,7 +33,7 @@ from typing import Any, Generic, Optional, TypeVar
 
 import betterproto
 
-from ..enums import EResult, IE, IntEnum
+from ..enums import IE, EResult, IntEnum
 from .emsg import *
 from .headers import *
 from .protobufs import *
