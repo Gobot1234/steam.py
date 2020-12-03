@@ -44,10 +44,10 @@ import steam
 
 
 class MyClient(steam.Client):
-    async def on_ready(self):
+    async def on_ready(self) -> None:
         print("Logged in as", self.user)
 
-    async def on_trade_receive(self, trade):
+    async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
         await trade.partner.send("Thank you for your trade")
         print(f"Received trade: #{trade.id}")
         print("Trade partner is:", trade.partner)
@@ -65,14 +65,15 @@ client.run("username", "password")
 
 Bot Example
 ------------
+
 ```py
 from steam.ext import commands
 
 bot = commands.Bot(command_prefix="!")
 
 
-@bot.command()
-async def ping(ctx):
+@bot.command
+async def ping(ctx: commands.Context) -> None:
     await ctx.send("Pong!")
 
 

@@ -1,0 +1,22 @@
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+line_length = 120
+combine_as_imports = true
+atomic = true
+ensure_newline_before_comments = true
+
+[tool.mypy]  # a man can dream https://github.com/python/mypy/pull/5208 (I don't like setup.cfg)
+ignore_missing_imports = true
+strict_optional = false
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+allow_redefinition = true
+show_error_codes = true
+warn_no_return = false
+pretty = true
+files = "steam/*.py, steam/ext/commands/*.py, steam/protobufs/__init__.py, steam/protobufs/headers.py"

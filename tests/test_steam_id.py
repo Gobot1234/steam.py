@@ -50,13 +50,6 @@ def test_hash():
     assert SteamID(12345) != hash(SteamID(8888))
 
 
-def test_arg_too_many_invalid():
-    with pytest.raises(TypeError):
-        SteamID(1, 2, 3, 4, 5)
-    with pytest.raises(TypeError):
-        SteamID(1, 2, 3, 4, 5, 6)
-
-
 def test_args_only():
     compare(SteamID(1, 2), [1, 2, 1, 0])
     compare(SteamID(1, 2, 3), [1, 2, 3, 0])
@@ -101,12 +94,14 @@ def test_arg_text_invalid():
 def test_arg_too_large_invalid():
     with pytest.raises(InvalidSteamID):
         SteamID(111111111111111111111111111111111111111)
+    with pytest.raises(InvalidSteamID):
         SteamID("1111111111111111111111111111111111111")
 
 
 def test_too_small():
     with pytest.raises(InvalidSteamID):
         SteamID(-50)
+    with pytest.raises(InvalidSteamID):
         SteamID(id=-50)
 
 

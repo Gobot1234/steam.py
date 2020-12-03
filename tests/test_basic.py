@@ -23,7 +23,7 @@ class Client(steam.Client):
         try:
             await super().start(*args, **kwargs)
         except steam.LoginError as exc:
-            if "too many login failures" not in exc.args[0]:
+            if "429 Too Many Requests" not in exc.args[0]:
                 raise exc
             self.failed_to_login = True
 
