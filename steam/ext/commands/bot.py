@@ -43,7 +43,7 @@ from typing_extensions import Literal, overload
 from ... import utils
 from ...client import Client, E, EventType, log
 from .cog import Cog
-from .commands import CH, CHR, CheckReturnType, Command, GroupMixin, H, HookDecoType, check
+from .commands import CH, CHR, CheckReturnType, Command, GroupMixin, H, check
 from .context import Context
 from .converters import CONVERTERS, Converters
 from .errors import CommandNotFound
@@ -492,7 +492,7 @@ class Bot(GroupMixin, Client):
     def before_invoke(self, coro: H) -> H:
         ...
 
-    def before_invoke(self, coro: Optional[H] = None) -> HookDecoType:
+    def before_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
         """
@@ -513,7 +513,7 @@ class Bot(GroupMixin, Client):
     def after_invoke(self, coro: H) -> H:
         ...
 
-    def after_invoke(self, coro: Optional[H] = None) -> HookDecoType:
+    def after_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran after a command has been invoked.
         """
