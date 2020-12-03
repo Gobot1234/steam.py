@@ -85,6 +85,7 @@ __all__ = (
 
 T = TypeVar("T")
 Converters = Union[Type["Converter"], "BasicConverter"]
+RD = Union[Callable[["MC"], "MC"], "MC"]
 
 
 class ConverterDict(Dict[type, Tuple[Converters, ...]]):
