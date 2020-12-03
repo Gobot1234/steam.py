@@ -356,7 +356,7 @@ class Inventory:
             The removed matching items.
         """
         limit: int = kwargs.get("limit")
-        if limit and names:
+        if len(names) > 1 and limit:
             raise ValueError("Cannot pass a limit with multiple items")
         items = [item for item in self if item.name in names]
         items = items if limit is None else items[:limit]
