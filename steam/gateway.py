@@ -370,13 +370,16 @@ class SteamWebSocket(Registerable):
         except Exception as exc:
             return log.error(f"Failed to deserialize message: {emsg!r}, {message!r}", exc_info=exc)
 
-        log.debug(f"Socket has received {msg!r} from the websocket.")
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(f"Socket has received {msg!r} from the websocket.")  # message.__repr__ is an  expensive call
+
         self._dispatch("socket_receive", msg)
 
         try:
             event_parser = self.parsers[emsg]
         except KeyError:
-            log.debug(f"Ignoring event {msg!r}")
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug(f"Ignoring event {msg!r}")
         else:
             await utils.maybe_coroutine(event_parser, msg)
 

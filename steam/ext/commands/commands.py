@@ -251,7 +251,7 @@ class Command:
 
     @callback.setter
     def callback(self, function: CFT) -> None:
-        if not asyncio.iscoroutinefunction(function):
+        if not inspect.iscoroutinefunction(function):
             raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine function.")
 
         module = sys.modules[function.__module__]
@@ -358,7 +358,7 @@ class Command:
         """
 
         def decorator(coro: E) -> E:
-            if not asyncio.iscoroutinefunction(coro):
+            if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Error handler for {self.name} must be a coroutine")
             self.on_error = coro
             return coro
@@ -379,7 +379,7 @@ class Command:
         """
 
         def decorator(coro: H) -> H:
-            if not asyncio.iscoroutinefunction(coro):
+            if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Hook for {self.name} must be a coroutine")
             self._before_hook = coro
             return coro
@@ -400,7 +400,7 @@ class Command:
         """
 
         def decorator(coro: H) -> H:
-            if not asyncio.iscoroutinefunction(coro):
+            if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Hook for {self.name} must be a coroutine")
             self._after_hook = coro
             return coro
@@ -1042,7 +1042,7 @@ def check(predicate: CheckType) -> CheckReturnType:
 
         return func
 
-    if asyncio.iscoroutinefunction(predicate):
+    if inspect.iscoroutinefunction(predicate):
         decorator.predicate = predicate
     else:
 

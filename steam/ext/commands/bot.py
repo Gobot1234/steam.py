@@ -30,7 +30,6 @@ https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/bot.py
 
 from __future__ import annotations
 
-import asyncio
 import importlib
 import inspect
 import sys
@@ -381,7 +380,7 @@ class Bot(GroupMixin, Client):
         """
         name = name or func.__name__
 
-        if not asyncio.iscoroutinefunction(func):
+        if not inspect.iscoroutinefunction(func):
             raise TypeError(f"Listeners must be coroutines, {name} is {type(func).__name__}")
 
         try:
@@ -485,26 +484,42 @@ class Bot(GroupMixin, Client):
                 return False
         return await ctx.command.can_run(ctx)
 
+    @overload
+    def before_invoke(self, coro: Literal[None] = ...) -> Callable[[H], H]:
+        ...
+
+    @overload
+    def before_invoke(self, coro: H) -> H:
+        ...
+
     def before_invoke(self, coro: Optional[H] = None) -> HookDecoType:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
         """
 
         def decorator(coro: H) -> H:
-            if not asyncio.iscoroutinefunction(coro):
+            if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
             self._before_hook = coro
             return coro
 
         return decorator(coro) if coro is not None else decorator
 
+    @overload
+    def after_invoke(self, coro: Literal[None] = ...) -> Callable[[H], H]:
+        ...
+
+    @overload
+    def after_invoke(self, coro: H) -> H:
+        ...
+
     def after_invoke(self, coro: Optional[H] = None) -> HookDecoType:
         """|maybecallabledeco|
-        Register a :ref:`coroutine <coroutine>` to be ran after the command has been invoked.
+        Register a :ref:`coroutine <coroutine>` to be ran after a command has been invoked.
         """
 
         def decorator(coro: H) -> H:
-            if not asyncio.iscoroutinefunction(coro):
+            if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
             self._after_hook = coro
             return coro
@@ -710,9 +725,9 @@ class Bot(GroupMixin, Client):
         self,
         event: Literal["error"],
         *,
-        check: Optional[Callable[[str, Exception, Any, Any], bool]] = ...,
+        check: Optional[Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> tuple[str, Exception, Any, Any]:
+    ) -> tuple[str, Exception, tuple, dict]:
         ...
 
     @overload
@@ -722,7 +737,7 @@ class Bot(GroupMixin, Client):
         *,
         check: Optional[Callable[[Message], bool]] = ...,
         timeout: Optional[float] = ...,
-    ) -> steam.Message:
+    ) -> Message:
         ...
 
     @overload
@@ -796,7 +811,10 @@ class Bot(GroupMixin, Client):
     @overload
     async def wait_for(
         self,
-        event: Literal["socket_receive"],
+        event: Literal[
+            "socket_receive",
+            "socket_send",
+        ],
         *,
         check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
@@ -806,27 +824,10 @@ class Bot(GroupMixin, Client):
     @overload
     async def wait_for(
         self,
-        event: Literal["socket_raw_receive"],
-        *,
-        check: Optional[Callable[[bytes], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> bytes:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["socket_send"],
-        *,
-        check: Optional[Callable[[Msgs], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> Msgs:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["socket_raw_send"],
+        event: Literal[
+            "socket_raw_receive",
+            "socket_raw_send",
+        ],
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,

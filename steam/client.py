@@ -1053,7 +1053,7 @@ class Client:
         self,
         event: Literal["error"],
         *,
-        check: Optional[Callable[[str, Exception, tuple, dict], bool]] = ...,
+        check: Optional[Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool]] = ...,
         timeout: Optional[float] = ...,
     ) -> tuple[str, Exception, tuple, dict]:
         ...
@@ -1119,7 +1119,10 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["user_invite"],
+        event: Literal[
+            "user_invite",
+            "user_invite_accept",
+        ],
         *,
         check: Optional[Callable[[UserInvite], bool]] = ...,
         timeout: Optional[float] = ...,
@@ -1129,7 +1132,10 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["clan_invite"],
+        event: Literal[
+            "clan_invite",
+            "clan_invite_accept",
+        ],
         *,
         check: Optional[Callable[[ClanInvite], bool]] = ...,
         timeout: Optional[float] = ...,
@@ -1139,7 +1145,10 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["socket_receive"],
+        event: Literal[
+            "socket_receive",
+            "socket_send",
+        ],
         *,
         check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
@@ -1149,27 +1158,10 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["socket_raw_receive"],
-        *,
-        check: Optional[Callable[[bytes], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> bytes:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["socket_send"],
-        *,
-        check: Optional[Callable[[Msgs], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> Msgs:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["socket_raw_send"],
+        event: Literal[
+            "socket_raw_receive",
+            "socket_raw_send",
+        ],
         *,
         check: Optional[Callable[[bytes], bool]] = ...,
         timeout: Optional[float] = ...,

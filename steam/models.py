@@ -38,7 +38,11 @@ from yarl import URL as _URL
 from .protobufs import EMsg, MsgProto
 
 if TYPE_CHECKING:
+    from types import FunctionType as FunctionType, MethodType as MethodType
+
     from .enums import IE
+else:
+    FunctionType = MethodType = object
 
 __all__ = (
     "PriceOverview",
@@ -67,13 +71,6 @@ class URL:
     API: Final[_URL] = _URL("https://api.steampowered.com")
     COMMUNITY: Final[_URL] = _URL("https://steamcommunity.com")
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
-
-
-if TYPE_CHECKING:
-    from types import FunctionType as FunctionType, MethodType as MethodType
-else:
-    MethodType = object
-    FunctionType = object
 
 
 class EventParser(MethodType):

@@ -282,7 +282,7 @@ class Converter(Protocol[T]):
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         converter_for = globals().pop("__current_converter", None)
-        # the flow for this is __class_getitem__ -> type.__new__ (but that won't do anything) -> __init_subclass__ so
+        # the flow for this is __class_getitem__ -> object.__new__ (but that won't do anything) -> __init_subclass__ so
         # this is alright
         if converter_for is None:
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")

@@ -125,6 +125,7 @@ class ConnectionState(Registerable):
     def __init__(self, client: Client, **kwargs: Any):
         super().__init__()
         self.client = client
+        self.loop = client.loop
         self.dispatch = client.dispatch
         self.http = client.http
         self.request = self.http.request
@@ -185,10 +186,6 @@ class ConnectionState(Registerable):
     @property
     def ws(self) -> SteamWebSocket:
         return self.client.ws
-
-    @property
-    def loop(self) -> asyncio.AbstractEventLoop:
-        return self.client.loop
 
     @property
     def users(self) -> list[User]:
@@ -756,8 +753,9 @@ class ConnectionState(Registerable):
                         await asyncio.sleep(1)
                         try:
                             await self._poll_trades()
-                        except Exception:
+                        except Exception as exc:
                             await asyncio.sleep(10)
+                            log.info("Error while polling trades", exc_info=exc)
 
                 if self._trades_task is None or self._trades_task.done():
                     await self._poll_trades()
