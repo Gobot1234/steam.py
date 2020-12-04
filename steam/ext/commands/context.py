@@ -98,7 +98,7 @@ class Context(Messageable):
 
     async def invoke(self) -> None:
         """|coro|
-        A shortcut method that invokes the current context using :meth:`~steam.ext.commands.Bot.invoke`.
+        A shortcut method that invokes the current context using :meth:`~steam.ext.commands.Command.invoke`.
 
         Equivalent to::
 

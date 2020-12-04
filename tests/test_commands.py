@@ -121,7 +121,8 @@ def test_greedy(param_type: Union[type, str], expected: Union[int, "type[Excepti
         async def greedy(_, param: commands.Greedy[param_type]) -> None:
             ...
 
-        assert greedy.clean_params["param"].annotation.converter is expected
+        # reloading creates a new converter so we just check __name__ here
+        assert greedy.clean_params["param"].annotation.converter.__name__ is expected.__name__
 
 
 class TestBot(commands.Bot):
