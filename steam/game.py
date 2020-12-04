@@ -26,8 +26,9 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import functools
 from datetime import timedelta
-from typing import Any, Optional, Union, overload
+from typing import Any, Callable, Optional, TypeVar, Union, overload
 
 from typing_extensions import TypedDict
 
@@ -42,7 +43,9 @@ __all__ = (
     "CUSTOM_GAME",
 )
 
+T = TypeVar("T")
 APP_ID_MAX = 2 ** 32
+GAMES: dict[int, list[Game]] = {}
 
 
 class Games(IntEnum):
@@ -64,6 +67,25 @@ class GameDict(TypedDict):
 class GameToDict(TypedDict, total=False):
     game_id: str
     game_extra_info: str
+
+
+def cache_values(new: Callable[..., T]) -> Callable[..., T]:
+    @functools.wraps(new)
+    def inner(*args: Any, **kwargs: Any) -> T:
+        game = new(*args, **kwargs)
+
+        try:
+            games = GAMES[game.id]
+        except KeyError:
+            GAMES[game.id] = games = [game]
+
+        for game_ in games:
+            if game_.title == game.title:
+                return game_
+
+        return game
+
+    return inner
 
 
 class Game:
@@ -112,29 +134,42 @@ class Game:
         "_stats_visible",
     )
 
+    id: int
+    title: Optional[str]
+    context_id: Optional[int]
+
+    total_play_time: Optional[timedelta]
+    icon_url: Optional[str]
+    logo_url: Optional[str]
+    _stats_visible: Optional[bool]
+
     @overload
-    def __init__(self, *, id: Union[int, str], context_id: Optional[int] = None):
+    def __new__(cls, *, id: Union[int, str], context_id: Optional[int] = None) -> Game:
         ...
 
     @overload
-    def __init__(self, *, title: str, context_id: Optional[int] = None):
+    def __new__(cls, *, title: str, context_id: Optional[int] = None) -> Game:
         ...
 
     @overload
-    def __init__(self, *, id: Union[int, str], title: str, context_id: Optional[int] = None):
+    def __new__(cls, *, id: Union[int, str], title: str, context_id: Optional[int] = None) -> Game:
         ...
 
     @overload
-    def __init__(
-        self, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = None
-    ):
+    def __new__(
+        cls, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = None
+    ) -> Game:
         ...
 
-    def __init__(
-        self, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = None
-    ):
+    @cache_values
+    def __new__(
+        cls, *, id: Optional[Union[int, str]] = None, title: Optional[str] = None, context_id: Optional[int] = None
+    ) -> Game:
         if title is None and id is None:
-            raise TypeError("__init__() missing a required keyword argument: 'id' or 'title'")
+            raise TypeError("__new__() missing a required keyword argument: 'id' or 'title'")
+
+        self = super().__new__(cls)
+
         if title is None:
             try:
                 id = int(id)
@@ -145,14 +180,13 @@ class Game:
             except ValueError:
                 title = None
             else:
-                if title == "Steam" and context_id is not None:
+                if title == "Steam" and context_id is None:
                     context_id = 6
         elif id is None:
             try:
                 id = Games[title.replace(" ", "_").replace("-", "__")].value
             except KeyError:
                 id = 0
-
         else:
             try:
                 id = int(id)
@@ -162,14 +196,16 @@ class Game:
         if id < 0:
             raise ValueError("id cannot be negative")
 
-        self.id: int = id
-        self.title: Optional[str] = title
-        self.context_id: Optional[int] = 2 if context_id is None else context_id
+        self.id = id
+        self.title = title
+        self.context_id = 2 if context_id is None else context_id
 
-        self.total_play_time: Optional[timedelta] = None
-        self.icon_url: Optional[str] = None
-        self.logo_url: Optional[str] = None
-        self._stats_visible: Optional[bool] = None
+        self.total_play_time = None
+        self.icon_url = None
+        self.logo_url = None
+        self._stats_visible = None
+
+        return self
 
     @classmethod
     def _from_api(cls, data: GameDict) -> Game:
@@ -199,7 +235,7 @@ class Game:
             if isinstance(other, int):
                 return self.id == other
             if isinstance(other, Game):
-                return self.id == other.id
+                return self.id == other.id and self.context_id == other.context_id
         return NotImplemented
 
     def to_dict(self) -> GameToDict:
