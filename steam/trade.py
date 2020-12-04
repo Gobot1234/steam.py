@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, Union, TypeVar
 
 from typing_extensions import TypedDict
 
@@ -49,6 +49,7 @@ __all__ = (
 )
 
 Items = Union["Item", "Asset"]
+I = TypeVar("I", "Item", "Asset")
 
 
 class AssetToDict(TypedDict):
@@ -124,10 +125,6 @@ class Asset:
 
             Checks if two assets are equal.
 
-        .. describe:: x != y
-
-            Checks if two assets are not equal.
-
     Attributes
     -------------
     game: :class:`~steam.Game`
@@ -183,10 +180,6 @@ class Item(Asset):
         .. describe:: x == y
 
             Checks if two items are equal.
-
-        .. describe:: x != y
-
-            Checks if two items are not equal.
 
     Attributes
     -------------
@@ -254,7 +247,7 @@ class Item(Asset):
         return self._is_marketable
 
 
-class Inventory:
+class Inventory(Generic[I]):
     """Represents a User's inventory.
 
     .. container:: operations
@@ -269,7 +262,7 @@ class Inventory:
 
         .. describe:: y in x
 
-            Determines if an item is in the inventory based off of its class_id and instance_id.
+            Determines if an item is in the inventory based off of its :attr:`class_id` and :attr:`instance_id`.
 
 
     Attributes
@@ -284,11 +277,15 @@ class Inventory:
 
     __slots__ = ("game", "items", "owner", "_state", "_total_inventory_count")
 
+    items: list[I]
+    game: Optional[Game]
+
+    def __new__(cls, *args: Any, **kwargs: Any):
+        return object.__new__(cls)  # patch https://bugs.python.org/issue39168
+
     def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser):
         self._state = state
         self.owner = owner
-        self.items: list[Items] = []
-        self.game: Optional[Game]
         self._update(data)
 
     def __repr__(self) -> str:
@@ -299,7 +296,7 @@ class Inventory:
     def __len__(self) -> int:
         return self._total_inventory_count
 
-    def __iter__(self) -> Iterator[Items]:
+    def __iter__(self) -> Iterator[I]:
         return iter(self.items)
 
     def __contains__(self, item: Asset) -> bool:
@@ -335,7 +332,7 @@ class Inventory:
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
-    def filter_items(self, *names: str, **kwargs: Any) -> list[Item]:
+    def filter_items(self, *names: str, **kwargs: Any) -> list[I]:
         """A helper function that filters and removes items by name from the inventory.
 
         Parameters
@@ -364,7 +361,7 @@ class Inventory:
             self.items.remove(item)
         return items
 
-    def get_item(self, name: str) -> Optional[Item]:
+    def get_item(self, name: str) -> Optional[I]:
         """A helper function that gets and removes an item by name from the inventory.
 
         Parameters
