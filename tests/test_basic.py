@@ -2,9 +2,7 @@
 
 """A basic integration test"""
 
-import contextlib
 import sys
-from io import StringIO
 from typing import Any
 
 import pytest
@@ -22,17 +20,12 @@ class Client(steam.Client):
     failed_to_login: bool = False
 
     async def start(self, *args: Any, **kwargs: Any) -> None:
-        stdout = StringIO()
         try:
-            with contextlib.redirect_stdout(stdout):
-                await super().start(*args, **kwargs)
+            await super().start(*args, **kwargs)
         except steam.LoginError as exc:
-            if "429 Too Many Requests" not in exc.args[0] or "" not in exc.args[0]:  # FIXME what's this message name?
+            if "429 Too Many Requests" not in exc.args[0]:
                 raise exc
             self.failed_to_login = True
-        finally:
-            if stdout.getvalue().strip() == "Please enter a Steam guard code":
-                self.failed_to_login = True
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
         if event.upper() in self.__annotations__:
