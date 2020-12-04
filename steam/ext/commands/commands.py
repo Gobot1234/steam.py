@@ -40,6 +40,7 @@ from typing import (
     Any,
     Callable,
     Coroutine,
+    ForwardRef,
     Generator,
     Iterable,
     Optional,
@@ -262,13 +263,15 @@ class Command:
         if not self.params:
             raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
 
-        for idx, (key, value) in enumerate(self.params.items()):
-            if isinstance(value.annotation, str):
-                globals = module.__dict__
-                locals = sys._getframe(4).f_locals  # ewh
+        for idx, (key, param) in enumerate(self.params.items()):
+            annotation = param.annotation
+            args = get_args(annotation)
+            globals = module.__dict__
+            locals = sys._getframe(4).f_locals  # ewh
 
+            if isinstance(annotation, str):
                 try:
-                    self.params[key] = value.replace(annotation=eval(value.annotation, globals, locals))
+                    self.params[key] = param.replace(annotation=eval(annotation, globals, locals))
                 except NameError as exc:
                     if len(self.params) == 1 or key == "ctx" and idx == 1:
                         # we can be sure if there is only one param it is fine to ignore NameErrors as it will always
@@ -280,9 +283,16 @@ class Command:
                     reload_module_with_TYPE_CHECKING(module)
 
                     try:
-                        self.params[key] = value.replace(annotation=eval(value.annotation, globals, locals))
+                        self.params[key] = param.replace(annotation=eval(annotation, globals, locals))
                     except NameError:
                         raise exc from None
+
+            elif args:
+                for arg in get_args(annotation):
+                    if isinstance(arg, ForwardRef):
+                        self.params[key] = param.replace(
+                            annotation=get_origin(annotation)[eval(arg.__forward_code__, globals, locals)]
+                        )
 
         self.module = function.__module__
         self._callback = function

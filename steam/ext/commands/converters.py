@@ -514,7 +514,7 @@ class Greedy(Generic[T]):
         """The entry point for Greedy types."""
         if isinstance(converter, tuple):
             converter = converter[0] if len(converter) == 1 else Union[converter]
-        if not (callable(converter) or isinstance(converter, Converter) or get_origin(converter) is not None):
+        if not (callable(converter) or isinstance(converter, (Converter, str)) or get_origin(converter) is not None):
             raise TypeError(f"Greedy[...] expects a type or a Converter instance not {converter!r}")
 
         if converter in INVALID_GREEDY_TYPES:
