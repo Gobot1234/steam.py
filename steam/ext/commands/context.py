@@ -113,7 +113,10 @@ class Context(Messageable):
 
     @cached_property
     def invoked_without_command(self) -> bool:
-        """:class:`bool`: Whether or not the command was invoked with a subcommand."""
-        return hasattr(self.command, "__commands__") and not self.lex.in_stream[: self.lex.position].strip().startswith(
-            tuple(self.command.__commands__)
+        """:class:`bool`: Whether or not the command was invoked without a subcommand."""
+
+        return (
+            self.command.get_command(self.lex.in_stream[self.lex.position :]) is None
+            if hasattr(self.command, "__commands__")
+            else True
         )
