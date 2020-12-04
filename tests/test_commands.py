@@ -89,18 +89,39 @@ def test_annotations() -> None:
     assert get_an_user.clean_params.popitem()[1].annotation == users
 
 
-def test_greedy():
-    with pytest.raises(TypeError):
+class CustomConverter(commands.Converter[tuple]):
+    async def convert(self, ctx: commands.Context, argument: str) -> tuple:
+        ...
+
+
+@pytest.mark.parametrize(
+    "param_type, expected",
+    [
+        (None, TypeError),
+        (str, TypeError),
+        (int, int),
+        (CustomConverter, CustomConverter),
+        ("None", TypeError),
+        ("str", TypeError),
+        ("int", int),
+        ("CustomConverter", CustomConverter),
+    ],
+)
+def test_greedy(param_type: Union[type, str], expected: Union[int, "type[Exception]"]):
+    if issubclass(expected, Exception):
+        with pytest.raises(TypeError):
+
+            @commands.command
+            async def greedy(_, param: commands.Greedy[param_type]) -> None:
+                ...
+
+    else:
 
         @commands.command
-        async def greedy(_, param: commands.Greedy[None]) -> None:
+        async def greedy(_, param: commands.Greedy[param_type]) -> None:
             ...
 
-    with pytest.raises(TypeError):
-
-        @commands.command
-        async def greedy(_, param: commands.Greedy[str]) -> None:
-            ...
+        assert greedy.clean_params["param"].annotation.converter is expected
 
 
 class TestBot(commands.Bot):
@@ -166,7 +187,18 @@ class TestBot(commands.Bot):
 
 
 @pytest.mark.asyncio
-async def test_positional_or_keyword_commands() -> None:
+@pytest.mark.parametrize(
+    "input, excepted_exception",
+    [
+        ("", commands.MissingRequiredArgument),
+        ("1234", None),
+        ("1234 1234", None),
+        ("string", commands.BadArgument),
+    ],
+)
+async def test_positional_or_keyword_commands(
+    input: str, excepted_exception: Optional["type[commands.CommandError]"]
+) -> None:
     bot = TestBot()
 
     @bot.command
@@ -174,19 +206,21 @@ async def test_positional_or_keyword_commands() -> None:
         assert isinstance(number, int)
         assert len(str(number)) == 4
 
-    inputs = [
-        ("", commands.MissingRequiredArgument),
-        ("1234", None),
-        ("1234 1234", None),
-        ("string", commands.BadArgument),
-    ]
-
-    for args, excepted_exception in inputs:
-        await bot.process_commands(args, excepted_exception)
+    await bot.process_commands(input, excepted_exception)
 
 
 @pytest.mark.asyncio
-async def test_variadic_commands() -> None:
+@pytest.mark.parametrize(
+    "input, expected_exception",
+    [
+        ("", None),
+        ("1234", None),
+        ("1234 1234", None),
+        ("1234        1234        1234        1234        1234", None),
+        ("string", commands.BadArgument),
+    ],
+)
+async def test_variadic_commands(input: str, expected_exception: commands.CommandError) -> None:
     bot = TestBot()
 
     @bot.command
@@ -196,16 +230,7 @@ async def test_variadic_commands() -> None:
             assert isinstance(number, int)
             assert len(str(number)) == 4
 
-    inputs = [
-        ("", None),
-        ("1234", None),
-        ("1234 1234", None),
-        ("1234        1234        1234        1234        1234", None),
-        ("string", commands.BadArgument),
-    ]
-
-    for args, excepted_exception in inputs:
-        await bot.process_commands(args, excepted_exception)
+    await bot.process_commands(input, expected_exception)
 
 
 @pytest.mark.asyncio
