@@ -41,7 +41,10 @@ if TYPE_CHECKING:
 
     from .cog import Cog
 
-__all__ = ("HelpCommand",)
+__all__ = (
+    "HelpCommand",
+    "DefaultHelpCommand",
+)
 
 
 class HelpCommand(Command):
