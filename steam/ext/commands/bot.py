@@ -216,7 +216,7 @@ class Bot(GroupMixin, Client):
 
     @property
     def extensions(self) -> Mapping[str, ModuleType]:
-        """Mapping[:class:`str`, :class:`ModuleType`]: A read only mapping of any loaded extensions."""
+        """Mapping[:class:`str`, :class:`types.ModuleType`]: A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
     @property

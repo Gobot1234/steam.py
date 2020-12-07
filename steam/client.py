@@ -800,8 +800,8 @@ class Client:
             """|coro|
             Called after a successful login and the client has handled setting up everything.
 
-            Warnings
-            --------
+            Warning
+            -------
             This function is not guaranteed to be the first event called. Likewise, this function is **not**
             guaranteed to only be called once. This library implements reconnection logic and will therefore
             end up calling this event whenever a CM disconnects.

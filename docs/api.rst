@@ -5,9 +5,10 @@ API reference
 
 The following document outlines the front facing aspects of steam.py.
 
-.. note::
-    This module uses Python's logging module to debug, give information and diagnose errors, it is recommended to
-    configure this if necessary as errors or warnings will not be propagated properly.
+Note
+----
+This module uses Python's logging module to debug, give information and diagnose errors, it is recommended to
+configure this if necessary as errors or warnings will not be propagated properly.
 
 Version Related Info
 ---------------------
@@ -15,6 +16,10 @@ Version Related Info
 .. data:: __version__
 
     A string representation of the version. e.g. ``'0.1.3'``. This is based off of :pep:`440`.
+
+.. data:: version_info
+
+    A :class:`typing.NamedTuple` similar to :obj:`sys.version_info` except without a serial field.
 
 Client
 ------
@@ -42,15 +47,14 @@ Event Reference
 
 This page outlines the different types of events listened for by the :class:`Client`.
 
-There are two ways to register an event, the first way is through the use of
-:meth:`Client.event`. The second way is through subclassing :class:`Client` and
-overriding the specific events. For example: ::
+There are two ways to register an event, the first way is through the use of :meth:`Client.event`. The second way is
+through subclassing :class:`Client` and overriding the specific events. For example: ::
 
     import steam
 
 
     class MyClient(steam.Client):
-        async def on_trade_receive(self, trade):
+        async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
             await trade.partner.send('Thank you for your trade')
             print(f'Received trade: #{trade.id}')
             print('Trade partner is:', trade.partner)
@@ -65,10 +69,11 @@ overriding the specific events. For example: ::
 If an event handler raises an exception, :func:`on_error` will be called
 to handle it, which defaults to print a traceback and ignoring the exception.
 
-.. warning::
+Warning
+-------
 
-    All the events must be a |coroutine_link|_. If they aren't, a :exc:`TypeError` will be raised.
-    In order to turn a function into a coroutine they must be ``async def`` functions.
+All the events must be a |coroutine_link|_. If they aren't, a :exc:`TypeError` will be raised. In order to turn a
+function into a coroutine they must be ``async def`` functions.
 
 .. automethod:: Client.on_connect
 

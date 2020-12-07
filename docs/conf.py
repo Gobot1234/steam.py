@@ -35,14 +35,10 @@ extensions = [
 autodoc_member_order = "bysource"  # TODO I feel like there is a way to get a better order
 autodoc_typehints = "none"
 
-extlinks = {
-    "issue": ("https://github.com/Gobot1234/steam.py/issues/%s", "GH-"),
-}
-
 # Links used for cross-referencing stuff in other documentation
 intersphinx_mapping = {
     "py": ("https://docs.python.org/3", None),
-    "aio": ("https://docs.aiohttp.org/en/stable/", None),
+    "aio": ("https://docs.aiohttp.org/en/stable", None),
 }
 
 rst_prolog = """
@@ -105,6 +101,18 @@ pygments_style = "friendly"
 # a list of builtin themes.
 html_theme = "basic"
 
+html_context = {
+    "discord_invite": "https://discord.gg/MQ68WUS",
+    "module_extensions": [
+        ("steam.ext.commands", "ext/commands"),
+    ],
+    "repository": "https://github.com/Gobot1234/steam.py",
+}
+
+extlinks = {
+    "issue": (f"{html_context['repository']}/%s", "GH-"),
+}
+
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
@@ -119,6 +127,4 @@ html_static_path = ["_static"]
 # implements a search results scorer. If empty, the default will be used.
 html_search_scorer = "_static/scorer.js"
 
-
-def setup(app):
-    app.add_js_file("custom.js")
+html_js_files = ["custom.js", "settings.js", "copy.js", "sidebar.js"]

@@ -6,16 +6,16 @@
 Welcome to steam.py's documentation!
 ====================================
 
-steam.py is a modern, easy to use, and async ready API wrapper
-for the Steam API and its CMs. Heavily inspired by `discord.py <https://github.com/Rapptz/discord.py>`_
-and borrowing functionality from `ValvePython/steam <https://github.com/ValvePython/steam>`_.
+steam.py is a modern, easy to use, and async ready API wrapper for the Steam API and its CMs. Heavily inspired by
+`discord.py <https://github.com/Rapptz/discord.py>`_ and borrowing functionality from
+`ValvePython/steam <https://github.com/ValvePython/steam>`_.
 
 Key Features
 ------------
 
 - Modern Pythonic API using ``async``/``await`` syntax
 - Command extension to aid with bot creation
-- Easy to use with an object oriented design
+- Easy to use with an object-oriented design
 - Fully typed hinted for faster development
 
 
@@ -25,6 +25,7 @@ Documentation Contents
 .. toctree::
    :maxdepth: 2
 
+   quickstart
    api
    faq
 

@@ -130,7 +130,7 @@ Help Commands
         :decorator:
 
 
-.. autoclass:: commands.DefaultHelpCommand
+.. autoclass:: steam.ext.commands.DefaultHelpCommand
     :members:
     :inherited-members:
     :special-members: __call__
