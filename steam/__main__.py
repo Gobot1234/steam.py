@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import pkg_resources
 import platform
+
+import pkg_resources
 
 
 def get_version_info(package: str) -> str:

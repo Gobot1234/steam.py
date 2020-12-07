@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import steam
-
 import pytest
+
+import steam
 
 
 @pytest.mark.parametrize("attribute", ["__version__", "version_info", "__author__"])
