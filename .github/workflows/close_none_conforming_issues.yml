@@ -1,0 +1,27 @@
+# From https://github.com/Gorialis/discord.py/blob/fd4d9de99da6cd423a8118a263a60a0f362d5721/.github/workflows/close_nonconforming_issues.yml
+
+name: Close issues that don't follow the issue template
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  auto-close-issues:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+
+      - name: Automatically close issues that don't follow the issue template
+        uses: ergo720/auto-close-issues@v1.0.4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          closed-issues-label: invalid
+          issue-close-message: |
+            @${issue.user.login} Hello there! :wave:
+
+            This issue has been automatically closed because you either removed or didn't fill out the issue template properly.
+            The issue template helps you give us valuable information we might need to solve your issue. Please make sure to always fill out the issue template.
