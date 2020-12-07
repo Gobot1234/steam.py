@@ -33,4 +33,4 @@ Ideally there should be a short code snippet in this section to help reproduce t
 
 ## System Information
 
-<!-- Basic info (i.e. Python version, library version and your operating system) -->
+<!-- Paste the result of "python3 -m steam" (Linux and macOS) or "py -m steam" (Windows) -->
