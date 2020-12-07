@@ -1,0 +1,42 @@
+name: Automatically build documentation for documetation PRs.
+
+on:
+  pull_request:
+    branches:
+      - '**'
+
+
+jobs:
+  build-documentation:
+    if: ${{
+        startsWith(github.event.pull_request.title, '[docs]') ||
+        startsWith(github.event.pull_request.title, '[RFC]') ||
+        contains(github.event.pull_request.title, 'Add') ||
+        contains(github.event.pull_request.title, 'Implement')
+      }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repositoryÅ
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Set up sphinx
+        run: python3 -m pip install sphinx
+
+      - name: Build documentation
+        run: |
+          cd docs
+          make html
+          cd ..
+
+      - name: Upload documentation  # TODO figure out how to upload this somewhere better
+        uses: actions/upload-artifact@v2
+        with:
+          name: documentation
+          path: docs/_build/*
