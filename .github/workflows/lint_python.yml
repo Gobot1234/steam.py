@@ -19,7 +19,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: 3.7
-      - run: pip install flake8
+          python-version: '3.x'
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Lint python with flake8
       - run: |
           flake8 . --count --select=E9,F63,F7,F82,F632,E0401 --max-line-length=120 --show-source --statistics

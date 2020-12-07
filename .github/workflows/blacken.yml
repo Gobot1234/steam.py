@@ -13,12 +13,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: 3.7
+          python-version: '3.x'
+
       - name: Install dependencies
         run: |
           git clone https://github.com/psf/black
           cd black
           python -m pip install -U .
+
       - name: Check formatting
         run: |
           python -m black steam examples -l120 --diff --check
