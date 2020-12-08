@@ -3,6 +3,8 @@
 # Some sections of this from
 # https://github.com/Gorialis/steam.py/blob/fd4d9de99da6cd423a8118a263a60a0f362d5721/tests/test_utils.py
 
+from __future__ import annotations
+
 import random
 from typing import NamedTuple, Optional
 
