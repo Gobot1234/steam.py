@@ -22,14 +22,14 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-'use-strict';
+"use-strict";
 
 let queryBeingDone = null;
 let pattern = null;
 
 const escapedRegex = /[-\/\\^$*+?.()|[\]{}]/g;
 function escapeRegex(e) {
-    return e.replace(escapedRegex, '\\$&');
+    return e.replace(escapedRegex, "\\$&");
 }
 
 // for some reason Sphinx shows some entries twice
@@ -48,11 +48,10 @@ function __score(haystack, regex) {
 
 // unused for now
 function __cleanNamespaces(query) {
-    return query.replace(/(steam\.(ext\.)?)?(.+)/, '$3');
+    return query.replace(/(steam\.(ext\.)?)?(.+)/, "$3");
 }
 
 Scorer = {
-
     // Implement the following function to further tweak the score for each result
     // The function takes a result array [filename, title, anchor, descr, score]
     // and returns the new score.
@@ -60,7 +59,7 @@ Scorer = {
         // only inflate the score of things that are actual API reference things
         const [, title, , , score] = result;
 
-        if (pattern !== null && title.startsWith('steam.')) {
+        if (pattern !== null && title.startsWith("steam.")) {
             let _score = __score(title, pattern);
             if (_score === Number.MAX_VALUE) {
                 return score;
@@ -82,9 +81,9 @@ Scorer = {
     objPartialMatch: 11,
     // Additive scores depending on the priority of the object
     objPrio: {
-        0: 15,  // used to be importantResults
-        1: 7,   // used to be objectResults
-        2: -5   // used to be unimportantResults
+        0: 15, // used to be importantResults
+        1: 7, // used to be objectResults
+        2: -5 // used to be unimportantResults
     },
     //  Used when the priority is not in the mapping.
     objPrioDefault: 0,
@@ -97,11 +96,11 @@ Scorer = {
     partialTerm: 2
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
     const params = new URLSearchParams(window.location.search);
-    queryBeingDone = params.get('q');
+    queryBeingDone = params.get("q");
     if (queryBeingDone) {
-        let pattern = Array.from(queryBeingDone).map(escapeRegex).join('.*?');
-        pattern = new RegExp(pattern, 'i');
+        let pattern = Array.from(queryBeingDone).map(escapeRegex).join(".*?");
+        pattern = new RegExp(pattern, "i");
     }
 });
