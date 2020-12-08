@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import csscompressor
@@ -74,7 +76,7 @@ def minimize_css() -> None:
 
 
 @progress_message("autoformatting scripts")
-def minimize(_) -> None:
+def minimize(*_) -> None:
     minimize_html()
     minimize_js()
     minimize_css()
