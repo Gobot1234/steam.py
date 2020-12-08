@@ -1,3 +1,5 @@
 sphinx==3.3.1
 sphinxcontrib_trio==1.1.2
-sphinxcontrib-websupport
+csscompressor
+htmlmin
+rjsmin

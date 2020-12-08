@@ -4,13 +4,21 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+from __future__ import annotations
+
 import os
 import re
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
+
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
+
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.append(os.path.abspath("extensions"))
 
@@ -128,3 +136,13 @@ html_static_path = ["_static"]
 html_search_scorer = "_static/scorer.js"
 
 html_js_files = ["custom.js", "settings.js", "copy.js", "sidebar.js"]
+
+
+def setup(app: Sphinx) -> None:
+    """Called after setting up READTHEDOCS in html_context so we can add the minifier"""
+    minimize_code = globals().get("html_context", {}).get("READTHEDOCS")
+    if minimize_code:
+
+        from docs.extensions.minimizer import minimize
+
+        app.connect("builder-inited", minimize)
