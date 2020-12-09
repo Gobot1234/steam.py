@@ -13,9 +13,12 @@ DOCS = Path(__name__).resolve().parent
 
 static = (DOCS / "_static").resolve()
 templates = (DOCS / "_templates").resolve()
+build = (DOCS / "_build")
 
 
 def get_files(suffix: str) -> list[Path]:
+    if build.exists():
+        return [p for p in build.iterdir() if p.suffix == suffix]
     to_minimize = [p for p in static.iterdir() if p.suffix == suffix]
     to_minimize += [p for p in templates.iterdir() if p.suffix == suffix]
     return to_minimize
