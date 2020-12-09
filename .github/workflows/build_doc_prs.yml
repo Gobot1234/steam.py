@@ -1,8 +1,8 @@
 name: Automatically build documentation for documetation PRs.
 
-on:
-  pull_request:
-    types: [opened]
+on: [pull_request]
+#  pull_request:
+#    types: [opened]
 
 jobs:
   build-documentation:
@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Comment with documentation link
-        uses: mb2dev/github-action-comment-pull-request
+        uses: mb2dev/github-action-comment-pull-request@v1.0.0
         with:
            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
            message: |
