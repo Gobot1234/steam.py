@@ -1,6 +1,8 @@
 name: Automatically build documentation for documetation PRs.
 
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened]
 
 jobs:
   build-documentation:
@@ -21,4 +23,4 @@ jobs:
            message: |
             @${{ github.event.pull_request.author.login }} Hello there! :wave:
 
-            Built documentation for this pull request can be found at https://steampy--{{ github.event.pull_request.number }}.org.readthedocs.build/en/{{ github.event.pull_request.number }}
+            Built documentation for this pull request can be found at https://steampy--${{ github.event.pull_request.number }}.org.readthedocs.build/en/${{ github.event.pull_request.number }}
