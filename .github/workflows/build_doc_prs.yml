@@ -1,11 +1,11 @@
-name: Automatically build documentation for documetation PRs.
+name: Automatically comment with a documentation link for documetation PRs.
 
 on: [pull_request]
 #  pull_request:
 #    types: [opened]
 
 jobs:
-  build-documentation:
+  comment-with-documentation-url:
     if: ${{
         startsWith(github.event.pull_request.title, '[docs]') ||
         startsWith(github.event.pull_request.title, '[RFC]') ||
