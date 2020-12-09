@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Comment with documentation link
-        uses: mb2dev/github-action-comment-pull-request@v1.0.0
+        uses: mb2dev/github-action-comment-pull-request@1.0.0
         with:
            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
            message: |
