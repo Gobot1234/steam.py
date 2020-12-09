@@ -13,7 +13,7 @@ DOCS = Path(__name__).resolve().parent
 
 static = (DOCS / "_static").resolve()
 templates = (DOCS / "_templates").resolve()
-build = (DOCS / "_build")
+build = DOCS / "_build"
 
 
 def get_files(suffix: str) -> list[Path]:
