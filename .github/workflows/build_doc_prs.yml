@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Comment with documentation link
-        uses: mb2dev/github-action-comment-pull-request@1.0.0
+        uses: mb2dev/github-action-comment-pull-request
         with:
            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
            message: |
-            @${github.event.pull_request.author.login} Hello there! :wave:
+            @${{ github.event.pull_request.author.login }} Hello there! :wave:
 
             Built documentation for this pull request can be found at https://steampy--{{ github.event.pull_request.number }}.org.readthedocs.build/en/{{ github.event.pull_request.number }}
