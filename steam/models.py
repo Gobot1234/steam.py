@@ -84,14 +84,18 @@ class Registerable:
     def __init__(self):
         bases = tuple(reversed(self.__class__.__mro__[:-2]))  # skip Registerable and object
         for idx, cls in enumerate(bases):
-            parsers = getattr(cls, tuple(cls.__annotations__)[0])
+            parsers_name = tuple(cls.__annotations__)[0]
             for name, attr in inspect.getmembers(cls, lambda attr: hasattr(attr, "__wrapped__")):
-                msg = attr.__wrapped__.msg
-                attr = getattr(self, name)
-                if idx != 0 and not isinstance(msg, EMsg):
-                    base = bases[-1]
+                parsers = getattr(cls, parsers_name)
+                msg_parser = getattr(self, name)
+                msg = msg_parser.__wrapped__.msg
+                if idx != 0 and isinstance(msg, EMsg):
+                    base = bases[0]
+                    if hasattr(base, name):
+                        continue
+
                     parsers = getattr(base, tuple(base.__annotations__)[0])
-                parsers[msg] = attr
+                parsers[msg] = msg_parser
 
 
 def register(msg: IE) -> Callable[[E], E]:

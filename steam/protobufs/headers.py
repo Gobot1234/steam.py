@@ -195,11 +195,12 @@ class MsgHdrProtoBuf:
 class GCMsgHdr:
     """The message header for :class:`steam.protobufs.MsgProto` objects."""
 
-    __slots__ = ("header_version", "target_job_id", "source_job_id")
+    __slots__ = ("header_version", "target_job_id", "source_job_id", "msg")
     SIZE = 18
-    msg = None
 
     def __init__(self, data: Optional[bytes] = None):
+        self.msg = None
+
         self.header_version = 1
         self.target_job_id = -1
         self.source_job_id = -1
