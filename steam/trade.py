@@ -286,6 +286,7 @@ class Inventory(Generic[I]):
     def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser):
         self._state = state
         self.owner = owner
+        self.items = []
         self._update(data)
 
     def __repr__(self) -> str:
