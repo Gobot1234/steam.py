@@ -230,14 +230,6 @@ class Game:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"Game({', '.join(resolved)})"
 
-    def __eq__(self, other: Any) -> bool:
-        if self.id is not None:
-            if isinstance(other, int):
-                return self.id == other
-            if isinstance(other, Game):
-                return self.id == other.id and self.context_id == other.context_id
-        return NotImplemented
-
     def to_dict(self) -> GameToDict:
         """dict[:class:`str`, :class:`str`]: The dict representation of the game used to set presences."""
         return (

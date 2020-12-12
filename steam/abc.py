@@ -339,14 +339,14 @@ class Commentable(SteamID):
 
     __slots__ = (
         "comment_path",
+        "_state",
         "__weakref__",
     )
 
-    _state: ConnectionState
-    comment_path: Final[str]  # type: ignore
+    comment_path: Final[str]  # noqa # type: ignore
 
     def __init_subclass__(cls, **kwargs: Any):
-        cls.comment_path = kwargs.get("comment_path", "Profile")  # type: ignore
+        cls.comment_path = kwargs.get("comment_path", "Profile")  # noqa # type: ignore
 
     def copy(self: C) -> C:
         cls = self.__class__

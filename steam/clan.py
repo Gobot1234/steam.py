@@ -62,17 +62,9 @@ class Clan(Commentable, comment_path="Clan"):
 
             Checks if two clans are equal.
 
-        .. describe:: x != y
-
-            Checks if two clans are not equal.
-
         .. describe:: str(x)
 
             Returns the clan's name.
-
-        .. describe:: len(x)
-
-            Returns the number of members in the clan.
 
 
     Attributes
@@ -125,7 +117,6 @@ class Clan(Commentable, comment_path="Clan"):
 
     __slots__ = (
         "url",
-        "_state",
         "name",
         "description",
         "icon_url",
@@ -284,9 +275,6 @@ class Clan(Commentable, comment_path="Clan"):
 
     def __str__(self) -> str:
         return self.name
-
-    def __len__(self) -> int:
-        return self.member_count
 
     async def fetch_members(self) -> list[SteamID]:
         """|coro|
