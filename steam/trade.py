@@ -334,7 +334,7 @@ class Inventory(Generic[I]):
         self._update(data)
 
     def filter_items(self, *names: str, **kwargs: Any) -> list[I]:
-        """A helper function that filters and removes items by name from the inventory.
+        """A helper function that filters items by name from the inventory.
 
         Parameters
         ------------
@@ -351,19 +351,16 @@ class Inventory(Generic[I]):
         Returns
         ---------
         list[:class:`Item`]
-            The removed matching items.
+            The matching items.
         """
         limit: int = kwargs.get("limit")
         if len(names) > 1 and limit:
             raise ValueError("Cannot pass a limit with multiple items")
         items = [item for item in self if item.name in names]
-        items = items if limit is None else items[:limit]
-        for item in items:
-            self.items.remove(item)
-        return items
+        return items if limit is None else items[:limit]
 
     def get_item(self, name: str) -> Optional[I]:
-        """A helper function that gets and removes an item by name from the inventory.
+        """A helper function that gets an item by name from the inventory.
 
         Parameters
         ----------
