@@ -760,8 +760,6 @@ class ConnectionState(Registerable):
                 if self._trades_task is None or self._trades_task.done():
                     await self._poll_trades()
                     self._trades_task = self.loop.create_task(poll_trades())  # watch trades for changes
-        if msg.body:
-            await self.http.clear_notifications()
 
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[CMsgClientAccountInfo]) -> None:
