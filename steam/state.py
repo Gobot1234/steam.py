@@ -278,10 +278,7 @@ class ConnectionState(Registerable):
                 ETradeOfferState.ConfirmationNeed,
             ):
                 return trade
-            if trade.is_our_offer():
-                self.dispatch("trade_send", trade)
-            else:
-                self.dispatch("trade_receive", trade)
+            self.dispatch("trade_send" if trade.is_our_offer() else "trade_receive", trade)
             self._trades_to_watch.append(trade.id)
         else:
             before_state = trade.state
