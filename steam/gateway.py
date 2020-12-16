@@ -415,7 +415,7 @@ class SteamWebSocket(Registerable):
             log.info("Connection closed")
             await self.handle_close()
 
-    async def send_as_proto(self, message: MsgBase) -> None:
+    async def send_as_proto(self, message: Msgs) -> None:
         message.steam_id = self.steam_id
         message.session_id = self.session_id
 
@@ -423,16 +423,18 @@ class SteamWebSocket(Registerable):
         await self.send(bytes(message))
 
     async def send_gc_message(self, msg: Union[GCMsgProto, GCMsg]) -> None:  # for ext's to send GC messages
-        try:
-            log.debug(f"Sending GC message {msg!r}")
-        except Exception:
-            log.debug(f"Send GC message {msg.msg}")
         message: MsgProto[CMsgGcClient] = MsgProto(EMsg.ClientToGC)
         try:
             message.body.appid = message.header.body.routing_appid = self._connection.client.GAME.id
         except AttributeError:
             return utils.warn(f"Attempting to call {self.__class__.__name__}.send_gc_message without a GC Client")
-        message.body.msgtype = utils.set_proto_bit(msg.msg)
+        try:
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug(f"Sending GC message {msg!r}")
+        except Exception:
+            log.debug(f"Send GC message {msg.msg}")
+
+        message.body.msgtype = utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg
         message.body.payload = bytes(msg)
         await self.send_as_proto(message)
 

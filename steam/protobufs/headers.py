@@ -177,7 +177,7 @@ class MsgHdrProtoBuf:
         attrs = ("msg",)
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snake_case).items())
-        return f'<MsgHdrProtoBuf {" ".join(resolved)}>'
+        return f"<MsgHdrProtoBuf {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:
         proto_data = bytes(self.body)
@@ -203,13 +203,13 @@ class GCMsgHdr:
 
         self.header_version = 1
         self.target_job_id = -1
-        self.source_job_id = -1
+        self.source_job_id = 0  # might be -1 again
 
         if data:
             self.parse(data)
 
     def __repr__(self) -> str:
-        return f'<GCMsgHdr {" ".join(f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__)}>'
+        return f"<GCMsgHdr {' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)}>"
 
     def __bytes__(self) -> bytes:
         return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
@@ -238,7 +238,7 @@ class GCMsgHdrProto:
         attrs = ("msg",)
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snake_case).items())
-        return f'<GCMsgHdrProto {" ".join(resolved)}>'
+        return f"<GCMsgHdrProto {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:
         proto_data = bytes(self.body)

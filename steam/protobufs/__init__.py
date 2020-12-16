@@ -148,9 +148,8 @@ class MsgBase(Generic[T]):
 
     def parse(self) -> None:
         """Parse the payload/data into a protobuf."""
-        if self.body is None:
-            proto = get_cmsg(self.msg)
-            self._parse(proto)
+        proto = get_cmsg(self.msg)
+        self._parse(proto)
 
 
 class Msg(MsgBase[T]):
@@ -187,22 +186,21 @@ class MsgProto(MsgBase[T]):
 
     def parse(self) -> None:
         """Parse the payload/data into a protobuf."""
-        if self.body is None:
-            if self.msg in (
-                EMsg.ServiceMethod,
-                EMsg.ServiceMethodResponse,
-                EMsg.ServiceMethodSendToClient,
-                EMsg.ServiceMethodCallFromClient,
-            ):
-                name = self.header.body.job_name_target or self.um_name
-                proto = get_um(f"{name}_Response" if self.msg == EMsg.ServiceMethodResponse else name)
-                if name:
-                    self.header.body.job_name_target = name.replace("_Request", "").replace("_Response", "")
+        if self.msg in (
+            EMsg.ServiceMethod,
+            EMsg.ServiceMethodResponse,
+            EMsg.ServiceMethodSendToClient,
+            EMsg.ServiceMethodCallFromClient,
+        ):
+            name = self.header.body.job_name_target or self.um_name
+            proto = get_um(f"{name}_Response" if self.msg == EMsg.ServiceMethodResponse else name)
+            if name:
+                self.header.body.job_name_target = name.replace("_Request", "").replace("_Response", "")
 
-            else:
-                proto = get_cmsg(self.msg)
+        else:
+            proto = get_cmsg(self.msg)
 
-            self._parse(proto)
+        self._parse(proto)
 
 
 class GCMsg(MsgBase[T]):
