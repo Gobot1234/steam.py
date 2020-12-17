@@ -10,7 +10,7 @@ class MyClient(steam.Client):
         print("Friends:", len(self.user.friends))
         print("------------")
 
-    async def on_message(self, message):
+    async def on_message(self, message: steam.Message):
         # we do not want the bot to reply to itself
         if message.author == self.user:
             return

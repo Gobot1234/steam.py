@@ -1,6 +1,7 @@
 import asyncio
 import random
 
+import steam
 from steam.ext import commands
 
 bot = commands.Bot(command_prefix="!")
@@ -16,11 +17,12 @@ async def on_ready():
     print("------------")
 
 
-@bot.command()
-async def trade(ctx):
+@bot.command
+async def trade(ctx: commands.Context):
+    """Read items from a trade offer."""
     await ctx.send(f"Send me a trade {ctx.author}!")
 
-    def check(trade):
+    def check(trade: steam.TradeOffer) -> bool:
         return trade.partner == ctx.author
 
     try:
@@ -35,21 +37,22 @@ async def trade(ctx):
         await offer.decline()
 
 
-@bot.command()
-async def roll(ctx, sides: int = 6, rolls: int = 1):
+@bot.command
+async def roll(ctx: commands.Context, sides: int = 6, rolls: int = 1):
     """Roll a dice."""
     result = ", ".join(str(random.randint(1, sides)) for _ in range(rolls))
     await ctx.send(result)
 
 
-@bot.command()
-async def choose(ctx, *choices):
+@bot.command
+async def choose(ctx: commands.Context, *choices: str):
     """Chooses between multiple choices."""
     await ctx.send(random.choice(choices))
 
 
-@bot.command()
-async def ping(ctx):
+@bot.command(aliases=["pong"])
+async def ping(ctx: commands.Context):
+    """Ping command to display latency."""
     await ctx.send(f"Pong! My latency is {bot.latency * 1000:2f}")
 
 

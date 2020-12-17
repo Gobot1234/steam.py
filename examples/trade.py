@@ -10,7 +10,7 @@ class MyClient(steam.Client):
         print("Friends:", len(self.user.friends))
         print("------------")
 
-    async def on_trade_receive(self, trade):  # we have received a trade (yay)
+    async def on_trade_receive(self, trade: steam.TradeOffer):  # we have received a trade (yay)
         await trade.partner.send("Thank you for your trade")
         print(f"Received trade: #{trade.id}")
         print("Trade partner is:", trade.partner)
@@ -21,7 +21,7 @@ class MyClient(steam.Client):
             print("Accepting the trade as it is a gift")
             await trade.accept()  # auto-accept the trade
 
-    async def on_trade_accept(self, trade):  # we accepted a trade
+    async def on_trade_accept(self, trade: steam.TradeOffer):  # we accepted a trade
         await trade.partner.send(f"Successfully accepted trade #{trade.id}")
         print(f"Accepted trade: #{trade.id}")
         print("Trade partner was:", trade.partner)
