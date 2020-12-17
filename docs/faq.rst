@@ -17,11 +17,15 @@ These are some general questions relating to steam.py
 How much Python do I need to know?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+This is not obviously required but it should make working with the library significantly simpler. Properly learning
+Python will both prevent confusion and frustration when receiving help from others but will make it easier when reading
+documentation and when debugging any issues in your code.
+
 **A list of useful knowledge courtesy of Scragly:**
 
     .. I like https://realpython.com for reading up on things as you can see
 
-    - pip installing packages
+    - Installing packages
     - Primitive data types: ``str``, ``int``, ``float``, ``bool``
     - Operators: ``+``, ``-``, ``/``, ``*``, etc.
     - Data structures ``list``, ``tuple``, ``dict``, ``set``
@@ -58,11 +62,6 @@ How much Python do I need to know?
     - `Logging <https://realpython.com/courses/logging-python/>`_
     - `Decorators <https://realpython.com/primer-on-python-decorators/>`_
 
-You should have knowledge over all of the above this is due to the semi-complex nature of the library along with
-asynchronous programming, it can be rather overwhelming for a beginner. Properly learning python will both prevent
-confusion and frustration when receiving help from others but will make it easier when reading documentation and when
-debugging any issues in your code.
-
 **Places to learn more python**
 
 - https://docs.python.org/3/tutorial/index.html/ (official tutorial)
@@ -75,24 +74,19 @@ debugging any issues in your code.
 How can I get help with my code?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**What not to do:**
+**Bad practices:**
 
-- Truncate the traceback.
-    - As you might remove important parts from it.
-- Send screenshots/text files of code/errors unless relevant.
-    - As they are difficult to read.
-- Use https://pastebin.com,
-    - As it is very bloated and ad-heavy.
-    - Instead, you could use any of:
-        - https://hastebin.com/
-        - https://mystb.in/
-        - https://gist.github.com/
-        - https://starb.in/
-- Ask if you can ask a question about the library.
-    - The answer will always be yes.
-- Saying "This code doesn't work" or "What's wrong with this code?" Without any traceback.
+- Truncate the traceback as you might remove important parts from it.
+- Send screenshots/text files of code/errors unless relevant as they are difficult to read.
+- Uploading a text file. Instead, you could use any of:
+    - https://mystb.in/
+    - https://gist.github.com/
+    - https://hastebin.com/
+    - https://starb.in/
+- Ask if you can ask a question about the library as the answer will always be yes.
+- Saying "This code doesn't work" or "What's wrong with this code?".
     - This is not helpful for yourself or others. Describe what you expected to happen and/or tried (with your code),
-      and what isn't going right. Along with a traceback.
+      and what isn't going right. Along with a traceback (if applicable).
 
 **Encouraged practices:**
 
@@ -112,9 +106,9 @@ How can I wait for an event?
 
 .. code-block:: python3
 
-    @bot.command()
-    async def trade(ctx):
-        def check(trade):
+    @bot.command
+    async def trade(ctx: commands.Context):
+        def check(trade: steam.TradeOffer) -> bool:
             return trade.partner == message.author
 
         await ctx.send("Send me a trade!")
