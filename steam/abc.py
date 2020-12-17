@@ -62,7 +62,7 @@ from .utils import (
     ETypeType,
     EUniverseType,
     InstanceType,
-    IntOrStr,
+    Intable,
     id64_from_url,
     make_id64,
 )
@@ -143,7 +143,7 @@ class SteamID(metaclass=abc.ABCMeta):
     @overload
     def __init__(
         self,
-        id: IntOrStr = 0,
+        id: Intable = 0,
         type: Optional[ETypeType] = None,
         universe: Optional[EUniverseType] = None,
         instance: Optional[InstanceType] = None,
@@ -152,7 +152,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     def __init__(
         self,
-        id: IntOrStr = 0,
+        id: Intable = 0,
         type: Optional[ETypeType] = None,
         universe: Optional[EUniverseType] = None,
         instance: Optional[InstanceType] = None,

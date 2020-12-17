@@ -453,7 +453,7 @@ class Client:
 
     # state stuff
 
-    def get_user(self, id: utils.IntOrStr) -> Optional[User]:
+    def get_user(self, id: utils.Intable) -> Optional[User]:
         """Returns a user from cache with a matching ID.
 
         Parameters
@@ -470,7 +470,7 @@ class Client:
         steam_id = SteamID(id=id, type="Individual")
         return self._connection.get_user(steam_id.id64)
 
-    async def fetch_user(self, id: utils.IntOrStr) -> Optional[User]:
+    async def fetch_user(self, id: utils.Intable) -> Optional[User]:
         """|coro|
         Fetches a user from the API with a matching ID.
 
@@ -488,7 +488,7 @@ class Client:
         steam_id = SteamID(id=id, type="Individual")
         return await self._connection.fetch_user(steam_id.id64)
 
-    async def fetch_users(self, *ids: utils.IntOrStr) -> list[Optional[User]]:
+    async def fetch_users(self, *ids: utils.Intable) -> list[Optional[User]]:
         """|coro|
         Fetches a list of :class:`~steam.User` from their IDs from the API with a matching ID. The
         :class:`~steam.User` objects returned are unlikely to retain the order they were originally in.
@@ -554,7 +554,7 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    def get_group(self, id: utils.IntOrStr) -> Optional[Group]:
+    def get_group(self, id: utils.Intable) -> Optional[Group]:
         """Get a group from cache with a matching ID.
 
         Parameters
@@ -571,7 +571,7 @@ class Client:
         steam_id = SteamID(id=id, type="Chat")
         return self._connection.get_group(steam_id.id)
 
-    def get_clan(self, id: utils.IntOrStr) -> Optional[Clan]:
+    def get_clan(self, id: utils.Intable) -> Optional[Clan]:
         """Get a clan from cache with a matching ID.
 
         Parameters
@@ -588,7 +588,7 @@ class Client:
         steam_id = SteamID(id=id, type="Clan")
         return self._connection.get_clan(steam_id.id)
 
-    async def fetch_clan(self, id: utils.IntOrStr) -> Optional[Clan]:
+    async def fetch_clan(self, id: utils.Intable) -> Optional[Clan]:
         """|coro|
         Fetches a clan from the websocket with a matching ID.
 

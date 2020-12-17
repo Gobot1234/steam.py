@@ -47,10 +47,13 @@ from typing import (
     Generic,
     Iterable,
     Optional,
+    Protocol,
     Sequence,
+    TYPE_CHECKING,
     TypeVar,
     Union,
     overload,
+    runtime_checkable,
 )
 
 import aiohttp
@@ -77,8 +80,29 @@ def clear_proto_bit(emsg: int) -> int:
     return int(emsg) & ~_PROTOBUF_MASK
 
 
+class IntableMeta(type):
+    def __instancecheck__(cls, instance: Any) -> bool:
+        try:
+            int(instance)
+        except (ValueError, TypeError):
+            return False
+        else:
+            return True
+
+
+class Intable(metaclass=IntableMeta):
+    ...
+
+
+if TYPE_CHECKING:
+
+    @runtime_checkable
+    class Intable(Protocol):
+        def __int__(self) -> int:
+            ...
+
+
 # fmt: off
-IntOrStr = Union[int, str]
 ETypeType = Union[
     EType,
     Literal[
@@ -99,7 +123,7 @@ def make_id64() -> Literal[0]:
 
 @overload
 def make_id64(
-    id: IntOrStr = 0,
+    id: Intable = 0,
     type: Optional[ETypeType] = None,
     universe: Optional[EUniverseType] = None,
     instance: Optional[InstanceType] = None,
@@ -108,7 +132,7 @@ def make_id64(
 
 
 def make_id64(
-    id: IntOrStr = 0,
+    id: Intable = 0,
     type: Optional[ETypeType] = None,
     universe: Optional[EUniverseType] = None,
     instance: Optional[InstanceType] = None,
@@ -141,15 +165,10 @@ def make_id64(
     """
     if not any((id, type, universe, instance)):
         return 0
-    try:
-        id = int(id)
-    except ValueError:
-        id_is_int = False
-    else:
-        id_is_int = True
 
     # numeric input
-    if id_is_int:
+    if isinstance(id, Intable):
+        id = int(id)
         # 32 bit account id
         if 0 <= id < 2 ** 32:
             type = type or EType.Individual
