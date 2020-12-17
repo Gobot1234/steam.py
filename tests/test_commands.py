@@ -6,6 +6,7 @@ from io import StringIO
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator, Optional, TypeVar, Union
 
 import pytest
+from typing_extensions import TypeAlias
 
 import steam
 from steam.ext import commands
@@ -13,7 +14,7 @@ from tests.mocks import GROUP_MESSAGE
 
 CE = TypeVar("CE", bound=commands.CommandError)
 T = TypeVar("T")
-IsInstanceable = Union["type[T]", "tuple[type[T], ...]"]
+IsInstanceable: TypeAlias = "Union[type[T], tuple[type[T], ...]]"
 
 if TYPE_CHECKING:
     SomeCoolType = int
@@ -52,7 +53,7 @@ async def test_commands():
             async def not_even_close() -> None:  # noqa
                 ...
 
-    bot = TestBot()
+    bot = TheTestBot()
 
     class MyCog(commands.Cog):
         @commands.command
@@ -121,14 +122,15 @@ def test_greedy(param_type: Union[type, str], expected: Union[int, "type[Excepti
         async def greedy(_, param: commands.Greedy[param_type]) -> None:
             ...
 
-        # reloading creates a new converter so we just check __name__ here
+        # reloading creates a new converter instance so we just check __name__ here
         assert greedy.clean_params["param"].annotation.converter.__name__ == expected.__name__
 
 
-class TestBot(commands.Bot):
+class TheTestBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="")
         self.MESSAGE = GROUP_MESSAGE
+        self.to_finish: "list[str]" = []
 
     @contextlib.asynccontextmanager
     async def raises_command_error(
@@ -142,7 +144,12 @@ class TestBot(commands.Bot):
                 if error not in expected_errors:
                     raise error
 
+        async def on_command_completion(ctx: commands.Context) -> None:
+            if ctx.message.content == content:
+                self.to_finish.remove(content)
+
         self.add_listener(on_command_error)
+        self.add_listener(on_command_completion)
 
         yield
 
@@ -152,7 +159,12 @@ class TestBot(commands.Bot):
             if ctx.message.content == content:
                 raise error
 
+        async def on_command_completion(ctx: commands.Context) -> None:
+            if ctx.message.content == content:
+                self.to_finish.remove(content)
+
         self.add_listener(on_command_error)
+        self.add_listener(on_command_completion)
 
         yield
 
@@ -165,6 +177,7 @@ class TestBot(commands.Bot):
         command = command or list(self.__commands__.values())[-1]
         message = copy(self.MESSAGE)
         message.content = f"{command.qualified_name} {arguments or ''}".strip()
+        self.to_finish.append(message.content)
 
         if exception is not None:
 
@@ -186,6 +199,10 @@ class TestBot(commands.Bot):
             pass
         raise SystemExit  # we need to propagate a SystemExit for pytest to be able to pick up errors
 
+    def __del__(self):
+        if self.to_finish:
+            raise SystemExit
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
@@ -200,7 +217,7 @@ class TestBot(commands.Bot):
 async def test_positional_or_keyword_commands(
     input: str, excepted_exception: Optional["type[commands.CommandError]"]
 ) -> None:
-    bot = TestBot()
+    bot = TheTestBot()
 
     @bot.command
     async def test_positional(_, number: int) -> None:
@@ -222,7 +239,7 @@ async def test_positional_or_keyword_commands(
     ],
 )
 async def test_variadic_commands(input: str, expected_exception: commands.CommandError) -> None:
-    bot = TestBot()
+    bot = TheTestBot()
 
     @bot.command
     async def test_var(_, *numbers: int) -> None:
@@ -236,7 +253,7 @@ async def test_variadic_commands(input: str, expected_exception: commands.Comman
 
 @pytest.mark.asyncio
 async def test_positional_only_commands():
-    bot = TestBot()
+    bot = TheTestBot()
 
     @bot.command
     async def test_consume_rest_int(_, *, number: int) -> None:
@@ -295,7 +312,7 @@ async def test_positional_only_commands():
 
 @pytest.mark.asyncio
 async def test_group_commands() -> None:
-    bot = TestBot()
+    bot = TheTestBot()
 
     @contextlib.contextmanager
     def writes_to_console(msg: str) -> Generator[None, None, None]:
