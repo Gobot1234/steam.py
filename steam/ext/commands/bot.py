@@ -155,28 +155,6 @@ class Bot(GroupMixin, Client):
         The Steam IDs of the owners, these are converted to their 64 bit ID representations upon initialization.
     case_insensitive: :class:`bool`
         Whether or not to use CaseInsensitiveDict for registering commands.
-
-    game: :class:`~steam.Game`
-        A games to set your status as on connect.
-    games: list[:class:`~steam.Game`]
-        A list of games to set your status to on connect.
-    state: :class:`~steam.EPersonaState`
-        The state to show your account as on connect.
-
-        Note
-        ----
-        Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state
-        updates and by extension :meth:`on_user_update` will stop being dispatched.
-
-    ui_mode: :class:`~steam.EUIMode`
-        The UI mode to set your status to on connect.
-    force_kick: :class:`bool`
-        Whether or not to forcefully kick any other playing sessions on connect.
-
-    Attributes
-    -----------
-    ws:
-        The connected websocket, this can be used to directly send messages to the connected CM.
     """
 
     __cogs__: dict[str, Cog] = {}
@@ -864,6 +842,4 @@ class Bot(GroupMixin, Client):
         check: Optional[Callable[..., bool]] = None,
         timeout: Optional[float] = None,
     ) -> Any:
-        return await super().wait_for(event, check=check, timeout=timeout)
-
-    wait_for.__doc__ = Client.wait_for.__doc__
+        return await super().wait_for(event, check=check, timeout=timeout)  # noqa

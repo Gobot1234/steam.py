@@ -35,11 +35,23 @@ import asyncio
 import inspect
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Tuple, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    Optional,
+    Protocol,
+    TypeVar,
+    Union,
+    overload,
+    runtime_checkable,
+)
 
-from typing_extensions import Final, TypedDict
+import attr
+from typing_extensions import Final, TypeAlias, TypedDict
 
-from .badge import UserBadges
+from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
 from .enums import (
     ECommunityVisibilityState,
@@ -53,7 +65,7 @@ from .enums import (
 )
 from .errors import WSException
 from .game import Game
-from .iterators import CommentsIterator
+from .iterators import AsyncIterator, CommentsIterator
 from .models import Ban, community_route
 from .trade import Inventory
 from .utils import (
@@ -314,7 +326,7 @@ class SteamID(metaclass=abc.ABCMeta):
         cls, url: StrOrURL, session: Optional[ClientSession] = None, timeout: float = 30
     ) -> Optional[SteamID]:
         """|coro|
-        A helper function creates a SteamID instance from a Steam community url. See :func:`id64_from_url` for details.
+        A helper function creates a SteamID instance from a Steam community url.
 
         Parameters
         ----------
@@ -345,8 +357,8 @@ class Commentable(SteamID):
 
     comment_path: Final[str]  # noqa # type: ignore
 
-    def __init_subclass__(cls, **kwargs: Any):
-        cls.comment_path = kwargs.get("comment_path", "Profile")  # noqa # type: ignore
+    def __init_subclass__(cls, comment_path: str = "Profile") -> None:
+        cls.comment_path: Final[str] = comment_path  # noqa # type: ignore
 
     def copy(self: C) -> C:
         cls = self.__class__
@@ -354,7 +366,7 @@ class Commentable(SteamID):
         for name, attr in inspect.getmembers(self):
             try:
                 setattr(commentable, name, attr)
-            except AttributeError:
+            except (AttributeError, TypeError):
                 pass
         return commentable
 
@@ -478,7 +490,7 @@ class BaseUser(Commentable):
         "last_logoff",
         "last_logon",
         "privacy_state",
-        "_state",
+        "favourite_badge",
         "_is_commentable",
         "_setup_profile",
     )
@@ -676,11 +688,68 @@ class BaseUser(Commentable):
         bans = await self.bans()
         return bans.is_banned()
 
+    @classmethod
+    def _patch_without_api(cls):
+        import functools
 
-_EndPointReturnType = Tuple[Union[Tuple[int, int], int], Callable[..., Coroutine[None, None, None]]]
+        def __init__(self, state: ConnectionState, data: dict) -> None:
+            self._state = state
+            self.name = data["persona_name"]
+            self.avatar_url = data.get("avatar_url") or self.avatar_url
+
+            self.trade_url = NotImplemented
+            self.primary_clan = NotImplemented
+            self.country = NotImplemented
+            self.created_at = NotImplemented
+            self.last_logoff = NotImplemented
+            self.last_logon = NotImplemented
+            self.last_seen_online = NotImplemented
+            self.game = NotImplemented
+            self.state = NotImplemented
+            self.flags = NotImplemented
+            self.privacy_state = NotImplemented
+            self._is_commentable = NotImplemented
+            self._setup_profile = NotImplemented
+
+            try:
+                favourite_badge = data["favorite_badge"]
+            except KeyError:
+                self.favourite_badge = None
+            else:
+                icon_url = favourite_badge.pop("icon")
+                self.favourite_badge = FavouriteBadge(**favourite_badge, icon_url=icon_url)
+
+            async def level() -> int:
+                return data["level"]
+
+            self.level = level
+
+        setattr(cls, "__init__", __init__)
+        setattr(cls, "__repr__", lambda self: f"<User name={self.name!r}>")
+
+        def not_implemented(function: str):
+            @functools.wraps(getattr(cls, function))
+            async def wrapped(*_, **__) -> None:
+                raise NotImplementedError(
+                    f"Accounts without an API key cannot use User.{function}, this is a Steam limitation not a library "
+                    f"limitation, sorry."
+                )
+
+            setattr(cls, function, wrapped)
+
+        not_implemented("friends")
+        not_implemented("badges")
+        not_implemented("is_commentable")
+        not_implemented("has_setup_profile")
+        not_implemented("is_private")
+        not_implemented("is_banned")
 
 
-class Messageable(metaclass=abc.ABCMeta):
+_EndPointReturnType: TypeAlias = "tuple[Union[tuple[int, ...], int], Callable[..., Coroutine[None, None, None]]]"
+
+
+@runtime_checkable
+class Messageable(Protocol):
     """An ABC that details the common operations on a Steam message.
     The following classes implement this ABC:
 
@@ -726,16 +795,22 @@ class Messageable(metaclass=abc.ABCMeta):
             await image_func(destination, image)
 
 
+@attr.dataclass(slots=True)
 class Channel(Messageable):
-    __slots__ = ("clan", "group", "_state")
+    _state: ConnectionState
+    clan: Optional[Clan] = None
+    group: Optional[Group] = None
 
-    def __init__(self):
-        self.clan: Optional[Clan] = None
-        self.group: Optional[Group] = None
-        self._state: ConnectionState
+    def history(
+        self,
+        limit: Optional[int] = 100,
+        before: Optional[datetime] = None,
+        after: Optional[datetime] = None,
+    ) -> AsyncIterator["Message"]:
+        ...
 
 
-def _clean_up_content(content: str) -> str:
+def _clean_up_content(content: str) -> str:  # steam does weird stuff with content
     return content.replace(r"\[", "[").replace("\\\\", "\\")
 
 

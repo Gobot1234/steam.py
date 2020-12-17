@@ -220,7 +220,7 @@ class Command:
         self.parent: Optional[GroupMixin] = kwargs.get("parent")
         self.description: str = inspect.cleandoc(kwargs.get("description", ""))
         self.hidden: bool = kwargs.get("hidden", False)
-        self.aliases: Iterable[str] = kwargs.get("aliases", [])
+        self.aliases: Iterable[str] = kwargs.get("aliases", ())
 
         for alias in self.aliases:
             if not isinstance(alias, str):

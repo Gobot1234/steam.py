@@ -39,6 +39,7 @@ import warnings
 from inspect import isawaitable
 from operator import attrgetter
 from typing import (
+    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
@@ -49,7 +50,6 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
-    TYPE_CHECKING,
     TypeVar,
     Union,
     overload,

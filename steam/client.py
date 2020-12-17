@@ -35,7 +35,7 @@ import datetime
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Union, overload
 
 import aiohttp
 from typing_extensions import Literal, final
@@ -46,7 +46,7 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .models import FunctionType, PriceOverview, community_route
+from .models import PriceOverview, community_route
 from .state import ConnectionState
 
 if TYPE_CHECKING:
@@ -67,15 +67,9 @@ __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
 TASK_HAS_NAME = sys.version_info[:2] >= (3, 8)
-E = TypeVar("E", bound="EventType")
+EventType = Callable[..., Coroutine[Any, Any, Any]]
+E = TypeVar("E", bound=EventType)
 EventDeco = Union[Callable[[E], E], E]
-
-
-class EventType(FunctionType):
-    __event_name__: str
-
-    async def __call__(self, *args: Any, **kwargs: Any) -> None:
-        ...
 
 
 class Client:
@@ -633,8 +627,8 @@ class Client:
         after: Optional[datetime.datetime] = None,
         active_only: bool = False,
     ) -> TradesIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`ClientUser`'s :class:`~steam.TradeOffer`
-        objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.ClientUser`'s
+        :class:`steam.TradeOffer` objects.
 
         Examples
         -----------

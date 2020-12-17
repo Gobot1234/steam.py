@@ -54,6 +54,7 @@ from .message import ClanMessage
 from .models import EventParser, Registerable, community_route, register
 from .protobufs import EMsg, MsgProto
 from .protobufs.steammessages_chat import (
+    CChatRoomGetMessageHistoryResponse as GroupChannelHistory,
     CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchGroupResponse,
 )
@@ -75,7 +76,10 @@ if TYPE_CHECKING:
         ChatRoomClientNotifyChatGroupUserStateChangedNotification as GroupAction,
     )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
-    from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications
+    from .protobufs.steammessages_clientserver_2 import (
+        CMsgClientChatGetFriendMessageHistoryResponse as DMChannelHistory,
+        CMsgClientCommentNotifications,
+    )
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientFriendsList,
         CMsgClientPersonaState,
@@ -425,7 +429,7 @@ class ConnectionState(Registerable):
         try:
             msg: MsgProto[SendUserMessageResponse] = await self.ws.send_um_and_wait(
                 "FriendMessages.SendMessage#1_Request",
-                steamid=str(user_id64),
+                steamid=user_id64,
                 message=content,
                 chat_entry_type=EChatEntryType.Text,
                 contains_bbcode=utils.contains_bbcode(content),
@@ -450,10 +454,10 @@ class ConnectionState(Registerable):
         self._messages.append(message)
         self.dispatch("message", message)
 
-    async def send_user_typing(self, user: User) -> None:
+    async def send_user_typing(self, user_id64: int) -> None:
         await self.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
-            steamid=str(user.id64),
+            steamid=user_id64,
             chat_entry_type=EChatEntryType.Typing,
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
@@ -529,8 +533,41 @@ class ConnectionState(Registerable):
             return
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.header.body.eresult != EResult.OK:
+        elif msg.eresult != EResult.OK:
             raise WSException(msg)
+
+    async def get_user_history(self, user_id64: int) -> MsgProto[DMChannelHistory]:
+        msg = MsgProto(EMsg.ClientChatGetFriendMessageHistory, steamid=user_id64)
+
+        await self.ws.send_as_proto(msg)
+        msg: MsgProto[DMChannelHistory] = await self.ws.wait_for(
+            EMsg.ClientChatGetFriendMessageHistoryResponse, check=lambda m: m.body.steamid == user_id64
+        )
+
+        if not msg.body.success:
+            raise WSException(msg)
+
+        return msg
+
+    async def get_group_history(
+        self, group_id: int, chat_id: int, start: int, end: int, max: int
+    ) -> Optional[MsgProto[GroupChannelHistory]]:
+        try:
+            msg: MsgProto[GroupChannelHistory] = await self.ws.send_um_and_wait(  # TODO my oh my this is broken
+                "ChatRoom.GetMessageHistory#1_Request",
+                chat_group_id=group_id,
+                chat_id=chat_id,
+                last_time=end,
+                start_time=start,
+                max_count=max,
+            )
+        except asyncio.TimeoutError:
+            return
+
+        if msg.eresult != EResult.OK:
+            raise WSException(msg)
+
+        return msg
 
     # parsers
 

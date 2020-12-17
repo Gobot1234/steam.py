@@ -77,17 +77,17 @@ class Cog:
                     ...
     """
 
-    __commands__: Final[dict[str, Command]]  # type: ignore
-    __listeners__: Final[dict[str, list[EventType]]]  # type: ignore
-    command_attrs: Final[dict[str, Any]]  # type: ignore
-    qualified_name: Final[str]  # type: ignore
+    __commands__: Final[dict[str, Command]]  # noqa  # type: ignore
+    __listeners__: Final[dict[str, list[EventType]]]  # noqa  # type: ignore
+    command_attrs: Final[dict[str, Any]]  # noqa  # type: ignore
+    qualified_name: Final[str]  # noqa  # type: ignore
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        cls.qualified_name = kwargs.get("name") or cls.__name__  # type: ignore
-        cls.command_attrs = kwargs.get("command_attrs", {})  # type: ignore
+    def __init_subclass__(cls, name: Optional[str] = None, command_attrs: Optional[dict[str, Any]] = None) -> None:
+        cls.qualified_name = name or cls.__name__  # noqa  # type: ignore
+        cls.command_attrs = command_attrs or {}  # noqa  # type: ignore
 
-        cls.__listeners__ = {}  # type: ignore
-        cls.__commands__ = {}  # type: ignore
+        cls.__listeners__ = {}  # noqa  # type: ignore
+        cls.__commands__ = {}  # noqa  # type: ignore
         for name, attr in inspect.getmembers(cls):
             if name.startswith(("bot_", "cog_")) and getattr(Cog, name, None) is None:
                 raise ClientException(

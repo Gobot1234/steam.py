@@ -179,7 +179,7 @@ class Converter(Protocol[T]):
 
     Builtin: ::
 
-        @bot.command()
+        @bot.command
         async def command(ctx, user: steam.User):
             # this will end up making the user variable a `steam.User` object.
 
@@ -283,7 +283,7 @@ class Converter(Protocol[T]):
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         converter_for = globals().pop("__current_converter", None)
-        # the flow for this is __class_getitem__ -> object.__new__ (but that won't do anything) -> __init_subclass__ so
+        # the flow for this is __class_getitem__ -> type.__new__ (but that won't do anything) -> __init_subclass__ so
         # this is alright
         if converter_for is None:
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
@@ -308,10 +308,6 @@ class Converter(Protocol[T]):
 
         This method is called when :class:`.Converter` is subclassed to handle the argument that was passed as the
         ``converter_for``.
-
-        Note
-        ----
-        This has similar behaviour to :attr:`~steam.ext.commands.Command.callback`, so see the note for that.
         """
         if isinstance(converter_for, tuple) and len(converter_for) != 1:
             raise TypeError("commands.Converter only accepts one argument")

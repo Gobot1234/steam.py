@@ -20,9 +20,9 @@ TESTS = STEAM_PY / "tests"
 @click.option("-t", "--test", is_flag=True, help="Whether or not to run the tests.")
 @click.option("-f", "--format", is_flag=True, help="Whether or not to run the format code.")
 @click.pass_context
-def main(ctx: click.Context, test: bool, format: bool):
+def main(ctx: click.Context, test: bool, format: bool = True):
     if format:
-        print("Starting formatting")
+        black.out("Starting formatting")
         isort.main.main(
             [
                 "steam",
@@ -42,7 +42,7 @@ def main(ctx: click.Context, test: bool, format: bool):
             ],
         )
         black.main.invoke(black_ctx)
-        print("Done running formatting")
+        black.out("Done running formatting")
     if test:
         testable_files = [f.as_posix() for f in TESTS.iterdir() if "test" in f.name]
         ctx.exit(pytest.main(testable_files))

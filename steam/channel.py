@@ -133,9 +133,9 @@ class DMChannel(Channel):
         async def inner() -> None:
             while True:
                 await asyncio.sleep(5)
-                await self._state.send_user_typing(self.participant)
+                await self._state.send_user_typing(self.participant.id64)
 
-        await self._state.send_user_typing(self.participant)
+        await self._state.send_user_typing(self.participant.id64)
         task = self._state.loop.create_task(inner())
         task.add_done_callback(suppress)
         yield
@@ -148,7 +148,7 @@ class DMChannel(Channel):
         ----
         This only works in DMs.
         """
-        await self._state.send_user_typing(self.participant)
+        await self._state.send_user_typing(self.participant.id64)
 
 
 class _GroupChannel(Channel):
