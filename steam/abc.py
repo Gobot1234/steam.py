@@ -41,7 +41,6 @@ from typing import (
     Callable,
     Coroutine,
     Optional,
-    Protocol,
     TypeVar,
     Union,
     overload,
@@ -49,7 +48,7 @@ from typing import (
 )
 
 import attr
-from typing_extensions import Final, TypeAlias, TypedDict
+from typing_extensions import Final, Protocol, TypeAlias, TypedDict
 
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment

@@ -48,7 +48,6 @@ from typing import (
     Generic,
     Iterable,
     Optional,
-    Protocol,
     Sequence,
     TypeVar,
     Union,
@@ -57,7 +56,7 @@ from typing import (
 )
 
 import aiohttp
-from typing_extensions import Literal
+from typing_extensions import Literal, Protocol
 
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 from .errors import InvalidSteamID
