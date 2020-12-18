@@ -32,6 +32,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from .abc import Channel
+from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
 
 if TYPE_CHECKING:
     from .abc import _EndPointReturnType
@@ -66,8 +67,7 @@ class DMChannel(Channel):
     __slots__ = ("participant",)
 
     def __init__(self, state: ConnectionState, participant: User):
-        super().__init__()
-        self._state = state
+        super().__init__(state)
         self.participant = participant
         self.clan = None
         self.group = None
@@ -150,13 +150,20 @@ class DMChannel(Channel):
         """
         await self._state.send_user_typing(self.participant.id64)
 
+    def history(
+        self,
+        limit: Optional[int] = 100,
+        before: Optional[datetime] = None,
+        after: Optional[datetime] = None,
+    ) -> DMChannelHistoryIterator:
+        return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
+
 
 class _GroupChannel(Channel):
     __slots__ = ("id", "joined_at", "name")
 
     def __init__(self, state: ConnectionState, channel: Any):
-        super().__init__()
-        self._state = state
+        super().__init__(state)
         self.id = int(channel.chat_id)
         self.joined_at: Optional[datetime]
         if hasattr(channel, "chat_name"):

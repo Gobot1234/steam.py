@@ -28,13 +28,25 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import attr
+
 from .enums import EUserBadge
 from .game import Game
 
 __all__ = (
     "Badge",
+    "FavouriteBadge",
     "UserBadges",
 )
+
+
+@attr.dataclass(slots=True)
+class FavouriteBadge:
+    name: str
+    xp: int = attr.ib(converter=int)  # it's passed as a str
+    description: str
+    icon_url: str
+    level: int = attr.ib(converter=int)  # it's passed as a str
 
 
 class Badge:

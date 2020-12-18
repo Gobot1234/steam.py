@@ -30,7 +30,7 @@ import itertools
 import re
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Generic, Optional, TypeVar, Union
 
 from bs4 import BeautifulSoup
 
@@ -39,13 +39,14 @@ from .comment import Comment
 from .enums import ETradeOfferState
 
 if TYPE_CHECKING:
-    from .abc import BaseUser
+    from .abc import BaseUser, Message
+    from .channel import DMChannel, _GroupChannel
     from .clan import Clan
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
 
 T = TypeVar("T")
-MaybeCoro = Callable[[T], Union[bool, Coroutine[None, None, bool]]]
+MaybeCoro = Callable[[T], Union[bool, Coroutine[Any, Any, bool]]]
 
 
 class AsyncIterator(Generic[T]):
@@ -56,6 +57,10 @@ class AsyncIterator(Generic[T]):
         .. describe:: async for y in x
 
             Iterates over the contents of the async iterator.
+
+        .. describe:: await x
+
+            A shortcut to calling :meth:`flatten`.
 
     Attributes
     ----------
@@ -85,12 +90,12 @@ class AsyncIterator(Generic[T]):
         if self.limit is None:
             self.queue.append(element)
             return True
-        if len(self.queue) <= self.limit:
+        if len(self.queue) < self.limit:
             self.queue.append(element)
             return True
         if len(self.queue) == self.limit:
             self.queue.append(element)
-            return False
+
         return False
 
     def get(self, **attrs: Any) -> Coroutine[None, None, Optional[T]]:
@@ -147,7 +152,7 @@ class AsyncIterator(Generic[T]):
         -------
         Getting the last trade with a message or None: ::
 
-            def predicate(trade):
+            def predicate(trade: steam.TradeOffer) -> bool:
                 return trade.message is not None
 
             trade = await Client.trade_history().find(predicate)
@@ -184,6 +189,9 @@ class AsyncIterator(Generic[T]):
         """
         return [element async for element in self]
 
+    def __await__(self) -> Generator[None, None, list[T]]:
+        return self.flatten().__await__()
+
     def __aiter__(self) -> AsyncIterator[T]:
         return self
 
@@ -203,9 +211,9 @@ class AsyncIterator(Generic[T]):
             if self._is_filled:
                 raise StopAsyncIteration
             await self.fill()
-            if not self.queue:  # yikes
-                raise StopAsyncIteration
             self._is_filled = True
+        if not self.queue:  # yikes
+            raise StopAsyncIteration
         return self.queue.pop()
 
     async def fill(self) -> None:
@@ -233,10 +241,12 @@ class CommentsIterator(AsyncIterator[Comment]):
         soup = BeautifulSoup(data["comments_html"], "html.parser")
         to_fetch = []
 
+        after_timestamp = self.after.timestamp()
+        before_timestamp = self.before.timestamp()
+
         for comment in soup.find_all("div", attrs={"class": "commentthread_comment responsive_body_text"}):
-            timestamp = comment.find("span", attrs={"class": "commentthread_comment_timestamp"})["data-timestamp"]
-            timestamp = datetime.utcfromtimestamp(int(timestamp))
-            if self.after < timestamp < self.before:
+            timestamp = int(comment.find("span", attrs={"class": "commentthread_comment_timestamp"})["data-timestamp"])
+            if after_timestamp < timestamp < before_timestamp:
                 author_id = int(comment.find("a", attrs={"class": "commentthread_author_link"})["data-miniprofile"])
                 comment_id = int(re.findall(r"comment_([0-9]*)", str(comment))[0])
                 content = comment.find("div", attrs={"class": "commentthread_comment_text"}).get_text().strip()
@@ -244,7 +254,7 @@ class CommentsIterator(AsyncIterator[Comment]):
                 comment = Comment(
                     state=self._state,
                     id=comment_id,
-                    timestamp=timestamp,
+                    timestamp=datetime.utcfromtimestamp(timestamp),
                     content=content,
                     author=author_id,
                     owner=self.owner,
@@ -281,9 +291,11 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
             return
 
         descriptions = resp.get("descriptions", [])
+        after_timestamp = self.after.timestamp()
+        before_timestamp = self.before.timestamp()
 
         async def process_trade(data: dict, descriptions: DescriptionDict) -> None:
-            if not self.after.timestamp() < data["time_init"] < self.before.timestamp():
+            if not after_timestamp < data["time_init"] < before_timestamp:
                 return
             for item in descriptions:
                 for asset in data.get("assets_received", []):
@@ -332,3 +344,88 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                     await process_trade(trade, descriptions)
         except StopAsyncIteration:
             return
+
+
+class DMChannelHistoryIterator(AsyncIterator["Message"]):
+    __slots__ = ("participant", "channel")
+
+    def __init__(
+        self,
+        channel: DMChannel,
+        state: ConnectionState,
+        limit: Optional[int],
+        before: Optional[datetime],
+        after: Optional[datetime],
+    ):
+        super().__init__(state, limit, before, after)
+        self.channel = channel
+        self.participant = channel.participant
+
+    async def fill(self) -> None:
+        from .message import Message
+
+        after_timestamp = self.after.timestamp()
+        before_timestamp = self.before.timestamp()
+
+        msgs = await self._state.get_user_history(self.participant.id64)
+        for message in msgs.body.messages:
+            if not after_timestamp < message.timestamp < before_timestamp:
+                continue
+
+            new_message = Message(channel=self.channel, proto=message)
+            id64 = utils.make_id64(message.accountid)
+            new_message.author = self._state.get_user(id64)  # no way they aren't cached
+            new_message.created_at = datetime.utcfromtimestamp(message.timestamp)
+            if not self.append(new_message):
+                return
+
+
+class GroupChannelHistoryIterator(AsyncIterator["Message"]):
+    __slots__ = ("channel", "group")
+
+    def __init__(
+        self,
+        channel: _GroupChannel,
+        state: ConnectionState,
+        limit: Optional[int],
+        before: Optional[datetime],
+        after: Optional[datetime],
+    ):
+        super().__init__(state, limit, before, after)
+        self.channel = channel
+        self.group = channel.group or channel.clan
+
+    async def fill(self) -> None:
+        from .message import Message
+
+        after_timestamp = int(self.after.timestamp())
+        before_timestamp = int(self.before.timestamp())
+        group_id = getattr(self.group, "chat_id", None) or self.group.id
+        limit = self.limit  # TODO try chunking this?
+        while True:
+            msgs = await self._state.get_group_history(
+                self.channel.id,
+                group_id,
+                start=after_timestamp,
+                end=before_timestamp,
+                max=self.limit,
+            )
+
+            to_fetch = []
+            if msgs is not None:
+                for message in msgs.body.messages:
+                    new_message = Message(channel=self.channel, proto=message)
+                    id64 = utils.make_id64(message.sender)
+                    new_message.author = id64
+                    to_fetch.append(id64)
+                    new_message.created_at = datetime.utcfromtimestamp(message.server_timestamp)
+                    if not self.append(new_message):
+                        return
+
+                users = await self._state.fetch_users(to_fetch)
+                for user, message in itertools.product(users, self.queue):
+                    if message.author == user.id64:
+                        message.author = user
+
+            if not (self.limit is None and msgs.body.more_available):
+                break

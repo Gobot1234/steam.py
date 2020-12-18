@@ -29,11 +29,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional
 
 from ...abc import Channel, Message, Messageable, _EndPointReturnType
-from ...utils import cached_property
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from ...clan import Clan
     from ...group import Group
+    from ...iterators import AsyncIterator
     from ...state import ConnectionState
     from ...user import User
     from .bot import Bot
@@ -106,17 +108,22 @@ class Context(Messageable):
         """
         await self.command.invoke(self)
 
+    def history(
+        self,
+        limit: Optional[int] = 100,
+        before: Optional[datetime] = None,
+        after: Optional[datetime] = None,
+    ) -> AsyncIterator[Message]:
+        """|coro|
+        A shortcut method that gets the current channel's history.
+
+        Equivalent to::
+
+            return ctx.channel.history(**kwargs)
+        """
+        return self.channel.history(limit=limit, before=before, after=after)
+
     @property
     def valid(self) -> bool:
         """:class:`bool`: Whether or not the context could be invoked."""
         return self.prefix is not None and self.command is not None
-
-    @cached_property
-    def invoked_without_command(self) -> bool:
-        """:class:`bool`: Whether or not the command was invoked without a subcommand."""
-
-        return (
-            self.command.get_command(self.lex.in_stream[self.lex.position :]) is None
-            if hasattr(self.command, "__commands__")
-            else True
-        )
