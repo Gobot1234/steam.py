@@ -56,7 +56,7 @@ from typing import (
 )
 
 import aiohttp
-from typing_extensions import Literal, Protocol
+from typing_extensions import Literal, Protocol, runtime_checkable
 
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 from .errors import InvalidSteamID

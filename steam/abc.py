@@ -35,20 +35,10 @@ import asyncio
 import inspect
 import re
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Coroutine,
-    Optional,
-    TypeVar,
-    Union,
-    overload,
-    runtime_checkable,
-)
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Union, overload
 
 import attr
-from typing_extensions import Final, Protocol, TypeAlias, TypedDict
+from typing_extensions import Final, Protocol, TypeAlias, TypedDict, runtime_checkable
 
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
