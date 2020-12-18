@@ -52,7 +52,6 @@ from typing import (
     TypeVar,
     Union,
     overload,
-    runtime_checkable,
 )
 
 import aiohttp
