@@ -102,7 +102,7 @@ function setTheme(value) {
 
 const settings = [
     new CheckboxSetting("useSerifFont", false, getRootAttributeToggle("font", "serif")),
-    new RadioSetting("setTheme", "automatic", setTheme)
+    new RadioSetting("setTheme", "automatic", setTheme),
 ];
 
 function updateSetting(element) {

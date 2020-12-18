@@ -5,7 +5,6 @@ on: [push]
 
 jobs:
   check-formatting:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -13,7 +12,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install dependencies
         run: python -m pip install isort

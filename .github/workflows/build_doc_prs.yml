@@ -7,10 +7,10 @@ on:
 jobs:
   comment-with-documentation-url:
     if: ${{
-        startsWith(github.event.pull_request.title, '[docs]') ||
-        startsWith(github.event.pull_request.title, '[RFC]') ||
-        contains(github.event.pull_request.title, 'Add') ||
-        contains(github.event.pull_request.title, 'Implement')
+      startsWith(github.event.pull_request.title, '[docs]') ||
+      startsWith(github.event.pull_request.title, '[RFC]') ||
+      contains(github.event.pull_request.title, 'Add') ||
+      contains(github.event.pull_request.title, 'Implement')
       }}
 
     runs-on: ubuntu-latest
@@ -19,8 +19,8 @@ jobs:
       - name: Comment with documentation link
         uses: mb2dev/github-action-comment-pull-request@1.0.0
         with:
-           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-           message: |
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          message: |
             Hello there! :wave:
 
             Built documentation for this pull request can be found at https://steampy--${{ github.event.pull_request.number }}.org.readthedocs.build/en/${{ github.event.pull_request.number }}

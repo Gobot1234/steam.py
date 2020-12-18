@@ -7,11 +7,10 @@ on:
       - master
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   lint_python:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install flake8
         run: pip install flake8

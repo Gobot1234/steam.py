@@ -10,7 +10,7 @@ about: Report broken or incorrect behaviour
 ## Reproduction Steps
 
 <!--
-What you did to make it happen. 
+What you did to make it happen.
 Ideally there should be a short code snippet in this section to help reproduce the bug.
 -->
 
@@ -21,7 +21,6 @@ Ideally there should be a short code snippet in this section to help reproduce t
 ## Actual Results
 
 <!-- What actually happened. If there is a traceback, please show it in its entirety. -->
-
 
 ## Checklist
 

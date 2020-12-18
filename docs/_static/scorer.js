@@ -83,7 +83,7 @@ Scorer = {
     objPrio: {
         0: 15, // used to be importantResults
         1: 7, // used to be objectResults
-        2: -5 // used to be unimportantResults
+        2: -5, // used to be unimportantResults
     },
     //  Used when the priority is not in the mapping.
     objPrioDefault: 0,
@@ -93,7 +93,7 @@ Scorer = {
     partialTitle: 7,
     // query found in terms
     term: 5,
-    partialTerm: 2
+    partialTerm: 2,
 };
 
 document.addEventListener("DOMContentLoaded", () => {
