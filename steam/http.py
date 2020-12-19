@@ -230,8 +230,7 @@ class HTTPClient:
         cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
         self.session_id = cookies["sessionid"].value
 
-        resp = await self.get_user(resp["transfer_parameters"]["steamid"])
-        data = resp["response"]["players"][0] if self.api_key is not None else resp
+        data = await self.get_user(resp["transfer_parameters"]["steamid"])
         state = self._client._connection
         self.user = ClientUser(state=state, data=data)
         state._users[self.user.id64] = self.user
