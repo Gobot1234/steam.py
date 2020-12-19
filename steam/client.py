@@ -683,11 +683,11 @@ class Client:
 
         Parameters
         ----------
-        game: :class:`~steam.Game`
+        game: Optional[:class:`~steam.Game`]
             A games to set your status as.
-        games: list[:class:`~steam.Game`]
+        games: Optional[list[:class:`~steam.Game`]]
             A list of games to set your status to.
-        state: :class:`~steam.EPersonaState`
+        state: Optional[:class:`~steam.EPersonaState`]
             The state to show your account as.
 
             Warning
@@ -695,7 +695,7 @@ class Client:
             Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state updates
             and by extension :meth:`on_user_update` will stop being dispatched.
 
-        ui_mode: :class:`~steam.EUIMode`
+        ui_mode: Optional[:class:`~steam.EUIMode`]
             The UI mode to set your status to.
         flag: Optional[:class:`EPersonaStateFlag`]
             The flag to update your account with.
