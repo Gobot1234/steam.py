@@ -5,10 +5,9 @@ API reference
 
 The following document outlines the front facing aspects of steam.py.
 
-Note
-----
-This module uses Python's logging module to debug, give information and diagnose errors, it is recommended to
-configure this if necessary as errors or warnings will not be propagated properly.
+.. note::
+    This module uses Python's logging module to debug, give information and diagnose errors, it is recommended to
+    configure this if necessary as errors or warnings will not be propagated properly.
 
 Version Related Info
 ---------------------
@@ -69,11 +68,10 @@ through subclassing :class:`Client` and overriding the specific events. For exam
 If an event handler raises an exception, :func:`on_error` will be called
 to handle it, which defaults to print a traceback and ignoring the exception.
 
-Warning
--------
 
-All the events must be a |coroutine_link|_. If they aren't, a :exc:`TypeError` will be raised. In order to turn a
-function into a coroutine they must be ``async def`` functions.
+.. warning::
+    All the events must be a |coroutine_link|_. If they aren't, a :exc:`TypeError` will be raised. In order to turn a
+    function into a coroutine they must be ``async def`` functions.
 
 .. automethod:: Client.on_connect
 

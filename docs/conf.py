@@ -54,7 +54,7 @@ rst_prolog = """
 .. |maybecoro| replace:: This function *could be a* |coroutine_link|_.
 .. |coroutine_link| replace:: *coroutine*
 .. _coroutine_link: https://docs.python.org/3/library/asyncio-task.html#coroutine
-.. |maybecallabledeco| replace:: This decorator *could be callable*.
+.. |maybecallabledeco| replace:: This decorator *could be called*.
 """
 
 # Add any paths that contain templates here, relative to this directory.

@@ -52,7 +52,7 @@ It looks something like this:
     import steam
 
     class MyClient(steam.Client):
-        async def on_ready() -> None:
+        async def on_ready(self) -> None:
             print(f"We have logged in as {self.user}")
 
         async def on_message(self, message: steam.Message) -> None:
@@ -100,7 +100,7 @@ Since code like this is so common steam.py comes with a powerful commands extens
 
 
     class MyBot(commands.Bot):
-        async def on_ready() -> None:
+        async def on_ready(self) -> None:
             print(f"We have logged in as {self.user}")
 
         @commands.command
