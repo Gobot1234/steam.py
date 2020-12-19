@@ -511,8 +511,9 @@ class Command:
                     greedy_args.append(transformed)
             elif param.kind == param.KEYWORD_ONLY:
                 # kwarg only param denotes "consume rest" semantics
-                arg = ctx.lex.in_stream[ctx.lex.position :]
-                kwargs[name] = await (self._transform(ctx, param, arg) if arg else self._get_default(ctx, param))
+                kwargs[name] = await (
+                    self._transform(ctx, param, ctx.lex.rest) if ctx.lex.rest else self._get_default(ctx, param)
+                )
                 break
             elif param.kind == param.VAR_KEYWORD:
                 # same as **kwargs

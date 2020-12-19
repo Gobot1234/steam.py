@@ -147,6 +147,10 @@ class Shlex:
         except IndexError:
             pass
 
+    @property
+    def rest(self) -> str:
+        return self.in_stream[self.position :]
+
     def __repr__(self) -> str:
         attrs = (
             "in_stream",
