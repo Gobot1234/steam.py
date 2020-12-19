@@ -186,6 +186,14 @@ class _GroupChannel(Channel):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         return (self.id, self.group.id), self._state.http.send_group_image
 
+    def history(
+        self,
+        limit: Optional[int] = 5,
+        before: Optional[datetime] = None,
+        after: Optional[datetime] = None,
+    ) -> GroupChannelHistoryIterator:
+        return GroupChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
+
 
 class GroupChannel(_GroupChannel):
     """Represents a group channel.

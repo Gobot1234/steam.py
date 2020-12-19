@@ -482,6 +482,7 @@ class BaseUser(Commentable):
         "favourite_badge",
         "_is_commentable",
         "_setup_profile",
+        "_level",
     )
 
     def __init__(self, state: ConnectionState, data: UserDict):
@@ -645,8 +646,10 @@ class BaseUser(Commentable):
         :class:`int`
             The user's level.
         """
-        resp = await self._state.http.get_user_level(self.id64)
-        return resp["response"]["player_level"]
+        if self._state.http.api_key is not None:
+            resp = await self._state.http.get_user_level(self.id64)
+            return resp["response"]["player_level"]
+        return self._level
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
@@ -682,10 +685,12 @@ class BaseUser(Commentable):
         import functools
 
         def __init__(self, state: ConnectionState, data: dict) -> None:
+            super().__init__(data["steamid"])
             self._state = state
             self.name = data["persona_name"]
             self.avatar_url = data.get("avatar_url") or self.avatar_url
 
+            self.real_name = NotImplemented
             self.trade_url = NotImplemented
             self.primary_clan = NotImplemented
             self.country = NotImplemented
@@ -708,13 +713,15 @@ class BaseUser(Commentable):
                 icon_url = favourite_badge.pop("icon")
                 self.favourite_badge = FavouriteBadge(**favourite_badge, icon_url=icon_url)
 
-            async def level() -> int:
-                return data["level"]
+            self._level = data["level"]
 
-            self.level = level
+        def __repr__(self) -> str:
+            attrs = ("name", "id", "type", "universe", "instance")
+            resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+            return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
         setattr(cls, "__init__", __init__)
-        setattr(cls, "__repr__", lambda self: f"<User name={self.name!r}>")
+        setattr(cls, "__repr__", __repr__)
 
         def not_implemented(function: str):
             @functools.wraps(getattr(cls, function))
@@ -737,8 +744,7 @@ class BaseUser(Commentable):
 _EndPointReturnType: TypeAlias = "tuple[Union[tuple[int, ...], int], Callable[..., Coroutine[None, None, None]]]"
 
 
-@runtime_checkable
-class Messageable(Protocol):
+class Messageable(metaclass=abc.ABCMeta):
     """An ABC that details the common operations on a Steam message.
     The following classes implement this ABC:
 
@@ -790,6 +796,7 @@ class Channel(Messageable):
     clan: Optional[Clan] = None
     group: Optional[Group] = None
 
+    @abc.abstractmethod
     def history(
         self,
         limit: Optional[int] = 100,

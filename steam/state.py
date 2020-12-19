@@ -182,10 +182,11 @@ class ConnectionState(Registerable):
         gc.collect()
 
     async def __ainit__(self) -> None:
-        self._id64 = self.client.user.id64
-        self._device_id = generate_device_id(str(self._id64))
+        if self.http.api_key is not None:
+            self._id64 = self.client.user.id64
+            self._device_id = generate_device_id(str(self._id64))
 
-        await self._poll_trades()
+            await self._poll_trades()
 
     @property
     def ws(self) -> SteamWebSocket:
@@ -215,9 +216,8 @@ class ConnectionState(Registerable):
         return self._users.get(id64)
 
     async def fetch_user(self, user_id64: int) -> Optional[User]:
-        resp = await self.http.get_user(user_id64)
-        players = resp["response"]["players"]
-        return User(state=self, data=players[0]) if players else None
+        data = await self.http.get_user(user_id64)
+        return User(state=self, data=data) if data else None
 
     async def fetch_users(self, user_id64s: list[int]) -> list[Optional[User]]:
         resp = await self.http.get_users(user_id64s)

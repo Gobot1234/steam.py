@@ -211,7 +211,19 @@ class HTTPClient:
         self.api_key = self._client.api_key = await self.get_api_key()
         if self.api_key is None:
             log.info("Failed to get API key")
+
+            async def get_user(self, user_id64: int) -> dict:
+                user_id = int(user_id64) & 0xffffffff
+                ret = await self.request("GET", community_route(f"miniprofile/{user_id}/json"))
+                ret["steamid"] = user_id64
+                return ret
+
+            async def get_users(self, user_id64s: list[int]) -> list[dict]:
+                return [await self.get_user(user_id64) for user_id64 in user_id64s]
+
             BaseUser._patch_without_api()
+            self.__class__.get_user = get_user
+            self.__class__.get_users = get_users
             utils.warn("Some methods of User objects are not available as no API key can be generated", UserWarning)
             await self.request("GET", community_route("home"))
 
@@ -219,7 +231,7 @@ class HTTPClient:
         self.session_id = cookies["sessionid"].value
 
         resp = await self.get_user(resp["transfer_parameters"]["steamid"])
-        data = resp["response"]["players"][0]
+        data = resp["response"]["players"][0] if self.api_key is not None else resp
         state = self._client._connection
         self.user = ClientUser(state=state, data=data)
         state._users[self.user.id64] = self.user
@@ -287,9 +299,10 @@ class HTTPClient:
                 msg = None
             raise errors.LoginError(msg) from exc
 
-    def get_user(self, user_id64: int) -> RequestType:
+    async def get_user(self, user_id64: int) -> Optional[UserDict]:
         params = {"key": self.api_key, "steamids": user_id64}
-        return self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
+        resp = await self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
+        return resp["response"]["players"][0] if resp["response"]["players"] else None
 
     async def get_users(self, user_id64s: list[int]) -> list[UserDict]:
         ret = []
