@@ -399,6 +399,9 @@ DEALINGS IN THE SOFTWARE.
 :root[data-theme="dark"] .highlight .nf {
   color: #6494d8;
 } /* Name.Function */
+:root[data-theme="dark"] .highlight .fm {
+  color: #6494d8;
+} /* Name.Function.Magic */
 :root[data-theme="dark"] .highlight .nl {
   color: #d0d0d0;
 } /* Name.Label */

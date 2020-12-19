@@ -6,5 +6,5 @@
 }
 
 .custom-icons {
-  font-family: "Custom Icons" !important; /* prettier-ignore */
+  font-family: "Custom Icons", serif !important;
 }

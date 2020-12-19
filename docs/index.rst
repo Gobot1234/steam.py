@@ -1,8 +1,3 @@
-.. steam.py documentation master file, created by
-   sphinx-quickstart on Tue Mar 24 21:59:51 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to steam.py's documentation!
 ====================================
 
@@ -18,27 +13,31 @@ Key Features
 - Easy to use with an object-oriented design
 - Fully typed hinted for faster development
 
+Getting help
+------------
 
-Documentation Contents
------------------------
+- These are good pages to start with if it's your first time see :doc:`quickstart` & :doc:`faq`
+- Ask us and hang out with us in our :resource:`Discord <discord>` server.
+- If you're looking for something specific, try the :ref:`index <genindex>` or :ref:`searching <search>`.
+- Report bugs in the :resource:`issue tracker <issues>`.
+
+API references
+--------------
+
+Pages detailing the API.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   quickstart
-   api
-   faq
+   steam API Reference <api>
+   steam.ext.commands API Reference <ext/commands/api.rst>
 
 Extensions
 -----------
 
+steam.py has extension modules to help with common tasks.
+
 .. toctree::
-  :maxdepth: 3
+  :maxdepth: 1
 
   ext/commands/index.rst
-
-
-If you still can't find what you're looking for, try in one of the following pages:
-
-* :ref:`genindex`
-* :ref:`search`
