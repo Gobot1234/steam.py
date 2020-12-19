@@ -981,7 +981,7 @@ class Client:
                 The user's state now.
             """
 
-        async def on_socket_receive(self, msg: Union["Msg", "MsgProto"]) -> None:
+        async def on_socket_receive(self, msg: "Union[Msg, MsgProto]") -> None:
             """|coro|
             Called when the connected web-socket parses a received
             ``Msg``/``MsgProto``
@@ -1003,7 +1003,7 @@ class Client:
                 The raw received message.
             """
 
-        async def on_socket_send(self, msg: Union["Msg", "MsgProto"]) -> None:
+        async def on_socket_send(self, msg: "Union[Msg, MsgProto]") -> None:
             """|coro|
             Called when the client sends a parsed ``Msg``/``MsgProto``
             to the connected web-socket.

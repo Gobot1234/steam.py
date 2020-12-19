@@ -89,13 +89,15 @@ class IntableMeta(type):
 
 
 class Intable(metaclass=IntableMeta):
-    ...
+    __slots__ = ()
 
 
 if TYPE_CHECKING:
 
     @runtime_checkable
     class Intable(Protocol):
+        __slots__ = ()
+
         def __int__(self) -> int:
             ...
 

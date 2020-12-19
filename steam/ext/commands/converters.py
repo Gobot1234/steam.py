@@ -414,18 +414,20 @@ class Default(Protocol):
         @bot.command()
         async def info(ctx, user=DefaultAuthor):
             # if no user is passed it will be ctx.author
+            ...
 
     A custom default: ::
 
         class CurrentCommand(commands.Default):
-            async def default(self, ctx):
+            async def default(self, ctx: commands.Context) -> commands.Command:
                 return ctx.command  # return the current command
 
         # then later
 
-        @bot.command()
-        async def source(ctx, command=CurrentCommand):
+        @bot.command
+        async def source(ctx: commands.Context, command: commands.Command = CurrentCommand):
             # command would now be source
+            ...
 
         # this could also be mixed in with a converter to convert a string to a command.
     """
