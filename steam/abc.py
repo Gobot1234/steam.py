@@ -803,7 +803,39 @@ class Channel(Messageable):
         before: Optional[datetime] = None,
         after: Optional[datetime] = None,
     ) -> AsyncIterator["Message"]:
-        ...
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Channel`'s
+        :class:`steam.Message` objects.
+
+        Examples
+        -----------
+
+        Usage: ::
+
+            async for message in channel.history(limit=10):
+                print('Author:', message.author, 'Said:', message.content)
+
+        Flattening into a list: ::
+
+            messages = await channel.history(limit=50).flatten()
+            # messages is now a list of Message
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit: Optional[:class:`int`]
+            The maximum number of trades to search through.
+            Setting this to ``None`` will fetch all of the channel's messages, but this will be a very slow operation.
+        before: Optional[:class:`datetime.datetime`]
+            A time to search for messages before.
+        after: Optional[:class:`datetime.datetime`]
+            A time to search for messages after.
+
+        Yields
+        ---------
+        :class:`~steam.Message`
+        """
+        raise NotImplementedError
 
 
 def _clean_up_content(content: str) -> str:  # steam does weird stuff with content
