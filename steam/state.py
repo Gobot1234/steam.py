@@ -61,6 +61,7 @@ from .protobufs.steammessages_chat import (
 from .protobufs.steammessages_friendmessages import (
     CFriendMessagesIncomingMessageNotification as UserMessageNotification,
     CFriendMessagesSendMessageResponse as SendUserMessageResponse,
+    CFriendMessagesGetRecentMessagesResponse as DMChannelHistory,
 )
 from .trade import DescriptionDict, TradeOffer, TradeOfferDict
 from .user import User
@@ -76,10 +77,7 @@ if TYPE_CHECKING:
         ChatRoomClientNotifyChatGroupUserStateChangedNotification as GroupAction,
     )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
-    from .protobufs.steammessages_clientserver_2 import (
-        CMsgClientChatGetFriendMessageHistoryResponse as DMChannelHistory,
-        CMsgClientCommentNotifications,
-    )
+    from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientFriendsList,
         CMsgClientPersonaState,
@@ -536,30 +534,35 @@ class ConnectionState(Registerable):
         elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
-    async def get_user_history(self, user_id64: int) -> MsgProto[DMChannelHistory]:
-        msg = MsgProto(EMsg.ClientChatGetFriendMessageHistory, steamid=user_id64)
+    async def get_user_history(self, user_id64: int, start: int, last: int) -> Optional[MsgProto[DMChannelHistory]]:
+        try:
+            msg: MsgProto[DMChannelHistory] = await self.ws.send_um_and_wait(
+                "FriendMessages.GetRecentMessages#1_Request",
+                steamid1=self.client.user.id64,
+                steamid2=user_id64,
+                rtime32_start_time=start,
+                time_last=last,
+                count=100,
+            )
+        except asyncio.TimeoutError:
+            return
 
-        await self.ws.send_as_proto(msg)
-        msg: MsgProto[DMChannelHistory] = await self.ws.wait_for(
-            EMsg.ClientChatGetFriendMessageHistoryResponse, check=lambda m: m.body.steamid == user_id64
-        )
-
-        if not msg.body.success:
+        if msg.eresult != EResult.OK:
             raise WSException(msg)
 
         return msg
 
     async def get_group_history(
-        self, group_id: int, chat_id: int, start: int, end: int, max: int
+        self, group_id: int, chat_id: int, start: int, last: int
     ) -> Optional[MsgProto[GroupChannelHistory]]:
         try:
-            msg: MsgProto[GroupChannelHistory] = await self.ws.send_um_and_wait(  # TODO my oh my this is broken
+            msg: MsgProto[GroupChannelHistory] = await self.ws.send_um_and_wait(
                 "ChatRoom.GetMessageHistory#1_Request",
                 chat_group_id=group_id,
                 chat_id=chat_id,
-                last_time=end,
+                last_time=last,
                 start_time=start,
-                max_count=max,
+                max_count=100,
             )
         except asyncio.TimeoutError:
             return

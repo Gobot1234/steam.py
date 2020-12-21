@@ -188,7 +188,7 @@ class _GroupChannel(Channel):
 
     def history(
         self,
-        limit: Optional[int] = 5,
+        limit: Optional[int] = 100,
         before: Optional[datetime] = None,
         after: Optional[datetime] = None,
     ) -> GroupChannelHistoryIterator:
