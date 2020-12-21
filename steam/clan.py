@@ -143,7 +143,7 @@ class Clan(Commentable, comment_path="Clan"):
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/clans.js
 
     def __init__(self, state: ConnectionState, id: int):
-        super().__init__()
+        super().__init__(id, type="Clan")
         self.url = community_route(f"gid/{id}")
         self._state = state
         self.name: Optional[str] = None
@@ -160,10 +160,11 @@ class Clan(Commentable, comment_path="Clan"):
 
     async def __ainit__(self) -> None:
         resp = await self._state.request("GET", self.url)
-        search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
-        if search is None:
-            return
-        super().__init__(search.group(1), type="Clan")
+        if not self.id:
+            search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
+            if search is None:
+                return
+            super().__init__(search.group(1), type="Clan")
 
         soup = BeautifulSoup(resp, "html.parser")
         self.name = soup.find("title").text[28:]
