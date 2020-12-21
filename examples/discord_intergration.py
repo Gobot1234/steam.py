@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING, Optional
 
-import discord
-import steam
+import discord  # pip install discord.py
 from discord.ext import commands
+
+import steam
 
 
 class DiscordBot(commands.Bot):
@@ -31,6 +32,7 @@ class DiscordBot(commands.Bot):
 
 class UserConverter(commands.Converter):
     """Simple user converter"""
+
     async def convert(self, ctx: commands.Context, argument: str) -> Optional[steam.User]:
         try:
             return await ctx.bot.client.fetch_user(argument)

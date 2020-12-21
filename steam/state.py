@@ -59,9 +59,9 @@ from .protobufs.steammessages_chat import (
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchGroupResponse,
 )
 from .protobufs.steammessages_friendmessages import (
+    CFriendMessagesGetRecentMessagesResponse as DMChannelHistory,
     CFriendMessagesIncomingMessageNotification as UserMessageNotification,
     CFriendMessagesSendMessageResponse as SendUserMessageResponse,
-    CFriendMessagesGetRecentMessagesResponse as DMChannelHistory,
 )
 from .trade import DescriptionDict, TradeOffer, TradeOfferDict
 from .user import User
