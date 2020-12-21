@@ -344,10 +344,10 @@ class Commentable(SteamID):
         "__weakref__",
     )
 
-    comment_path: Final[str]  # noqa # type: ignore
+    comment_path: Final[str]  # noqa  # type: ignore
 
     def __init_subclass__(cls, comment_path: str = "Profile") -> None:
-        cls.comment_path: Final[str] = comment_path  # noqa # type: ignore
+        cls.comment_path: Final[str] = comment_path  # noqa  # type: ignore
 
     def copy(self: C) -> C:
         cls = self.__class__
@@ -858,6 +858,10 @@ class Message:
         The channel the message was sent in.
     content: :class:`str`
         The message's content.
+
+        Note
+        ----
+        This is **not** what you will see in the steam client see :attr:`clean_content` for that.
     clean_content: :class:`str`
         The message's clean content without bbcode.
     author: :class:`~steam.User`

@@ -983,8 +983,7 @@ class Client:
 
         async def on_socket_receive(self, msg: "Union[Msg, MsgProto]") -> None:
             """|coro|
-            Called when the connected web-socket parses a received
-            ``Msg``/``MsgProto``
+            Called when the connected web-socket parses a received ``Msg``/``MsgProto``
 
             Parameters
             ----------
@@ -994,8 +993,7 @@ class Client:
 
         async def on_socket_raw_receive(self, message: bytes) -> None:
             """|coro|
-            Called when the connected web-socket receives
-            raw :class:`bytes`. This isn't likely to be very useful.
+            Called when the connected web-socket receives raw :class:`bytes`. This isn't likely to be very useful.
 
             Parameters
             ----------
@@ -1005,8 +1003,7 @@ class Client:
 
         async def on_socket_send(self, msg: "Union[Msg, MsgProto]") -> None:
             """|coro|
-            Called when the client sends a parsed ``Msg``/``MsgProto``
-            to the connected web-socket.
+            Called when the client sends a parsed ``Msg``/``MsgProto`` to the connected web-socket.
 
             Parameters
             ----------
@@ -1016,9 +1013,8 @@ class Client:
 
         async def on_socket_raw_send(self, message: bytes) -> None:
             """|coro|
-            Called when the client sends raw :class:`bytes`
-            to the connected web-socket.
-            This isn't likely to be very useful.
+            Called when the client sends raw :class:`bytes` to the connected web-socket. This isn't likely to be very
+            useful.
 
             Parameters
             ----------
