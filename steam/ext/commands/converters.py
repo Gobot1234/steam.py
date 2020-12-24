@@ -52,7 +52,7 @@ from typing_extensions import Literal, Protocol, get_args, get_origin, runtime_c
 from ... import utils
 from ...channel import Channel
 from ...clan import Clan
-from ...errors import InvalidSteamID
+from ...errors import HTTPException, InvalidSteamID
 from ...game import Game
 from ...group import Group
 from ...models import FunctionType
@@ -122,7 +122,7 @@ def converter_for(converter_for: T) -> Callable[[MC], MC]:
 
         @commands.converter(commands.Command)  # this is the type hint used
         def command_converter(argument: str) -> commands.Command:
-            ...
+            return bot.get_command(argument)
 
         # then later
 
@@ -192,11 +192,8 @@ class Converter(Protocol[T]):
         class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
 
             async def convert(self, ctx: commands.Context, argument: str) -> steam.Image:
-                search = re.search(r"\[img src=(?P<url>(?:.*)) ", argument)
-                if search is None:
-                    raise commands.BadArgument(f"{argument!r} is not a recognised image url")
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(search.group("url")) as r:
+                    async with session.get(argument) as r:
                         image_bytes = BytesIO(await r.read())
                 try:
                     return steam.Image(image_bytes)
@@ -206,7 +203,7 @@ class Converter(Protocol[T]):
 
         # then later
         @bot.command
-        async def set_avatar(ctx: commands.Context, *, avatar: steam.Image):
+        async def set_avatar(ctx: commands.Context, avatar: steam.Image) -> None:
             await bot.user.edit(avatar=avatar)
             await ctx.send("👌")
 
@@ -323,16 +320,28 @@ class UserConverter(Converter[User]):
         - Steam ID
         - Mentions
         - Name
+        - URLs
     """
 
     async def convert(self, ctx: Context, argument: str) -> User:
         try:
-            user = ctx.bot.get_user(argument)
-        except InvalidSteamID:
-            search = re.search(r"\[mention=(\d+)]@\w+\[/mention]", argument)
-            if search is not None:
-                return await self.convert(ctx, search.group(1))
+            user = await ctx.bot.fetch_user(argument)
+        except (InvalidSteamID, HTTPException):
+            if argument.startswith("@"):  # probably a mention
+                try:
+                    account_id = ctx.message.mentions.mention_accountids[0]
+                except IndexError:
+                    pass
+                else:
+                    user = await ctx.bot.fetch_user(account_id)
+                    if user is not None and user.id == account_id:
+                        ctx.message.mentions.mention_accountids.remove(account_id)
+                        return user
             user = utils.find(lambda u: u.name == argument, ctx.bot.users)
+
+            if user is None:
+                id64 = await utils.id64_from_url(argument, session=ctx._state.http._session)
+                return await self.convert(ctx, id64)
         if user is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
         return user
@@ -362,13 +371,17 @@ class ClanConverter(Converter[Clan]):
     Lookup is in the order of:
         - Steam ID
         - Name
+        - URLs
     """
 
     async def convert(self, ctx: Context, argument: str) -> Clan:
         try:
-            clan = ctx.bot.get_clan(argument)
-        except InvalidSteamID:
+            clan = await ctx.bot.fetch_clan(argument)
+        except (InvalidSteamID, HTTPException):
             clan = utils.find(lambda c: c.name == argument, ctx.bot.clans)
+            if clan is None:
+                id64 = await utils.id64_from_url(argument, session=ctx._state.http._session)
+                return await self.convert(ctx, id64)
         if clan is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
         return clan

@@ -427,6 +427,10 @@ class Command:
             The invocation context.
         """
         try:
+            try:  # we mess with mentions in UserConverter.convert so we need to copy them for later
+                mentions = ctx.message.mentions.mention_accountids.copy()
+            except AttributeError:
+                pass
             if not self.enabled:
                 raise CommandDisabled(self)
             for check in ctx.bot.checks:
@@ -446,6 +450,10 @@ class Command:
             ctx.command_failed = True
             raise
         finally:
+            try:
+                ctx.message.mentions.mention_accountids = mentions
+            except AttributeError:
+                pass
             await self._call_after_invoke(ctx)
 
     async def can_run(self, ctx: Context) -> bool:

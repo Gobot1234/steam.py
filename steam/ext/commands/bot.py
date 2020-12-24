@@ -571,7 +571,7 @@ class Bot(GroupMixin, Client):
         :class:`.Context`
             The context for the message.
         """
-        lex = Shlex(message.content)
+        lex = Shlex(message.clean_content)
 
         prefix = await self.get_prefix(message)
         if prefix is None:
