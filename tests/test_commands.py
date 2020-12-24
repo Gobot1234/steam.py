@@ -176,7 +176,7 @@ class TheTestBot(commands.Bot):
     ) -> None:
         command = command or list(self.__commands__.values())[-1]
         message = copy(self.MESSAGE)
-        message.content = f"{command.qualified_name} {arguments or ''}".strip()
+        message.content = message.clean_content = f"{command.qualified_name} {arguments or ''}".strip()
         self.to_finish.append(message.content)
 
         if exception is not None:
