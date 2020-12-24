@@ -353,7 +353,9 @@ class Inventory(Generic[I]):
         list[:class:`Item`]
             The matching items.
         """
-        limit: int = kwargs.get("limit")
+        limit: Optional[int] = kwargs.pop("limit", None)
+        if kwargs:
+            raise TypeError(f"filter_items got unexpected keyword argument {list(kwargs.items())}")
         if len(names) > 1 and limit:
             raise ValueError("Cannot pass a limit with multiple items")
         items = [item for item in self if item.name in names]

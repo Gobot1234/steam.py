@@ -247,12 +247,12 @@ class SteamID(metaclass=abc.ABCMeta):
             else:
                 type_char = "T"
 
-        parts = [type_char, int(self.universe), self.id]
+        parts = [type_char, str(self.universe.value), str(self.id)]
 
         if instance is not None:
-            parts.append(instance)
+            parts.append(str(instance))
 
-        return f"[{':'.join(map(str, parts))}]"
+        return f"[{':'.join(parts)}]"
 
     @property
     def invite_code(self) -> Optional[str]:
@@ -657,7 +657,7 @@ class BaseUser(Commentable):
         return self._is_commentable
 
     def is_private(self) -> bool:
-        """:class:`bool`: Specifies if the user has a public profile."""
+        """:class:`bool`: Specifies if the user has a private profile."""
         return self.privacy_state == ECommunityVisibilityState.Private
 
     def has_setup_profile(self) -> bool:
@@ -745,7 +745,8 @@ class BaseUser(Commentable):
 _EndPointReturnType: TypeAlias = "tuple[Union[tuple[int, ...], int], Callable[..., Coroutine[None, None, None]]]"
 
 
-class Messageable(metaclass=abc.ABCMeta):
+@runtime_checkable
+class Messageable(Protocol):
     """An ABC that details the common operations on a Steam message.
     The following classes implement this ABC:
 
@@ -804,11 +805,11 @@ class Channel(Messageable):
         before: Optional[datetime] = None,
         after: Optional[datetime] = None,
     ) -> AsyncIterator["Message"]:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Channel`'s
-        :class:`steam.Message` objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Channel`'s :class:`steam.Message`
+        objects.
 
         Examples
-        -----------
+        --------
 
         Usage: ::
 
@@ -833,7 +834,7 @@ class Channel(Messageable):
             A time to search for messages after.
 
         Yields
-        ---------
+        ------
         :class:`~steam.Message`
         """
         raise NotImplementedError

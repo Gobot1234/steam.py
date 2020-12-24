@@ -344,7 +344,7 @@ class EInstanceFlag(IntEnum):
     Clan     = 0x80000  #: The Steam ID is for a Clan.
 
 
-class EFriendRelationship(IntEnum):  # TODO verify these
+class EFriendRelationship(IntEnum):
     NONE             = 0  #: The user has no relationship to you.
     Blocked          = 1  #: The user ignored the invite.
     RequestRecipient = 2  #: The user has requested to be you.
