@@ -8,11 +8,14 @@ from setuptools import setup
 ROOT = pathlib.Path(__file__).parent
 
 
-with open(ROOT / "steam" / "__init__.py") as f:
-    try:
-        VERSION = re.findall(r'^__version__\s*=\s*"([^"]*)"', f.read(), re.MULTILINE)[0]
-    except IndexError:
-        raise RuntimeError("Version is not set")
+try:
+    VERSION = re.findall(
+        r'^__version__\s*=\s*"([^"]*)"',
+        (ROOT / "steam" / "__init__.py").read_text(),
+        re.MULTILINE,
+    )[0]
+except IndexError:
+    raise RuntimeError("Version is not set")
 
 if VERSION.endswith(("a", "b")) or "rc" in VERSION:
     # try to find out the commit hash if checked out from git, and append
@@ -30,15 +33,13 @@ if VERSION.endswith(("a", "b")) or "rc" in VERSION:
     except Exception:
         pass
 
-with open(ROOT / "README.md", encoding="utf-8") as f:
-    README = f.read()
 
-EXTRA_REQUIRES = {}
+README = (ROOT / "README.md").read_text(encoding="utf-8")
 
-for feature in (ROOT / "requirements").glob("*.txt"):
-    with open(feature, "r", encoding="utf-8") as f:
-        EXTRA_REQUIRES[feature.with_suffix("").name] = f.read().splitlines()
-
+EXTRA_REQUIRES = {
+    feature.name.rstrip(".txt"): feature.read_text(encoding="utf-8").splitlines()
+    for feature in (ROOT / "requirements").glob("*.txt")
+}
 REQUIREMENTS = EXTRA_REQUIRES.pop("default")
 
 
