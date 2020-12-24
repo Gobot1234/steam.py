@@ -76,6 +76,7 @@ if TYPE_CHECKING:
     from .http import StrOrURL
     from .image import Image
     from .state import ConnectionState
+    from .protobufs.steammessages_chat import CChatMentions
     from .user import User
 
 
@@ -843,8 +844,7 @@ def _clean_up_content(content: str) -> str:  # steam does weird stuff with conte
 
 
 class Message:
-    """Represents a message from a :class:`~steam.User`
-    This is a base class from which all messages inherit.
+    """Represents a message from a :class:`~steam.User`. This is a base class from which all messages inherit.
 
     The following classes implement this:
 
@@ -882,6 +882,7 @@ class Message:
         "created_at",
         "group",
         "clan",
+        "mentions",
         "_state",
     )
     author: User
@@ -894,6 +895,7 @@ class Message:
         self.clan: Optional[Clan] = channel.clan
         self.content: str = _clean_up_content(proto.message)
         self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
+        self.mentions: Optional[CChatMentions] = getattr(proto, "mentions", None)
 
     def __repr__(self) -> str:
         attrs = ("author", "channel")
