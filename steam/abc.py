@@ -75,8 +75,8 @@ if TYPE_CHECKING:
     from .group import Group
     from .http import StrOrURL
     from .image import Image
-    from .state import ConnectionState
     from .protobufs.steammessages_chat import CChatMentions
+    from .state import ConnectionState
     from .user import User
 
 

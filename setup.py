@@ -37,7 +37,7 @@ if VERSION.endswith(("a", "b")) or "rc" in VERSION:
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 
 EXTRA_REQUIRES = {
-    feature.name.rstrip(".txt"): feature.read_text(encoding="utf-8").splitlines()
+    feature.with_suffix("").name: feature.read_text(encoding="utf-8").splitlines()
     for feature in (ROOT / "requirements").glob("*.txt")
 }
 REQUIREMENTS = EXTRA_REQUIRES.pop("default")
