@@ -83,12 +83,15 @@ class HTTPClient:
         "user",
         "logged_in",
         "user_agent",
+        "proxy",
+        "proxy_auth",
+        "connector",
     )
 
     SUCCESS_LOG = "{method} {url} has received {text}"
     REQUEST_LOG = "{method} {url} with {payload} has returned {status}"
 
-    def __init__(self, client: Client):
+    def __init__(self, client: Client, **options: Any):
         self._session: Optional[aiohttp.ClientSession] = None  # filled in login
         self._client = client
 
@@ -110,12 +113,22 @@ class HTTPClient:
             f"Python/{version_info[0]}.{version_info[1]}, aiohttp/{aiohttp.__version__}"
         )
 
+        self.proxy: Optional[str] = options.get("proxy")
+        self.proxy_auth: Optional[str] = options.get("proxy_auth")
+        self.connector: Optional[aiohttp.BaseConnector] = options.get("connector")
+
     def recreate(self) -> None:
         if self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(connector=self.connector)
 
     async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Optional[Any]:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
+        # proxy support
+        if self.proxy is not None:
+            kwargs["proxy"] = self.proxy
+        if self.proxy_auth is not None:
+            kwargs["proxy_auth"] = self.proxy_auth
+
         payload = kwargs.get("data")
 
         for tries in range(5):
@@ -175,7 +188,9 @@ class HTTPClient:
 
     def connect_to_cm(self, cm: str) -> Coroutine[None, None, aiohttp.ClientWebSocketResponse]:
         headers = {"User-Agent": self.user_agent}
-        return self._session.ws_connect(f"wss://{cm}/cmsocket/", headers=headers)
+        return self._session.ws_connect(
+            f"wss://{cm}/cmsocket/", headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
+        )
 
     async def login(self, username: str, password: str, shared_secret: Optional[str]) -> None:
         self.username = username

@@ -104,7 +104,7 @@ class Client:
         if loop:
             utils.warn("The loop argument is deprecated and scheduled for removal in V.1")
         self.loop = asyncio.get_event_loop()
-        self.http = HTTPClient(client=self)
+        self.http = HTTPClient(client=self, **options)
         self._connection = ConnectionState(client=self, **options)
         self.ws: Optional[SteamWebSocket] = None
 
