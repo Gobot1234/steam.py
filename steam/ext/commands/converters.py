@@ -330,7 +330,7 @@ class UserConverter(Converter[User]):
             if argument.startswith("@"):  # probably a mention
                 try:
                     account_id = ctx.message.mentions.mention_accountids[0]
-                except IndexError:
+                except (IndexError, AttributeError):
                     pass
                 else:
                     user = await ctx.bot.fetch_user(account_id)
