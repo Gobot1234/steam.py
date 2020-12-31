@@ -66,11 +66,10 @@ class EnumMeta(type):
     def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> EnumMeta:
         set_attribute = super().__setattr__
         enum_class = super().__new__(mcs, name, bases, attrs)
-        enum_new = enum_class.__new__
+        enum_class_new = enum_class.__new__
 
         value_mapping: dict[Any, Enum] = {}
         member_mapping: dict[str, Enum] = {}
-        member_names: list[str] = []
 
         for key, value in attrs.items():
             if key[0] == "_" or _is_descriptor(value):
@@ -78,16 +77,14 @@ class EnumMeta(type):
 
             member = value_mapping.get(value)
             if member is None:
-                member = enum_new(enum_class, name=key, value=value)
+                member = enum_class_new(enum_class, name=key, value=value)
                 value_mapping[value] = member
-                member_names.append(key)
 
             member_mapping[key] = member
             set_attribute(enum_class, key, member)
 
         set_attribute(enum_class, "_value_map_", value_mapping)
         set_attribute(enum_class, "_member_map_", member_mapping)
-        set_attribute(enum_class, "_member_names_", member_names)
         return enum_class
 
     def __call__(cls: type[E], value: Any) -> E:
@@ -102,13 +99,13 @@ class EnumMeta(type):
         return f"<enum {cls.__name__!r}>"
 
     def __iter__(cls: type[E]) -> Generator[E, None, None]:
-        return (cls._member_map_[name] for name in cls._member_names_)
+        yield from cls._member_map_.values()
 
     def __reversed__(cls: type[E]) -> Generator[E, None, None]:
-        return (cls._member_map_[name] for name in reversed(cls._member_names_))
+        yield from reversed(tuple(cls._member_map_.values()))  # can remove tuple cast after 3.7
 
     def __len__(cls) -> int:
-        return len(cls._member_names_)
+        return len(cls._member_map_)
 
     def __getitem__(cls: type[E], key: str) -> E:
         return cls._member_map_[key]

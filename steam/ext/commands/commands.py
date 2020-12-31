@@ -452,7 +452,7 @@ class Command:
         finally:
             try:
                 ctx.message.mentions.mention_accountids = mentions
-            except AttributeError:
+            except (UnboundLocalError, AttributeError):
                 pass
             await self._call_after_invoke(ctx)
 
