@@ -316,13 +316,12 @@ class Inventory(Generic[I]):
             self._total_inventory_count = 0
         else:
             for asset in data["assets"]:
-                found = False
                 for item in data["descriptions"]:
                     if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                         item.update(asset)
                         self.items.append(Item(data=item))
-                        found = True
-                if not found:
+                        break
+                else:
                     self.items.append(Asset(data=asset))
             self._total_inventory_count = data["total_inventory_count"]
 
