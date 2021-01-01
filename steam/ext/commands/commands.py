@@ -320,14 +320,17 @@ class Command:
         return " ".join(c.name for c in reversed(list(self.parents)))
 
     @property
-    def parents(self) -> Generator[Command, None, None]:
-        """Iterator[:class:`Command`]: The command's parents."""
+    def parents(self: C) -> list[C]:
+        """list[:class:`Command`]: The command's parents."""
+        commands = []
         command = self
         while command is not None:
             if not isinstance(command, Command):
                 break
-            yield command
+            commands.append(command)
             command = command.parent
+
+        return commands
 
     async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
         """|coro|
@@ -887,12 +890,15 @@ class GroupMixin:
         return decorator(callback) if callback is not None else decorator
 
     @property
-    def children(self) -> Generator[Command, None, None]:
-        """Iterator[:class:`Command`]: The commands children."""
+    def children(self: C) -> list[C]:
+        """list[:class:`Command`]: The commands children."""
+        commands = []
         for command in self.commands:
-            yield command
+            commands.append(command)
             if isinstance(command, GroupCommand):
-                yield from command.children
+                commands.extend(command.children)
+
+        return commands
 
     def recursively_remove_all_commands(self) -> None:
         for command in self.commands:
