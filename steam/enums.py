@@ -50,6 +50,7 @@ __all__ = (
     "EChatEntryType",
     "EUIMode",
     "EUserBadge",
+    "EReviewType",
 )
 
 T = TypeVar("T")
@@ -486,3 +487,15 @@ class EUserBadge(IntEnum):
     Summer2019TeamPig                 = 42  #: The Summer sale badge for 2014 for team pig.
     SteamAwards2019Nominations        = 43  #: The Steam Awards Nominations badge for 2019.
     WinterSaleEvent2019               = 44  #: The Winter sale badge for 2019.
+
+
+class EReviewType(Enum):
+    OverwhelminglyPositive = "Overwhelmingly Positive"  #: 95 - 99% positive reviews.
+    VeryPositive           = "Very Positive"            #: 94 - 80% positive reviews.
+    Positive               = "Positive"                 #: 80 - 99% positive reviews but few of them.
+    MostlyPositive         = "Mostly Positive"          #: 70 - 79% positive reviews.
+    Mixed                  = "Mixed"                    #: 40 - 69% positive reviews.
+    MostlyNegative         = "Mostly Negative"          #: 20? - 39% positive reviews but few of them.
+    Negative               = "Negative"                 #: 0 - 39% positive reviews.
+    VeryNegative           = "Very Negative"            #: 0 - 19% positive reviews.
+    OverwhelminglyNegative = "Overwhelmingly Negative"  #: 0 - 19% positive reviews and many of them.

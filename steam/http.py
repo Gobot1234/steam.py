@@ -41,7 +41,7 @@ import rsa
 from bs4 import BeautifulSoup
 
 from . import __version__, errors, utils
-from .models import URL, api_route, community_route
+from .models import URL, api_route, community_route, store_route
 from .user import BaseUser, ClientUser
 
 if TYPE_CHECKING:
@@ -573,6 +573,9 @@ class HTTPClient:
         }
         payload.update({"currency": currency} if currency is not None else {})
         return self.request("POST", community_route("market/priceoverview"), data=payload)
+
+    def get_wishlist(self, user_id64: int) -> RequestType:
+        return self.request("GET", store_route(f"wishlist/profiles/{user_id64}/wishlistdata"))
 
     async def edit_profile(
         self,

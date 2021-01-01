@@ -53,7 +53,7 @@ from .enums import (
     EUniverse,
 )
 from .errors import WSException
-from .game import Game
+from .game import Game, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
 from .models import Ban, community_route
 from .trade import Inventory
@@ -572,18 +572,18 @@ class BaseUser(Commentable):
         friends = await self._state.http.get_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
-    async def games(self) -> list[Game]:
+    async def games(self) -> list[UserGame]:
         """|coro|
         Fetches the :class:`~steam.Game` objects the :class:`User` owns from the API.
 
         Returns
         -------
-        list[:class:`~steam.Game`]
+        list[:class:`.UserGame`]
             The list of game objects from the API.
         """
         data = await self._state.http.get_user_games(self.id64)
         games = data["response"].get("games", [])
-        return [Game._from_api(game) for game in games]
+        return [UserGame(game) for game in games]
 
     async def clans(self) -> list[Clan]:
         """|coro|
@@ -651,6 +651,17 @@ class BaseUser(Commentable):
             resp = await self._state.http.get_user_level(self.id64)
             return resp["response"]["player_level"]
         return self._level
+
+    async def wishlist(self) -> list[WishlistGame]:
+        """|coro|
+        Get a users wishlist.
+
+        Returns
+        -------
+        list[:class:`.WishlistGame`]
+        """
+        data = await self._state.http.get_wishlist(self.id64)
+        return [WishlistGame(id=id, data=game_info) for id, game_info in data.items()]
 
     def is_commentable(self) -> bool:
         """:class:`bool`: Specifies if the user's account is able to be commented on."""
