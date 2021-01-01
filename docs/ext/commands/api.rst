@@ -1,4 +1,4 @@
-.. currentmodule:: steam.ext.commands
+.. currentmodule:: steam
 
 API Reference
 ===============

@@ -169,11 +169,6 @@ class Converter(Protocol[T]):
         - :class:`~steam.Group`
         - :class:`~steam.Game`
 
-    Attributes
-    -----------
-    converter_for: T
-        The class that the converter can be type-hinted to to.
-
     Examples
     --------
 
@@ -182,6 +177,7 @@ class Converter(Protocol[T]):
         @bot.command
         async def command(ctx, user: steam.User):
             # this will end up making the user variable a `steam.User` object.
+            ...
 
         # invoked as
         # !command 76561198248053954
@@ -190,7 +186,6 @@ class Converter(Protocol[T]):
     A custom converter: ::
 
         class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
-
             async def convert(self, ctx: commands.Context, argument: str) -> steam.Image:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(argument) as r:
@@ -211,7 +206,7 @@ class Converter(Protocol[T]):
         # !set_avatar https://my_image_url.com
     """
 
-    converter_for: T
+    converter_for: T  #: The class that the converter can be type-hinted to to.
 
     @abstractmethod
     async def convert(self, ctx: "commands.Context", argument: str):
@@ -503,18 +498,9 @@ class Greedy(Generic[T]):
 
     An invocation of ``"test 1 2 3 4 5 6 hello"`` would pass ``(1, 2, 3, 4, 5, 6)`` to ``numbers`` and ``"hello"`` to
     ``reason``.
-
-    Attributes
-    ----------
-    converter: T
-        The converter the Greedy type holds.
-
-    Note
-    ----
-    Passing a tuple of length greater than one is shorthand for ``Greedy[Union[converter_tuple]]``.
     """
 
-    converter: T
+    converter: T  #: The converter the Greedy type holds.
 
     def __new__(
         cls, *args: Any, **kwargs: Any
@@ -522,7 +508,12 @@ class Greedy(Generic[T]):
         raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[...]")
 
     def __class_getitem__(cls, converter: GreedyTypes) -> Greedy[T]:
-        """The entry point for Greedy types."""
+        """The entry point for creating a Greedy type.
+
+        Note
+        ----
+        Passing more than one argument to ``converter`` is shorthand for ``Union[converter_tuple]``.
+        """
         if isinstance(converter, tuple):
             converter = converter[0] if len(converter) == 1 else Union[converter]
         if not (callable(converter) or isinstance(converter, (Converter, str)) or get_origin(converter) is not None):

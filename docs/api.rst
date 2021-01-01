@@ -65,13 +65,11 @@ through subclassing :class:`Client` and overriding the specific events. For exam
                 await trade.accept()
 
 
-If an event handler raises an exception, :func:`on_error` will be called
-to handle it, which defaults to print a traceback and ignoring the exception.
-
+If an event handler raises an exception, :meth:`Client.on_error` will be called to handle it, which by default prints a
+traceback and ignoring the exception.
 
 .. warning::
-    All the events must be a |coroutine_link|_. If they aren't, a :exc:`TypeError` will be raised. In order to turn a
-    function into a coroutine they must be ``async def`` functions.
+    All the events must be a :term:`coroutine function`. If they aren't, a :exc:`TypeError` will be raised.
 
 .. automethod:: Client.on_connect
 
@@ -290,8 +288,8 @@ Clan
     :inherited-members:
     :exclude-members: comments
 
-        .. automethod:: comments
-            :async-for: comment
+    .. automethod:: comments
+        :async-for: comment
 
 Comment
 ~~~~~~~~~~~~~~~
@@ -362,16 +360,16 @@ Users
     :inherited-members:
     :exclude-members: comments
 
-        .. automethod:: comments
-            :async-for: comment
+    .. automethod:: comments
+        :async-for: comment
 
 .. autoclass:: User()
     :members:
     :inherited-members:
     :exclude-members: comments
 
-        .. automethod:: comments
-            :async-for: comment
+    .. automethod:: comments
+        :async-for: comment
 
 
 Data-Classes
