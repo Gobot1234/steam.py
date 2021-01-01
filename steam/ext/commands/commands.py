@@ -159,7 +159,7 @@ class Command:
         Whether or not the command is hidden.
     aliases: Iterable[:class:`str`]
         The command's aliases.
-    params: OrderedDict[:class:`str`, :class:`inspect.Parameter`]
+    params: dict[:class:`str`, :class:`inspect.Parameter`]
         The command's parameters.
     """
 
@@ -258,7 +258,7 @@ class Command:
         module = sys.modules[function.__module__]
         function = function.__func__ if inspect.ismethod(function) else function  # HelpCommand.command_callback
 
-        self.params: OrderedDict[str, inspect.Parameter] = inspect.signature(function).parameters.copy()
+        self.params: dict[str, inspect.Parameter] = dict(inspect.signature(function).parameters)
 
         if not self.params:
             raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
@@ -298,18 +298,19 @@ class Command:
         self._callback = function
 
     @cached_property
-    def clean_params(self) -> OrderedDict[str, inspect.Parameter]:
-        """OrderedDict[:class:`str`, :class:`inspect.Parameter`]:
+    def clean_params(self) -> dict[str, inspect.Parameter]:
+        """dict[:class:`str`, :class:`inspect.Parameter`]:
         The command's parameters without ``"self"`` and ``"ctx"``."""
         params = self.params.copy()
+        keys = list(params.keys())
         if self.cog is not None:
             try:
-                params.popitem(last=False)  # cog's "self" param
-            except KeyError:
+                del params[keys.pop(0)]  # cog's "self" param
+            except IndexError:
                 raise ClientException(f'Callback for {self.name} command is missing a "self" parameter.') from None
         try:
-            params.popitem(last=False)  # context param
-        except KeyError:
+            del params[keys.pop(0)]  # context param
+        except IndexError:
             raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
         return params
 
