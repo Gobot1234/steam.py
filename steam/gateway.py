@@ -280,7 +280,6 @@ class SteamWebSocket(Registerable):
     )
 
     def __init__(self, socket: aiohttp.ClientWebSocketResponse, *, loop: asyncio.AbstractEventLoop):
-        super().__init__()
         self.socket = socket
         self.loop = loop
 

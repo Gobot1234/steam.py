@@ -107,7 +107,6 @@ class ConnectionState(Registerable):
         "_confirmations",
         "_confirmations_to_ignore",
         "_obj",
-        "_user_slots",
         "_previous_iteration",
         "_trades_task",
         "_trades_to_watch",
@@ -125,7 +124,6 @@ class ConnectionState(Registerable):
     )
 
     def __init__(self, client: Client, **kwargs: Any):
-        super().__init__()
         self.client = client
         self.loop = client.loop
         self.dispatch = client.dispatch
@@ -133,7 +131,6 @@ class ConnectionState(Registerable):
         self.request = self.http.request
 
         self.handled_friends = asyncio.Event()
-        self._user_slots = set(User.__slots__) - {"_state"}
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -687,12 +684,12 @@ class ConnectionState(Registerable):
             except (KeyError, TypeError):
                 steam_id = SteamID(user_id64)
                 invitee = await self.fetch_user(steam_id.id64) or steam_id
-                invite = UserInvite(self, invitee, None)
+                invite = UserInvite(self, invitee, EFriendRelationship.RequestRecipient)
                 self.dispatch("user_invite", invite)
 
             after._update(data)
-            old = [getattr(before, attr, None) for attr in self._user_slots]
-            new = [getattr(after, attr, None) for attr in self._user_slots]
+            old = [getattr(before, attr, None) for attr in User.__slots__]
+            new = [getattr(after, attr, None) for attr in User.__slots__]
             if old != new:
                 self.dispatch("user_update", before, after)
 

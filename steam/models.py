@@ -50,6 +50,7 @@ __all__ = (
 )
 
 E = TypeVar("E", bound="EventParser")
+R = TypeVar("R", bound="Registerable")
 
 
 def api_route(path: str) -> _URL:
@@ -81,8 +82,9 @@ class EventParser(MethodType):
 
 
 class Registerable:
-    def __init__(self):
-        bases = tuple(reversed(self.__class__.__mro__[:-2]))  # skip Registerable and object
+    def __new__(cls: type[R], *args: Any, **kwargs: Any) -> R:
+        self = super().__new__(cls)
+        bases = tuple(reversed(cls.__mro__[:-2]))  # skip Registerable and object
         for idx, cls in enumerate(bases):
             parsers_name = tuple(cls.__annotations__)[0]
             for name, attr in inspect.getmembers(cls, lambda attr: hasattr(attr, "__wrapped__")):
@@ -96,6 +98,8 @@ class Registerable:
 
                     parsers = getattr(base, tuple(base.__annotations__)[0])
                 parsers[msg] = msg_parser
+
+        return self
 
 
 def register(msg: IE) -> Callable[[E], E]:
