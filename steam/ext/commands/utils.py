@@ -190,6 +190,9 @@ def reload_module_with_TYPE_CHECKING(module: ModuleType) -> None:
     if typing not in module.__dict__.values() and getattr(module, "TYPE_CHECKING", True):
         return
 
+    if module.__name__ == "__main__":
+        return  # cannot use TYPE_CHECKING in a "__main__" module
+
     typing.TYPE_CHECKING = True
     importlib.reload(module)
     typing.TYPE_CHECKING = False
