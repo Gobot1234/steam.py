@@ -455,14 +455,11 @@ class TradeOffer:
 
     @classmethod
     async def _from_api(cls, state: ConnectionState, data: TradeOfferDict) -> TradeOffer:
-        from .abc import SteamID
-
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
         trade._update(data)
-        user_id = data["accountid_other"]
-        trade.partner = await state.client.fetch_user(user_id) or SteamID(user_id)  # the account is private :(
+        trade.partner = int(data["accountid_other"])
         return trade
 
     def __repr__(self) -> str:

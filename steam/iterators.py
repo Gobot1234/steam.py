@@ -27,6 +27,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import itertools
+import math
 import re
 from collections import deque
 from datetime import datetime, timedelta
@@ -264,7 +265,7 @@ class CommentsIterator(AsyncIterator[Comment]):
                     return
         users = await self._state.fetch_users(to_fetch)
         for user, comment in itertools.product(users, self.queue):
-            if comment.author == user.id:
+            if comment.author == user.id64:
                 comment.author = user
 
 
@@ -291,6 +292,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         if not total:
             return
 
+        users_to_fetch = []
         descriptions = resp.get("descriptions", [])
         after_timestamp = self.after.timestamp()
         before_timestamp = self.before.timestamp()
@@ -314,6 +316,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
             data["items_to_receive"] = data.get("assets_received", [])
 
             trade = await TradeOffer._from_api(state=self._state, data=data)
+            users_to_fetch.append(trade.partner)
 
             if not self._active_only:
                 if not self.append(trade):
@@ -330,19 +333,24 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                 await process_trade(trade, descriptions)
 
             previous_time = trade["time_init"]
+            users = await self._state.fetch_users(users_to_fetch)
+            for user, trade in itertools.product(users, self.queue):
+                if trade.partner == user.id64:
+                    trade.partner = user
+
             if total > 100:
-                for page in range(0, total, 100):
-                    if page in (0, 100):
-                        continue
+                for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
+                    users_to_fetch = []
                     resp = await self._state.http.get_trade_history(page, previous_time)
                     resp = resp["response"]
+
                     for trade in resp.get("trades", []):
+                        previous_time = trade["time_init"]
                         await process_trade(trade, descriptions)
-                    previous_time = trade["time_init"]
-                resp = await self._state.http.get_trade_history(page + 100, previous_time)
-                resp = resp["response"]
-                for trade in resp.get("trades", []):
-                    await process_trade(trade, descriptions)
+                    users = await self._state.fetch_users(users_to_fetch)
+                    for user, trade in itertools.product(users, self.queue):
+                        if trade.partner == user.id64:
+                            trade.partner = user
         except StopAsyncIteration:
             return
 

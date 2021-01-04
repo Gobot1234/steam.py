@@ -82,6 +82,7 @@ if TYPE_CHECKING:
         CMsgClientFriendsList,
         CMsgClientPersonaState,
         CMsgClientPersonaStateFriend,
+        CMsgClientRequestFriendData,
     )
     from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo
 
@@ -213,9 +214,17 @@ class ConnectionState(Registerable):
     async def fetch_user(self, user_id64: int) -> Optional[User]:
         data = await self.http.get_user(user_id64)
         return User(state=self, data=data) if data else None
+        # return (await self.fetch_users([user_id64]))[0]
 
     async def fetch_users(self, user_id64s: list[int]) -> list[Optional[User]]:
         resp = await self.http.get_users(user_id64s)
+        """msg: MsgProto[CMsgClientRequestFriendData] = MsgProto(
+            EMsg.ClientRequestFriendData,
+            persona_state_requested=863,  # 1 | 2 | 4 | 8 | 16 | 64 | 256 | 512  corresponds to EClientPersonaStateFlag
+            friends=user_id64s,
+        )
+        await self.ws.send_as_proto(msg)"""
+
         return [User(state=self, data=data) for data in resp]
 
     def _store_user(self, data: UserDict) -> User:
@@ -271,6 +280,7 @@ class ConnectionState(Registerable):
         except KeyError:
             log.info(f'Received trade #{data["tradeofferid"]}')
             trade = await TradeOffer._from_api(state=self, data=data)
+            trade.partner = await self.client.fetch_user(trade.partner) or SteamID(trade.partner)
             self._trades[trade.id] = trade
             if trade.state not in (
                 ETradeOfferState.Active,
