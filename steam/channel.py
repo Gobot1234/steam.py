@@ -29,7 +29,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union, AsyncGenerator
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional, Union
 
 from .abc import Channel
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator

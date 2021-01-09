@@ -230,7 +230,6 @@ class ConnectionState(Registerable):
         return [User(state=self, data=data) for data in resp]
 
     def _store_user(self, data: UserDict) -> User:
-        import typing
         try:
             user = self._users[int(data["steamid"])]
         except KeyError:

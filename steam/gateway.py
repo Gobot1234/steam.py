@@ -42,7 +42,7 @@ import time
 import traceback
 from gzip import _GzipReader as GZipReader
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union, Generic
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union
 
 import aiohttp
 import attr
@@ -307,7 +307,7 @@ class SteamWebSocket(Registerable):
 
     def wait_for(self, emsg: EMsg, check: Callable[[M], bool] = return_true) -> asyncio.Future[M]:
         future = self.loop.create_future()
-        entry = EventListener(emsg=emsg, check=check, future=future)
+        entry: EventListener[M] = EventListener(emsg=emsg, check=check, future=future)
         self.listeners.append(entry)
         return future
 

@@ -30,17 +30,16 @@ import functools
 import inspect
 import re
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Generic
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generic, Optional, TypeVar
 
 from typing_extensions import Final, Protocol
 from yarl import URL as _URL
 
+from .enums import IE
 from .protobufs import EMsg, MsgProto
 
 if TYPE_CHECKING:
     from types import FunctionType as FunctionType, MethodType as MethodType
-
-    from .enums import IE
 else:
     FunctionType = MethodType = Protocol
 
