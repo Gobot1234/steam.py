@@ -204,7 +204,7 @@ def make_id64(
     return universe << 56 | type << 52 | instance << 32 | id
 
 
-ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<reminder>[0-1]):(?P<id>\d+)")
+ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d+)")
 
 
 def id2_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
@@ -218,7 +218,7 @@ def id2_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
     -------
     Optional[tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
         A tuple of 32 bit ID, type, universe and instance or ``None``
-        e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
+        e.g. (100000, EType.Individual, EUniverse.Public, 1).
 
     Note
     ----
@@ -229,7 +229,7 @@ def id2_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
     if search is None:
         return None
 
-    id = (int(search.group("id")) << 1) | int(search.group("reminder"))
+    id = (int(search.group("id")) << 1) | int(search.group("remainder"))
     universe = int(search.group("universe"))
 
     # games before orange box used to incorrectly display universe as 0, we support that
@@ -294,7 +294,7 @@ _INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
 _INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
 _INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
 _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
-INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code1>[\-{_INVITE_VALID}]+))|(?P<code2>[\-{_INVITE_VALID}]+)")
+INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+))|(?P<code_2>[\-{_INVITE_VALID}]+)")
 
 
 def invite_code_to_tuple(code: str) -> Optional[tuple[int, EType, EUniverse, int]]:
@@ -308,14 +308,14 @@ def invite_code_to_tuple(code: str) -> Optional[tuple[int, EType, EUniverse, int
     -------
     Optional[tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
         A tuple of 32 bit ID, type, universe and instance or ``None``
-        e.g. (100000, EType.Individual, EUniverse.Public, 1) or ``None``.
+        e.g. (100000, EType.Individual, EUniverse.Public, 1).
     """
     search = INVITE_REGEX.search(code)
 
     if not search:
         return None
 
-    code = (search.group("code1") or search.group("code2")).replace("-", "")
+    code = (search.group("code_1") or search.group("code_2")).replace("-", "")
 
     def repl_mapper(x: re.Match) -> str:
         return _INVITE_INVERSE_MAPPING[x.group()]
@@ -334,7 +334,7 @@ URL_REGEX = re.compile(
 async def id64_from_url(
     url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None, timeout: float = 30.0
 ) -> Optional[int]:
-    """Takes a Steam Community url and returns steam64 or ``None``.
+    """Takes a Steam Community url and returns 64 bit steam ID or ``None``.
 
     Notes
     -----

@@ -20,7 +20,7 @@ TESTS = STEAM_PY / "tests"
 @click.option("-t", "--test", is_flag=True, help="Whether or not to run the tests.")
 @click.option("-f", "--format", is_flag=True, help="Whether or not to run the format code.")
 @click.pass_context
-def main(ctx: click.Context, test: bool, format: bool = True):
+def main(ctx: click.Context, test: bool, format: bool = True) -> None:
     if format:
         black.out("Starting formatting")
         isort.main.main(

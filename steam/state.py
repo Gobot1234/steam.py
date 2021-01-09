@@ -90,7 +90,7 @@ log = logging.getLogger(__name__)
 
 
 class ConnectionState(Registerable):
-    parsers: dict[EMsg, EventParser] = {}
+    parsers: dict[EMsg, EventParser[EMsg]] = {}
 
     __slots__ = (
         "http",
@@ -218,16 +218,19 @@ class ConnectionState(Registerable):
 
     async def fetch_users(self, user_id64s: list[int]) -> list[Optional[User]]:
         resp = await self.http.get_users(user_id64s)
-        """msg: MsgProto[CMsgClientRequestFriendData] = MsgProto(
+        """
+        msg: MsgProto[CMsgClientRequestFriendData] = MsgProto(
             EMsg.ClientRequestFriendData,
             persona_state_requested=863,  # 1 | 2 | 4 | 8 | 16 | 64 | 256 | 512  corresponds to EClientPersonaStateFlag
             friends=user_id64s,
         )
-        await self.ws.send_as_proto(msg)"""
+        await self.ws.send_as_proto(msg)
+        """
 
         return [User(state=self, data=data) for data in resp]
 
     def _store_user(self, data: UserDict) -> User:
+        import typing
         try:
             user = self._users[int(data["steamid"])]
         except KeyError:

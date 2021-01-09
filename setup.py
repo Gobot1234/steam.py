@@ -15,12 +15,11 @@ try:
         re.MULTILINE,
     )[0]
 except IndexError:
-    raise RuntimeError("Version is not set")
+    raise RuntimeError("Version is not set") from None
 
 if VERSION.endswith(("a", "b")) or "rc" in VERSION:
-    # try to find out the commit hash if checked out from git, and append
-    # it to __version__ (since we use this value from setup.py, it gets
-    # automatically propagated to an installed copy as well)
+    # try to find out the commit hash if checked out from git, and append it to __version__ (since we use this value
+    # from setup.py, it gets automatically propagated to an installed copy as well)
     try:
         import subprocess
 
@@ -37,7 +36,7 @@ if VERSION.endswith(("a", "b")) or "rc" in VERSION:
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 
 EXTRA_REQUIRES = {
-    feature.with_suffix("").name: feature.read_text(encoding="utf-8").splitlines()
+    feature.name.rstrip(".txt"): feature.read_text(encoding="utf-8").splitlines()
     for feature in (ROOT / "requirements").glob("*.txt")
 }
 REQUIREMENTS = EXTRA_REQUIRES.pop("default")
@@ -59,7 +58,7 @@ setup(
         "steam.ext.commands",
     ],
     package_data={
-        "steam": ["py.typed"],
+        "steam": ["py.typed", "ext/__init__.pyi"],
     },
     license="MIT",
     description="A Python wrapper for the Steam API",

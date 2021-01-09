@@ -29,7 +29,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, AsyncGenerator
 
 from .abc import Channel
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
@@ -111,7 +111,7 @@ class DMChannel(Channel):
         await self.participant.send(content=content, trade=trade, image=image)
 
     @asynccontextmanager
-    async def typing(self) -> None:
+    async def typing(self) -> AsyncGenerator[None, None]:
         """Send a typing indicator continuously to the channel while in the context manager.
 
         Note

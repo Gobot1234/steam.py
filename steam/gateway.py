@@ -42,7 +42,7 @@ import time
 import traceback
 from gzip import _GzipReader as GZipReader
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union, Generic
 
 import aiohttp
 import attr
@@ -83,7 +83,7 @@ def return_true(*_, **__) -> Literal[True]:
 
 
 @attr.dataclass(slots=True)
-class EventListener:
+class EventListener(Generic[M]):
     emsg: EMsg
     check: Callable[[M], bool]
     future: asyncio.Future[M]
@@ -262,7 +262,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
 
 class SteamWebSocket(Registerable):
-    parsers: dict[EMsg, EventParser] = {}
+    parsers: dict[EMsg, EventParser[EMsg]] = {}
 
     __slots__ = (
         "socket",

@@ -167,10 +167,7 @@ class Bot(GroupMixin, Client):
         super().__init__(**options)
         self.command_prefix = command_prefix
         self.owner_id = utils.make_id64(options.get("owner_id", 0))
-        owner_ids: set[int] = options.get("owner_ids", ())
-        self.owner_ids = set()
-        for owner_id in owner_ids:
-            self.owner_ids.add(utils.make_id64(owner_id))
+        self.owner_ids = {utils.make_id64(owner_id) for owner_id in options.get("owner_ids", ())}
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
 
@@ -252,6 +249,11 @@ class Bot(GroupMixin, Client):
         ----------
         extension: Union[:class:`pathlib.Path`, :class:`str`]
             The name of the extension to load.
+
+        Raises
+        ------
+        :exc:`ImportError`
+            The ``extension`` is missing a setup function.
         """
         if isinstance(extension, Path):
             extension = resolve_path(extension)
@@ -273,6 +275,11 @@ class Bot(GroupMixin, Client):
         ----------
         extension: Union[:class:`pathlib.Path`, :class:`str`]
             The name of the extension to unload.
+
+        Raises
+        ------
+        :exc:`ModuleNotFoundError`
+            The ``extension`` wasn't found in the loaded extensions.
         """
         if isinstance(extension, Path):
             extension = resolve_path(extension)
@@ -302,6 +309,11 @@ class Bot(GroupMixin, Client):
         ----------
         extension: Union[:class:`pathlib.Path`, :class:`str`]
             The name of the extension to reload.
+
+        Raises
+        ------
+        :exc:`ModuleNotFoundError`
+            The ``extension`` wasn't found in the loaded extensions.
         """
         if isinstance(extension, Path):
             extension = resolve_path(extension)

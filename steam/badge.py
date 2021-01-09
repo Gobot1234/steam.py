@@ -27,6 +27,7 @@ SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import attr
 
@@ -70,7 +71,7 @@ class Badge:
 
     __slots__ = ("id", "xp", "game", "level", "scarcity", "completion_time")
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict[str, Any]):
         self.id = EUserBadge.try_value(data["badgeid"])
         self.level: int = data["level"]
         self.xp: int = data["xp"]
@@ -109,7 +110,7 @@ class UserBadges:
         "xp_needed_for_current_level",
     )
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict[str, Any]):
         self.level: int = data["player_level"]
         self.xp: int = data["player_xp"]
         self.xp_needed_to_level_up: int = data["player_xp_needed_to_level_up"]

@@ -27,7 +27,7 @@ SOFTWARE.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .abc import Message
 
@@ -57,7 +57,7 @@ class UserMessage(Message):
 
 
 class _GroupMessage(Message):
-    def __init__(self, proto: GroupMessageNotification, channel, author: User):
+    def __init__(self, proto: GroupMessageNotification, channel: Any, author: User):
         super().__init__(channel, proto)
         self.author = author
         self.created_at = datetime.utcfromtimestamp(proto.timestamp)

@@ -114,7 +114,7 @@ class HTTPClient:
         )
 
         self.proxy: Optional[str] = options.get("proxy")
-        self.proxy_auth: Optional[str] = options.get("proxy_auth")
+        self.proxy_auth: Optional[aiohttp.BasicAuth] = options.get("proxy_auth")
         self.connector: Optional[aiohttp.BaseConnector] = options.get("connector")
 
     def recreate(self) -> None:
@@ -391,7 +391,7 @@ class HTTPClient:
         }
         return self.request("GET", api_route("IEconService/GetTradeHoldDurations"), params=params)
 
-    async def get_friends(self, user_id64: int) -> list[dict]:
+    async def get_friends(self, user_id64: int) -> list[UserDict]:
         params = {"key": self.api_key, "steamid": user_id64, "relationship": "friend"}
         friends = await self.request("GET", api_route("ISteamUser/GetFriendList"), params=params)
         return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])

@@ -17,7 +17,7 @@ Getting help
 ------------
 
 - These are good pages to start with if it's your first time see :doc:`quickstart` & :doc:`faq`
-- Ask us and hang out with us in our :resource:`Discord <discord>` server.
+- Ask us in our :resource:`discord <discord>` server.
 - If you're looking for something specific, try the :ref:`index <genindex>` or :ref:`searching <search>`.
 - Report bugs in the :resource:`issue tracker <issues>`.
 

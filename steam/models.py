@@ -30,9 +30,9 @@ import functools
 import inspect
 import re
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Generic
 
-from typing_extensions import Final
+from typing_extensions import Final, Protocol
 from yarl import URL as _URL
 
 from .protobufs import EMsg, MsgProto
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
     from .enums import IE
 else:
-    FunctionType = MethodType = object
+    FunctionType = MethodType = Protocol
 
 __all__ = (
     "PriceOverview",
@@ -74,7 +74,7 @@ class URL:
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
 
 
-class EventParser(MethodType):
+class EventParser(MethodType, Generic[IE]):
     msg: IE
 
     def __call__(self, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:

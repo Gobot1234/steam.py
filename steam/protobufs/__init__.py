@@ -210,7 +210,7 @@ class GCMsg(MsgBase[T]):
         self,
         msg: IE,
         data: Optional[bytes] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         self.header = GCMsgHdr(data)
         self.skip = self.header.SIZE
@@ -224,7 +224,7 @@ class GCMsgProto(MsgBase[T]):
         self,
         msg: IE,
         data: Optional[bytes] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         self.header = GCMsgHdrProto(data)
         self.skip = self.header.SIZE + self.header.header_length

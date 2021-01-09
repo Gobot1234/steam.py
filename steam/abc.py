@@ -693,7 +693,7 @@ class BaseUser(Commentable):
         return bans.is_banned()
 
     @classmethod
-    def _patch_without_api(cls):
+    def _patch_without_api(cls) -> None:
         import functools
 
         def __init__(self, state: ConnectionState, data: dict) -> None:
@@ -735,7 +735,7 @@ class BaseUser(Commentable):
         setattr(cls, "__init__", __init__)
         setattr(cls, "__repr__", __repr__)
 
-        def not_implemented(function: str):
+        def not_implemented(function: str) -> None:
             @functools.wraps(getattr(cls, function))
             async def wrapped(*_, **__) -> None:
                 raise NotImplementedError(
