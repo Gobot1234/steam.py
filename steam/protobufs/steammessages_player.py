@@ -8,10 +8,70 @@ from typing import List
 import betterproto
 
 
+class EProfileCustomizationStyle(betterproto.Enum):
+    Default = 0
+    Selected = 1
+    Rarest = 2
+    MostRecent = 3
+    Random = 4
+    HighestRated = 5
+
+
+class EAgreementType(betterproto.Enum):
+    Invalid = -1
+    GlobalSSA = 0
+    ChinaSSA = 1
+
+
 class ENotificationSetting(betterproto.Enum):
     NotifyUseDefault = 0
     Always = 1
     Never = 2
+
+
+class ETextFilterSetting(betterproto.Enum):
+    SteamLabOptedOut = 0
+    Enabled = 1
+    EnabledAllowProfanity = 2
+    Disabled = 3
+
+
+class EBanContentCheckResult(betterproto.Enum):
+    NotScanned = 0
+    Reset = 1
+    NeedsChecking = 2
+    VeryUnlikely = 5
+    Unlikely = 30
+    Possible = 50
+    Likely = 75
+    VeryLikely = 100
+
+
+class EProfileCustomizationType(betterproto.Enum):
+    Invalid = 0
+    RareAchievementShowcase = 1
+    GameCollector = 2
+    ItemShowcase = 3
+    TradeShowcase = 4
+    Badges = 5
+    FavoriteGame = 6
+    ScreenshotShowcase = 7
+    CustomText = 8
+    FavoriteGroup = 9
+    Recommendation = 10
+    WorkshopItem = 11
+    MyWorkshop = 12
+    ArtworkShowcase = 13
+    VideoShowcase = 14
+    Guides = 15
+    MyGuides = 16
+    Achievements = 17
+    Greenlight = 18
+    MyGreenlight = 19
+    Salien = 20
+    LoyaltyRewardReactions = 21
+    SingleArtworkShowcase = 22
+    AchievementsCompletionist = 23
 
 
 @dataclass(eq=False, repr=False)
@@ -37,6 +97,7 @@ class CPlayerGetOwnedGamesRequest(betterproto.Message):
     include_played_free_games: bool = betterproto.bool_field(3)
     appids_filter: List[int] = betterproto.uint32_field(4)
     include_free_sub: bool = betterproto.bool_field(5)
+    skip_unvetted_apps: bool = betterproto.bool_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -174,6 +235,8 @@ class ProfileItem(betterproto.Message):
     item_class: int = betterproto.uint32_field(9)
     movie_webm: str = betterproto.string_field(10)
     movie_mp4: str = betterproto.string_field(11)
+    movie_webm_small: str = betterproto.string_field(13)
+    movie_mp4_small: str = betterproto.string_field(14)
     equipped_flags: int = betterproto.uint32_field(12)
 
 
@@ -312,6 +375,7 @@ class CPlayerGetEmoticonListResponseEmoticon(betterproto.Message):
     time_last_used: int = betterproto.uint32_field(3)
     use_count: int = betterproto.uint32_field(4)
     time_received: int = betterproto.uint32_field(5)
+    appid: int = betterproto.uint32_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -336,6 +400,156 @@ class CPlayerGetAchievementsProgressResponseAchievementProgress(betterproto.Mess
     percentage: float = betterproto.float_field(4)
     all_unlocked: bool = betterproto.bool_field(5)
     cache_time: int = betterproto.uint32_field(6)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetFavoriteBadgeRequest(betterproto.Message):
+    steamid: int = betterproto.uint64_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetFavoriteBadgeResponse(betterproto.Message):
+    has_favorite_badge: bool = betterproto.bool_field(1)
+    badgeid: int = betterproto.uint32_field(2)
+    communityitemid: int = betterproto.uint64_field(3)
+    item_type: int = betterproto.uint32_field(4)
+    border_color: int = betterproto.uint32_field(5)
+    appid: int = betterproto.uint32_field(6)
+    level: int = betterproto.uint32_field(7)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerSetFavoriteBadgeRequest(betterproto.Message):
+    communityitemid: int = betterproto.uint64_field(1)
+    badgeid: int = betterproto.uint32_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerSetFavoriteBadgeResponse(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetProfileCustomizationRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+    include_inactive_customizations: bool = betterproto.bool_field(2)
+    include_purchased_customizations: bool = betterproto.bool_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class ProfileCustomizationSlot(betterproto.Message):
+    slot: int = betterproto.uint32_field(1)
+    appid: int = betterproto.uint32_field(2)
+    publishedfileid: int = betterproto.uint64_field(3)
+    item_assetid: int = betterproto.uint64_field(4)
+    item_contextid: int = betterproto.uint64_field(5)
+    notes: str = betterproto.string_field(6)
+    title: str = betterproto.string_field(7)
+    accountid: int = betterproto.uint32_field(8)
+    badgeid: int = betterproto.uint32_field(9)
+    border_color: int = betterproto.uint32_field(10)
+    item_classid: int = betterproto.uint64_field(11)
+    item_instanceid: int = betterproto.uint64_field(12)
+    ban_check_result: "EBanContentCheckResult" = betterproto.enum_field(13)
+
+
+@dataclass(eq=False, repr=False)
+class ProfileCustomization(betterproto.Message):
+    customization_type: "EProfileCustomizationType" = betterproto.enum_field(1)
+    large: bool = betterproto.bool_field(2)
+    slots: List["ProfileCustomizationSlot"] = betterproto.message_field(3)
+    active: bool = betterproto.bool_field(4)
+    customization_style: "EProfileCustomizationStyle" = betterproto.enum_field(5)
+    purchaseid: int = betterproto.uint64_field(6)
+    level: int = betterproto.uint32_field(7)
+
+
+@dataclass(eq=False, repr=False)
+class ProfileTheme(betterproto.Message):
+    theme_id: str = betterproto.string_field(1)
+    title: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetProfileCustomizationResponse(betterproto.Message):
+    customizations: List["ProfileCustomization"] = betterproto.message_field(1)
+    slots_available: int = betterproto.uint32_field(2)
+    profile_theme: "ProfileTheme" = betterproto.message_field(3)
+    purchased_customizations: List[
+        "CPlayerGetProfileCustomizationResponsePurchasedCustomization"
+    ] = betterproto.message_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetProfileCustomizationResponsePurchasedCustomization(betterproto.Message):
+    purchaseid: int = betterproto.uint64_field(1)
+    customization_type: "EProfileCustomizationType" = betterproto.enum_field(2)
+    level: int = betterproto.uint32_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetPurchasedProfileCustomizationsRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetPurchasedProfileCustomizationsResponse(betterproto.Message):
+    purchased_customizations: List[
+        "CPlayerGetPurchasedProfileCustomizationsResponsePurchasedCustomization"
+    ] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetPurchasedProfileCustomizationsResponsePurchasedCustomization(betterproto.Message):
+    purchaseid: int = betterproto.uint64_field(1)
+    customization_type: "EProfileCustomizationType" = betterproto.enum_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetPurchasedAndUpgradedProfileCustomizationsRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetPurchasedAndUpgradedProfileCustomizationsResponse(betterproto.Message):
+    purchased_customizations: List[
+        "CPlayerGetPurchasedAndUpgradedProfileCustomizationsResponsePurchasedCustomization"
+    ] = betterproto.message_field(1)
+    upgraded_customizations: List[
+        "CPlayerGetPurchasedAndUpgradedProfileCustomizationsResponseUpgradedCustomization"
+    ] = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetPurchasedAndUpgradedProfileCustomizationsResponsePurchasedCustomization(betterproto.Message):
+    customization_type: "EProfileCustomizationType" = betterproto.enum_field(1)
+    count: int = betterproto.uint32_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetPurchasedAndUpgradedProfileCustomizationsResponseUpgradedCustomization(betterproto.Message):
+    customization_type: "EProfileCustomizationType" = betterproto.enum_field(1)
+    level: int = betterproto.uint32_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetProfileThemesAvailableRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetProfileThemesAvailableResponse(betterproto.Message):
+    profile_themes: List["ProfileTheme"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerSetProfileThemeRequest(betterproto.Message):
+    theme_id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerSetProfileThemeResponse(betterproto.Message):
+    pass
 
 
 @dataclass(eq=False, repr=False)
@@ -404,7 +618,7 @@ class CPlayerGetLastPlayedTimesResponseGame(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CPlayerAcceptSsaRequest(betterproto.Message):
-    pass
+    agreement_type: "EAgreementType" = betterproto.enum_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -504,6 +718,9 @@ class CPlayerCommunityPreferences(betterproto.Message):
     hide_adult_content_violence: bool = betterproto.bool_field(1)
     hide_adult_content_sex: bool = betterproto.bool_field(2)
     parenthesize_nicknames: bool = betterproto.bool_field(4)
+    text_filter_setting: "ETextFilterSetting" = betterproto.enum_field(5)
+    text_filter_ignore_friends: bool = betterproto.bool_field(6)
+    text_filter_words_revision: int = betterproto.uint32_field(7)
     timestamp_updated: int = betterproto.uint32_field(3)
 
 
@@ -520,6 +737,23 @@ class CPlayerSetCommunityPreferencesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CPlayerSetCommunityPreferencesResponse(betterproto.Message):
     pass
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetTextFilterWordsRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerTextFilterWords(betterproto.Message):
+    text_filter_custom_banned_words: List[str] = betterproto.string_field(1)
+    text_filter_custom_clean_words: List[str] = betterproto.string_field(2)
+    text_filter_words_revision: int = betterproto.uint32_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerGetTextFilterWordsResponse(betterproto.Message):
+    words: "CPlayerTextFilterWords" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -611,6 +845,11 @@ class CPlayerNewSteamAnnouncementStateNotification(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CPlayerCommunityPreferencesChangedNotification(betterproto.Message):
     preferences: "CPlayerCommunityPreferences" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CPlayerTextFilterWordsChangedNotification(betterproto.Message):
+    words: "CPlayerTextFilterWords" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)

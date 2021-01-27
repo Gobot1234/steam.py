@@ -8,7 +8,6 @@ from . import (
     steammessages_player,
     steammessages_twofactor,
     steammessages_useraccount,
-    steammessages_webui_friends,
 )
 
 __all__ = ("UMS",)
@@ -19,7 +18,7 @@ UMS = {
     "GameServers.GetServerList#1_Response": steammessages_gameservers.CGameServersGetServerListResponse,
     "GameServers.GetServerSteamIDsByIP#1_Request": steammessages_gameservers.CGameServersGetServerSteamIDsByIpRequest,
     "GameServers.GetServerSteamIDsByIP#1_Response": steammessages_gameservers.CGameServersIPsWithSteamIDsResponse,
-    "GameServers.GetServerIPsBySteamID#1_Request": steammessages_gameservers.CGameServersGetServerIPsBySteamIDRequest,
+    "GameServers.GetServerIPsBySteamID#1_Request": steammessages_gameservers.CGameServersGetServerIPsBySteamIdRequest,
     "GameServers.GetServerIPsBySteamID#1_Response": steammessages_gameservers.CGameServersIPsWithSteamIDsResponse,
     "TwoFactor.AddAuthenticator#1_Request": steammessages_twofactor.CTwoFactorAddAuthenticatorRequest,
     "TwoFactor.AddAuthenticator#1_Response": steammessages_twofactor.CTwoFactorAddAuthenticatorResponse,
@@ -145,8 +144,11 @@ UMS = {
     "FriendMessages.AckMessage#1": steammessages_friendmessages.CFriendMessagesAckMessageNotification,
     "FriendMessages.GetRecentMessages#1_Request": steammessages_friendmessages.CFriendMessagesGetRecentMessagesRequest,
     "FriendMessages.GetRecentMessages#1_Response": steammessages_friendmessages.CFriendMessagesGetRecentMessagesResponse,
+    "FriendMessages.UpdateMessageReaction#1_Request": steammessages_friendmessages.CFriendMessagesUpdateMessageReactionRequest,
+    "FriendMessages.UpdateMessageReaction#1_Response": steammessages_friendmessages.CFriendMessagesUpdateMessageReactionResponse,
     "FriendMessagesClient.IncomingMessage#1": steammessages_friendmessages.CFriendMessagesIncomingMessageNotification,
     "FriendMessagesClient.NotifyAckMessageEcho#1": steammessages_friendmessages.CFriendMessagesAckMessageNotification,
+    "FriendMessagesClient.MessageReaction#1": steammessages_friendmessages.CFriendMessagesMessageReactionNotification,
     "UserAccount.CreateFriendInviteToken#1_Request": steammessages_useraccount.CUserAccountCreateFriendInviteTokenRequest,
     "UserAccount.CreateFriendInviteToken#1_Response": steammessages_useraccount.CUserAccountCreateFriendInviteTokenResponse,
     "UserAccount.GetFriendInviteTokens#1_Request": steammessages_useraccount.CUserAccountGetFriendInviteTokensRequest,
@@ -156,6 +158,4 @@ UMS = {
     "UserAccount.RedeemFriendInviteToken#1_Request": steammessages_useraccount.CUserAccountRedeemFriendInviteTokenRequest,
     "UserAccount.RedeemFriendInviteToken#1_Response": steammessages_useraccount.CUserAccountRedeemFriendInviteTokenResponse,
     "UserAccount.RevokeFriendInviteToken#1_Request": steammessages_useraccount.CUserAccountRevokeFriendInviteTokenRequest,
-    "Community.GetCommentThread#1_Request": steammessages_webui_friends.CCommunityGetCommentThreadRequest,
-    "Community.GetCommentThread#1_Response": steammessages_webui_friends.CCommunityGetCommentThreadResponse,
 }

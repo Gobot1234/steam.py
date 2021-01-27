@@ -49,6 +49,11 @@ class EChatRoomServerMessage(betterproto.Enum):
     AppCustom = 11
 
 
+class EChatRoomMessageReactionType(betterproto.Enum):
+    Invalid = 0
+    Emoticon = 1
+
+
 class EChatRoomMemberStateChange(betterproto.Enum):
     Invalid = 0
     Joined = 1
@@ -587,6 +592,15 @@ class CChatRoomGetMessageHistoryResponseChatMessage(betterproto.Message):
     ordinal: int = betterproto.uint32_field(4)
     server_message: "ServerMessage" = betterproto.message_field(5)
     deleted: bool = betterproto.bool_field(6)
+    reactions: List["CChatRoomGetMessageHistoryResponseChatMessageMessageReaction"] = betterproto.message_field(7)
+
+
+@dataclass(eq=False, repr=False)
+class CChatRoomGetMessageHistoryResponseChatMessageMessageReaction(betterproto.Message):
+    reaction_type: "EChatRoomMessageReactionType" = betterproto.enum_field(1)
+    reaction: str = betterproto.string_field(2)
+    num_reactors: int = betterproto.uint32_field(3)
+    has_user_reacted: bool = betterproto.bool_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -873,6 +887,38 @@ class CChatRoomSearchMembersResponseMemberMatch(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class CChatRoomUpdateMessageReactionRequest(betterproto.Message):
+    chat_group_id: int = betterproto.uint64_field(1)
+    chat_id: int = betterproto.uint64_field(2)
+    server_timestamp: int = betterproto.uint32_field(3)
+    ordinal: int = betterproto.uint32_field(4)
+    reaction_type: "EChatRoomMessageReactionType" = betterproto.enum_field(5)
+    reaction: str = betterproto.string_field(6)
+    is_add: bool = betterproto.bool_field(7)
+
+
+@dataclass(eq=False, repr=False)
+class CChatRoomUpdateMessageReactionResponse(betterproto.Message):
+    num_reactors: int = betterproto.uint32_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CChatRoomGetMessageReactionReactorsRequest(betterproto.Message):
+    chat_group_id: int = betterproto.uint64_field(1)
+    chat_id: int = betterproto.uint64_field(2)
+    server_timestamp: int = betterproto.uint32_field(3)
+    ordinal: int = betterproto.uint32_field(4)
+    reaction_type: "EChatRoomMessageReactionType" = betterproto.enum_field(5)
+    reaction: str = betterproto.string_field(6)
+    limit: int = betterproto.uint32_field(7)
+
+
+@dataclass(eq=False, repr=False)
+class CChatRoomGetMessageReactionReactorsResponse(betterproto.Message):
+    reactors: List[int] = betterproto.uint32_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class CClanChatRoomsGetClanChatRoomInfoRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     autocreate: bool = betterproto.bool_field(2)
@@ -999,6 +1045,18 @@ class CChatRoomClientMemberListViewUpdatedNotificationMemberListViewEntry(better
     rank: int = betterproto.int32_field(1)
     accountid: int = betterproto.uint32_field(2)
     persona: "CMsgClientPersonaStateFriend" = betterproto.message_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class CChatRoomMessageReactionNotification(betterproto.Message):
+    chat_group_id: int = betterproto.uint64_field(1)
+    chat_id: int = betterproto.uint64_field(2)
+    server_timestamp: int = betterproto.uint32_field(3)
+    ordinal: int = betterproto.uint32_field(4)
+    reactor: int = betterproto.fixed64_field(5)
+    reaction_type: "EChatRoomMessageReactionType" = betterproto.enum_field(6)
+    reaction: str = betterproto.string_field(7)
+    is_add: bool = betterproto.bool_field(8)
 
 
 @dataclass(eq=False, repr=False)

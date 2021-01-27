@@ -241,7 +241,7 @@ class CMsgClientManageFriendsGroupResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientAddFriendToGroup(betterproto.Message):
     groupid: int = betterproto.int32_field(1)
-    steamid: int = betterproto.fixed64_field(2)
+    steamiduser: int = betterproto.fixed64_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -252,7 +252,7 @@ class CMsgClientAddFriendToGroupResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientRemoveFriendFromGroup(betterproto.Message):
     groupid: int = betterproto.int32_field(1)
-    steamid: int = betterproto.fixed64_field(2)
+    steamiduser: int = betterproto.fixed64_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -279,6 +279,7 @@ class CMsgClientEmoticonListEmoticon(betterproto.Message):
     time_last_used: int = betterproto.uint32_field(3)
     use_count: int = betterproto.uint32_field(4)
     time_received: int = betterproto.uint32_field(5)
+    appid: int = betterproto.uint32_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -287,6 +288,8 @@ class CMsgClientEmoticonListSticker(betterproto.Message):
     count: int = betterproto.int32_field(2)
     time_received: int = betterproto.uint32_field(3)
     appid: int = betterproto.uint32_field(4)
+    time_last_used: int = betterproto.uint32_field(5)
+    use_count: int = betterproto.uint32_field(6)
 
 
 @dataclass(eq=False, repr=False)

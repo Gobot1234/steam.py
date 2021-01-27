@@ -117,6 +117,7 @@ class CMsgClientLogonResponse(betterproto.Message):
     ogs_data_report_time_window: int = betterproto.int32_field(26)
     client_instance_id: int = betterproto.uint64_field(27)
     force_client_update_check: bool = betterproto.bool_field(28)
+    agreement_session_url: str = betterproto.string_field(29)
 
 
 @dataclass(eq=False, repr=False)

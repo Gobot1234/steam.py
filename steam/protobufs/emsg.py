@@ -1468,7 +1468,7 @@ class EMsg(IntEnum):
     UMQIncomingChatMessage                                   = 8105
     UMQPoll                                                  = 8106
     UMQPollResults                                           = 8107
-    UMQ2AM_ClientMsgBatch                                    = 8108
+    UMQ2AMClientMsgBatch                                    = 8108
 
     WorkshopBase                                             = 8200
 

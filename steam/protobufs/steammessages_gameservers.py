@@ -58,5 +58,5 @@ class CGameServersIPsWithSteamIDsResponseServer(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CGameServersGetServerIPsBySteamIDRequest(betterproto.Message):
+class CGameServersGetServerIPsBySteamIdRequest(betterproto.Message):
     server_steamids: List[int] = betterproto.fixed64_field(1)

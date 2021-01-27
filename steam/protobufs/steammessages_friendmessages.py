@@ -8,6 +8,11 @@ from typing import List
 import betterproto
 
 
+class EMessageReactionType(betterproto.Enum):
+    Invalid = 0
+    Emoticon = 1
+
+
 @dataclass(eq=False, repr=False)
 class CFriendMessagesGetRecentMessagesRequest(betterproto.Message):
     steamid1: int = betterproto.fixed64_field(1)
@@ -33,6 +38,16 @@ class CFriendMessagesGetRecentMessagesResponseFriendMessage(betterproto.Message)
     timestamp: int = betterproto.uint32_field(2)
     message: str = betterproto.string_field(3)
     ordinal: int = betterproto.uint32_field(4)
+    reactions: List["CFriendMessagesGetRecentMessagesResponseFriendMessageMessageReaction"] = betterproto.message_field(
+        5
+    )
+
+
+@dataclass(eq=False, repr=False)
+class CFriendMessagesGetRecentMessagesResponseFriendMessageMessageReaction(betterproto.Message):
+    reaction_type: "EMessageReactionType" = betterproto.enum_field(1)
+    reaction: str = betterproto.string_field(2)
+    reactors: List[int] = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -83,6 +98,32 @@ class CFriendMessagesAckMessageNotification(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class CFriendMessagesIsInFriendsUiBetaRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CFriendMessagesIsInFriendsUiBetaResponse(betterproto.Message):
+    online_in_friendsui: bool = betterproto.bool_field(1)
+    has_used_friendsui: bool = betterproto.bool_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CFriendMessagesUpdateMessageReactionRequest(betterproto.Message):
+    steamid: int = betterproto.fixed64_field(1)
+    server_timestamp: int = betterproto.uint32_field(2)
+    ordinal: int = betterproto.uint32_field(3)
+    reaction_type: "EMessageReactionType" = betterproto.enum_field(4)
+    reaction: str = betterproto.string_field(5)
+    is_add: bool = betterproto.bool_field(6)
+
+
+@dataclass(eq=False, repr=False)
+class CFriendMessagesUpdateMessageReactionResponse(betterproto.Message):
+    reactors: List[int] = betterproto.uint32_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class CFriendMessagesIncomingMessageNotification(betterproto.Message):
     steamid_friend: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)
@@ -93,3 +134,14 @@ class CFriendMessagesIncomingMessageNotification(betterproto.Message):
     local_echo: bool = betterproto.bool_field(7)
     message_no_bbcode: str = betterproto.string_field(8)
     low_priority: bool = betterproto.bool_field(9)
+
+
+@dataclass(eq=False, repr=False)
+class CFriendMessagesMessageReactionNotification(betterproto.Message):
+    steamid_friend: int = betterproto.fixed64_field(1)
+    server_timestamp: int = betterproto.uint32_field(2)
+    ordinal: int = betterproto.uint32_field(3)
+    reactor: int = betterproto.fixed64_field(4)
+    reaction_type: "EMessageReactionType" = betterproto.enum_field(5)
+    reaction: str = betterproto.string_field(6)
+    is_add: bool = betterproto.bool_field(7)

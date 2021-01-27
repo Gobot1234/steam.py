@@ -46,6 +46,13 @@ class EProtoClanEventType(betterproto.Enum):
     InGameEventGeneral = 35
 
 
+class PartnerEventNotificationType(betterproto.Enum):
+    Start = 0
+    BroadcastStart = 1
+    MatchStart = 2
+    PartnerMaxType = 3
+
+
 @dataclass(eq=False, repr=False)
 class CMsgIpAddress(betterproto.Message):
     v4: int = betterproto.fixed32_field(1, group="ip")
@@ -124,6 +131,7 @@ class CcddbAppDetailCommon(betterproto.Message):
     friendly_name: str = betterproto.string_field(10)
     propagation: str = betterproto.string_field(11)
     has_adult_content: bool = betterproto.bool_field(12)
+    is_visible_in_steam_china: bool = betterproto.bool_field(13)
 
 
 @dataclass(eq=False, repr=False)
@@ -239,6 +247,8 @@ class CClanEventData(betterproto.Message):
     rtime32_last_modified: int = betterproto.uint32_field(24)
     news_post_gid: int = betterproto.fixed64_field(25)
     rtime_mod_reviewed: int = betterproto.uint32_field(26)
+    featured_app_tagid: int = betterproto.uint32_field(27)
+    referenced_appids: List[int] = betterproto.uint32_field(28)
 
 
 @dataclass(eq=False, repr=False)
@@ -253,3 +263,15 @@ class CBillingAddress(betterproto.Message):
     postcode: str = betterproto.string_field(8)
     zip_plus4: int = betterproto.int32_field(9)
     phone: str = betterproto.string_field(10)
+
+
+@dataclass(eq=False, repr=False)
+class CPackageReservationStatus(betterproto.Message):
+    packageid: int = betterproto.uint32_field(1)
+    reservation_state: int = betterproto.int32_field(2)
+    queue_position: int = betterproto.int32_field(3)
+    total_queue_size: int = betterproto.int32_field(4)
+    reservation_country_code: str = betterproto.string_field(5)
+    expired: bool = betterproto.bool_field(6)
+    time_expires: int = betterproto.uint32_field(7)
+    time_reserved: int = betterproto.uint32_field(8)

@@ -151,13 +151,13 @@ class CMsgClientUcmEnumerateUserPublishedFiles(betterproto.Message):
 class CMsgClientUcmEnumerateUserPublishedFilesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     published_files: List[
-        "CMsgClientUcmEnumerateUserPublishedFilesResponsePublishedFileID"
+        "CMsgClientUcmEnumerateUserPublishedFilesResponsePublishedFileId"
     ] = betterproto.message_field(2)
     total_results: int = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
-class CMsgClientUcmEnumerateUserPublishedFilesResponsePublishedFileID(betterproto.Message):
+class CMsgClientUcmEnumerateUserPublishedFilesResponsePublishedFileId(betterproto.Message):
     published_file_id: int = betterproto.fixed64_field(1)
 
 
@@ -174,13 +174,13 @@ class CMsgClientUcmEnumerateUserSubscribedFiles(betterproto.Message):
 class CMsgClientUcmEnumerateUserSubscribedFilesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     subscribed_files: List[
-        "CMsgClientUcmEnumerateUserSubscribedFilesResponsePublishedFileID"
+        "CMsgClientUcmEnumerateUserSubscribedFilesResponsePublishedFileId"
     ] = betterproto.message_field(2)
     total_results: int = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
-class CMsgClientUcmEnumerateUserSubscribedFilesResponsePublishedFileID(betterproto.Message):
+class CMsgClientUcmEnumerateUserSubscribedFilesResponsePublishedFileId(betterproto.Message):
     published_file_id: int = betterproto.fixed64_field(1)
     rtime32_subscribed: int = betterproto.fixed32_field(2)
 
@@ -197,13 +197,13 @@ class CMsgClientUcmEnumerateUserSubscribedFilesWithUpdates(betterproto.Message):
 class CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     subscribed_files: List[
-        "CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileID"
+        "CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileId"
     ] = betterproto.message_field(2)
     total_results: int = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
-class CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileID(betterproto.Message):
+class CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileId(betterproto.Message):
     published_file_id: int = betterproto.fixed64_field(1)
     rtime32_subscribed: int = betterproto.fixed32_field(2)
     appid: int = betterproto.uint32_field(3)
@@ -286,12 +286,12 @@ class CMsgClientUcmGetPublishedFilesForUser(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientUcmGetPublishedFilesForUserResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    published_files: List["CMsgClientUcmGetPublishedFilesForUserResponsePublishedFileID"] = betterproto.message_field(2)
+    published_files: List["CMsgClientUcmGetPublishedFilesForUserResponsePublishedFileId"] = betterproto.message_field(2)
     total_results: int = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
-class CMsgClientUcmGetPublishedFilesForUserResponsePublishedFileID(betterproto.Message):
+class CMsgClientUcmGetPublishedFilesForUserResponsePublishedFileId(betterproto.Message):
     published_file_id: int = betterproto.fixed64_field(1)
 
 
@@ -318,13 +318,13 @@ class CMsgClientUcmEnumeratePublishedFilesByUserAction(betterproto.Message):
 class CMsgClientUcmEnumeratePublishedFilesByUserActionResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     published_files: List[
-        "CMsgClientUcmEnumeratePublishedFilesByUserActionResponsePublishedFileID"
+        "CMsgClientUcmEnumeratePublishedFilesByUserActionResponsePublishedFileId"
     ] = betterproto.message_field(2)
     total_results: int = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
-class CMsgClientUcmEnumeratePublishedFilesByUserActionResponsePublishedFileID(betterproto.Message):
+class CMsgClientUcmEnumeratePublishedFilesByUserActionResponsePublishedFileId(betterproto.Message):
     published_file_id: int = betterproto.fixed64_field(1)
     rtime_time_stamp: int = betterproto.fixed32_field(2)
 
@@ -471,7 +471,7 @@ class CMsgClientRegisterOemMachineResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CMsgClientPurchaseWithMachineID(betterproto.Message):
+class CMsgClientPurchaseWithMachineId(betterproto.Message):
     package_id: int = betterproto.uint32_field(1)
     machine_info: bytes = betterproto.bytes_field(2)
 
@@ -530,6 +530,7 @@ class CMsgClientGetDepotDecryptionKeyResponse(betterproto.Message):
 class CMsgClientCheckAppBetaPassword(betterproto.Message):
     app_id: int = betterproto.uint32_field(1)
     betapassword: str = betterproto.string_field(2)
+    language: int = betterproto.int32_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -542,6 +543,7 @@ class CMsgClientCheckAppBetaPasswordResponse(betterproto.Message):
 class CMsgClientCheckAppBetaPasswordResponseBetaPassword(betterproto.Message):
     betaname: str = betterproto.string_field(1)
     betapassword: str = betterproto.string_field(2)
+    betadescription: str = betterproto.string_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -593,6 +595,7 @@ class CMsgDownloadRateStatistics(betterproto.Message):
     cell_id: int = betterproto.uint32_field(1)
     stats: List["CMsgDownloadRateStatisticsStatsInfo"] = betterproto.message_field(2)
     throttling_kbps: int = betterproto.uint32_field(3)
+    steam_realm: int = betterproto.uint32_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -656,12 +659,14 @@ class CMsgClientUgsGetGlobalStatsResponseDayStat(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgGameServerData(betterproto.Message):
     steam_id_gs: int = betterproto.fixed64_field(1)
-    deprecated_ip: int = betterproto.uint32_field(2)
     query_port: int = betterproto.uint32_field(3)
     game_port: int = betterproto.uint32_field(4)
-    sourcetv_port: int = betterproto.uint32_field(5)
-    name: str = betterproto.string_field(22)
-    game_ip_address: "CMsgIpAddress" = betterproto.message_field(23)
+    spectator_port: int = betterproto.uint32_field(5)
+    server_name: str = betterproto.string_field(22)
+    game_description: str = betterproto.string_field(29)
+    spectator_server_name: str = betterproto.string_field(27)
+    fake_ip: int = betterproto.fixed32_field(28)
+    sdr_login: bytes = betterproto.bytes_field(26)
     app_id: int = betterproto.uint32_field(6)
     gamedir: str = betterproto.string_field(7)
     version: str = betterproto.string_field(8)
@@ -675,9 +680,9 @@ class CMsgGameServerData(betterproto.Message):
     dedicated: bool = betterproto.bool_field(16)
     os: str = betterproto.string_field(17)
     game_data: str = betterproto.string_field(18)
-    game_data_version: int = betterproto.uint32_field(19)
     game_type: str = betterproto.string_field(20)
     map: str = betterproto.string_field(21)
+    revision: int = betterproto.uint32_field(24)
 
 
 @dataclass(eq=False, repr=False)
@@ -687,10 +692,8 @@ class CMsgGameServerDataPlayer(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgGameServerRemove(betterproto.Message):
-    steam_id: int = betterproto.fixed64_field(1)
-    deprecated_ip: int = betterproto.uint32_field(2)
-    query_port: int = betterproto.uint32_field(3)
-    ip: "CMsgIpAddress" = betterproto.message_field(4)
+    legacy_steam_id_gs: int = betterproto.fixed64_field(1)
+    legacy_query_port: int = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -711,7 +714,7 @@ class CMsgGmsClientServerQueryResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgGmsClientServerQueryResponseServer(betterproto.Message):
     deprecated_server_ip: int = betterproto.uint32_field(1)
-    server_port: int = betterproto.uint32_field(2)
+    query_port: int = betterproto.uint32_field(2)
     auth_players: int = betterproto.uint32_field(3)
     server_ip: "CMsgIpAddress" = betterproto.message_field(4)
 
@@ -840,7 +843,7 @@ class CMsgDrmDownloadResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgDrmFinalResult(betterproto.Message):
-    eresult: int = betterproto.uint32_field(1)
+    e_result: int = betterproto.uint32_field(1)
     app_id: int = betterproto.uint32_field(2)
     blob_download_type: int = betterproto.uint32_field(3)
     error_detail: int = betterproto.uint32_field(4)
@@ -857,7 +860,7 @@ class CMsgClientDpCheckSpecialSurvey(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientDpCheckSpecialSurveyResponse(betterproto.Message):
-    eresult: int = betterproto.uint32_field(1)
+    e_result: int = betterproto.uint32_field(1)
     state: int = betterproto.uint32_field(2)
     name: str = betterproto.string_field(3)
     custom_url: str = betterproto.string_field(4)
@@ -873,7 +876,7 @@ class CMsgClientDpSendSpecialSurveyResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientDpSendSpecialSurveyResponseReply(betterproto.Message):
-    eresult: int = betterproto.uint32_field(1)
+    e_result: int = betterproto.uint32_field(1)
     token: bytes = betterproto.bytes_field(2)
 
 
@@ -885,7 +888,7 @@ class CMsgClientRequestForgottenPasswordEmail(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientRequestForgottenPasswordEmailResponse(betterproto.Message):
-    eresult: int = betterproto.uint32_field(1)
+    e_result: int = betterproto.uint32_field(1)
     use_secret_question: bool = betterproto.bool_field(2)
 
 
@@ -917,7 +920,7 @@ class CMsgClientUserNotifications(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientUserNotificationsNotification(betterproto.Message):
-    type: int = betterproto.uint32_field(1)
+    user_notification_type: int = betterproto.uint32_field(1)
     count: int = betterproto.uint32_field(2)
 
 
@@ -997,11 +1000,11 @@ class CMsgClientEmailAddrInfo(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgCreItemVoteSummary(betterproto.Message):
-    published_file_ids: List["CMsgCreItemVoteSummaryPublishedFileID"] = betterproto.message_field(1)
+    published_file_ids: List["CMsgCreItemVoteSummaryPublishedFileId"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class CMsgCreItemVoteSummaryPublishedFileID(betterproto.Message):
+class CMsgCreItemVoteSummaryPublishedFileId(betterproto.Message):
     published_file_id: int = betterproto.fixed64_field(1)
 
 
@@ -1033,11 +1036,11 @@ class CMsgCreUpdateUserPublishedItemVoteResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgCreGetUserPublishedItemVoteDetails(betterproto.Message):
-    published_file_ids: List["CMsgCreGetUserPublishedItemVoteDetailsPublishedFileID"] = betterproto.message_field(1)
+    published_file_ids: List["CMsgCreGetUserPublishedItemVoteDetailsPublishedFileId"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class CMsgCreGetUserPublishedItemVoteDetailsPublishedFileID(betterproto.Message):
+class CMsgCreGetUserPublishedItemVoteDetailsPublishedFileId(betterproto.Message):
     published_file_id: int = betterproto.fixed64_field(1)
 
 
