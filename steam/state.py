@@ -69,7 +69,6 @@ from .user import User
 if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
-    from .comment import Comment
     from .gateway import SteamWebSocket
     from .protobufs.steammessages_chat import (
         CChatRoomChatRoomHeaderStateNotification as GroupStateUpdate,
@@ -77,7 +76,10 @@ if TYPE_CHECKING:
         ChatRoomClientNotifyChatGroupUserStateChangedNotification as GroupAction,
     )
     from .protobufs.steammessages_clientserver import CMsgClientCMList
-    from .protobufs.steammessages_clientserver_2 import CMsgClientCommentNotifications
+    from .protobufs.steammessages_clientserver_2 import (
+        CMsgClientCommentNotifications as CommentNotifications,
+        CMsgClientUserNotifications as GeneralNotifications
+    )
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientFriendsList,
         CMsgClientPersonaState,
@@ -792,7 +794,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientUserNotifications)
     async def parse_notification(self, msg: MsgProto) -> None:
         for notification in msg.body.notifications:
-            if notification.type == 1:  # received a trade offer
+            if notification.user_notification_type == 1:  # received a trade offer
 
                 async def poll_trades() -> None:
                     while self._trades_to_watch:

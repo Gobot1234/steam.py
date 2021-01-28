@@ -101,6 +101,8 @@ if TYPE_CHECKING:
         def __int__(self) -> int:
             ...
 
+    Intable: Union[Intable, str] = ...
+
 
 # fmt: off
 ETypeType = Union[
