@@ -35,7 +35,9 @@ import html
 import json
 import re
 import sys
+import struct
 import warnings
+from io import BytesIO
 from inspect import isawaitable
 from operator import attrgetter
 from typing import (
@@ -481,6 +483,46 @@ def warn(message: str, warning_type: type[Warning] = DeprecationWarning) -> None
         category=warning_type,
     )
     warnings.simplefilter("default", warning_type)  # reset filter
+
+
+class BytesBuffer(BytesIO):
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(buffer={self.getvalue()}, position={self.tell()})"
+
+    def read_struct(self, format: str, position: Optional[int] = None) -> tuple:
+        buffer = self.read(position or struct.calcsize(format))
+        return struct.unpack(format, buffer)
+
+    def write_struct(self, format: str, *to_write: Any) -> None:
+        self.write(struct.pack(format, *to_write))
+
+    def read_int16(self, position: int = 2) -> int:
+        return self.read_struct("<h", position)[0]
+
+    def write_int16(self, int16: int) -> None:
+        self.write_struct("<h", int16)
+
+    def read_uint32(self, position: int = 4) -> int:
+        return self.read_struct("<I", position)[0]
+
+    def write_uint32(self, uint32: int) -> None:
+        self.write_struct("<I", uint32)
+
+    def read_uint64(self, position: int = 8) -> int:
+        return self.read_struct("<Q", position)[0]
+
+    def write_uint64(self, uint64: int) -> None:
+        self.write_struct("<Q", uint64)
+
+    def read_cstring(self, terminator=b'\x00') -> bytes:
+        tell = self.tell()
+        data = self.read()
+        null_index = data.find(terminator)
+        if null_index == -1:
+            raise RuntimeError("Reached end of buffer")
+        result = data[:null_index]  # bytes without the terminator
+        self.seek(tell + null_index + len(terminator))  # advance offset past terminator
+        return result
 
 
 # everything below here is directly from discord.py's utils

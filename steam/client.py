@@ -42,6 +42,7 @@ from typing_extensions import Literal, final
 
 from . import errors, utils
 from .abc import SteamID
+from .game_server import Query, GameServer
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
@@ -619,6 +620,32 @@ class Client:
         if steam_id is None:
             return None
         return await self._connection.fetch_clan(steam_id.id64)
+
+    async def fetch_servers(
+        self, query: Query, limit: int = 100, timeout: float = 20.0
+    ) -> Optional[list[GameServer]]:
+        """|coro|
+        Query game servers.
+        """
+        servers = await self._connection.query_servers(query.query, limit, timeout)
+
+        if servers is None:
+            return None
+
+        return [GameServer(server) for server in servers]
+
+    async def fetch_server_players(
+        self,
+        *,
+        ip: Optional[str] = None,
+        port: Optional[int] = None,
+        timeout: Optional[float] = 2,
+        challenge: int = 0,
+    ):
+        server = GameServer.__new__(GameServer)
+        server.ip = ip
+        server.port = port
+        return await GameServer.fetch_players(server, timeout=timeout, challenge=challenge)
 
     def trade_history(
         self,
