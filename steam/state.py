@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     from .protobufs.steammessages_clientserver import CMsgClientCMList
     from .protobufs.steammessages_clientserver_2 import (
         CMsgClientCommentNotifications as CommentNotifications,
-        CMsgClientUserNotifications as GeneralNotifications
+        CMsgClientUserNotifications as GeneralNotifications,
     )
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientFriendsList,
@@ -729,7 +729,7 @@ class ConnectionState(Registerable):
                     friend.ulfriendid
                     for friend in msg.body.friends
                     if friend.efriendrelationship == EFriendRelationship.Friend
-                    and (friend.ulfriendid >> 52) & 0xf != EType.Clan
+                    and (friend.ulfriendid >> 52) & 0xF != EType.Clan
                 ]
             )
             for friend in self.client.user.friends:
