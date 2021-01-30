@@ -325,7 +325,7 @@ class WishlistGame(Game):
         self.logo_url = data["capsule"]
         self.score = data["review_score"]
         self.total_reviews = int(data["reviews_total"].replace(",", ""))
-        self.review_status = EReviewType(data["review_desc"])
+        self.review_status = EReviewType[data["review_desc"].replace(" ", "")]
         self.created_at = datetime.utcfromtimestamp(int(data["release_date"]))
         self.type = data["type"]
         self.screenshots: list[str] = [

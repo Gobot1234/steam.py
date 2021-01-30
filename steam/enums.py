@@ -24,7 +24,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-EnumMeta from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
+EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discord/enums.py
 """
 
 from __future__ import annotations
@@ -489,13 +489,14 @@ class EUserBadge(IntEnum):
     WinterSaleEvent2019               = 44  #: The Winter sale badge for 2019.
 
 
-class EReviewType(Enum):
-    OverwhelminglyPositive = "Overwhelmingly Positive"  #: 95 - 99% positive reviews.
-    VeryPositive           = "Very Positive"            #: 94 - 80% positive reviews.
-    Positive               = "Positive"                 #: 80 - 99% positive reviews but few of them.
-    MostlyPositive         = "Mostly Positive"          #: 70 - 79% positive reviews.
-    Mixed                  = "Mixed"                    #: 40 - 69% positive reviews.
-    MostlyNegative         = "Mostly Negative"          #: 20? - 39% positive reviews but few of them.
-    Negative               = "Negative"                 #: 0 - 39% positive reviews.
-    VeryNegative           = "Very Negative"            #: 0 - 19% positive reviews.
-    OverwhelminglyNegative = "Overwhelmingly Negative"  #: 0 - 19% positive reviews and many of them.
+class EReviewType(IntEnum):
+    OverwhelminglyPositive = 9  #: 95 - 99% positive reviews.
+    VeryPositive           = 8  #: 94 - 80% positive reviews.
+    Positive               = 7  #: 80 - 99% positive reviews but few of them.
+    MostlyPositive         = 6  #: 70 - 79% positive reviews.
+    Mixed                  = 5  #: 40 - 69% positive reviews.
+    MostlyNegative         = 4  #: 20? - 39% positive reviews but few of them.
+    Negative               = 3  #: 0 - 39% positive reviews.
+    VeryNegative           = 2  #: 0 - 19% positive reviews.
+    OverwhelminglyNegative = 1  #: 0 - 19% positive reviews and many of them.
+    NONE                   = 0  #: No reviews
