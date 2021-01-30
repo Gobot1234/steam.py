@@ -623,12 +623,12 @@ class Client:
         return await self._connection.fetch_clan(steam_id.id64)
 
     async def fetch_servers(
-        self, query: Query, limit: int = 100, timeout: float = 20.0
+        self, query: Query, limit: int = 100
     ) -> Optional[list[GameServer]]:
         """|coro|
         Query game servers.
         """
-        servers = await self._connection.query_servers(query.query, limit, timeout)
+        servers = await self._connection.query_servers(query.query, limit)
 
         if servers is None:
             return None
@@ -640,13 +640,12 @@ class Client:
         *,
         ip: Optional[str] = None,
         port: Optional[int] = None,
-        timeout: Optional[float] = 2,
         challenge: int = 0,
     ):
         server = GameServer.__new__(GameServer)
         server.ip = ip
         server.port = port
-        return await GameServer.fetch_players(server, timeout=timeout, challenge=challenge)
+        return await GameServer.players(server, challenge=challenge)
 
     def trade_history(
         self,
