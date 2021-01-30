@@ -433,6 +433,7 @@ class SteamWebSocket(Registerable):
         except Exception:
             log.debug(f"Send GC message {msg.msg}")
 
+        self._dispatch("gc_message_send", msg)
         message.body.msgtype = utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg
         message.body.payload = bytes(msg)
         await self.send_as_proto(message)
