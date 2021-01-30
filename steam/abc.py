@@ -182,17 +182,17 @@ class SteamID(metaclass=abc.ABCMeta):
     @property
     def instance(self) -> int:
         """:class:`int`: The instance of the SteamID."""
-        return (int(self) >> 32) & 0xfffff
+        return (int(self) >> 32) & 0xFFFFF
 
     @property
     def type(self) -> EType:
         """:class:`~steam.EType`: The Steam type of the SteamID."""
-        return EType((int(self) >> 52) & 0xf)
+        return EType((int(self) >> 52) & 0xF)
 
     @property
     def universe(self) -> EUniverse:
         """:class:`~steam.EUniverse`: The Steam universe of the SteamID."""
-        return EUniverse((int(self) >> 56) & 0xff)
+        return EUniverse((int(self) >> 56) & 0xFF)
 
     @property
     def id64(self) -> int:
@@ -202,7 +202,7 @@ class SteamID(metaclass=abc.ABCMeta):
     @property
     def id(self) -> int:
         """:class:`int`: The SteamID's 32 bit ID."""
-        return int(self) & 0xffffffff
+        return int(self) & 0xFFFFFFFF
 
     @property
     def id2(self) -> str:
