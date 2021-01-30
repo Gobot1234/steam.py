@@ -1,57 +1,31 @@
 # -*- coding: utf-8 -*-
 
-import pathlib
+import subprocess
+import sys
 
 try:
     import black
-    import click
-    import isort.main
+    import isort
     import pytest
+    import pytest_asyncio
+    import typer
 except ImportError as exc:
     print(f'Failed to import {exc.name} make sure you installed "steamio[dev]" to get extra dependencies.')
 
-PATH = pathlib.Path(__file__)
-STEAM_PY = PATH.parent.parent
-STEAM = STEAM_PY / "steam"
-TESTS = STEAM_PY / "tests"
+app = typer.Typer()
 
 
-@click.command()
-@click.option("-t", "--test", is_flag=True, help="Whether or not to run the tests.")
-@click.option("-f", "--format", is_flag=True, help="Whether or not to run the format code.")
-@click.pass_context
-def main(ctx: click.Context, test: bool, format: bool = True) -> None:
+@app.command()
+def main(
+    test: bool = typer.Option(False, "-t", "--test", help="Whether or not to run the tests."),
+    format: bool = typer.Option(True, "-f", "--format", help="Whether or not to run the format code."),
+) -> None:
     if format:
-        black.out("Starting formatting")
-        isort.main.main(
-            [
-                "steam",
-                "tests",
-                "--combine-as",
-                "--profile",
-                "black",
-                "-l120",
-                "-n",
-            ]
-        )
-        black_ctx = black.main.make_context(
-            __file__,
-            [
-                ".",
-                "-l120",
-            ],
-        )
-        black.main.invoke(black_ctx)
-        black.out("Done running formatting")
+        subprocess.run([sys.executable, "-m", "isort", "."])
+        subprocess.run([sys.executable, "-m", "black", "."])
     if test:
-        testable_files = [f.as_posix() for f in TESTS.iterdir() if "test" in f.name]
-        ctx.exit(pytest.main(testable_files))
-
-
-main: click.Command
+        subprocess.run([sys.executable, "-m", "pytest"])
 
 
 if __name__ == "__main__":
-    black.freeze_support()
-    black.patch_click()
-    main()
+    app()

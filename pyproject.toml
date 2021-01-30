@@ -20,3 +20,6 @@ show_error_codes = true
 warn_no_return = false
 pretty = true
 files = "steam/*.py, steam/ext/commands/*.py, steam/protobufs/__init__.py, steam/protobufs/headers.py"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
