@@ -42,6 +42,7 @@ from typing_extensions import Literal, final
 
 from . import errors, utils
 from .abc import SteamID
+from .game import Game
 from .game_server import Query, GameServer
 from .gateway import *
 from .guard import generate_one_time_code
@@ -57,7 +58,6 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .comment import Comment
     from .enums import EPersonaState, EPersonaStateFlag, EUIMode
-    from .game import Game
     from .group import Group
     from .invite import ClanInvite, Invite, UserInvite
     from .protobufs import Msg, MsgProto
@@ -356,6 +356,7 @@ class Client:
 
         if self.ws is not None:
             try:
+                await self.change_presence(game=Game(id=0))  # disconnect from games
                 await self.ws.handle_close()
             except ConnectionClosed:
                 pass
@@ -658,14 +659,18 @@ class Client:
         :class:`steam.TradeOffer` objects.
 
         Examples
-        -----------
+        --------
 
         Usage: ::
 
             async for trade in client.trade_history(limit=10):
-                print('Partner:', trade.partner, 'Sent:')
-                print(', '.join(item.name if item.name else str(item.asset_id) for item in trade.items_to_receive)
-                      if trade.items_to_receive else 'Nothing')
+                print("Partner:", trade.partner)
+                print(
+                    "Sent:",
+                    item.name or str(item.asset_id) for item in trade.items_to_receive
+                    if trade.items_to_receive
+                    else "Nothing",
+                )
 
         Flattening into a list: ::
 
@@ -734,7 +739,7 @@ class Client:
         games = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games.append(game.to_dict())
-        flags = flags or self.user.flags
+        flags = flags or getattr(self.user, "flags", [])
         if flag is not None:
             flags.append(flag)
         flag_value = 0

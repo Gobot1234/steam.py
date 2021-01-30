@@ -265,7 +265,7 @@ class CommentsIterator(AsyncIterator[Comment]):
                     return
         users = await self._state.fetch_users(to_fetch)
         for user, comment in itertools.product(users, self.queue):
-            if comment.author == user.id64:
+            if comment.author == user.id:
                 comment.author = user
 
 
@@ -338,7 +338,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                 if trade.partner == user.id64:
                     trade.partner = user
 
-            if total > 100:
+            if total < 100:
                 for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
                     users_to_fetch = []
                     resp = await self._state.http.get_trade_history(page, previous_time)
@@ -352,7 +352,10 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                         if trade.partner == user.id64:
                             trade.partner = user
         except StopAsyncIteration:
-            return
+            users = await self._state.fetch_users(users_to_fetch)  # fetch the final users
+            for user, trade in itertools.product(users, self.queue):
+                if trade.partner == user.id64:
+                    trade.partner = user
 
 
 class ChannelHistoryIterator(AsyncIterator["Message"]):

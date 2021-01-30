@@ -44,6 +44,7 @@ PROTOBUFS = {
     EMsg.ClientAuthList: steammessages_clientserver.CMsgClientAuthList,
     EMsg.ClientAuthListAck: steammessages_clientserver.CMsgClientAuthListAck,
     EMsg.ClientLicenseList: steammessages_clientserver.CMsgClientLicenseList,
+    EMsg.ClientGamesPlayedWithDataBlob: steammessages_clientserver.CMsgClientGamesPlayed,
     EMsg.ClientIsLimitedAccount: steammessages_clientserver.CMsgClientIsLimitedAccount,
     EMsg.ClientRequestedClientStats: steammessages_clientserver.CMsgClientRequestedClientStats,
     EMsg.ClientStat2: steammessages_clientserver.CMsgClientStat2,
