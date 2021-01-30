@@ -332,7 +332,7 @@ class Inventory(Generic[I]):
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
-    def filter_items(self, *names: str, **kwargs: Any) -> list[I]:
+    def filter_items(self, *names: str, limit: int) -> list[I]:
         """A helper function that filters items by name from the inventory.
 
         Parameters
@@ -352,9 +352,6 @@ class Inventory(Generic[I]):
         list[:class:`Item`]
             The matching items.
         """
-        limit: Optional[int] = kwargs.pop("limit", None)
-        if kwargs:
-            raise TypeError(f"filter_items got unexpected keyword argument {list(kwargs.items())}")
         if len(names) > 1 and limit:
             raise ValueError("Cannot pass a limit with multiple items")
         items = [item for item in self if item.name in names]

@@ -109,8 +109,6 @@ class ConnectionState(Registerable):
         "_clans",
         "_confirmations",
         "_confirmations_to_ignore",
-        "_obj",
-        "_previous_iteration",
         "_trades_task",
         "_trades_to_watch",
         "_trades_received_cache",
@@ -330,6 +328,7 @@ class ConnectionState(Registerable):
         return ret
 
     async def _poll_trades(self) -> None:
+        # TODO this can probably be optimized using sets
         resp = await self.http.get_trade_offers()
         trades = resp["response"]
         descriptions = trades.get("descriptions", [])
@@ -344,32 +343,6 @@ class ConnectionState(Registerable):
         self._trades_received_cache = trades_received
         self._trades_sent_cache = trades_sent
         self._descriptions_cache = descriptions
-
-    async def _parse_comment(self) -> Optional[Comment]:
-        resp = await self.request("GET", community_route("my/commentnotifications"))
-        search = re.search(r'<div class="commentnotification_click_overlay">\s*<a href="(.*?)">', resp)
-        if search is None:
-            return
-        steam_id = await SteamID.from_url(search.group(1), self.http._session)
-        if steam_id is None:
-            return
-        if steam_id.type == EType.Clan:
-            obj = await self.fetch_clan(steam_id.id64)
-        else:
-            obj = await self.fetch_user(steam_id.id64)
-        if obj is None:
-            return
-
-        if self._obj is obj:
-            self._previous_iteration += 1
-        else:
-            self._obj = obj
-            self._previous_iteration = 0
-        comments = await obj.comments(limit=self._previous_iteration + 1).flatten()
-        try:
-            return comments[self._previous_iteration]
-        except KeyError:
-            pass
 
     # confirmations
 
@@ -783,16 +756,33 @@ class ConnectionState(Registerable):
                         self.dispatch("clan_invite_accept", invite)
 
     @register(EMsg.ClientCommentNotifications)
-    async def handle_comments(self, msg: MsgProto[CMsgClientCommentNotifications]) -> None:
-        for _ in range(msg.body.count_new_comments):
-            comment = await self._parse_comment()
-            if comment is not None:
-                self.dispatch("comment", comment)
-        self._obj = None
+    async def handle_comments(self, _: MsgProto[CommentNotifications]) -> None:
+        previous = None
+        resp = await self.request("GET", community_route("my/commentnotifications"))
+        soup = BeautifulSoup(resp, "html.parser")
+        for attr in soup.find_all("div", attrs={"class": "commentnotification_click_overlay"}):
+            steam_id = await SteamID.from_url(attr.contents[1]["href"], self.http._session)
+            if steam_id is None:
+                continue
+            if steam_id != previous:
+                obj = await (self.fetch_clan if steam_id.type == EType.Clan else self.fetch_user)(steam_id.id64)
+                if obj is None:
+                    continue
+                index = 0
+            else:
+                obj = previous
+                index += 1
+
+            comments = await obj.comments(limit=index + 1)
+            try:
+                self.dispatch("comment", comments[index])
+            except IndexError:
+                pass
+
         await self.http.clear_notifications()
 
     @register(EMsg.ClientUserNotifications)
-    async def parse_notification(self, msg: MsgProto) -> None:
+    async def parse_notification(self, msg: MsgProto[GeneralNotifications]) -> None:
         for notification in msg.body.notifications:
             if notification.user_notification_type == 1:  # received a trade offer
 
