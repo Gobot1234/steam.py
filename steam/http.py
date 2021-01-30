@@ -110,7 +110,7 @@ class HTTPClient:
         self.logged_in = False
         self.user_agent = (
             f"steam.py/{__version__} client (https://github.com/Gobot1234/steam.py), "
-            f"Python/{version_info[0]}.{version_info[1]}, aiohttp/{aiohttp.__version__}"
+            f"Python/{version_info.major}.{version_info.minor}, aiohttp/{aiohttp.__version__}"
         )
 
         self.proxy: Optional[str] = options.get("proxy")
@@ -119,7 +119,10 @@ class HTTPClient:
 
     def recreate(self) -> None:
         if self._session.closed:
-            self._session = aiohttp.ClientSession(connector=self.connector)
+            self._session = aiohttp.ClientSession(
+                cookies={"Steam_Language": "english"},  # make sure the language is set to english
+                connector=self.connector,
+            )
 
     async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Optional[Any]:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
@@ -197,15 +200,18 @@ class HTTPClient:
         self.password = password
         self.shared_secret = shared_secret
 
-        self._session = aiohttp.ClientSession()
+        self._session = aiohttp.ClientSession(
+            cookies={"Steam_Language": "english"},  # make sure the language is set to english
+            connector=self.connector,
+        )
 
         resp = await self._send_login_request()
 
         if resp.get("captcha_needed") and resp.get("message") != "Please wait and try again later.":
             self._captcha_id = resp["captcha_gid"]
             print(
-                "Please enter the captcha text at"
-                f" https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
+                "Please enter the captcha text at "
+                f"https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
             )
             captcha_text = await utils.ainput(">>> ")
             self._captcha_text = captcha_text.strip()
@@ -228,7 +234,7 @@ class HTTPClient:
             log.info("Failed to get API key")
 
             async def get_user(self, user_id64: int) -> dict:
-                user_id = int(user_id64) & 0xffffffff
+                user_id = int(user_id64) & 0xFFFFFFFF
                 ret = await self.request("GET", community_route(f"miniprofile/{user_id}/json"))
                 ret["steamid"] = user_id64
                 return ret
