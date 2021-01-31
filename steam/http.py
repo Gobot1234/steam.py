@@ -119,7 +119,10 @@ class HTTPClient:
 
     def recreate(self) -> None:
         if self._session.closed:
-            self._session = aiohttp.ClientSession(connector=self.connector)
+            self._session = aiohttp.ClientSession(
+            cookies={"Steam_Language": "english"},  # make sure the language is set to english
+            connector=self.connector,
+        )
 
     async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Optional[Any]:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
@@ -197,7 +200,10 @@ class HTTPClient:
         self.password = password
         self.shared_secret = shared_secret
 
-        self._session = aiohttp.ClientSession()
+        self._session = aiohttp.ClientSession(
+            cookies={"Steam_Language": "english"},  # make sure the language is set to english
+            connector=self.connector,
+        )
 
         resp = await self._send_login_request()
 
