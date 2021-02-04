@@ -508,7 +508,7 @@ class SteamWebSocket(Registerable):
         return msg.header.body.job_id_source
 
     async def send_um_and_wait(
-        self, name: str, check: Optional[Callable[[MsgBase], bool]] = None, timeout: float = 5.0, **kwargs: Any
+        self, name: str, check: Optional[Callable[[MsgBase], bool]] = None, timeout: Optional[float] = 5.0, **kwargs: Any
     ) -> MsgProto:
         job_id = await self.send_um(name, **kwargs)
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)

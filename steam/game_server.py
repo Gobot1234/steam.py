@@ -5,14 +5,16 @@ import socket
 import struct
 from binascii import crc32
 from bz2 import decompress
-from typing import TYPE_CHECKING, TypeVar, Union, NamedTuple, Optional, Callable
+from typing import TYPE_CHECKING, TypeVar, Union, NamedTuple, Optional, Callable, Coroutine
+from datetime import timedelta
+
+from typing_extensions import Literal
 
 from . import SteamID
 from .game import Game
 from .utils import BytesBuffer
 
 if TYPE_CHECKING:
-    from datetime import timedelta
 
     from .protobufs.steammessages_gameservers import CGameServersGetServerListResponseServer
 
@@ -112,7 +114,7 @@ class Query(metaclass=QueryMeta):
 
             Combines the two queries in ``\nor\[x\y]``.
 
-        .. describe:: x | y
+        .. describe:: x & y
 
             Combines the two queries in ``\nand\[x\y]``.
 
@@ -127,17 +129,17 @@ class Query(metaclass=QueryMeta):
     def __init__(self, *values: str):
         self.raw = values
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Query query={self.query!r}>"
 
-    def __truediv__(self: Q, other: Query) -> Q:
+    def __truediv__(self, other: Union[Query, Game, list[str], str]) -> Query:
         if not isinstance(other, Query):
             cls = MAPPING[self.raw[-1]]
             self.raw = self.raw[:-1]
             other = cls / other
         return self.__class__(*self.raw, *other.raw)
 
-    def _parse_op(self: Q, op: str, other: Query) -> Q:
+    def _parse_op(self, op: str, other: Query) -> Query:
         if not isinstance(other, Query):
             return NotImplemented
         return self.__class__(
@@ -148,13 +150,14 @@ class Query(metaclass=QueryMeta):
             f"{other.raw[-1]}]"
         )
 
-    def __and__(self: Q, other: Query) -> Q:
+    # I'm not really sure what this does differently to __truediv__/when to use it.
+    def __and__(self, other: Query) -> Query:
         return self._parse_op("nand", other)
 
-    def __or__(self: Q, other: Query) -> Q:
+    def __or__(self, other: Query) -> Query:
         return self._parse_op("nor", other)
 
-    def __eq__(self, other: Query):
+    def __eq__(self, other: Query) -> bool:
         if not isinstance(other, Query):
             return NotImplemented
         return self.raw == other.raw
@@ -166,7 +169,7 @@ class Query(metaclass=QueryMeta):
 
 
 class StringQuery(Query):
-    def __truediv__(self: Q, other: Union[str, Query]) -> Q:
+    def __truediv__(self: Q, other: Union[str, Query]) -> Query:
         if other.__class__ is Query:
             return super().__truediv__(other)
         if not isinstance(other, str):
@@ -175,7 +178,7 @@ class StringQuery(Query):
 
 
 class ListQuery(Query):
-    def __truediv__(self: Q, other: Union[list[str], Query]) -> Q:
+    def __truediv__(self, other: Union[list[str], Query]) -> Query:
         if other.__class__ is Query:
             return super().__truediv__(other)
         if not isinstance(other, list):
@@ -184,7 +187,7 @@ class ListQuery(Query):
 
 
 class GameQuery(Query):
-    def __truediv__(self: Q, other: Union[Game, Query]) -> Q:
+    def __truediv__(self, other: Union[Game, Query]) -> Query:
         if other.__class__ is Query:
             return super().__truediv__(other)
         if isinstance(other, Game):
@@ -210,9 +213,9 @@ class ServerPlayer(NamedTuple):
     play_time: timedelta
 
 
-async def _handle_a2s_response(read: Callable[[int], asyncio.Future[bytes]]) -> bytes:
+async def _handle_a2s_response(read: Callable[[int], Coroutine[None, None, bytes]]) -> bytes:
     packet = await read(2048)
-    header = struct.unpack("<l", packet)[0]
+    header = struct.unpack_from("<l", packet)[0]
 
     if header == -1:  # single packet response
         return packet
@@ -327,24 +330,50 @@ class GameServer(SteamID):
     def is_dedicated(self) -> bool:
         return self._dedicated
 
-    async def fetch_players(self, *, timeout: Optional[float] = 2.0, challenge: int = 0) -> Optional[list[ServerPlayer]]:
+    async def players(self, *, challenge: Literal[-1, 0] = -1) -> Optional[list[ServerPlayer]]:
+        """|coro|
+        Fetch a servers players.
+
+        Parameters
+        ----------
+        challenge: :class:`int`
+            The challenge for the request default is -1 can also be 0. You may need to change if the server doesn't seem
+            to respond.
+
+        Notes
+        -----
+            - ServerPlayer is a :class:`typing.NamedTuple` defined as:
+
+                .. code-block:: python3
+
+                    class ServerPlayer(NamedTuple):
+                        index: int
+                        name: str
+                        score: int
+                        play_time: timedelta
+
+            - It is recommended to use :func:`asyncio.wait_for` to allow this to return if the server doesn't respond.
+
+        Returns
+        -------
+        Optional[list[:class:`ServerPlayer`]]
+            The players, or None if something went wrong getting the info.
+        """
+        # UDP sucks.
         loop = asyncio.get_event_loop()
-        socket_ = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        await loop.sock_connect(socket_, (self.ip, self.port))
-        read: Callable[[int], asyncio.Future[bytes]] = (
-            lambda n: asyncio.wait_for(loop.sock_recv(socket_, n), timeout=timeout)
-        )
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setblocking(False)
 
         try:
-            socket_.send(struct.pack('<lci', -1, b'U', challenge))
+            await loop.sock_connect(sock, (self.ip, self.port))
+            read = lambda n: loop.sock_recv(sock, n)
+            sock.send(struct.pack('<lci', -1, b'U', challenge))
             data = await read(512)
             _, header, challenge_ = struct.unpack_from('<lcl', data)
-
-            # request player info
-            if header == b"D":  # work around for CSGO sending only max players
+            if header == b"D":
                 data = BytesBuffer(data)
             elif header == b"A":
-                socket_.send(struct.pack("<lci", -1, b"U", challenge_))
+                sock.send(struct.pack("<lci", -1, b"U", challenge_))
 
                 data = BytesBuffer(await _handle_a2s_response(read))
             else:
@@ -358,17 +387,17 @@ class GameServer(SteamID):
             players = []
 
             for _ in range(num_players):
+                index = data.read_struct("<B")[0]
+                name = data.read_cstring().decode("utf-8", "replace")
                 score, duration = data.read_struct("<lf")
                 player = ServerPlayer(
-                    index=data.read_struct("<B")[0],
-                    name=data.read_cstring().decode("utf-8", "replace"),
+                    index=index,
+                    name=name,
                     score=score,
                     play_time=timedelta(seconds=duration),
                 )
                 players.append(player)
 
             return players
-        except asyncio.TimeoutError:
-            return None
         finally:
-            socket_.close()
+            sock.close()

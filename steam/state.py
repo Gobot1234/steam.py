@@ -560,15 +560,13 @@ class ConnectionState(Registerable):
 
         return msg
 
-    async def query_servers(
-        self, query: str, limit: int, timeout: Optional[float]
-    ) -> Optional[list[GameServersMessage]]:
+    async def query_servers(self, query: str, limit: int) -> Optional[list[GameServersMessage]]:
         try:
             msg: MsgProto[GetGameServers] = await self.ws.send_um_and_wait(
                 "GameServers.GetServerList#1_Request",
                 filter=query,
                 limit=limit,
-                timeout=timeout,
+                timeout=None,
             )
         except asyncio.TimeoutError:
             return None

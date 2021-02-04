@@ -41,6 +41,7 @@ __all__ = (
     "Game",
     "CSGO",
     "DOTA2",
+    "LFD2",
     "STEAM",
     "CUSTOM_GAME",
     "UserGame",
