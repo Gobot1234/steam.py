@@ -34,8 +34,8 @@ import functools
 import html
 import json
 import re
-import sys
 import struct
+import sys
 import warnings
 from io import BytesIO
 from inspect import isawaitable
@@ -496,20 +496,20 @@ class BytesBuffer(BytesIO):
     def write_struct(self, format: str, *to_write: Any) -> None:
         self.write(struct.pack(format, *to_write))
 
-    def read_int16(self, position: int = 2) -> int:
-        return self.read_struct("<h", position)[0]
+    def read_int16(self) -> int:
+        return self.read_struct("<h", 2)[0]
 
     def write_int16(self, int16: int) -> None:
         self.write_struct("<h", int16)
 
-    def read_uint32(self, position: int = 4) -> int:
-        return self.read_struct("<I", position)[0]
+    def read_uint32(self) -> int:
+        return self.read_struct("<I", 4)[0]
 
     def write_uint32(self, uint32: int) -> None:
         self.write_struct("<I", uint32)
 
-    def read_uint64(self, position: int = 8) -> int:
-        return self.read_struct("<Q", position)[0]
+    def read_uint64(self) -> int:
+        return self.read_struct("<Q", 8)[0]
 
     def write_uint64(self, uint64: int) -> None:
         self.write_struct("<Q", uint64)
@@ -523,6 +523,12 @@ class BytesBuffer(BytesIO):
         result = data[:null_index]  # bytes without the terminator
         self.seek(tell + null_index + len(terminator))  # advance offset past terminator
         return result
+
+    def read_float(self) -> float:
+        return self.read_struct("<f", 4)[0]
+
+    def write_float(self, float: float) -> None:
+        return self.write_struct("<f", float)
 
 
 # everything below here is directly from discord.py's utils
