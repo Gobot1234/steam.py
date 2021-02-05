@@ -330,8 +330,8 @@ class Client:
             Unexpected keyword arguments were received.
         :exc:`.InvalidCredentials`
             Invalid credentials were passed.
-        :exc:`.HTTPException`
-            An unknown HTTP related error occurred.
+        :exc:`.LoginError`
+            An unknown login related error occurred.
         :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """

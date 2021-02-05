@@ -283,7 +283,7 @@ class HTTPClient:
         except KeyError:
             if current_repetitions < 5:
                 return await self._get_rsa_params(current_repetitions + 1)
-            raise ValueError("Could not obtain rsa-key")
+            raise errors.LoginError("Could not obtain rsa-key") from None
         else:
             return b64encode(rsa.encrypt(self.password.encode("utf-8"), rsa.PublicKey(n, e))), rsa_timestamp
 
@@ -313,6 +313,9 @@ class HTTPClient:
                 return resp
             return await self._send_login_request()
         except Exception as exc:
+            if isinstance(exc, errors.LoginError):
+                raise exc
+
             try:
                 msg = exc.args[0]
             except IndexError:
