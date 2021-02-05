@@ -115,7 +115,7 @@ class HelpCommand(Command):
 
         Parameters
         ----------
-        mapping: dict[Optional[commands.Cog], list[commands.Command]]
+        mapping: dict[Optional[:class:`str`], list[commands.Command]]
             The mapping from :meth:`get_bot_mapping`.
         """
 

@@ -490,7 +490,7 @@ class SteamWebSocket(Registerable):
         log.debug("Received a multi, unpacking")
         if msg.body.size_unzipped:
             log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
-            data = GZipReader(BytesIO(msg.body.message_body)).readall()  # TODO can we be more low level?
+            data = GZipReader(BytesIO(msg.body.message_body)).readall()
             if len(data) != msg.body.size_unzipped:
                 return log.info(f"Unzipped size mismatch for multi payload {msg}, discarding")
         else:
