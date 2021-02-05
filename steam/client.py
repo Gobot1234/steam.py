@@ -394,15 +394,6 @@ class Client:
             The shared secret for the account to login to.
         identity_secret: Optional[:class:`str`]
             The identity secret for the account to login to.
-
-        Raises
-        ------
-        :exc:`.InvalidCredentials`
-            The wrong credentials are passed.
-        :exc:`.HTTPException`
-            An unknown HTTP related error occurred.
-        :exc:`.NoCMsFound`
-            No community managers could be found to connect to.
         """
 
         self.username = username

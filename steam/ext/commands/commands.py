@@ -35,20 +35,7 @@ import functools
 import inspect
 import sys
 from time import time
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Coroutine,
-    ForwardRef,
-    Generator,
-    Iterable,
-    Optional,
-    OrderedDict,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, ForwardRef, Iterable, Optional, TypeVar, Union, overload
 
 from chardet import detect
 from typing_extensions import Literal, get_args, get_origin
@@ -299,10 +286,9 @@ class Command:
 
     @cached_property
     def clean_params(self) -> dict[str, inspect.Parameter]:
-        """dict[:class:`str`, :class:`inspect.Parameter`]:
-        The command's parameters without ``"self"`` and ``"ctx"``."""
+        """dict[:class:`str`, :class:`inspect.Parameter`]: The command's parameters without ``"self"`` and ``"ctx"``."""
         params = self.params.copy()
-        keys = list(params.keys())
+        keys = list(params)
         if self.cog is not None:
             try:
                 del params[keys.pop(0)]  # cog's "self" param
@@ -521,14 +507,12 @@ class Command:
                         args.append(transformed)
                         break
                     greedy_args.append(transformed)
-            elif param.kind == param.KEYWORD_ONLY:
-                # kwarg only param denotes "consume rest" semantics
+            elif param.kind == param.KEYWORD_ONLY:  # kwarg only param denotes "consume rest" semantics
                 kwargs[name] = await (
                     self._transform(ctx, param, ctx.lex.rest) if ctx.lex.rest else self._get_default(ctx, param)
                 )
                 break
-            elif param.kind == param.VAR_KEYWORD:
-                # same as **kwargs
+            elif param.kind == param.VAR_KEYWORD:  # same as **kwargs
                 kv_pairs = [arg.split("=") for arg in ctx.lex]
                 if not kv_pairs:
                     if "default" in kwargs:
@@ -557,8 +541,7 @@ class Command:
                     break
                 except ValueError:
                     raise UnmatchedKeyValuePair("Unmatched key-value pair passed") from None
-            elif param.kind == param.VAR_POSITIONAL:
-                # same as *args
+            elif param.kind == param.VAR_POSITIONAL:  # same as *args
                 for arg in ctx.lex:
                     transformed = await self._transform(ctx, param, arg)
                     args.append(transformed)
