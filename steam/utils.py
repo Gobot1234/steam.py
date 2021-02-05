@@ -180,10 +180,10 @@ def make_id64(
         # 64 bit
         elif 2 ** 32 < id < 2 ** 64:
             value = id
-            id = id & 0xFFFFFFFF
-            instance = (value >> 32) & 0xFFFFF
-            type = (value >> 52) & 0xF
-            universe = (value >> 56) & 0xFF
+            id = id & 0xffffffff
+            instance = (value >> 32) & 0xfffff
+            type = (value >> 52) & 0xf
+            universe = (value >> 56) & 0xff
         else:
             raise InvalidSteamID(id, "it is too large" if id > 2 ** 64 else "it is too small")
     # textual input e.g. [g:1:4]
@@ -336,7 +336,7 @@ URL_REGEX = re.compile(
 
 
 async def id64_from_url(
-    url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None, timeout: float = 30.0
+    url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None
 ) -> Optional[int]:
     """Takes a Steam Community url and returns 64 bit steam ID or ``None``.
 
@@ -363,8 +363,6 @@ async def id64_from_url(
         The Steam community url.
     session: Optional[:class:`aiohttp.ClientSession`]
         The session to make the request with. If ``None`` is passed a new one is generated.
-    timeout: Optional[:class:`float`]
-        How long to wait on http request before turning ``None``.
 
     Returns
     -------
@@ -383,13 +381,13 @@ async def id64_from_url(
     try:
         if search.group("type") in ("id", "profiles"):
             # user profile
-            r = await session.get(search.group("clean_url"), timeout=timeout)
+            r = await session.get(search.group("clean_url"))
             text = await r.text()
             data_match = re.search(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*", text)
             data = json.loads(data_match.group("json"))
         else:
             # group profile
-            r = await session.get(search.group("clean_url"), timeout=timeout)
+            r = await session.get(search.group("clean_url"))
             text = await r.text()
             data = re.search(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)", text)
         return int(data["steamid"])
