@@ -26,10 +26,9 @@ SOFTWARE.
 
 from __future__ import annotations
 
-import re
 import sys
 import types
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -41,13 +40,12 @@ from typing import (
     NoReturn,
     Optional,
     Tuple,
-    Type,
     TypeVar,
     Union,
     overload,
 )
 
-from typing_extensions import Literal, Protocol, get_args, get_origin, runtime_checkable
+from typing_extensions import Literal, Protocol, get_args, get_origin, runtime_checkable, TypeAlias
 
 from ... import utils
 from ...channel import Channel
@@ -84,8 +82,8 @@ __all__ = (
 )
 
 T = TypeVar("T")
-Converters = Union[Type["Converter"], "BasicConverter"]
-RD = Union[Callable[["MC"], "MC"], "MC"]
+Converters: TypeAlias = "Union[ConverterBase, BasicConverter]"
+RD: TypeAlias = "Union[Callable[[MC], MC], MC]"
 
 
 class ConverterDict(Dict[type, Tuple[Converters, ...]]):
@@ -153,7 +151,29 @@ def converter_for(converter_for: T) -> Callable[[MC], MC]:
 
 
 @runtime_checkable
-class Converter(Protocol[T]):
+class ConverterBase(Protocol[T]):
+    # this is the base class we use for isinstance checks, don't actually this
+    @abstractmethod
+    async def convert(self, ctx: "commands.Context", argument: str) -> "T":
+        """|coro|
+        An abstract method all converters must derive.
+
+        Parameters
+        ----------
+        ctx: :class:`~steam.ext.commands.Context`
+            The context for the invocation.
+        argument: :class:`str`
+            The argument that is passed from the argument parser.
+
+        Returns
+        -------
+        T
+            An object, should be of the same type of :attr:`converter_for`.
+        """
+        raise NotImplementedError("Derived classes must implement this")
+
+
+class Converter(ConverterBase[T], Generic[T], ABC):
     r"""A custom :class:`typing.Protocol` from which converters can be derived.
 
     Note
@@ -208,28 +228,9 @@ class Converter(Protocol[T]):
 
     converter_for: T  #: The class that the converter can be type-hinted to to.
 
-    @abstractmethod
-    async def convert(self, ctx: "commands.Context", argument: str):
-        """|coro|
-        An abstract method all converters must derive.
-
-        Parameters
-        ----------
-        ctx: :class:`~steam.ext.commands.Context`
-            The context for the invocation.
-        argument: :class:`str`
-            The argument that is passed from the argument parser.
-
-        Returns
-        -------
-        T
-            The created argument, should be of the same type of :attr:`converter_for`.
-        """
-        raise NotImplementedError("Derived classes must implement this")
-
     @classmethod
     @overload
-    def register(cls, command: Literal[None] = ...) -> Callable[["MC"], "MC"]:
+    def register(cls, command: Literal[None] = ...) -> Callable[[MC], MC]:
         ...
 
     @classmethod
@@ -549,25 +550,26 @@ class Greedy(Generic[T]):
 
     if TYPE_CHECKING:
 
-        def __iter__(self) -> Iterator[T]:  # make Unions and stuff sort of work
+        def __iter__(self) -> Iterator[T]:  # make IDEs sort of work
             ...
 
 
 # fmt: off
-ConverterTypes = Union[
+ConverterTypes: TypeAlias = """Union[
     T,
     str,
-    Tuple[T, ...],
-    Tuple[str, ...],
-]
-GreedyTypes = Union[
+    tuple[T, ...],
+    tuple[str, ...]
+]"""
+GreedyTypes: TypeAlias = """Union[
     T,                # a class/type
     str,              # should be a string with a ForwardRef to a class to be evaluated later
-    Tuple[T, ...],    # for Greedy[int,] / Greedy[(int,)] to be valid or Greedy[User, int] to be expanded to Union
-    Tuple[str, ...],  # same as above two points
+    tuple[T, ...],    # for Greedy[int,] / Greedy[(int,)] to be valid or Greedy[User, int] to be expanded to Union
+    tuple[str, ...],  # same as above two points
     BasicConverter,   # a callable simple converter
-    Converter,        # a Converter subclass
-]
+    ConverterBase,    # a Converter
+]"""
+
 INVALID_GREEDY_TYPES = (
     str,              # leads to parsing weirdness
     type(None),       # how would this work

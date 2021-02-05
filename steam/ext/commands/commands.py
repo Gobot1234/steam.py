@@ -603,9 +603,8 @@ class Command:
         param: inspect.Parameter,
         argument: str,
     ) -> Any:
-        if isinstance(converter, converters.Converter):
+        if isinstance(converter, converters.ConverterBase):
             try:
-                converter = converter() if callable(converter) else converter
                 return await converter.convert(ctx, argument)
             except Exception as exc:
                 try:
