@@ -352,7 +352,6 @@ class Client:
             return
 
         self._closed = True
-        await self.http.close()
 
         if self.ws is not None:
             try:
@@ -361,6 +360,7 @@ class Client:
             except ConnectionClosed:
                 pass
 
+        await self.http.close()
         self._ready.clear()
 
     def clear(self) -> None:
