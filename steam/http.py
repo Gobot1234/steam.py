@@ -718,7 +718,6 @@ class HTTPClient:
         if match:
             return match[0]
 
-        self.session_id = re.findall(r'g_sessionID = "(.*?)";', resp)[0]
         payload = {
             "domain": "steam.py",
             "agreeToTerms": "agreed",
