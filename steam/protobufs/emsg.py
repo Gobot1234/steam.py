@@ -320,7 +320,6 @@ class EMsg(IntEnum):
     GSUserPlaying                                            = 905
     GSStatus2                                                = 906
     GSServerType                                             = 908
-    GSPlayerList                                             = 909
     GSGetUserAchievementStatus                               = 910
     GSGetUserAchievementStatusResponse                       = 911
     GSGetPlayStats                                           = 918
