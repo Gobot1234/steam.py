@@ -313,7 +313,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @classmethod
     async def from_url(
-        cls, url: StrOrURL, session: Optional[ClientSession] = None, timeout: float = 30
+        cls, url: StrOrURL, session: Optional[ClientSession] = None
     ) -> Optional[SteamID]:
         """|coro|
         A helper function creates a SteamID instance from a Steam community url.
@@ -324,15 +324,13 @@ class SteamID(metaclass=abc.ABCMeta):
             The Steam community url to fetch.
         session: Optional[:class:`aiohttp.ClientSession`]
             The session to make the request with. If ``None`` is passed a new one is generated.
-        timeout: :class:`float`
-            How long to wait for a response before returning ``None``.
 
         Returns
         -------
         Optional[:class:`SteamID`]
             :class:`SteamID` instance or ``None``.
         """
-        id64 = await id64_from_url(url, session, timeout)
+        id64 = await id64_from_url(url, session)
         return cls(id64) if id64 else None
 
 
