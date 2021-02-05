@@ -5,8 +5,8 @@ import socket
 import struct
 from binascii import crc32
 from bz2 import decompress
-from typing import TYPE_CHECKING, TypeVar, Union, NamedTuple, Optional, Callable, Coroutine
 from datetime import timedelta
+from typing import TYPE_CHECKING, NamedTuple, Optional, TypeVar, Union
 
 from typing_extensions import Literal
 
@@ -15,7 +15,6 @@ from .game import Game
 from .utils import BytesBuffer
 
 if TYPE_CHECKING:
-
     from .protobufs.steammessages_gameservers import CGameServersGetServerListResponseServer
 
 Q = TypeVar("Q", bound="Query")
@@ -142,13 +141,7 @@ class Query(metaclass=QueryMeta):
     def _parse_op(self, op: str, other: Query) -> Query:
         if not isinstance(other, Query):
             return NotImplemented
-        return self.__class__(
-            *self.raw[:-1],
-            rf"{op}\[",
-            self.raw[-1],
-            *other.raw[:-1],
-            f"{other.raw[-1]}]"
-        )
+        return self.__class__(*self.raw[:-1], rf"{op}\[", self.raw[-1], *other.raw[:-1], f"{other.raw[-1]}]")
 
     # I'm not really sure what this does differently to __truediv__/when to use it.
     def __and__(self, other: Query) -> Query:
@@ -213,8 +206,8 @@ class ServerPlayer(NamedTuple):
     play_time: timedelta
 
 
-async def _handle_a2s_response(read: Callable[[int], Coroutine[None, None, bytes]]) -> bytes:
-    packet = await read(2048)
+async def _handle_a2s_response(loop: asyncio.AbstractEventLoop, sock: socket.socket) -> bytes:
+    packet = await loop.sock_recv(sock, 2048)
     header = struct.unpack_from("<l", packet)[0]
 
     if header == -1:  # single packet response
@@ -234,7 +227,7 @@ async def _handle_a2s_response(read: Callable[[int], Coroutine[None, None, bytes
 
             # if we still haven't found the offset receive the next packet
             if payload_offset == -1:
-                packet = await read(2048)
+                packet = await loop.sock_recv(sock, 2048)
                 packets.append(packet)
 
         # read header
@@ -245,7 +238,7 @@ async def _handle_a2s_response(read: Callable[[int], Coroutine[None, None, bytes
 
         # receive any remaining packets
         for _ in range(number_of_packets):
-            packets.append(await read(2048))
+            packets.append(await loop.sock_recv(sock, 2048))
 
         # ensure packets are in correct order
         packets = sorted({_unpack_multi_packet_header(payload_offset, packet)[0]: packet for packet in packets})
@@ -261,9 +254,7 @@ async def _handle_a2s_response(read: Callable[[int], Coroutine[None, None, bytes
             if len(data) != size:
                 raise ValueError(f"Response size mismatch - {len(data)} {size}")
             if check_sum != crc32(data):
-                raise ValueError(
-                    f"Response check sum mismatch - {check_sum} {crc32(data)}"
-                )
+                raise ValueError(f"Response check sum mismatch - {check_sum} {crc32(data)}")
 
         return data
 
@@ -359,45 +350,42 @@ class GameServer(SteamID):
         Optional[list[:class:`ServerPlayer`]]
             The players, or None if something went wrong getting the info.
         """
-        # UDP sucks.
+        # TCP over UDP :))))
         loop = asyncio.get_event_loop()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(False)
 
         try:
             await loop.sock_connect(sock, (self.ip, self.port))
-            read = lambda n: loop.sock_recv(sock, n)
-            sock.send(struct.pack('<lci', -1, b'U', challenge))
-            data = await read(512)
-            _, header, challenge_ = struct.unpack_from('<lcl', data)
+            sock.send(struct.pack("<lci", -1, b"U", challenge))
+            data = await loop.sock_recv(sock, 512)
+            _, header, challenge_ = struct.unpack_from("<lcl", data)
+
             if header == b"D":
-                data = BytesBuffer(data)
+                buffer = BytesBuffer(data)
             elif header == b"A":
                 sock.send(struct.pack("<lci", -1, b"U", challenge_))
 
-                data = BytesBuffer(await _handle_a2s_response(read))
+                buffer = BytesBuffer(await _handle_a2s_response(loop, sock))
             else:
                 return None
 
-            header, num_players = data.read_struct("<4xcB")
+            header, num_players = buffer.read_struct("<4xcB")
 
             if header != b"D":
                 return None
 
-            players = []
-
-            for _ in range(num_players):
-                index = data.read_struct("<B")[0]
-                name = data.read_cstring().decode("utf-8", "replace")
-                score, duration = data.read_struct("<lf")
-                player = ServerPlayer(
-                    index=index,
-                    name=name,
-                    score=score,
-                    play_time=timedelta(seconds=duration),
+            return [
+                ServerPlayer(
+                    index=buffer.read_struct("<B")[0],
+                    name=buffer.read_cstring().decode("utf-8", "replace"),
+                    score=buffer.read_struct("<f")[0],
+                    play_time=timedelta(seconds=buffer.read_float()),
                 )
-                players.append(player)
+                for _ in range(num_players)
+            ]
 
-            return players
+        except ValueError:
+            return None
         finally:
             sock.close()
