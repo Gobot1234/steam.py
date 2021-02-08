@@ -140,7 +140,7 @@ class Clan(Commentable, comment_path="Clan"):
         "game",
     )
 
-    # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/clans.js
+    # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type="Clan")
@@ -235,7 +235,7 @@ class Clan(Commentable, comment_path="Clan"):
         self.chat_id = proto.chat_group_id
         self.tagline = proto.chat_group_tagline or None
         self.active_member_count = proto.active_member_count
-        self.game = Game(id=proto.appid)
+        self.game = Game(id=proto.appid) if proto.appid else None
 
         self.owner = await self._state.fetch_user(utils.make_id64(proto.accountid_owner))
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
@@ -244,7 +244,7 @@ class Clan(Commentable, comment_path="Clan"):
         for role in proto.role_actions:
             self.roles.append(Role(self._state, self, role))
         try:
-            self.default_role = [r for r in self.roles if r.id == int(proto.default_role_id)][0]
+            self.default_role = utils.find(lambda r: r.id == int(proto.default_role_id), self.roles)
         except IndexError:
             pass
 
@@ -284,14 +284,13 @@ class Clan(Commentable, comment_path="Clan"):
         Returns
         --------
         list[:class:`~steam.SteamID`]
-            A basic list of the clan's members.
-            This can be a very slow operation due to
-            the rate limits on this endpoint.
+            A basic list of the clan's members. This can be a very slow operation due to the rate limits on this
+            endpoint.
         """
         ret = []
         resp = await self._state.request("GET", f"{self.url}/members?p=1&content_only=true")
         soup = BeautifulSoup(resp, "html.parser")
-        pages = int(soup.find_all("a", attrs={"class": "pagelink"}).pop().text)
+        number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", attrs={"class": "group_paging"}).text)[0])
 
         async def getter(i: int) -> None:
             try:
@@ -305,9 +304,7 @@ class Clan(Commentable, comment_path="Clan"):
                     for user in s.find_all("div", attrs={"class": "member_block"}):
                         ret.append(SteamID(user["data-miniprofile"]))
 
-        for i in range(pages):
-            await getter(i)
-
+        await asyncio.gather(*(getter(i) for i in range(number_of_pages)))
         return ret
 
     async def join(self) -> None:
