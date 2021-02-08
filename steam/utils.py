@@ -180,10 +180,10 @@ def make_id64(
         # 64 bit
         elif 2 ** 32 < id < 2 ** 64:
             value = id
-            id = id & 0xffffffff
-            instance = (value >> 32) & 0xfffff
-            type = (value >> 52) & 0xf
-            universe = (value >> 56) & 0xff
+            id = id & 0xFFFFFFFF
+            instance = (value >> 32) & 0xFFFFF
+            type = (value >> 52) & 0xF
+            universe = (value >> 56) & 0xFF
         else:
             raise InvalidSteamID(id, "it is too large" if id > 2 ** 64 else "it is too small")
     # textual input e.g. [g:1:4]
@@ -335,9 +335,7 @@ URL_REGEX = re.compile(
 )
 
 
-async def id64_from_url(
-    url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None
-) -> Optional[int]:
+async def id64_from_url(url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None) -> Optional[int]:
     """Takes a Steam Community url and returns 64 bit steam ID or ``None``.
 
     Notes
@@ -514,7 +512,7 @@ class BytesBuffer(BytesIO):
     def write_uint64(self, uint64: int) -> None:
         self.write_struct("<Q", uint64)
 
-    def read_cstring(self, terminator=b'\x00') -> bytes:
+    def read_cstring(self, terminator=b"\x00") -> bytes:
         tell = self.tell()
         data = self.read()
         null_index = data.find(terminator)

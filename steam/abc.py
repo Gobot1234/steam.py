@@ -311,9 +311,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(
-        cls, url: StrOrURL, session: Optional[ClientSession] = None
-    ) -> Optional[SteamID]:
+    async def from_url(cls, url: StrOrURL, session: Optional[ClientSession] = None) -> Optional[SteamID]:
         """|coro|
         A helper function creates a SteamID instance from a Steam community url.
 
@@ -754,7 +752,8 @@ _EndPointReturnType: TypeAlias = "tuple[Union[tuple[int, ...], int], Callable[..
 
 
 class _SupportsStr(Protocol):
-    def __str__(self) -> str: ...
+    def __str__(self) -> str:
+        ...
 
 
 @runtime_checkable
