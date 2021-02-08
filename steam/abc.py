@@ -79,7 +79,6 @@ if TYPE_CHECKING:
     from .state import ConnectionState
     from .user import User
 
-
 __all__ = (
     "SteamID",
     "Message",
@@ -754,6 +753,10 @@ class BaseUser(Commentable):
 _EndPointReturnType: TypeAlias = "tuple[Union[tuple[int, ...], int], Callable[..., Coroutine[None, None, None]]]"
 
 
+class _SupportsStr(Protocol):
+    def __str__(self) -> str: ...
+
+
 @runtime_checkable
 class Messageable(Protocol):
     """An ABC that details the common operations on a Steam message.
@@ -775,7 +778,7 @@ class Messageable(Protocol):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         raise NotImplementedError
 
-    async def send(self, content: Optional[str] = None, image: Optional[Image] = None) -> None:
+    async def send(self, content: Optional[_SupportsStr] = None, image: Optional[Image] = None) -> None:
         """|coro|
         Send a message to a certain destination.
 
