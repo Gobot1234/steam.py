@@ -234,7 +234,7 @@ class HTTPClient:
             log.info("Failed to get API key")
 
             async def get_user(self, user_id64: int) -> dict:
-                user_id = int(user_id64) & 0xFFFFFFFF
+                user_id = int(user_id64) & 0xffffffff
                 ret = await self.request("GET", community_route(f"miniprofile/{user_id}/json"))
                 ret["steamid"] = user_id64
                 return ret

@@ -30,7 +30,7 @@ import asyncio
 import gc
 import logging
 import weakref
-from collections import deque, ChainMap
+from collections import ChainMap, deque
 from datetime import datetime
 from time import time
 from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
@@ -686,7 +686,7 @@ class ConnectionState(Registerable):
                     friend.ulfriendid
                     for friend in msg.body.friends
                     if friend.efriendrelationship == EFriendRelationship.Friend
-                    and (friend.ulfriendid >> 52) & 0xF != EType.Clan
+                    and (friend.ulfriendid >> 52) & 0xf != EType.Clan
                 ]
             )
             for friend in self.client.user.friends:
