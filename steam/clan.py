@@ -240,13 +240,8 @@ class Clan(Commentable, comment_path="Clan"):
         self.owner = await self._state.fetch_user(utils.make_id64(proto.accountid_owner))
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
 
-        self.roles = []
-        for role in proto.role_actions:
-            self.roles.append(Role(self._state, self, role))
-        try:
-            self.default_role = utils.find(lambda r: r.id == int(proto.default_role_id), self.roles)
-        except IndexError:
-            pass
+        self.roles = [Role(self._state, self, role) for role in proto.role_actions]
+        self.default_role = utils.find(lambda r: r.id == int(proto.default_role_id), self.roles)
 
         self.channels = []
         self.default_channel = None
@@ -265,8 +260,7 @@ class Clan(Commentable, comment_path="Clan"):
                     if attr:
                         setattr(old_channel, name, attr)
 
-        default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)]
-        self.default_channel = default_channel[0] if default_channel else None
+        self.default_channel = utils.find(lambda c: c.id == int(proto.default_chat_id), self.channels)
         return self
 
     def __repr__(self) -> str:
