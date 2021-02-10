@@ -29,9 +29,8 @@ from __future__ import annotations
 import asyncio
 import gc
 import logging
-import re
 import weakref
-from collections import deque
+from collections import deque, ChainMap
 from datetime import datetime
 from time import time
 from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
@@ -251,12 +250,9 @@ class ConnectionState(Registerable):
         return self._clans.get(id)
 
     async def fetch_clan(self, id64: int) -> Optional[Clan]:
-        try:
-            msg: MsgProto[FetchGroupResponse] = await self.ws.send_um_and_wait(
-                "ClanChatRooms.GetClanChatRoomInfo#1_Request", steamid=id64, autocreate=True
-            )
-        except asyncio.TimeoutError:
-            return None
+        msg: MsgProto[FetchGroupResponse] = await self.ws.send_um_and_wait(
+            "ClanChatRooms.GetClanChatRoomInfo#1_Request", steamid=id64
+        )
         if msg.eresult == EResult.Busy:
             raise WSNotFound(msg)
         if msg.eresult != EResult.OK:
@@ -401,30 +397,27 @@ class ConnectionState(Registerable):
     # ws stuff
 
     @property
-    def _combined(self) -> dict[int, Union[Group, Clan]]:
-        return {
-            **self._groups,
-            **{clan.chat_id: clan for clan in self.clans},
-        }
+    def _combined(self) -> ChainMap[int, Union[Group, Clan]]:
+        return ChainMap(
+            {clan.chat_id: clan for clan in self._clans.values()},
+            self._groups,
+        )
 
-    async def send_user_message(self, user_id64: int, content: str) -> None:
-        try:
-            msg: MsgProto[SendUserMessageResponse] = await self.ws.send_um_and_wait(
-                "FriendMessages.SendMessage#1_Request",
-                steamid=user_id64,
-                message=content,
-                chat_entry_type=EChatEntryType.Text,
-                contains_bbcode=utils.contains_bbcode(content),
-            )
-        except asyncio.TimeoutError:
-            return
+    async def send_user_message(self, user_id64: int, content: str) -> UserMessage:
+        msg: MsgProto[SendUserMessageResponse] = await self.ws.send_um_and_wait(
+            "FriendMessages.SendMessage#1_Request",
+            steamid=user_id64,
+            message=content,
+            chat_entry_type=EChatEntryType.Text,
+            contains_bbcode=utils.contains_bbcode(content),
+        )
+
         if msg.eresult == EResult.LimitExceeded:
             raise WSForbidden(msg)
         if msg.eresult != EResult.OK:
             raise WSException(msg)
 
         proto = UserMessageNotification(
-            steamid_friend=0,
             chat_entry_type=EChatEntryType.Text,
             message=content,
             rtime32_server_timestamp=int(time()),
@@ -436,6 +429,8 @@ class ConnectionState(Registerable):
         self._messages.append(message)
         self.dispatch("message", message)
 
+        return message
+
     async def send_user_typing(self, user_id64: int) -> None:
         await self.ws.send_um(
             "FriendMessages.SendMessage#1_Request",
@@ -444,14 +439,12 @@ class ConnectionState(Registerable):
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
 
-    async def send_group_message(self, destination: tuple[int, int], content: str) -> None:
+    async def send_group_message(self, destination: tuple[int, int], content: str) -> Union[ClanMessage, GroupMessage]:
         chat_id, group_id = destination
-        try:
-            msg = await self.ws.send_um_and_wait(
-                "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content
-            )
-        except asyncio.TimeoutError:
-            return
+        msg = await self.ws.send_um_and_wait(
+            "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content
+        )
+
         if msg.eresult == EResult.LimitExceeded:
             raise WSForbidden(msg)
         if msg.eresult == EResult.InvalidParameter:
@@ -472,64 +465,54 @@ class ConnectionState(Registerable):
         self._messages.append(message)
         self.dispatch("message", message)
 
+        return message
+
     async def join_chat(self, chat_id: int, invite_code: Optional[str] = None) -> None:
-        try:
-            msg = await self.ws.send_um_and_wait(
-                "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or ""
-            )
-        except asyncio.TimeoutError:
-            return
+        msg = await self.ws.send_um_and_wait(
+            "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or ""
+        )
+
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
-        try:
-            msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
-        except asyncio.TimeoutError:
-            return
+        msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
+
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
     async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
-        try:
-            msg = await self.ws.send_um_and_wait(
-                "InviteFriendToChatRoomGroup#1_Request", chat_group_id=group_id, steamid=user_id64
-            )
-        except asyncio.TimeoutError:
-            return
+        msg = await self.ws.send_um_and_wait(
+            "InviteFriendToChatRoomGroup#1_Request", chat_group_id=group_id, steamid=user_id64
+        )
+
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
     async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
-        try:
-            msg = await self.ws.send_um_and_wait(
-                "ChatRoom.RenameRole#1_Request", chat_group_id=group_id, role_id=role_id, name=name
-            )
-        except asyncio.TimeoutError:
-            return
+        msg = await self.ws.send_um_and_wait(
+            "ChatRoom.RenameRole#1_Request", chat_group_id=group_id, role_id=role_id, name=name
+        )
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
     async def get_user_history(self, user_id64: int, start: int, last: int) -> Optional[MsgProto[DMChannelHistory]]:
-        try:
-            msg: MsgProto[DMChannelHistory] = await self.ws.send_um_and_wait(
-                "FriendMessages.GetRecentMessages#1_Request",
-                steamid1=self.client.user.id64,
-                steamid2=user_id64,
-                rtime32_start_time=start,
-                time_last=last,
-                count=100,
-            )
-        except asyncio.TimeoutError:
-            return
+        msg: MsgProto[DMChannelHistory] = await self.ws.send_um_and_wait(
+            "FriendMessages.GetRecentMessages#1_Request",
+            steamid1=self.client.user.id64,
+            steamid2=user_id64,
+            rtime32_start_time=start,
+            time_last=last,
+            count=100,
+        )
 
         if msg.eresult != EResult.OK:
             raise WSException(msg)
@@ -539,17 +522,14 @@ class ConnectionState(Registerable):
     async def get_group_history(
         self, group_id: int, chat_id: int, start: int, last: int
     ) -> Optional[MsgProto[GroupChannelHistory]]:
-        try:
-            msg: MsgProto[GroupChannelHistory] = await self.ws.send_um_and_wait(
-                "ChatRoom.GetMessageHistory#1_Request",
-                chat_group_id=group_id,
-                chat_id=chat_id,
-                last_time=last,
-                start_time=start,
-                max_count=100,
-            )
-        except asyncio.TimeoutError:
-            return
+        msg: MsgProto[GroupChannelHistory] = await self.ws.send_um_and_wait(
+            "ChatRoom.GetMessageHistory#1_Request",
+            chat_group_id=group_id,
+            chat_id=chat_id,
+            last_time=last,
+            start_time=start,
+            max_count=100,
+        )
 
         if msg.eresult != EResult.OK:
             raise WSException(msg)
@@ -563,13 +543,13 @@ class ConnectionState(Registerable):
         if msg.header.body.job_name_target == "FriendMessagesClient.IncomingMessage#1":
             msg: MsgProto[UserMessageNotification]
             user_id64 = msg.body.steamid_friend
-            author = self.get_user(user_id64) or await self.fetch_user(user_id64)
-            if author is None:
-                author = SteamID(user_id64)
+            partner = self.get_user(user_id64) or await self.fetch_user(user_id64) or SteamID(user_id64)
+            author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
 
             if msg.body.chat_entry_type == EChatEntryType.Text:
-                channel = DMChannel(state=self, participant=author)
+                channel = DMChannel(state=self, participant=partner)
                 message = UserMessage(proto=msg.body, channel=channel)
+                message.author = author
                 self._messages.append(message)
                 self.dispatch("message", message)
 

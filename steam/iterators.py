@@ -390,7 +390,7 @@ class DMChannelHistoryIterator(ChannelHistoryIterator):
         self.participant = channel.participant
 
     async def fill(self) -> None:
-        from .message import Message
+        from .message import UserMessage
 
         after_timestamp = int(self.after.timestamp())
         before_timestamp = int(self.before.timestamp())
@@ -409,13 +409,16 @@ class DMChannelHistoryIterator(ChannelHistoryIterator):
                 if not (after_timestamp < message.timestamp <= actual_before_timestamp):
                     return
 
-                new_message = Message(channel=self.channel, proto=message)
-                id64 = utils.make_id64(message.accountid)
-                new_message.author = self.participant if id64 == self.participant.id64 else self._state.client.user
+                new_message = UserMessage.__new__(UserMessage)
+                Message.__init__(new_message, channel=self.channel, proto=message)
+                new_message.author = (
+                    self.participant if message.accountid == self.participant.id else self._state.client.user
+                )
                 new_message.created_at = datetime.utcfromtimestamp(message.timestamp)
                 if not self.append(new_message):
                     return
-            last_message_timestamp = int(new_message.created_at.timestamp())
+
+            last_message_timestamp = int(message.timestamp)
 
             if not msgs.body.more_available:
                 return
@@ -436,7 +439,7 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator):
         self.group = channel.group or channel.clan
 
     async def fill(self) -> None:
-        from .message import Message
+        from .message import ClanMessage, GroupMessage
 
         after_timestamp = int(self.after.timestamp())
         before_timestamp = int(self.before.timestamp())
@@ -457,15 +460,23 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator):
                 if not (after_timestamp < message.server_timestamp <= actual_before_timestamp):
                     return
 
-                new_message = Message(channel=self.channel, proto=message)
-                id64 = utils.make_id64(message.sender)
-                new_message.author = id64
-                to_fetch.append(id64)
+                new_message = (
+                    GroupMessage.__new__(GroupMessage) if self.channel.group else ClanMessage.__new__(ClanMessage)
+                )
+                Message.__init__(new_message, channel=self.channel, proto=message)
+                new_message.author = utils.make_id64(message.sender)
+                to_fetch.append(new_message.author)
                 new_message.created_at = datetime.utcfromtimestamp(message.server_timestamp)
                 if not self.append(new_message):
+                    users = await self._state.fetch_users(to_fetch)
+
+                    for user, message in itertools.product(users, self.queue):
+                        if message.author == user.id64:
+                            message.author = user
+
                     return
 
-            last_message_timestamp = int(new_message.created_at.timestamp())
+            last_message_timestamp = int(message.server_timestamp)
 
             users = await self._state.fetch_users(to_fetch)
             for user, message in itertools.product(users, self.queue):
