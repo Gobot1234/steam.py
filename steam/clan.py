@@ -66,15 +66,12 @@ class Clan(Commentable, comment_path="Clan"):
 
             Returns the clan's name.
 
-
     Attributes
     ------------
     name: :class:`str`
         The name of the clan.
-    chat_id: :class:`int`
+    chat_id: Optional[:class:`int`]
         The clan's chat_id.
-    url: :class:`str`
-        The url of the clan.
     icon_url: :class:`str`
         The icon url of the clan. Uses the large (184x184 px) image url.
     description: :class:`str`
@@ -116,7 +113,6 @@ class Clan(Commentable, comment_path="Clan"):
     """
 
     __slots__ = (
-        "url",
         "name",
         "description",
         "icon_url",
@@ -144,7 +140,6 @@ class Clan(Commentable, comment_path="Clan"):
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type="Clan")
-        self.url = community_route(f"gid/{id}")
         self._state = state
         self.name: Optional[str] = None
         self.chat_id: Optional[int] = None

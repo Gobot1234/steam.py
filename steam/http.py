@@ -118,7 +118,7 @@ class HTTPClient:
         self.connector: Optional[aiohttp.BaseConnector] = options.get("connector")
 
     def recreate(self) -> None:
-        if self._session.closed:
+        if not self._session or self._session.closed:
             self._session = aiohttp.ClientSession(
                 cookies={"Steam_Language": "english"},  # make sure the language is set to english
                 connector=self.connector,
