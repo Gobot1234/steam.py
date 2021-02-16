@@ -201,11 +201,11 @@ Enumerations
 Guard
 ---------------
 
-.. autofunction:: steam.guard.generate_one_time_code(shared_secret, timestamp=time.time())
+.. autofunction:: guard.generate_one_time_code(shared_secret, timestamp=time.time())
 
-.. autofunction:: steam.guard.generate_confirmation_code(identity_secret, tag, timestamp=time.time())
+.. autofunction:: guard.generate_confirmation_code(identity_secret, tag, timestamp=time.time())
 
-.. autofunction:: steam.guard.generate_device_id
+.. autofunction:: guard.generate_device_id
 
 
 Async Iterators
@@ -229,18 +229,18 @@ Abstract Base Classes
 An :term:`py:abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
 They are only used for subclassing.
 
-.. autoclass:: steam.abc.BaseUser()
+.. autoclass:: abc.BaseUser()
     :members:
     :exclude-members: comments
 
     .. automethod:: comments
         :async-for: comment
 
-.. autoclass:: steam.abc.Channel()
+.. autoclass:: abc.Channel()
     :members:
     :inherited-members:
 
-.. autoclass:: steam.abc.Messageable()
+.. autoclass:: abc.Messageable()
     :members:
 
 Steam Models
@@ -405,7 +405,19 @@ Games can be manually constructed using there app id eg:
     # this can then be used for trading a game title is not required for this
     # but it is for setting in game statuses if the game isn't a Steam game.
 
-.. autofunction:: steam.CUSTOM_GAME
+.. autofunction:: CUSTOM_GAME
+
+.. autoclass:: UserGame()
+    :inherited-members:
+    :members:
+
+.. autoclass:: WishlistGame()
+    :inherited-members:
+    :members:
+
+.. autoclass:: FetchedGame()
+    :inherited-members:
+    :members:
 
 
 Steam IDs

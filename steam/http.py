@@ -586,6 +586,9 @@ class HTTPClient:
     def get_wishlist(self, user_id64: int) -> RequestType:
         return self.request("GET", store_route(f"wishlist/profiles/{user_id64}/wishlistdata"))
 
+    def get_game(self, id: int) -> RequestType:
+        return self.request("GET", store_route(f"api/appdetails"), params={"appids": id, "cc": "english"})
+
     async def edit_profile(
         self,
         name: Optional[str],
