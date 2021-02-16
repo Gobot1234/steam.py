@@ -39,7 +39,6 @@ from .abc import Commentable, SteamID
 from .channel import ClanChannel
 from .errors import HTTPException
 from .game import Game
-from .models import community_route
 from .protobufs.steammessages_chat import (
     CChatRoomSummaryPair as ReceivedResponse,
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
@@ -154,7 +153,7 @@ class Clan(Commentable, comment_path="Clan"):
         self.default_channel: Optional[ClanChannel] = None
 
     async def __ainit__(self) -> None:
-        resp = await self._state.request("GET", self.url)
+        resp = await self._state.request("GET", self.community_url)
         if not self.id:
             search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
             if search is None:
