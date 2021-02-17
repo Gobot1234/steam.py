@@ -486,9 +486,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
-        msg = await self.ws.send_um_and_wait(
-            "InviteFriendToChatRoomGroup#1", chat_group_id=group_id, steamid=user_id64
-        )
+        msg = await self.ws.send_um_and_wait("InviteFriendToChatRoomGroup#1", chat_group_id=group_id, steamid=user_id64)
 
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)

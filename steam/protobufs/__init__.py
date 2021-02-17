@@ -82,6 +82,7 @@ class MsgBase(Generic[T]):
     __slots__ = ("header", "body", "payload", "skip")
 
     if sys.version_info[:2] < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
+
         def __new__(cls: type[M], *args: Any, **kwargs: Any) -> M:
             return object.__new__(cls)
 

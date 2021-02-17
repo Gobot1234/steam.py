@@ -41,7 +41,7 @@ from .enums import ETradeOfferState
 
 if TYPE_CHECKING:
     from .abc import BaseUser, Channel, Message
-    from .channel import DMChannel, ClanMessage, GroupMessage, ClanChannel, GroupChannel
+    from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage
     from .clan import Clan
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
