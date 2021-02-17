@@ -251,7 +251,7 @@ class ConnectionState(Registerable):
 
     async def fetch_clan(self, id64: int) -> Optional[Clan]:
         msg: MsgProto[FetchGroupResponse] = await self.ws.send_um_and_wait(
-            "ClanChatRooms.GetClanChatRoomInfo#1_Request", steamid=id64
+            "ClanChatRooms.GetClanChatRoomInfo#1", steamid=id64
         )
         if msg.eresult == EResult.Busy:
             raise WSNotFound(msg)
@@ -405,7 +405,7 @@ class ConnectionState(Registerable):
 
     async def send_user_message(self, user_id64: int, content: str) -> UserMessage:
         msg: MsgProto[SendUserMessageResponse] = await self.ws.send_um_and_wait(
-            "FriendMessages.SendMessage#1_Request",
+            "FriendMessages.SendMessage#1",
             steamid=user_id64,
             message=content,
             chat_entry_type=EChatEntryType.Text,
@@ -433,7 +433,7 @@ class ConnectionState(Registerable):
 
     async def send_user_typing(self, user_id64: int) -> None:
         await self.ws.send_um(
-            "FriendMessages.SendMessage#1_Request",
+            "FriendMessages.SendMessage#1",
             steamid=user_id64,
             chat_entry_type=EChatEntryType.Typing,
         )
@@ -442,7 +442,7 @@ class ConnectionState(Registerable):
     async def send_group_message(self, destination: tuple[int, int], content: str) -> Union[ClanMessage, GroupMessage]:
         chat_id, group_id = destination
         msg = await self.ws.send_um_and_wait(
-            "ChatRoom.SendChatMessage#1_Request", chat_id=chat_id, chat_group_id=group_id, message=content
+            "ChatRoom.SendChatMessage#1", chat_id=chat_id, chat_group_id=group_id, message=content
         )
 
         if msg.eresult == EResult.LimitExceeded:
@@ -469,7 +469,7 @@ class ConnectionState(Registerable):
 
     async def join_chat(self, chat_id: int, invite_code: Optional[str] = None) -> None:
         msg = await self.ws.send_um_and_wait(
-            "ChatRoom.JoinChatRoomGroup#1_Request", chat_group_id=chat_id, invite_code=invite_code or ""
+            "ChatRoom.JoinChatRoomGroup#1", chat_group_id=chat_id, invite_code=invite_code or ""
         )
 
         if msg.eresult == EResult.InvalidParameter:
@@ -478,7 +478,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
-        msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1_Request", chat_group_id=chat_id)
+        msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1", chat_group_id=chat_id)
 
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
@@ -487,7 +487,7 @@ class ConnectionState(Registerable):
 
     async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
         msg = await self.ws.send_um_and_wait(
-            "InviteFriendToChatRoomGroup#1_Request", chat_group_id=group_id, steamid=user_id64
+            "InviteFriendToChatRoomGroup#1", chat_group_id=group_id, steamid=user_id64
         )
 
         if msg.eresult == EResult.InvalidParameter:
@@ -497,7 +497,7 @@ class ConnectionState(Registerable):
 
     async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
         msg = await self.ws.send_um_and_wait(
-            "ChatRoom.RenameRole#1_Request", chat_group_id=group_id, role_id=role_id, name=name
+            "ChatRoom.RenameRole#1", chat_group_id=group_id, role_id=role_id, name=name
         )
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
@@ -506,7 +506,7 @@ class ConnectionState(Registerable):
 
     async def get_user_history(self, user_id64: int, start: int, last: int) -> Optional[MsgProto[DMChannelHistory]]:
         msg: MsgProto[DMChannelHistory] = await self.ws.send_um_and_wait(
-            "FriendMessages.GetRecentMessages#1_Request",
+            "FriendMessages.GetRecentMessages#1",
             steamid1=self.client.user.id64,
             steamid2=user_id64,
             rtime32_start_time=start,
@@ -523,7 +523,7 @@ class ConnectionState(Registerable):
         self, group_id: int, chat_id: int, start: int, last: int
     ) -> Optional[MsgProto[GroupChannelHistory]]:
         msg: MsgProto[GroupChannelHistory] = await self.ws.send_um_and_wait(
-            "ChatRoom.GetMessageHistory#1_Request",
+            "ChatRoom.GetMessageHistory#1",
             chat_group_id=group_id,
             chat_id=chat_id,
             last_time=last,

@@ -460,7 +460,7 @@ class SteamWebSocket(Registerable):
         self._keep_alive.start()
         log.debug("Heartbeat started.")
 
-        await self.send_um("ChatRoom.GetMyChatRoomGroups#1_Request")
+        await self.send_um("ChatRoom.GetMyChatRoomGroups#1")
         await self.change_presence(
             games=self._connection._games,
             state=self._connection._state,
@@ -492,7 +492,7 @@ class SteamWebSocket(Registerable):
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
         msg.header.body.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
-        return msg.header.body.job_id_source
+        return self._current_job_id
 
     async def send_um_and_wait(
         self,
