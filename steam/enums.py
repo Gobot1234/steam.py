@@ -30,7 +30,7 @@ EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discor
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Generator, Mapping, NoReturn, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generator, NoReturn, TypeVar, Union
 
 from typing_extensions import Literal
 
@@ -125,7 +125,7 @@ class EnumMeta(type):
         return isinstance(member, cls) and member.name in cls._member_map_
 
     @property
-    def __members__(cls: type[E]) -> Mapping[str, E]:
+    def __members__(cls: type[E]) -> MappingProxyType[str, E]:
         return MappingProxyType(cls._member_map_)
 
 
