@@ -150,8 +150,10 @@ html_js_files = ["custom.js", "settings.js", "copy.js", "sidebar.js"]
 
 def setup(app: Sphinx) -> None:
 
-    if html_context.get("READTHEDOCS"):  # called after setting up READTHEDOCS in html_context so we can add the minifier
+    if html_context.get(
+        "READTHEDOCS"
+    ):  # called after setting up READTHEDOCS in html_context so we can add the minifier
 
         from docs.extensions.minimizer import minimize
 
-        app.connect("build-finish", minimize)
+        app.connect("build-finished", minimize)
