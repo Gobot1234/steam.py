@@ -41,14 +41,17 @@ from .enums import ETradeOfferState
 
 if TYPE_CHECKING:
     from .abc import BaseUser, Channel, Message
-    from .channel import DMChannel, _GroupChannel
+    from .channel import DMChannel, ClanMessage, GroupMessage, ClanChannel, GroupChannel
     from .clan import Clan
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
 
+
 T = TypeVar("T")
+C = TypeVar("C", bound="Channel")
+M = TypeVar("M", bound="Message")
 MaybeCoro = Callable[[T], Union[bool, Coroutine[Any, Any, bool]]]
-UNIX_EPOCH = datetime.fromtimestamp(0)
+UNIX_EPOCH = datetime.utcfromtimestamp(0)
 
 
 class AsyncIterator(Generic[T]):
@@ -358,12 +361,12 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                     trade.partner = user
 
 
-class ChannelHistoryIterator(AsyncIterator["Message"]):
+class ChannelHistoryIterator(AsyncIterator[M], Generic[M, C]):
     __slots__ = ("channel", "_actual_before")
 
     def __init__(
         self,
-        channel: Channel,
+        channel: C,
         state: ConnectionState,
         limit: Optional[int],
         before: Optional[datetime],
@@ -375,7 +378,7 @@ class ChannelHistoryIterator(AsyncIterator["Message"]):
         self.channel = channel
 
 
-class DMChannelHistoryIterator(ChannelHistoryIterator):
+class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"]):
     __slots__ = ("participant",)
 
     def __init__(
@@ -424,12 +427,15 @@ class DMChannelHistoryIterator(ChannelHistoryIterator):
                 return
 
 
-class GroupChannelHistoryIterator(ChannelHistoryIterator):
+class GroupChannelHistoryIterator(
+    ChannelHistoryIterator[Union["ClanMessage", "GroupMessage"], Union["ClanChannel", "GroupChannel"]]
+):
+
     __slots__ = ("group",)
 
     def __init__(
         self,
-        channel: _GroupChannel,
+        channel: Union[ClanChannel, GroupChannel],
         state: ConnectionState,
         limit: Optional[int],
         before: Optional[datetime],
