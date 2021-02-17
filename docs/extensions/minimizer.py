@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Generator
 
 import csscompressor
 import htmlmin
@@ -11,7 +12,13 @@ from sphinx.util import progress_message
 
 DOCS = Path(__name__).resolve().parent.parent
 
-build = DOCS / "_build" / "html"
+static = DOCS / "_static"
+templates = DOCS / "_templates"
+
+
+def get_files(suffix: str) -> Generator[Path, None, None]:
+    yield from static.glob(f"**/*{suffix}")
+    yield from templates.glob(f"**/*{suffix}")
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
@@ -29,7 +36,7 @@ def minimize_html() -> None:
         reduce_boolean_attributes=True,
     )
 
-    for file in build.glob("**/*.html"):
+    for file in get_files(".html"):
         text = file.read_text()
         minimized = html_minimizer.minify(text)
 
@@ -47,7 +54,7 @@ def minimize_html() -> None:
 
 
 def minimize_js() -> None:
-    for file in build.glob("**/*.js"):
+    for file in get_files(".js"):
         text = file.read_text()
         minimized = rjsmin.jsmin(text, keep_bang_comments=False)
 
@@ -55,7 +62,7 @@ def minimize_js() -> None:
 
 
 def minimize_css() -> None:
-    for file in build.glob("**/*.css"):
+    for file in get_files(".css"):
         text = file.read_text()
         minimized = csscompressor.compress(text, preserve_exclamation_comments=False)
 
