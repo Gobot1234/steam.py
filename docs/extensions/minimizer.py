@@ -9,16 +9,9 @@ import htmlmin
 import rjsmin
 from sphinx.util import progress_message
 
-DOCS = Path(__name__).resolve().parent
+DOCS = Path(__name__).resolve().parent.parent
 
-static = (DOCS / "_static").resolve()
-templates = (DOCS / "_templates").resolve()
-
-
-def get_files(suffix: str) -> list[Path]:
-    to_minimize = list(static.glob(suffix))
-    to_minimize.extend(templates.glob(suffix))
-    return to_minimize
+build = DOCS / "_build" / "html"
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
@@ -29,8 +22,6 @@ def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
 
 
 def minimize_html() -> None:
-    files = get_files(".html")
-
     html_minimizer = htmlmin.Minifier(
         remove_comments=True,
         remove_empty_space=True,
@@ -38,7 +29,7 @@ def minimize_html() -> None:
         reduce_boolean_attributes=True,
     )
 
-    for file in files:
+    for file in build.glob("**/*.html"):
         text = file.read_text()
         minimized = html_minimizer.minify(text)
 
@@ -56,9 +47,7 @@ def minimize_html() -> None:
 
 
 def minimize_js() -> None:
-    files = get_files(".js")
-
-    for file in files:
+    for file in build.glob("**/*.js"):
         text = file.read_text()
         minimized = rjsmin.jsmin(text, keep_bang_comments=False)
 
@@ -66,9 +55,7 @@ def minimize_js() -> None:
 
 
 def minimize_css() -> None:
-    files = get_files(".css")
-
-    for file in files:
+    for file in build.glob("**/*.css"):
         text = file.read_text()
         minimized = csscompressor.compress(text, preserve_exclamation_comments=False)
 
