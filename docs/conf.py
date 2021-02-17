@@ -156,4 +156,4 @@ def setup(app: Sphinx) -> None:
 
         from docs.extensions.minimizer import minimize
 
-        app.connect("builder-init", minimize)
+        app.connect("builder-inited", minimize)
