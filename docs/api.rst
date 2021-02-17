@@ -197,15 +197,19 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: EReviewType
+    :members:
+    :undoc-members:
+
 
 Guard
 ---------------
 
-.. autofunction:: guard.generate_one_time_code(shared_secret, timestamp=time.time())
+.. autofunction:: steam.guard.generate_one_time_code(shared_secret, timestamp=time.time())
 
-.. autofunction:: guard.generate_confirmation_code(identity_secret, tag, timestamp=time.time())
+.. autofunction:: steam.guard.generate_confirmation_code(identity_secret, tag, timestamp=time.time())
 
-.. autofunction:: guard.generate_device_id
+.. autofunction:: steam.guard.generate_device_id
 
 
 Async Iterators
@@ -229,18 +233,18 @@ Abstract Base Classes
 An :term:`py:abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
 They are only used for subclassing.
 
-.. autoclass:: abc.BaseUser()
+.. autoclass:: steam.abc.BaseUser()
     :members:
     :exclude-members: comments
 
     .. automethod:: comments
         :async-for: comment
 
-.. autoclass:: abc.Channel()
+.. autoclass:: steam.abc.Channel()
     :members:
     :inherited-members:
 
-.. autoclass:: abc.Messageable()
+.. autoclass:: steam.abc.Messageable()
     :members:
 
 Steam Models

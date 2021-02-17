@@ -16,8 +16,8 @@ templates = (DOCS / "_templates").resolve()
 
 
 def get_files(suffix: str) -> list[Path]:
-    to_minimize = [p for p in static.iterdir() if p.suffix == suffix]
-    to_minimize += [p for p in templates.iterdir() if p.suffix == suffix]
+    to_minimize = list(static.glob(suffix))
+    to_minimize.extend(templates.glob(suffix))
     return to_minimize
 
 
