@@ -275,10 +275,9 @@ class Converter(ConverterBase[T], Generic[T], ABC):
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-        converter_for = globals().pop("__current_converter", None)
-        # the flow for this is __class_getitem__ -> type.__new__ (but that won't do anything) -> __init_subclass__ so
-        # this is alright
-        if converter_for is None:
+        try:
+            converter_for = cls.__orig_bases__[0].__args__[0]
+        except IndexError:
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
             utils.warn(
                 "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1"
@@ -304,10 +303,7 @@ class Converter(ConverterBase[T], Generic[T], ABC):
         """
         if isinstance(converter_for, tuple) and len(converter_for) != 1:
             raise TypeError("commands.Converter only accepts one argument")
-        annotation = super().__class_getitem__(converter_for)
-        globals()["__current_converter"] = get_args(annotation)[0]
-        return annotation
-
+        return super().__class_getitem__(converter_for)
 
 class UserConverter(Converter[User]):
     """The converter that is used when the type-hint passed is :class:`~steam.User`.
