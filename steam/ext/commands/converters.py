@@ -82,18 +82,15 @@ __all__ = (
 )
 
 T = TypeVar("T")
+BC = TypeVar("BC", bound="BasicConverter")
 Converters: TypeAlias = "Union[ConverterBase, BasicConverter]"
 RD: TypeAlias = "Union[Callable[[MC], MC], MC]"
 
 
 class ConverterDict(Dict[type, Tuple[Converters, ...]]):
     def __setitem__(self, key: Any, value: Converters) -> None:
-        try:
-            old_value = self[key]
-        except KeyError:
-            super().__setitem__(key, (value,))
-        else:
-            super().__setitem__(key, old_value + (value,))
+        old_value = super().get(key, ())
+        super().__setitem__(key, old_value + (value,))
 
 
 class BasicConverter(FunctionType):
@@ -106,12 +103,12 @@ class BasicConverter(FunctionType):
 CONVERTERS = ConverterDict()
 
 
-def converter_for(converter_for: T) -> Callable[[MC], MC]:
+def converter_for(converter_for: T) -> Callable[[BC], BC]:
     """The recommended way to mark a function converter as such.
 
     Note
     ----
-    All of the converters marked with this decorator or derived from :class:`.Converter` can be accessed via
+    All of the converters marked with this decorator or derived from :class:`Converter` can be accessed via
     :attr:`~steam.ext.commands.Bot.converters`.
 
     Examples
@@ -140,7 +137,7 @@ def converter_for(converter_for: T) -> Callable[[MC], MC]:
         The class that the converter can be type-hinted to to.
     """
 
-    def decorator(func: MC) -> MC:
+    def decorator(func: BC) -> BC:
         if not isinstance(func, types.FunctionType):
             raise TypeError(f"Excepted a function, received {func.__class__.__name__!r}")
         CONVERTERS[converter_for] = func
@@ -276,7 +273,7 @@ class Converter(ConverterBase[T], Generic[T], ABC):
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         try:
-            converter_for = cls.__orig_bases__[0].__args__[0]
+            converter_for = get_args(cls.__orig_bases__[0])[0]
         except IndexError:
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
             utils.warn(
@@ -304,6 +301,7 @@ class Converter(ConverterBase[T], Generic[T], ABC):
         if isinstance(converter_for, tuple) and len(converter_for) != 1:
             raise TypeError("commands.Converter only accepts one argument")
         return super().__class_getitem__(converter_for)
+
 
 class UserConverter(Converter[User]):
     """The converter that is used when the type-hint passed is :class:`~steam.User`.

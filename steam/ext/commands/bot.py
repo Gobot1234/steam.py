@@ -3,7 +3,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-2020 Rapptz
+Copyright (c) 2015-present Rapptz
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

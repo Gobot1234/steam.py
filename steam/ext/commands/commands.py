@@ -3,7 +3,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-2020 Rapptz
+Copyright (c) 2015-present Rapptz
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -567,7 +567,7 @@ class Command:
     def _get_converter(self, param_type: type) -> converters.Converters:
         converters_ = converters.CONVERTERS.get(param_type, param_type)
         if isinstance(converters_, tuple):
-            if len(converters_) == 1:
+            if len(converters_) == 1 or not self.special_converters:
                 return converters_[0]
             for converter in converters_:
                 try:
