@@ -120,7 +120,7 @@ class Query(metaclass=QueryMeta):
     Examples
     --------
     Query.running / steam.TF2 / Query.not_empty / Query.secure -> r"\appid\440\empty\1\secure\1"
-    Query.not_empty & Query.secure -> r"\nand[\empty\1\secure\1]"
+    Query.not_empty & Query.not_full & Query.secure -> r"\nand[\empty\1\secure\1]"
     """
 
     __slots__ = ("raw",)
@@ -274,6 +274,33 @@ def _unpack_multi_packet_header(payload_offset, packet):
 
 
 class GameServer(SteamID):
+    """Represents a game server
+
+    Attributes
+    ----------
+    name: :class:`str`
+        The name of the server.
+    game: :class:`.Game`
+        The game of the server.
+    ip: :class:`str`
+        The ip of the server.
+    port: :class:`int`
+        The port of the server.
+    tags: list[:class:`str`]
+        The tags of the server.
+    map: :class:`str`
+        The map the server is running.
+    bot_count: :class:`int`
+        The number of bots in the server.
+    player_count: :class:`int`
+        The number of players the server.
+    max_player_count: :class:`str`
+        The maximum player count of the server.
+    region: :class:`str`
+        The region the server is in.
+    version: :class:`str`
+        The version of the server.
+    """
     __slots__ = (
         "name",
         "game",
@@ -281,7 +308,7 @@ class GameServer(SteamID):
         "port",
         "tags",
         "map",
-        "bots",
+        "bot_count",
         "player_count",
         "max_player_count",
         "region",
@@ -298,7 +325,7 @@ class GameServer(SteamID):
         self.port = server.gameport
         self.tags = server.gametype.split(",")
         self.map = server.map
-        self.bots = server.bots
+        self.bot_count = server.bots
         self.player_count = server.players
         self.max_player_count = server.max_players
         self.region = server.region
@@ -321,19 +348,26 @@ class GameServer(SteamID):
     def is_dedicated(self) -> bool:
         return self._dedicated
 
-    async def players(self, *, challenge: Literal[-1, 0] = -1) -> Optional[list[ServerPlayer]]:
+    async def players(self, *, challenge: Literal[-1, 0] = 0) -> Optional[list[ServerPlayer]]:
         """|coro|
         Fetch a servers players.
 
         Parameters
         ----------
         challenge: :class:`int`
-            The challenge for the request default is -1 can also be 0. You may need to change if the server doesn't seem
+            The challenge for the request default is 0 can also be -1. You may need to change if the server doesn't seem
             to respond.
 
-        Notes
-        -----
-            - ServerPlayer is a :class:`typing.NamedTuple` defined as:
+        Note
+        ----
+        It is recommended to use :func:`asyncio.wait_for` to allow this to return if the server doesn't respond.
+
+        Returns
+        -------
+        Optional[list[:class:`ServerPlayer`]]
+            The players, or ``None`` if something went wrong getting the info.
+
+            ServerPlayer is a :class:`typing.NamedTuple` defined as:
 
                 .. code-block:: python3
 
@@ -342,13 +376,6 @@ class GameServer(SteamID):
                         name: str
                         score: int
                         play_time: timedelta
-
-            - It is recommended to use :func:`asyncio.wait_for` to allow this to return if the server doesn't respond.
-
-        Returns
-        -------
-        Optional[list[:class:`ServerPlayer`]]
-            The players, or None if something went wrong getting the info.
         """
         # TCP over UDP :))))
         loop = asyncio.get_event_loop()

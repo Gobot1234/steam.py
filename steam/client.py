@@ -633,17 +633,23 @@ class Client:
             return None
         return FetchedGame(data[str(id)]["data"])
 
-    async def fetch_servers(
-        self, query: Query, limit: int = 100
-    ) -> Optional[list[GameServer]]:
+    async def fetch_servers(self, query: Query, limit: int = 100) -> list[GameServer]:
         """|coro|
         Query game servers.
+
+        Parameters
+        ----------
+        query: :class:`Query`
+            The query to match servers with.
+        limit: :class:`int`
+            The maximum amount of servers to return.
+
+        Returns
+        -------
+        list[:class:`.GameServer`]
+            The matched servers.
         """
         servers = await self._connection.query_servers(query.query, limit)
-
-        if servers is None:
-            return None
-
         return [GameServer(server) for server in servers]
 
     async def fetch_server_players(
@@ -652,7 +658,7 @@ class Client:
         ip: Optional[str] = None,
         port: Optional[int] = None,
         challenge: int = 0,
-    ):
+    ):  # TODO: doc
         server = GameServer.__new__(GameServer)
         server.ip = ip
         server.port = port

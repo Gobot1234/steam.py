@@ -35,7 +35,7 @@ import asyncio
 import inspect
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Union, overload, Generic
 
 import attr
 from typing_extensions import Final, Protocol, TypeAlias, TypedDict, runtime_checkable

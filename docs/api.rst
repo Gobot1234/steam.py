@@ -301,6 +301,17 @@ Comment
 .. autoclass:: Comment()
     :members:
 
+Game Servers
+~~~~~~~~~~~~~~~
+
+.. autoclass:: GameServer()
+    :members:
+    :inherited-members:
+
+.. autoclass:: Query
+    :members:
+
+
 Group
 ~~~~~~~~~~~~~~~
 
