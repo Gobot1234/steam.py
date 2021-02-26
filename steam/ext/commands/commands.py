@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 __all__ = (
     "Command",
     "command",
-    "GroupCommand",
+    "Group",
     "group",
     "check",
     "is_owner",
@@ -80,7 +80,7 @@ MCD = TypeVar("MCD", bound=Union["CommandDeco", MaybeCommand])
 E = TypeVar("E", bound=Callable[["Context", Exception], Coroutine[Any, Any, None]])
 H = TypeVar("H", bound=Callable[["Context"], Coroutine[Any, Any, None]])
 C = TypeVar("C", bound="Command")
-GC = TypeVar("GC", bound="GroupCommand")
+GC = TypeVar("GC", bound="Group")
 CFT = TypeVar("CFT", bound="CommandFunctionType")
 CHR = TypeVar("CHR", bound="CheckReturnType")
 CH = TypeVar("CH", bound=Callable[[CheckType], "CheckReturnType"])
@@ -865,16 +865,15 @@ class GroupMixin:
         ----------
         name: Optional[:class:`str`]
             The name of the command. Will default to ``callback.__name__``.
-        cls: type[:class:`GroupCommand`]
-            The class to construct the command from. Defaults to :class:`GroupCommand`.
+        cls: type[:class:`Group`]
+            The class to construct the command from. Defaults to :class:`Group`.
         **attrs:
             The attributes to pass to the command's ``__init__``.
         """
-        cls = cls or GroupCommand
 
         def decorator(callback: CFT) -> GC:
             attrs.setdefault("parent", self)
-            result = group(callback, name=name, cls=cls, **attrs)
+            result = group(callback, name=name, cls=cls or Group, **attrs)
             self.add_command(result)
             return result
 
@@ -886,7 +885,7 @@ class GroupMixin:
         commands = []
         for command in self.commands:
             commands.append(command)
-            if isinstance(command, GroupCommand):
+            if isinstance(command, Group):
                 commands.extend(command.children)
 
         return commands
@@ -898,7 +897,7 @@ class GroupMixin:
             self.remove_command(command.name)
 
 
-class GroupCommand(GroupMixin, Command):
+class Group(GroupMixin, Command):
     def __init__(self, func: CommandFunctionType, **kwargs: Any):
         super().__init__(func, **kwargs)
 
@@ -1021,7 +1020,7 @@ def group(
         The attributes to pass to the command's ``__init__``.
     """
 
-    return command(callback, name=name, cls=cls or GroupCommand, **attrs)
+    return command(callback, name=name, cls=cls or Group, **attrs)
 
 
 def check(predicate: CheckType) -> CheckReturnType:
