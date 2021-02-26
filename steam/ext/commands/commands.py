@@ -33,9 +33,8 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
-import sys
 from time import time
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, ForwardRef, Iterable, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Optional, TypeVar, Union, get_type_hints, overload
 
 from chardet import detect
 from typing_extensions import Literal, get_args, get_origin
@@ -56,7 +55,7 @@ from .errors import (
     NotOwner,
     UnmatchedKeyValuePair,
 )
-from .utils import CaseInsensitiveDict, reload_module_with_TYPE_CHECKING
+from .utils import CaseInsensitiveDict
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -222,19 +221,7 @@ class Command:
 
     @property
     def callback(self) -> CFT:
-        """The internal callback the command holds.
-
-        Note
-        ----
-        When this is set if it fails to find a matching object in the module's dict, it will reload the module with
-        :attr:`typing.TYPE_CHECKING` set to ``True``, the purpose of this is to help aid with circular import
-        issues, if you do not want this to happen you have a few options:
-
-            - Put the imports in an ``if False:`` block or a constant named ``MYPY`` set to ``False`` (assuming you
-              are using MyPy see https://mypy.readthedocs.io/en/stable/common_issues.html#import-cycles).
-            - Use an else after the ``if typing.TYPE_CHECKING`` to set the imported values to something at runtime.
-            - Don't have circular imports :P
-        """
+        """The internal callback the command holds."""
         return self._callback
 
     @callback.setter
@@ -242,44 +229,14 @@ class Command:
         if not inspect.iscoroutinefunction(function):
             raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine function.")
 
-        module = sys.modules[function.__module__]
         function = function.__func__ if inspect.ismethod(function) else function  # HelpCommand.command_callback
 
-        self.params: dict[str, inspect.Parameter] = dict(inspect.signature(function).parameters)
+        annotations = get_type_hints(function)
+        function.__annotations__ = annotations
 
+        self.params: dict[str, inspect.Parameter] = dict(inspect.signature(function).parameters)
         if not self.params:
             raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
-
-        for idx, (key, param) in enumerate(self.params.items()):
-            annotation = param.annotation
-            args = get_args(annotation)
-            globals = module.__dict__
-            locals = sys._getframe(4).f_locals  # ewh
-
-            if isinstance(annotation, str):
-                try:
-                    self.params[key] = param.replace(annotation=eval(annotation, globals, locals))
-                except NameError as exc:
-                    if len(self.params) == 1 or key == "ctx" and idx == 1:
-                        # we can be sure if there is only one param it is fine to ignore NameErrors as it will always
-                        # be context, however if there is more than param checking this gets harder so currently if
-                        # you have a param in the 1st index called ctx and it's NameErrored, its going to be ignored.
-                        # I might change this in the future depending on how commands are registered in Cogs.
-                        continue
-
-                    reload_module_with_TYPE_CHECKING(module)
-
-                    try:
-                        self.params[key] = param.replace(annotation=eval(annotation, globals, locals))
-                    except NameError:
-                        raise exc from None
-
-            elif args:
-                for arg in get_args(annotation):
-                    if isinstance(arg, ForwardRef):
-                        self.params[key] = param.replace(
-                            annotation=get_origin(annotation)[eval(arg.__forward_code__, globals, locals)]
-                        )
 
         self.module = function.__module__
         self._callback = function
@@ -859,7 +816,7 @@ class GroupMixin:
         **attrs: Any,
     ) -> Union[Callable[[CFT], GC], GC]:
         """|maybecallabledeco|
-        A decorator that invokes :func:`group` and adds the created :class:`GroupCommand` to the internal command list.
+        A decorator that invokes :func:`group` and adds the created :class:`Group` to the internal command list.
 
         Parameters
         ----------

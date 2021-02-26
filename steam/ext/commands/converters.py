@@ -26,7 +26,6 @@ SOFTWARE.
 
 from __future__ import annotations
 
-import sys
 import types
 from abc import ABC, abstractmethod
 from typing import (
@@ -36,9 +35,9 @@ from typing import (
     Dict,
     ForwardRef,
     Generic,
-    Iterator,
     NoReturn,
     Optional,
+    Sequence,
     Tuple,
     TypeVar,
     Union,
@@ -56,7 +55,6 @@ from ...group import Group
 from ...models import FunctionType
 from ...user import User
 from .errors import BadArgument
-from .utils import reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
     from steam.ext import commands
@@ -115,7 +113,7 @@ def converter_for(converter_for: T) -> Callable[[BC], BC]:
     --------
     .. code-block:: python
 
-        @commands.converter(commands.Command)  # this is the type hint used
+        @commands.converter_for(commands.Command)  # this is the type hint used
         def command_converter(argument: str) -> commands.Command:
             return bot.get_command(argument)
 
@@ -171,7 +169,7 @@ class ConverterBase(Protocol[T]):
 
 
 class Converter(ConverterBase[T], Generic[T], ABC):
-    r"""A custom :class:`typing.Protocol` from which converters can be derived.
+    """A custom :class:`typing.Protocol` from which converters can be derived.
 
     Note
     ----
@@ -282,13 +280,7 @@ class Converter(ConverterBase[T], Generic[T], ABC):
             CONVERTERS[cls] = cls
         else:
             if isinstance(converter_for, ForwardRef):
-                module = sys.modules[cls.__module__]
-                reload_module_with_TYPE_CHECKING(module)
-                str_value = converter_for.__forward_arg__
-                try:
-                    converter_for = module.__dict__[str_value]
-                except KeyError:
-                    raise NameError(f"{str_value!r} was not able to be evaluated to a type") from None
+                raise NameError(f"name {converter_for.__forward_arg__!r} is not defined") from None
             cls.converter_for = converter_for
             CONVERTERS[converter_for] = cls
 
