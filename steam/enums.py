@@ -30,7 +30,7 @@ EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discor
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Generator, NoReturn, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generator, NoReturn, Optional, TypeVar, Union
 
 from typing_extensions import Literal
 
@@ -76,7 +76,7 @@ class EnumMeta(type):
             if key[0] == "_" or _is_descriptor(value):
                 continue
 
-            member = value_mapping.get(value)
+            member: Optional[Enum] = value_mapping.get(value)
             if member is None:
                 member = enum_class_new(enum_class, name=key, value=value)
                 value_mapping[value] = member

@@ -167,3 +167,9 @@ class CommandOnCooldown(CommandError):
     def __init__(self, retry_after: float):
         self.retry_after = retry_after
         super().__init__(f"Command is on cooldown for {retry_after:.2} more seconds")
+
+
+class MissingClosingQuotation(CommandError):
+    def __init__(self, position: int):
+        self.position = position
+        super().__init__(f"No closing quotation found after the character at position {position}")

@@ -342,7 +342,7 @@ class Command:
 
     def error(self, coro: Optional[E] = None) -> Union[Callable[[E], E], E]:
         """|maybecallabledeco|
-        Register a :ref:`coroutine <coroutine>` to handle a commands ``on_error`` functionality similarly to
+        Register a :term:`coroutine function` to handle a commands ``on_error`` functionality similarly to
         :meth:`steam.ext.commands.Bot.on_command_error`.
 
         Example: ::
@@ -359,7 +359,7 @@ class Command:
 
         def decorator(coro: E) -> E:
             if not inspect.iscoroutinefunction(coro):
-                raise TypeError(f"Error handler for {self.name} must be a coroutine")
+                raise TypeError(f"Error handler for {self.name} must be a coroutine function")
             self.on_error = coro
             return coro
 
@@ -375,12 +375,12 @@ class Command:
 
     def before_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
         """|maybecallabledeco|
-        Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
+        Register a :term:`coroutine function` to be ran before any arguments are parsed.
         """
 
         def decorator(coro: H) -> H:
             if not inspect.iscoroutinefunction(coro):
-                raise TypeError(f"Hook for {self.name} must be a coroutine")
+                raise TypeError(f"Hook for {self.name} must be a coroutine function")
             self._before_hook = coro
             return coro
 
@@ -396,12 +396,12 @@ class Command:
 
     def after_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
         """|maybecallabledeco|
-        Register a :ref:`coroutine <coroutine>` to be ran after the command has been invoked.
+        Register a :term:`coroutine function` to be ran after the command has been invoked.
         """
 
         def decorator(coro: H) -> H:
             if not inspect.iscoroutinefunction(coro):
-                raise TypeError(f"Hook for {self.name} must be a coroutine")
+                raise TypeError(f"Hook for {self.name} must be a coroutine function")
             self._after_hook = coro
             return coro
 
@@ -484,67 +484,75 @@ class Command:
         if ctx.bot._after_hook is not None:
             await ctx.bot._after_hook(ctx)
 
+    async def _parse_positional_or_keyword_argument(self, ctx: Context, param: inspect.Parameter, args: list) -> None:
+        is_greedy = get_origin(param.annotation) is converters.Greedy
+        greedy_args = []
+        if ctx.lex.position == ctx.lex.end:
+            args.append(await self._get_default(ctx, param))
+        for argument in ctx.lex:
+            try:
+                transformed = await self._transform(ctx, param, argument)
+            except BadArgument:
+                if not is_greedy:
+                    raise
+                ctx.lex.undo()  # undo last read string for the next argument
+                args.append(tuple(greedy_args))
+                break
+            if not is_greedy:
+                args.append(transformed)
+                break
+            greedy_args.append(transformed)
+
+    async def _parse_keyword_argument(self, ctx: Context, param: inspect.Parameter, kwargs: dict[str, Any]) -> None:
+        kwargs[param.name] = await (  # kwarg only param denotes "consume rest" semantics
+            self._transform(ctx, param, ctx.lex.rest) if ctx.lex.rest else self._get_default(ctx, param)
+        )
+
+    async def _parse_var_keyword_argument(self, ctx: Context, param: inspect.Parameter, kwargs: dict[str, Any]) -> None:
+        kv_pairs = [arg.split("=") for arg in ctx.lex]
+        if not kv_pairs:
+            raise MissingRequiredArgument(param)  # defaults don't work here
+
+        key_type, value_type = (
+            (str, str) if param.annotation in (param.empty, dict) else get_args(param.annotation)
+        )  # default to dict[str, str]
+
+        key_converter = self._get_converter(key_type)
+        value_converter = self._get_converter(value_type)
+        try:
+            for key_arg, value_arg in kv_pairs:
+                if key_arg in kwargs:
+                    raise DuplicateKeywordArgument(key_arg)
+                kwargs.update(
+                    {
+                        await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
+                            ctx, value_converter, param, value_arg.strip()
+                        )
+                    }
+                )
+        except ValueError:
+            raise UnmatchedKeyValuePair("Unmatched key-value pair passed") from None
+
+    async def _parse_var_position_argument(self, ctx: Context, param: inspect.Parameter, args: list) -> None:
+        for arg in ctx.lex:
+            transformed = await self._transform(ctx, param, arg)
+            args.append(transformed)
+
     async def _parse_arguments(self, ctx: Context) -> None:
         args = []
-        kwargs = {}
+        kwargs: dict[str, Any] = {}  # these are mutated by functions above
 
-        for name, param in self.clean_params.items():
+        for param in self.clean_params.values():
             if param.kind == param.POSITIONAL_OR_KEYWORD:
-                is_greedy = get_origin(param.annotation) is converters.Greedy
-                greedy_args = []
-                if ctx.lex.position == ctx.lex.end:
-                    args.append(await self._get_default(ctx, param))
-                for argument in ctx.lex:
-                    try:
-                        transformed = await self._transform(ctx, param, argument)
-                    except BadArgument:
-                        if not is_greedy:
-                            raise
-                        ctx.lex.undo()  # undo last read string for the next argument
-                        args.append(tuple(greedy_args))
-                        break
-                    if not is_greedy:
-                        args.append(transformed)
-                        break
-                    greedy_args.append(transformed)
-            elif param.kind == param.KEYWORD_ONLY:  # kwarg only param denotes "consume rest" semantics
-                kwargs[name] = await (
-                    self._transform(ctx, param, ctx.lex.rest) if ctx.lex.rest else self._get_default(ctx, param)
-                )
+                await self._parse_positional_or_keyword_argument(ctx, param, args)
+            elif param.kind == param.KEYWORD_ONLY:
+                await self._parse_keyword_argument(ctx, param, kwargs)
                 break
             elif param.kind == param.VAR_KEYWORD:  # same as **kwargs
-                kv_pairs = [arg.split("=") for arg in ctx.lex]
-                if not kv_pairs:
-                    if "default" in kwargs:
-                        raise DuplicateKeywordArgument("default")
-                    kwargs["default"] = await self._get_default(ctx, param)
-                    break
-
-                annotation = param.annotation
-                key_type, value_type = (
-                    (str, str) if annotation in (param.empty, dict) else get_args(annotation)
-                )  # default to {str: str}
-
-                key_converter = self._get_converter(key_type)
-                value_converter = self._get_converter(value_type)
-                try:
-                    for key_arg, value_arg in kv_pairs:
-                        if key_arg in kwargs:
-                            raise DuplicateKeywordArgument(key_arg)
-                        kwargs.update(
-                            {
-                                await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
-                                    ctx, value_converter, param, value_arg.strip()
-                                )
-                            }
-                        )
-                    break
-                except ValueError:
-                    raise UnmatchedKeyValuePair("Unmatched key-value pair passed") from None
+                await self._parse_var_keyword_argument(ctx, param, kwargs)
+                break
             elif param.kind == param.VAR_POSITIONAL:  # same as *args
-                for arg in ctx.lex:
-                    transformed = await self._transform(ctx, param, arg)
-                    args.append(transformed)
+                await self._parse_positional_or_keyword_argument(ctx, param, args)
                 break
 
         ctx.args = tuple(args)
@@ -587,6 +595,8 @@ class Command:
         argument: str,
     ) -> Any:
         if isinstance(converter, converters.ConverterBase):
+            if isinstance(converter, type):  # needs to be instantiated
+                converter = converter()
             try:
                 return await converter.convert(ctx, argument)
             except Exception as exc:
@@ -636,7 +646,7 @@ class Command:
             raise MissingRequiredArgument(param)
         if isinstance(param.default, converters.Default):
             try:
-                default = param.default() if callable(param.default) else param.default
+                default = param.default() if isinstance(param.default, type) else param.default
                 return await default.default(ctx)
             except Exception as exc:
                 try:
@@ -797,16 +807,15 @@ class GroupMixin:
         ----------
         name: Optional[:class:`str`]
             The name of the command. Will default to ``callback.__name__``.
-        cls: type[:class:`GroupCommand`]
-            The class to construct the command from. Defaults to :class:`GroupCommand`.
+        cls: type[:class:`Command`]
+            The class to construct the command from. Defaults to :class:`Command`.
         **attrs:
             The attributes to pass to the command's ``__init__``.
         """
-        cls = cls or Command
 
         def decorator(callback: CFT) -> C:
             attrs.setdefault("parent", self)
-            result = command(callback, name=name, cls=cls, **attrs)
+            result = command(callback, name=name, cls=cls or Command, **attrs)
             self.add_command(result)
             return result
 
@@ -942,7 +951,7 @@ def command(
     **attrs: Any,
 ) -> Union[Callable[[CFT], C], C]:
     """|maybecallabledeco|
-    A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`Command`.
+    A decorator that registers a :term:`coroutine function` as a :class:`Command`.
 
     Parameters
     ----------
@@ -1000,13 +1009,13 @@ def group(
     **attrs: Any,
 ) -> Union[Callable[[CFT], GC], GC]:
     """|maybecallabledeco|
-    A decorator that registers a :ref:`coroutine <coroutine>` as a :class:`GroupCommand`.
+    A decorator that registers a :term:`coroutine function` as a :class:`GroupCommand`.
 
     Parameters
     ----------
     name: Optional[:class:`str`]
         The name of the command. Will default to ``callback.__name__``.
-    cls: type[:class:`GroupCommand`]
+    cls: type[:class:`Group`]
         The class to construct the command from. Defaults to :class:`GroupCommand`.
     **attrs:
         The attributes to pass to the command's ``__init__``.
@@ -1036,7 +1045,7 @@ def check(predicate: CheckType) -> CheckReturnType:
     Attributes
     ----------
     predicate: Callable[[:class:`Context`], Awaitable[:class:`bool`]]
-        The registered check, this will always be a wrapped in a :ref:`coroutine <coroutine>`
+        The registered check, this will always be a wrapped in a :term:`coroutine function`
     """
 
     def decorator(func: MC) -> MC:

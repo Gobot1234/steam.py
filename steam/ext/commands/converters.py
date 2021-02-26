@@ -295,7 +295,7 @@ class Converter(ConverterBase[T], Generic[T], ABC):
     def __class_getitem__(cls, converter_for: ConverterTypes) -> Converter[T]:
         """The entry point for Converters.
 
-        This method is called when :class:`.Converter` is subclassed to handle the argument that was passed as the
+        This method is called when :class:`Converter` is subclassed to handle the argument that was passed as the
         ``converter_for``.
         """
         if isinstance(converter_for, tuple) and len(converter_for) != 1:
@@ -475,7 +475,23 @@ class DefaultGame(Default):
         return ctx.author.game
 
 
-class Greedy(Generic[T]):
+def flatten_greedy(item: T) -> list[T]:
+    ret = []
+    if get_origin(item) in (Greedy, Union):
+        for arg in get_args(item):
+            if arg in INVALID_GREEDY_TYPES:
+                raise TypeError(f"Greedy[{arg.__name__}] is invalid")
+            if get_origin(arg) in (Greedy, Union):
+                ret.extend(flatten_greedy(arg))
+            else:
+                ret.append(arg)
+    else:
+        ret.append(item)
+
+    return ret
+
+
+class Greedy(Sequence[T], Generic[T]):
     """
     A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
     parser to consume as many arguments as it can until it silently errors reverts the last argument being read and
@@ -500,7 +516,7 @@ class Greedy(Generic[T]):
     def __new__(
         cls, *args: Any, **kwargs: Any
     ) -> NoReturn:  # give a more helpful message than typing._BaseGenericAlias.__call__
-        raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[...]")
+        raise TypeError("Greedy cannot be instantiated directly, instead use Greedy[...]")
 
     def __class_getitem__(cls, converter: GreedyTypes) -> Greedy[T]:
         """The entry point for creating a Greedy type.
@@ -517,35 +533,14 @@ class Greedy(Generic[T]):
         if converter in INVALID_GREEDY_TYPES:
             raise TypeError(f"Greedy[{converter.__name__}] is invalid")
 
-        origin = get_origin(converter)
-        args = get_args(converter)
-        if origin is Union:
-            for arg in args:
-                if arg in INVALID_GREEDY_TYPES:
-                    raise TypeError(f"Greedy[{converter!r}] is invalid.")
-                if get_origin(arg) is Greedy:  # flatten Greedies similarly to Unions
-                    new_args = list(args)
-                    idx = new_args.index(arg)
-                    new_args.remove(arg)
-                    new_args.insert(idx, arg.converter)
-                    duplicate_free = []
-                    for t in new_args:
-                        if t not in duplicate_free:
-                            duplicate_free.append(t)
-                    return cls.__class_getitem__(tuple(duplicate_free))
-                if arg is Greedy:
-                    raise TypeError(f"Cannot use un-parametrized Greedy")
-        elif origin is Greedy:
-            converter = converter.converter
+        seen = []
+        for arg in flatten_greedy(converter):
+            if arg not in seen:
+                seen.append(arg)
 
-        annotation = super().__class_getitem__(converter)
+        annotation = super().__class_getitem__(seen[0] if len(seen) == 1 else Union[tuple(seen)])
         annotation.converter = get_args(annotation)[0]
         return annotation
-
-    if TYPE_CHECKING:
-
-        def __iter__(self) -> Iterator[T]:  # make IDEs sort of work
-            ...
 
 
 # fmt: off

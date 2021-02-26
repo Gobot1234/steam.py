@@ -103,7 +103,8 @@ if TYPE_CHECKING:
         def __int__(self) -> int:
             ...
 
-    Intable: Union[Intable, str] = ...
+
+Intable: Union[Intable, str, bytes]
 
 
 # fmt: off
@@ -474,13 +475,12 @@ def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:
 
 
 def warn(message: str, warning_type: type[Warning] = DeprecationWarning) -> None:
-    warnings.simplefilter("always", warning_type)  # turn off filter
+    warnings.simplefilter("once", warning_type)  # turn off filter
     warnings.warn(
         message,
         stacklevel=3,
         category=warning_type,
     )
-    warnings.simplefilter("default", warning_type)  # reset filter
 
 
 class BytesBuffer(BytesIO):

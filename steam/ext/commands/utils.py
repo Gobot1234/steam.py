@@ -26,20 +26,16 @@ SOFTWARE.
 
 from __future__ import annotations
 
-import importlib
-import typing
 from collections import deque
-from typing import TYPE_CHECKING, Dict, Generator, Generic, Optional, TypeVar, Union, overload
+from typing import Dict, Generator, Optional, TypeVar, Union, overload
 
-if TYPE_CHECKING:
-    from types import ModuleType
-
+from .errors import MissingClosingQuotation
 
 _T = TypeVar("_T")
 _VT = TypeVar("_VT")
 
 
-class CaseInsensitiveDict(Dict[str, _VT], Generic[_VT]):
+class CaseInsensitiveDict(Dict[str, _VT]):
     """A dictionary where keys are case insensitive."""
 
     def __init__(self, **kwargs: _VT):
@@ -83,12 +79,6 @@ class CaseInsensitiveDict(Dict[str, _VT], Generic[_VT]):
         return super().pop(k.lower())
 
 
-class MissingClosingQuotation(Exception):
-    def __init__(self, position: int):
-        self.position = position
-        super().__init__(f"No closing quotation found after the character at position {position}")
-
-
 def _end_of_quote_finder(in_stream: str, location: int) -> int:
     end_of_quote_index = in_stream.find('"', location)
     if end_of_quote_index == -1:
@@ -101,9 +91,9 @@ def _end_of_quote_finder(in_stream: str, location: int) -> int:
 def remove_quotes(string: str) -> str:
     """
     >>> remove_quotes('"only a quote at the start')
-    ... '"quoted only at the start'
+    '"quoted only at the start'
     >>> remove_quotes('"quoted all the way"')
-    ... 'quoted all the way'
+    'quoted all the way'
     """
     return string[1:-1] if (string[-1:], string[:1]) == ('"', '"') else string
 
@@ -125,29 +115,30 @@ class Shlex:
         if self.position >= self.end:
             return None
 
-        start = self.position
-        characters = []
-        for character in self.in_stream[self.position :]:
-            self.position += 1
-            if character.isspace():
-                break
+        while True:
+            start = self.position
+            characters = []
 
-            if character == '"':
-                before = self.position
-                if self.in_stream[before - 2] != "\\":  # quote is escaped carry on searching
-                    end_of_quote = _end_of_quote_finder(self.in_stream, before)
-                    self.position = end_of_quote + 2
-                    self._undo_pushback.append(start)
-                    return remove_quotes(self.in_stream[before:end_of_quote])
+            for character in self.in_stream[self.position :]:
+                self.position += 1
+                if character.isspace():
+                    break
 
-                characters.pop()
-            characters.append(character)
+                if character == '"':
+                    before = self.position
+                    if self.in_stream[before - 2] != "\\":  # quote is escaped carry on searching
+                        end_of_quote = _end_of_quote_finder(self.in_stream, before)
+                        self.position = end_of_quote + 2
+                        self._undo_pushback.append(start)
+                        return remove_quotes(self.in_stream[before:end_of_quote])
 
-        ret = remove_quotes("".join(characters))
-        if ret:
-            self._undo_pushback.append(start)
-            return ret
-        return self.read()
+                    characters.pop()
+                characters.append(character)
+
+            ret = remove_quotes("".join(characters))
+            if ret:
+                self._undo_pushback.append(start)
+                return ret
 
     def undo(self) -> None:
         try:
@@ -174,33 +165,3 @@ class Shlex:
             if token is None:
                 break
             yield token
-
-
-# various typing related functions
-
-
-def reload_module_with_TYPE_CHECKING(module: ModuleType) -> None:
-    """Reload a module with typing.TYPE_CHECKING set to ``True``. Allowing you to avoid circular import issues due to
-    the way :func:`importlib.reload` works.
-
-    Warning
-    --------
-    This is very hacky and is only really for internal use.
-
-    We attempt to fetch any imports in a TYPE_CHECKING block. If a user wants to have this behaviour avoided you can use
-    something similar to ::
-
-        if TYPE_CHECKING:
-           from expensive_module import expensive_type
-        else:
-           expensive_type = str
-    """
-    if typing not in module.__dict__.values() and getattr(module, "TYPE_CHECKING", True):
-        return
-
-    if module.__name__ == "__main__":
-        return  # cannot use TYPE_CHECKING in a "__main__" module
-
-    typing.TYPE_CHECKING = True
-    importlib.reload(module)
-    typing.TYPE_CHECKING = False

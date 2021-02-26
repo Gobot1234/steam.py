@@ -158,6 +158,8 @@ class MsgBase(Generic[T]):
 class Msg(MsgBase[T]):
     """A wrapper around received messages."""
 
+    __slots__ = ()
+
     def __init__(
         self,
         msg: EMsg,
@@ -209,6 +211,8 @@ class MsgProto(MsgBase[T]):
 class GCMsg(MsgBase[T]):
     """A wrapper around received GC messages, mainly for extensions."""
 
+    __slots__ = ()
+
     def __init__(
         self,
         msg: IE,
@@ -222,6 +226,8 @@ class GCMsg(MsgBase[T]):
 
 class GCMsgProto(MsgBase[T]):
     """A wrapper around received GC protobuf messages, mainly for extensions."""
+
+    __slots__ = ()
 
     def __init__(
         self,
