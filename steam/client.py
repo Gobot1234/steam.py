@@ -3,7 +3,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-2020 Rapptz
+Copyright (c) 2015-present Rapptz
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -42,8 +42,8 @@ from typing_extensions import Literal, final
 
 from . import errors, utils
 from .abc import SteamID
-from .game import Game
 from .game_server import Query, GameServer
+from .game import FetchedGame, Game
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
@@ -609,9 +609,29 @@ class Client:
             The clan or ``None`` if the clan was not found.
         """
         steam_id = await SteamID.from_url(community_route(f"clans/{name}"), self.http._session)
-        if steam_id is None:
+        return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
+
+    async def fetch_game(self, id: Union[int, Game]) -> Optional[FetchedGame]:
+        """|coro|
+        Fetch a game from its ID.
+
+        Parameters
+        ----------
+        id: :class:`int`
+            The app id of the game or a :class:`~steam.Game` instance.
+
+        Returns
+        -------
+        Optional[:class:`.FetchedGame`]
+            The fetched game or ``None`` if the game was not found.
+        """
+        id = id if isinstance(id, int) else id.id
+        data = await self.http.get_game(id)
+        if data is None:
             return None
-        return await self._connection.fetch_clan(steam_id.id64)
+        if not data[str(id)]["success"]:
+            return None
+        return FetchedGame(data[str(id)]["data"])
 
     async def fetch_servers(
         self, query: Query, limit: int = 100

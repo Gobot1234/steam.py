@@ -361,3 +361,42 @@ async def test_group_commands() -> None:
 
     with writes_to_console("In other child"):
         await bot.process_commands(command=other_child)
+
+
+called_image_converter = False
+called_command_converter = False
+
+
+@commands.converter_for(commands.Command)
+def command_converter(argument: str) -> None:
+    global called_command_converter
+    called_command_converter = True
+
+
+class ImageConverter(commands.Converter[steam.Image]):
+    async def convert(self, ctx: commands.Context, argument: str) -> None:
+        global called_image_converter
+        called_image_converter = True
+
+
+@pytest.mark.asyncio
+async def test_converters() -> None:
+    bot = TheTestBot()
+
+    @bot.command
+    async def source(_, command: commands.Command):
+        ...
+
+    assert command_converter.converter_for == commands.Command
+    assert commands.Command in bot.converters
+    await bot.process_commands("not a command", None)
+    assert called_command_converter
+
+    @bot.command
+    async def set_avatar(_, image: steam.Image):
+        ...
+
+    assert ImageConverter.converter_for is steam.Image
+    assert steam.Image in bot.converters
+    await bot.process_commands("https://not_an_image.com", None)
+    assert called_image_converter

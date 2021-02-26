@@ -79,7 +79,6 @@ if TYPE_CHECKING:
     from .state import ConnectionState
     from .user import User
 
-
 __all__ = (
     "SteamID",
     "Message",
@@ -87,6 +86,7 @@ __all__ = (
 )
 
 C = TypeVar("C", bound="Commentable")
+M = TypeVar("M", bound="Message")
 
 
 class UserDict(TypedDict):
@@ -751,7 +751,12 @@ class BaseUser(Commentable):
         not_implemented("is_banned")
 
 
-_EndPointReturnType: TypeAlias = "tuple[Union[tuple[int, ...], int], Callable[..., Coroutine[None, None, None]]]"
+_EndPointReturnType: TypeAlias = "tuple[Union[tuple[int, int], int], Callable[..., Coroutine[None, None, Any]]]"
+
+
+class _SupportsStr(Protocol):
+    def __str__(self) -> str:
+        ...
 
 
 @runtime_checkable
@@ -775,7 +780,7 @@ class Messageable(Protocol):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         raise NotImplementedError
 
-    async def send(self, content: Optional[str] = None, image: Optional[Image] = None) -> None:
+    async def send(self, content: Optional[_SupportsStr] = None, image: Optional[Image] = None) -> Optional[Message]:
         """|coro|
         Send a message to a certain destination.
 
@@ -792,17 +797,25 @@ class Messageable(Protocol):
             Sending the message failed.
         :exc:`~steam.Forbidden`
             You do not have permission to send the message.
+
+        Returns
+        -------
+        Optional[:class:`Message`]
+            The sent message only applicable if ``content`` is passed.
         """
+        message = None
         if content is not None:
             destination, message_func = self._get_message_endpoint()
-            await message_func(destination, str(content))
+            message = await message_func(destination, str(content))
         if image is not None:
             destination, image_func = self._get_image_endpoint()
             await image_func(destination, image)
 
+        return message
+
 
 @attr.dataclass(slots=True)
-class Channel(Messageable):
+class Channel(Messageable, Generic[M]):
     _state: ConnectionState
     clan: Optional[Clan] = None
     group: Optional[Group] = None
@@ -813,7 +826,7 @@ class Channel(Messageable):
         limit: Optional[int] = 100,
         before: Optional[datetime] = None,
         after: Optional[datetime] = None,
-    ) -> AsyncIterator["Message"]:
+    ) -> AsyncIterator[M]:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Channel`'s :class:`steam.Message`
         objects.
 
@@ -847,6 +860,11 @@ class Channel(Messageable):
         :class:`~steam.Message`
         """
         raise NotImplementedError
+
+    if TYPE_CHECKING:
+
+        async def send(self, content: Optional[_SupportsStr] = None, image: Optional[Image] = None) -> Optional[M]:
+            ...
 
 
 def _clean_up_content(content: str) -> str:  # steam does weird stuff with content

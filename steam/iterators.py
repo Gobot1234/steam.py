@@ -41,14 +41,17 @@ from .enums import ETradeOfferState
 
 if TYPE_CHECKING:
     from .abc import BaseUser, Channel, Message
-    from .channel import DMChannel, _GroupChannel
+    from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage
     from .clan import Clan
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
 
+
 T = TypeVar("T")
+C = TypeVar("C", bound="Channel")
+M = TypeVar("M", bound="Message")
 MaybeCoro = Callable[[T], Union[bool, Coroutine[Any, Any, bool]]]
-UNIX_EPOCH = datetime.fromtimestamp(0)
+UNIX_EPOCH = datetime.utcfromtimestamp(0)
 
 
 class AsyncIterator(Generic[T]):
@@ -358,12 +361,12 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                     trade.partner = user
 
 
-class ChannelHistoryIterator(AsyncIterator["Message"]):
+class ChannelHistoryIterator(AsyncIterator[M], Generic[M, C]):
     __slots__ = ("channel", "_actual_before")
 
     def __init__(
         self,
-        channel: Channel,
+        channel: C,
         state: ConnectionState,
         limit: Optional[int],
         before: Optional[datetime],
@@ -375,7 +378,7 @@ class ChannelHistoryIterator(AsyncIterator["Message"]):
         self.channel = channel
 
 
-class DMChannelHistoryIterator(ChannelHistoryIterator):
+class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"]):
     __slots__ = ("participant",)
 
     def __init__(
@@ -390,7 +393,7 @@ class DMChannelHistoryIterator(ChannelHistoryIterator):
         self.participant = channel.participant
 
     async def fill(self) -> None:
-        from .message import Message
+        from .message import UserMessage
 
         after_timestamp = int(self.after.timestamp())
         before_timestamp = int(self.before.timestamp())
@@ -409,24 +412,30 @@ class DMChannelHistoryIterator(ChannelHistoryIterator):
                 if not (after_timestamp < message.timestamp <= actual_before_timestamp):
                     return
 
-                new_message = Message(channel=self.channel, proto=message)
-                id64 = utils.make_id64(message.accountid)
-                new_message.author = self.participant if id64 == self.participant.id64 else self._state.client.user
+                new_message = UserMessage.__new__(UserMessage)
+                Message.__init__(new_message, channel=self.channel, proto=message)
+                new_message.author = (
+                    self.participant if message.accountid == self.participant.id else self._state.client.user
+                )
                 new_message.created_at = datetime.utcfromtimestamp(message.timestamp)
                 if not self.append(new_message):
                     return
-            last_message_timestamp = int(new_message.created_at.timestamp())
+
+            last_message_timestamp = int(message.timestamp)
 
             if not msgs.body.more_available:
                 return
 
 
-class GroupChannelHistoryIterator(ChannelHistoryIterator):
+class GroupChannelHistoryIterator(
+    ChannelHistoryIterator[Union["ClanMessage", "GroupMessage"], Union["ClanChannel", "GroupChannel"]]
+):
+
     __slots__ = ("group",)
 
     def __init__(
         self,
-        channel: _GroupChannel,
+        channel: Union[ClanChannel, GroupChannel],
         state: ConnectionState,
         limit: Optional[int],
         before: Optional[datetime],
@@ -436,7 +445,7 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator):
         self.group = channel.group or channel.clan
 
     async def fill(self) -> None:
-        from .message import Message
+        from .message import ClanMessage, GroupMessage
 
         after_timestamp = int(self.after.timestamp())
         before_timestamp = int(self.before.timestamp())
@@ -457,15 +466,23 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator):
                 if not (after_timestamp < message.server_timestamp <= actual_before_timestamp):
                     return
 
-                new_message = Message(channel=self.channel, proto=message)
-                id64 = utils.make_id64(message.sender)
-                new_message.author = id64
-                to_fetch.append(id64)
+                new_message = (
+                    GroupMessage.__new__(GroupMessage) if self.channel.group else ClanMessage.__new__(ClanMessage)
+                )
+                Message.__init__(new_message, channel=self.channel, proto=message)
+                new_message.author = utils.make_id64(message.sender)
+                to_fetch.append(new_message.author)
                 new_message.created_at = datetime.utcfromtimestamp(message.server_timestamp)
                 if not self.append(new_message):
+                    users = await self._state.fetch_users(to_fetch)
+
+                    for user, message in itertools.product(users, self.queue):
+                        if message.author == user.id64:
+                            message.author = user
+
                     return
 
-            last_message_timestamp = int(new_message.created_at.timestamp())
+            last_message_timestamp = int(message.server_timestamp)
 
             users = await self._state.fetch_users(to_fetch)
             for user, message in itertools.product(users, self.queue):

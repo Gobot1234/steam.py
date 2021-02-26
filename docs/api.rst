@@ -197,6 +197,10 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: EReviewType
+    :members:
+    :undoc-members:
+
 
 Guard
 ---------------
@@ -405,7 +409,19 @@ Games can be manually constructed using there app id eg:
     # this can then be used for trading a game title is not required for this
     # but it is for setting in game statuses if the game isn't a Steam game.
 
-.. autofunction:: steam.CUSTOM_GAME
+.. autofunction:: CUSTOM_GAME
+
+.. autoclass:: UserGame()
+    :inherited-members:
+    :members:
+
+.. autoclass:: WishlistGame()
+    :inherited-members:
+    :members:
+
+.. autoclass:: FetchedGame()
+    :inherited-members:
+    :members:
 
 
 Steam IDs

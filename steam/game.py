@@ -26,10 +26,11 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, overload
 
-from typing_extensions import TypedDict
+from typing_extensions import Literal, TypedDict
 
 from .enums import EReviewType, IntEnum
 
@@ -46,6 +47,7 @@ __all__ = (
     "CUSTOM_GAME",
     "UserGame",
     "WishlistGame",
+    "FetchedGame",
 )
 
 T = TypeVar("T")
@@ -74,7 +76,7 @@ class GameToDict(TypedDict, total=False):
     game_extra_info: str
 
 
-class WishlistDict(TypedDict):
+class WishlistGameDict(TypedDict):
     name: str
     capsule: str
     review_score: int
@@ -97,6 +99,48 @@ class WishlistDict(TypedDict):
     win: bool
     mac: bool
     linux: bool
+
+
+class PackageGroupsDict(TypedDict):
+    name: Literal["default", "subscriptions"]
+    title: str
+    description: str
+    selection_text: str
+    display_type: Literal[0, 1]
+    is_recurring_subscription: bool
+    subs: list[dict[str, str]]
+
+
+class FetchedGameDict(TypedDict):
+    # https://wiki.teamfortress.com/wiki/User:RJackson/StorefrontAPI#Result_data_3
+    type: Literal["game", "dlc", "demo", "advertising", "mod", "video"]
+    name: str
+    steam_appid: int
+    required_age: int
+    is_free: bool
+    controller_support: Literal["partial", "full"]
+    dlc: list[int]
+    detailed_description: str
+    short_description: str
+    fullgame: dict
+    supported_languages: str
+    header_image: str
+    pc_requirements: list[dict[str, str]]
+    mac_requirements: list[dict[str, str]]
+    linux_requirements: list[dict[str, str]]
+    legal_notice: str
+    developers: list[str]
+    publishers: list[str]
+    demos: list[dict]
+    price_overview: list[dict]
+    package_groups: list[PackageGroupsDict]
+    platforms: dict[str, bool]
+    metacritic: list[dict[str, str]]
+    categories: list[dict[str, str]]
+    release_date: dict[str, str]
+    background: str
+    website: str
+    movies: list[dict[str, Any]]
 
 
 class Game:
@@ -277,13 +321,13 @@ class WishlistGame(Game):
     Attributes
     ----------
     priority: :class:`int`
-        The priority of the game.
+        The priority of the game in the wishlist.
     added_at: :class:`.datetime`
         The time the the game was added to their wishlist.
     created_at: :class:`.datetime`
         The time the game was uploaded at.
-    background: :class:`str`
-        The background of the game.
+    background_url: :class:`str`
+        The background URL of the game.
     rank: :class:`int`
         The global rank of the game by popularity.
     review_status: :class:`.EReviewType`
@@ -305,7 +349,7 @@ class WishlistGame(Game):
     __slots__ = (
         "priority",
         "added_at",
-        "background",
+        "background_url",
         "created_at",
         "logo_url",
         "rank",
@@ -315,13 +359,13 @@ class WishlistGame(Game):
         "tags",
         "total_reviews",
         "type",
-        "_is_free_game",
+        "_free",
         "_on_linux",
         "_on_mac_os",
         "_on_windows",
     )
 
-    def __init__(self, id: int, data: WishlistDict):
+    def __init__(self, id: int, data: WishlistGameDict):
         super().__init__(id=id, title=data["name"])
         self.logo_url = data["capsule"]
         self.score = data["review_score"]
@@ -334,12 +378,12 @@ class WishlistGame(Game):
             for screenshot_url in data["screenshots"]
         ]
         self.added_at = datetime.utcfromtimestamp(data["added"])
-        self.background = data["background"]
+        self.background_url = data["background"]
         self.tags = data["tags"]
         self.rank = data["rank"]
         self.priority = int(data["priority"])
 
-        self._is_free_game = data["is_free_game"]
+        self._free = data["is_free_game"]
         self._on_windows = bool(data.get("win", False))
         self._on_mac_os = bool(data.get("mac", False))
         self._on_linux = bool(data.get("linux", False))
@@ -347,6 +391,105 @@ class WishlistGame(Game):
     def is_free(self) -> bool:
         """:class:`bool`: Whether or not the game is free to download."""
         return self._is_free_game
+
+    def is_on_windows(self) -> bool:
+        """:class:`bool`: Whether or not the game is able to be played on Windows."""
+        return self._on_windows
+
+    def is_on_mac_os(self) -> bool:
+        """:class:`bool`: Whether or not the game is able to be played on MacOS."""
+        return self._on_mac_os
+
+    def is_on_linux(self) -> bool:
+        """:class:`bool`: Whether or not the game is able to be played on Linux."""
+        return self._on_linux
+
+
+class Movie:
+    __slots__ = ("name", "id", "url", "created_at")
+
+    def __init__(self, movie: dict[str, Any]):
+        self.name: str = movie["name"]
+        self.id: int = movie["id"]
+        self.url: str = movie["mp4"]["max"]
+        match = re.search(r"t=(\d+)", self.url)
+        self.created_at = datetime.utcfromtimestamp(int(match.group(1))) if match else None
+
+    def __repr__(self) -> str:
+        attrs = ("name", "id", "url", "created_at")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<Movie {' '.join(resolved)}>"
+
+
+class FetchedGame(Game):
+    """Represents a Steam game fetched by :meth:`steam.Client.fetch_game`
+
+    Attributes
+    ----------
+    created_at: :class:`.datetime`
+        The time the game was uploaded at.
+    background_url: :class:`str`
+        The background URL of the game.
+    type: :class:`str`
+        The type of the app.
+    logo_url: :class:`str`
+        The logo URL of the game.
+    dlc: list[:class:`Game`]
+        The game's downloadable content.
+    website_url: :class:`str`
+        The website URL of the game.
+    developers: list[:class:`str`]
+        The developers of the game.
+    publishers: list[:class:`str`]
+        The publishers of the game.
+    description: :class:`description`
+        The description of the game.
+    movies: list[:class:`Movie`]
+        A list of the game's movies, each of which has ``name``, ``id``, ``url`` and optional ``created_at`` attributes.
+    """
+
+    __slots__ = (
+        "logo_url",
+        "background_url",
+        "created_at",
+        "type",
+        "dlc",
+        "website_url",
+        "developers",
+        "publishers",
+        "description",
+        "movies",
+        "_free",
+        "_on_windows",
+        "_on_mac_os",
+        "_on_linux",
+    )
+
+    def __init__(self, data: FetchedGameDict):
+        super().__init__(id=data["steam_appid"], title=data["name"])
+        self.logo_url = data["header_image"]
+        self.background_url = data["background"]
+        self.created_at = (
+            datetime.strptime(data["release_date"]["date"], "%d %b, %Y") if data["release_date"]["date"] else None
+        )
+        self.type = data["type"]
+
+        self.dlc = [Game(id=dlc_id) for dlc_id in data["dlc"]] if data.get("dlc") else None
+        self.website_url = data.get("website")
+        self.developers = data["developers"]
+        self.publishers = data["publishers"]
+        self.description = data["detailed_description"]
+
+        self.movies = [Movie(movie) for movie in data["movies"]] if data.get("movies") else None
+
+        self._free = data["is_free"]
+        self._on_windows = bool(data["platforms"].get("windows", False))
+        self._on_mac_os = bool(data["platforms"].get("mac", False))
+        self._on_linux = bool(data["platforms"].get("linux", False))
+
+    def is_free(self) -> bool:
+        """:class:`bool`: Whether or not the game is free to download."""
+        return self._free
 
     def is_on_windows(self) -> bool:
         """:class:`bool`: Whether or not the game is able to be played on Windows."""

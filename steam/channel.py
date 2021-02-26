@@ -29,16 +29,16 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional, Union
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Generic, Optional, Union
 
-from .abc import Channel
+from .abc import Channel, M, _EndPointReturnType, _SupportsStr
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
 
 if TYPE_CHECKING:
-    from .abc import _EndPointReturnType
     from .clan import Clan
     from .group import Group
     from .image import Image
+    from .message import ClanMessage, GroupMessage, UserMessage
     from .protobufs.steammessages_chat import (
         CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
         CChatRoomState,
@@ -55,7 +55,7 @@ __all__ = (
 )
 
 
-class DMChannel(Channel):
+class DMChannel(Channel["UserMessage"]):
     """Represents the channel a DM is sent in.
 
     Attributes
@@ -81,34 +81,16 @@ class DMChannel(Channel):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         return self.participant._get_image_endpoint()
 
-    async def send(
-        self, content: Optional[str] = None, *, trade: Optional[TradeOffer] = None, image: Optional[Image] = None
-    ) -> None:
-        """|coro|
-        Send a message, trade or image to an :class:`User`.
+    if TYPE_CHECKING:
 
-        Parameters
-        ----------
-        content: Optional[:class:`str`]
-           The message to send to the user.
-        trade: Optional[:class:`.TradeOffer`]
-           The trade offer to send to the user.
-
-           Note
-           ----
-           This will have its :attr:`~steam.TradeOffer.id` attribute updated after being sent.
-
-        image: Optional[:class:`.Image`]
-           The image to send to the user.
-
-        Raises
-        ------
-        :exc:`~steam.HTTPException`
-           Sending the message failed.
-        :exc:`~steam.Forbidden`
-           You do not have permission to send the message.
-        """
-        await self.participant.send(content=content, trade=trade, image=image)
+        async def send(
+            self,
+            content: Optional[_SupportsStr] = None,
+            *,
+            trade: Optional[TradeOffer] = None,
+            image: Optional[Image] = None,
+        ) -> Optional[UserMessage]:
+            ...
 
     @asynccontextmanager
     async def typing(self) -> AsyncGenerator[None, None]:
@@ -124,20 +106,13 @@ class DMChannel(Channel):
                 # do your expensive operations
         """
 
-        def suppress(task: asyncio.Task) -> None:
-            try:
-                task.exception()
-            except (asyncio.CancelledError, Exception):
-                pass
-
         async def inner() -> None:
             while True:
-                await asyncio.sleep(5)
-                await self._state.send_user_typing(self.participant.id64)
+                await asyncio.sleep(10)
+                await self.trigger_typing()
 
-        await self._state.send_user_typing(self.participant.id64)
+        await self.trigger_typing()
         task = self._state.loop.create_task(inner())
-        task.add_done_callback(suppress)
         yield
         task.cancel()
 
@@ -159,7 +134,7 @@ class DMChannel(Channel):
         return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
-class _GroupChannel(Channel):
+class _GroupChannel(Channel[M], Generic[M]):
     __slots__ = ("id", "joined_at", "name")
 
     def __init__(self, state: ConnectionState, channel: Any):
@@ -195,7 +170,7 @@ class _GroupChannel(Channel):
         return GroupChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
-class GroupChannel(_GroupChannel):
+class GroupChannel(_GroupChannel["GroupMessage"]):
     """Represents a group channel.
 
     Attributes
@@ -215,7 +190,7 @@ class GroupChannel(_GroupChannel):
         self.group = group
 
 
-class ClanChannel(_GroupChannel):  # they're basically the same thing
+class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same thing
     """Represents a group channel.
 
     Attributes

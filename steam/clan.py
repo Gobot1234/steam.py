@@ -39,7 +39,6 @@ from .abc import Commentable, SteamID
 from .channel import ClanChannel
 from .errors import HTTPException
 from .game import Game
-from .models import community_route
 from .protobufs.steammessages_chat import (
     CChatRoomSummaryPair as ReceivedResponse,
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
@@ -66,15 +65,12 @@ class Clan(Commentable, comment_path="Clan"):
 
             Returns the clan's name.
 
-
     Attributes
     ------------
     name: :class:`str`
         The name of the clan.
-    chat_id: :class:`int`
+    chat_id: Optional[:class:`int`]
         The clan's chat_id.
-    url: :class:`str`
-        The url of the clan.
     icon_url: :class:`str`
         The icon url of the clan. Uses the large (184x184 px) image url.
     description: :class:`str`
@@ -116,7 +112,6 @@ class Clan(Commentable, comment_path="Clan"):
     """
 
     __slots__ = (
-        "url",
         "name",
         "description",
         "icon_url",
@@ -140,11 +135,10 @@ class Clan(Commentable, comment_path="Clan"):
         "game",
     )
 
-    # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/clans.js
+    # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type="Clan")
-        self.url = community_route(f"gid/{id}")
         self._state = state
         self.name: Optional[str] = None
         self.chat_id: Optional[int] = None
@@ -159,7 +153,7 @@ class Clan(Commentable, comment_path="Clan"):
         self.default_channel: Optional[ClanChannel] = None
 
     async def __ainit__(self) -> None:
-        resp = await self._state.request("GET", self.url)
+        resp = await self._state.request("GET", self.community_url)
         if not self.id:
             search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
             if search is None:
@@ -235,18 +229,13 @@ class Clan(Commentable, comment_path="Clan"):
         self.chat_id = proto.chat_group_id
         self.tagline = proto.chat_group_tagline or None
         self.active_member_count = proto.active_member_count
-        self.game = Game(id=proto.appid)
+        self.game = Game(id=proto.appid) if proto.appid else None
 
         self.owner = await self._state.fetch_user(utils.make_id64(proto.accountid_owner))
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
 
-        self.roles = []
-        for role in proto.role_actions:
-            self.roles.append(Role(self._state, self, role))
-        try:
-            self.default_role = [r for r in self.roles if r.id == int(proto.default_role_id)][0]
-        except IndexError:
-            pass
+        self.roles = [Role(self._state, self, role) for role in proto.role_actions]
+        self.default_role = utils.find(lambda r: r.id == int(proto.default_role_id), self.roles)
 
         self.channels = []
         self.default_channel = None
@@ -265,8 +254,7 @@ class Clan(Commentable, comment_path="Clan"):
                     if attr:
                         setattr(old_channel, name, attr)
 
-        default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)]
-        self.default_channel = default_channel[0] if default_channel else None
+        self.default_channel = utils.find(lambda c: c.id == int(proto.default_chat_id), self.channels)
         return self
 
     def __repr__(self) -> str:
@@ -284,14 +272,13 @@ class Clan(Commentable, comment_path="Clan"):
         Returns
         --------
         list[:class:`~steam.SteamID`]
-            A basic list of the clan's members.
-            This can be a very slow operation due to
-            the rate limits on this endpoint.
+            A basic list of the clan's members. This can be a very slow operation due to the rate limits on this
+            endpoint.
         """
         ret = []
         resp = await self._state.request("GET", f"{self.url}/members?p=1&content_only=true")
         soup = BeautifulSoup(resp, "html.parser")
-        pages = int(soup.find_all("a", attrs={"class": "pagelink"}).pop().text)
+        number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", attrs={"class": "group_paging"}).text)[0])
 
         async def getter(i: int) -> None:
             try:
@@ -305,9 +292,7 @@ class Clan(Commentable, comment_path="Clan"):
                     for user in s.find_all("div", attrs={"class": "member_block"}):
                         ret.append(SteamID(user["data-miniprofile"]))
 
-        for i in range(pages):
-            await getter(i)
-
+        await asyncio.gather(*(getter(i) for i in range(number_of_pages)))
         return ret
 
     async def join(self) -> None:

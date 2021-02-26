@@ -60,8 +60,6 @@ class _MsgHdrBody:
 
 
 class MsgHdr:
-    """The message header for :class:`steam.protobufs.Msg` objects."""
-
     __slots__ = ("msg", "eresult", "job_name_target", "job_id_target", "job_id_source", "body")
     SIZE = 20
 
@@ -91,8 +89,6 @@ class MsgHdr:
 
 
 class ExtendedMsgHdr:
-    """The extended message header for :class:`steam.protobufs.Msg` objects."""
-
     __slots__ = (
         "body",
         "msg",
@@ -160,15 +156,13 @@ class ExtendedMsgHdr:
 
 
 class MsgHdrProtoBuf:
-    """The message header for :class:`steam.protobufs.MsgProto` objects."""
-
+    __slots__ = ("body", "msg", "length")
     SIZE = 8
-    __slots__ = ("body", "msg", "_full_size")
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
         self.body = steammessages_base.CMsgProtoBufHeader()
-        self._full_size = 0
+        self.length = 0
 
         if data:
             self.parse(data)
@@ -188,13 +182,11 @@ class MsgHdrProtoBuf:
         msg, proto_length = struct.unpack_from("<II", data)
 
         self.msg = EMsg(clear_proto_bit(msg))
-        self._full_size = self.SIZE + proto_length
-        self.body.parse(data[self.SIZE : self._full_size])
+        self.length = self.SIZE + proto_length
+        self.body.parse(data[self.SIZE : self.length])
 
 
 class GCMsgHdr:
-    """The message header for :class:`steam.protobufs.MsgProto` objects."""
-
     __slots__ = ("header_version", "target_job_id", "source_job_id", "msg")
     SIZE = 18
 
@@ -223,13 +215,13 @@ class GCMsgHdr:
 
 
 class GCMsgHdrProto:
-    __slots__ = ("msg", "body", "header_length")
+    __slots__ = ("msg", "body", "length")
     SIZE = 8
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
         self.body = steammessages_base.CMsgProtoBufHeader()
-        self.header_length = 0
+        self.length = 0
 
         if data:
             self.parse(data)
@@ -242,13 +234,13 @@ class GCMsgHdrProto:
 
     def __bytes__(self) -> bytes:
         proto_data = bytes(self.body)
-        self.header_length = len(proto_data)
-        return struct.pack("<Ii", set_proto_bit(self.msg), self.header_length) + proto_data
+        self.length = len(proto_data)
+        return struct.pack("<Ii", set_proto_bit(self.msg), self.length) + proto_data
 
     def parse(self, data: bytes) -> None:
-        msg, self.header_length = struct.unpack_from("<Ii", data)
+        msg, self.length = struct.unpack_from("<Ii", data)
 
         self.msg = clear_proto_bit(msg)
 
-        if self.header_length:
-            self.body = self.body.parse(data[self.SIZE : self.SIZE + self.header_length])
+        if self.length:
+            self.body = self.body.parse(data[self.SIZE : self.SIZE + self.length])

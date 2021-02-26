@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import sys
 import types
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod, ABC
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -36,16 +36,16 @@ from typing import (
     Dict,
     ForwardRef,
     Generic,
-    Iterator,
     NoReturn,
     Optional,
+    Sequence,
     Tuple,
     TypeVar,
     Union,
     overload,
 )
 
-from typing_extensions import Literal, Protocol, get_args, get_origin, runtime_checkable, TypeAlias
+from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable, TypeAlias
 
 from ... import utils
 from ...channel import Channel
@@ -56,7 +56,6 @@ from ...group import Group
 from ...models import FunctionType
 from ...user import User
 from .errors import BadArgument
-from .utils import reload_module_with_TYPE_CHECKING
 
 if TYPE_CHECKING:
     from steam.ext import commands
@@ -82,18 +81,15 @@ __all__ = (
 )
 
 T = TypeVar("T")
+BC = TypeVar("BC", bound="BasicConverter")
 Converters: TypeAlias = "Union[ConverterBase, BasicConverter]"
 RD: TypeAlias = "Union[Callable[[MC], MC], MC]"
 
 
 class ConverterDict(Dict[type, Tuple[Converters, ...]]):
     def __setitem__(self, key: Any, value: Converters) -> None:
-        try:
-            old_value = self[key]
-        except KeyError:
-            super().__setitem__(key, (value,))
-        else:
-            super().__setitem__(key, old_value + (value,))
+        old_value = super().get(key, ())
+        super().__setitem__(key, old_value + (value,))
 
 
 class BasicConverter(FunctionType):
@@ -106,19 +102,19 @@ class BasicConverter(FunctionType):
 CONVERTERS = ConverterDict()
 
 
-def converter_for(converter_for: T) -> Callable[[MC], MC]:
+def converter_for(converter_for: T) -> Callable[[BC], BC]:
     """The recommended way to mark a function converter as such.
 
     Note
     ----
-    All of the converters marked with this decorator or derived from :class:`.Converter` can be accessed via
+    All of the converters marked with this decorator or derived from :class:`Converter` can be accessed via
     :attr:`~steam.ext.commands.Bot.converters`.
 
     Examples
     --------
     .. code-block:: python
 
-        @commands.converter(commands.Command)  # this is the type hint used
+        @commands.converter_for(commands.Command)  # this is the type hint used
         def command_converter(argument: str) -> commands.Command:
             return bot.get_command(argument)
 
@@ -140,7 +136,7 @@ def converter_for(converter_for: T) -> Callable[[MC], MC]:
         The class that the converter can be type-hinted to to.
     """
 
-    def decorator(func: MC) -> MC:
+    def decorator(func: BC) -> BC:
         if not isinstance(func, types.FunctionType):
             raise TypeError(f"Excepted a function, received {func.__class__.__name__!r}")
         CONVERTERS[converter_for] = func
@@ -174,7 +170,29 @@ class ConverterBase(Protocol[T]):
 
 
 class Converter(ConverterBase[T], Generic[T], ABC):
-    r"""A custom :class:`typing.Protocol` from which converters can be derived.
+    # this is the base class we use for isinstance checks, don't actually this
+    @abstractmethod
+    async def convert(self, ctx: "commands.Context", argument: str) -> "T":
+        """|coro|
+        An abstract method all converters must derive.
+
+        Parameters
+        ----------
+        ctx: :class:`~steam.ext.commands.Context`
+            The context for the invocation.
+        argument: :class:`str`
+            The argument that is passed from the argument parser.
+
+        Returns
+        -------
+        T
+            An object, should be of the same type of :attr:`converter_for`.
+        """
+        raise NotImplementedError("Derived classes must implement this")
+
+
+class Converter(ConverterBase[T], Generic[T], ABC):
+    """A custom :class:`typing.Protocol` from which converters can be derived.
 
     Note
     ----
@@ -275,10 +293,9 @@ class Converter(ConverterBase[T], Generic[T], ABC):
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-        converter_for = globals().pop("__current_converter", None)
-        # the flow for this is __class_getitem__ -> type.__new__ (but that won't do anything) -> __init_subclass__ so
-        # this is alright
-        if converter_for is None:
+        try:
+            converter_for = get_args(cls.__orig_bases__[0])[0]
+        except IndexError:
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
             utils.warn(
                 "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1"
@@ -286,27 +303,19 @@ class Converter(ConverterBase[T], Generic[T], ABC):
             CONVERTERS[cls] = cls
         else:
             if isinstance(converter_for, ForwardRef):
-                module = sys.modules[cls.__module__]
-                reload_module_with_TYPE_CHECKING(module)
-                str_value = converter_for.__forward_arg__
-                try:
-                    converter_for = module.__dict__[str_value]
-                except KeyError:
-                    raise NameError(f"{str_value!r} was not able to be evaluated to a type") from None
+                raise NameError(f"name {converter_for.__forward_arg__!r} is not defined") from None
             cls.converter_for = converter_for
             CONVERTERS[converter_for] = cls
 
     def __class_getitem__(cls, converter_for: ConverterTypes) -> Converter[T]:
         """The entry point for Converters.
 
-        This method is called when :class:`.Converter` is subclassed to handle the argument that was passed as the
+        This method is called when :class:`Converter` is subclassed to handle the argument that was passed as the
         ``converter_for``.
         """
         if isinstance(converter_for, tuple) and len(converter_for) != 1:
             raise TypeError("commands.Converter only accepts one argument")
-        annotation = super().__class_getitem__(converter_for)
-        globals()["__current_converter"] = get_args(annotation)[0]
-        return annotation
+        return super().__class_getitem__(converter_for)
 
 
 class UserConverter(Converter[User]):
@@ -481,7 +490,23 @@ class DefaultGame(Default):
         return ctx.author.game
 
 
-class Greedy(Generic[T]):
+def flatten_greedy(item: T) -> list[T]:
+    ret = []
+    if get_origin(item) in (Greedy, Union):
+        for arg in get_args(item):
+            if arg in INVALID_GREEDY_TYPES:
+                raise TypeError(f"Greedy[{arg.__name__}] is invalid")
+            if get_origin(arg) in (Greedy, Union):
+                ret.extend(flatten_greedy(arg))
+            else:
+                ret.append(arg)
+    else:
+        ret.append(item)
+
+    return ret
+
+
+class Greedy(Sequence[T], Generic[T]):
     """
     A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
     parser to consume as many arguments as it can until it silently errors reverts the last argument being read and
@@ -506,7 +531,7 @@ class Greedy(Generic[T]):
     def __new__(
         cls, *args: Any, **kwargs: Any
     ) -> NoReturn:  # give a more helpful message than typing._BaseGenericAlias.__call__
-        raise TypeError("commands.Greedy cannot be instantiated directly, instead use Greedy[...]")
+        raise TypeError("Greedy cannot be instantiated directly, instead use Greedy[...]")
 
     def __class_getitem__(cls, converter: GreedyTypes) -> Greedy[T]:
         """The entry point for creating a Greedy type.
@@ -523,35 +548,14 @@ class Greedy(Generic[T]):
         if converter in INVALID_GREEDY_TYPES:
             raise TypeError(f"Greedy[{converter.__name__}] is invalid")
 
-        origin = get_origin(converter)
-        args = get_args(converter)
-        if origin is Union:
-            for arg in args:
-                if arg in INVALID_GREEDY_TYPES:
-                    raise TypeError(f"Greedy[{converter!r}] is invalid.")
-                if get_origin(arg) is Greedy:  # flatten Greedies similarly to Unions
-                    new_args = list(args)
-                    idx = new_args.index(arg)
-                    new_args.remove(arg)
-                    new_args.insert(idx, arg.converter)
-                    duplicate_free = []
-                    for t in new_args:
-                        if t not in duplicate_free:
-                            duplicate_free.append(t)
-                    return cls.__class_getitem__(tuple(duplicate_free))
-                if arg is Greedy:
-                    raise TypeError(f"Cannot use un-parametrized Greedy")
-        elif origin is Greedy:
-            converter = converter.converter
+        seen = []
+        for arg in flatten_greedy(converter):
+            if arg not in seen:
+                seen.append(arg)
 
-        annotation = super().__class_getitem__(converter)
+        annotation = super().__class_getitem__(seen[0] if len(seen) == 1 else Union[tuple(seen)])
         annotation.converter = get_args(annotation)[0]
         return annotation
-
-    if TYPE_CHECKING:
-
-        def __iter__(self) -> Iterator[T]:  # make IDEs sort of work
-            ...
 
 
 # fmt: off

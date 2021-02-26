@@ -118,7 +118,7 @@ class HTTPClient:
         self.connector: Optional[aiohttp.BaseConnector] = options.get("connector")
 
     def recreate(self) -> None:
-        if self._session.closed:
+        if not self._session or self._session.closed:
             self._session = aiohttp.ClientSession(
                 cookies={"Steam_Language": "english"},  # make sure the language is set to english
                 connector=self.connector,
@@ -585,6 +585,9 @@ class HTTPClient:
 
     def get_wishlist(self, user_id64: int) -> RequestType:
         return self.request("GET", store_route(f"wishlist/profiles/{user_id64}/wishlistdata"))
+
+    def get_game(self, id: int) -> RequestType:
+        return self.request("GET", store_route(f"api/appdetails"), params={"appids": id, "cc": "english"})
 
     async def edit_profile(
         self,

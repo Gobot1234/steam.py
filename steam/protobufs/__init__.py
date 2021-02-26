@@ -29,6 +29,7 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 
 from __future__ import annotations
 
+import sys
 from typing import Any, Generic, Optional, TypeVar
 
 import betterproto
@@ -80,8 +81,10 @@ def get_um(name: str) -> GetProtoType:
 class MsgBase(Generic[T]):
     __slots__ = ("header", "body", "payload", "skip")
 
-    def __new__(cls: type[M], *args: Any, **kwargs: Any) -> M:
-        return object.__new__(cls)  # see https://bugs.python.org/issue39168 for the rational behind this
+    if sys.version_info[:2] < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
+
+        def __new__(cls: type[M], *args: Any, **kwargs: Any) -> M:
+            return object.__new__(cls)
 
     def __init__(self, msg: IE, data: Optional[bytes], **kwargs: Any):
         self.msg: IE = msg
@@ -155,6 +158,8 @@ class MsgBase(Generic[T]):
 class Msg(MsgBase[T]):
     """A wrapper around received messages."""
 
+    __slots__ = ()
+
     def __init__(
         self,
         msg: EMsg,
@@ -180,7 +185,7 @@ class MsgProto(MsgBase[T]):
         **kwargs: Any,
     ):
         self.header = MsgHdrProtoBuf(data)
-        self.skip = self.header._full_size
+        self.skip = self.header.length
         self.um_name = um_name
         super().__init__(msg, data, **kwargs)
 
@@ -193,7 +198,7 @@ class MsgProto(MsgBase[T]):
             EMsg.ServiceMethodCallFromClient,
         ):
             name = self.header.body.job_name_target or self.um_name
-            proto = get_um(f"{name}_Response" if self.msg == EMsg.ServiceMethodResponse else name)
+            proto = get_um(f"{name}_Response" if self.msg == EMsg.ServiceMethodResponse else f"{name}_Request")
             if name:
                 self.header.body.job_name_target = name.replace("_Request", "").replace("_Response", "")
 
@@ -205,6 +210,8 @@ class MsgProto(MsgBase[T]):
 
 class GCMsg(MsgBase[T]):
     """A wrapper around received GC messages, mainly for extensions."""
+
+    __slots__ = ()
 
     def __init__(
         self,
@@ -220,6 +227,8 @@ class GCMsg(MsgBase[T]):
 class GCMsgProto(MsgBase[T]):
     """A wrapper around received GC protobuf messages, mainly for extensions."""
 
+    __slots__ = ()
+
     def __init__(
         self,
         msg: IE,
@@ -227,5 +236,5 @@ class GCMsgProto(MsgBase[T]):
         **kwargs: Any,
     ):
         self.header = GCMsgHdrProto(data)
-        self.skip = self.header.SIZE + self.header.header_length
+        self.skip = self.header.SIZE + self.header.length
         super().__init__(msg, data, **kwargs)

@@ -1,4 +1,4 @@
-.. currentmodule:: steam
+.. currentmodule:: steam.ext.commands
 
 API Reference
 ===============
@@ -9,7 +9,7 @@ The following section outlines the API of steam.py's command extension module.
 Bot
 ----
 
-.. autoclass:: steam.ext.commands.Bot
+.. autoclass:: Bot
     :members:
     :inherited-members:
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_logout, on_error, on_message, on_typing,
@@ -37,16 +37,16 @@ Bot
         :decorator:
 
 
-.. autofunction:: steam.ext.commands.when_mentioned
+.. autofunction:: when_mentioned
 
-.. autofunction:: steam.ext.commands.when_mentioned_or
+.. autofunction:: when_mentioned_or
 
 
 Event Reference
 -----------------
 
 These events function similar to :ref:`the regular events <event-reference>`, and all of the events there are also
-applicable to :class:`steam.ext.commands.Bot`. These are however unique to the commands extension module.
+applicable to :class:`Bot`. These are however unique to the commands extension module.
 
 .. autofunction:: steam.ext.commands.Bot.on_command_error
 
@@ -58,7 +58,7 @@ applicable to :class:`steam.ext.commands.Bot`. These are however unique to the c
 Enumerations
 -------------
 
-.. autoclass:: steam.ext.commands.BucketType
+.. autoclass:: BucketType
     :members:
     :undoc-members:
 
@@ -66,17 +66,17 @@ Enumerations
 Commands
 --------
 
-.. autodecorator:: steam.ext.commands.command(name=None, cls=None, **attrs)
+.. autodecorator:: command(name=None, cls=None, **attrs)
 
-.. autodecorator:: steam.ext.commands.group(name=None, cls=None, **attrs)
+.. autodecorator:: group(name=None, cls=None, **attrs)
 
-.. autodecorator:: steam.ext.commands.check
+.. autodecorator:: check
 
-.. autodecorator:: steam.ext.commands.cooldown
+.. autodecorator:: cooldown
 
-.. autodecorator:: steam.ext.commands.is_owner()
+.. autodecorator:: is_owner()
 
-.. autoclass:: steam.ext.commands.Command
+.. autoclass:: Command
     :members:
     :special-members: __call__
     :exclude-members: error, before_invoke, after_invoke
@@ -90,7 +90,7 @@ Commands
     .. automethod:: after_invoke()
         :decorator:
 
-.. autoclass:: steam.ext.commands.GroupCommand
+.. autoclass:: Group
     :members:
     :inherited-members:
     :special-members: __call__
@@ -209,7 +209,7 @@ An invocation of ``!command some string=long`` would pass ``"some"`` to ``argume
 Help Commands
 -------------
 
-.. autoclass:: steam.ext.commands.HelpCommand
+.. autoclass:: HelpCommand
     :members:
     :inherited-members:
     :special-members: __call__
@@ -225,7 +225,7 @@ Help Commands
         :decorator:
 
 
-.. autoclass:: steam.ext.commands.DefaultHelpCommand
+.. autoclass:: DefaultHelpCommand
     :members:
     :inherited-members:
     :special-members: __call__
@@ -241,7 +241,7 @@ Help Commands
 Cogs
 ------
 
-.. autoclass:: steam.ext.commands.Cog
+.. autoclass:: Cog
     :members:
     :exclude-members: listener
 
@@ -252,7 +252,7 @@ Cogs
 Context
 --------
 
-.. autoclass:: steam.ext.commands.Context
+.. autoclass:: Context
     :members:
     :inherited-members:
 
@@ -260,15 +260,15 @@ Context
 Cooldowns
 ----------
 
-.. autoclass:: steam.ext.commands.Cooldown
+.. autoclass:: Cooldown
     :members:
 
 Converters
 -----------
 
-.. autodecorator:: steam.ext.commands.converter_for()
+.. autodecorator:: converter_for()
 
-.. autoclass:: steam.ext.commands.Converter()
+.. autoclass:: Converter()
     :members:
     :special-members: __class_getitem__
     :exclude-members: register
@@ -276,36 +276,36 @@ Converters
     .. automethod:: register
         :decorator:
 
-.. autoclass:: steam.ext.commands.UserConverter()
+.. autoclass:: UserConverter()
 
-.. autoclass:: steam.ext.commands.ChannelConverter()
+.. autoclass:: ChannelConverter()
 
-.. autoclass:: steam.ext.commands.ClanConverter()
+.. autoclass:: ClanConverter()
 
-.. autoclass:: steam.ext.commands.GroupConverter()
+.. autoclass:: GroupConverter()
 
-.. autoclass:: steam.ext.commands.GameConverter()
+.. autoclass:: GameConverter()
 
 
 Default Values
 ---------------
 
-.. autoclass:: steam.ext.commands.Default()
+.. autoclass:: Default()
 
-.. autoclass:: steam.ext.commands.DefaultAuthor()
+.. autoclass:: DefaultAuthor()
 
-.. autoclass:: steam.ext.commands.DefaultChannel()
+.. autoclass:: DefaultChannel()
 
-.. autoclass:: steam.ext.commands.DefaultClan()
+.. autoclass:: DefaultClan()
 
-.. autoclass:: steam.ext.commands.DefaultGroup()
+.. autoclass:: DefaultGroup()
 
-.. autoclass:: steam.ext.commands.DefaultGame()
+.. autoclass:: DefaultGame()
 
 Greedy
 -------
 
-.. autoclass:: steam.ext.commands.Greedy()
+.. autoclass:: Greedy()
     :members:
     :special-members: __class_getitem__
 
@@ -313,34 +313,34 @@ Greedy
 Exceptions
 -----------
 
-.. autoexception:: steam.ext.commands.CommandError
+.. autoexception:: CommandError
     :members:
 
-.. autoexception:: steam.ext.commands.BadArgument
+.. autoexception:: BadArgument
     :members:
 
-.. autoexception:: steam.ext.commands.MissingRequiredArgument
+.. autoexception:: MissingRequiredArgument
     :members:
 
-.. autoexception:: steam.ext.commands.DuplicateKeywordArgument
+.. autoexception:: DuplicateKeywordArgument
     :members:
 
-.. autoexception:: steam.ext.commands.UnmatchedKeyValuePair
+.. autoexception:: UnmatchedKeyValuePair
     :members:
 
-.. autoexception:: steam.ext.commands.CheckFailure
+.. autoexception:: CheckFailure
     :members:
 
-.. autoexception:: steam.ext.commands.NotOwner
+.. autoexception:: NotOwner
     :members:
 
-.. autoexception:: steam.ext.commands.CommandNotFound
+.. autoexception:: CommandNotFound
     :members:
 
-.. autoexception:: steam.ext.commands.CommandDisabled
+.. autoexception:: CommandDisabled
     :members:
 
-.. autoexception:: steam.ext.commands.CommandOnCooldown
+.. autoexception:: CommandOnCooldown
     :members:
 
 
@@ -350,13 +350,13 @@ Exception Hierarchy
 .. exception_hierarchy::
 
     - :exc:`steam.SteamException`
-        - :exc:`~.commands.CommandError`
-            - :exc:`~.commands.BadArgument`
-                - :exc:`~.commands.MissingRequiredArgument`
-                - :exc:`~.commands.DuplicateKeywordArgument`
-                - :exc:`~.commands.UnmatchedKeyValuePair`
-            - :exc:`~.commands.CommandNotFound`
-            - :exc:`~.commands.CheckFailure`
-                - :exc:`~.commands.CommandDisabled`
-                - :exc:`~.commands.NotOwner`
-            - :exc:`~.commands.CommandOnCooldown`
+        - :exc:`CommandError`
+            - :exc:`BadArgument`
+                - :exc:`MissingRequiredArgument`
+                - :exc:`DuplicateKeywordArgument`
+                - :exc:`UnmatchedKeyValuePair`
+            - :exc:`CommandNotFound`
+            - :exc:`CheckFailure`
+                - :exc:`CommandDisabled`
+                - :exc:`NotOwner`
+            - :exc:`CommandOnCooldown`

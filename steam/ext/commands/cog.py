@@ -35,7 +35,6 @@ from chardet import detect
 from typing_extensions import Final
 
 from ... import ClientException
-from ...utils import cached_property
 from .commands import Command, GroupMixin
 
 if TYPE_CHECKING:
@@ -75,19 +74,33 @@ class Cog:
                 @commands.command(enabled=True)
                 async def working(self, ctx):  # enabled
                     ...
+
+    description: Optional[:class:`str`]
+        The cleaned up doc-string for the cog.
     """
 
-    __commands__: Final[dict[str, Command]]  # noqa  # type: ignore
-    __listeners__: Final[dict[str, list[EventType]]]  # noqa  # type: ignore
-    command_attrs: Final[dict[str, Any]]  # noqa  # type: ignore
-    qualified_name: Final[str]  # noqa  # type: ignore
+    __commands__: Final[dict[str, Command]]  # type: ignore
+    __listeners__: Final[dict[str, list[EventType]]]  # type: ignore
+    command_attrs: Final[dict[str, Any]]  # type: ignore
+    qualified_name: Final[str]  # type: ignore
+    description: Final[Optional[str]]  # type: ignore
 
     def __init_subclass__(cls, name: Optional[str] = None, command_attrs: Optional[dict[str, Any]] = None) -> None:
-        cls.qualified_name = name or cls.__name__  # noqa  # type: ignore
-        cls.command_attrs = command_attrs or {}  # noqa  # type: ignore
+        cls.qualified_name = name or cls.__name__  # type: ignore
+        cls.command_attrs = command_attrs or {}  # type: ignore
 
-        cls.__listeners__ = {}  # noqa  # type: ignore
-        cls.__commands__ = {}  # noqa  # type: ignore
+        if cls.__doc__ is not None:
+            help_doc = inspect.cleandoc(cls.__doc__)
+            if isinstance(help_doc, bytes):
+                encoding = detect(help_doc)["encoding"]
+                help_doc.decode(encoding)
+
+            cls.description = help_doc  # type: ignore
+        else:
+            cls.description = None  # type: ignore
+
+        cls.__listeners__ = {}  # type: ignore
+        cls.__commands__ = {}  # type: ignore
         for name, attr in inspect.getmembers(cls):
             if name.startswith(("bot_", "cog_")) and getattr(Cog, name, None) is None:
                 raise ClientException(
@@ -116,16 +129,6 @@ class Cog:
     def __repr__(self) -> str:
         return f"<Cog {f'{self.__class__.__module__}.{self.__class__.__name__}'!r}>"
 
-    @cached_property
-    def description(self) -> Optional[str]:
-        """Optional[:class:`str`]: The cleaned up docstring for the class."""
-        help_doc = inspect.getdoc(self)
-        if isinstance(help_doc, bytes):
-            encoding = detect(help_doc)["encoding"]
-            return help_doc.decode(encoding)
-
-        return help_doc
-
     @property
     def commands(self) -> set[Command]:
         """set[:class:`Command`]: A set of the :class:`Cog`'s commands."""
@@ -150,7 +153,7 @@ class Cog:
     @classmethod
     def listener(cls, name: Optional[str] = None) -> Callable[[E], E]:
         """|maybecallabledeco|
-        A decorator that registers a :ref:`coroutine <coroutine>` as a listener. Similar to
+        A decorator that registers a :term:`coroutine function` as a listener. Similar to
         :meth:`~steam.ext.commands.Bot.listen`
 
         Parameters
@@ -161,7 +164,7 @@ class Cog:
 
         def decorator(coro: E) -> E:
             if not inspect.iscoroutinefunction(coro):
-                raise TypeError(f"Listeners must be coroutines, {coro.__name__} is {type(coro).__name__}")
+                raise TypeError(f"Listeners must be coroutine functions, {coro.__name__} is {type(coro).__name__}")
             coro.__event_name__ = name if not callable(name) else coro.__name__
             return coro
 
@@ -223,15 +226,18 @@ class Cog:
             bot.add_check(self.bot_check)
 
         for idx, command in enumerate(self.__commands__.values()):
+            del command.clean_params  # clear any previous params
             command.cog = self
+            child.clean_params  # check the new params
+
             if cls.cog_check is not Cog.cog_check:
                 command.checks.append(self.cog_check)
 
             if isinstance(command, GroupMixin):
                 for child in command.children:
-                    del child.clean_params  # clear any previous params
+                    del child.clean_params
                     child.cog = self
-                    child.clean_params  # check the new params
+                    child.clean_params
 
             for decorator in Command.DECORATORS:
                 command_deco = getattr(command, decorator, None)

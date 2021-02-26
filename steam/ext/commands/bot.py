@@ -3,7 +3,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-2020 Rapptz
+Copyright (c) 2015-present Rapptz
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,11 +32,12 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import os
 import sys
 import traceback
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Mapping, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Optional, TypeVar, Union
 
 from typing_extensions import Literal, overload
 
@@ -115,7 +116,7 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
 
 
 def resolve_path(path: Path) -> str:
-    return str(path.resolve().relative_to(Path.cwd()).with_suffix("")).replace("//", ".").replace("/", ".")
+    return path.resolve().relative_to(Path.cwd()).with_suffix("").as_posix().replace("/", ".")
     # resolve cogs relative to where they are loaded as it's probably the most common use case for this
 
 
@@ -157,14 +158,14 @@ class Bot(GroupMixin, Client):
         Whether or not to use CaseInsensitiveDict for registering commands.
     """
 
-    __cogs__: dict[str, Cog] = {}
-    __listeners__: dict[str, list[EventType]] = {}
-    __extensions__: dict[str, ModuleType] = {}
-
     def __init__(
         self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = DefaultHelpCommand(), **options: Any
     ):
         super().__init__(**options)
+        self.__cogs__: dict[str, Cog] = {}
+        self.__listeners__: dict[str, list[EventType]] = {}
+        self.__extensions__: dict[str, ModuleType] = {}
+
         self.command_prefix = command_prefix
         self.owner_id = utils.make_id64(options.get("owner_id", 0))
         self.owner_ids = {utils.make_id64(owner_id) for owner_id in options.get("owner_ids", ())}
@@ -185,17 +186,17 @@ class Bot(GroupMixin, Client):
         self._after_hook = None
 
     @property
-    def cogs(self) -> Mapping[str, Cog]:
+    def cogs(self) -> MappingProxyType[str, Cog]:
         """Mapping[:class:`str`, :class:`.Cog`]: A read only mapping of any loaded cogs."""
         return MappingProxyType(self.__cogs__)
 
     @property
-    def extensions(self) -> Mapping[str, ModuleType]:
+    def extensions(self) -> MappingProxyType[str, ModuleType]:
         """Mapping[:class:`str`, :class:`types.ModuleType`]: A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
     @property
-    def converters(self) -> Mapping[type, tuple[Converters, ...]]:
+    def converters(self) -> MappingProxyType[type, tuple[Converters, ...]]:
         """Mapping[:class:`type`, tuple[:class:`~steam.ext.commands.Converter`, ...]]:
         A read only mapping of registered converters."""
         return MappingProxyType(CONVERTERS)
@@ -242,12 +243,12 @@ class Bot(GroupMixin, Client):
 
         await super().close()
 
-    def load_extension(self, extension: Union[Path, str]) -> None:
+    def load_extension(self, extension: os.PathLike) -> None:
         """Load an extension.
 
         Parameters
         ----------
-        extension: Union[:class:`pathlib.Path`, :class:`str`]
+        extension: :class:`os.PathLike`
             The name of the extension to load.
 
         Raises
@@ -257,6 +258,7 @@ class Bot(GroupMixin, Client):
         """
         if isinstance(extension, Path):
             extension = resolve_path(extension)
+        extension = os.fspath(extension)
         if extension in self.__extensions__:
             return
 
@@ -268,12 +270,12 @@ class Bot(GroupMixin, Client):
         module.setup(self)
         self.__extensions__[extension] = module
 
-    def unload_extension(self, extension: Union[Path, str]) -> None:
+    def unload_extension(self, extension: os.PathLike) -> None:
         """Unload an extension.
 
         Parameters
         ----------
-        extension: Union[:class:`pathlib.Path`, :class:`str`]
+        extension: :class:`os.PathLike`
             The name of the extension to unload.
 
         Raises
@@ -283,6 +285,7 @@ class Bot(GroupMixin, Client):
         """
         if isinstance(extension, Path):
             extension = resolve_path(extension)
+        extension = os.fspath(extension)
 
         try:
             module = self.__extensions__[extension]
@@ -301,13 +304,13 @@ class Bot(GroupMixin, Client):
         del sys.modules[extension]
         del self.__extensions__[extension]
 
-    def reload_extension(self, extension: Union[Path, str]) -> None:
+    def reload_extension(self, extension: os.PathLike) -> None:
         """Atomically reload an extension. If any error occurs during the reload the extension will be reverted to its
         original state.
 
         Parameters
         ----------
-        extension: Union[:class:`pathlib.Path`, :class:`str`]
+        extension: :class:`os.PathLike`
             The name of the extension to reload.
 
         Raises
@@ -317,6 +320,8 @@ class Bot(GroupMixin, Client):
         """
         if isinstance(extension, Path):
             extension = resolve_path(extension)
+        extension = os.fspath(extension)
+
         try:
             previous = self.__extensions__[extension]
         except KeyError:
@@ -395,14 +400,12 @@ class Bot(GroupMixin, Client):
         except (KeyError, ValueError):
             pass
 
-    @classmethod
     @overload
-    def listen(cls, coro: E) -> E:
+    def listen(self, coro: E) -> E:
         ...
 
-    @classmethod
     @overload
-    def listen(cls, name: Optional[str] = None) -> Callable[[E], E]:
+    def listen(self, name: Optional[str] = None) -> Callable[[E], E]:
         ...
 
     def listen(self, name: Optional[str] = None) -> Callable[[E], E]:
@@ -462,7 +465,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        ctx: :class:`~steam.ext.commands.Context`
+        ctx: :class:`.Context`
             The invocation context.
 
         Returns
@@ -621,17 +624,15 @@ class Bot(GroupMixin, Client):
             prefixes = await utils.maybe_coroutine(prefixes, self, message)
         if isinstance(prefixes, str):
             prefixes = (prefixes,)
-        else:
-            try:
-                prefixes = tuple(prefixes)
-            except TypeError as exc:
-                raise TypeError(f"command_prefix must return an iterable of strings not {type(prefixes)}") from exc
 
-        for prefix in prefixes:
-            if not isinstance(prefix, str):
-                raise TypeError(f"command_prefix must return an iterable of strings not {type(prefix)}")
-            if message.content.startswith(prefix):
-                return prefix
+        try:
+            for prefix in prefixes:
+                if not isinstance(prefix, str):
+                    raise TypeError(f"command_prefix must return an iterable of strings not {type(prefix)}")
+                if message.content.startswith(prefix):
+                    return prefix
+        except TypeError as exc:
+            raise TypeError(f"command_prefix must return an iterable of strings not {type(prefixes)}") from exc
 
     def get_cog(self, name: str) -> Optional[Cog]:
         """Get a loaded cog.
@@ -663,7 +664,7 @@ class Bot(GroupMixin, Client):
         if self.__listeners__.get("on_command_error"):
             return
 
-        if getattr(ctx.command, "on_error", None) is not None:
+        if hasattr(ctx.command, "on_error"):
             return await ctx.command.on_error(ctx, error)
 
         if ctx.cog and ctx.cog is not self:

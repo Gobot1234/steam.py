@@ -3,7 +3,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-2020 Rapptz
+Copyright (c) 2015-present Rapptz
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
 Copyright (c) 2020 James
 
@@ -179,7 +179,7 @@ class CMServerList(AsyncIterator[CMServer]):
             # TODO dynamically make sure we get good ones by checking len and stuff
             start = time.perf_counter()
             try:
-                resp = await self._state.http._session.get(f"https://{cm.url}/cmping/", timeout=5)
+                resp = await asyncio.wait_for(self._state.http._session.get(f"https://{cm.url}/cmping/"), timeout=5)
                 if resp.status != 200:
                     raise aiohttp.ClientError
                 load = resp.headers["X-Steam-CMLoad"]
@@ -203,7 +203,6 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         self.interval = interval
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
-        self.heartbeat_timeout = 60
         self.msg = "Keeping websocket alive with heartbeat {}."
         self.block_msg = "Heartbeat blocked for more than {} seconds."
         self.behind_msg = "Can't keep up, websocket is {:.1f} behind."
@@ -214,18 +213,6 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
     def run(self) -> None:
         while not self._stop_ev.wait(self.interval):
-            if self._last_ack + self.heartbeat_timeout < time.perf_counter():
-                log.warning(f"Server {self.ws.cm} has stopped responding to the gateway. Closing and restarting.")
-                coro = self.ws.handle_close()
-                f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
-
-                try:
-                    f.result()
-                except Exception:
-                    pass
-                finally:
-                    return self.stop()
-
             log.debug(self.msg.format(self.heartbeat))
             coro = self.ws.send_as_proto(self.heartbeat)
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
@@ -473,7 +460,7 @@ class SteamWebSocket(Registerable):
         self._keep_alive.start()
         log.debug("Heartbeat started.")
 
-        await self.send_um("ChatRoom.GetMyChatRoomGroups#1_Request")
+        await self.send_um("ChatRoom.GetMyChatRoomGroups#1")
         await self.change_presence(
             games=self._connection._games,
             state=self._connection._state,
@@ -505,14 +492,17 @@ class SteamWebSocket(Registerable):
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
         msg.header.body.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         await self.send_as_proto(msg)
-        return msg.header.body.job_id_source
+        return self._current_job_id
 
     async def send_um_and_wait(
-        self, name: str, check: Optional[Callable[[MsgBase], bool]] = None, timeout: Optional[float] = 5.0, **kwargs: Any
+        self,
+        name: str,
+        check: Optional[Callable[[MsgProto], bool]] = None,
+        **kwargs: Any,
     ) -> MsgProto:
         job_id = await self.send_um(name, **kwargs)
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)
-        return await asyncio.wait_for(self.wait_for(EMsg.ServiceMethodResponse, check=check), timeout=timeout)
+        return await self.wait_for(EMsg.ServiceMethodResponse, check=check)
 
     async def change_presence(
         self,

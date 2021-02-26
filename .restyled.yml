@@ -2,7 +2,7 @@
 
 enabled: true
 
-auto: false
+auto: true
 
 pull_requests: true
 

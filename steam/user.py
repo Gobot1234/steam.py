@@ -30,7 +30,7 @@ import asyncio
 from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
-from .abc import BaseUser, Messageable, UserDict, _EndPointReturnType
+from .abc import BaseUser, Messageable, UserDict, _EndPointReturnType, _SupportsStr
 from .errors import ClientException, ConfirmationError
 from .models import community_route
 
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
     from .image import Image
+    from .message import UserMessage
     from .state import ConnectionState
     from .trade import TradeOffer
 
@@ -154,8 +155,12 @@ class User(BaseUser, Messageable):
         return self.id64, self._state.http.send_user_image
 
     async def send(
-        self, content: Optional[str] = None, *, trade: Optional[TradeOffer] = None, image: Optional[Image] = None
-    ) -> None:
+        self,
+        content: Optional[_SupportsStr] = None,
+        *,
+        trade: Optional[TradeOffer] = None,
+        image: Optional[Image] = None,
+    ) -> Optional[UserMessage]:
         """|coro|
         Send a message, trade or image to an :class:`User`.
 
@@ -179,9 +184,14 @@ class User(BaseUser, Messageable):
             Sending the message failed.
         :exc:`~steam.Forbidden`
             You do not have permission to send the message.
+
+        Returns
+        -------
+        Optional[:class:`UserMessage`]
+            The sent message only applicable if ``content`` is passed.
         """
 
-        await super().send(content, image)
+        message = await super().send(content, image)
         if trade is not None:
             to_send = [item.to_dict() for item in trade.items_to_send]
             to_receive = [item.to_dict() for item in trade.items_to_receive]
@@ -196,6 +206,8 @@ class User(BaseUser, Messageable):
                     except ClientException:
                         await asyncio.sleep(tries * 2)
             trade.id = int(resp["tradeofferid"])
+
+        return message
 
     async def invite_to_group(self, group: Group) -> None:
         """|coro|

@@ -4,7 +4,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2015 Rossen Georgiev <rossen@rgp.io>
-Copyright (c) 2015-2020 Rapptz
+Copyright (c) 2015-present Rapptz
 Copyright (c) 2020 James
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -39,6 +39,7 @@ import sys
 import warnings
 from io import BytesIO
 from inspect import isawaitable
+from io import BytesIO
 from operator import attrgetter
 from typing import (
     TYPE_CHECKING,
@@ -104,6 +105,9 @@ if TYPE_CHECKING:
             ...
 
     Intable: Union[Intable, str] = ...
+
+
+Intable: Union[Intable, str, bytes]
 
 
 # fmt: off
@@ -476,13 +480,58 @@ def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:
 
 
 def warn(message: str, warning_type: type[Warning] = DeprecationWarning) -> None:
-    warnings.simplefilter("always", warning_type)  # turn off filter
+    warnings.simplefilter("once", warning_type)  # turn off filter
     warnings.warn(
         message,
         stacklevel=3,
         category=warning_type,
     )
-    warnings.simplefilter("default", warning_type)  # reset filter
+
+
+class BytesBuffer(BytesIO):
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(buffer={self.getvalue()}, position={self.tell()})"
+
+    def read_struct(self, format: str, position: Optional[int] = None) -> tuple:
+        buffer = self.read(position or struct.calcsize(format))
+        return struct.unpack(format, buffer)
+
+    def write_struct(self, format: str, *to_write: Any) -> None:
+        self.write(struct.pack(format, *to_write))
+
+    def read_int16(self) -> int:
+        return self.read_struct("<h", 2)[0]
+
+    def write_int16(self, int16: int) -> None:
+        self.write_struct("<h", int16)
+
+    def read_uint32(self) -> int:
+        return self.read_struct("<I", 4)[0]
+
+    def write_uint32(self, uint32: int) -> None:
+        self.write_struct("<I", uint32)
+
+    def read_uint64(self) -> int:
+        return self.read_struct("<Q", 8)[0]
+
+    def write_uint64(self, uint64: int) -> None:
+        self.write_struct("<Q", uint64)
+
+    def read_cstring(self, terminator=b"\x00") -> bytes:
+        tell = self.tell()
+        data = self.read()
+        null_index = data.find(terminator)
+        if null_index == -1:
+            raise RuntimeError("Reached end of buffer")
+        result = data[:null_index]  # bytes without the terminator
+        self.seek(tell + null_index + len(terminator))  # advance offset past terminator
+        return result
+
+    def read_float(self) -> float:
+        return self.read_struct("<f", 4)[0]
+
+    def write_float(self, float: float) -> None:
+        return self.write_struct("<f", float)
 
 
 class BytesBuffer(BytesIO):

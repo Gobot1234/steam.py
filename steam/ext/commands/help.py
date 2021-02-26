@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Optional
 
 from typing_extensions import final
 
-from .commands import Command, GroupCommand
+from .commands import Command, Group
 from .context import Context
 
 if TYPE_CHECKING:
@@ -88,7 +88,7 @@ class HelpCommand(Command):
         command = bot.get_command(content)
         if command is not None:
             return await (
-                self.send_group_help(command) if isinstance(command, GroupCommand) else self.send_command_help(command)
+                self.send_group_help(command) if isinstance(command, Group) else self.send_command_help(command)
             )
 
         await self.command_not_found(content)
@@ -147,13 +147,13 @@ class HelpCommand(Command):
         """
 
     @abc.abstractmethod
-    async def send_group_help(self, command: "commands.GroupCommand") -> None:
+    async def send_group_help(self, command: "commands.Group") -> None:
         """|coro|
         The method called when a group command is passed as an argument.
 
         Parameters
         ----------
-        command: :class:`~steam.ext.commands.GroupCommand`
+        command: :class:`~steam.ext.commands.Group`
             The command that was passed as an argument.
         """
 
@@ -222,7 +222,7 @@ class DefaultHelpCommand(HelpCommand):
     async def send_command_help(self, command: "commands.Command") -> None:
         await self.context.send(f"/pre Help with {command.name}:\n\n{command.help}")
 
-    async def send_group_help(self, command: "commands.GroupCommand") -> None:
+    async def send_group_help(self, command: "commands.Group") -> None:
         msg = [f"/pre Help with {command.name}:\n\n{command.help}"]
         sub_commands = "\n".join(c.name for c in command.children)
         if sub_commands:
