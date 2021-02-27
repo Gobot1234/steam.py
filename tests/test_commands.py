@@ -3,7 +3,7 @@
 import contextlib
 from copy import copy
 from io import StringIO
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator, Optional, TypeVar, Union
+from typing import Any, AsyncGenerator, Generator, Optional, TypeVar, Union
 
 import pytest
 from typing_extensions import TypeAlias
@@ -15,9 +15,8 @@ from tests.mocks import GROUP_MESSAGE
 CE = TypeVar("CE", bound=commands.CommandError)
 T = TypeVar("T")
 IsInstanceable: TypeAlias = "Union[type[T], tuple[type[T], ...]]"
-
-if TYPE_CHECKING:
-    SomeCoolType = int
+SomeCoolType = int
+UserTypes = Union[steam.User, int, str]
 
 
 @pytest.mark.asyncio
@@ -66,28 +65,16 @@ async def test_commands():
 
 def test_annotations() -> None:
     @commands.command
-    async def cool(ctx: "OopsATypo"):  # noqa
-        ...
-
-    @commands.command
-    async def cool_ctx(ctx: "SomeCoolType") -> None:
-        ...
-
-    assert cool_ctx.params.popitem()[1].annotation == "SomeCoolType"  # not evaluated cause its on ctx
-
-    @commands.command
-    async def some_cool_command(ctx, cool_type: "SomeCoolType") -> None:
+    async def some_cool_command(_, cool_type: SomeCoolType) -> None:
         ...
 
     assert some_cool_command.clean_params.popitem()[1].annotation is SomeCoolType  # should be evaluated
 
-    users = Union[steam.User, int, str]
-
     @commands.command
-    async def get_an_user(ctx, user: "users") -> None:
+    async def get_an_user(_, user: "UserTypes") -> None:
         ...
 
-    assert get_an_user.clean_params.popitem()[1].annotation == users
+    assert get_an_user.clean_params.popitem()[1].annotation == UserTypes
 
 
 class CustomConverter(commands.Converter[tuple]):
@@ -105,12 +92,11 @@ class CustomConverter(commands.Converter[tuple]):
         ("None", TypeError),
         ("str", TypeError),
         ("int", int),
-        ("CustomConverter", CustomConverter),
     ],
 )
 def test_greedy(param_type: Union[type, str], expected: Union[int, "type[Exception]"]):
     if issubclass(expected, Exception):
-        with pytest.raises(TypeError):
+        with pytest.raises(expected):
 
             @commands.command
             async def greedy(_, param: commands.Greedy[param_type]) -> None:
@@ -122,8 +108,7 @@ def test_greedy(param_type: Union[type, str], expected: Union[int, "type[Excepti
         async def greedy(_, param: commands.Greedy[param_type]) -> None:
             ...
 
-        # reloading creates a new converter instance so we just check __name__ here
-        assert greedy.clean_params["param"].annotation.converter.__name__ == expected.__name__
+        assert greedy.params["param"].annotation.converter is expected
 
 
 class TheTestBot(commands.Bot):
@@ -143,6 +128,8 @@ class TheTestBot(commands.Bot):
             if ctx.message.content == content:
                 if error not in expected_errors:
                     raise error
+
+                self.to_finish.remove(content)
 
         async def on_command_completion(ctx: commands.Context) -> None:
             if ctx.message.content == content:
@@ -201,7 +188,7 @@ class TheTestBot(commands.Bot):
 
     def __del__(self):
         if self.to_finish:
-            raise SystemExit
+            raise SystemExit(f"{len(self.to_finish)} commands still being processed: {', '.join(self.to_finish)}")
 
 
 @pytest.mark.asyncio

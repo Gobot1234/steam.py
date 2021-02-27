@@ -19,13 +19,21 @@ app = typer.Typer()
 def main(
     test: bool = typer.Option(False, "-t", "--test", help="Whether or not to run the tests."),
     format: bool = typer.Option(True, "-f", "--format", help="Whether or not to run the format code."),
-) -> None:
+) -> int:
+    codes = []
+
+    def run(*args: str) -> None:
+        process = subprocess.run([sys.executable, "-m", *args])
+        codes.append(process.returncode)
+
     if format:
-        subprocess.run([sys.executable, "-m", "isort", "."])
-        subprocess.run([sys.executable, "-m", "black", "."])
+        run("isort", ".")
+        run("black", ".")
     if test:
-        subprocess.run([sys.executable, "-m", "pytest"])
+        run("pytest")
+
+    return max(codes or [0])
 
 
 if __name__ == "__main__":
-    app()
+    exit(app())

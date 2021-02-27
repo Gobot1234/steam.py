@@ -168,7 +168,7 @@ class ConverterBase(Protocol[T]):
         raise NotImplementedError("Derived classes must implement this")
 
 
-class Converter(ConverterBase[T], Generic[T], ABC):
+class Converter(ConverterBase[T], ABC):
     """A custom :class:`typing.Protocol` from which converters can be derived.
 
     Note
@@ -483,7 +483,7 @@ def flatten_greedy(item: T) -> list[T]:
     return ret
 
 
-class Greedy(Sequence[T], Generic[T]):
+class Greedy(Sequence[T]):
     """
     A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
     parser to consume as many arguments as it can until it silently errors reverts the last argument being read and
