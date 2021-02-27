@@ -2,6 +2,13 @@
 
 enabled: true
 
+exclude:
+  - ".github/workflows/**/*" # https://github.com/restyled-io/restyler/issues/73
+
+changed_paths:
+  maximum: 1000
+  outcome: error
+
 auto: true
 
 pull_requests: true
@@ -15,8 +22,8 @@ statuses:
 
 request_review: none
 
+restylers_version: stable
+
 restylers:
   - name: black
-    arguments: ["-l120"]
   - name: isort
-    arguments: ["--profile", "black", "--combine-as", "--atomic", "-l120", "-n"]

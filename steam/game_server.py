@@ -33,15 +33,17 @@ from __future__ import annotations
 import asyncio
 import socket
 import struct
+from types import SimpleNamespace
 from binascii import crc32
 from bz2 import decompress
 from datetime import timedelta
-from typing import TYPE_CHECKING, NamedTuple, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, NamedTuple, Optional, TypeVar, Union, Any, cast
 
 from typing_extensions import Literal
 
 from . import SteamID
 from .game import Game
+from .state import ConnectionState
 from .utils import BytesBuffer
 
 if TYPE_CHECKING:
@@ -79,55 +81,72 @@ class QueryMeta(type):
 
     @property
     def dedicated(cls) -> Query:
+        """Fetches servers that are running dedicated."""
         return Query(r"dedicated\1")
 
     @property
     def secure(cls) -> Query:
+        """Fetches servers that are using anti-cheat technology (VAC, but potentially others as well)."""
         return Query(r"secure\1")
 
     @property
     def linux(cls) -> Query:
+        """Fetches servers running on a Linux platform."""
         return Query(r"linux\1")
 
     @property
     def no_password(cls) -> Query:
+        """Fetches servers that are not password protected."""
         return Query(r"password\0")
 
     @property
     def not_full(cls) -> Query:
+        """Fetches servers that are not full."""
         return Query(r"full\1")
 
     @property
     def unique_addresses(cls) -> Query:
+        """Fetches only one server for each unique IP address matched."""
         return Query(r"collapse_addr_hash\1")
 
     @property
     def version_match(cls) -> Query:
+        """Fetches servers running version "x" (``"*"`` is wildcard)."""
         return StringQuery("version_match")
 
     @property
     def name_match(cls) -> Query:
+        """Fetches servers with their hostname matching "x" (``"*"`` is wildcard)."""
         return StringQuery("name_match")
 
     @property
     def ip(cls) -> Query:
+        """Fetches servers on the specified IP address.
+
+        See Also
+        --------
+        :meth:`Client.fetch_server` for an query free version of this.
+        """
         return StringQuery("gameaddr")
 
     @property
     def running(cls) -> Query:
+        """Fetches servers running a :class:`.Game` or an :class:`int` app id."""
         return GameQuery("appid")
 
     @property
     def not_running(cls) -> Query:
+        """Fetches servers not running a :class:`.Game` or an :class:`int` app id."""
         return GameQuery("nappid")
 
     @property
     def all(cls) -> Query:
+        """Fetches any servers."""
         return Query("")
 
 
 class Query(metaclass=QueryMeta):
-    r"""A pathlib.Path like class for constructing Global Master Server queries.
+    r"""A :class:`pathlib.Path` like class for constructing Global Master Server queries.
 
     .. container:: operations
 
@@ -149,8 +168,12 @@ class Query(metaclass=QueryMeta):
 
     Examples
     --------
-    Query.running / steam.TF2 / Query.not_empty / Query.secure -> r"\appid\440\empty\1\secure\1"
-    Query.not_empty & Query.not_full & Query.secure -> r"\nand[\empty\1\secure\1]"
+    .. code-block::
+
+        >>> (steam.Query.running / steam.TF2 / steam.Query.not_empty / steam.Query.secure).query
+        r"\appid\440\empty\1\secure\1"
+        >>> (steam.Query.not_empty / steam.Query.not_full | steam.Query.secure).query
+        r"\empty\1\nor\[\full\1\secure\1]"
     """
 
     __slots__ = ("raw",)
@@ -162,7 +185,7 @@ class Query(metaclass=QueryMeta):
         return f"<Query query={self.query!r}>"
 
     def __truediv__(self, other: Union[Query, Game, list[str], str]) -> Query:
-        if not isinstance(other, Query):
+        if not isinstance(other, Query):  # TODO this needs redoing to be less garbage
             cls = MAPPING[self.raw[-1]]
             self.raw = self.raw[:-1]
             other = cls / other
@@ -173,7 +196,7 @@ class Query(metaclass=QueryMeta):
             return NotImplemented
         return self.__class__(*self.raw[:-1], rf"{op}\[", self.raw[-1], *other.raw[:-1], f"{other.raw[-1]}]")
 
-    # I'm not really sure what this does differently to __truediv__/when to use it.
+    # I'm not really sure what this does differently to __truediv__ or when to use it.
     def __and__(self, other: Query) -> Query:
         return self._parse_op("nand", other)
 
@@ -227,6 +250,11 @@ for name in dir(QueryMeta):
     if attr.__class__ is property:
         query = attr.fget(None)
         MAPPING[query.raw[0]] = query
+
+
+class BytesBuffer(BytesBuffer):
+    def read_cstring(self, *args: Any, **kwargs: Any) -> str:
+        return super().read_cstring(*args, **kwargs).decode("utf-8", "replace")
 
 
 class ServerPlayer(NamedTuple):
@@ -303,6 +331,14 @@ def _unpack_multi_packet_header(payload_offset, packet):
     raise ValueError(f"Unexpected payload_offset - {payload_offset}")
 
 
+async def connect_to(ip: str, port: int, loop: asyncio.AbstractEventLoop) -> socket.socket:
+    # TCP over UDP :))))
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setblocking(False)
+    await loop.sock_connect(sock, (ip, port))
+    return sock
+
+
 class GameServer(SteamID):
     """Represents a game server
 
@@ -374,9 +410,11 @@ class GameServer(SteamID):
         return self.name
 
     def is_secure(self) -> bool:
+        """:class:`bool`: Whether the sever is secured, likely with VAC."""
         return self._secure
 
     def is_dedicated(self) -> bool:
+        """:class:`bool`: Whether the sever is dedicated."""
         return self._dedicated
 
     async def players(self, *, challenge: Literal[-1, 0] = 0) -> Optional[list[ServerPlayer]]:
@@ -408,13 +446,10 @@ class GameServer(SteamID):
                         score: int
                         play_time: timedelta
         """
-        # TCP over UDP :))))
         loop = asyncio.get_event_loop()
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setblocking(False)
+        sock = await connect_to(self.ip, self.port, loop)
 
         try:
-            await loop.sock_connect(sock, (self.ip, self.port))
             sock.send(struct.pack("<lci", -1, b"U", challenge))
             data = await loop.sock_recv(sock, 512)
             _, header, challenge_ = struct.unpack_from("<lcl", data)
@@ -436,7 +471,7 @@ class GameServer(SteamID):
             return [
                 ServerPlayer(
                     index=buffer.read_struct("<B")[0],
-                    name=buffer.read_cstring().decode("utf-8", "replace"),
+                    name=buffer.read_cstring(),
                     score=buffer.read_struct("<f")[0],
                     play_time=timedelta(seconds=buffer.read_float()),
                 )
@@ -447,3 +482,51 @@ class GameServer(SteamID):
             return None
         finally:
             sock.close()
+
+    async def rules(self, *, challenge: Literal[-1, 0] = 0) -> Optional[dict[str, str]]:
+        """|coro|
+        Fetch a server's rules.
+
+        Parameters
+        ----------
+        challenge: :class:`int`
+            The challenge for the request default is 0 can also be -1. You may need to change if the server doesn't seem
+            to respond.
+
+        Note
+        ----
+        It is recommended to use :func:`asyncio.wait_for` to allow this to return if the server doesn't respond.
+
+        Returns
+        -------
+        Optional[dict[:class:`str`, :class:`str]]
+            The server's rules.
+        """
+        loop = asyncio.get_event_loop()
+        sock = await connect_to(self.ip, self.port, loop)
+        try:
+            # request challenge number
+            if challenge in (-1, 0):
+                sock.send(struct.pack('<lci', -1, b'V', challenge))
+                try:
+                    _, header, challenge = struct.unpack_from('<lcl', await loop.sock_recv(sock, 512))
+                finally:
+                    sock.close()
+
+                if header != b'A':
+                    return None
+
+            # request player info
+            sock.send(struct.pack('<lci', -1, b'V', challenge))
+            data = BytesBuffer(await _handle_a2s_response(loop, sock))
+        except ValueError:
+            return None
+        finally:
+            sock.close()
+
+        header, num_rules = data.read_struct('<4xcH')
+
+        if header != b'E':
+            return None
+
+        return {data.read_cstring(): data.read_cstring() for _ in range(num_rules)}

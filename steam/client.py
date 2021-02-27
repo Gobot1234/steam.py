@@ -639,6 +639,32 @@ class Client:
             return None
         return FetchedGame(data[str(id)]["data"])
 
+    async def fetch_server(
+        self,
+        *,
+        ip: str,
+        port: int,
+    ) -> Optional[GameServer]:
+        """|coro|
+        Fetch a specific game server from its ip and port.
+
+        Parameters
+        ----------
+        ip: :class:`str`
+            The ip of the server.
+        port: :class:`int`
+            The port of the server.
+
+        Returns
+        -------
+        Optional[:class:`GameServer`]
+            The found game server or ``None`` if fetching the server failed.
+        """
+        servers = await self.fetch_servers(Query.ip / f"{ip}:{port}", limit=1)
+        if not servers:
+            return None
+        return servers[0]
+
     async def fetch_servers(self, query: Query, limit: int = 100) -> list[GameServer]:
         """|coro|
         Query game servers.
@@ -657,18 +683,6 @@ class Client:
         """
         servers = await self._connection.query_servers(query.query, limit)
         return [GameServer(server) for server in servers]
-
-    async def fetch_server_players(
-        self,
-        *,
-        ip: Optional[str] = None,
-        port: Optional[int] = None,
-        challenge: int = 0,
-    ):  # TODO: doc
-        server = GameServer.__new__(GameServer)
-        server.ip = ip
-        server.port = port
-        return await GameServer.players(server, challenge=challenge)
 
     def trade_history(
         self,
