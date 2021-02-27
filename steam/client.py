@@ -42,8 +42,8 @@ from typing_extensions import Literal, final
 
 from . import errors, utils
 from .abc import SteamID
-from .game_server import Query, GameServer
 from .game import FetchedGame, Game
+from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient

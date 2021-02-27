@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import sys
 import types
-from abc import ABC, abstractmethod, ABC
+from abc import ABC, abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -45,7 +45,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable, TypeAlias
+from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable
 
 from ... import utils
 from ...channel import Channel

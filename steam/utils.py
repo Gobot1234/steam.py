@@ -37,7 +37,6 @@ import re
 import struct
 import sys
 import warnings
-from io import BytesIO
 from inspect import isawaitable
 from io import BytesIO
 from operator import attrgetter
