@@ -312,9 +312,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @classmethod
-    async def from_url(
-        cls, url: StrOrURL, session: Optional[ClientSession] = None
-    ) -> Optional[SteamID]:
+    async def from_url(cls, url: StrOrURL, session: Optional[ClientSession] = None) -> Optional[SteamID]:
         """|coro|
         A helper function creates a SteamID instance from a Steam community url.
 

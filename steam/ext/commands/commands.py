@@ -462,7 +462,7 @@ class Command:
 
     async def _parse_keyword_argument(self, ctx: Context, param: inspect.Parameter, kwargs: dict[str, Any]) -> None:
         kwargs[param.name] = await (  # kwarg only param denotes "consume rest" semantics
-                self._transform(ctx, param, ctx.lex.rest) if ctx.lex.rest else self._get_default(ctx, param)
+            self._transform(ctx, param, ctx.lex.rest) if ctx.lex.rest else self._get_default(ctx, param)
         )
 
     async def _parse_var_keyword_argument(self, ctx: Context, param: inspect.Parameter, kwargs: dict[str, Any]) -> None:

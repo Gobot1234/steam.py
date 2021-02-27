@@ -301,6 +301,7 @@ class GameServer(SteamID):
     version: :class:`str`
         The version of the server.
     """
+
     __slots__ = (
         "name",
         "game",
