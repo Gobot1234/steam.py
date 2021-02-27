@@ -36,7 +36,7 @@ import struct
 from binascii import crc32
 from bz2 import decompress
 from datetime import timedelta
-from typing import TYPE_CHECKING, NamedTuple, Optional, TypeVar, Union, Any
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypeVar, Union
 
 from typing_extensions import Literal
 
