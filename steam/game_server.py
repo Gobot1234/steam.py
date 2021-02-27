@@ -146,7 +146,7 @@ class QueryMeta(type):
     def not_running(cls) -> Query:
         """Fetches servers not running a :class:`.Game` or an :class:`int` app id."""
         return GameQuery("nappid")
-    
+
     @property
     def match_tags(self) -> Query:
         """Fetches servers with all of the given tag(s) in :attr:`GameServer.tags`."""
@@ -532,26 +532,26 @@ class GameServer(SteamID):
         try:
             # request challenge number
             if challenge in (-1, 0):
-                sock.send(struct.pack('<lci', -1, b'V', challenge))
+                sock.send(struct.pack("<lci", -1, b"V", challenge))
                 try:
-                    _, header, challenge = struct.unpack_from('<lcl', await loop.sock_recv(sock, 512))
+                    _, header, challenge = struct.unpack_from("<lcl", await loop.sock_recv(sock, 512))
                 finally:
                     sock.close()
 
-                if header != b'A':
+                if header != b"A":
                     return None
 
             # request player info
-            sock.send(struct.pack('<lci', -1, b'V', challenge))
+            sock.send(struct.pack("<lci", -1, b"V", challenge))
             data = BytesBuffer(await _handle_a2s_response(loop, sock))
         except ValueError:
             return None
         finally:
             sock.close()
 
-        header, num_rules = data.read_struct('<4xcH')
+        header, num_rules = data.read_struct("<4xcH")
 
-        if header != b'E':
+        if header != b"E":
             return None
 
         return {data.read_cstring(): data.read_cstring() for _ in range(num_rules)}
