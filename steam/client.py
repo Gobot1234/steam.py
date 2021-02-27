@@ -103,7 +103,13 @@ class Client:
 
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
         if loop:
-            utils.warn("The loop argument is deprecated and scheduled for removal in V.1")
+            import inspect
+
+            utils.warn(
+                "The loop argument is deprecated and scheduled for removal in V.1",
+                stack_level=len(inspect.stack())
+                + 1,  # make sure its always at the top of the stack most likely where the Client was created
+            )
         self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self, **options)
         self._connection = ConnectionState(client=self, **options)
@@ -622,7 +628,7 @@ class Client:
 
         Returns
         -------
-        Optional[:class:`.FetchedGame`]
+            Optional[:class:`.FetchedGame`]
             The fetched game or ``None`` if the game was not found.
         """
         id = id if isinstance(id, int) else id.id

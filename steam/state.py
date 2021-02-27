@@ -541,7 +541,7 @@ class ConnectionState(Registerable):
 
     async def query_servers(self, query: str, limit: int) -> Optional[list[GameServersMessage]]:
         msg: MsgProto[GetGameServers] = await self.ws.send_um_and_wait(
-            "GameServers.GetServerList#1_Request",
+            "GameServers.GetServerList#1",
             filter=query,
             limit=limit,
         )
@@ -703,7 +703,7 @@ class ConnectionState(Registerable):
                     friend.ulfriendid
                     for friend in msg.body.friends
                     if friend.efriendrelationship == EFriendRelationship.Friend
-                    and (friend.ulfriendid >> 52) & 0xF != EType.Clan
+                    and (friend.ulfriendid >> 52) & 0xf != EType.Clan
                 ]
             )
             for friend in self.client.user.friends:

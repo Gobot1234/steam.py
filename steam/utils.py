@@ -476,11 +476,11 @@ def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:
     return list(chunker())
 
 
-def warn(message: str, warning_type: type[Warning] = DeprecationWarning) -> None:
+def warn(message: str, warning_type: type[Warning] = DeprecationWarning, stack_level: int = 1) -> None:
     warnings.simplefilter("once", warning_type)  # turn off filter
     warnings.warn(
         message,
-        stacklevel=3,
+        stacklevel=stack_level,
         category=warning_type,
     )
 
