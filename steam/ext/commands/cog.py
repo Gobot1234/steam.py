@@ -226,9 +226,7 @@ class Cog:
             bot.add_check(self.bot_check)
 
         for idx, command in enumerate(self.__commands__.values()):
-            del command.clean_params  # clear any previous params
             command.cog = self
-            child.clean_params  # check the new params
 
             if cls.cog_check is not Cog.cog_check:
                 command.checks.append(self.cog_check)

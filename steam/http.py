@@ -152,6 +152,7 @@ class HTTPClient:
                 elif r.status == 429:
                     # I haven't been able to get any X-Retry-After headers from the API but we should probably still
                     # handle it
+                    log.warning("We are being Rate limited")
                     try:
                         await asyncio.sleep(float(r.headers["X-Retry-After"]))
                     except KeyError:  # steam being un-helpful as usual
@@ -329,12 +330,17 @@ class HTTPClient:
 
     async def get_users(self, user_id64s: list[int]) -> list[UserDict]:
         ret = []
-        if user_id64s == [0]:  # FIXME bandaid
-            return ret
 
-        for sublist in utils.chunk(user_id64s, 100):
-            params = {"key": self.api_key, "steamids": ",".join(map(str, sublist))}
-            resp = await self.request("GET", api_route("ISteamUser/GetPlayerSummaries/v2"), params=params)
+        for resp in await asyncio.gather(  # gather all the requests concurrently
+            *(
+                self.request(
+                    "GET",
+                    api_route("ISteamUser/GetPlayerSummaries/v2"),
+                    params={"key": self.api_key, "steamids": ",".join(map(str, sublist))},
+                )
+                for sublist in utils.chunk(user_id64s, 100)
+            )
+        ):
             ret.extend(resp["response"]["players"])
         return ret
 

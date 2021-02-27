@@ -85,6 +85,7 @@ if TYPE_CHECKING:
     )
     from .protobufs.steammessages_clientserver_friends import (
         CMsgClientFriendsList,
+        CMsgClientFriendsListFriend,
         CMsgClientPersonaState,
         CMsgClientPersonaStateFriend,
         CMsgClientRequestFriendData,
@@ -694,6 +695,8 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: MsgProto[CMsgClientFriendsList]) -> None:
+        elements = None
+
         if not self.handled_friends.is_set():
             self.client.user.friends = await self.fetch_users(
                 [
@@ -710,35 +713,46 @@ class ConnectionState(Registerable):
                     pass
             self.handled_friends.set()
 
-        for user in msg.body.friends:
-            if user.efriendrelationship in (
+        async def gather_invites(friend: CMsgClientFriendsListFriend) -> None:
+            if friend.efriendrelationship in (
                 EFriendRelationship.RequestInitiator,
                 EFriendRelationship.RequestRecipient,
             ):
-                steam_id = SteamID(user.ulfriendid)
-                relationship = EFriendRelationship(user.efriendrelationship)
+                steam_id = SteamID(friend.ulfriendid)
+                relationship = EFriendRelationship(friend.efriendrelationship)
                 if steam_id.type == EType.Individual:
                     invitee = await self.fetch_user(steam_id.id64) or steam_id
                     invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
                     self.invites[invitee.id64] = invite
                     self.dispatch("user_invite", invite)
                 if steam_id.type == EType.Clan:
-                    resp = await self.request("GET", community_route("my/groups/pending?ajax=1"))
-                    soup = BeautifulSoup(resp, "html.parser")
-                    elements = soup.find_all("a", attrs={"class": "linkStandard"})
+                    nonlocal elements
+                    if elements is None:
+                        resp = await self.request("GET", community_route("my/groups/pending"), params={"ajax": "1"})
+                        soup = BeautifulSoup(resp, "html.parser")
+                        elements = soup.find_all("a", attrs={"class": "linkStandard"})
                     invitee_id = 0
                     for idx, element in enumerate(elements):
                         if str(steam_id.id64) in str(element):
                             invitee_id = elements[idx + 1]["data-miniprofile"]
                             break
-                    invitee = self.get_user(invitee_id) or await self.fetch_user(invitee_id) or SteamID(invitee_id)
-                    clan = self.get_clan(steam_id.id64) or await self.client.fetch_clan(steam_id.id64) or steam_id
-                    invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
-                    self.dispatch("clan_invite", invite)
-                    self.invites[clan.id64] = invite
+                    invitee_steam_id = SteamID(invitee_id)
+                    invitee = (
+                        self.get_user(invitee_steam_id.id64)
+                        or await self.fetch_user(invitee_steam_id.id64)
+                        or invitee_steam_id
+                    )
+                    try:
+                        clan = await asyncio.wait_for(self.fetch_clan(steam_id.id64), timeout=2)
+                    except asyncio.TimeoutError:
+                        clan = steam_id
 
-            if user.efriendrelationship == EFriendRelationship.Friend:
-                steam_id = SteamID(user.ulfriendid)
+                    invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
+                    self.invites[clan.id64] = invite
+                    self.dispatch("clan_invite", invite)
+
+            if friend.efriendrelationship == EFriendRelationship.Friend:
+                steam_id = SteamID(friend.ulfriendid)
                 try:
                     invite = self.invites.pop(steam_id.id64)
                 except KeyError:
@@ -748,6 +762,8 @@ class ConnectionState(Registerable):
                         self.dispatch("user_invite_accept", invite)
                     else:
                         self.dispatch("clan_invite_accept", invite)
+
+        await asyncio.gather(*(gather_invites(f) for f in msg.body.friends))
 
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, _: MsgProto[CommentNotifications]) -> None:

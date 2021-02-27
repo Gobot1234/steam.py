@@ -169,29 +169,7 @@ class ConverterBase(Protocol[T]):
         raise NotImplementedError("Derived classes must implement this")
 
 
-class Converter(ConverterBase[T], Generic[T], ABC):
-    # this is the base class we use for isinstance checks, don't actually this
-    @abstractmethod
-    async def convert(self, ctx: "commands.Context", argument: str) -> "T":
-        """|coro|
-        An abstract method all converters must derive.
-
-        Parameters
-        ----------
-        ctx: :class:`~steam.ext.commands.Context`
-            The context for the invocation.
-        argument: :class:`str`
-            The argument that is passed from the argument parser.
-
-        Returns
-        -------
-        T
-            An object, should be of the same type of :attr:`converter_for`.
-        """
-        raise NotImplementedError("Derived classes must implement this")
-
-
-class Converter(ConverterBase[T], Generic[T], ABC):
+class Converter(ConverterBase[T], ABC):
     """A custom :class:`typing.Protocol` from which converters can be derived.
 
     Note
@@ -506,7 +484,9 @@ def flatten_greedy(item: T) -> list[T]:
     return ret
 
 
-class Greedy(Sequence[T], Generic[T]):
+# would be nice if this could just subclass Sequence but due to weird version differences for its
+# super().__class_getitem__'s return type it isn't necessarily assignable to.
+class Greedy(Generic[T], Sequence[T]):
     """
     A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
     parser to consume as many arguments as it can until it silently errors reverts the last argument being read and

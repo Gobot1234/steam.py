@@ -34,7 +34,19 @@ import asyncio
 import functools
 import inspect
 from time import time
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Optional, TypeVar, Union, get_type_hints, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    ForwardRef,
+    Iterable,
+    Optional,
+    TypeVar,
+    Union,
+    get_type_hints,
+    overload,
+)
 
 from chardet import detect
 from typing_extensions import Literal, get_args, get_origin
@@ -212,7 +224,6 @@ class Command:
             if not isinstance(alias, str):
                 raise TypeError("A commands aliases should be an iterable only containing strings")
 
-        self.on_error = None
         self._before_hook = None
         self._after_hook = None
 
@@ -232,6 +243,10 @@ class Command:
         function = function.__func__ if inspect.ismethod(function) else function  # HelpCommand.command_callback
 
         annotations = get_type_hints(function)
+        for name, annotation in annotations.items():
+            if get_origin(annotation) is converters.Greedy and isinstance(annotation.converter, ForwardRef):
+                annotations[name] = converters.Greedy[eval(annotation.converter.__forward_code__, function.__globals__)]
+
         function.__annotations__ = annotations
 
         self.params: dict[str, inspect.Parameter] = dict(inspect.signature(function).parameters)
@@ -509,7 +524,7 @@ class Command:
                 await self._parse_var_keyword_argument(ctx, param, kwargs)
                 break
             elif param.kind == param.VAR_POSITIONAL:  # same as *args
-                await self._parse_positional_or_keyword_argument(ctx, param, args)
+                await self._parse_var_position_argument(ctx, param, args)
                 break
 
         ctx.args = tuple(args)
