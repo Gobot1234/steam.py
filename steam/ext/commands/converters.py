@@ -483,7 +483,9 @@ def flatten_greedy(item: T) -> list[T]:
     return ret
 
 
-class Greedy(Sequence[T]):
+# would be nice if this could just subclass Sequence but due to weird version differences for its
+# super().__class_getitem__'s return type it isn't necessarily assignable to.
+class Greedy(Generic[T], Sequence[T]):
     """
     A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
     parser to consume as many arguments as it can until it silently errors reverts the last argument being read and
