@@ -34,8 +34,19 @@ import asyncio
 import functools
 import inspect
 from time import time
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Optional, TypeVar, Union, get_type_hints, \
-    overload, ForwardRef
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    ForwardRef,
+    Iterable,
+    Optional,
+    TypeVar,
+    Union,
+    get_type_hints,
+    overload,
+)
 
 from chardet import detect
 from typing_extensions import Literal, get_args, get_origin
@@ -213,7 +224,6 @@ class Command:
             if not isinstance(alias, str):
                 raise TypeError("A commands aliases should be an iterable only containing strings")
 
-        self.on_error = None
         self._before_hook = None
         self._after_hook = None
 
