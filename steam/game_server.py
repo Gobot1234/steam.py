@@ -33,17 +33,15 @@ from __future__ import annotations
 import asyncio
 import socket
 import struct
-from types import SimpleNamespace
 from binascii import crc32
 from bz2 import decompress
 from datetime import timedelta
-from typing import TYPE_CHECKING, NamedTuple, Optional, TypeVar, Union, Any, cast
+from typing import TYPE_CHECKING, NamedTuple, Optional, TypeVar, Union, Any
 
 from typing_extensions import Literal
 
 from . import SteamID
 from .game import Game
-from .state import ConnectionState
 from .utils import BytesBuffer
 
 if TYPE_CHECKING:
@@ -120,6 +118,16 @@ class QueryMeta(type):
         return StringQuery("name_match")
 
     @property
+    def running_mod(cls) -> Query:
+        """Fetches servers running the specified modification (e.g. cstrike)."""
+        return StringQuery("gamedir")
+
+    @property
+    def running_map(cls) -> Query:
+        """Fetches servers running the specified modification (ex. cstrike)."""
+        return StringQuery("gamedir")
+
+    @property
     def ip(cls) -> Query:
         """Fetches servers on the specified IP address.
 
@@ -138,6 +146,21 @@ class QueryMeta(type):
     def not_running(cls) -> Query:
         """Fetches servers not running a :class:`.Game` or an :class:`int` app id."""
         return GameQuery("nappid")
+    
+    @property
+    def match_tags(self) -> Query:
+        """Fetches servers with all of the given tag(s) in :attr:`GameServer.tags`."""
+        return ListQuery("gametype")
+
+    @property
+    def match_hidden_tags(self) -> Query:
+        """Fetches servers with all of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
+        return ListQuery("gamedata")
+
+    @property
+    def match_hidden_tags(self) -> Query:
+        """Fetches servers with all of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
+        return ListQuery("gamedata")
 
     @property
     def all(cls) -> Query:
@@ -174,6 +197,8 @@ class Query(metaclass=QueryMeta):
         r"\appid\440\empty\1\secure\1"
         >>> (steam.Query.not_empty / steam.Query.not_full | steam.Query.secure).query
         r"\empty\1\nor\[\full\1\secure\1]"
+        >>> steam.Query.name_match / "A cool server" | steam.Query.match_tags / ["all_talk", "sv_cheats"]
+        r"\nor\[\name_match\A cool server\gametype\[all_talk,sv_cheats]]"
     """
 
     __slots__ = ("raw",)
