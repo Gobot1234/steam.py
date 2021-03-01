@@ -628,7 +628,7 @@ class Client:
 
         Returns
         -------
-            Optional[:class:`.FetchedGame`]
+        Optional[:class:`.FetchedGame`]
             The fetched game or ``None`` if the game was not found.
         """
         id = id if isinstance(id, int) else id.id
@@ -681,7 +681,7 @@ class Client:
         list[:class:`.GameServer`]
             The matched servers.
         """
-        servers = await self._connection.query_servers(query.query, limit)
+        servers = await self._connection.fetch_servers(query.query, limit)
         return [GameServer(server) for server in servers]
 
     def trade_history(

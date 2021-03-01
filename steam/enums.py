@@ -500,3 +500,16 @@ class EReviewType(IntEnum):
     VeryNegative           = 2  #: 0 - 19% positive reviews.
     OverwhelminglyNegative = 1  #: 0 - 19% positive reviews and many of them.
     NONE                   = 0  #: No reviews
+
+
+class EGameServerRegion(IntEnum):
+    NONE         = -1
+    USEastCoast  = 0x00
+    USWestCoast  = 0x01
+    SouthAmerica = 0x02
+    Europe       = 0x03
+    Asia         = 0x04
+    Australia    = 0x05
+    MiddleEast   = 0x06
+    Africa       = 0x07
+    World        = 0xFF

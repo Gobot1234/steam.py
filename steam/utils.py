@@ -95,15 +95,7 @@ class Intable(metaclass=IntableMeta):
 
 
 if TYPE_CHECKING:
-
-    @runtime_checkable
-    class Intable(Protocol):
-        __slots__ = ()
-
-        def __int__(self) -> int:
-            ...
-
-    Intable: Union[Intable, str] = ...
+    from typing import SupportsInt as Intable
 
 
 Intable: Union[Intable, str, bytes]
@@ -183,10 +175,10 @@ def make_id64(
         # 64 bit
         elif 2 ** 32 < id < 2 ** 64:
             value = id
-            id = id & 0xFFFFFFFF
-            instance = (value >> 32) & 0xFFFFF
-            type = (value >> 52) & 0xF
-            universe = (value >> 56) & 0xFF
+            id = id & 0xffffffff
+            instance = (value >> 32) & 0xfffff
+            type = (value >> 52) & 0xf
+            universe = (value >> 56) & 0xff
         else:
             raise InvalidSteamID(id, "it is too large" if id > 2 ** 64 else "it is too small")
     # textual input e.g. [g:1:4]
@@ -487,7 +479,15 @@ def warn(message: str, warning_type: type[Warning] = DeprecationWarning, stack_l
 
 class BytesBuffer(BytesIO):
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(buffer={self.getvalue()}, position={self.tell()})"
+        return f"{self.__class__.__name__}(buffer={self.buffer!r}, position={self.position})"
+
+    @property
+    def buffer(self) -> bytes:
+        return self.getvalue()
+
+    @property
+    def position(self) -> int:
+        return self.tell()
 
     def read_struct(self, format: str, position: Optional[int] = None) -> tuple:
         buffer = self.read(position or struct.calcsize(format))
@@ -515,13 +515,13 @@ class BytesBuffer(BytesIO):
         self.write_struct("<Q", uint64)
 
     def read_cstring(self, terminator=b"\x00") -> bytes:
-        tell = self.tell()
+        starting_position = self.position
         data = self.read()
         null_index = data.find(terminator)
         if null_index == -1:
             raise RuntimeError("Reached end of buffer")
         result = data[:null_index]  # bytes without the terminator
-        self.seek(tell + null_index + len(terminator))  # advance offset past terminator
+        self.seek(starting_position + null_index + len(terminator))  # advance offset past terminator
         return result
 
     def read_float(self) -> float:

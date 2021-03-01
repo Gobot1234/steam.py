@@ -14,8 +14,8 @@ from steam import Query
         (Query.not_empty & Query.secure, r"\nand\[\empty\1\secure\1]"),
         (steam.Query.not_empty / steam.Query.not_full | steam.Query.secure, r"\nor\[\empty\1\full\1\secure\1]"),
         (
-            (steam.Query.name_match / "A cool server") | steam.Query.match_tags / ["all_talk", "sv_cheats"],
-            r"\nor\[\empty\1\full\1\secure\1]",
+            steam.Query.name_match / "A cool server" | steam.Query.match_tags / ["all_talk", "sv_cheats"],
+            r"\nor\[\name_match\A cool server\gametype\[all_talk,sv_cheats]]",
         ),
     ],
 )

@@ -26,7 +26,6 @@ SOFTWARE.
 
 from __future__ import annotations
 
-import sys
 import types
 from abc import ABC, abstractmethod
 from typing import (
@@ -108,7 +107,7 @@ def converter_for(converter_for: T) -> Callable[[BC], BC]:
     Note
     ----
     All of the converters marked with this decorator or derived from :class:`Converter` can be accessed via
-    :attr:`~steam.ext.commands.Bot.converters`.
+    :attr:`~commands.Bot.converters`.
 
     Examples
     --------
@@ -156,7 +155,7 @@ class ConverterBase(Protocol[T]):
 
         Parameters
         ----------
-        ctx: :class:`~steam.ext.commands.Context`
+        ctx: :class:`~commands.Context`
             The context for the invocation.
         argument: :class:`str`
             The argument that is passed from the argument parser.
@@ -175,7 +174,7 @@ class Converter(ConverterBase[T], ABC):
     Note
     ----
     All of the converters derived from :class:`Converter` or marked with the :func:`converter_for` decorator can
-    be accessed via :attr:`~steam.ext.commands.Bot.converters`.
+    be accessed via :attr:`~commands.Bot.converters`.
 
     Some custom dataclasses from this library can be type-hinted without the need for a custom converter:
 
