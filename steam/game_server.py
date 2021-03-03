@@ -35,15 +35,15 @@ import socket
 import struct
 from binascii import crc32
 from bz2 import decompress
-from contextlib import asynccontextmanager, AbstractAsyncContextManager
-from datetime import timedelta
 from collections.abc import Callable
-from typing import TYPE_CHECKING, NamedTuple, Optional, TypeVar, Union, Any, Generic
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, Optional, TypeVar, Union
 
 from typing_extensions import Literal
 
 from .abc import SteamID
-from .enums import Enum, EGameServerRegion
+from .enums import EGameServerRegion, Enum
 from .game import Game
 from .utils import BytesBuffer
 
