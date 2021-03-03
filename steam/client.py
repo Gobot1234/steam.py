@@ -640,11 +640,7 @@ class Client:
         return FetchedGame(data[str(id)]["data"])
 
     @overload
-    async def fetch_server(
-        self,
-        *,
-        id: utils.Intable
-    ) -> Optional[GameServer]:
+    async def fetch_server(self, *, id: utils.Intable) -> Optional[GameServer]:
         ...
 
     @overload

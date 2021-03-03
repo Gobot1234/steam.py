@@ -345,9 +345,7 @@ async def _handle_a2s_response(loop: asyncio.AbstractEventLoop, sock: socket.soc
         for _ in range(number_of_packets - 1):
             packets.append(await loop.sock_recv(sock, 2048))
 
-        packets = sorted(
-            {_unpack_multi_packet_header(payload_offset, packet)[0]: packet for packet in packets}.items()
-        )
+        packets = sorted({_unpack_multi_packet_header(payload_offset, packet)[0]: packet for packet in packets}.items())
         # reconstruct full response
         data = b"".join(x[1][payload_offset:] for x in packets)
 
