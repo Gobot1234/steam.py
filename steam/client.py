@@ -639,17 +639,37 @@ class Client:
             return None
         return FetchedGame(data[str(id)]["data"])
 
+    @overload
+    async def fetch_server(
+        self,
+        *,
+        id: utils.Intable
+    ) -> Optional[GameServer]:
+        ...
+
+    @overload
     async def fetch_server(
         self,
         *,
         ip: str,
         port: int,
     ) -> Optional[GameServer]:
+        ...
+
+    async def fetch_server(
+        self,
+        *,
+        id: Optional[utils.Intable] = None,
+        ip: Optional[str] = None,
+        port: Optional[int] = None,
+    ) -> Optional[GameServer]:
         """|coro|
         Fetch a specific game server from its ip and port.
 
         Parameters
         ----------
+        id: Union[:class:`int`, :class:`str`]
+            The ID of the game server, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id2` or an :attr:`.SteamID.id3`.
         ip: :class:`str`
             The ip of the server.
         port: :class:`int`
@@ -660,10 +680,18 @@ class Client:
         Optional[:class:`GameServer`]
             The found game server or ``None`` if fetching the server failed.
         """
+
+        if all((id, ip, port)):
+            raise TypeError("Too many arguments passed to fetch_server")
+        if id:
+            # we need to fetch the ip and port
+            servers = await self._connection.fetch_server_ip_from_steam_id(SteamID(id).id64)
+            ip, port = servers[0].addr.split(":")
+        elif not (ip and port):
+            raise TypeError(f"fetch_server missing argument {'ip' if not ip else 'port'}")
+
         servers = await self.fetch_servers(Query.ip / f"{ip}:{port}", limit=1)
-        if not servers:
-            return None
-        return servers[0]
+        return servers[0] if servers else None
 
     async def fetch_servers(self, query: Query, limit: int = 100) -> list[GameServer]:
         """|coro|

@@ -65,6 +65,8 @@ from .protobufs.steammessages_friendmessages import (
 from .protobufs.steammessages_gameservers import (
     CGameServersGetServerListResponse as GetGameServers,
     CGameServersGetServerListResponseServer as GameServersMessage,
+    CGameServersIPsWithSteamIDsResponse as GetServerIPs,
+    CGameServersIPsWithSteamIDsResponseServer as GetServerIPsServer,
 )
 from .trade import DescriptionDict, TradeOffer, TradeOfferDict
 from .user import User
@@ -539,11 +541,22 @@ class ConnectionState(Registerable):
 
         return msg
 
-    async def fetch_servers(self, query: str, limit: int) -> Optional[list[GameServersMessage]]:
+    async def fetch_servers(self, query: str, limit: int) -> list[GameServersMessage]:
         msg: MsgProto[GetGameServers] = await self.ws.send_um_and_wait(
             "GameServers.GetServerList#1",
             filter=query,
             limit=limit,
+        )
+
+        if msg.eresult != EResult.OK:
+            raise WSException(msg)
+
+        return msg.body.servers
+
+    async def fetch_server_ip_from_steam_id(self, *ids: int) -> list[GetServerIPsServer]:
+        msg: MsgProto[GetServerIPs] = await self.ws.send_um_and_wait(
+            "GameServers.GetServerIPsBySteamID#1",
+            server_steamids=list(ids),
         )
 
         if msg.eresult != EResult.OK:
