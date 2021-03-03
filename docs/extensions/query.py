@@ -6,7 +6,7 @@
 import inspect
 
 import steam
-from steam.game_server import QueryMeta, Query
+from steam.game_server import Query, QueryMeta
 
 
 def setup(_):
