@@ -36,9 +36,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinxcontrib_trio",
-    *[
-        p.with_suffix("").name for p in Path("extensions").glob("*.py")
-    ]
+    *[p.with_suffix("").name for p in Path("extensions").glob("*.py")],
 ]
 
 autodoc_member_order = "bysource"  # TODO I feel like there is a way to get a better order for redefined ones
