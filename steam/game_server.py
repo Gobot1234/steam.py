@@ -69,14 +69,8 @@ class Operator(Enum):
 
 
 class QueryAll:
-    def __truediv__(self, other):
-        raise NotImplementedError("Query.all does not support operations")
-
-    def __or__(self, other):
-        raise NotImplementedError("Query.all does not support operations")
-
-    def __and__(self, other):
-        raise NotImplementedError("Query.all does not support operations")
+    def __repr__(self):
+        return "all"
 
     query = ""
 
@@ -213,11 +207,11 @@ class Query(Generic[T], metaclass=QueryMeta):
     --------
     .. code-block::
 
-        >>> (steam.Query.running / steam.TF2 / steam.Query.not_empty / steam.Query.secure).query
+        >>> (Query.running / steam.TF2 / Query.not_empty / Query.secure).query
         r"\appid\440\empty\1\secure\1"
-        >>> (steam.Query.not_empty / steam.Query.not_full | steam.Query.secure).query
+        >>> (Query.not_empty / Query.not_full | Query.secure).query
         r"\empty\1\nor\[\full\1\secure\1]"
-        >>> steam.Query.name_match / "A cool server" | steam.Query.match_tags / ["alltalk", "increased_maxplayers"]
+        >>> (Query.name_match / "A cool server" | Query.match_tags / ["alltalk", "increased_maxplayers"]).query
         r"\nor\[\name_match\A cool server\gametype\[alltalk,increased_maxplayers]]"
     """
 
@@ -245,7 +239,7 @@ class Query(Generic[T], metaclass=QueryMeta):
     def __repr__(self) -> str:
         return f"<Query query={self.query!r}>"
 
-    def __truediv__(self, other: T) -> Query:
+    def __truediv__(self, other: T) -> Query[T]:
         cls = self.__class__
         try:
             last = self._raw[-1] if isinstance(self._raw[-1], Query) else None
@@ -263,7 +257,7 @@ class Query(Generic[T], metaclass=QueryMeta):
         return self.__class__(self, other, op=Operator.div)
 
     # I'm not really sure what this does differently to __truediv__ or when to use it.
-    def __and__(self, other: T) -> Query:
+    def __and__(self, other: T) -> Query[T]:
         cls = self.__class__
         if isinstance(other, self._type):
             return cls(self, other, op=Operator.and_)
@@ -271,7 +265,7 @@ class Query(Generic[T], metaclass=QueryMeta):
             raise TypeError
         return cls(self, other, op=Operator.and_)
 
-    def __or__(self, other: T) -> Query:
+    def __or__(self, other: T) -> Query[T]:
         cls = self.__class__
         if isinstance(other, self._type):
             return cls(self, other, op=Operator.or_)
@@ -373,7 +367,7 @@ def _unpack_multi_packet_header(payload_offset: int, packet: bytes):
 
 
 class GameServer(SteamID):
-    """Represents a game server
+    """Represents a game server.
 
     Attributes
     ----------
@@ -437,7 +431,7 @@ class GameServer(SteamID):
         self._loop = asyncio.get_event_loop()
 
     def __repr__(self) -> str:
-        attrs = ("name", "game", "ip", "port", "id", "type", "universe", "instance")
+        attrs = ("name", "game", "ip", "port", "region", "id", "type", "universe", "instance")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
@@ -524,7 +518,7 @@ class GameServer(SteamID):
                 for _ in range(number_of_players)
             ]
 
-    async def rules(self, *, challenge: Literal[-1, 0] = -1) -> Optional[dict[str, str]]:
+    async def rules(self, *, challenge: Literal[-1, 0] = 0) -> Optional[dict[str, str]]:
         """|coro|
         Fetch a server's rules (console variables). e.g. ``sv_gravity`` or ``sv_voiceenable``.
 
@@ -540,7 +534,7 @@ class GameServer(SteamID):
 
         Returns
         -------
-        Optional[dict[:class:`str`, :class:`str]]
+        Optional[dict[:class:`str`, :class:`str`]]
             The server's rules.
         """
         async with self.connect() as socket:

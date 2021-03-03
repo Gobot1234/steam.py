@@ -11,7 +11,7 @@ from steam.ext import commands
 
 typing.TYPE_CHECKING = True
 importlib.reload(steam.client)
-bot = importlib.reload(commands.bot)
+importlib.reload(commands.bot)
 typing.TYPE_CHECKING = False
 
 

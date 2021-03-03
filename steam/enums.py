@@ -51,6 +51,7 @@ __all__ = (
     "EUIMode",
     "EUserBadge",
     "EReviewType",
+    "EGameServerRegion",
 )
 
 T = TypeVar("T")
