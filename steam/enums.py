@@ -51,6 +51,7 @@ __all__ = (
     "EUIMode",
     "EUserBadge",
     "EReviewType",
+    "EGameServerRegion",
 )
 
 T = TypeVar("T")
@@ -500,3 +501,16 @@ class EReviewType(IntEnum):
     VeryNegative           = 2  #: 0 - 19% positive reviews.
     OverwhelminglyNegative = 1  #: 0 - 19% positive reviews and many of them.
     NONE                   = 0  #: No reviews
+
+
+class EGameServerRegion(IntEnum):
+    NONE         = -1
+    USEastCoast  = 0
+    USWestCoast  = 1
+    SouthAmerica = 2
+    Europe       = 3
+    Asia         = 4
+    Australia    = 5
+    MiddleEast   = 6
+    Africa       = 7
+    World        = 255

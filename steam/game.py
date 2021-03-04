@@ -42,6 +42,7 @@ __all__ = (
     "Game",
     "CSGO",
     "DOTA2",
+    "LFD2",
     "STEAM",
     "CUSTOM_GAME",
     "UserGame",
@@ -55,6 +56,7 @@ APP_ID_MAX = 2 ** 32
 
 class Games(IntEnum):
     Team_Fortress_2 = 440
+    Left_4_Dead_2 = 550
     DOTA_2 = 570
     Counter_Strike_Global__Offensive = 730
     Steam = 753
@@ -217,7 +219,7 @@ class Game:
 
         self.id: Optional[int] = id
         self.title: Optional[str] = title
-        self.context_id = 2 if context_id is None else context_id
+        self.context_id: int = 2 if context_id is None else context_id
 
     def __str__(self) -> str:
         return self.title or ""
@@ -248,6 +250,7 @@ class Game:
 TF2 = Game(title="Team Fortress 2")
 DOTA2 = Game(title="DOTA 2")
 CSGO = Game(title="Counter Strike Global-Offensive")
+LFD2 = Game(title="Left 4 Dead 2")
 STEAM = Game(title="Steam", context_id=6)
 
 

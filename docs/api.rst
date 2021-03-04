@@ -145,59 +145,63 @@ Then some functions from discord.py
 Enumerations
 -------------
 
-.. autoclass:: EResult
+.. autoclass:: EResult()
     :members:
     :undoc-members:
 
-.. autoclass:: EUniverse
+.. autoclass:: EUniverse()
     :members:
     :undoc-members:
 
-.. autoclass:: EType
+.. autoclass:: EType()
     :members:
     :undoc-members:
 
-.. autoclass:: ETypeChar
+.. autoclass:: ETypeChar()
     :members:
     :undoc-members:
 
-.. autoclass:: EInstanceFlag
+.. autoclass:: EInstanceFlag()
     :members:
     :undoc-members:
 
-.. autoclass:: EFriendRelationship
+.. autoclass:: EFriendRelationship()
     :members:
     :undoc-members:
 
-.. autoclass:: EPersonaState
+.. autoclass:: EPersonaState()
     :members:
     :undoc-members:
 
-.. autoclass:: EPersonaStateFlag
+.. autoclass:: EPersonaStateFlag()
     :members:
     :undoc-members:
 
-.. autoclass:: ECommunityVisibilityState
+.. autoclass:: ECommunityVisibilityState()
     :members:
     :undoc-members:
 
-.. autoclass:: ETradeOfferState
+.. autoclass:: ETradeOfferState()
     :members:
     :undoc-members:
 
-.. autoclass:: EChatEntryType
+.. autoclass:: EChatEntryType()
     :members:
     :undoc-members:
 
-.. autoclass:: EUIMode
+.. autoclass:: EUIMode()
     :members:
     :undoc-members:
 
-.. autoclass:: EUserBadge
+.. autoclass:: EUserBadge()
     :members:
     :undoc-members:
 
-.. autoclass:: EReviewType
+.. autoclass:: EReviewType()
+    :members:
+    :undoc-members:
+
+.. autoclass:: EGameServerRegion()
     :members:
     :undoc-members:
 
@@ -230,8 +234,7 @@ They can be used as follows: ::
 Abstract Base Classes
 -----------------------
 
-An :term:`py:abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
-They are only used for subclassing.
+An :term:`abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
 
 .. autoclass:: steam.abc.BaseUser()
     :members:
@@ -300,6 +303,17 @@ Comment
 
 .. autoclass:: Comment()
     :members:
+
+Game Servers
+~~~~~~~~~~~~~~~
+
+.. autoclass:: GameServer()
+    :members:
+    :inherited-members:
+
+.. autoclass:: Query()
+    :members:
+
 
 Group
 ~~~~~~~~~~~~~~~

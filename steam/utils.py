@@ -95,13 +95,7 @@ class Intable(metaclass=IntableMeta):
 
 
 if TYPE_CHECKING:
-
-    @runtime_checkable
-    class Intable(Protocol):
-        __slots__ = ()
-
-        def __int__(self) -> int:
-            ...
+    from typing import SupportsInt as Intable
 
 
 Intable: Union[Intable, str, bytes]
@@ -474,18 +468,26 @@ def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:
     return list(chunker())
 
 
-def warn(message: str, warning_type: type[Warning] = DeprecationWarning) -> None:
+def warn(message: str, warning_type: type[Warning] = DeprecationWarning, stack_level: int = 1) -> None:
     warnings.simplefilter("once", warning_type)  # turn off filter
     warnings.warn(
         message,
-        stacklevel=3,
+        stacklevel=stack_level,
         category=warning_type,
     )
 
 
 class BytesBuffer(BytesIO):
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(buffer={self.getvalue()}, position={self.tell()})"
+        return f"{self.__class__.__name__}(buffer={self.buffer!r}, position={self.position})"
+
+    @property
+    def buffer(self) -> bytes:
+        return self.getvalue()
+
+    @property
+    def position(self) -> int:
+        return self.tell()
 
     def read_struct(self, format: str, position: Optional[int] = None) -> tuple:
         buffer = self.read(position or struct.calcsize(format))
@@ -513,13 +515,13 @@ class BytesBuffer(BytesIO):
         self.write_struct("<Q", uint64)
 
     def read_cstring(self, terminator=b"\x00") -> bytes:
-        tell = self.tell()
+        starting_position = self.position
         data = self.read()
         null_index = data.find(terminator)
         if null_index == -1:
             raise RuntimeError("Reached end of buffer")
         result = data[:null_index]  # bytes without the terminator
-        self.seek(tell + null_index + len(terminator))  # advance offset past terminator
+        self.seek(starting_position + null_index + len(terminator))  # advance offset past terminator
         return result
 
     def read_float(self) -> float:

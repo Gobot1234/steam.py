@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -35,10 +36,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinxcontrib_trio",
-    "exception_hierarchy",
-    "enums",
-    "events",
-    "resourcelinks",
+    *[p.with_suffix("").name for p in Path("extensions").glob("*.py")],
 ]
 
 autodoc_member_order = "bysource"  # TODO I feel like there is a way to get a better order for redefined ones

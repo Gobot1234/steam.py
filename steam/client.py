@@ -43,6 +43,7 @@ from typing_extensions import Literal, final
 from . import errors, utils
 from .abc import SteamID
 from .game import FetchedGame, Game
+from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
@@ -102,7 +103,13 @@ class Client:
 
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
         if loop:
-            utils.warn("The loop argument is deprecated and scheduled for removal in V.1")
+            import inspect
+
+            utils.warn(
+                "The loop argument is deprecated and scheduled for removal in V.1",
+                stack_level=len(inspect.stack())
+                + 1,  # make sure its always at the top of the stack most likely where the Client was created
+            )
         self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self, **options)
         self._connection = ConnectionState(client=self, **options)
@@ -631,6 +638,75 @@ class Client:
         if not data[str(id)]["success"]:
             return None
         return FetchedGame(data[str(id)]["data"])
+
+    @overload
+    async def fetch_server(self, *, id: utils.Intable) -> Optional[GameServer]:
+        ...
+
+    @overload
+    async def fetch_server(
+        self,
+        *,
+        ip: str,
+        port: int,
+    ) -> Optional[GameServer]:
+        ...
+
+    async def fetch_server(
+        self,
+        *,
+        id: Optional[utils.Intable] = None,
+        ip: Optional[str] = None,
+        port: Optional[int] = None,
+    ) -> Optional[GameServer]:
+        """|coro|
+        Fetch a specific game server from its ip and port.
+
+        Parameters
+        ----------
+        id: Union[:class:`int`, :class:`str`]
+            The ID of the game server, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id2` or an :attr:`.SteamID.id3`.
+        ip: :class:`str`
+            The ip of the server.
+        port: :class:`int`
+            The port of the server.
+
+        Returns
+        -------
+        Optional[:class:`GameServer`]
+            The found game server or ``None`` if fetching the server failed.
+        """
+
+        if all((id, ip, port)):
+            raise TypeError("Too many arguments passed to fetch_server")
+        if id:
+            # we need to fetch the ip and port
+            servers = await self._connection.fetch_server_ip_from_steam_id(SteamID(id).id64)
+            ip, port = servers[0].addr.split(":")
+        elif not (ip and port):
+            raise TypeError(f"fetch_server missing argument {'ip' if not ip else 'port'}")
+
+        servers = await self.fetch_servers(Query.ip / f"{ip}:{port}", limit=1)
+        return servers[0] if servers else None
+
+    async def fetch_servers(self, query: Query, limit: int = 100) -> list[GameServer]:
+        """|coro|
+        Query game servers.
+
+        Parameters
+        ----------
+        query: :class:`Query`
+            The query to match servers with.
+        limit: :class:`int`
+            The maximum amount of servers to return.
+
+        Returns
+        -------
+        list[:class:`.GameServer`]
+            The matched servers.
+        """
+        servers = await self._connection.fetch_servers(query.query, limit)
+        return [GameServer(server) for server in servers]
 
     def trade_history(
         self,

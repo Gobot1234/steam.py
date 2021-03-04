@@ -29,6 +29,7 @@ from .comment import *
 from .enums import *
 from .errors import *
 from .game import *
+from .game_server import *
 from .group import *
 from .image import *
 from .invite import *
