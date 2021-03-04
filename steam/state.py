@@ -716,7 +716,7 @@ class ConnectionState(Registerable):
                     friend.ulfriendid
                     for friend in msg.body.friends
                     if friend.efriendrelationship == EFriendRelationship.Friend
-                    and (friend.ulfriendid >> 52) & 0xF != EType.Clan
+                    and (friend.ulfriendid >> 52) & 0xf != EType.Clan
                 ]
             )
             for friend in self.client.user.friends:
