@@ -22,7 +22,7 @@ statuses:
 
 request_review: none
 
-restylers_version: stable
+restylers_version: dev
 
 restylers:
   - name: black
