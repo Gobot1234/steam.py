@@ -10,7 +10,6 @@ from steam.game_server import Query, QueryMeta
 
 
 def setup(_):
-
     attrs = dict(inspect.getmembers(QueryMeta, predicate=lambda attr: isinstance(attr, property)))
     attrs.update({"query": Query.query, "all": Query.all})
 

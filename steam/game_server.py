@@ -63,14 +63,20 @@ __all__ = (
 # fmt: off
 class Operator(Enum):
     div  = "\\"
-    or_  = "nor"
-    and_ = "nand"
-# fmt: on
+    or_  = "\\nor\\"
+    and_ = "\\nand\\"
+    # fmt: on
+
+    def format(self, query_1: str, query_2: str) -> str:
+        return f"{query_1}{query_2}" if self is Operator.div else rf"{self.value}[{query_1}{query_2}]"
 
 
 class QueryAll:
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "all"
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, self.__class__)
 
     query = ""
 
@@ -79,72 +85,72 @@ class QueryMeta(type):
     @property
     def not_empty(cls) -> Query[Q]:
         """Fetches servers that are not empty."""
-        return Query(r"empty\1")
+        return Query(r"\empty\1")
 
     @property
     def empty(cls) -> Query[Q]:
         """Fetches servers that are empty."""
-        return Query(r"noplayers\1")
+        return Query(r"\noplayers\1")
 
     @property
     def proxy(cls) -> Query[Q]:
         """Fetches servers that are spectator proxies."""
-        return Query(r"proxy\1")
+        return Query(r"\proxy\1")
 
     @property
     def whitelisted(cls) -> Query[Q]:
         """Fetches servers that are whitelisted."""
-        return Query(r"white\1")
+        return Query(r"\white\1")
 
     @property
     def dedicated(cls) -> Query[Q]:
         """Fetches servers that are running dedicated."""
-        return Query(r"dedicated\1")
+        return Query(r"\dedicated\1")
 
     @property
     def secure(cls) -> Query[Q]:
         """Fetches servers that are using anti-cheat technology (VAC, but potentially others as well)."""
-        return Query(r"secure\1")
+        return Query(r"\secure\1")
 
     @property
     def linux(cls) -> Query[Q]:
         """Fetches servers running on a Linux platform."""
-        return Query(r"linux\1")
+        return Query(r"\linux\1")
 
     @property
     def no_password(cls) -> Query[Q]:
         """Fetches servers that are not password protected."""
-        return Query(r"password\0")
+        return Query(r"\password\0")
 
     @property
     def not_full(cls) -> Query[Q]:
         """Fetches servers that are not full."""
-        return Query(r"full\1")
+        return Query(r"\full\1")
 
     @property
     def unique_addresses(cls) -> Query[Q]:
         """Fetches only one server for each unique IP address matched."""
-        return Query(r"collapse_addr_hash\1")
+        return Query(r"\collapse_addr_hash\1")
 
     @property
     def version_match(cls) -> Query[str]:
         """Fetches servers running version "x" (``"*"`` is wildcard)."""
-        return Query("version_match")
+        return Query("\version_match\\", type=str, callback=lambda a: a)
 
     @property
     def name_match(cls) -> Query[str]:
         """Fetches servers with their hostname matching "x" (``"*"`` is wildcard)."""
-        return Query("name_match")
+        return Query("\\name_match\\", type=str, callback=lambda a: a)
 
     @property
     def running_mod(cls) -> Query[str]:
         """Fetches servers running the specified modification (e.g. cstrike)."""
-        return Query("gamedir")
+        return Query("\\gamedir\\", type=str, callback=lambda a: a)
 
     @property
     def running_map(cls) -> Query[str]:
         """Fetches servers running the specified map (e.g. cs_italy)"""
-        return Query("map")
+        return Query("\\map\\", type=str, callback=lambda a: a)
 
     @property
     def ip(cls) -> Query[str]:
@@ -154,32 +160,37 @@ class QueryMeta(type):
         --------
         :meth:`Client.fetch_server` for an query free version of this.
         """
-        return Query("gameaddr")
+        return Query("\\gameaddr\\", type=str, callback=lambda a: a)
 
     @property
     def running(cls) -> Query[Union[Game, int]]:
         """Fetches servers running a :class:`.Game` or an :class:`int` app id."""
-        return Query("appid", type=(Game, int), callback=lambda g: str(getattr(g, "id", g)))
+        return Query("\\appid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
 
     @property
     def not_running(cls) -> Query[Union[Game, int]]:
         """Fetches servers not running a :class:`.Game` or an :class:`int` app id."""
-        return Query("nappid", type=(Game, int), callback=lambda g: str(getattr(g, "id", g)))
+        return Query("\\nappid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
 
     @property
-    def match_tags(self) -> Query[list[str]]:
+    def match_tags(cls) -> Query[list[str]]:
         """Fetches servers with all of the given tag(s) in :attr:`GameServer.tags`."""
-        return Query("gametype")
+        return Query("\\gametype\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
-    def match_hidden_tags(self) -> Query[list[str]]:
+    def match_hidden_tags(cls) -> Query[list[str]]:
         """Fetches servers with all of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
-        return Query("gamedata")
+        return Query("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
-    def match_hidden_tags(self) -> Query[list[str]]:
+    def match_hidden_tags(cls) -> Query[list[str]]:
         """Fetches servers with all of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
-        return Query("gamedata")
+        return Query("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
+
+    @property
+    def all(cls) -> QueryAll:
+        """Fetches any servers. Any operations on this will fail."""
+        return QueryAll()
 
 
 class Query(Generic[T], metaclass=QueryMeta):
@@ -193,7 +204,7 @@ class Query(Generic[T], metaclass=QueryMeta):
 
         .. describe:: x / y
 
-            Appends y's Query to x.
+            Appends y's query to x.
 
         .. describe:: x | y
 
@@ -207,71 +218,64 @@ class Query(Generic[T], metaclass=QueryMeta):
     --------
     .. code-block::
 
-        >>> (Query.running / steam.TF2 / Query.not_empty / Query.secure).query
-        r"\appid\440\empty\1\secure\1"
-        >>> (Query.not_empty / Query.not_full | Query.secure).query
-        r"\empty\1\nor\[\full\1\secure\1]"
-        >>> (Query.name_match / "A cool server" | Query.match_tags / ["alltalk", "increased_maxplayers"]).query
-        r"\nor\[\name_match\A cool server\gametype\[alltalk,increased_maxplayers]]"
+        >>> Query.running / TF2 / Query.not_empty / Query.secure
+        <Query query='\\appid\\440\\empty\\1\\secure\\1'>
+        >>> Query.not_empty / Query.not_full | Query.secure
+        <Query query='\\empty\\1\\nor\\[\\full\\1\\secure\\1]'>
+        >>> Query.name_match / "A cool server" | Query.match_tags / ["alltalk", "increased_maxplayers"]
+        <Query query='\\nor\\[\\name_match\\A cool server\\gametype\\[alltalk,increased_maxplayers]]'>
     """
 
-    all = QueryAll()  #: Fetches any servers. Any operations on this will fail.
+    # simple specification:
+    # - immutable
+    # - based on https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
 
-    # immutable
-    # based on https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
-
-    __slots__ = ("_raw", "_op", "_type", "_callback")
+    __slots__ = ("_raw", "_type", "_callback")
 
     def __new__(
         cls,
-        *raw: Union[Query, str],
-        op: Optional[Operator] = None,
+        *raw: Union[Query, Operator, str],
         type: Union[type[T], tuple[type[T], ...], None] = None,
         callback: Optional[Callable[[T], str]] = None,
     ) -> Query:
         self = super().__new__(cls)
         self._raw = raw
-        self._op = op
         self._type = type
         self._callback = callback
         return self
 
     def __repr__(self) -> str:
-        return f"<Query query={self.query!r}>"
+        try:
+            query = self.query
+        except RuntimeError:
+            query = "..."
+        return f"<Query query={query!r}>"
+
+    def _process_op(self, other: T, op: Operator) -> Query[T]:
+        cls = self.__class__
+
+        if isinstance(other, QueryAll):
+            return NotImplemented
+
+        if isinstance(self._raw[-1], str) and len(self._raw) == 1:
+            return cls(self, op, other)
+        if self._type and isinstance(other, self._type):
+            return cls(self, op, other)
+
+        if not isinstance(other, Query):
+            return NotImplemented
+
+        return cls(self, op, other)
 
     def __truediv__(self, other: T) -> Query[T]:
-        cls = self.__class__
-        try:
-            last = self._raw[-1] if isinstance(self._raw[-1], Query) else None
-            types = self._type or last._type
-            callback = last._callback
-        except (AttributeError, IndexError):
-            pass
-        else:
-            if isinstance(other, types):
-                return cls(self, callback(other), op=Operator.div)
+        return self._process_op(other, Operator.div)
 
-        if not isinstance(other, Query):
-            raise TypeError
-
-        return self.__class__(self, other, op=Operator.div)
-
-    # I'm not really sure what this does differently to __truediv__ or when to use it.
     def __and__(self, other: T) -> Query[T]:
-        cls = self.__class__
-        if isinstance(other, self._type):
-            return cls(self, other, op=Operator.and_)
-        if not isinstance(other, Query):
-            raise TypeError
-        return cls(self, other, op=Operator.and_)
+        # I'm not really sure what this does differently to __truediv__ or when to use it.
+        return self._process_op(other, Operator.and_)
 
     def __or__(self, other: T) -> Query[T]:
-        cls = self.__class__
-        if isinstance(other, self._type):
-            return cls(self, other, op=Operator.or_)
-        if not isinstance(other, Query):
-            raise TypeError
-        return cls(self, other, op=Operator.or_)
+        return self._process_op(other, Operator.or_)
 
     def __eq__(self, other: Query) -> bool:
         if not isinstance(other, Query):
@@ -281,16 +285,17 @@ class Query(Generic[T], metaclass=QueryMeta):
     @property
     def query(self) -> str:
         """:class:`str`: The actual query used for querying Global Master Servers."""
-        ret = []
 
-        for query in self._raw:
-            if isinstance(query, str):
-                # a base query
-                ret.append(query)
-            elif self._type is not None and isinstance(query, self._type):
-                ret.append(query._callback(query))
-            else:
-                ret.append(getattr(query, "query", query))
+        ret = []
+        if len(self._raw) == 1:  # string query
+            ret.append(self._raw[0])
+        else:  # normal
+            query_1, op, query_2 = self._raw
+            ret.append(
+                op.format(query_1.query,
+                          query_2.query if isinstance(query_2, Query) else query_1._callback(query_2))
+            )
+
         return "\\".join(ret)
 
 
@@ -450,7 +455,7 @@ class GameServer(SteamID):
     async def connect(self) -> AbstractAsyncContextManager[socket.socket]:
         sock = socket.socket(
             socket.AF_INET, socket.SOCK_DGRAM
-        )  # steam uses TCP over UDP. Would use asyncio streams otherwise
+        )  # steam uses TCP over UDP. I would use asyncio streams otherwise
         sock.setblocking(False)
         await self._loop.sock_connect(sock, (self.ip, self.port))
         try:
@@ -482,13 +487,13 @@ class GameServer(SteamID):
 
             ServerPlayer is a :class:`typing.NamedTuple` defined as:
 
-                .. code-block:: python3
+            .. code-block:: python3
 
-                    class ServerPlayer(NamedTuple):
-                        index: int
-                        name: str
-                        score: int
-                        play_time: timedelta
+                class ServerPlayer(NamedTuple):
+                    index: int
+                    name: str
+                    score: int
+                    play_time: timedelta
         """
         async with self.connect() as socket:
             socket.send(struct.pack("<lci", -1, b"U", challenge))
