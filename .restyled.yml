@@ -22,7 +22,10 @@ statuses:
 
 request_review: none
 
-restylers_version: dev
+ignore_labels:
+  - restyled-ignore
+
+restylers_version: stable
 
 restylers:
   - name: black
