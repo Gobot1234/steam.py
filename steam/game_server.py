@@ -45,7 +45,7 @@ from typing_extensions import Literal
 from .abc import SteamID
 from .enums import EGameServerRegion, Enum
 from .game import Game
-from .utils import BytesBuffer
+from .utils import StructIO
 
 if TYPE_CHECKING:
     from .protobufs.steammessages_gameservers import CGameServersGetServerListResponseServer as GameServerProto
@@ -299,7 +299,7 @@ class Query(Generic[T], metaclass=QueryMeta):
         return "\\".join(ret)
 
 
-class BytesBuffer(BytesBuffer):
+class StructIO(StructIO):
     def read_cstring(self, *args: Any, **kwargs: Any) -> str:
         return super().read_cstring(*args, **kwargs).decode("utf-8", "replace")
 
@@ -501,11 +501,11 @@ class GameServer(SteamID):
             _, header, challenge_ = struct.unpack_from("<lcl", data)
 
             if header == b"D":
-                buffer = BytesBuffer(data)
+                buffer = StructIO(data)
             elif header == b"A":
                 socket.send(struct.pack("<lci", -1, b"U", challenge_))
 
-                buffer = BytesBuffer(await _handle_a2s_response(self._loop, socket))
+                buffer = StructIO(await _handle_a2s_response(self._loop, socket))
             else:
                 return None
 
@@ -515,10 +515,10 @@ class GameServer(SteamID):
 
             return [
                 ServerPlayer(
-                    index=buffer.read_struct("<B")[0],
+                    index=buffer.read_u8(),
                     name=buffer.read_cstring(),
-                    score=buffer.read_struct("<f")[0],
-                    play_time=timedelta(seconds=buffer.read_float()),
+                    score=buffer.read_long(),
+                    play_time=timedelta(seconds=buffer.read_f32()),
                 )
                 for _ in range(number_of_players)
             ]
@@ -550,7 +550,7 @@ class GameServer(SteamID):
                 return None
 
             socket.send(struct.pack("<lci", -1, b"V", challenge))
-            buffer = BytesBuffer(await _handle_a2s_response(self._loop, socket))
+            buffer = StructIO(await _handle_a2s_response(self._loop, socket))
 
             header, number_of_rules = buffer.read_struct("<4xcH")
             if header != b"E":

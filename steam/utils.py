@@ -464,7 +464,39 @@ def warn(message: str, warning_type: type[Warning] = DeprecationWarning, stack_l
     )
 
 
-class BytesBuffer(BytesIO):
+PACK_FORMATS: Final[dict[str, str]] = {
+    "i8": "b",
+    "u8": "B",
+    "i16": "h",
+    "u16": "H",
+    "i32": "i",
+    "u32": "I",
+    "i64": "q",
+    "u64": "Q",
+    "long": "l",
+    "ulong": "L",
+    "f32": "f",
+    "f64": "d",
+}
+
+
+class StructIOMeta(type):
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> StructIOMeta:
+        for method_name, format in PACK_FORMATS.items():
+            exec(f"def write_{method_name}(self, item): self.write_struct('<{format}', item)", {}, namespace)
+            exec(
+                f"def read_{method_name}(self):"
+                f"return self.read_struct('<{format}', {struct.calcsize(f'<{format}')})[0]",
+                {},
+                namespace
+            )
+
+        return super().__new__(mcs, name, bases, namespace)
+
+
+class StructIO(BytesIO, metaclass=StructIOMeta):
+    __slots__ = ()
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(buffer={self.buffer!r}, position={self.position})"
 
@@ -483,24 +515,6 @@ class BytesBuffer(BytesIO):
     def write_struct(self, format: str, *to_write: Any) -> None:
         self.write(struct.pack(format, *to_write))
 
-    def read_int16(self) -> int:
-        return self.read_struct("<h", 2)[0]
-
-    def write_int16(self, int16: int) -> None:
-        self.write_struct("<h", int16)
-
-    def read_uint32(self) -> int:
-        return self.read_struct("<I", 4)[0]
-
-    def write_uint32(self, uint32: int) -> None:
-        self.write_struct("<I", uint32)
-
-    def read_uint64(self) -> int:
-        return self.read_struct("<Q", 8)[0]
-
-    def write_uint64(self, uint64: int) -> None:
-        self.write_struct("<Q", uint64)
-
     def read_cstring(self, terminator=b"\x00") -> bytes:
         starting_position = self.position
         data = self.read()
@@ -511,11 +525,34 @@ class BytesBuffer(BytesIO):
         self.seek(starting_position + null_index + len(terminator))  # advance offset past terminator
         return result
 
-    def read_float(self) -> float:
-        return self.read_struct("<f", 4)[0]
-
-    def write_float(self, float: float) -> None:
-        return self.write_struct("<f", float)
+    if TYPE_CHECKING:
+        # added by the metaclass
+        # fmt: off
+        def read_i8(self) -> int: ...
+        def write_i8(self, item: int) -> None: ...
+        def read_u8(self) -> int: ...
+        def write_u8(self, item: int) -> None: ...
+        def read_i16(self) -> int: ...
+        def write_i16(self, item: int) -> None: ...
+        def read_u16(self) -> int: ...
+        def write_u16(self, item: int) -> None: ...
+        def read_i32(self) -> int: ...
+        def write_i32(self, item: int) -> None: ...
+        def read_u32(self) -> int: ...
+        def write_u32(self, item: int) -> None: ...
+        def read_i64(self) -> int: ...
+        def write_i64(self, item: int) -> None: ...
+        def read_u64(self) -> int: ...
+        def write_u64(self, item: int) -> None: ...
+        def read_f32(self) -> float: ...
+        def write_f32(self, item: float) -> None: ...
+        def read_f64(self) -> float: ...
+        def write_f64(self, item: float) -> None: ...
+        def read_long(self) -> int: ...
+        def write_long(self, item: int) -> None: ...
+        def read_ulong(self) -> int: ...
+        def write_ulong(self, item: int) -> None: ...
+        # fmt: on
 
 
 # everything below here is directly from discord.py's utils
