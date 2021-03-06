@@ -35,7 +35,8 @@ import datetime
 import logging
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Union, overload
+from collections.abc import Callable, Coroutine
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
 
 import aiohttp
 from typing_extensions import Literal, final

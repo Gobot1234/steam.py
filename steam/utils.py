@@ -37,24 +37,11 @@ import re
 import struct
 import sys
 import warnings
+from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sequence
 from inspect import isawaitable
 from io import BytesIO
 from operator import attrgetter
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Generator,
-    Generic,
-    Iterable,
-    Optional,
-    Sequence,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union, overload
 
 import aiohttp
 from typing_extensions import Literal, Protocol, runtime_checkable

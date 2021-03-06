@@ -32,9 +32,10 @@ import json
 import logging
 import re
 from base64 import b64encode
+from collections.abc import Coroutine
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Coroutine, Optional
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import aiohttp
 import rsa

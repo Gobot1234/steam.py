@@ -33,7 +33,7 @@ import weakref
 from collections import ChainMap, deque
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from betterproto import snake_case
 from bs4 import BeautifulSoup

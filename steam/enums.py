@@ -29,8 +29,9 @@ EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discor
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Generator, NoReturn, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, NoReturn, Optional, TypeVar, Union
 
 from typing_extensions import Literal
 

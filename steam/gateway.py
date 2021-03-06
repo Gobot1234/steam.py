@@ -40,9 +40,10 @@ import sys
 import threading
 import time
 import traceback
+from collections.abc import Callable
 from gzip import _GzipReader as GZipReader
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
 import aiohttp
 import attr

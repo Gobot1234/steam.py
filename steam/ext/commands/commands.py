@@ -33,20 +33,9 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
+from collections.abc import Callable, Coroutine, Iterable
 from time import time
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Coroutine,
-    ForwardRef,
-    Iterable,
-    Optional,
-    TypeVar,
-    Union,
-    get_type_hints,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, ForwardRef, Optional, TypeVar, Union, get_type_hints, overload
 
 from chardet import detect
 from typing_extensions import Literal, get_args, get_origin

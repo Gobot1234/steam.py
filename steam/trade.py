@@ -27,8 +27,9 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
 from typing_extensions import TypedDict
 

@@ -30,8 +30,9 @@ import itertools
 import math
 import re
 from collections import deque
+from collections.abc import Callable, Coroutine, Generator
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
 from bs4 import BeautifulSoup
 

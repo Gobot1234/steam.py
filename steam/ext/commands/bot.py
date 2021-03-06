@@ -35,9 +35,10 @@ import inspect
 import os
 import sys
 import traceback
+from collections.abc import Callable, Coroutine, Iterable
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 
 from typing_extensions import Literal, overload
 

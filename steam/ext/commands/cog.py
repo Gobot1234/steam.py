@@ -29,7 +29,8 @@ from __future__ import annotations
 import inspect
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Optional, overload
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Optional, overload
 
 from chardet import detect
 from typing_extensions import Final

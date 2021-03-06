@@ -34,8 +34,9 @@ import abc
 import asyncio
 import inspect
 import re
+from collections.abc import Callable, Coroutine
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generic, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
 
 import attr
 from typing_extensions import Final, Protocol, TypeAlias, TypedDict, runtime_checkable
