@@ -44,7 +44,7 @@ from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union, overload
 
 import aiohttp
-from typing_extensions import Literal, Protocol, runtime_checkable
+from typing_extensions import Final, Literal
 
 from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
 from .errors import InvalidSteamID
@@ -392,7 +392,7 @@ def parse_trade_url(url: str) -> Optional[re.Match[str]]:
         The :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``
     """
     return re.search(
-        r"(?:http[s]?://|)(?:www.|)steamcommunity.com/tradeoffer/new/\?partner=(?P<user_id>\d{,10})"
+        r"(?:http[s]?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/\?partner=(?P<user_id>\d{,10})"
         r"&token=(?P<token>[\w-]{7,})",
         html.unescape(str(url)),
     )
@@ -404,7 +404,7 @@ if sys.version_info[:2] >= (3, 9):
     from asyncio import to_thread
 else:
 
-    def to_thread(callable: Callable[..., _T], *args: Any, **kwargs: Any) -> Coroutine[None, None, _T]:
+    def to_thread(callable: Callable[..., _T], *args: Any, **kwargs: Any) -> asyncio.Future[_T]:
         loop = asyncio.get_running_loop()
         ctx = contextvars.copy_context()
         partial = functools.partial(ctx.run, callable, *args, **kwargs)
