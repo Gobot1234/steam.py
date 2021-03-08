@@ -66,6 +66,9 @@ def _is_descriptor(obj: Any) -> bool:
 
 
 class EnumMeta(type):
+    _value_map_: dict[Any, Enum]
+    _member_map_: dict[str, Enum]
+
     def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> EnumMeta:
         set_attribute = super().__setattr__
         enum_class = super().__new__(mcs, name, bases, attrs)
@@ -133,6 +136,10 @@ class EnumMeta(type):
 
 class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates `enum.Enum`."""
+    name: str
+    value: Any
+    _value_map_: dict[Any, Enum]
+    _member_map_: dict[str, Enum]
 
     def __new__(cls, *, name: str, value: Any) -> Enum:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
@@ -161,6 +168,7 @@ class Enum(metaclass=EnumMeta):
 
 class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
+    value: int
 
     def __new__(cls, *, name: str, value: int) -> IntEnum:
         self = int.__new__(cls, value)

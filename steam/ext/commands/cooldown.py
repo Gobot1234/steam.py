@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, TypeVar, Union
 
 from ...enums import IntEnum
 from .errors import CommandOnCooldown
@@ -40,7 +40,7 @@ __all__ = (
     "BucketType",
     "Cooldown",
 )
-T_Bucket = TypeVar("T_Bucket", Tuple[int, ...], int)
+T_Bucket = TypeVar("T_Bucket", "tuple[int, ...]", int)
 
 
 class BucketType(IntEnum):

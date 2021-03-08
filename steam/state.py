@@ -65,6 +65,7 @@ from .user import User
 if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
+    from .http import HTTPClient
     from .gateway import SteamWebSocket
     from .protobufs import (
         steammessages_clientserver as client_server,
@@ -113,7 +114,7 @@ class ConnectionState(Registerable):
         self.client = client
         self.loop = client.loop
         self.dispatch = client.dispatch
-        self.http = client.http
+        self.http: HTTPClient = client.http
         self.request = self.http.request
 
         self.handled_friends = asyncio.Event()

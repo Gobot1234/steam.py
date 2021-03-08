@@ -62,10 +62,10 @@ class Image:
     # TODO add support for "webm", "mpg", "mp4", "mpeg", "ogv"
 
     __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash")
+    fp: io.BufferedIOBase
 
     def __init__(self, fp: Union[io.BufferedIOBase, AnyPath], *, spoiler: bool = False):
-        self.fp: io.BufferedIOBase = fp if isinstance(fp, io.BufferedIOBase) else open(fp, "rb")
-
+        self.fp = fp if isinstance(fp, io.BufferedIOBase) else open(fp, "rb")
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
 

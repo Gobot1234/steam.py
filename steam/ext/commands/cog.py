@@ -30,13 +30,13 @@ import inspect
 import sys
 import traceback
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Optional, overload
+from typing import TYPE_CHECKING, Any, Optional, Union, overload
 
 from chardet import detect
 from typing_extensions import Final
 
 from ... import ClientException
-from .commands import Command, GroupMixin
+from .commands import Command, Group
 
 if TYPE_CHECKING:
     from steam.ext import commands
@@ -109,7 +109,7 @@ class Cog:
                     f"therefore not allowed"
                 )
             if isinstance(attr, Command):
-                if isinstance(attr, GroupMixin):
+                if isinstance(attr, Group):
                     for name, value in cls.command_attrs.items():
                         for child in attr.children:
                             if name not in child.__original_kwargs__:
@@ -152,7 +152,7 @@ class Cog:
         ...
 
     @classmethod
-    def listener(cls, name: Optional[str] = None) -> Callable[[E], E]:
+    def listener(cls, name: Union[E, str, None] = None) -> Callable[[E], E]:
         """|maybecallabledeco|
         A decorator that registers a :term:`coroutine function` as a listener. Similar to
         :meth:`~steam.ext.commands.Bot.listen`
@@ -232,7 +232,7 @@ class Cog:
             if cls.cog_check is not Cog.cog_check:
                 command.checks.append(self.cog_check)
 
-            if isinstance(command, GroupMixin):
+            if isinstance(command, Group):
                 for child in command.children:
                     del child.clean_params
                     child.cog = self
@@ -258,7 +258,7 @@ class Cog:
 
     def _eject(self, bot: Bot) -> None:
         for command in self.__commands__.values():
-            if isinstance(command, GroupMixin):
+            if isinstance(command, Group):
                 command.recursively_remove_all_commands()
             bot.remove_command(command.name)
 

@@ -447,7 +447,7 @@ class Command:
 
     async def _parse_positional_or_keyword_argument(self, ctx: Context, param: inspect.Parameter, args: list) -> None:
         is_greedy = get_origin(param.annotation) is converters.Greedy
-        greedy_args = []
+        greedy_args: list[Any] = []
         if ctx.lex.position == ctx.lex.end:
             args.append(await self._get_default(ctx, param))
         for argument in ctx.lex:
@@ -500,7 +500,7 @@ class Command:
             args.append(transformed)
 
     async def _parse_arguments(self, ctx: Context) -> None:
-        args = []
+        args: list[Any] = []
         kwargs: dict[str, Any] = {}  # these are mutated by functions above
 
         for param in self.clean_params.values():
@@ -713,7 +713,7 @@ class GroupMixin:
         if not names:
             return None
         command = self.__commands__.get(names[0])
-        if not isinstance(command, GroupMixin):
+        if not isinstance(command, Group):
             return command
 
         for name in names[1:]:

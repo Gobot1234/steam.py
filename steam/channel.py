@@ -135,7 +135,7 @@ class DMChannel(Channel["UserMessage"]):
         return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
-class _GroupChannel(Channel[M], Generic[M]):
+class _GroupChannel(Channel[M]):
     __slots__ = ("id", "joined_at", "name")
 
     def __init__(self, state: ConnectionState, channel: Any):

@@ -73,9 +73,9 @@ class Context(Messageable):
     """
 
     def __init__(self, **attrs: Any):
-        self.bot: Bot = attrs.get("bot")
-        self.message: Message = attrs.get("message")
-        self.prefix: str = attrs.get("prefix")
+        self.bot: Bot = attrs["bot"]
+        self.message: Message = attrs["message"]
+        self.prefix: str = attrs["prefix"]
 
         self.command: Optional[Command] = attrs.get("command")
         self.cog: Optional[Cog] = self.command.cog if self.command is not None else None

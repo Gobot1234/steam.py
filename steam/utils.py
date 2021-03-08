@@ -428,6 +428,10 @@ class cached_property(Generic[_T]):
         return value
 
 
+if TYPE_CHECKING:
+    from functools import cached_property as cached_property
+
+
 def ainput(prompt: str = "") -> Coroutine[None, None, str]:
     return to_thread(input, prompt)
 
@@ -488,7 +492,7 @@ class StructIOMeta(type):
                 f"def read_{method_name}(self):"
                 f"return self.read_struct('<{format}', {struct.calcsize(f'<{format}')})[0]",
                 {},
-                namespace
+                namespace,
             )
 
         return super().__new__(mcs, name, bases, namespace)
