@@ -41,6 +41,7 @@ from . import utils
 from .abc import SteamID, UserDict
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
+from .emoticon import ClientEmoticon
 from .enums import *
 from .errors import *
 from .game import GameToDict
@@ -108,6 +109,7 @@ class ConnectionState(Registerable):
         "_ui_mode",
         "_flags",
         "_force_kick",
+        "emoticons",
     )
 
     def __init__(self, client: Client, **kwargs: Any):
@@ -118,6 +120,7 @@ class ConnectionState(Registerable):
         self.request = self.http.request
 
         self.handled_friends = asyncio.Event()
+        self.handled_emoticons = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -149,6 +152,7 @@ class ConnectionState(Registerable):
         self._confirmations_to_ignore: list[int] = []
         self._messages: deque[Message] = self.max_messages and deque(maxlen=self.max_messages)
         self.invites: dict[int, Union[UserInvite, ClanInvite]] = {}
+        self.emoticons: list[ClientEmoticon] = []
 
         self._trades_task: Optional[asyncio.Task[None]] = None
         self._trades_to_watch: list[int] = []
@@ -157,6 +161,7 @@ class ConnectionState(Registerable):
         self._descriptions_cache: list[dict] = []
 
         self.handled_friends.clear()
+        self.handled_emoticons.clear()
         self.handled_groups = False
         self._obj = None
         self._previous_iteration = 0
@@ -576,7 +581,7 @@ class ConnectionState(Registerable):
             "ChatRoomClient.NotifyIncomingChatMessage": self.handle_group_message,
             "ChatRoomClient.NotifyChatRoomHeaderStateChange": self.handle_group_update,
             "ChatRoomClient.NotifyChatGroupUserStateChanged": self.handle_group_user_action,
-            # "FriendMessagesClient.MessageReaction": self.handle_reaction,
+            "FriendMessagesClient.MessageReaction": self.handle_reaction,
         }[msg.header.body.job_name_target](msg)
 
     async def handle_user_message(
@@ -647,6 +652,12 @@ class ConnectionState(Registerable):
             else:
                 self.dispatch("group_leave", left)
 
+    async def handle_reaction(self, msg: MsgProto[friend_messages.CFriendMessagesMessageReactionNotification]):
+        print("got reaction msg", msg)
+        # dm add
+        # add Got msg <MsgProto msg=<EMsg.ServiceMethod: 146> header=<MsgHdrProtoBuf msg=<EMsg.ServiceMethod: 146> steam_id='76561198979999235' session_id=-764956847 job_name_target='FriendMessagesClient.MessageReaction'> steamid_friend='76561198248053954' server_timestamp=1614708123 reactor='76561198248053954' reaction_type='Emoticon' reaction=':cozybethesda:' is_add=True>
+        # remove Got msg <MsgProto msg=<EMsg.ServiceMethod: 146> header=<MsgHdrProtoBuf msg=<EMsg.ServiceMethod: 146> steam_id='76561198979999235' session_id=-764956847 job_name_target='FriendMessagesClient.MessageReaction'> steamid_friend='76561198248053954' server_timestamp=1614708123 reactor='76561198248053954' reaction_type='Emoticon' reaction=':cozybethesda:'>
+
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
         if msg.header.body.job_name_target == "ChatRoom.GetMyChatRoomGroups":
@@ -662,7 +673,13 @@ class ConnectionState(Registerable):
 
             if not self.handled_groups:
                 await self.handled_friends.wait()  # ensure friend cache is ready
+                await self.handled_emoticons.wait()  # ensure emoticon cache is ready
                 self.client._handle_ready()
+
+        if msg.header.body.job_name_target == "Player.GetEmoticonList":
+            msg: MsgProto[player.CPlayerGetEmoticonListResponse]
+            self.emoticons = [ClientEmoticon(emoticon) for emoticon in msg.body.emoticons]
+            self.handled_emoticons.set()
 
     @register(EMsg.ClientCMList)
     async def parse_cm_list_update(self, msg: MsgProto[client_server.CMsgClientCmList]) -> None:
