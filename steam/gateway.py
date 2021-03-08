@@ -331,6 +331,12 @@ class SteamWebSocket(Registerable):
             ws._dispatch("connect")
             return ws
 
+    async def run_parser(self, parser: EventParser[EMsg], msg: Msgs) -> None:
+        try:
+            await utils.maybe_coroutine(parser, msg)
+        except Exception:
+            traceback.print_exc()
+
     async def poll_event(self) -> None:
         try:
             message = await self.socket.receive()
@@ -366,7 +372,7 @@ class SteamWebSocket(Registerable):
         except KeyError:
             log.debug("Ignoring event %r", msg)
         else:
-            await utils.maybe_coroutine(event_parser, msg)
+            self.loop.create_task(self.run_parser(event_parser, msg))
 
         # remove the dispatched listener
         removed = []
@@ -459,7 +465,8 @@ class SteamWebSocket(Registerable):
         self._keep_alive.start()
         log.debug("Heartbeat started.")
 
-        await self.send_um("ChatRoom.GetMyChatRoomGroups#1")
+        await self.send_um("ChatRoom.GetMyChatRoomGroups")
+        await self.send_um("Player.GetEmoticonList")
         await self.change_presence(
             games=self._connection._games,
             state=self._connection._state,
