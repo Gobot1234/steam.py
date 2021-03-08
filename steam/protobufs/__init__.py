@@ -61,6 +61,8 @@ def get_cmsg(msg: IntEnum) -> GetProtoType:
     """
     return PROTOBUFS.get(msg)
 
+if sys.version_info < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
+    del Generic.__new__
 
 def get_um(name: str) -> GetProtoType:
     """Get the protobuf for a certain Unified Message.
@@ -80,11 +82,6 @@ def get_um(name: str) -> GetProtoType:
 
 class MsgBase(Generic[T]):
     __slots__ = ("header", "body", "payload", "skip")
-
-    if sys.version_info[:2] < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
-
-        def __new__(cls: type[M], *args: Any, **kwargs: Any) -> M:
-            return object.__new__(cls)
 
     def __init__(self, msg: IE, data: Optional[bytes], **kwargs: Any):
         self.msg: IE = msg
