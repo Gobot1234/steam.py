@@ -29,8 +29,9 @@ from __future__ import annotations
 import functools
 import inspect
 import re
+from collections.abc import Callable, Coroutine
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 from typing_extensions import Final, Protocol
 from yarl import URL as _URL

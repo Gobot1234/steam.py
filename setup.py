@@ -23,15 +23,14 @@ if VERSION.endswith(("a", "b")) or "rc" in VERSION:
     try:
         import subprocess
 
-        out = subprocess.getoutput("git rev-list --count HEAD")
+        out = subprocess.check_output("git rev-list --count HEAD")
         if out:
-            version = f"{VERSION}{out.strip()}"
-        out = subprocess.getoutput("git rev-parse --short HEAD")
+            VERSION = f"{VERSION}{out.strip()}"
+        out = subprocess.check_output("git rev-parse --short HEAD")
         if out:
-            version = f"{VERSION}+g{out.strip()}"
+            VERSION = f"{VERSION}+g{out.strip()}"
     except Exception:
         pass
-
 
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 

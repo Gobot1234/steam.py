@@ -35,9 +35,10 @@ import inspect
 import os
 import sys
 import traceback
+from collections.abc import Callable, Coroutine, Iterable
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Iterable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 
 from typing_extensions import Literal, overload
 
@@ -243,7 +244,7 @@ class Bot(GroupMixin, Client):
 
         await super().close()
 
-    def load_extension(self, extension: os.PathLike) -> None:
+    def load_extension(self, extension: os.PathLike[str]) -> None:
         """Load an extension.
 
         Parameters
@@ -270,7 +271,7 @@ class Bot(GroupMixin, Client):
         module.setup(self)
         self.__extensions__[extension] = module
 
-    def unload_extension(self, extension: os.PathLike) -> None:
+    def unload_extension(self, extension: os.PathLike[str]) -> None:
         """Unload an extension.
 
         Parameters
@@ -304,7 +305,7 @@ class Bot(GroupMixin, Client):
         del sys.modules[extension]
         del self.__extensions__[extension]
 
-    def reload_extension(self, extension: os.PathLike) -> None:
+    def reload_extension(self, extension: os.PathLike[str]) -> None:
         """Atomically reload an extension. If any error occurs during the reload the extension will be reverted to its
         original state.
 
@@ -408,7 +409,7 @@ class Bot(GroupMixin, Client):
     def listen(self, name: Optional[str] = None) -> Callable[[E], E]:
         ...
 
-    def listen(self, name: Optional[str] = None) -> Callable[[E], E]:
+    def listen(self, name: Union[E, str, None] = None) -> Callable[[E], E]:
         """|maybecallabledeco|
         Register a function as a listener. Calls :meth:`add_listener`. Similar to :meth:`.Cog.listener`
 
@@ -567,8 +568,7 @@ class Bot(GroupMixin, Client):
             else:
                 self.dispatch("command_completion", ctx)
         elif ctx.invoked_with:
-            exc = CommandNotFound(f"The command {ctx.invoked_with!r} was not found")
-            self.dispatch("command_error", ctx, exc)
+            self.dispatch("command_error", ctx, CommandNotFound(f"The command {ctx.invoked_with!r} was not found"))
 
     async def get_context(self, message: Message, *, cls: type[C] = Context) -> C:
         """|coro|

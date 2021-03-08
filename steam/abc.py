@@ -34,8 +34,9 @@ import abc
 import asyncio
 import inspect
 import re
+from collections.abc import Callable, Coroutine
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generic, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
 
 import attr
 from typing_extensions import Final, Protocol, TypeAlias, TypedDict, runtime_checkable
@@ -72,6 +73,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
 
     from .clan import Clan
+    from .emoticon import ClientEmoticon
     from .group import Group
     from .http import StrOrURL
     from .image import Image
@@ -692,7 +694,7 @@ class BaseUser(Commentable):
     def _patch_without_api(cls) -> None:
         import functools
 
-        def __init__(self, state: ConnectionState, data: dict) -> None:
+        def __init__(self, state: ConnectionState, data: dict[str, Any]) -> None:
             super().__init__(data["steamid"])
             self._state = state
             self.name = data["persona_name"]
@@ -758,7 +760,7 @@ class _SupportsStr(Protocol):
 
 
 @runtime_checkable
-class Messageable(Protocol):
+class Messageable(Protocol[M]):
     """An ABC that details the common operations on a Steam message.
     The following classes implement this ABC:
 
@@ -778,7 +780,7 @@ class Messageable(Protocol):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         raise NotImplementedError
 
-    async def send(self, content: Optional[_SupportsStr] = None, image: Optional[Image] = None) -> Optional[Message]:
+    async def send(self, content: Optional[_SupportsStr] = None, image: Optional[Image] = None) -> Optional[M]:
         """|coro|
         Send a message to a certain destination.
 
@@ -813,7 +815,7 @@ class Messageable(Protocol):
 
 
 @attr.dataclass(slots=True)
-class Channel(Messageable, Generic[M]):
+class Channel(Messageable[M]):
     _state: ConnectionState
     clan: Optional[Clan] = None
     group: Optional[Group] = None
@@ -909,6 +911,7 @@ class Message:
         "group",
         "clan",
         "mentions",
+        "reactions",
         "_state",
     )
     author: User
@@ -922,8 +925,16 @@ class Message:
         self.content: str = _clean_up_content(proto.message)
         self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
         self.mentions: Optional[CChatMentions] = getattr(proto, "mentions", None)
+        self.reactions = []
 
     def __repr__(self) -> str:
         attrs = ("author", "channel")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
+
+    async def add_reaction(self, reaction: ClientEmoticon):
+        await self._state.add_reaction()
+        self.reactions.append(reaction)  # might be necessary?
+
+    async def remove_reaction(self, reaction: ClientEmoticon):
+        ...

@@ -32,13 +32,15 @@ import json
 import logging
 import re
 from base64 import b64encode
+from collections.abc import Coroutine
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Coroutine, Optional
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import aiohttp
 import rsa
 from bs4 import BeautifulSoup
+from typing_extensions import TypeAlias
 
 from . import __version__, errors, utils
 from .models import URL, api_route, community_route, store_route
@@ -49,9 +51,10 @@ if TYPE_CHECKING:
     from .image import Image
     from .user import User, UserDict
 
+T = TypeVar("T")
 log = logging.getLogger(__name__)
 StrOrURL = aiohttp.client.StrOrURL
-RequestType = Coroutine[None, None, Optional[Any]]
+RequestType: TypeAlias = "Coroutine[None, None, Optional[T]]"
 
 
 async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
@@ -241,7 +244,7 @@ class HTTPClient:
                 return ret
 
             async def get_users(self, user_id64s: list[int]) -> list[dict]:
-                return [await self.get_user(user_id64) for user_id64 in user_id64s]
+                return await asyncio.gather(*(self.get_user(user_id64) for user_id64 in user_id64s))
 
             BaseUser._patch_without_api()
             self.__class__.get_user = get_user

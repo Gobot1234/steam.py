@@ -107,6 +107,9 @@ class ClanInvite(Invite):
         The relationship you have with the clan.
     """
 
+    # <a class="linkTitle" href="https://steamcommunity.com/games/581660">Super Meat Boy Forever</a>
+    # if game invite url is https://steamcommunity.com/games/581660
+
     __slots__ = ("clan",)
 
     def __init__(

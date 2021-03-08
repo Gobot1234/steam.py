@@ -33,15 +33,15 @@ import weakref
 from collections import ChainMap, deque
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Any, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
-from betterproto import snake_case
 from bs4 import BeautifulSoup
 
 from . import utils
 from .abc import SteamID, UserDict
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
+from .emoticon import ClientEmoticon
 from .enums import *
 from .errors import *
 from .game import GameToDict
@@ -51,22 +51,14 @@ from .invite import ClanInvite, UserInvite
 from .message import *
 from .message import ClanMessage
 from .models import EventParser, Registerable, community_route, register
-from .protobufs import EMsg, MsgProto
-from .protobufs.steammessages_chat import (
-    CChatRoomGetMessageHistoryResponse as GroupChannelHistory,
-    CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
-    CClanChatRoomsGetClanChatRoomInfoResponse as FetchGroupResponse,
-)
-from .protobufs.steammessages_friendmessages import (
-    CFriendMessagesGetRecentMessagesResponse as DMChannelHistory,
-    CFriendMessagesIncomingMessageNotification as UserMessageNotification,
-    CFriendMessagesSendMessageResponse as SendUserMessageResponse,
-)
-from .protobufs.steammessages_gameservers import (
-    CGameServersGetServerListResponse as GetGameServers,
-    CGameServersGetServerListResponseServer as GameServersMessage,
-    CGameServersIPsWithSteamIDsResponse as GetServerIPs,
-    CGameServersIPsWithSteamIDsResponseServer as GetServerIPsServer,
+from .protobufs import (
+    EMsg,
+    MsgProto,
+    do_nothing_case,
+    steammessages_chat as chat,
+    steammessages_friendmessages as friend_messages,
+    steammessages_gameservers as game_servers,
+    steammessages_player as player,
 )
 from .trade import DescriptionDict, TradeOffer, TradeOfferDict
 from .user import User
@@ -74,25 +66,14 @@ from .user import User
 if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
+    from .http import HTTPClient
     from .gateway import SteamWebSocket
-    from .protobufs.steammessages_chat import (
-        CChatRoomChatRoomHeaderStateNotification as GroupStateUpdate,
-        CChatRoomGetMyChatRoomGroupsResponse as MyChatRooms,
-        ChatRoomClientNotifyChatGroupUserStateChangedNotification as GroupAction,
+    from .protobufs import (
+        steammessages_clientserver as client_server,
+        steammessages_clientserver_2 as client_server_2,
+        steammessages_clientserver_friends as client_server_friends,
+        steammessages_clientserver_login as client_server_login,
     )
-    from .protobufs.steammessages_clientserver import CMsgClientCMList
-    from .protobufs.steammessages_clientserver_2 import (
-        CMsgClientCommentNotifications as CommentNotifications,
-        CMsgClientUserNotifications as GeneralNotifications,
-    )
-    from .protobufs.steammessages_clientserver_friends import (
-        CMsgClientFriendsList,
-        CMsgClientFriendsListFriend,
-        CMsgClientPersonaState,
-        CMsgClientPersonaStateFriend,
-        CMsgClientRequestFriendData,
-    )
-    from .protobufs.steammessages_clientserver_login import CMsgClientAccountInfo
 
 log = logging.getLogger(__name__)
 
@@ -128,16 +109,18 @@ class ConnectionState(Registerable):
         "_ui_mode",
         "_flags",
         "_force_kick",
+        "emoticons",
     )
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
         self.loop = client.loop
         self.dispatch = client.dispatch
-        self.http = client.http
+        self.http: HTTPClient = client.http
         self.request = self.http.request
 
         self.handled_friends = asyncio.Event()
+        self.handled_emoticons = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -161,7 +144,7 @@ class ConnectionState(Registerable):
         self.clear()
 
     def clear(self) -> None:
-        self._users: MutableMapping[int, User] = weakref.WeakValueDictionary()
+        self._users: weakref.WeakValueDictionary[int, User] = weakref.WeakValueDictionary()
         self._trades: dict[int, TradeOffer] = {}
         self._groups: dict[int, Group] = {}
         self._clans: dict[int, Clan] = {}
@@ -169,14 +152,16 @@ class ConnectionState(Registerable):
         self._confirmations_to_ignore: list[int] = []
         self._messages: deque[Message] = self.max_messages and deque(maxlen=self.max_messages)
         self.invites: dict[int, Union[UserInvite, ClanInvite]] = {}
+        self.emoticons: list[ClientEmoticon] = []
 
-        self._trades_task: Optional[asyncio.Task] = None
+        self._trades_task: Optional[asyncio.Task[None]] = None
         self._trades_to_watch: list[int] = []
         self._trades_received_cache: list[dict] = []
         self._trades_sent_cache: list[dict] = []
         self._descriptions_cache: list[dict] = []
 
         self.handled_friends.clear()
+        self.handled_emoticons.clear()
         self.handled_groups = False
         self._obj = None
         self._previous_iteration = 0
@@ -257,8 +242,8 @@ class ConnectionState(Registerable):
         return self._clans.get(id)
 
     async def fetch_clan(self, id64: int) -> Optional[Clan]:
-        msg: MsgProto[FetchGroupResponse] = await self.ws.send_um_and_wait(
-            "ClanChatRooms.GetClanChatRoomInfo#1", steamid=id64
+        msg: MsgProto[chat.CClanChatRoomsGetClanChatRoomInfoResponse] = await self.ws.send_um_and_wait(
+            "ClanChatRooms.GetClanChatRoomInfo", steamid=id64
         )
         if msg.eresult == EResult.Busy:
             raise WSNotFound(msg)
@@ -411,8 +396,8 @@ class ConnectionState(Registerable):
         )
 
     async def send_user_message(self, user_id64: int, content: str) -> UserMessage:
-        msg: MsgProto[SendUserMessageResponse] = await self.ws.send_um_and_wait(
-            "FriendMessages.SendMessage#1",
+        msg: MsgProto[friend_messages.CFriendMessagesSendMessageResponse] = await self.ws.send_um_and_wait(
+            "FriendMessages.SendMessage",
             steamid=user_id64,
             message=content,
             chat_entry_type=EChatEntryType.Text,
@@ -424,7 +409,7 @@ class ConnectionState(Registerable):
         if msg.eresult != EResult.OK:
             raise WSException(msg)
 
-        proto = UserMessageNotification(
+        proto = friend_messages.CFriendMessagesIncomingMessageNotification(
             chat_entry_type=EChatEntryType.Text,
             message=content,
             rtime32_server_timestamp=int(time()),
@@ -440,7 +425,7 @@ class ConnectionState(Registerable):
 
     async def send_user_typing(self, user_id64: int) -> None:
         await self.ws.send_um(
-            "FriendMessages.SendMessage#1",
+            "FriendMessages.SendMessage",
             steamid=user_id64,
             chat_entry_type=EChatEntryType.Typing,
         )
@@ -448,8 +433,8 @@ class ConnectionState(Registerable):
 
     async def send_group_message(self, destination: tuple[int, int], content: str) -> Union[ClanMessage, GroupMessage]:
         chat_id, group_id = destination
-        msg = await self.ws.send_um_and_wait(
-            "ChatRoom.SendChatMessage#1", chat_id=chat_id, chat_group_id=group_id, message=content
+        msg: MsgProto[chat.CChatRoomSendChatMessageResponse] = await self.ws.send_um_and_wait(
+            "ChatRoom.SendChatMessage", chat_id=chat_id, chat_group_id=group_id, message=content
         )
 
         if msg.eresult == EResult.LimitExceeded:
@@ -459,8 +444,13 @@ class ConnectionState(Registerable):
         if msg.eresult != EResult.OK:
             raise WSException(msg)
 
-        proto = GroupMessageNotification(
-            chat_id=chat_id, chat_group_id=group_id, steamid_sender=0, message=content, timestamp=int(time())
+        proto = chat.CChatRoomIncomingChatMessageNotification(
+            chat_id=chat_id,
+            chat_group_id=group_id,
+            steamid_sender=0,
+            message=content,
+            message_no_bbcode=msg.body.message_without_bb_code,
+            timestamp=int(time()),
         )
         destination = self._combined.get(group_id)
         if isinstance(destination, Clan):
@@ -476,7 +466,7 @@ class ConnectionState(Registerable):
 
     async def join_chat(self, chat_id: int, invite_code: Optional[str] = None) -> None:
         msg = await self.ws.send_um_and_wait(
-            "ChatRoom.JoinChatRoomGroup#1", chat_group_id=chat_id, invite_code=invite_code or ""
+            "ChatRoom.JoinChatRoomGroup", chat_group_id=chat_id, invite_code=invite_code or ""
         )
 
         if msg.eresult == EResult.InvalidParameter:
@@ -485,7 +475,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
-        msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup#1", chat_group_id=chat_id)
+        msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup", chat_group_id=chat_id)
 
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
@@ -493,7 +483,9 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
-        msg = await self.ws.send_um_and_wait("InviteFriendToChatRoomGroup#1", chat_group_id=group_id, steamid=user_id64)
+        msg = await self.ws.send_um_and_wait(
+            "ChatRoom.InviteFriendToChatRoomGroup", chat_group_id=group_id, steamid=user_id64
+        )
 
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
@@ -501,17 +493,17 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
-        msg = await self.ws.send_um_and_wait(
-            "ChatRoom.RenameRole#1", chat_group_id=group_id, role_id=role_id, name=name
-        )
+        msg = await self.ws.send_um_and_wait("ChatRoom.RenameRole", chat_group_id=group_id, role_id=role_id, name=name)
         if msg.eresult == EResult.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.eresult != EResult.OK:
             raise WSException(msg)
 
-    async def get_user_history(self, user_id64: int, start: int, last: int) -> Optional[MsgProto[DMChannelHistory]]:
-        msg: MsgProto[DMChannelHistory] = await self.ws.send_um_and_wait(
-            "FriendMessages.GetRecentMessages#1",
+    async def fetch_user_history(
+        self, user_id64: int, start: int, last: int
+    ) -> MsgProto[friend_messages.CFriendMessagesGetRecentMessagesResponse]:
+        msg: MsgProto[friend_messages.CFriendMessagesGetRecentMessagesResponse] = await self.ws.send_um_and_wait(
+            "FriendMessages.GetRecentMessages",
             steamid1=self.client.user.id64,
             steamid2=user_id64,
             rtime32_start_time=start,
@@ -524,11 +516,11 @@ class ConnectionState(Registerable):
 
         return msg
 
-    async def get_group_history(
+    async def fetch_group_history(
         self, group_id: int, chat_id: int, start: int, last: int
-    ) -> Optional[MsgProto[GroupChannelHistory]]:
-        msg: MsgProto[GroupChannelHistory] = await self.ws.send_um_and_wait(
-            "ChatRoom.GetMessageHistory#1",
+    ) -> MsgProto[chat.CChatRoomGetMessageHistoryResponse]:
+        msg: MsgProto[chat.CChatRoomGetMessageHistoryResponse] = await self.ws.send_um_and_wait(
+            "ChatRoom.GetMessageHistory",
             chat_group_id=group_id,
             chat_id=chat_id,
             last_time=last,
@@ -541,9 +533,9 @@ class ConnectionState(Registerable):
 
         return msg
 
-    async def fetch_servers(self, query: str, limit: int) -> list[GameServersMessage]:
-        msg: MsgProto[GetGameServers] = await self.ws.send_um_and_wait(
-            "GameServers.GetServerList#1",
+    async def fetch_servers(self, query: str, limit: int) -> list[game_servers.CGameServersGetServerListResponseServer]:
+        msg: MsgProto[game_servers.CGameServersGetServerListResponse] = await self.ws.send_um_and_wait(
+            "GameServers.GetServerList",
             filter=query,
             limit=limit,
         )
@@ -553,9 +545,11 @@ class ConnectionState(Registerable):
 
         return msg.body.servers
 
-    async def fetch_server_ip_from_steam_id(self, *ids: int) -> list[GetServerIPsServer]:
-        msg: MsgProto[GetServerIPs] = await self.ws.send_um_and_wait(
-            "GameServers.GetServerIPsBySteamID#1",
+    async def fetch_server_ip_from_steam_id(
+        self, *ids: int
+    ) -> list[game_servers.CGameServersIPsWithSteamIDsResponseServer]:
+        msg: MsgProto[game_servers.CGameServersIPsWithSteamIDsResponse] = await self.ws.send_um_and_wait(
+            "GameServers.GetServerIPsBySteamID",
             server_steamids=list(ids),
         )
 
@@ -564,82 +558,110 @@ class ConnectionState(Registerable):
 
         return msg.body.servers
 
+    # TODO use this in V.1
+    async def fetch_user_games(self, user_id64: int) -> list[player.CPlayerGetOwnedGamesResponseGame]:
+        msg: MsgProto[player.CPlayerGetOwnedGamesResponse] = await self.ws.send_um_and_wait(
+            "Player.GetOwnedGames",
+            steamid=user_id64,
+            include_appinfo=True,
+            include_played_free_games=True,
+        )
+
+        if msg.eresult != EResult.OK:
+            raise WSException(msg)
+
+        return msg.body.games
+
     # parsers
 
     @register(EMsg.ServiceMethod)
-    async def parse_service_method(self, msg: MsgProto) -> None:
-        if msg.header.body.job_name_target == "FriendMessagesClient.IncomingMessage#1":
-            msg: MsgProto[UserMessageNotification]
-            user_id64 = msg.body.steamid_friend
-            partner = self.get_user(user_id64) or await self.fetch_user(user_id64) or SteamID(user_id64)
-            author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
+    async def parse_service_method(self, msg: MsgProto[Any]) -> None:
+        await {
+            "FriendMessagesClient.IncomingMessage": self.handle_user_message,
+            "ChatRoomClient.NotifyIncomingChatMessage": self.handle_group_message,
+            "ChatRoomClient.NotifyChatRoomHeaderStateChange": self.handle_group_update,
+            "ChatRoomClient.NotifyChatGroupUserStateChanged": self.handle_group_user_action,
+            "FriendMessagesClient.MessageReaction": self.handle_reaction,
+        }[msg.header.body.job_name_target](msg)
 
-            if msg.body.chat_entry_type == EChatEntryType.Text:
-                channel = DMChannel(state=self, participant=partner)
-                message = UserMessage(proto=msg.body, channel=channel)
-                message.author = author
-                self._messages.append(message)
-                self.dispatch("message", message)
+    async def handle_user_message(
+        self, msg: MsgProto[friend_messages.CFriendMessagesIncomingMessageNotification]
+    ) -> None:
+        user_id64 = msg.body.steamid_friend
+        partner = self.get_user(user_id64) or await self.fetch_user(user_id64) or SteamID(user_id64)
+        author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
 
-            if msg.body.chat_entry_type == EChatEntryType.Typing:
-                when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
-                self.dispatch("typing", author, when)
-
-        elif msg.header.body.job_name_target == "ChatRoomClient.NotifyIncomingChatMessage#1":
-            msg: MsgProto[GroupMessageNotification]
-            destination = self._combined.get(msg.body.chat_group_id)
-            if destination is None:
-                return
-            if isinstance(destination, Clan):
-                channel = ClanChannel(state=self, channel=msg.body, clan=destination)
-                user_id64 = msg.body.steamid_sender
-                author = self.get_user(user_id64) or await self.fetch_user(user_id64)
-                message = ClanMessage(proto=msg.body, channel=channel, author=author)
-            else:
-                channel = GroupChannel(state=self, channel=msg.body, group=destination)
-                user_id64 = msg.body.steamid_sender
-                author = self.get_user(user_id64) or await self.fetch_user(user_id64)
-                message = GroupMessage(proto=msg.body, channel=channel, author=author)
+        if msg.body.chat_entry_type == EChatEntryType.Text:
+            channel = DMChannel(state=self, participant=partner)
+            message = UserMessage(proto=msg.body, channel=channel)
+            message.author = author
             self._messages.append(message)
             self.dispatch("message", message)
 
-        elif msg.header.body.job_name_target == "ChatRoomClient.NotifyChatRoomHeaderStateChange#1":  # group update
-            msg: MsgProto[GroupStateUpdate]
-            destination = self._combined.get(msg.body.header_state.chat_group_id)
-            if destination is None:
+        if msg.body.chat_entry_type == EChatEntryType.Typing:
+            when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
+            self.dispatch("typing", author, when)
+
+    async def handle_group_message(self, msg: MsgProto[chat.CChatRoomIncomingChatMessageNotification]) -> None:
+        destination = self._combined.get(msg.body.chat_group_id)
+        if destination is None:
+            return
+        if isinstance(destination, Clan):
+            channel = ClanChannel(state=self, channel=msg.body, clan=destination)
+            user_id64 = msg.body.steamid_sender
+            author = self.get_user(user_id64) or await self.fetch_user(user_id64)
+            message = ClanMessage(proto=msg.body, channel=channel, author=author)
+        else:
+            channel = GroupChannel(state=self, channel=msg.body, group=destination)
+            user_id64 = msg.body.steamid_sender
+            author = self.get_user(user_id64) or await self.fetch_user(user_id64)
+            message = GroupMessage(proto=msg.body, channel=channel, author=author)
+        self._messages.append(message)
+        self.dispatch("message", message)
+
+    async def handle_group_update(self, msg: MsgProto[chat.CChatRoomChatRoomHeaderStateNotification]) -> None:
+        destination = self._combined.get(msg.body.header_state.chat_group_id)
+        if destination is None:
+            return
+
+        if isinstance(destination, Clan):
+            await destination._from_proto(self, msg.body.header_state)
+        else:
+            destination._from_proto(msg.body.header_state)
+
+    async def handle_group_user_action(
+        self, msg: MsgProto[chat.ChatRoomClientNotifyChatGroupUserStateChangedNotification]
+    ) -> None:
+        if msg.body.user_action == "Joined":  # join group
+            if msg.body.group_summary.clanid:
+                clan = await Clan._from_proto(self, msg.body.group_summary)
+                self._clans[clan.id] = clan
+                self.dispatch("clan_join", clan)  # TODO test/doc
+            else:
+                group = Group(state=self, proto=msg.body.group_summary)
+                self._groups[group.id] = group
+                self.dispatch("group_join", group)
+
+        elif msg.body.user_action == "Parted":  # leave group
+            left = self._combined.pop(msg.body.chat_group_id, None)
+            if left is None:
                 return
 
-            if isinstance(destination, Clan):
-                await destination._from_proto(self, msg.body.header_state)
+            if isinstance(left, Clan):
+                self.dispatch("clan_leave", left)  # TODO test/doc
             else:
-                destination._from_proto(msg.body.header_state)
+                self.dispatch("group_leave", left)
 
-        elif msg.header.body.job_name_target == "ChatRoomClient.NotifyChatGroupUserStateChanged#1":
-            msg: MsgProto[GroupAction]
-            if msg.body.user_action == "Joined":  # join group
-                if msg.body.group_summary.clanid:
-                    clan = await Clan._from_proto(self, msg.body.group_summary)
-                    self._clans[clan.id] = clan
-                    self.dispatch("clan_join", clan)  # TODO test/doc
-                else:
-                    group = Group(state=self, proto=msg.body.group_summary)
-                    self._groups[group.id] = group
-                    self.dispatch("group_join", group)
-
-            elif msg.body.user_action == "Parted":  # leave group
-                left = self._combined.pop(msg.body.chat_group_id, None)
-                if left is None:
-                    return
-
-                if isinstance(left, Clan):
-                    self.dispatch("clan_leave", left)  # TODO test/doc
-                else:
-                    self.dispatch("group_leave", left)
+    async def handle_reaction(self, msg: MsgProto[friend_messages.CFriendMessagesMessageReactionNotification]):
+        print("got reaction msg", msg)
+        # dm add
+        # add Got msg <MsgProto msg=<EMsg.ServiceMethod: 146> header=<MsgHdrProtoBuf msg=<EMsg.ServiceMethod: 146> steam_id='76561198979999235' session_id=-764956847 job_name_target='FriendMessagesClient.MessageReaction'> steamid_friend='76561198248053954' server_timestamp=1614708123 reactor='76561198248053954' reaction_type='Emoticon' reaction=':cozybethesda:' is_add=True>
+        # remove Got msg <MsgProto msg=<EMsg.ServiceMethod: 146> header=<MsgHdrProtoBuf msg=<EMsg.ServiceMethod: 146> steam_id='76561198979999235' session_id=-764956847 job_name_target='FriendMessagesClient.MessageReaction'> steamid_friend='76561198248053954' server_timestamp=1614708123 reactor='76561198248053954' reaction_type='Emoticon' reaction=':cozybethesda:'>
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
-        if msg.header.body.job_name_target == "ChatRoom.GetMyChatRoomGroups#1":
-            msg: MsgProto[MyChatRooms]
+        if msg.header.body.job_name_target == "ChatRoom.GetMyChatRoomGroups":
+            msg: MsgProto[chat.CChatRoomGetMyChatRoomGroupsResponse]
             for group in msg.body.chat_room_groups:
                 if group.group_summary.clanid:  # received a clan
                     clan = await Clan._from_proto(self, group)
@@ -651,20 +673,26 @@ class ConnectionState(Registerable):
 
             if not self.handled_groups:
                 await self.handled_friends.wait()  # ensure friend cache is ready
+                await self.handled_emoticons.wait()  # ensure emoticon cache is ready
                 self.client._handle_ready()
 
+        if msg.header.body.job_name_target == "Player.GetEmoticonList":
+            msg: MsgProto[player.CPlayerGetEmoticonListResponse]
+            self.emoticons = [ClientEmoticon(emoticon) for emoticon in msg.body.emoticons]
+            self.handled_emoticons.set()
+
     @register(EMsg.ClientCMList)
-    def parse_cm_list_update(self, msg: MsgProto[CMsgClientCMList]) -> None:
+    async def parse_cm_list_update(self, msg: MsgProto[client_server.CMsgClientCmList]) -> None:
         log.debug("Updating CM list")
         cms = msg.body.cm_websocket_addresses
-        self.ws.cm_list.merge_list(cms)
-        self.loop.create_task(self.ws.cm_list.ping_cms(to_ping=len(cms)))
-        # ping all the cms, we have time.
+        cm_list = self.ws.cm_list
+        cm_list.merge_list(cms)
+        await cm_list.ping_cms(to_ping=len(cm_list.cms))  # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)
-    async def parse_persona_state_update(self, msg: MsgProto[CMsgClientPersonaState]) -> None:
+    async def parse_persona_state_update(self, msg: MsgProto[client_server_friends.CMsgClientPersonaState]) -> None:
         for friend in msg.body.friends:
-            data: UserDict = friend.to_dict(snake_case)
+            data: UserDict = friend.to_dict(do_nothing_case)
             if not data:
                 continue
             user_id64 = friend.friendid
@@ -677,8 +705,7 @@ class ConnectionState(Registerable):
             try:
                 data = self.patch_user_from_ws(data, friend)
             except (KeyError, TypeError):
-                steam_id = SteamID(user_id64)
-                invitee = await self.fetch_user(steam_id.id64) or steam_id
+                invitee = await self.fetch_user(user_id64) or SteamID(user_id64)
                 invite = UserInvite(self, invitee, EFriendRelationship.RequestRecipient)
                 self.dispatch("user_invite", invite)
 
@@ -688,7 +715,7 @@ class ConnectionState(Registerable):
             if old != new:
                 self.dispatch("user_update", before, after)
 
-    def patch_user_from_ws(self, data: dict, friend: CMsgClientPersonaStateFriend) -> dict:
+    def patch_user_from_ws(self, data: dict, friend: client_server_friends.CMsgClientPersonaStateFriend) -> dict:
         data["personaname"] = friend.player_name
         hash = (
             friend.avatar_hash.hex()
@@ -707,7 +734,7 @@ class ConnectionState(Registerable):
         return data
 
     @register(EMsg.ClientFriendsList)
-    async def process_friends(self, msg: MsgProto[CMsgClientFriendsList]) -> None:
+    async def process_friends(self, msg: MsgProto[client_server_friends.CMsgClientFriendsList]) -> None:
         elements = None
 
         if not self.handled_friends.is_set():
@@ -726,7 +753,7 @@ class ConnectionState(Registerable):
                     pass
             self.handled_friends.set()
 
-        async def gather_invites(friend: CMsgClientFriendsListFriend) -> None:
+        for friend in msg.body.friends:
             if friend.efriendrelationship in (
                 EFriendRelationship.RequestInitiator,
                 EFriendRelationship.RequestRecipient,
@@ -739,7 +766,6 @@ class ConnectionState(Registerable):
                     self.invites[invitee.id64] = invite
                     self.dispatch("user_invite", invite)
                 if steam_id.type == EType.Clan:
-                    nonlocal elements
                     if elements is None:
                         resp = await self.request("GET", community_route("my/groups/pending"), params={"ajax": "1"})
                         soup = BeautifulSoup(resp, "html.parser")
@@ -776,10 +802,8 @@ class ConnectionState(Registerable):
                     else:
                         self.dispatch("clan_invite_accept", invite)
 
-        await asyncio.gather(*(gather_invites(f) for f in msg.body.friends))
-
     @register(EMsg.ClientCommentNotifications)
-    async def handle_comments(self, _: MsgProto[CommentNotifications]) -> None:
+    async def handle_comments(self, _: MsgProto[client_server_2.CMsgClientCommentNotifications]) -> None:
         previous = None
         resp = await self.request("GET", community_route("my/commentnotifications"))
         soup = BeautifulSoup(resp, "html.parser")
@@ -805,7 +829,7 @@ class ConnectionState(Registerable):
         await self.http.clear_notifications()
 
     @register(EMsg.ClientUserNotifications)
-    async def parse_notification(self, msg: MsgProto[GeneralNotifications]) -> None:
+    async def parse_notification(self, msg: MsgProto[client_server_2.CMsgClientUserNotifications]) -> None:
         for notification in msg.body.notifications:
             if notification.user_notification_type == 1:  # received a trade offer
 
@@ -823,7 +847,7 @@ class ConnectionState(Registerable):
                     self._trades_task = self.loop.create_task(poll_trades())  # watch trades for changes
 
     @register(EMsg.ClientAccountInfo)
-    def parse_account_info(self, msg: MsgProto[CMsgClientAccountInfo]) -> None:
+    def parse_account_info(self, msg: MsgProto[client_server_login.CMsgClientAccountInfo]) -> None:
         if msg.body.persona_name != self.client.user.name:
             before = self.client.user.copy()
             self.client.user.name = msg.body.persona_name or self.client.user.name

@@ -27,9 +27,10 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Generic, Optional, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, Union
 
 from .abc import Channel, M, _EndPointReturnType, _SupportsStr
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
@@ -134,7 +135,7 @@ class DMChannel(Channel["UserMessage"]):
         return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
-class _GroupChannel(Channel[M], Generic[M]):
+class _GroupChannel(Channel[M]):
     __slots__ = ("id", "joined_at", "name")
 
     def __init__(self, state: ConnectionState, channel: Any):

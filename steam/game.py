@@ -390,7 +390,7 @@ class WishlistGame(Game):
 
     def is_free(self) -> bool:
         """:class:`bool`: Whether or not the game is free to download."""
-        return self._is_free_game
+        return self._free
 
     def is_on_windows(self) -> bool:
         """:class:`bool`: Whether or not the game is able to be played on Windows."""

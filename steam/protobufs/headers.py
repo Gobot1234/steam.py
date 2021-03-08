@@ -33,20 +33,23 @@ from __future__ import annotations
 import struct
 from typing import Any, Optional, Union
 
-from betterproto import snake_case
-
 from ..enums import EResult
 from ..utils import clear_proto_bit, set_proto_bit
 from . import steammessages_base
 from .emsg import EMsg
 
 __all__ = (
+    "do_nothing_case",
     "MsgHdr",
     "GCMsgHdr",
     "GCMsgHdrProto",
     "ExtendedMsgHdr",
     "MsgHdrProtoBuf",
 )
+
+
+def do_nothing_case(value: str) -> str:
+    return value
 
 
 class _MsgHdrBody:
@@ -170,7 +173,7 @@ class MsgHdrProtoBuf:
     def __repr__(self) -> str:
         attrs = ("msg",)
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snake_case).items())
+        resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(do_nothing_case).items())
         return f"<MsgHdrProtoBuf {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:
@@ -229,7 +232,7 @@ class GCMsgHdrProto:
     def __repr__(self) -> str:
         attrs = ("msg",)
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(snake_case).items())
+        resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(do_nothing_case).items())
         return f"<GCMsgHdrProto {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:

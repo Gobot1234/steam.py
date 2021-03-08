@@ -29,7 +29,7 @@ from __future__ import annotations
 import abc
 import sys
 import traceback
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from typing_extensions import final
 
@@ -58,7 +58,7 @@ class HelpCommand(Command):
 
     context: Context
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         default = dict(name="help", help="Shows this message.", cog=self)
         default.update(kwargs)
         super().__init__(self.command_callback, **default)

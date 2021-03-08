@@ -28,21 +28,8 @@ from __future__ import annotations
 
 import types
 from abc import ABC, abstractmethod
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    ForwardRef,
-    Generic,
-    NoReturn,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-    overload,
-)
+from collections.abc import Callable, Generator, Sequence
+from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Generic, NoReturn, Optional, Tuple, TypeVar, Union, overload
 
 from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable
 
@@ -467,20 +454,17 @@ class DefaultGame(Default):
         return ctx.author.game
 
 
-def flatten_greedy(item: T) -> list[T]:
-    ret = []
+def flatten_greedy(item: Union[T, Generic]) -> Generator[T, None, None]:
     if get_origin(item) in (Greedy, Union):
         for arg in get_args(item):
             if arg in INVALID_GREEDY_TYPES:
                 raise TypeError(f"Greedy[{arg.__name__}] is invalid")
             if get_origin(arg) in (Greedy, Union):
-                ret.extend(flatten_greedy(arg))
+                yield from flatten_greedy(arg)
             else:
-                ret.append(arg)
+                yield arg
     else:
-        ret.append(item)
-
-    return ret
+        yield item
 
 
 # would be nice if this could just subclass Sequence but due to weird version differences for its
@@ -549,8 +533,7 @@ GreedyTypes: TypeAlias = """Union[
     str,              # should be a string with a ForwardRef to a class to be evaluated later
     tuple[T, ...],    # for Greedy[int,] / Greedy[(int,)] to be valid or Greedy[User, int] to be expanded to Union
     tuple[str, ...],  # same as above two points
-    BasicConverter,   # a callable simple converter
-    ConverterBase,    # a Converter
+    Converters,       # a simple callable converter or Converter
 ]"""
 
 INVALID_GREEDY_TYPES = (

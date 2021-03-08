@@ -27,8 +27,9 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
 from typing_extensions import TypedDict
 
@@ -279,9 +280,6 @@ class Inventory(Generic[I]):
 
     items: list[I]
     game: Optional[Game]
-
-    def __new__(cls, *args: Any, **kwargs: Any):
-        return object.__new__(cls)  # patch https://bugs.python.org/issue39168
 
     def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser):
         self._state = state
