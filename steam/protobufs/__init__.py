@@ -33,6 +33,7 @@ import sys
 from typing import Any, Generic, Optional, TypeVar
 
 import betterproto
+from typing_extensions import TypeAlias
 
 from ..enums import IE, EResult, IntEnum
 from .emsg import *
@@ -40,52 +41,35 @@ from .headers import *
 from .protobufs import *
 from .unified import *
 
-T = TypeVar("T", bound=betterproto.Message)
-M = TypeVar("M", bound="MsgBase")
-GetProtoType = Optional["type[betterproto.Message]"]
+M = TypeVar("M", bound=betterproto.Message)
+GetProtoType: TypeAlias = "Optional[type[betterproto.Message]]"
 ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdrProto)
+betterproto.safe_snake_case = do_nothing_case
 
 
 def get_cmsg(msg: IntEnum) -> GetProtoType:
-    """Get a protobuf from its EMsg.
+    """Get a protobuf from its EMsg."""
+    try:
+        return PROTOBUFS[msg]
+    except KeyError:
+        return None
 
-    Parameters
-    ----------
-    msg: Union[:class:`.IntEnum`]
-        The EMsg of the protobuf.
 
-    Returns
-    -------
-    Optional[type[:class:`betterproto.Message`]]
-        The uninitialized protobuf.
-    """
-    return PROTOBUFS.get(msg)
+def get_um(name: str, request: bool = True) -> GetProtoType:
+    """Get the protobuf for a certain Unified Message."""
+    return UMS.get(f"{name}#1_{'Request' if request else 'Response'}")
+
 
 if sys.version_info < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
     del Generic.__new__
 
-def get_um(name: str) -> GetProtoType:
-    """Get the protobuf for a certain Unified Message.
 
-    Parameters
-    ----------
-    name: :class:`str`
-        The name of the UM.
-
-    Returns
-    -------
-    Optional[type[:class:`betterproto.Message`]]
-        The uninitialized protobuf.
-    """
-    return UMS.get(name)
-
-
-class MsgBase(Generic[T]):
+class MsgBase(Generic[M]):
     __slots__ = ("header", "body", "payload", "skip")
 
     def __init__(self, msg: IE, data: Optional[bytes], **kwargs: Any):
         self.msg: IE = msg
-        self.body: Optional[T] = None
+        self.body: Optional[M] = None
         self.payload: Optional[bytes] = data[self.skip :] if data else None
 
         self.parse()
@@ -99,13 +83,13 @@ class MsgBase(Generic[T]):
         )
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         if self.body is not None:
-            resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(betterproto.Casing.SNAKE).items())
+            resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(do_nothing_case).items())
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __bytes__(self) -> bytes:
         return bytes(self.header) + bytes(self.body)
 
-    def _parse(self, proto: Optional[type[T]]) -> None:
+    def _parse(self, proto: Optional[type[M]]) -> None:
         if proto:
             self.body = proto()
             if self.payload:
@@ -152,7 +136,7 @@ class MsgBase(Generic[T]):
         self._parse(proto)
 
 
-class Msg(MsgBase[T]):
+class Msg(MsgBase[M]):
     """A wrapper around received messages."""
 
     __slots__ = ()
@@ -169,10 +153,10 @@ class Msg(MsgBase[T]):
         super().__init__(msg, data, **kwargs)
 
 
-class MsgProto(MsgBase[T]):
+class MsgProto(MsgBase[M]):
     """A wrapper around received protobuf messages."""
 
-    __slots__ = ("um_name",)
+    __slots__ = ()
 
     def __init__(
         self,
@@ -182,8 +166,9 @@ class MsgProto(MsgBase[T]):
         **kwargs: Any,
     ):
         self.header = MsgHdrProtoBuf(data)
+        if um_name:
+            self.header.body.job_name_target = um_name
         self.skip = self.header.length
-        self.um_name = um_name
         super().__init__(msg, data, **kwargs)
 
     def parse(self) -> None:
@@ -194,10 +179,12 @@ class MsgProto(MsgBase[T]):
             EMsg.ServiceMethodSendToClient,
             EMsg.ServiceMethodCallFromClient,
         ):
-            name = self.header.body.job_name_target or self.um_name
-            proto = get_um(f"{name}_Response" if self.msg == EMsg.ServiceMethodResponse else f"{name}_Request")
+            name = self.header.body.job_name_target
             if name:
-                self.header.body.job_name_target = name.replace("_Request", "").replace("_Response", "")
+                self.header.body.job_name_target = name = name.rsplit("#", maxsplit=1)[0]
+                proto = get_um(name, self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodCallFromClient))
+            else:
+                proto = None
 
         else:
             proto = get_cmsg(self.msg)
@@ -205,7 +192,7 @@ class MsgProto(MsgBase[T]):
         self._parse(proto)
 
 
-class GCMsg(MsgBase[T]):
+class GCMsg(MsgBase[M]):
     """A wrapper around received GC messages, mainly for extensions."""
 
     __slots__ = ()
@@ -221,7 +208,7 @@ class GCMsg(MsgBase[T]):
         super().__init__(msg, data, **kwargs)
 
 
-class GCMsgProto(MsgBase[T]):
+class GCMsgProto(MsgBase[M]):
     """A wrapper around received GC protobuf messages, mainly for extensions."""
 
     __slots__ = ()

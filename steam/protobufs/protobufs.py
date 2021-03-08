@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from steam.protobufs import (
+from . import (
     steammessages_base,
     steammessages_clientserver,
     steammessages_clientserver_2,
     steammessages_clientserver_friends,
     steammessages_clientserver_login,
 )
-from steam.protobufs.emsg import *
+from .emsg import *
 
 __all__ = ("PROTOBUFS",)
 
