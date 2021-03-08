@@ -135,7 +135,7 @@ class QueryMeta(type):
     @property
     def version_match(cls) -> Query[str]:
         """Fetches servers running version "x" (``"*"`` is wildcard)."""
-        return Query("\version_match\\", type=str, callback=lambda a: a)
+        return Query("\\version_match\\", type=str, callback=lambda a: a)
 
     @property
     def name_match(cls) -> Query[str]:
@@ -245,27 +245,18 @@ class Query(Generic[T], metaclass=QueryMeta):
         return self
 
     def __repr__(self) -> str:
-        try:
-            query = self.query
-        except RuntimeError:
-            query = "..."
-        return f"<Query query={query!r}>"
+        return f"<Query query={self.query!r}>"
 
     def _process_op(self, other: T, op: Operator) -> Query[T]:
         cls = self.__class__
 
-        if isinstance(other, QueryAll):
-            return NotImplemented
-
-        if isinstance(self._raw[-1], str) and len(self._raw) == 1:
-            return cls(self, op, other)
         if self._type and isinstance(other, self._type):
             return cls(self, op, other)
 
         if not isinstance(other, Query):
             return NotImplemented
 
-        return cls(self, op, other)
+        return cls(self, op, other, type=other._type, callback=other._callback)
 
     def __truediv__(self, other: T) -> Query[T]:
         return self._process_op(other, Operator.div)
