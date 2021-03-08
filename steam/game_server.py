@@ -327,7 +327,10 @@ async def _handle_a2s_response(loop: asyncio.AbstractEventLoop, sock: socket.soc
                 packets.append(packet)
 
         # read header
-        packet_idx, number_of_packets, compressed = _unpack_multi_packet_header(payload_offset, packet)
+        if payload_offset not in (10, 12, 18):  # Source
+            raise ValueError(f"Unexpected payload_offset - {payload_offset}")
+        packet_id, number_of_packets, packet_idx = struct.unpack_from("<LBB", packet, 4)
+        compressed = (packet_id & 0x80000000) != 0
         if packet_idx != 0:
             raise ValueError("Unexpected first packet index")
 
@@ -335,7 +338,7 @@ async def _handle_a2s_response(loop: asyncio.AbstractEventLoop, sock: socket.soc
         for _ in range(number_of_packets - 1):
             packets.append(await loop.sock_recv(sock, 2048))
 
-        packets = sorted({_unpack_multi_packet_header(payload_offset, packet)[0]: packet for packet in packets}.items())
+        packets = sorted({struct.unpack_from("<B", packet, 9)[0]: packet for packet in packets}.items())
         # reconstruct full response
         data = b"".join(x[1][payload_offset:] for x in packets)
 
@@ -352,14 +355,6 @@ async def _handle_a2s_response(loop: asyncio.AbstractEventLoop, sock: socket.soc
         return data
 
     raise ValueError(f"Invalid response header - {header}")
-
-
-def _unpack_multi_packet_header(payload_offset: int, packet: bytes):
-    if payload_offset in (10, 12, 18):  # Source
-        packet_id, number_of_packets, packet_idx = struct.unpack_from("<LBB", packet, 4)
-        return packet_idx, number_of_packets, (packet_id & 0x80000000) != 0
-
-    raise ValueError(f"Unexpected payload_offset - {payload_offset}")
 
 
 class GameServer(SteamID):
@@ -443,19 +438,27 @@ class GameServer(SteamID):
         return self._dedicated
 
     @asynccontextmanager
-    async def connect(self) -> AbstractAsyncContextManager[socket.socket]:
-        sock = socket.socket(
-            socket.AF_INET, socket.SOCK_DGRAM
-        )  # steam uses TCP over UDP. I would use asyncio streams otherwise
-        sock.setblocking(False)
-        await self._loop.sock_connect(sock, (self.ip, self.port))
-        try:
-            yield sock
-        except ValueError:
-            # raised by _handle_a2s_response makes the calling method return None automagically
-            return
-        finally:
-            sock.close()
+    async def connect(self, challenge: int, char: bytes) -> AbstractAsyncContextManager[StructIO]:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            # steam uses TCP over UDP. I would use asyncio streams otherwise
+            sock.setblocking(False)
+            await self._loop.sock_connect(sock, (self.ip, self.port))
+
+            sock.send(struct.pack("<lci", -1, char, challenge))
+            data = await self._loop.sock_recv(sock, 512)
+            _, header, challenge = struct.unpack_from("<lcl", data)
+
+            if header != b"A":
+                return
+
+            sock.send(struct.pack("<lci", -1, char, challenge))
+            data = await _handle_a2s_response(self._loop, sock)
+
+            try:
+                yield StructIO(data)
+            except ValueError:
+                # raised by _handle_a2s_response makes the calling method return None automagically
+                return
 
     async def players(self, *, challenge: Literal[-1, 0] = 0) -> Optional[list[ServerPlayer]]:
         """|coro|
@@ -486,20 +489,7 @@ class GameServer(SteamID):
                     score: int
                     play_time: timedelta
         """
-        async with self.connect() as socket:
-            socket.send(struct.pack("<lci", -1, b"U", challenge))
-            data = await self._loop.sock_recv(socket, 512)
-            _, header, challenge_ = struct.unpack_from("<lcl", data)
-
-            if header == b"D":
-                buffer = StructIO(data)
-            elif header == b"A":
-                socket.send(struct.pack("<lci", -1, b"U", challenge_))
-
-                buffer = StructIO(await _handle_a2s_response(self._loop, socket))
-            else:
-                return None
-
+        async with self.connect(challenge, b"U") as buffer:
             header, number_of_players = buffer.read_struct("<4xcB")
             if header != b"D":
                 return None
@@ -533,16 +523,7 @@ class GameServer(SteamID):
         Optional[dict[:class:`str`, :class:`str`]]
             The server's rules.
         """
-        async with self.connect() as socket:
-            socket.send(struct.pack("<lci", -1, b"V", challenge))
-            _, header, challenge = struct.unpack_from("<lcl", await self._loop.sock_recv(socket, 512))
-
-            if header != b"A":
-                return None
-
-            socket.send(struct.pack("<lci", -1, b"V", challenge))
-            buffer = StructIO(await _handle_a2s_response(self._loop, socket))
-
+        async with self.connect(challenge, b"V") as buffer:
             header, number_of_rules = buffer.read_struct("<4xcH")
             if header != b"E":
                 return None
