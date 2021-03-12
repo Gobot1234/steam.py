@@ -136,6 +136,7 @@ class EnumMeta(type):
 
 class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates `enum.Enum`."""
+
     name: str
     value: Any
     _value_map_: dict[Any, Enum]
@@ -168,6 +169,7 @@ class Enum(metaclass=EnumMeta):
 
 class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
+
     value: int
 
     def __new__(cls, *, name: str, value: int) -> IntEnum:

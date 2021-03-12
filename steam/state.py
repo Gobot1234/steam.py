@@ -66,8 +66,8 @@ from .user import User
 if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
-    from .http import HTTPClient
     from .gateway import SteamWebSocket
+    from .http import HTTPClient
     from .protobufs import (
         steammessages_clientserver as client_server,
         steammessages_clientserver_2 as client_server_2,
@@ -87,6 +87,7 @@ class ConnectionState(Registerable):
         "client",
         "dispatch",
         "handled_friends",
+        "handled_emoticons",
         "handled_groups",
         "invites",
         "max_messages",
@@ -114,7 +115,6 @@ class ConnectionState(Registerable):
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
-        self.loop = client.loop
         self.dispatch = client.dispatch
         self.http: HTTPClient = client.http
         self.request = self.http.request
@@ -163,8 +163,6 @@ class ConnectionState(Registerable):
         self.handled_friends.clear()
         self.handled_emoticons.clear()
         self.handled_groups = False
-        self._obj = None
-        self._previous_iteration = 0
 
         gc.collect()
 
@@ -576,13 +574,16 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ServiceMethod)
     async def parse_service_method(self, msg: MsgProto[Any]) -> None:
-        await {
-            "FriendMessagesClient.IncomingMessage": self.handle_user_message,
-            "ChatRoomClient.NotifyIncomingChatMessage": self.handle_group_message,
-            "ChatRoomClient.NotifyChatRoomHeaderStateChange": self.handle_group_update,
-            "ChatRoomClient.NotifyChatGroupUserStateChanged": self.handle_group_user_action,
-            "FriendMessagesClient.MessageReaction": self.handle_reaction,
-        }[msg.header.body.job_name_target](msg)
+        try:
+            await {
+                "FriendMessagesClient.IncomingMessage": self.handle_user_message,
+                "ChatRoomClient.NotifyIncomingChatMessage": self.handle_group_message,
+                "ChatRoomClient.NotifyChatRoomHeaderStateChange": self.handle_group_update,
+                "ChatRoomClient.NotifyChatGroupUserStateChanged": self.handle_group_user_action,
+                "FriendMessagesClient.MessageReaction": self.handle_reaction,
+            }[msg.header.body.job_name_target](msg)
+        except KeyError:
+            pass
 
     async def handle_user_message(
         self, msg: MsgProto[friend_messages.CFriendMessagesIncomingMessageNotification]

@@ -52,16 +52,6 @@ def do_nothing_case(value: str) -> str:
     return value
 
 
-class _MsgHdrBody:
-    __slots__ = ("msg",)
-
-    def __init__(self, msg: Union[MsgHdr, ExtendedMsgHdr]):
-        self.msg = msg
-
-    def __getattr__(self, item: str) -> Any:
-        return getattr(self.msg, item)
-
-
 class MsgHdr:
     __slots__ = ("msg", "eresult", "job_name_target", "job_id_target", "job_id_source", "body")
     SIZE = 20
@@ -72,10 +62,10 @@ class MsgHdr:
         self.job_name_target = None
         self.job_id_target = -1
         self.job_id_source = -1
+        self.body = self
+
         if data:
             self.parse(data)
-
-        self.body = _MsgHdrBody(self)
 
     def __repr__(self) -> str:
         attrs = ("msg", "job_id_target", "job_id_source")
@@ -116,10 +106,10 @@ class ExtendedMsgHdr:
         self.header_canary = 239
         self.steam_id = -1
         self.session_id = -1
+        self.body = self
+
         if data:
             self.parse(data)
-
-        self.body = _MsgHdrBody(self)
 
     def __repr__(self) -> str:
         attrs = ("msg", "steam_id", "session_id")
@@ -190,7 +180,7 @@ class MsgHdrProtoBuf:
 
 
 class GCMsgHdr:
-    __slots__ = ("header_version", "target_job_id", "source_job_id", "msg")
+    __slots__ = ("header_version", "target_job_id", "source_job_id", "msg", "body")
     SIZE = 18
 
     def __init__(self, data: Optional[bytes] = None):
@@ -199,6 +189,7 @@ class GCMsgHdr:
         self.header_version = 1
         self.target_job_id = -1
         self.source_job_id = 0  # might be -1 again
+        self.body = self
 
         if data:
             self.parse(data)
@@ -241,9 +232,10 @@ class GCMsgHdrProto:
         return struct.pack("<Ii", set_proto_bit(self.msg), self.length) + proto_data
 
     def parse(self, data: bytes) -> None:
-        msg, self.length = struct.unpack_from("<Ii", data)
+        msg, proto_length = struct.unpack_from("<Ii", data)
 
         self.msg = clear_proto_bit(msg)
 
-        if self.length:
-            self.body = self.body.parse(data[self.SIZE : self.SIZE + self.length])
+        if proto_length:
+            self.length = self.SIZE + proto_length
+            self.body = self.body.parse(data[self.SIZE : self.length])

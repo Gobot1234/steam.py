@@ -57,7 +57,10 @@ def get_cmsg(msg: IntEnum) -> GetProtoType:
 
 def get_um(name: str, request: bool = True) -> GetProtoType:
     """Get the protobuf for a certain Unified Message."""
-    return UMS.get(f"{name}#1_{'Request' if request else 'Response'}")
+    try:
+        return UMS[f"{name}#1_{'Request' if request else 'Response'}"]
+    except KeyError:
+        return None
 
 
 if sys.version_info < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
@@ -220,5 +223,5 @@ class GCMsgProto(MsgBase[M]):
         **kwargs: Any,
     ):
         self.header = GCMsgHdrProto(data)
-        self.skip = self.header.SIZE + self.header.length
+        self.skip = self.header.length
         super().__init__(msg, data, **kwargs)

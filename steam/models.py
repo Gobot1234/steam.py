@@ -26,9 +26,12 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import inspect
+import logging
 import re
+import traceback
 from collections.abc import Callable, Coroutine
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
@@ -36,11 +39,14 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from typing_extensions import Final, Protocol
 from yarl import URL as _URL
 
+from . import utils
 from .enums import IE
 from .protobufs import EMsg, MsgProto
 
 if TYPE_CHECKING:
     from types import FunctionType as FunctionType, MethodType as MethodType
+
+    from .gateway import Msgs
 else:
     FunctionType = MethodType = Protocol
 
@@ -82,8 +88,12 @@ class EventParser(MethodType, Generic[IE]):
 
 
 class Registerable:
+    __slots__ = ("loop", "parsers_name")
+
     def __new__(cls: type[R], *args: Any, **kwargs: Any) -> R:
         self = super().__new__(cls)
+        self.loop = asyncio.get_event_loop()
+        cls.parsers_name = tuple(cls.__annotations__)[0]
         bases = tuple(reversed(cls.__mro__[:-2]))  # skip Registerable and object
         for idx, cls in enumerate(bases):
             parsers_name = tuple(cls.__annotations__)[0]
@@ -100,6 +110,23 @@ class Registerable:
                 parsers[msg] = msg_parser
 
         return self
+
+    def run_parser(self, emsg: IE, msg: Msgs) -> None:
+        try:
+            event_parser = getattr(self, self.parsers_name)[emsg]
+        except KeyError:
+            log = logging.getLogger(self.__class__.__module__)
+            if log.isEnabledFor(logging.DEBUG):
+                try:
+                    log.debug(f"Ignoring event {msg!r}")
+                except Exception:
+                    log.debug(f"Ignoring event {msg.msg}")
+        else:
+            self.loop.create_task(utils.maybe_coroutine(event_parser, msg)).add_done_callback(
+                lambda t: traceback.print_exception(t.exception().__class__, t.exception(), t.exception().__traceback__)
+                if t.exception()
+                else None
+            )
 
 
 def register(msg: IE) -> Callable[[E], E]:
