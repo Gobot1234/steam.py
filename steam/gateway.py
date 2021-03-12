@@ -454,7 +454,6 @@ class SteamWebSocket(Registerable):
         log.debug("Heartbeat started.")
 
         await self.send_um("ChatRoom.GetMyChatRoomGroups")
-        await self.send_um("Player.GetEmoticonList")
         await self.change_presence(
             games=self._connection._games,
             state=self._connection._state,

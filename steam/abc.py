@@ -73,7 +73,6 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
 
     from .clan import Clan
-    from .emoticon import ClientEmoticon
     from .group import Group
     from .http import StrOrURL
     from .image import Image
@@ -911,7 +910,6 @@ class Message:
         "group",
         "clan",
         "mentions",
-        "reactions",
         "_state",
     )
     author: User
@@ -925,16 +923,8 @@ class Message:
         self.content: str = _clean_up_content(proto.message)
         self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
         self.mentions: Optional[CChatMentions] = getattr(proto, "mentions", None)
-        self.reactions = []
 
     def __repr__(self) -> str:
         attrs = ("author", "channel")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
-
-    async def add_reaction(self, reaction: ClientEmoticon):
-        await self._state.add_reaction()
-        self.reactions.append(reaction)  # might be necessary?
-
-    async def remove_reaction(self, reaction: ClientEmoticon):
-        ...

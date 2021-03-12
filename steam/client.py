@@ -58,7 +58,6 @@ if TYPE_CHECKING:
     from .abc import Message
     from .clan import Clan
     from .comment import Comment
-    from .emoticon import ClientEmoticon
     from .enums import EPersonaState, EPersonaStateFlag, EUIMode
     from .group import Group
     from .invite import ClanInvite, Invite, UserInvite
@@ -153,11 +152,6 @@ class Client:
     def clans(self) -> list[Clan]:
         """list[:class:`~steam.Clan`]: Returns a list of all the clans the connected client is in."""
         return self._connection.clans
-
-    @property
-    def emoticons(self) -> list[ClientEmoticon]:
-        """list[:class:`~steam.ClientEmoticon`]: Returns a list of all the emoticons the client has."""
-        return self._connection.emoticons
 
     @property
     def latency(self) -> float:
@@ -919,12 +913,6 @@ class Client:
             message: :class:`~steam.Message`
                 The message that was received.
             """
-
-        async def on_emoticon_add(self, emoticon: "steam.Emoticon") -> None:
-            ...
-
-        async def on_emoticon_remove(self, emoticon: "steam.Emoticon") -> None:
-            ...
 
         async def on_typing(self, user: "steam.User", when: "datetime.datetime") -> None:
             """|coro|
