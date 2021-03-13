@@ -400,7 +400,7 @@ def parse_trade_url(url: str) -> Optional[re.Match[str]]:
 
 # some backports
 # TODO make a custom cancellable Executor
-if sys.version_info[:2] >= (3, 9):
+if sys.version_info >= (3, 9):
     from asyncio import to_thread
 else:
 

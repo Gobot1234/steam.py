@@ -8,7 +8,7 @@ combine_as_imports = true
 atomic = true
 ensure_newline_before_comments = true
 
-[tool.mypy]  # a man can dream https://github.com/python/mypy/pull/5208 (I don't like setup.cfg)
+[tool.mypy]
 ignore_missing_imports = true
 strict_optional = false
 disallow_untyped_defs = true

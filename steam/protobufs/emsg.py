@@ -6,7 +6,6 @@ __all__ = ("EMsg",)
 
 
 # fmt: off
-
 class EMsg(IntEnum):
     Invalid                                                  = 0
     Multi                                                    = 1

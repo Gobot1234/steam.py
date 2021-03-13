@@ -35,7 +35,7 @@ from typing import Any, Generic, Optional, TypeVar
 import betterproto
 from typing_extensions import TypeAlias
 
-from ..enums import IE, EResult, IntEnum
+from ..enums import IE, EResult
 from .emsg import *
 from .headers import *
 from .protobufs import *
@@ -47,7 +47,7 @@ ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdrProto)
 betterproto.safe_snake_case = do_nothing_case
 
 
-def get_cmsg(msg: IntEnum) -> GetProtoType:
+def get_cmsg(msg: IE) -> GetProtoType:
     """Get a protobuf from its EMsg."""
     try:
         return PROTOBUFS[msg]
@@ -80,10 +80,7 @@ class MsgBase(Generic[M]):
             self.body.from_dict(kwargs)
 
     def __repr__(self) -> str:
-        attrs = (
-            "msg",
-            "header",
-        )
+        attrs = ("msg", "header")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         if self.body is not None:
             resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(do_nothing_case).items())

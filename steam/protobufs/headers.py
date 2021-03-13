@@ -31,7 +31,7 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 from __future__ import annotations
 
 import struct
-from typing import Any, Optional, Union
+from typing import Optional
 
 from ..enums import EResult
 from ..utils import clear_proto_bit, set_proto_bit

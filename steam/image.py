@@ -46,7 +46,7 @@ class Image:
 
     Parameters
     ----------
-    fp: Union[:class:`io.FileIO`, :class:`str`]
+    fp: Union[:class:`io.BufferedIOBase`, :class:`str`]
         An image or path-like to pass to :func:`open`.
     spoiler: :class:`bool`
         Whether or not to mark the image as a spoiler.

@@ -452,13 +452,12 @@ class GameServer(SteamID):
                 return
 
             sock.send(struct.pack("<lci", -1, char, challenge))
-            data = await _handle_a2s_response(self._loop, sock)
-
             try:
-                yield StructIO(data)
+                data = await _handle_a2s_response(self._loop, sock)
             except ValueError:
-                # raised by _handle_a2s_response makes the calling method return None automagically
                 return
+
+            yield StructIO(data)
 
     async def players(self, *, challenge: Literal[-1, 0] = 0) -> Optional[list[ServerPlayer]]:
         """|coro|
