@@ -31,5 +31,5 @@ jobs:
           PASSWORD: ${{ secrets.STEAM_PASSWORD }}
           SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
           IDENTITY_SECRET: ${{ secrets.STEAM_IDENTITY_SECRET }}
-        run: python3 tests -t
+        run: python -m pytest .
         timeout-minutes: 30
