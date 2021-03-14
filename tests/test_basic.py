@@ -19,12 +19,15 @@ class Client(steam.Client):
     LOGOUT: bool = False
     failed_to_login: bool = False
 
-    async def start(self, *args: Any, **kwargs: Any) -> None:
+    async def login(self, *args: Any, **kwargs: Any) -> None:
         try:
-            await super().start(*args, **kwargs)
+            await super().login(*args, **kwargs)
         except steam.LoginError as exc:
-            if "429 Too Many Requests" not in exc.args[0]:
-                raise exc
+            if (
+                exc.args[0] != "There have been too many login failures from your network in a short time period.  "
+                "Please wait and try again later."
+            ):
+                raise
             self.failed_to_login = True
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
@@ -38,7 +41,7 @@ class Client(steam.Client):
 
 
 @pytest.mark.skipif(
-    sys.version_info[:2] == (3, 8) or not USERNAME,
+    sys.version_info == (3, 8) or not USERNAME,
     reason="If there are issues they are normally present in one of the 2 versions, "
     "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
 )
