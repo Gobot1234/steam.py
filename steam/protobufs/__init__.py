@@ -64,7 +64,7 @@ def get_um(name: str, request: bool = True) -> GetProtoType:
 
 
 if sys.version_info < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
-    del Generic.__new__
+    Generic.__new__ = object.__new__
 
 
 class MsgBase(Generic[M]):
