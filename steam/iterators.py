@@ -35,6 +35,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
 from bs4 import BeautifulSoup
+from typing_extensions import TypeAlias
 
 from . import utils
 from .comment import Comment
@@ -51,7 +52,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 C = TypeVar("C", bound="Channel")
 M = TypeVar("M", bound="Message")
-MaybeCoro = Callable[[T], Union[bool, Coroutine[Any, Any, bool]]]
+MaybeCoro: TypeAlias = "Callable[[T], Union[bool, Coroutine[Any, Any, bool]]]"
 UNIX_EPOCH = datetime.utcfromtimestamp(0)
 
 
