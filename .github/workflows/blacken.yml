@@ -22,4 +22,4 @@ jobs:
 
       - name: Check formatting
         run: |
-          python -m black steam examples -l120 --diff --check
+          python -m black . --diff --check
