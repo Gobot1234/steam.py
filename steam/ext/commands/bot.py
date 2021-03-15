@@ -73,9 +73,9 @@ __all__ = (
 
 
 StrOrIterStr: TypeAlias = "Union[str, Iterable[str]]"
-CommandPrefixType: TypeAlias = "Union[
+CommandPrefixType: TypeAlias = """Union[
     StrOrIterStr, Callable[[Bot, Message], Union[StrOrIterStr, Coroutine[Any, Any, StrOrIterStr]]]
-]"
+]"""
 C = TypeVar("C", bound="Context")
 
 
