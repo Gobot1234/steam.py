@@ -169,7 +169,7 @@ class ConnectionState(Registerable):
             self._id64 = self.client.user.id64
             self._device_id = generate_device_id(str(self._id64))
 
-            await self._poll_trades()
+            await self.poll_trades()
 
     @property
     def ws(self) -> SteamWebSocket:
@@ -311,22 +311,34 @@ class ConnectionState(Registerable):
             ret.append(await self._store_trade(trade))
         return ret
 
-    async def _poll_trades(self) -> None:
-        # TODO this can probably be optimized using sets
-        resp = await self.http.get_trade_offers()
-        trades = resp["response"]
-        descriptions = trades.get("descriptions", [])
-        trades_received = trades.get("trade_offers_received", [])
-        trades_sent = trades.get("trade_offers_sent", [])
+    async def poll_trades(self) -> None:
+        async def poll_trades_inner() -> None:
+            while self._trades_to_watch:
+                try:
+                    # TODO this can probably be optimized using sets
+                    resp = await self.http.get_trade_offers()
+                    trades = resp["response"]
+                    descriptions = trades.get("descriptions", [])
+                    trades_received = trades.get("trade_offers_received", [])
+                    trades_sent = trades.get("trade_offers_sent", [])
 
-        new_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
-        new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
-        new_descriptions = [item for item in descriptions if item not in self._descriptions_cache]
-        await self._process_trades(new_received_trades, new_descriptions)
-        await self._process_trades(new_sent_trades, new_descriptions)
-        self._trades_received_cache = trades_received
-        self._trades_sent_cache = trades_sent
-        self._descriptions_cache = descriptions
+                    new_received_trades = [trade for trade in trades_received if
+                                           trade not in self._trades_received_cache]
+                    new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
+                    new_descriptions = [item for item in descriptions if item not in self._descriptions_cache]
+                    await self._process_trades(new_received_trades, new_descriptions)
+                    await self._process_trades(new_sent_trades, new_descriptions)
+                    self._trades_received_cache = trades_received
+                    self._trades_sent_cache = trades_sent
+                    self._descriptions_cache = descriptions
+                    await asyncio.sleep(5)
+                except Exception as exc:
+                    await asyncio.sleep(10)
+                    log.info("Error while polling trades", exc_info=exc)
+
+        if self._trades_task is None or self._trades_task.done():
+            await poll_trades_inner()
+            self._trades_task = self.loop.create_task(poll_trades_inner())  # watch trades for changes
 
     # confirmations
 
@@ -818,21 +830,14 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientUserNotifications)
     async def parse_notification(self, msg: MsgProto[client_server_2.CMsgClientUserNotifications]) -> None:
-        for notification in msg.body.notifications:
-            if notification.user_notification_type == 1:  # received a trade offer
+        if msg.body.notifications and any(b.user_notification_type == 1 for b in msg.body.notifications):
+            # 1 is a trade offer
+            await self.poll_trades()
 
-                async def poll_trades() -> None:
-                    while self._trades_to_watch:
-                        await asyncio.sleep(1)
-                        try:
-                            await self._poll_trades()
-                        except Exception as exc:
-                            await asyncio.sleep(10)
-                            log.info("Error while polling trades", exc_info=exc)
-
-                if self._trades_task is None or self._trades_task.done():
-                    await self._poll_trades()
-                    self._trades_task = self.loop.create_task(poll_trades())  # watch trades for changes
+    @register(EMsg.ClientItemAnnouncements)
+    async def parse_new_items(self, msg: MsgProto[client_server_2.CMsgClientItemAnnouncements]) -> None:
+        if msg.body.count_new_items:
+            await self.poll_trades()
 
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[client_server_login.CMsgClientAccountInfo]) -> None:
