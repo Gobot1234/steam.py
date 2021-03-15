@@ -40,7 +40,7 @@ from pathlib import Path
 from types import MappingProxyType, ModuleType
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 
-from typing_extensions import Literal, overload
+from typing_extensions import Literal, TypeAlias, overload
 
 from ... import utils
 from ...client import Client, E, EventType, log
@@ -72,10 +72,10 @@ __all__ = (
 )
 
 
-StrOrIterStr = Union[str, Iterable[str]]
-CommandPrefixType = Union[
-    StrOrIterStr, Callable[["Bot", "Message"], Union[StrOrIterStr, Coroutine[Any, Any, StrOrIterStr]]]
-]
+StrOrIterStr: TypeAlias = "Union[str, Iterable[str]]"
+CommandPrefixType: TypeAlias = "Union[
+    StrOrIterStr, Callable[[Bot, Message], Union[StrOrIterStr, Coroutine[Any, Any, StrOrIterStr]]]
+]"
 C = TypeVar("C", bound="Context")
 
 
