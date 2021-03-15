@@ -38,7 +38,7 @@ from time import time
 from typing import TYPE_CHECKING, Any, ForwardRef, Optional, TypeVar, Union, get_type_hints, overload
 
 from chardet import detect
-from typing_extensions import Literal, get_args, get_origin
+from typing_extensions import Literal, TypeAlias, get_args, get_origin
 
 from ...channel import DMChannel
 from ...errors import ClientException
@@ -73,20 +73,20 @@ __all__ = (
     "cooldown",
 )
 
-CheckType = Callable[["Context"], Union[bool, Coroutine[Any, Any, bool]]]
-MaybeCommand = Union[Callable[..., "Command"], "CommandFunctionType"]
+CheckType: TypeAlias = "Callable[[Context], Union[bool, Coroutine[Any, Any, bool]]]"
+MaybeCommand: TypeAlias = "Union[Callable[..., Command], CommandFunctionType]"
+C = TypeVar("C", bound="Command")
+G = TypeVar("G", bound="Group")
+E = TypeVar("E", bound="Callable[[Context, Exception], Coroutine[Any, Any, None]]")
+H = TypeVar("H", bound="Callable[[Context], Coroutine[Any, Any, None]]")
 MC = TypeVar("MC", bound=MaybeCommand)
 MCD = TypeVar("MCD", bound=Union["CommandDeco", MaybeCommand])
-E = TypeVar("E", bound=Callable[["Context", Exception], Coroutine[Any, Any, None]])
-H = TypeVar("H", bound=Callable[["Context"], Coroutine[Any, Any, None]])
-C = TypeVar("C", bound="Command")
-GC = TypeVar("GC", bound="Group")
 CFT = TypeVar("CFT", bound="CommandFunctionType")
 CHR = TypeVar("CHR", bound="CheckReturnType")
-CH = TypeVar("CH", bound=Callable[[CheckType], "CheckReturnType"])
+CH = TypeVar("CH", bound="Callable[[CheckType], CheckReturnType]")
 
 
-class CommandDeco(FunctionType):
+class CommandDeco(FunctionType):  # bad Callable[[MC], MC]
     def __call__(self, command: MC) -> MC:
         ...
 
@@ -786,7 +786,7 @@ class GroupMixin:
     def group(
         self,
         callback: CFT,
-    ) -> GC:
+    ) -> G:
         ...
 
     @overload
@@ -794,7 +794,7 @@ class GroupMixin:
         self,
         *,
         name: Optional[str] = ...,
-        cls: Optional[type[GC]] = ...,
+        cls: Optional[type[G]] = ...,
         help: Optional[str] = ...,
         brief: Optional[str] = ...,
         usage: Optional[str] = ...,
@@ -808,7 +808,7 @@ class GroupMixin:
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
-    ) -> Callable[[CFT], GC]:
+    ) -> Callable[[CFT], G]:
         ...
 
     def group(
@@ -816,9 +816,9 @@ class GroupMixin:
         callback: Optional[CFT] = None,
         *,
         name: Optional[str] = None,
-        cls: Optional[type[GC]] = None,
+        cls: Optional[type[G]] = None,
         **attrs: Any,
-    ) -> Union[Callable[[CFT], GC], GC]:
+    ) -> Union[Callable[[CFT], G], G]:
         """|maybecallabledeco|
         A decorator that invokes :func:`group` and adds the created :class:`Group` to the internal command list.
 
@@ -832,7 +832,7 @@ class GroupMixin:
             The attributes to pass to the command's ``__init__``.
         """
 
-        def decorator(callback: CFT) -> GC:
+        def decorator(callback: CFT) -> G:
             attrs.setdefault("parent", self)
             result = group(callback, name=name, cls=cls or Group, **attrs)
             self.add_command(result)
@@ -935,7 +935,7 @@ def command(
 @overload
 def group(
     callback: CFT,
-) -> GC:
+) -> G:
     ...
 
 
@@ -943,7 +943,7 @@ def group(
 def group(
     *,
     name: Optional[str] = ...,
-    cls: Optional[type[GC]] = ...,
+    cls: Optional[type[G]] = ...,
     help: Optional[str] = ...,
     brief: Optional[str] = ...,
     usage: Optional[str] = ...,
@@ -957,7 +957,7 @@ def group(
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
-) -> Callable[[CFT], GC]:
+) -> Callable[[CFT], G]:
     ...
 
 
@@ -965,18 +965,18 @@ def group(
     callback: Optional[CFT] = None,
     *,
     name: Optional[str] = None,
-    cls: Optional[type[GC]] = None,
+    cls: Optional[type[G]] = None,
     **attrs: Any,
-) -> Union[Callable[[CFT], GC], GC]:
+) -> Union[Callable[[CFT], G], G]:
     """|maybecallabledeco|
-    A decorator that registers a :term:`coroutine function` as a :class:`GroupCommand`.
+    A decorator that registers a :term:`coroutine function` as a :class:`Group`.
 
     Parameters
     ----------
     name: Optional[:class:`str`]
         The name of the command. Will default to ``callback.__name__``.
     cls: type[:class:`Group`]
-        The class to construct the command from. Defaults to :class:`GroupCommand`.
+        The class to construct the command from. Defaults to :class:`Group`.
     **attrs:
         The attributes to pass to the command's ``__init__``.
     """
@@ -990,7 +990,9 @@ def check(predicate: CheckType) -> CheckReturnType:
 
     They should take a singular argument representing the :class:`~steam.ext.commands.Context` for the message.
 
-    Usage::
+    Examples
+    --------
+    .. code-block::
 
         def is_mod(ctx: commands.Context) -> bool:
             return ctx.clan and ctx.author in ctx.clan.mods

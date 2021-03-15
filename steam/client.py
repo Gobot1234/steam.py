@@ -39,7 +39,7 @@ from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
 
 import aiohttp
-from typing_extensions import Literal, final
+from typing_extensions import Literal, TypeAlias, final
 
 from . import errors, utils
 from .abc import SteamID
@@ -68,10 +68,10 @@ if TYPE_CHECKING:
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
-TASK_HAS_NAME = sys.version_info[:2] >= (3, 8)
-EventType = Callable[..., Coroutine[Any, Any, Any]]
+TASK_HAS_NAME = sys.version_info >= (3, 8)
+EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
+EventDeco: TypeAlias = "Union[Callable[[E], E], E]"
 E = TypeVar("E", bound=EventType)
-EventDeco = Union[Callable[[E], E], E]
 
 
 class Client:
