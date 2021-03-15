@@ -28,8 +28,8 @@ from __future__ import annotations
 
 import types
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Generator, Sequence
-from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Generic, NoReturn, Optional, Tuple, TypeVar, Union, overload
+from collections.abc import Callable, Generator
+from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Generic, NoReturn, Optional, Sequence, Tuple, TypeVar, Union, overload
 
 from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable
 
