@@ -68,8 +68,8 @@ class MsgBase(Generic[M]):
 
     if sys.version_info < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
 
-        def __new__(*args: Any, **kwargs: Any):  # type: ignore
-            return object.__new__(*args, **kwargs)
+        def __new__(cls, *args: Any, **kwargs: Any):  # type: ignore
+            return object.__new__(cls)
 
     def __init__(self, msg: IE, data: Optional[bytes], **kwargs: Any):
         self.msg: IE = msg
