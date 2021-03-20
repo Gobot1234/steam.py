@@ -9,6 +9,5 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python
       - uses: actions/setup-python@v2
-      - uses: psf/black@master
+      - uses: psf/black@stable

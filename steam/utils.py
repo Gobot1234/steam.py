@@ -162,10 +162,10 @@ def make_id64(
         # 64 bit
         elif 2 ** 32 < id < 2 ** 64:
             value = id
-            id = id & 0xffffffff
-            instance = (value >> 32) & 0xfffff
-            type = (value >> 52) & 0xf
-            universe = (value >> 56) & 0xff
+            id = id & 0xFFFFFFFF
+            instance = (value >> 32) & 0xFFFFF
+            type = (value >> 52) & 0xF
+            universe = (value >> 56) & 0xFF
         else:
             raise InvalidSteamID(id, "it is too large" if id > 2 ** 64 else "it is too small")
     # textual input e.g. [g:1:4]

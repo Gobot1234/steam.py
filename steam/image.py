@@ -79,7 +79,7 @@ class Image:
         self.type = imghdr.what(None, headers)
         if self.type == "png":
             check = struct.unpack(">i", headers[4:8])[0]
-            if check != 0x0d0a1a0a:
+            if check != 0x0D0A1A0A:
                 raise ValueError("Opened file's headers do not match a standard PNGs headers")
             width, height = struct.unpack(">ii", headers[16:24])
         elif self.type == "gif":
@@ -89,10 +89,10 @@ class Image:
                 self.fp.seek(0)  # read 0xff next
                 size = 2
                 ftype = 0
-                while not 0xc0 <= ftype <= 0xcf or ftype in (0xc4, 0xc8, 0xcc):
+                while not 0xC0 <= ftype <= 0xCF or ftype in (0xC4, 0xC8, 0xCC):
                     self.fp.seek(size, 1)
                     byte = self.fp.read(1)
-                    while ord(byte) == 0xff:
+                    while ord(byte) == 0xFF:
                         byte = self.fp.read(1)
                     ftype = ord(byte)
                     size = struct.unpack(">H", self.fp.read(2))[0] - 2

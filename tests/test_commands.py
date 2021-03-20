@@ -185,7 +185,9 @@ class TheTestBot(commands.Bot):
 
     def __del__(self):
         if self.to_finish:
-            FAILS.append(Exception(f"{len(self.to_finish)} commands still being processed: {', '.join(self.to_finish)}"))
+            FAILS.append(
+                Exception(f"{len(self.to_finish)} commands still being processed: {', '.join(self.to_finish)}")
+            )
 
 
 @pytest.mark.asyncio
