@@ -127,7 +127,7 @@ class CMServerList(AsyncIterator[CMServer]):
             return await self.fill()
 
         random.shuffle(self.cms)
-        for cm in await self.ping_cms(self.cms):
+        for cm in await self.ping_cms():
             self.append(cm)
 
     def clear(self) -> None:
@@ -173,11 +173,10 @@ class CMServerList(AsyncIterator[CMServer]):
         if len(self.cms) > total:
             log.debug(f"Added {len(self.cms) - total} new CM server addresses.")
 
-    async def ping_cms(self, cms: Optional[list[CMServer]] = None, to_ping: int = 10) -> list[CMServer]:
-        cms = self.cms or cms
+    async def ping_cms(self) -> list[CMServer]:
         best_cms = []
-        for cm in cms[:to_ping]:
-            # TODO dynamically make sure we get good ones by checking len and stuff
+
+        async def ping_cm(cm: CMServer) -> None:
             start = time.perf_counter()
             try:
                 resp = await asyncio.wait_for(self._state.http._session.get(f"https://{cm.url}/cmping/"), timeout=5)
@@ -193,8 +192,11 @@ class CMServerList(AsyncIterator[CMServer]):
                 latency = time.perf_counter() - start
                 cm.score = (int(load) * 2) + latency
                 best_cms.append(cm)
+
+        await asyncio.gather(*(ping_cm(cm) for cm in self.cms))
+        # TODO dynamically make sure we get good ones by checking len and stuff
         log.debug("Finished pinging CMs")
-        return sorted(best_cms, key=lambda cm: cm.score, reverse=True)
+        return sorted(best_cms, key=lambda cm: cm.score, reverse=True)  # NOTE: lower is better
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool

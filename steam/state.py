@@ -683,7 +683,7 @@ class ConnectionState(Registerable):
         cms = msg.body.cm_websocket_addresses
         cm_list = self.ws.cm_list
         cm_list.merge_list(cms)
-        await cm_list.ping_cms(to_ping=len(cm_list.cms))  # ping all the cms, we have time.
+        await cm_list.ping_cms()  # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)
     async def parse_persona_state_update(self, msg: MsgProto[client_server_friends.CMsgClientPersonaState]) -> None:
