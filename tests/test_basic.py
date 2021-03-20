@@ -2,6 +2,7 @@
 
 """A basic integration test"""
 
+import os
 import sys
 from typing import Any
 
@@ -26,6 +27,9 @@ class Client(steam.Client):
             if (
                 exc.args[0] != "There have been too many login failures from your network in a short time period.  "
                 "Please wait and try again later."
+                or not exc.__cause__
+                or not isinstance(exc.__cause__, steam.HTTPException)
+                or exc.__cause__.code != 429
             ):
                 raise
             self.failed_to_login = True
@@ -41,7 +45,7 @@ class Client(steam.Client):
 
 
 @pytest.mark.skipif(
-    sys.version_info == (3, 8) or not USERNAME,
+    sys.version_info == (3, 8) or not USERNAME or not os.getenv("RUNNING_GITHUB_WORKFLOWS"),
     reason="If there are issues they are normally present in one of the 2 versions, "
     "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
 )

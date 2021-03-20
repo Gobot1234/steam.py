@@ -316,10 +316,9 @@ class HTTPClient:
             else:
                 return resp
             return await self._send_login_request()
+        except errors.LoginError:
+            raise
         except Exception as exc:
-            if isinstance(exc, errors.LoginError):
-                raise exc
-
             try:
                 msg = exc.args[0]
             except IndexError:

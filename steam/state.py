@@ -322,8 +322,9 @@ class ConnectionState(Registerable):
                     trades_received = trades.get("trade_offers_received", [])
                     trades_sent = trades.get("trade_offers_sent", [])
 
-                    new_received_trades = [trade for trade in trades_received if
-                                           trade not in self._trades_received_cache]
+                    new_received_trades = [
+                        trade for trade in trades_received if trade not in self._trades_received_cache
+                    ]
                     new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
                     new_descriptions = [item for item in descriptions if item not in self._descriptions_cache]
                     await self._process_trades(new_received_trades, new_descriptions)
