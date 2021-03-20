@@ -12,7 +12,3 @@ jobs:
       - name: Set up Python
       - uses: actions/setup-python@v2
       - uses: psf/black@master
-
-      - name: Check formatting
-        run: |
-          python -m black . --diff --check

@@ -195,7 +195,7 @@ class TheTestBot(commands.Bot):
         ("", commands.MissingRequiredArgument),
         ("1234", None),
         ("1234 1234", None),
-        ("string",None ),
+        ("string", commands.BadArgument),
     ],
 )
 async def test_positional_or_keyword_commands(
