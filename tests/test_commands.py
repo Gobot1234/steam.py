@@ -18,7 +18,7 @@ T = TypeVar("T")
 IsInstanceable: TypeAlias = "Union[type[T], tuple[type[T], ...]]"
 SomeCoolType = int
 UserTypes = Union[steam.User, int, str]
-FAILS: list[Exception] = []
+FAILS: "list[Exception]" = []
 
 
 @pytest.mark.asyncio
