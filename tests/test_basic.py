@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from typing import Any
 
@@ -12,7 +11,7 @@ import pytest
 
 import steam
 
-from . import IDENTITY_SECRET, PASSWORD, SHARED_SECRET, USERNAME, RUNNING_AS_ACTION
+from . import IDENTITY_SECRET, PASSWORD, RUNNING_AS_ACTION, SHARED_SECRET, USERNAME
 
 
 class Client(steam.Client):
@@ -47,7 +46,7 @@ class Client(steam.Client):
 
 
 @pytest.mark.skipif(
-    sys.version_info == (3, 8) and RUNNING_AS_ACTION or not USERNAME and not RUNNING_AS_ACTION,
+    sys.version_info == (3, 8) and RUNNING_AS_ACTION or not USERNAME or not RUNNING_AS_ACTION,
     reason="If there are issues they are normally present in one of the 2 versions, "
     "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
 )
