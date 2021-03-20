@@ -19,6 +19,7 @@ jobs:
           git clone https://github.com/psf/black
           cd black
           python -m pip install -U .
+          cd ..
 
       - name: Check formatting
         run: |
