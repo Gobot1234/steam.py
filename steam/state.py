@@ -109,7 +109,6 @@ class ConnectionState(Registerable):
         "_ui_mode",
         "_flags",
         "_force_kick",
-        "emoticons",
     )
 
     def __init__(self, client: Client, **kwargs: Any):
@@ -119,7 +118,6 @@ class ConnectionState(Registerable):
         self.request = self.http.request
 
         self.handled_friends = asyncio.Event()
-        self.handled_emoticons = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -159,7 +157,6 @@ class ConnectionState(Registerable):
         self._descriptions_cache: list[dict] = []
 
         self.handled_friends.clear()
-        self.handled_emoticons.clear()
         self.handled_groups = False
 
         gc.collect()
@@ -591,7 +588,6 @@ class ConnectionState(Registerable):
                 "ChatRoomClient.NotifyIncomingChatMessage": self.handle_group_message,
                 "ChatRoomClient.NotifyChatRoomHeaderStateChange": self.handle_group_update,
                 "ChatRoomClient.NotifyChatGroupUserStateChanged": self.handle_group_user_action,
-                "FriendMessagesClient.MessageReaction": self.handle_reaction,
             }[msg.header.body.job_name_target](msg)
         except KeyError:
             pass
@@ -679,7 +675,6 @@ class ConnectionState(Registerable):
 
             if not self.handled_groups:
                 await self.handled_friends.wait()  # ensure friend cache is ready
-                await self.handled_emoticons.wait()  # ensure emoticon cache is ready
                 self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
