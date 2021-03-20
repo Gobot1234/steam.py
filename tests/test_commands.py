@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import contextlib
+import traceback
 from copy import copy
 from io import StringIO
-from typing import Any, AsyncGenerator, Generator, Optional, TypeVar, Union
+from typing import Any, Generator, Optional, TypeVar, Union
 
 import pytest
 from typing_extensions import TypeAlias
@@ -17,6 +18,7 @@ T = TypeVar("T")
 IsInstanceable: TypeAlias = "Union[type[T], tuple[type[T], ...]]"
 SomeCoolType = int
 UserTypes = Union[steam.User, int, str]
+FAILS: list[Exception] = []
 
 
 @pytest.mark.asyncio
@@ -95,17 +97,19 @@ class CustomConverter(commands.Converter[tuple]):
     ],
 )
 def test_greedy(param_type: Union[type, str], expected: Union[int, "type[Exception]"]):
+    global param_type_  # hack to make typing.get_type_hints work with locals
+    param_type_ = param_type
     if issubclass(expected, Exception):
         with pytest.raises(expected):
 
             @commands.command
-            async def greedy(_, param: commands.Greedy[param_type]) -> None:
+            async def greedy(_, param: commands.Greedy[param_type_]) -> None:
                 ...
 
     else:
 
         @commands.command
-        async def greedy(_, param: commands.Greedy[param_type]) -> None:
+        async def greedy(_, param: commands.Greedy[param_type_]) -> None:
             ...
 
         assert greedy.params["param"].annotation.converter is expected
@@ -120,7 +124,7 @@ class TheTestBot(commands.Bot):
     @contextlib.asynccontextmanager
     async def raises_command_error(
         self, expected_errors: "IsInstanceable[type[CE]]", content: str
-    ) -> AsyncGenerator[None, None]:
+    ) -> "contextlib.AbstractAsyncContextManager[None]":
         expected_errors = (expected_errors,) if not isinstance(expected_errors, tuple) else expected_errors
 
         async def on_command_error(ctx: commands.Context, error: CE) -> None:
@@ -141,7 +145,7 @@ class TheTestBot(commands.Bot):
         yield
 
     @contextlib.asynccontextmanager
-    async def returns_command_completion(self, content: str) -> AsyncGenerator[None, None]:
+    async def returns_command_completion(self, content: str) -> "contextlib.AbstractAsyncContextManager[None]":
         async def on_command_error(ctx: commands.Context, error: CE) -> None:
             if ctx.message.content == content:
                 raise error
@@ -177,18 +181,11 @@ class TheTestBot(commands.Bot):
                 await super().process_commands(message)
 
     async def on_error(self, event: str, error: Exception, *args: Any, **kwargs: Any) -> None:
-        try:
-            ctx: commands.Context = args[0]  # expose some locals
-            lex = ctx.lex
-            message = ctx.message
-            command = ctx.command
-        except (IndexError, AttributeError):
-            pass
-        raise SystemExit  # we need to propagate a SystemExit for pytest to be able to pick up errors
+        FAILS.append(error)
 
     def __del__(self):
         if self.to_finish:
-            raise SystemExit(f"{len(self.to_finish)} commands still being processed: {', '.join(self.to_finish)}")
+            FAILS.append(Exception(f"{len(self.to_finish)} commands still being processed: {', '.join(self.to_finish)}"))
 
 
 @pytest.mark.asyncio
@@ -198,7 +195,7 @@ class TheTestBot(commands.Bot):
         ("", commands.MissingRequiredArgument),
         ("1234", None),
         ("1234 1234", None),
-        ("string", commands.BadArgument),
+        ("string",None ),
     ],
 )
 async def test_positional_or_keyword_commands(
@@ -387,3 +384,10 @@ async def test_converters() -> None:
     assert steam.Image in bot.converters
     await bot.process_commands("https://not_an_image.com", None)
     assert called_image_converter
+
+
+def teardown_module(_) -> None:
+    for error in FAILS:
+        traceback.print_exception(error.__class__, error, error.__traceback__)
+    if FAILS:
+        pytest.fail("failed to finish tests")

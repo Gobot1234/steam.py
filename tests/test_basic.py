@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import atexit
 import sys
 from typing import Any
 
@@ -58,3 +59,5 @@ def test_basic_events() -> None:
         assert client.CONNECT
         assert client.READY
         assert client.LOGOUT
+    else:
+        atexit.register(print, "Failed to login")  # make sure we can tell if we failed to login
