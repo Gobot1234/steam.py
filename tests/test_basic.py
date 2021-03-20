@@ -12,7 +12,7 @@ import pytest
 
 import steam
 
-from . import IDENTITY_SECRET, PASSWORD, SHARED_SECRET, USERNAME
+from . import IDENTITY_SECRET, PASSWORD, SHARED_SECRET, USERNAME, RUNNING_AS_ACTION
 
 
 class Client(steam.Client):
@@ -47,7 +47,7 @@ class Client(steam.Client):
 
 
 @pytest.mark.skipif(
-    sys.version_info == (3, 8) and os.getenv("RUNNING_GITHUB_WORKFLOWS") or not USERNAME,
+    sys.version_info == (3, 8) and RUNNING_AS_ACTION or not USERNAME and not RUNNING_AS_ACTION,
     reason="If there are issues they are normally present in one of the 2 versions, "
     "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
 )

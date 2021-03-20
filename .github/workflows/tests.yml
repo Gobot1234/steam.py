@@ -27,7 +27,6 @@ jobs:
 
       - name: Run tests for CPython ${{ matrix.python-version }}
         env:
-          RUNNING_GITHUB_WORKFLOWS: true
           USERNAME: ${{ secrets.STEAM_USERNAME }}
           PASSWORD: ${{ secrets.STEAM_PASSWORD }}
           SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
