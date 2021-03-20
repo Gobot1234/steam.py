@@ -29,7 +29,20 @@ from __future__ import annotations
 import types
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
-from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Generic, NoReturn, Optional, Sequence, Tuple, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    ForwardRef,
+    Generic,
+    NoReturn,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable
 
@@ -467,9 +480,7 @@ def flatten_greedy(item: Union[T, Generic]) -> Generator[T, None, None]:
         yield item
 
 
-# would be nice if this could just subclass Sequence but due to weird version differences for its
-# super().__class_getitem__'s return type it isn't necessarily assignable to.
-class Greedy(Generic[T], Sequence[T]):
+class Greedy(Generic[T]):
     """
     A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
     parser to consume as many arguments as it can until it silently errors reverts the last argument being read and
@@ -519,6 +530,14 @@ class Greedy(Generic[T], Sequence[T]):
         annotation = super().__class_getitem__(seen[0] if len(seen) == 1 else Union[tuple(seen)])
         annotation.converter = get_args(annotation)[0]
         return annotation
+
+
+if TYPE_CHECKING:
+    # would be nice if this could just subclass Sequence but due to version differences for its
+    # super().__class_getitem__'s return type it isn't necessarily assignable to.
+    # when I drop support for <3.8 I'll make __class_getitem__ return a types.GenericAlias subclass
+    class Greedy(Greedy[T], Sequence[T]):
+        ...
 
 
 # fmt: off
