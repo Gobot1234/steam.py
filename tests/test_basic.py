@@ -2,6 +2,8 @@
 
 """A basic integration test"""
 
+from __future__ import annotations
+
 import os
 import sys
 from typing import Any
@@ -45,7 +47,7 @@ class Client(steam.Client):
 
 
 @pytest.mark.skipif(
-    sys.version_info == (3, 8) or not USERNAME or not os.getenv("RUNNING_GITHUB_WORKFLOWS"),
+    sys.version_info == (3, 8) and os.getenv("RUNNING_GITHUB_WORKFLOWS") or not USERNAME,
     reason="If there are issues they are normally present in one of the 2 versions, "
     "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
 )
