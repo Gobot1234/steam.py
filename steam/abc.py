@@ -478,6 +478,7 @@ class BaseUser(Commentable):
         "last_logon",
         "privacy_state",
         "favourite_badge",
+        "community_url",
         "_is_commentable",
         "_setup_profile",
         "_level",
@@ -488,6 +489,7 @@ class BaseUser(Commentable):
         self._state = state
         self.name: Optional[str] = None
         self.real_name: Optional[str] = None
+        self.community_url: Optional[str] = None
         self.avatar_url: Optional[str] = None
         self.primary_clan: Optional[SteamID] = None
         self.country: Optional[str] = None
@@ -504,6 +506,7 @@ class BaseUser(Commentable):
     def _update(self, data: UserDict) -> None:
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
+        self.community_url = data.get("profileurl") or super().community_url
         self.avatar_url = data.get("avatarfull") or self.avatar_url
         self.trade_url = community_route(f"tradeoffer/new/?partner={self.id}")
 

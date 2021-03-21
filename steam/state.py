@@ -578,6 +578,18 @@ class ConnectionState(Registerable):
 
         return msg.body.games
 
+    async def fetch_user_profile_info(
+        self, user_id64: int
+    ) -> client_server_friends.CMsgClientFriendProfileInfoResponse:
+        await self.ws.send_as_proto(MsgProto(EMsg.ClientFriendProfileInfo, steamid_friend=user_id64))
+        msg: MsgProto[client_server_friends.CMsgClientFriendProfileInfoResponse] = await self.ws.wait_for(
+            EMsg.ClientFriendProfileInfoResponse, check=lambda m: m.body.steamid_friend == user_id64
+        )
+        if msg.eresult != EResult.OK:
+            raise WSException(msg)
+
+        return msg.body
+
     # parsers
 
     @register(EMsg.ServiceMethod)

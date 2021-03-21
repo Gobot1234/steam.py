@@ -161,6 +161,7 @@ PROTOBUFS = {
     EMsg.ClientChangeStatus: steammessages_clientserver_friends.CMsgClientChangeStatus,
     EMsg.ClientPersonaState: steammessages_clientserver_friends.CMsgClientPersonaState,
     EMsg.ClientFriendProfileInfo: steammessages_clientserver_friends.CMsgClientFriendProfileInfo,
+    EMsg.ClientFriendProfileInfoResponse: steammessages_clientserver_friends.CMsgClientFriendProfileInfoResponse,
     EMsg.ClientGetEmoticonList: steammessages_clientserver_friends.CMsgClientGetEmoticonList,
     EMsg.ClientEmoticonList: steammessages_clientserver_friends.CMsgClientEmoticonList,
     EMsg.ClientHeartBeat: steammessages_clientserver_login.CMsgClientHeartBeat,

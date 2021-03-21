@@ -27,7 +27,6 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-import html
 import json
 import logging
 import re
@@ -39,7 +38,6 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import aiohttp
 import rsa
-from bs4 import BeautifulSoup
 from typing_extensions import TypeAlias
 
 from . import __version__, errors, utils
@@ -609,20 +607,7 @@ class HTTPClient:
         avatar: Optional[Image],
     ) -> None:
         if any((name, real_name, url, summary, country, state, city, avatar)):
-            resp = await self.request("GET", url=community_route("my/edit"))
-            soup = BeautifulSoup(resp, "html.parser")
-            edit_config = str(soup.find("div", attrs={"id": "profile_edit_config"}))
-            value = re.findall(
-                r'data-profile-edit=[\'"]{(.*?)},',
-                html.unescape(edit_config),
-                flags=re.S,
-            )[0]
-            loadable = value.replace("\r", "\\r").replace("\n", "\\n")
-            profile = json.loads(f'{"{"}{loadable}{"}}"}')
-            for key, value in profile.items():
-                if isinstance(value, dict):
-                    continue
-                profile[key] = str(value).replace("\\r", "\r").replace("\\n", "\n")
+            info = await self._client._connection.fetch_user_profile_info(self.user.id64)
 
             payload = {
                 "sessionID": self.session_id,
@@ -633,16 +618,16 @@ class HTTPClient:
                 "weblink_2_url": "",
                 "weblink_3_title": "",
                 "weblink_3_url": "",
-                "personaName": name or profile["strPersonaName"],
-                "real_name": real_name or profile["strRealName"],
-                "customURL": url or profile["strCustomURL"],
-                "country": country or profile["LocationData"]["locCountryCode"],
-                "state": state or profile["LocationData"]["locStateCode"],
-                "city": city or profile["LocationData"]["locCityCode"],
-                "summary": summary or profile["strSummary"],
+                "personaName": name or self.user.name,
+                "real_name": real_name or info.real_name,
+                "customURL": url or self.user.community_url,
+                "country": country or info.country_name,
+                "state": state or info.state_name,
+                "city": city or info.city_name,
+                "summary": summary or info.summary,
             }
 
-            await self.request("POST", url=f"{self.user.community_url}/edit", data=payload)
+            await self.request("POST", community_route("my/edit"), data=payload)
         if avatar is not None:
             payload = aiohttp.FormData()
             payload.add_field("MAX_FILE_SIZE", str(len(avatar)))
