@@ -403,22 +403,20 @@ class SteamWebSocket(Registerable):
         self._dispatch("socket_send", message)
         await self.send(bytes(message))
 
-    async def send_gc_message(self, msg: Union[GCMsgProto, GCMsg]) -> None:  # for ext's to send GC messages
-        message = MsgProto[CMsgGcClient](EMsg.ClientToGC)
-        try:
-            message.body.appid = message.header.body.routing_appid = self._connection.client.GAME.id
-        except AttributeError:
-            return utils.warn(f"Attempting to call {self.__class__.__name__}.send_gc_message without a GC Client")
+    async def send_gc_message(self, msg: Union[GCMsgProto, GCMsg]) -> int:  # for ext's to send GC messages
+        message = MsgProto[CMsgGcClient](
+            EMsg.ClientToGC,
+            appid=self._connection.client.GAME.id,
+            msgtype=utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg,
+        )
+        message.body.payload = bytes(msg)
+        message.header.body.routing_appid = self._connection.client.GAME.id
+        message.header.body.job_id_source = self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
 
         log.debug(f"Sending GC message %r", msg)
-
-        msg.header.body.job_id_source = self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
-
         self._dispatch("gc_message_send", msg)
-        message.body.msgtype = utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg
-        message.body.payload = bytes(msg)
         await self.send_as_proto(message)
-        return msg.header.body.job_id_source
+        return message.header.body.job_id_source
 
     async def close(self, code: int = 1000) -> None:
         message = MsgProto(EMsg.ClientLogOff)
@@ -439,9 +437,9 @@ class SteamWebSocket(Registerable):
 
     @register(EMsg.ClientLogOnResponse)
     async def handle_logon(self, msg: MsgProto[CMsgClientLogonResponse]) -> None:
-        if msg.body.eresult != EResult.OK:
-            log.debug(f"Failed to login with result: {EResult(msg.body.eresult)}")
-            if msg.body.eresult == EResult.InvalidPassword:
+        if msg.eresult != EResult.OK:
+            log.debug(f"Failed to login with result: {msg.eresult}")
+            if msg.eresult == EResult.InvalidPassword:
                 http = self._connection.http
                 await http.logout()
                 await http.login(http.username, http.password, shared_secret=http.shared_secret)

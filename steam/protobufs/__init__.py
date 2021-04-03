@@ -129,7 +129,7 @@ class MsgBase(Generic[M]):
     def eresult(self) -> Optional[EResult]:
         """Optional[:class:`.EResult`]: The :attr:`header`'s eresult."""
         if isinstance(self.header, ALLOWED_HEADERS):
-            return EResult.try_value(self.header.body.eresult)
+            return EResult.try_value(getattr(self.body, "eresult", 0) or self.header.body.eresult)
 
     def parse(self) -> None:
         """Parse the payload/data into a protobuf."""

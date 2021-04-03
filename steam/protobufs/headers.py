@@ -195,7 +195,8 @@ class GCMsgHdr:
             self.parse(data)
 
     def __repr__(self) -> str:
-        return f"<GCMsgHdr {' '.join(f'{attr}={getattr(self, attr)!r}' for attr in self.__slots__)}>"
+        attrs = ('target_job_id', 'source_job_id', 'msg')
+        return f"<GCMsgHdr {' '.join(f'{attr}={getattr(self, attr)!r}' for attr in attrs)}>"
 
     def __bytes__(self) -> bytes:
         return struct.pack("<Hqq", self.header_version, self.target_job_id, self.source_job_id)
@@ -236,6 +237,5 @@ class GCMsgHdrProto:
 
         self.msg = clear_proto_bit(msg)
 
-        if proto_length:
-            self.length = self.SIZE + proto_length
-            self.body = self.body.parse(data[self.SIZE : self.length])
+        self.length = self.SIZE + proto_length
+        self.body = self.body.parse(data[self.SIZE : self.length])
