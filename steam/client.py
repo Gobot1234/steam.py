@@ -709,6 +709,8 @@ class Client:
         servers = await self._connection.fetch_servers(query.query, limit)
         return [GameServer(server) for server in servers]
 
+    # miscellaneous stuff
+
     def trade_history(
         self,
         limit: Optional[int] = 100,
@@ -757,8 +759,6 @@ class Client:
         :class:`~steam.TradeOffer`
         """
         return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only)
-
-    # miscellaneous stuff
 
     async def change_presence(
         self,
@@ -809,6 +809,18 @@ class Client:
         await self.ws.change_presence(
             games=games, state=state, flags=flag_value, ui_mode=ui_mode, force_kick=force_kick
         )
+
+    async def trade_url(self, generate_new: bool = False) -> str:
+        """|coro|
+        Fetches this accounts trade url.
+
+        Parameters
+        ----------
+        generate_new: :class:`bool`
+            Whether or not to generate a new trade token, defaults to ``False``.
+        """
+        url = await self._connection.get_trade_url(generate_new)
+        return url
 
     async def wait_until_ready(self) -> None:
         """|coro|

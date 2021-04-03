@@ -55,6 +55,7 @@ from .protobufs import (
     MsgProto,
     do_nothing_case,
     steammessages_chat as chat,
+    steammessages_econ as econ,
     steammessages_friendmessages as friend_messages,
     steammessages_gameservers as game_servers,
     steammessages_player as player,
@@ -589,6 +590,17 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
         return msg.body
+
+    async def get_trade_url(self, new: bool):
+        msg: MsgProto[econ.CEconGetTradeOfferAccessTokenResponse] = await self.ws.send_um_and_wait(
+            "Econ.GetTradeOfferAccessToken", generate_new_token=new
+        )
+        if msg.eresult != EResult.OK:
+            raise WSException(msg)
+        return (
+            f"https://steamcommunity.com/tradeoffer/new/?partner={self.client.user.id}"
+            f"&token={msg.body.trade_offer_access_token}"
+        )
 
     # parsers
 
