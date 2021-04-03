@@ -183,9 +183,9 @@ class QueryMeta(type):
         return Query("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
-    def match_hidden_tags(cls) -> Query[list[str]]:
-        """Fetches servers with all of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
-        return Query("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
+    def match_any_hidden_tags(cls) -> Query[list[str]]:
+        """Fetches servers with any of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
+        return Query("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
     def all(cls) -> QueryAll:
