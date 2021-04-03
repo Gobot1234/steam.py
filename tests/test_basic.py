@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import sys
+from io import StringIO
 from typing import Any
 
 import pytest
@@ -23,8 +25,10 @@ class Client(steam.Client):
     failed_to_login: bool = False
 
     async def login(self, *args: Any, **kwargs: Any) -> None:
+        stdout = StringIO()
         try:
-            await super().login(*args, **kwargs)
+            with contextlib.redirect_stdout(stdout):
+                await super().login(*args, **kwargs)
         except steam.LoginError as exc:
             if (
                 exc.args[0] != "There have been too many login failures from your network in a short time period.  "
@@ -35,6 +39,9 @@ class Client(steam.Client):
             ):
                 raise
             self.failed_to_login = True
+        finally:
+            if stdout.getvalue():
+                self.failed_to_login = True
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
         if event.upper() in self.__annotations__:
