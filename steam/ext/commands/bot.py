@@ -815,19 +815,6 @@ class Bot(GroupMixin, Client):
     @overload
     async def wait_for(
         self,
-        event: Literal[
-            "socket_raw_receive",
-            "socket_raw_send",
-        ],
-        *,
-        check: Optional[Callable[[bytes], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> bytes:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
         event: Literal["command_error"],
         *,
         check: Optional[Callable[[Context, Exception], bool]] = ...,

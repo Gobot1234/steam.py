@@ -349,8 +349,6 @@ class SteamWebSocket(Registerable):
             await self.handle_close()
 
     async def receive(self, message: bytes) -> None:
-        self._dispatch("socket_raw_receive", message)
-
         emsg_value = struct.unpack_from("<I", message)[0]
         emsg = EMsg(utils.clear_proto_bit(emsg_value))
 
@@ -389,7 +387,6 @@ class SteamWebSocket(Registerable):
             del self.listeners[idx]
 
     async def send(self, data: bytes) -> None:
-        self._dispatch("socket_raw_send", data)
         try:
             await self.socket.send_bytes(data=data)
         except ConnectionResetError:

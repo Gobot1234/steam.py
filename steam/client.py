@@ -1084,16 +1084,6 @@ class Client:
                 The received message.
             """
 
-        async def on_socket_raw_receive(self, message: bytes) -> None:
-            """|coro|
-            Called when the connected web-socket receives raw :class:`bytes`. This isn't likely to be very useful.
-
-            Parameters
-            ----------
-            message: bytes
-                The raw received message.
-            """
-
         async def on_socket_send(self, msg: "Union[Msg, MsgProto]") -> None:
             """|coro|
             Called when the client sends a parsed ``Msg``/``MsgProto`` to the connected web-socket.
@@ -1102,17 +1092,6 @@ class Client:
             ----------
             msg: Union[:class:`~steam.protobufs.Msg`, :class:`~steam.protobufs.MsgProto`]
                 The sent message.
-            """
-
-        async def on_socket_raw_send(self, message: bytes) -> None:
-            """|coro|
-            Called when the client sends raw :class:`bytes` to the connected web-socket. This isn't likely to be very
-            useful.
-
-            Parameters
-            ----------
-            message: bytes
-                The raw sent message.
             """
 
     @overload
@@ -1236,19 +1215,6 @@ class Client:
         check: Optional[Callable[[Msgs], bool]] = ...,
         timeout: Optional[float] = ...,
     ) -> Msgs:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal[
-            "socket_raw_receive",
-            "socket_raw_send",
-        ],
-        *,
-        check: Optional[Callable[[bytes], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> bytes:
         ...
 
     async def wait_for(
