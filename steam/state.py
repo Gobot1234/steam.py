@@ -332,12 +332,11 @@ class ConnectionState(Registerable):
                     self._descriptions_cache = descriptions
                     await asyncio.sleep(5)
                 except Exception as exc:
-                    await asyncio.sleep(10)
-                    log.info("Error while polling trades", exc_info=exc)
+                    await asyncio.sleep(30)
+                    log.error("Error while polling trades", exc_info=exc)
 
-        if self._trades_task is None or self._trades_task.done():
-            await poll_trades_inner()
-            self._trades_task = self.loop.create_task(poll_trades_inner())  # watch trades for changes
+        if not self._trades_to_watch:  # only start polling if we have trades
+            await poll_trades_inner()  # watch trades for changes
 
     # confirmations
 
@@ -660,6 +659,7 @@ class ConnectionState(Registerable):
             await destination._from_proto(self, msg.body.header_state)
         else:
             destination._from_proto(msg.body.header_state)
+            await destination.__ainit__()
 
     async def handle_group_user_action(
         self, msg: MsgProto[chat.ChatRoomClientNotifyChatGroupUserStateChangedNotification]

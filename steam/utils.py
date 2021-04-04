@@ -313,7 +313,7 @@ def invite_code_to_tuple(code: str) -> Optional[tuple[int, EType, EUniverse, int
 
 
 URL_REGEX = re.compile(
-    r"(?P<clean_url>(?:http[s]?://|)(?:www\.|)steamcommunity\.com/(?P<type>profiles|id|gid|groups)/(?P<value>.+))"
+    r"(?P<clean_url>(?:http[s]?://)?(?:www\.)?steamcommunity\.com/(?P<type>profiles|id|gid|groups)/(?P<value>.+))/?"
 )
 
 
@@ -350,7 +350,7 @@ async def id64_from_url(url: aiohttp.client.StrOrURL, session: Optional[aiohttp.
         The found 64 bit ID or ``None`` if ``https://steamcommunity.com`` is down or no matching account is found.
     """
 
-    search = URL_REGEX.search(str(url).rstrip("/"))
+    search = URL_REGEX.search(str(url))
 
     if search is None:
         return None
