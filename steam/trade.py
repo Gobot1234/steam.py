@@ -409,6 +409,10 @@ class TradeOffer:
         The time at which the trade automatically expires.
     escrow: Optional[:class:`datetime.timedelta`]
         The time at which the escrow will end. Can be ``None`` if there is no escrow on the trade.
+
+        Warning
+        -------
+        This isn't likely to be accurate, use :meth:`User.escrow` instead if possible.
     """
 
     __slots__ = (
