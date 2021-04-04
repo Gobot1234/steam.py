@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from . import (
     steammessages_base,
     steammessages_clientserver,

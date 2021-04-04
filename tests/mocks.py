@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """A collection of custom mock objects"""
 
 from typing import Optional

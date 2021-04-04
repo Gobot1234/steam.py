@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Some sections of this are from
 # https://github.com/Gorialis/discord.py/blob/64d629c39fe92ad9e5fe383fd2954391237c134c/tests/test_utils.py
 

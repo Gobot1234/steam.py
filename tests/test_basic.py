@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """A basic integration test"""
 
 from __future__ import annotations

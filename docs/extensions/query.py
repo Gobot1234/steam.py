@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # If you are wondering why this is done, it enables metaclass attributes to be picked up as class attributes/properties
 # AFAIK there is no good way to do this apart from just recreating the class.
 
