@@ -1,5 +1,5 @@
 aiohttp>=3.7.0,<3.8.0
 beautifulsoup4>=4.9.1
 rsa>=4.6
-betterproto==2.0.0b2
+betterproto==2.0.0b3
 typing-extensions==3.7.4.3
