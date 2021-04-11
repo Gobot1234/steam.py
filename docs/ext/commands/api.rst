@@ -15,8 +15,7 @@ Bot
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_logout, on_error, on_message, on_typing,
                       on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline, on_trade_cancel,
                       on_trade_expire, on_trade_counter, on_comment, on_user_invite, on_user_invite_accept,
-                      on_clan_invite, on_clan_invite_accept, on_user_update, on_socket_receive, on_socket_raw_receive,
-                      on_socket_send, on_socket_raw_send,
+                      on_clan_invite, on_clan_invite_accept, on_user_update, on_socket_receive, on_socket_send,
                       on_command, on_command_error, on_command_completion,
                       event, trade_history,
                       command, group, listen
