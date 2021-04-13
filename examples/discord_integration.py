@@ -44,7 +44,7 @@ class UserConverter(commands.Converter):
         except steam.InvalidSteamID:
             id64 = await steam.utils.id64_from_url(argument)
             if id64 is None:
-                raise commands.BadArgument
+                raise UserNotFound
             user = await ctx.bot.client.fetch_user(id64)
         if user is None:
             raise UserNotFound
