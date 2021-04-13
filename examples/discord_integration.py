@@ -38,7 +38,7 @@ class UserNotFound(commands.CommandError):
 class UserConverter(commands.Converter):
     """Simple user converter"""
 
-    async def convert(self, ctx: commands.Context, argument: str) -> Optional[steam.User]:
+    async def convert(self, ctx: commands.Context, argument: str) -> steam.User:
         try:
             user = await ctx.bot.client.fetch_user(argument)
         except steam.InvalidSteamID:
