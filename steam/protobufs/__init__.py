@@ -41,7 +41,7 @@ from .unified import *
 
 M = TypeVar("M", bound=betterproto.Message)
 GetProtoType: TypeAlias = "Optional[type[betterproto.Message]]"
-ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProtoBuf, GCMsgHdrProto)
+ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProto, GCMsgHdrProto)
 betterproto.safe_snake_case = do_nothing_case
 
 
@@ -148,7 +148,7 @@ class Msg(MsgBase[M]):
         **kwargs: Any,
     ):
         self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
-        self.skip = self.header.SIZE
+        self.skip = self.header.STRUCT.size
         super().__init__(msg, data, **kwargs)
 
 
@@ -164,7 +164,7 @@ class MsgProto(MsgBase[M]):
         um_name: Optional[str] = None,
         **kwargs: Any,
     ):
-        self.header = MsgHdrProtoBuf(data)
+        self.header = MsgHdrProto(data)
         if um_name:
             self.header.body.job_name_target = um_name
         self.skip = self.header.length
@@ -203,7 +203,7 @@ class GCMsg(MsgBase[M]):
         **kwargs: Any,
     ):
         self.header = GCMsgHdr(data)
-        self.skip = self.header.SIZE
+        self.skip = self.header.STRUCT.size
         super().__init__(msg, data, **kwargs)
 
 
