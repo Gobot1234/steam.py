@@ -28,7 +28,7 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 from __future__ import annotations
 
 import sys
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar, TYPE_CHECKING
 
 import betterproto
 from typing_extensions import TypeAlias
@@ -87,6 +87,10 @@ class MsgBase(Generic[M]):
 
     def __bytes__(self) -> bytes:
         return bytes(self.header) + bytes(self.body)
+
+    if not TYPE_CHECKING:
+        def __class_getitem__(cls, item: M) -> type[MsgBase[M]]:
+            return cls
 
     def _parse(self, proto: Optional[type[M]]) -> None:
         if proto:

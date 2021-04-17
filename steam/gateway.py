@@ -87,6 +87,10 @@ class EventListener(Generic[M]):
     check: Callable[[M], bool]
     future: asyncio.Future[M]
 
+    if not TYPE_CHECKING:
+        def __class_getitem__(cls, item: M) -> type[EventListener[M]]:
+            return cls
+
 
 @attr.dataclass(slots=True)
 class CMServer:
