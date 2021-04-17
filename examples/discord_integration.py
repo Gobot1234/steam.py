@@ -77,4 +77,5 @@ async def on_user_command_error(ctx: Context, error: commands.CommandError):
         return await ctx.send("User not found")
     raise error
 
+
 bot.run("discord_token", "username", "password")

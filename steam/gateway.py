@@ -88,6 +88,7 @@ class EventListener(Generic[M]):
     future: asyncio.Future[M]
 
     if not TYPE_CHECKING:
+
         def __class_getitem__(cls, item: M) -> type[EventListener[M]]:
             return cls
 

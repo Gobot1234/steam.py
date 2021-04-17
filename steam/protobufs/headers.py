@@ -29,12 +29,12 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 from __future__ import annotations
 
 import struct
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from ..enums import EResult
 from ..utils import clear_proto_bit, set_proto_bit  # noqa
-from .steammessages_base import CMsgProtoBufHeader
 from .emsg import EMsg  # noqa
+from .steammessages_base import CMsgProtoBufHeader
 
 __all__ = (
     "do_nothing_case",
@@ -55,7 +55,7 @@ class BaseMsgHdr:
 
     STRUCT: struct.Struct
     PACK: tuple[str, ...]
-    body: Any
+    body: object
 
     def __init_subclass__(cls, proto: bool = False, cast_msg_to_emsg: bool = True) -> None:
         if cls.__name__ == "GCMsgHdr":
@@ -67,7 +67,8 @@ class BaseMsgHdr:
         # this is a bit of a mess but this unpacks the data from self.STRUCT
         # then sets self.msg and optionally converts it to an EMsg
         # then if `proto`, sets the header length and parses the body
-        exec(f"""
+        exec(
+            f"""
 def parse(self, data: bytes) -> None:
     msg, {", ".join(f"self.{p}" for p in cls.PACK[1:])} = self.STRUCT.unpack_from(data)
     {f"self.msg = {cast}({'clear_proto_bit(msg)' if proto else 'msg'})"}
@@ -76,13 +77,15 @@ def parse(self, data: bytes) -> None:
     {f"self.body = self.body.parse(data[{cls.STRUCT.size} : self.length])" if proto else ""}
 
 cls.parse = parse
-""")
+"""
+        )
 
         # again a bit of a mess but this serializes the body
         # alters self.length to be the proto length (hack to get picked up in cls.PACK)
         # packs self using self.STRUCT
         # then if `proto`, adds the protobuf info
-        exec(f"""
+        exec(
+            f"""
 def __bytes__(self) -> bytes:
     {"proto_data = bytes(self.body)" if proto else ""}
     {f"self.length = len(proto_data)" if proto else ""}
@@ -92,7 +95,8 @@ def __bytes__(self) -> bytes:
     ) {"+ proto_data" if proto else ""}
 
 cls.__bytes__ = __bytes__
-""")
+"""
+        )
 
     def __repr__(self) -> str:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.PACK]
@@ -101,6 +105,7 @@ cls.__bytes__ = __bytes__
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     if TYPE_CHECKING:
+
         def parse(self, data: bytes) -> None:
             ...
 
