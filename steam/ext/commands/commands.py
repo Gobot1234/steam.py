@@ -296,6 +296,7 @@ class Command:
     def error(self, coro: Literal[None] = ...) -> Callable[[E], E]:
         ...
 
+    @overload
     def error(self, coro: E) -> E:
         ...
 
