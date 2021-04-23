@@ -28,7 +28,7 @@ import itertools
 import math
 import re
 from collections import deque
-from collections.abc import Callable, Coroutine, Generator
+from collections.abc import Callable, Coroutine
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
@@ -62,10 +62,6 @@ class AsyncIterator(Generic[T]):
         .. describe:: async for y in x
 
             Iterates over the contents of the async iterator.
-
-        .. describe:: await x
-
-            A shortcut to calling :meth:`flatten`.
 
     Attributes
     ----------
@@ -193,9 +189,6 @@ class AsyncIterator(Generic[T]):
             A list of every element in the iterator.
         """
         return [element async for element in self]
-
-    def __await__(self) -> Generator[None, None, list[T]]:
-        return self.flatten().__await__()
 
     def __aiter__(self) -> AsyncIterator[T]:
         return self
