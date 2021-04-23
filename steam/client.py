@@ -161,7 +161,7 @@ class Client:
 
         Warning
         -------
-        Will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed to
+        This function will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed to
         :meth:`run` or :meth:`start` blocking exiting until one is entered.
 
         Returns

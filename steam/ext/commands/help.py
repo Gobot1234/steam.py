@@ -126,7 +126,6 @@ class HelpCommand(Command):
         ----
         Cogs are case-sensitive.
 
-
         Parameters
         ----------
         cog: :class:`~steam.ext.commands.Cog`
