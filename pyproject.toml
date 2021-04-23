@@ -1,3 +1,68 @@
+[tool.poetry]
+name = "steamio"
+version = "0.7.0a"
+description = "A Python wrapper for the Steam API"
+authors = ["Gobot1234"]
+license = "MIT"
+keywords = ["steam.py", "steam", "steamio", "steam-api"]
+classifiers=[
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: AsyncIO",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+include = [
+    "LICENSE",
+    "steam/py.typed",
+    "steam/ext/__init__.pyi",
+]
+
+[tool.poetry.build]
+script = "build.py"
+generate-setup-file = false
+
+[tool.poetry.urls]
+"Documentation" = "https://steampy.readthedocs.io/en/latest"
+"Code" = "https://github.com/Gobot1234/steam.py"
+"Bug Tracker" = "https://github.com/Gobot1234/steam.py/issues"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+aiohttp = ">=3.7.0,<3.8.0"
+beautifulsoup4 = ">=4.9.1"
+rsa = ">=4.6"
+betterproto = "2.0.0b3"
+typing-extensions = "3.7.4.3"
+
+# docs option
+sphinx = { version = "3.5.4", optional = true }
+sphinxcontrib_trio = { version = "1.1.2", optional = true }
+csscompressor = { version = "*", optional = true }
+htmlmin = { version = "*", optional = true }
+rjsmin = { version = "*", optional = true }
+
+
+[tool.poetry.extras]
+docs = ["sphinx", "sphinxcontrib_trio", "csscompressor", "htmlmin", "rjsmin"]
+
+[tool.poetry.dev-dependencies]
+black = { version = "*", optional = true }
+isort = { version = "*", optional = true }
+flake8 = { version = "*", optional = true }
+pytest = { version = "*", optional = true }
+pytest-asyncio = { version = "*", optional = true }
+typer = { version = "*", optional = true }
+mypy = { version = "*", optional = true }
+
 [tool.black]
 line-length = 120
 
@@ -23,3 +88,7 @@ files = "steam/*.py, steam/ext/commands/*.py, steam/protobufs/__init__.py, steam
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "toml"]
+build-backend = "poetry.core.masonry.api"

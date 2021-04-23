@@ -1,6 +1,0 @@
-black
-isort
-flake8
-pytest
-pytest-asyncio
-typer

@@ -1,5 +1,0 @@
-sphinx==3.5.4
-sphinxcontrib_trio==1.1.2
-csscompressor
-htmlmin
-rjsmin

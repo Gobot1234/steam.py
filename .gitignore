@@ -7,3 +7,5 @@ venv
 .idea
 .mypy_cache
 .pytest_cache
+
+steam/__metadata__.py

@@ -38,7 +38,8 @@ import aiohttp
 import rsa
 from typing_extensions import TypeAlias
 
-from . import __version__, errors, utils
+from . import errors, utils
+from .__metadata__ import __version__
 from .models import URL, api_route, community_route, store_route
 from .user import BaseUser, ClientUser
 
