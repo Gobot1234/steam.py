@@ -39,9 +39,9 @@ import threading
 import time
 import traceback
 from collections.abc import Callable
-from gzip import _GzipReader as GZipReader
-from io import BytesIO
+from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
+from zlib import MAX_WBITS, decompress
 
 import aiohttp
 import attr
@@ -465,16 +465,47 @@ class SteamWebSocket(Registerable):
 
         log.debug("Logon completed")
 
+    @staticmethod
+    def unpack_multi(msg: MsgProto[CMsgMulti]) -> Optional[bytes]:
+        log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
+        data = msg.body.message_body
+        if data[:2] != b"\037\213":
+            return log.info(f"Received a file that's not GZipped")
+
+        (flag,) = struct.unpack("<B", data[3:4])
+        position = 10
+
+        if flag & FEXTRA:
+            (extra_len,) = struct.unpack("<H", data[position:2])
+            position += 2 + extra_len
+        if flag & FNAME:
+            while True:
+                terminator = data[position:1]
+                position += 1
+                if not terminator or terminator == b"\000":
+                    return None
+        if flag & FCOMMENT:
+            while True:
+                terminator = data[position:1]
+                position += 1
+                if not terminator or terminator == b"\000":
+                    break
+        if flag & FHCRC:
+            position += 2
+
+        decompressed = decompress(data[position:], wbits=-MAX_WBITS)
+
+        if len(decompressed) != msg.body.size_unzipped:
+            return log.info(f"Unzipped size mismatch for multi payload {msg}, discarding")
+
+        return decompressed
+
     @register(EMsg.Multi)
     async def handle_multi(self, msg: MsgProto[CMsgMulti]) -> None:
-        log.debug("Received a multi, unpacking")
-        if msg.body.size_unzipped:
-            log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
-            data = GZipReader(BytesIO(msg.body.message_body)).readall()
-            if len(data) != msg.body.size_unzipped:
-                return log.info(f"Unzipped size mismatch for multi payload {msg}, discarding")
-        else:
-            data = msg.body.message_body
+        log.debug("Received a multi")
+        data = self.unpack_multi(msg) if msg.body.size_unzipped else msg.body.message_body
+        if not data:
+            return
 
         while len(data) > 0:
             size = struct.unpack_from("<I", data)[0]
