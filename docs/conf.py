@@ -152,6 +152,8 @@ def setup(app: Sphinx) -> None:
         "READTHEDOCS"
     ):  # called after setting up READTHEDOCS in html_context so we can add the minifier
 
+        import atexit
+
         from docs.extensions.minimizer import minimize
 
-        app.connect("build-finished", minimize)
+        atexit.register(minimize)

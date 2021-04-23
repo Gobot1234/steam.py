@@ -6,9 +6,8 @@ from typing import Generator
 import csscompressor
 import htmlmin
 import rjsmin
-from sphinx.util import progress_message
 
-DOCS = Path(__name__).resolve().parent.parent
+DOCS = Path("../../docs").resolve()
 
 static = DOCS / "_static"
 templates = DOCS / "_templates"
@@ -67,8 +66,7 @@ def minimize_css() -> None:
         file.write_text(minimized)
 
 
-@progress_message("autoformatting scripts")
-def minimize(*_) -> None:
+def minimize() -> None:
     minimize_html()
     minimize_js()
     minimize_css()
