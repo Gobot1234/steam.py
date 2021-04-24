@@ -72,7 +72,7 @@ async def user(ctx: commands.Context, user: UserConverter):
 
 
 @user.error
-async def on_user_command_error(ctx: Context, error: commands.CommandError):
+async def on_user_command_error(ctx: commands.Context, error: commands.CommandError):
     if isinstance(error, UserNotFound):
         return await ctx.send("User not found")
     raise error
