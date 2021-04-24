@@ -18,23 +18,23 @@ jobs:
         with:
           python-version: "3.x"
 
-    - uses: snok/install-poetry@v1.1.3
-      with:
-        virtualenvs-create: true
-        virtualenvs-in-project: true
+      - uses: snok/install-poetry@v1.1.3
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
 
-    - uses: actions/cache@v2
-      id: cached-dependecies
-      with:
-        path: .venv
-        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}-${{ matrix.python-version }}-no-dev
+      - uses: actions/cache@v2
+        id: cached-dependecies
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}-${{ matrix.python-version }}-no-dev
 
-    - name: Validate pyproject.toml
-      run: poetry check
+      - name: Validate pyproject.toml
+        run: poetry check
 
-    - name: Install dependencies
-      if: steps.cached-dependecies.outputs.cache-hit != 'true'
-      run: poetry install --no-dev
+      - name: Install dependencies
+        if: steps.cached-dependecies.outputs.cache-hit != 'true'
+        run: poetry install --no-dev
 
-    - name: Publish to PyPI
-      run: poetry publish --build --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
+      - name: Publish to PyPI
+        run: poetry publish --build --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
