@@ -55,13 +55,13 @@ rjsmin = { version = "*", optional = true }
 docs = ["sphinx", "sphinxcontrib_trio", "csscompressor", "htmlmin", "rjsmin"]
 
 [tool.poetry.dev-dependencies]
-black = { version = "*", optional = true }
-isort = { version = "*", optional = true }
-flake8 = { version = "*", optional = true }
-pytest = { version = "*", optional = true }
-pytest-asyncio = { version = "*", optional = true }
-typer = { version = "*", optional = true }
-mypy = { version = "*", optional = true }
+black = "*"
+isort = "*"
+flake8 = "*"
+pytest = "*"
+pytest-asyncio = "*"
+typer = "*"
+mypy = "*"
 
 [tool.black]
 line-length = 120
