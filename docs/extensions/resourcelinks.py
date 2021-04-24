@@ -22,7 +22,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from typing import Any, Dict, List, Tuple
+from __future__ import annotations
 
 import sphinx
 from docutils import nodes, utils
@@ -33,7 +33,7 @@ from sphinx.util.nodes import split_explicit_title
 from sphinx.util.typing import RoleFunction
 
 
-def make_link_role(resource_links: Dict[str, str]) -> RoleFunction:
+def make_link_role(resource_links: dict[str, str]) -> RoleFunction:
     def role(
         typ: str,
         rawtext: str,
@@ -42,7 +42,7 @@ def make_link_role(resource_links: Dict[str, str]) -> RoleFunction:
         in_liner: Inliner,
         options: Dict = {},  # noqa
         content: List[str] = [],  # noqa
-    ) -> Tuple[List[Node], List[system_message]]:
+    ) -> tuple[list[Node], list[system_message]]:
 
         text = utils.unescape(text)
         has_explicit_title, title, key = split_explicit_title(text)
@@ -59,7 +59,7 @@ def add_link_role(app: Sphinx) -> None:
     app.add_role("resource", make_link_role(app.config.resource_links))
 
 
-def setup(app: Sphinx) -> Dict[str, Any]:
+def setup(app: Sphinx) -> dict[str, int]:
     app.add_config_value("resource_links", {}, "env")
     app.connect("builder-inited", add_link_role)
     return {"version": sphinx.__display_version__, "parallel_read_safe": True}
