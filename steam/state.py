@@ -309,32 +309,31 @@ class ConnectionState(Registerable):
 
     async def poll_trades(self) -> None:
         async def poll_trades_inner() -> None:
-            while self._trades_to_watch:
-                try:
-                    # TODO this can probably be optimized using sets
-                    resp = await self.http.get_trade_offers()
-                    trades = resp["response"]
-                    descriptions = trades.get("descriptions", [])
-                    trades_received = trades.get("trade_offers_received", [])
-                    trades_sent = trades.get("trade_offers_sent", [])
+            try:
+                # TODO this can probably be optimized using sets
+                resp = await self.http.get_trade_offers()
+                trades = resp["response"]
+                descriptions = trades.get("descriptions", [])
+                trades_received = trades.get("trade_offers_received", [])
+                trades_sent = trades.get("trade_offers_sent", [])
 
-                    new_received_trades = [
-                        trade for trade in trades_received if trade not in self._trades_received_cache
-                    ]
-                    new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
-                    new_descriptions = [item for item in descriptions if item not in self._descriptions_cache]
-                    await self._process_trades(new_received_trades, new_descriptions)
-                    await self._process_trades(new_sent_trades, new_descriptions)
-                    self._trades_received_cache = trades_received
-                    self._trades_sent_cache = trades_sent
-                    self._descriptions_cache = descriptions
-                    await asyncio.sleep(5)
-                except Exception as exc:
-                    await asyncio.sleep(30)
-                    log.error("Error while polling trades", exc_info=exc)
+                new_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
+                new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
+                new_descriptions = [item for item in descriptions if item not in self._descriptions_cache]
+                await self._process_trades(new_received_trades, new_descriptions)
+                await self._process_trades(new_sent_trades, new_descriptions)
+                self._trades_received_cache = trades_received
+                self._trades_sent_cache = trades_sent
+                self._descriptions_cache = descriptions
+            except Exception as exc:
+                await asyncio.sleep(30)
+                log.info("Error while polling trades", exc_info=exc)
 
-        if not self._trades_to_watch:  # only start polling if we have trades
-            await poll_trades_inner()  # watch trades for changes
+        await poll_trades_inner()
+        while self._trades_to_watch:  # watch trades for changes
+            await asyncio.sleep(5)
+            await poll_trades_innner()
+
 
     # confirmations
 
