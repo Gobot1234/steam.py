@@ -20,6 +20,9 @@ include = [
     "steam/py.typed",
     "steam/ext/__init__.pyi",
 ]
+packages = [
+    { include = "steam", from = "steam" },
+]
 
 [tool.poetry.build]
 script = "build.py"
