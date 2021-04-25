@@ -21,7 +21,7 @@ include = [
     "steam/ext/__init__.pyi",
 ]
 packages = [
-    { include = "steam", from = "steam" },
+    { include = "steam" },
 ]
 
 [tool.poetry.build]
