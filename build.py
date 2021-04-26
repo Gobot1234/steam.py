@@ -49,6 +49,9 @@ file = f"""from typing import NamedTuple
 from typing_extensions import Literal
 
 __all__ = (
+    "__title__",
+    "__author__",
+    "__license__",
     "__version__",
     "version_info",
 )
@@ -68,8 +71,7 @@ __version__ = "{VERSION}"
 version_info = VersionInfo(major={major}, minor={minor}, micro={micro}, releaselevel="{release_level}")
 """
 
-# def build(setup_kwargs: dict[str, Any]) -> None:
-metadata = ROOT / "steam" / "__metadata__.py"
-metadata.write_text(file)
 
-build = lambda *args, **kwargs: None
+def build(setup_kwargs: dict[str, Any]) -> None:
+    metadata = ROOT / "steam" / "__metadata__.py"
+    metadata.write_text(file)
