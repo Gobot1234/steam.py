@@ -9,3 +9,4 @@ venv
 .pytest_cache
 
 steam/__metadata__.py
+poetry.lock
