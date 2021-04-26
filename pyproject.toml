@@ -59,7 +59,6 @@ isort = "*"
 flake8 = "*"
 pytest = "*"
 pytest-asyncio = "*"
-typer = "*"
 mypy = "*"
 
 [tool.black]
