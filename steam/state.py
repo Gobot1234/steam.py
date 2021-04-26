@@ -332,8 +332,7 @@ class ConnectionState(Registerable):
         await poll_trades_inner()
         while self._trades_to_watch:  # watch trades for changes
             await asyncio.sleep(5)
-            await poll_trades_innner()
-
+            await poll_trades_inner()
 
     # confirmations
 
