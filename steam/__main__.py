@@ -1,10 +1,9 @@
 import platform
-
-import pkg_resources
+from importlib.metadata import distribution
 
 
 def get_version_info(package: str) -> str:
-    return pkg_resources.get_distribution(package).version
+    return distribution(package).version
 
 
 def main() -> None:

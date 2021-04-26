@@ -40,6 +40,7 @@ beautifulsoup4 = ">=4.9.1"
 rsa = ">=4.6"
 betterproto = "2.0.0b3"
 typing-extensions = "3.7.4.3"
+importlib-metadata = { version = ">=1.7.0", python = "<3.8" }
 
 # docs option
 sphinx = { version = "3.5.4", optional = true }
