@@ -1,10 +1,8 @@
 """
 steam.py
-~~~~~~~~~~~~~
-A basic wrapper for the Steam API and its Community Managers.
+~~~~~~~~~
 
-:copyright: (c) 2020 James.
-:license: MIT, see LICENSE for more details.
+A basic wrapper for the Steam API and its Community Managers.
 """
 
 from . import abc, guard, utils

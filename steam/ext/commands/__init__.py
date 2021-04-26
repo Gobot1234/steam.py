@@ -1,10 +1,8 @@
 """
 ext.commands
-~~~~~~~~~~~~~
-A basic commands framework for steam.py.
+~~~~~~~~~~~~
 
-:copyright: (c) 2020 James.
-:license: MIT, see LICENSE for more details.
+A basic commands framework for steam.py.
 """
 
 from . import utils
