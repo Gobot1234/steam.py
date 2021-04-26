@@ -337,7 +337,7 @@ header > nav > a:hover {
   border-bottom: 1px solid var(--search-border);
 
   appearance: none;
-  background-image: url('/_images/drop_down_icon.svg');
+  background-image: url('../images/drop_down_icon.svg');
   background-repeat: no-repeat;
   background-position-x: 100%;
   background-position-y: 50%;
@@ -1029,6 +1029,8 @@ dl.attribute > dt,
 dl.classmethod > dt,
 dl.method > dt,
 dl.class > dt,
+dl.decorator > dt,
+dl.decoratormethod > dt,
 dl.exception > dt {
   background-color: var(--api-entry-background);
   padding: 1px 10px;
