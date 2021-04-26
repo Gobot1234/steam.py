@@ -321,7 +321,8 @@ class UserConverter(Converter[User]):
 
             if user is None:
                 id64 = await utils.id64_from_url(argument, session=ctx._state.http._session)
-                return await self.convert(ctx, id64)
+                if id64 is not None:
+                    user = await ctx.bot.fetch_user(id64)
         if user is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
         return user
