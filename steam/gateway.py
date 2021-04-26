@@ -75,6 +75,7 @@ __all__ = (
 log = logging.getLogger(__name__)
 Msgs = Union[MsgProto, Msg]
 M = TypeVar("M", bound=MsgBase)
+READ_U32 = struct.Struct("<I").unpack_from
 
 
 def return_true(*_, **__) -> Literal[True]:
@@ -508,7 +509,7 @@ class SteamWebSocket(Registerable):
             return
 
         while len(data) > 0:
-            size = struct.unpack_from("<I", data)[0]
+            (size,) = READ_U32(data)
             await self.receive(data[4 : 4 + size])
             data = data[4 + size :]
 
