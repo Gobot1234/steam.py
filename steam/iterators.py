@@ -37,7 +37,7 @@ from typing_extensions import TypeAlias
 
 from . import utils
 from .comment import Comment
-from .enums import ETradeOfferState
+from .enums import TradeOfferState
 
 if TYPE_CHECKING:
     from .abc import BaseUser, Channel, Message
@@ -318,8 +318,8 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                 if not self.append(trade):
                     raise StopAsyncIteration
             elif trade.state in (
-                ETradeOfferState.Active,
-                ETradeOfferState.ConfirmationNeed,
+                TradeOfferState.Active,
+                TradeOfferState.ConfirmationNeed,
             ):
                 if not self.append(trade):
                     raise StopAsyncIteration

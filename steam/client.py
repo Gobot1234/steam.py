@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     from .abc import Message
     from .clan import Clan
     from .comment import Comment
-    from .enums import EPersonaState, EPersonaStateFlag, EUIMode
+    from .enums import EPersonaStateFlag, PersonaState, UIMode
     from .group import Group
     from .invite import ClanInvite, Invite, UserInvite
     from .protobufs import Msg, MsgProto
@@ -81,7 +81,7 @@ class Client:
         A games to set your status as on connect.
     games: list[:class:`~steam.Game`]
         A list of games to set your status to on connect.
-    state: :class:`~steam.EPersonaState`
+    state: :class:`~steam.PersonaState`
         The state to show your account as on connect.
 
         Note
@@ -89,7 +89,7 @@ class Client:
         Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state updates
         and by extension :meth:`on_user_update` will stop being dispatched.
 
-    ui_mode: :class:`~steam.EUIMode`
+    ui_mode: :class:`~steam.UIMode`
         The UI mode to set your status to on connect.
     force_kick: :class:`bool`
         Whether or not to forcefully kick any other playing sessions on connect.
@@ -763,10 +763,10 @@ class Client:
         *,
         game: Optional[Game] = None,
         games: Optional[list[Game]] = None,
-        state: Optional[EPersonaState] = None,
-        ui_mode: Optional[EUIMode] = None,
-        flag: Optional[EPersonaStateFlag] = None,
-        flags: Optional[list[EPersonaStateFlag]] = None,
+        state: Optional[PersonaState] = None,
+        ui_mode: Optional[UIMode] = None,
+        flag: Optional[PersonaStateFlag] = None,
+        flags: Optional[list[PersonaStateFlag]] = None,
         force_kick: bool = False,
     ) -> None:
         """|coro|
@@ -778,19 +778,19 @@ class Client:
             A games to set your status as.
         games: Optional[list[:class:`~steam.Game`]]
             A list of games to set your status to.
-        state: Optional[:class:`~steam.EPersonaState`]
+        state: Optional[:class:`~steam.PersonaState`]
             The state to show your account as.
 
             Warning
             -------
-            Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state updates
+            Setting your status to :attr:`~steam.PersonaState.Offline`, will stop you receiving persona state updates
             and by extension :meth:`on_user_update` will stop being dispatched.
 
-        ui_mode: Optional[:class:`~steam.EUIMode`]
+        ui_mode: Optional[:class:`~steam.UIMode`]
             The UI mode to set your status to.
-        flag: Optional[:class:`EPersonaStateFlag`]
+        flag: Optional[:class:`PersonaStateFlag`]
             The flag to update your account with.
-        flags: Optional[list[:class:`EPersonaStateFlag`]
+        flags: Optional[list[:class:`PersonaStateFlag`]
             The flags to update your account with.
         force_kick: :class:`bool`
             Whether or not to forcefully kick any other playing sessions.
@@ -982,8 +982,8 @@ class Client:
 
             Note
             ----
-            This is called when the trade state becomes :attr:`~steam.ETradeOfferState.Canceled` and
-            :attr:`~steam.ETradeOfferState.CanceledBySecondaryFactor`.
+            This is called when the trade state becomes :attr:`~steam.TradeOfferState.Canceled` and
+            :attr:`~steam.TradeOfferState.CanceledBySecondaryFactor`.
 
             Parameters
             ----------

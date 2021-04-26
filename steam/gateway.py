@@ -48,7 +48,7 @@ import attr
 from typing_extensions import Literal
 
 from . import utils
-from .enums import EPersonaState, EResult
+from .enums import PersonaState, Result
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .models import Registerable, register
@@ -57,7 +57,7 @@ from .protobufs.steammessages_clientserver_2 import CMsgGcClient
 
 if TYPE_CHECKING:
     from .client import Client
-    from .enums import EUIMode
+    from .enums import UIMode
     from .game import GameToDict
     from .protobufs.steammessages_base import CMsgMulti
     from .protobufs.steammessages_clientserver_login import CMsgClientLogonResponse
@@ -149,9 +149,9 @@ class CMServerList(AsyncIterator[CMServer]):
             return False
 
         resp = resp["response"]
-        if resp["result"] != EResult.OK:
+        if resp["result"] != Result.OK:
             log.error(
-                f"Fetching the CMList failed with: Result: {EResult(resp['result'])!r}. Message: {resp['message']!r}"
+                f"Fetching the CMList failed with: Result: {Result(resp['result'])!r}. Message: {resp['message']!r}"
             )
             return False
 
@@ -438,9 +438,9 @@ class SteamWebSocket(Registerable):
 
     @register(EMsg.ClientLogOnResponse)
     async def handle_logon(self, msg: MsgProto[CMsgClientLogonResponse]) -> None:
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             log.debug(f"Failed to login with result: {msg.eresult}")
-            if msg.eresult == EResult.InvalidPassword:
+            if msg.eresult == Result.InvalidPassword:
                 http = self._connection.http
                 await http.logout()
                 await http.login(http.username, http.password, shared_secret=http.shared_secret)
@@ -533,9 +533,9 @@ class SteamWebSocket(Registerable):
         self,
         *,
         games: list[GameToDict],
-        state: Optional[EPersonaState],
+        state: Optional[PersonaState],
         flags: int,
-        ui_mode: Optional[EUIMode],
+        ui_mode: Optional[UIMode],
         force_kick: bool,
     ) -> None:
         if force_kick:

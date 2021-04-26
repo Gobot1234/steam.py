@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup
 
-from .enums import EResult
+from .enums import Result
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse
@@ -82,14 +82,14 @@ class HTTPException(SteamException):
         Could be an empty string if no message can parsed.
     status: :class:`int`
         The status code of the HTTP request.
-    code: :class:`.EResult`
+    code: :class:`.Result`
         The Steam specific error code for the failure.
     """
 
     def __init__(self, response: ClientResponse, data: Optional[Any]):
         self.response = response
         self.status = response.status
-        self.code = EResult.Invalid
+        self.code = Result.Invalid
         self.message = ""
 
         if data:
@@ -98,14 +98,14 @@ class HTTPException(SteamException):
                     message = data.get("message") or str(list(data.values())[0])
                     code = (
                         data.get("result")  # try the data if possible
-                        or response.headers.get("X-EResult")  # then the headers
+                        or response.headers.get("X-Result")  # then the headers
                         or CODE_FINDER.findall(message)  # finally the message
                     )
                     if code:
                         if isinstance(code, list):
                             self.message = CODE_FINDER.sub("", message)
                             code = code[0]
-                        self.code = EResult.try_value(int(code))
+                        self.code = Result.try_value(int(code))
             else:
                 text = BeautifulSoup(data, "html.parser").get_text("\n")
                 self.message = text or ""
@@ -142,14 +142,14 @@ class WSException(SteamException):
         The received protobuf.
     message: Optional[:class:`str`]
         The message that Steam sent back with the request, could be ``None``.
-    code: :class:`~steam.EResult`
-        The Steam specific error code for the failure. It will attempt to find a matching a :class:`~steam.EResult`
+    code: :class:`~steam.Result`
+        The Steam specific error code for the failure. It will attempt to find a matching a :class:`~steam.Result`
         for the value.
     """
 
     def __init__(self, msg: Msgs):
         self.msg = msg
-        self.code = msg.eresult or EResult.Invalid
+        self.code = msg.eresult or Result.Invalid
         self.message = getattr(msg.header.body, "error_message", None)
         super().__init__(
             f"The request {msg.header.body.job_name_target} failed. (error code: {self.code!r})"
@@ -158,7 +158,7 @@ class WSException(SteamException):
 
 
 class WSForbidden(WSException):
-    """Exception that's thrown when the websocket returns an :class:`.EResult` that means we do not have permission
+    """Exception that's thrown when the websocket returns an :class:`.Result` that means we do not have permission
     to perform an action. Similar to :exc:`Forbidden`.
 
     Subclass of :exc:`WSException`.
@@ -166,7 +166,7 @@ class WSForbidden(WSException):
 
 
 class WSNotFound(WSException):
-    """Exception that's thrown when the websocket returns an :class:`.EResult` that means the object wasn't found.
+    """Exception that's thrown when the websocket returns an :class:`.Result` that means the object wasn't found.
     Similar to :exc:`NotFound`.
 
     Subclass of :exc:`WSException`.

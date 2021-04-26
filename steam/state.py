@@ -39,7 +39,7 @@ from . import utils
 from .abc import SteamID, UserDict
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
-from .enums import *
+from .enums import ChatEntryType, FriendRelationship, PersonaState, Result, TradeOfferState, Type, UIMode
 from .errors import *
 from .game import GameToDict
 from .group import Group
@@ -125,8 +125,8 @@ class ConnectionState(Registerable):
         if game is not None:
             games.append(game.to_dict())
         self._games: list[GameToDict] = games
-        self._state: EPersonaState = kwargs.get("state", EPersonaState.Online)
-        self._ui_mode: Optional[EUIMode] = kwargs.get("ui_mode")
+        self._state: PersonaState = kwargs.get("state", PersonaState.Online)
+        self._ui_mode: Optional[UIMode] = kwargs.get("ui_mode")
         flag: int = kwargs.get("flag")
         flags: list[int] = kwargs.get("flag", [0])
         if flag is not None:
@@ -237,9 +237,9 @@ class ConnectionState(Registerable):
         msg: MsgProto[chat.CClanChatRoomsGetClanChatRoomInfoResponse] = await self.ws.send_um_and_wait(
             "ClanChatRooms.GetClanChatRoomInfo", steamid=id64
         )
-        if msg.eresult == EResult.Busy:
+        if msg.eresult == Result.Busy:
             raise WSNotFound(msg)
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         return await Clan._from_proto(self, msg.body)
@@ -265,8 +265,8 @@ class ConnectionState(Registerable):
             trade.partner = await self.client.fetch_user(trade.partner) or SteamID(trade.partner)
             self._trades[trade.id] = trade
             if trade.state not in (
-                ETradeOfferState.Active,
-                ETradeOfferState.ConfirmationNeed,
+                TradeOfferState.Active,
+                TradeOfferState.ConfirmationNeed,
             ):
                 return trade
             self.dispatch("trade_send" if trade.is_our_offer() else "trade_receive", trade)
@@ -278,12 +278,12 @@ class ConnectionState(Registerable):
                 log.info(f"Trade #{trade.id} has updated its trade state to {trade.state}")
                 try:
                     event_name = {
-                        ETradeOfferState.Accepted: "accept",
-                        ETradeOfferState.Countered: "counter",
-                        ETradeOfferState.Expired: "expire",
-                        ETradeOfferState.Canceled: "cancel",
-                        ETradeOfferState.Declined: "decline",
-                        ETradeOfferState.CanceledBySecondaryFactor: "cancel",
+                        TradeOfferState.Accepted: "accept",
+                        TradeOfferState.Countered: "counter",
+                        TradeOfferState.Expired: "expire",
+                        TradeOfferState.Canceled: "cancel",
+                        TradeOfferState.Declined: "decline",
+                        TradeOfferState.CanceledBySecondaryFactor: "cancel",
                     }[trade.state]
                 except KeyError:
                     pass
@@ -402,17 +402,17 @@ class ConnectionState(Registerable):
             "FriendMessages.SendMessage",
             steamid=user_id64,
             message=content,
-            chat_entry_type=EChatEntryType.Text,
+            chat_entry_type=ChatEntryType.Text,
             contains_bbcode=utils.contains_bbcode(content),
         )
 
-        if msg.eresult == EResult.LimitExceeded:
+        if msg.eresult == Result.LimitExceeded:
             raise WSForbidden(msg)
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         proto = friend_messages.CFriendMessagesIncomingMessageNotification(
-            chat_entry_type=EChatEntryType.Text,
+            chat_entry_type=ChatEntryType.Text,
             message=content,
             rtime32_server_timestamp=int(time()),
             message_no_bbcode=msg.body.message_without_bb_code,
@@ -429,7 +429,7 @@ class ConnectionState(Registerable):
         await self.ws.send_um(
             "FriendMessages.SendMessage",
             steamid=user_id64,
-            chat_entry_type=EChatEntryType.Typing,
+            chat_entry_type=ChatEntryType.Typing,
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
 
@@ -439,11 +439,11 @@ class ConnectionState(Registerable):
             "ChatRoom.SendChatMessage", chat_id=chat_id, chat_group_id=group_id, message=content
         )
 
-        if msg.eresult == EResult.LimitExceeded:
+        if msg.eresult == Result.LimitExceeded:
             raise WSForbidden(msg)
-        if msg.eresult == EResult.InvalidParameter:
+        if msg.eresult == Result.InvalidParameter:
             raise WSNotFound(msg)
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         proto = chat.CChatRoomIncomingChatMessageNotification(
@@ -471,17 +471,17 @@ class ConnectionState(Registerable):
             "ChatRoom.JoinChatRoomGroup", chat_group_id=chat_id, invite_code=invite_code or ""
         )
 
-        if msg.eresult == EResult.InvalidParameter:
+        if msg.eresult == Result.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.eresult != EResult.OK:
+        elif msg.eresult != Result.OK:
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
         msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup", chat_group_id=chat_id)
 
-        if msg.eresult == EResult.InvalidParameter:
+        if msg.eresult == Result.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.eresult != EResult.OK:
+        elif msg.eresult != Result.OK:
             raise WSException(msg)
 
     async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
@@ -489,16 +489,16 @@ class ConnectionState(Registerable):
             "ChatRoom.InviteFriendToChatRoomGroup", chat_group_id=group_id, steamid=user_id64
         )
 
-        if msg.eresult == EResult.InvalidParameter:
+        if msg.eresult == Result.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.eresult != EResult.OK:
+        elif msg.eresult != Result.OK:
             raise WSException(msg)
 
     async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
         msg = await self.ws.send_um_and_wait("ChatRoom.RenameRole", chat_group_id=group_id, role_id=role_id, name=name)
-        if msg.eresult == EResult.InvalidParameter:
+        if msg.eresult == Result.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.eresult != EResult.OK:
+        elif msg.eresult != Result.OK:
             raise WSException(msg)
 
     async def fetch_user_history(
@@ -513,7 +513,7 @@ class ConnectionState(Registerable):
             count=100,
         )
 
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         return msg
@@ -530,7 +530,7 @@ class ConnectionState(Registerable):
             max_count=100,
         )
 
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         return msg
@@ -542,7 +542,7 @@ class ConnectionState(Registerable):
             limit=limit,
         )
 
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         return msg.body.servers
@@ -555,7 +555,7 @@ class ConnectionState(Registerable):
             server_steamids=list(ids),
         )
 
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         return msg.body.servers
@@ -569,7 +569,7 @@ class ConnectionState(Registerable):
             include_played_free_games=True,
         )
 
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         return msg.body.games
@@ -581,7 +581,7 @@ class ConnectionState(Registerable):
         msg: MsgProto[client_server_friends.CMsgClientFriendProfileInfoResponse] = await self.ws.wait_for(
             EMsg.ClientFriendProfileInfoResponse, check=lambda m: m.body.steamid_friend == user_id64
         )
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
 
         return msg.body
@@ -590,7 +590,7 @@ class ConnectionState(Registerable):
         msg: MsgProto[econ.CEconGetTradeOfferAccessTokenResponse] = await self.ws.send_um_and_wait(
             "Econ.GetTradeOfferAccessToken", generate_new_token=new
         )
-        if msg.eresult != EResult.OK:
+        if msg.eresult != Result.OK:
             raise WSException(msg)
         return (
             f"https://steamcommunity.com/tradeoffer/new/?partner={self.client.user.id}"
@@ -618,14 +618,14 @@ class ConnectionState(Registerable):
         partner = self.get_user(user_id64) or await self.fetch_user(user_id64) or SteamID(user_id64)
         author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
 
-        if msg.body.chat_entry_type == EChatEntryType.Text:
+        if msg.body.chat_entry_type == ChatEntryType.Text:
             channel = DMChannel(state=self, participant=partner)
             message = UserMessage(proto=msg.body, channel=channel)
             message.author = author
             self._messages.append(message)
             self.dispatch("message", message)
 
-        if msg.body.chat_entry_type == EChatEntryType.Typing:
+        if msg.body.chat_entry_type == ChatEntryType.Typing:
             when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
             self.dispatch("typing", author, when)
 
@@ -722,7 +722,7 @@ class ConnectionState(Registerable):
                 data = self.patch_user_from_ws(data, friend)
             except (KeyError, TypeError):
                 invitee = await self.fetch_user(user_id64) or SteamID(user_id64)
-                invite = UserInvite(self, invitee, EFriendRelationship.RequestRecipient)
+                invite = UserInvite(self, invitee, FriendRelationship.RequestRecipient)
                 self.dispatch("user_invite", invite)
 
             after._update(data)
@@ -758,8 +758,8 @@ class ConnectionState(Registerable):
                 [
                     friend.ulfriendid
                     for friend in msg.body.friends
-                    if friend.efriendrelationship == EFriendRelationship.Friend
-                    and (friend.ulfriendid >> 52) & 0xF != EType.Clan
+                    if friend.efriendrelationship == FriendRelationship.Friend
+                    and (friend.ulfriendid >> 52) & 0xF != Type.Clan
                 ]
             )
             for friend in self.client.user.friends:
@@ -771,17 +771,17 @@ class ConnectionState(Registerable):
 
         for friend in msg.body.friends:
             if friend.efriendrelationship in (
-                EFriendRelationship.RequestInitiator,
-                EFriendRelationship.RequestRecipient,
+                FriendRelationship.RequestInitiator,
+                FriendRelationship.RequestRecipient,
             ):
                 steam_id = SteamID(friend.ulfriendid)
-                relationship = EFriendRelationship(friend.efriendrelationship)
-                if steam_id.type == EType.Individual:
+                relationship = FriendRelationship(friend.efriendrelationship)
+                if steam_id.type == Type.Individual:
                     invitee = await self.fetch_user(steam_id.id64) or steam_id
                     invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
                     self.invites[invitee.id64] = invite
                     self.dispatch("user_invite", invite)
-                if steam_id.type == EType.Clan:
+                if steam_id.type == Type.Clan:
                     if elements is None:
                         resp = await self.request("GET", community_route("my/groups/pending"), params={"ajax": "1"})
                         soup = BeautifulSoup(resp, "html.parser")
@@ -806,14 +806,14 @@ class ConnectionState(Registerable):
                     self.invites[clan.id64] = invite
                     self.dispatch("clan_invite", invite)
 
-            if friend.efriendrelationship == EFriendRelationship.Friend:
+            if friend.efriendrelationship == FriendRelationship.Friend:
                 steam_id = SteamID(friend.ulfriendid)
                 try:
                     invite = self.invites.pop(steam_id.id64)
                 except KeyError:
                     pass
                 else:
-                    if steam_id.type == EType.Individual:
+                    if steam_id.type == Type.Individual:
                         self.dispatch("user_invite_accept", invite)
                     else:
                         self.dispatch("clan_invite_accept", invite)
@@ -828,7 +828,7 @@ class ConnectionState(Registerable):
             if steam_id is None:
                 continue
             if steam_id != previous:
-                obj = await (self.fetch_clan if steam_id.type == EType.Clan else self.fetch_user)(steam_id.id64)
+                obj = await (self.fetch_clan if steam_id.type == Type.Clan else self.fetch_user)(steam_id.id64)
                 if obj is None:
                     continue
                 index = 0

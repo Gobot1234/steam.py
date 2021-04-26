@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Optional, Union
 if TYPE_CHECKING:
     from .abc import SteamID
     from .clan import Clan
-    from .enums import EFriendRelationship
+    from .enums import FriendRelationship
     from .state import ConnectionState
     from .user import User
 
@@ -48,14 +48,14 @@ class Invite:
     ----------
     invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The user who sent the invite.
-    relationship: Optional[:class:`~steam.EFriendRelationship`]
+    relationship: Optional[:class:`~steam.FriendRelationship`]
         The relationship you have with the invitee.
     """
 
     __slots__ = ("invitee", "relationship", "_state")
 
     def __init__(
-        self, state: ConnectionState, invitee: Union[User, SteamID], relationship: Optional[EFriendRelationship]
+        self, state: ConnectionState, invitee: Union[User, SteamID], relationship: Optional[FriendRelationship]
     ):
         self._state = state
         self.invitee = invitee
@@ -69,7 +69,7 @@ class UserInvite(Invite):
     ----------
     invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The user who sent the invite.
-    relationship: Optional[:class:`~steam.EFriendRelationship`]
+    relationship: Optional[:class:`~steam.FriendRelationship`]
         The relationship you have with the invitee. This ``None`` if the invite was sent while the bot is online.
     """
 
@@ -101,7 +101,7 @@ class ClanInvite(Invite):
         The clan to join.
     invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
         The user who sent the invite.
-    relationship: :class:`~steam.EFriendRelationship`
+    relationship: :class:`~steam.FriendRelationship`
         The relationship you have with the clan.
     """
 
@@ -115,7 +115,7 @@ class ClanInvite(Invite):
         state: ConnectionState,
         invitee: Union[User, SteamID],
         clan: Union[Clan, SteamID],
-        relationship: Optional[EFriendRelationship],
+        relationship: Optional[FriendRelationship],
     ):
         super().__init__(state, invitee, relationship)
         self.clan = clan

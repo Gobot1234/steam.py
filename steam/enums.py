@@ -36,21 +36,21 @@ from typing_extensions import Literal
 __all__ = (
     "Enum",
     "IntEnum",
-    "EResult",
-    "EUniverse",
-    "EType",
-    "ETypeChar",
-    "EInstanceFlag",
-    "EFriendRelationship",
-    "EPersonaState",
-    "EPersonaStateFlag",
-    "ECommunityVisibilityState",
-    "ETradeOfferState",
-    "EChatEntryType",
-    "EUIMode",
-    "EUserBadge",
-    "EReviewType",
-    "EGameServerRegion",
+    "Result",
+    "Universe",
+    "Type",
+    "TypeChar",
+    "InstanceFlag",
+    "FriendRelationship",
+    "PersonaState",
+    "PersonaStateFlag",
+    "CommunityVisibilityState",
+    "TradeOfferState",
+    "ChatEntryType",
+    "UIMode",
+    "UserBadge",
+    "ReviewType",
+    "GameServerRegion",
 )
 
 T = TypeVar("T")
@@ -193,8 +193,8 @@ if TYPE_CHECKING:
 
 
 # fmt: off
-class EResult(IntEnum):
-    Invalid                         = 0  #: Invalid EResult.
+class Result(IntEnum):
+    Invalid                         = 0  #: Invalid Result.
     OK                              = 1  #: Success.
     Fail                            = 2  #: Generic failure.
     NoConnection                    = 3  #: Your Steam client doesn't have a connection to the back-end.
@@ -307,7 +307,7 @@ class EResult(IntEnum):
     AccountHasCancelledLicense      = 115  #: The user has a user cancelled license.
 
 
-class EUniverse(IntEnum):
+class Universe(IntEnum):
     Invalid  = 0  #: Invalid.
     Public   = 1  #: The standard public universe.
     Beta     = 2  #: Beta universe used inside Valve.
@@ -316,7 +316,7 @@ class EUniverse(IntEnum):
     Max      = 6  #: Total number of universes, used for sanity checks.
 
 
-class EType(IntEnum):
+class Type(IntEnum):
     Invalid        = 0   #: Used for invalid Steam IDs.
     Individual     = 1   #: Single user account.
     Multiseat      = 2   #: Multiseat (e.g. cybercafe) account.
@@ -331,28 +331,28 @@ class EType(IntEnum):
     Max            = 11  #: Max of 16 items in this field
 
 
-class ETypeChar(IntEnum):
-    I = EType.Invalid         #: The character used for :class:`~steam.EType.Invalid`.
-    U = EType.Individual      #: The character used for :class:`~steam.EType.Individual`.
-    M = EType.Multiseat       #: The character used for :class:`~steam.EType.Multiseat`.
-    G = EType.GameServer      #: The character used for :class:`~steam.EType.GameServer`.
-    A = EType.AnonGameServer  #: The character used for :class:`~steam.EType.AnonGameServer`.
-    P = EType.Pending         #: The character used for :class:`~steam.EType.Pending`.
-    C = EType.ContentServer   #: The character used for :class:`~steam.EType.ContentServer`.
-    g = EType.Clan            #: The character used for :class:`~steam.EType.Clan`.
-    T = EType.Chat            #: The character used for :class:`~steam.EType.Chat` (Lobby/group chat).
-    L = EType.Chat            #: The character used for :class:`~steam.EType.Chat` (Lobby/group chat).
-    c = EType.Clan            #: The character used for :class:`~steam.EType.Clan`.
-    a = EType.AnonUser        #: The character used for :class:`~steam.EType.Invalid`.
+class TypeChar(IntEnum):
+    I = Type.Invalid         #: The character used for :class:`~steam.Type.Invalid`.
+    U = Type.Individual      #: The character used for :class:`~steam.Type.Individual`.
+    M = Type.Multiseat       #: The character used for :class:`~steam.Type.Multiseat`.
+    G = Type.GameServer      #: The character used for :class:`~steam.Type.GameServer`.
+    A = Type.AnonGameServer  #: The character used for :class:`~steam.Type.AnonGameServer`.
+    P = Type.Pending         #: The character used for :class:`~steam.Type.Pending`.
+    C = Type.ContentServer   #: The character used for :class:`~steam.Type.ContentServer`.
+    g = Type.Clan            #: The character used for :class:`~steam.Type.Clan`.
+    T = Type.Chat            #: The character used for :class:`~steam.Type.Chat` (Lobby/group chat).
+    L = Type.Chat            #: The character used for :class:`~steam.Type.Chat` (Lobby/group chat).
+    c = Type.Clan            #: The character used for :class:`~steam.Type.Clan`.
+    a = Type.AnonUser        #: The character used for :class:`~steam.Type.Invalid`.
 
 
-class EInstanceFlag(IntEnum):
+class InstanceFlag(IntEnum):
     MMSLobby = 0x20000  #: The Steam ID is for a MMS Lobby.
     Lobby    = 0x40000  #: The Steam ID is for a Lobby.
     Clan     = 0x80000  #: The Steam ID is for a Clan.
 
 
-class EFriendRelationship(IntEnum):
+class FriendRelationship(IntEnum):
     NONE             = 0  #: The user has no relationship to you.
     Blocked          = 1  #: The user ignored the invite.
     RequestRecipient = 2  #: The user has requested to be you.
@@ -363,7 +363,7 @@ class EFriendRelationship(IntEnum):
     Max              = 8  #: The total number of friend relationships used for looping and verification.
 
 
-class EPersonaState(IntEnum):
+class PersonaState(IntEnum):
     Offline        = 0  #: The user is not currently logged on.
     Online         = 1  #: The user is logged on.
     Busy           = 2  #: The user is on, but busy.
@@ -375,7 +375,7 @@ class EPersonaState(IntEnum):
     Max            = 8  #: The total number of states. Only used for looping and validation.
 
 
-class EPersonaStateFlag(IntEnum):
+class PersonaStateFlag(IntEnum):
     NONE                 = 0
     HasRichPresence      = 1
     InJoinableGame       = 2
@@ -389,7 +389,7 @@ class EPersonaStateFlag(IntEnum):
     LaunchTypeCompatTool = 8192
 
     @classmethod
-    def components(cls, flag: int) -> list[EPersonaStateFlag]:
+    def components(cls, flag: int) -> list[PersonaStateFlag]:
         """A helper function to breakdown a flag into its component parts.
 
         Parameters
@@ -399,24 +399,24 @@ class EPersonaStateFlag(IntEnum):
 
         Returns
         -------
-        list[:class:`EPersonaStateFlag`]
+        list[:class:`PersonaStateFlag`]
             The resolved flags.
         """
-        flags = [enum for value, enum in cls._value_map_.items() if value & flag]
+        flags = [enum for enum in cls if enum & flag]
         value = 0
         for f in flags:
             value |= f
         return flags if value == flag else []
 
 
-class ECommunityVisibilityState(IntEnum):
+class CommunityVisibilityState(IntEnum):
     NONE        = 0  #: The user has no community state.
     Private     = 1  #: The user has a private profile.
     FriendsOnly = 2  #: The user has a friends only profile.
     Public      = 3  #: The user has a public profile.
 
 
-class ETradeOfferState(IntEnum):
+class TradeOfferState(IntEnum):
     Invalid                   = 1   #: The trade offer's state is invalid.
     Active                    = 2   #: The trade offer is active.
     Accepted                  = 3   #: The trade offer has been accepted.
@@ -430,7 +430,7 @@ class ETradeOfferState(IntEnum):
     StateInEscrow             = 11  #: The trade offer is in escrow.
 
 
-class EChatEntryType(IntEnum):
+class ChatEntryType(IntEnum):
     Invalid          = 0   #: An Invalid Chat entry.
     Text             = 1   #: A Normal text message from another user.
     Typing           = 2   #: Another user is typing (not used in multi-user chat).
@@ -444,14 +444,14 @@ class EChatEntryType(IntEnum):
     LinkBlocked      = 14  #: A link was removed by the chat filter.
 
 
-class EUIMode(IntEnum):
+class UIMode(IntEnum):
     Desktop    = 0  #: The UI mode for the desktop client.
     BigPicture = 1  #: The UI mode for big picture mode.
     Mobile     = 2  #: The UI mode for mobile.
     Web        = 3  #: The UI mode for the web client.
 
 
-class EUserBadge(IntEnum):
+class UserBadge(IntEnum):
     Invalid                           = 0  #: Invalid Badge.
     YearsOfService                    = 1  #: The years of service badge.
     Community                         = 2  #: The pillar of the community badge.
@@ -499,7 +499,7 @@ class EUserBadge(IntEnum):
     WinterSaleEvent2019               = 44  #: The Winter sale badge for 2019.
 
 
-class EReviewType(IntEnum):
+class ReviewType(IntEnum):
     OverwhelminglyPositive = 9  #: 95 - 99% positive reviews.
     VeryPositive           = 8  #: 94 - 80% positive reviews.
     Positive               = 7  #: 80 - 99% positive reviews but few of them.
@@ -512,7 +512,7 @@ class EReviewType(IntEnum):
     NONE                   = 0  #: No reviews
 
 
-class EGameServerRegion(IntEnum):
+class GameServerRegion(IntEnum):
     NONE         = -1
     USEastCoast  = 0
     USWestCoast  = 1
@@ -523,3 +523,28 @@ class EGameServerRegion(IntEnum):
     MiddleEast   = 6
     Africa       = 7
     World        = 255
+
+
+# shim for old enum names
+_globals_dict = globals()
+__all__ += tuple(
+    f"E{name}"
+    for name, value in _globals_dict.items()
+    if issubclass(value if isinstance(value, type) else value.__class__, Enum)
+    and name not in ("Enum", "IntEnum")
+)
+
+
+def __getattr__(name: str) -> Any:
+    try:
+        enum = _globals_dict[name[1:]]
+    except KeyError:
+        raise AttributeError(name)
+    else:
+        import sys
+
+        from . import __file__, utils
+
+        if sys._getframe(1).f_globals.get("__file__") != __file__:  # __init__.py triggers this otherwise
+            utils.warn('Enums with "E" prefix are depreciated and scheduled for removal in V.1')
+        return enum

@@ -46,6 +46,7 @@ if release_level != "final":
 major, minor, micro = VERSION.split(".")
 micro = micro.split(end_char, maxsplit=1)[0]
 file = f"""from typing import NamedTuple
+
 from typing_extensions import Literal
 
 __all__ = (

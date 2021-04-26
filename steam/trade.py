@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
 from typing_extensions import TypedDict
 
-from .enums import ETradeOfferState
+from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game
 
@@ -93,7 +93,7 @@ class InventoryDict(TypedDict):
     assets: list[AssetDict]
     descriptions: list[DescriptionDict]
     total_inventory_count: int
-    success: int  # EResult
+    success: int  # Result
     rwgrsn: int  # p. much always -2
 
 
@@ -102,7 +102,7 @@ class TradeOfferDict(TypedDict):
     tradeid: str  # no clue what this is (its not the useful one)
     accountid_other: int
     message: str
-    trade_offer_state: int  # ETradeOfferState
+    trade_offer_state: int  # TradeOfferState
     expiration_time: int  # unix timestamps
     time_created: int
     time_updated: int
@@ -397,7 +397,7 @@ class TradeOffer:
         A list of items to send to the partner.
     items_to_receive: Union[list[:class:`Item`]]
         A list of items to receive from the partner.
-    state: :class:`~steam.ETradeOfferState`
+    state: :class:`~steam.TradeOfferState`
         The offer state of the trade for the possible types see :class:`~steam.ETradeOfferState`.
     message: :class:`str`
         The message included with the trade offer.
@@ -448,7 +448,7 @@ class TradeOffer:
         self.token: Optional[str] = token
         self._has_been_sent = False
         self.partner: Optional[User] = None
-        self.state = ETradeOfferState.Invalid
+        self.state = TradeOfferState.Invalid
 
     @classmethod
     async def _from_api(cls, state: ConnectionState, data: TradeOfferDict) -> TradeOffer:
@@ -471,7 +471,7 @@ class TradeOffer:
         escrow = data.get("escrow_end_date")
         self.expires = datetime.utcfromtimestamp(expires) if expires else None
         self.escrow = datetime.utcfromtimestamp(escrow) - datetime.utcnow() if escrow else None
-        self.state = ETradeOfferState(data.get("trade_offer_state", 1))
+        self.state = TradeOfferState(data.get("trade_offer_state", 1))
         self.items_to_send = [Item(data=item) for item in data.get("items_to_give", [])]
         self.items_to_receive = [Item(data=item) for item in data.get("items_to_receive", [])]
         self._is_our_offer = data.get("is_our_offer", False)
@@ -514,7 +514,7 @@ class TradeOffer:
             No matching confirmation could not be found.
         """
         self._check_active()
-        if self.state == ETradeOfferState.Accepted:
+        if self.state == TradeOfferState.Accepted:
             raise ClientException("This trade has already been accepted")
         if self.is_our_offer():
             raise ClientException("You cannot accept an offer the ClientUser has made")
@@ -538,7 +538,7 @@ class TradeOffer:
             The trade is either not active, already declined or not from the ClientUser.
         """
         self._check_active()
-        if self.state == ETradeOfferState.Declined:
+        if self.state == TradeOfferState.Declined:
             raise ClientException("This trade has already been declined")
         if self.is_our_offer():
             raise ClientException("You cannot decline an offer the ClientUser has made")
@@ -554,7 +554,7 @@ class TradeOffer:
             The trade is either not active, already cancelled or is from the ClientUser.
         """
         self._check_active()
-        if self.state == ETradeOfferState.Canceled:
+        if self.state == TradeOfferState.Canceled:
             raise ClientException("This trade has already been cancelled")
         if not self.is_gift():
             raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
@@ -596,5 +596,5 @@ class TradeOffer:
         return self._is_our_offer
 
     def _check_active(self) -> None:
-        if self.state not in (ETradeOfferState.Active, ETradeOfferState.ConfirmationNeed) or not self._has_been_sent:
+        if self.state not in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException("This trade is not active")

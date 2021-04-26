@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar, overload
 
 from typing_extensions import Literal, TypedDict
 
-from .enums import EReviewType, IntEnum
+from .enums import IntEnum, ReviewType
 
 if TYPE_CHECKING:
     from .utils import Intable
@@ -328,7 +328,7 @@ class WishlistGame(Game):
         The background URL of the game.
     rank: :class:`int`
         The global rank of the game by popularity.
-    review_status: :class:`.EReviewType`
+    review_status: :class:`.ReviewType`
         The review status of the game.
     score: :class:`int`
         The score of the game out of ten.
@@ -368,7 +368,7 @@ class WishlistGame(Game):
         self.logo_url = data["capsule"]
         self.score = data["review_score"]
         self.total_reviews = int(data["reviews_total"].replace(",", ""))
-        self.review_status = EReviewType[data["review_desc"].replace(" ", "")]
+        self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
         self.created_at = datetime.utcfromtimestamp(int(data["release_date"]))
         self.type = data["type"]
         self.screenshots: list[str] = [

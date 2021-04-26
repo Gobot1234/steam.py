@@ -39,12 +39,12 @@ from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable,
 from inspect import isawaitable
 from io import BytesIO
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsIndex, SupportsInt, TypeVar, Union, overload
 
 import aiohttp
 from typing_extensions import Final, Literal
 
-from .enums import EInstanceFlag, EType, ETypeChar, EUniverse
+from .enums import InstanceFlag, Type, TypeChar, Universe
 from .errors import InvalidSteamID
 
 _T = TypeVar("_T")
@@ -79,23 +79,19 @@ class Intable(metaclass=IntableMeta):
     __slots__ = ()
 
 
-if TYPE_CHECKING:
-    from typing import SupportsInt as Intable
-
-
-Intable: Union[Intable, str, bytes]
+Intable: Union[Intable, SupportsIndex, str, bytes]
 
 
 # fmt: off
 ETypeType = Union[
-    EType,
+    Type,
     Literal[
         "Invalid", "Individual", "Multiseat", "GameServer", "AnonGameServer", "Pending", "ContentServer", "Clan",
         "Chat", "ConsoleUser", "AnonUser", "Max",
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
     ],
 ]
-EUniverseType = Union[EUniverse, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6]]
+EUniverseType = Union[Universe, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6]]
 InstanceType = Literal[0, 1]
 # fmt: on
 
@@ -155,8 +151,8 @@ def make_id64(
         id = int(id)
         # 32 bit account id
         if 0 <= id < 2 ** 32:
-            type = type or EType.Individual
-            universe = universe or EUniverse.Public
+            type = type or Type.Individual
+            universe = universe or Universe.Public
         # 64 bit
         elif 2 ** 32 < id < 2 ** 64:
             value = id
@@ -174,16 +170,16 @@ def make_id64(
             raise InvalidSteamID(id, "it cannot be parsed") from None
 
     try:
-        type = EType(type) if isinstance(type, int) else EType[type]
+        type = Type(type) if isinstance(type, int) else Type[type]
     except (KeyError, ValueError):
-        raise InvalidSteamID(id, f"{type!r} is not a valid EType") from None
+        raise InvalidSteamID(id, f"{type!r} is not a valid Type") from None
     try:
-        universe = EUniverse(universe) if isinstance(universe, int) else EUniverse[universe]
+        universe = Universe(universe) if isinstance(universe, int) else Universe[universe]
     except (KeyError, ValueError):
-        raise InvalidSteamID(id, f"{universe!r} is not a valid EUniverse") from None
+        raise InvalidSteamID(id, f"{universe!r} is not a valid Universe") from None
 
     if instance is None:
-        instance = 1 if type in (EType.Individual, EType.GameServer) else 0
+        instance = 1 if type in (Type.Individual, Type.GameServer) else 0
 
     return universe << 56 | type << 52 | instance << 32 | id
 
@@ -191,7 +187,7 @@ def make_id64(
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d+)")
 
 
-def id2_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
+def id2_to_tuple(value: str) -> Optional[tuple[int, Type, Universe, int]]:
     """
     Parameters
     ----------
@@ -200,9 +196,9 @@ def id2_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
 
     Returns
     -------
-    Optional[tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+    Optional[tuple[:class:`int`, :class:`.Type`, :class:`.Universe`, :class:`int`]]
         A tuple of 32 bit ID, type, universe and instance or ``None``
-        e.g. (100000, EType.Individual, EUniverse.Public, 1).
+        e.g. (100000, Type.Individual, Universe.Public, 1).
 
     Note
     ----
@@ -220,18 +216,18 @@ def id2_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
     if universe == 0:
         universe = 1
 
-    return id, EType(1), EUniverse(universe), 1
+    return id, Type(1), Universe(universe), 1
 
 
 ID3_REGEX = re.compile(
-    rf"\[(?P<type>[i{''.join(ETypeChar._member_map_)}]):"
+    rf"\[(?P<type>[i{''.join(TypeChar._member_map_)}]):"
     r"(?P<universe>[0-4]):"
     r"(?P<id>\d{1,10})"
     r"(:(?P<instance>\d+))?]",
 )
 
 
-def id3_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
+def id3_to_tuple(value: str) -> Optional[tuple[int, Type, Universe, int]]:
     """Convert a Steam ID3 into its component parts.
 
     Parameters
@@ -241,18 +237,18 @@ def id3_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
 
     Returns
     -------
-    Optional[tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+    Optional[tuple[:class:`int`, :class:`.Type`, :class:`.Universe`, :class:`int`]]
         A tuple of 32 bit ID, type, universe and instance or ``None``
-        e.g. (100000, EType.Individual, EUniverse.Public, 1)
+        e.g. (100000, Type.Individual, Universe.Public, 1)
     """
     search = ID3_REGEX.search(value)
     if search is None:
         return None
 
     id = int(search.group("id"))
-    universe = EUniverse(int(search.group("universe")))
+    universe = Universe(int(search.group("universe")))
     type_char = search.group("type").replace("i", "I")
-    type = EType(ETypeChar[type_char].value.value)
+    type = Type(TypeChar[type_char].value.value)
     instance = search.group("instance")
 
     if type_char in "gT":
@@ -260,10 +256,10 @@ def id3_to_tuple(value: str) -> Optional[tuple[int, EType, EUniverse, int]]:
     elif instance is not None:
         instance = int(instance)
     elif type_char == "L":
-        instance = EInstanceFlag.Lobby
+        instance = InstanceFlag.Lobby
     elif type_char == "c":
-        instance = EInstanceFlag.Clan
-    elif type_char in (EType.Individual, EType.GameServer):
+        instance = InstanceFlag.Clan
+    elif type_char in (Type.Individual, Type.GameServer):
         instance = 1
     else:
         instance = 0
@@ -281,7 +277,7 @@ _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+))|(?P<code_2>[\-{_INVITE_VALID}]+)")
 
 
-def invite_code_to_tuple(code: str) -> Optional[tuple[int, EType, EUniverse, int]]:
+def invite_code_to_tuple(code: str) -> Optional[tuple[int, Type, Universe, int]]:
     """
     Parameters
     ----------
@@ -290,9 +286,9 @@ def invite_code_to_tuple(code: str) -> Optional[tuple[int, EType, EUniverse, int
 
     Returns
     -------
-    Optional[tuple[:class:`int`, :class:`.EType`, :class:`.EUniverse`, :class:`int`]]
+    Optional[tuple[:class:`int`, :class:`.Type`, :class:`.Universe`, :class:`int`]]
         A tuple of 32 bit ID, type, universe and instance or ``None``
-        e.g. (100000, EType.Individual, EUniverse.Public, 1).
+        e.g. (100000, Type.Individual, Universe.Public, 1).
     """
     search = INVITE_REGEX.search(code)
 
@@ -307,7 +303,7 @@ def invite_code_to_tuple(code: str) -> Optional[tuple[int, EType, EUniverse, int
     id = int(re.sub(f"[{_INVITE_CUSTOM}]", repl_mapper, code), 16)
 
     if 0 < id < 2 ** 32:
-        return id, EType(1), EUniverse.Public, 1
+        return id, Type(1), Universe.Public, 1
 
 
 URL_REGEX = re.compile(
@@ -457,7 +453,7 @@ def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:
     return list(chunker())
 
 
-def warn(message: str, warning_type: type[Warning] = DeprecationWarning, stack_level: int = 1) -> None:
+def warn(message: str, warning_type: type[Warning] = DeprecationWarning, stack_level: int = 3) -> None:
     warnings.simplefilter("once", warning_type)  # turn off filter
     warnings.warn(
         message,

@@ -131,76 +131,76 @@ Then some functions from discord.py
 .. code-block:: python3
 
     bff = steam.utils.get(client.users, name="Gobot1234")
-    trade = steam.utils.get(client.trades, state=ETradeOfferState.Active, partner=ctx.author)
+    trade = steam.utils.get(client.trades, state=TradeOfferState.Active, partner=ctx.author)
     # multiple attributes are also accepted
 
 .. autofunction:: steam.utils.find
 
 .. code-block:: python3
 
-    first_active_offer = steam.utils.find(lambda trade: trade.state == ETradeOfferState.Active, client.trades)
+    first_active_offer = steam.utils.find(lambda trade: trade.state == TradeOfferState.Active, client.trades)
     # how to get an object using a conditional
 
 Enumerations
 -------------
 
-.. autoclass:: EResult()
+.. autoclass:: Result()
     :members:
     :undoc-members:
 
-.. autoclass:: EUniverse()
+.. autoclass:: Universe()
     :members:
     :undoc-members:
 
-.. autoclass:: EType()
+.. autoclass:: Type()
     :members:
     :undoc-members:
 
-.. autoclass:: ETypeChar()
+.. autoclass:: TypeChar()
     :members:
     :undoc-members:
 
-.. autoclass:: EInstanceFlag()
+.. autoclass:: InstanceFlag()
     :members:
     :undoc-members:
 
-.. autoclass:: EFriendRelationship()
+.. autoclass:: FriendRelationship()
     :members:
     :undoc-members:
 
-.. autoclass:: EPersonaState()
+.. autoclass:: PersonaState()
     :members:
     :undoc-members:
 
-.. autoclass:: EPersonaStateFlag()
+.. autoclass:: PersonaStateFlag()
     :members:
     :undoc-members:
 
-.. autoclass:: ECommunityVisibilityState()
+.. autoclass:: CommunityVisibilityState()
     :members:
     :undoc-members:
 
-.. autoclass:: ETradeOfferState()
+.. autoclass:: TradeOfferState()
     :members:
     :undoc-members:
 
-.. autoclass:: EChatEntryType()
+.. autoclass:: ChatEntryType()
     :members:
     :undoc-members:
 
-.. autoclass:: EUIMode()
+.. autoclass:: UIMode()
     :members:
     :undoc-members:
 
-.. autoclass:: EUserBadge()
+.. autoclass:: UserBadge()
     :members:
     :undoc-members:
 
-.. autoclass:: EReviewType()
+.. autoclass:: ReviewType()
     :members:
     :undoc-members:
 
-.. autoclass:: EGameServerRegion()
+.. autoclass:: GameServerRegion()
     :members:
     :undoc-members:
 

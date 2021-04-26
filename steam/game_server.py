@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING, Any, Generic, NamedTuple, Optional, TypeVar, U
 from typing_extensions import Literal
 
 from .abc import SteamID
-from .enums import EGameServerRegion, Enum
+from .enums import Enum, GameServerRegion
 from .game import Game
 from .utils import StructIO
 
@@ -378,7 +378,7 @@ class GameServer(SteamID):
         The number of players the server.
     max_player_count: :class:`str`
         The maximum player count of the server.
-    region: :class:`str`
+    region: :class:`GameServerRegion`
         The region the server is in.
     version: :class:`str`
         The version of the server.
@@ -412,7 +412,7 @@ class GameServer(SteamID):
         self.bot_count = server.bots
         self.player_count = server.players
         self.max_player_count = server.max_players
-        self.region = EGameServerRegion.try_value(server.region)
+        self.region = GameServerRegion.try_value(server.region)
         self.version = server.version
 
         self._secure = server.secure

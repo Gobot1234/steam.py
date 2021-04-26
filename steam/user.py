@@ -64,7 +64,7 @@ class User(BaseUser, Messageable):
     ----------
     name: :class:`str`
         The user's username.
-    state: :class:`~steam.EPersonaState`
+    state: :class:`~steam.PersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
         The Game instance attached to the user. Is ``None`` if the user
@@ -86,7 +86,7 @@ class User(BaseUser, Messageable):
         websocket.
     country: Optional[:class:`str`]
         The country code of the account. Could be ``None``.
-    flags: :class:`~steam.EPersonaStateFlag`
+    flags: :class:`~steam.PersonaStateFlag`
         The persona state flags of the account.
     """
 
@@ -253,7 +253,7 @@ class ClientUser(BaseUser):
         The user's username.
     friends: list[:class:`User`]
         A list of the :class:`ClientUser`'s friends.
-    state: :class:`~steam.EPersonaState`
+    state: :class:`~steam.PersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
         The Game instance attached to the user. Is ``None`` if the user isn't in a game or one that is recognised by
@@ -275,7 +275,7 @@ class ClientUser(BaseUser):
         websocket.
     country: Optional[:class:`str`]
         The country code of the account. Could be ``None``.
-    flags: Union[:class:`~steam.EPersonaStateFlag`, :class:`int`]
+    flags: Union[:class:`~steam.PersonaStateFlag`, :class:`int`]
         The persona state flags of the account.
     """
 

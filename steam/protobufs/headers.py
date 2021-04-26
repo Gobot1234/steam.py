@@ -31,7 +31,7 @@ from __future__ import annotations
 import struct
 from typing import TYPE_CHECKING, Optional
 
-from ..enums import EResult
+from ..enums import Result
 from ..utils import clear_proto_bit, set_proto_bit  # noqa
 from .emsg import EMsg  # noqa
 from .steammessages_base import CMsgProtoBufHeader
@@ -121,7 +121,7 @@ class MsgHdr(BaseMsgHdr):
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
-        self.eresult = EResult.Invalid
+        self.eresult = Result.Invalid
         self.job_name_target = None
         self.job_id_target = -1
         self.job_id_source = -1

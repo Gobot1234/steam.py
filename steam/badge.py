@@ -29,7 +29,7 @@ from typing import Any
 
 import attr
 
-from .enums import EUserBadge
+from .enums import UserBadge
 from .game import Game
 
 __all__ = (
@@ -53,7 +53,7 @@ class Badge:
 
     Attributes
     ----------
-    id: Union[:class:`.EUserBadge`, :class:`int`]
+    id: Union[:class:`.UserBadge`, :class:`int`]
         The badge's ID.
     level: :class:`int`
         The badge's level.
@@ -70,7 +70,7 @@ class Badge:
     __slots__ = ("id", "xp", "game", "level", "scarcity", "completion_time")
 
     def __init__(self, data: dict[str, Any]):
-        self.id = EUserBadge.try_value(data["badgeid"])
+        self.id = UserBadge.try_value(data["badgeid"])
         self.level: int = data["level"]
         self.xp: int = data["xp"]
         self.completion_time = datetime.utcfromtimestamp(data["completion_time"])

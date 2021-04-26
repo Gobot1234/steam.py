@@ -42,14 +42,14 @@ from typing_extensions import Final, Protocol, TypeAlias, TypedDict, runtime_che
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
 from .enums import (
-    ECommunityVisibilityState,
-    EInstanceFlag,
-    EPersonaState,
-    EPersonaStateFlag,
-    EResult,
-    EType,
-    ETypeChar,
-    EUniverse,
+    CommunityVisibilityState,
+    InstanceFlag,
+    PersonaState,
+    PersonaStateFlag,
+    Result,
+    Type,
+    TypeChar,
+    Universe,
 )
 from .errors import WSException
 from .game import Game, UserGame, WishlistGame
@@ -127,10 +127,10 @@ class SteamID(metaclass=abc.ABCMeta):
     ----------
     id: Union[:class:`int`, :class:`str`]
         The ID of the Steam ID, can be an :attr:`id64`, :attr:`id`, :attr:`id2` or an :attr:`id3`.
-    type: Union[:class:`.EType`, :class:`int`, :class:`str`]
-        The EType for the Steam ID.
-    universe: Union[:class:`.EUniverse`, :class:`int`, :class:`str`]
-        The EUniverse for the Steam ID.
+    type: Union[:class:`.Type`, :class:`int`, :class:`str`]
+        The Type for the Steam ID.
+    universe: Union[:class:`.Universe`, :class:`int`, :class:`str`]
+        The Universe for the Steam ID.
     instance: :class:`int`
         The instance for the Steam ID.
     """
@@ -184,14 +184,14 @@ class SteamID(metaclass=abc.ABCMeta):
         return (int(self) >> 32) & 0xFFFFF
 
     @property
-    def type(self) -> EType:
-        """:class:`~steam.EType`: The Steam type of the SteamID."""
-        return EType((int(self) >> 52) & 0xF)
+    def type(self) -> Type:
+        """:class:`~steam.Type`: The Steam type of the SteamID."""
+        return Type((int(self) >> 52) & 0xF)
 
     @property
-    def universe(self) -> EUniverse:
-        """:class:`~steam.EUniverse`: The Steam universe of the SteamID."""
-        return EUniverse((int(self) >> 56) & 0xFF)
+    def universe(self) -> Universe:
+        """:class:`~steam.Universe`: The Steam universe of the SteamID."""
+        return Universe((int(self) >> 56) & 0xFF)
 
     @property
     def id64(self) -> int:
@@ -217,7 +217,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
         Note
         ----
-        In these games the accounts :attr:`universe`, ``1`` for :class:`.EType.Public`, should be the ``X`` component of
+        In these games the accounts :attr:`universe`, ``1`` for :class:`.Type.Public`, should be the ``X`` component of
         ``STEAM_X:0:1234`` however, this was bugged and the value of ``X`` was ``0``.
 
         e.g ``STEAM_0:0:1234``.
@@ -230,18 +230,18 @@ class SteamID(metaclass=abc.ABCMeta):
 
         e.g ``[U:1:1234]``.
         """
-        type_char = ETypeChar(self.type).name
+        type_char = TypeChar(self.type).name
         instance = None
 
-        if self.type in (EType.AnonGameServer, EType.Multiseat):
+        if self.type in (Type.AnonGameServer, Type.Multiseat):
             instance = self.instance
-        elif self.type == EType.Individual:
+        elif self.type == Type.Individual:
             if self.instance != 1:
                 instance = self.instance
-        elif self.type == EType.Chat:
-            if self.instance & EInstanceFlag.Clan:
+        elif self.type == Type.Chat:
+            if self.instance & InstanceFlag.Clan:
                 type_char = "c"
-            elif self.instance & EInstanceFlag.Lobby:
+            elif self.instance & InstanceFlag.Lobby:
                 type_char = "L"
             else:
                 type_char = "T"
@@ -259,7 +259,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
         e.g. ``cv-dgb``.
         """
-        if self.type == EType.Individual and self.is_valid():
+        if self.type == Type.Individual and self.is_valid():
             invite_code = re.sub(f"[{_INVITE_HEX}]", lambda x: _INVITE_MAPPING[x.group()], f"{self.id:x}")
             split_idx = len(invite_code) // 2
             return invite_code if split_idx == 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
@@ -280,8 +280,8 @@ class SteamID(metaclass=abc.ABCMeta):
         e.g https://steamcommunity.com/profiles/123456789.
         """
         suffix = {
-            EType.Individual: "profiles",
-            EType.Clan: "gid",
+            Type.Individual: "profiles",
+            Type.Clan: "gid",
         }
         try:
             return f"https://steamcommunity.com/{suffix[self.type]}/{self.id64}"
@@ -290,22 +290,22 @@ class SteamID(metaclass=abc.ABCMeta):
 
     def is_valid(self) -> bool:
         """:class:`bool`: Whether or not the SteamID would be valid."""
-        if self.type == EType.Invalid or self.type >= EType.Max:
+        if self.type == Type.Invalid or self.type >= Type.Max:
             return False
 
-        if self.universe == EUniverse.Invalid or self.universe >= EUniverse.Max:
+        if self.universe == Universe.Invalid or self.universe >= Universe.Max:
             return False
 
-        if self.type == EType.Individual and (self.id == 0 or self.instance > 4):
+        if self.type == Type.Individual and (self.id == 0 or self.instance > 4):
             return False
 
-        if self.type == EType.Clan and (self.id == 0 or self.instance != 0):
+        if self.type == Type.Clan and (self.id == 0 or self.instance != 0):
             return False
 
-        if self.type == EType.GameServer and self.id == 0:
+        if self.type == Type.GameServer and self.id == 0:
             return False
 
-        if self.type == EType.AnonGameServer and self.id == 0 and self.instance == 0:
+        if self.type == Type.AnonGameServer and self.id == 0 and self.instance == 0:
             return False
 
         return True
@@ -439,7 +439,7 @@ class BaseUser(Commentable):
     ----------
     name: :class:`str`
         The user's username.
-    state: :class:`~steam.EPersonaState`
+    state: :class:`~steam.PersonaState`
         The current persona state of the account (e.g. LookingToTrade).
     game: Optional[:class:`~steam.Game`]
         The Game instance attached to the user. Is ``None`` if the user isn't in a game or one that is recognised by the
@@ -456,7 +456,7 @@ class BaseUser(Commentable):
         The last time the user logged into steam. Could be None (e.g. if they are currently online).
     country: Optional[:class:`str`]
         The country code of the account. Could be ``None``.
-    flags: list[:class:`~steam.EPersonaStateFlag`]
+    flags: list[:class:`~steam.PersonaStateFlag`]
         The persona state flags of the account.
     """
 
@@ -496,9 +496,9 @@ class BaseUser(Commentable):
         self.last_logon: Optional[datetime] = None
         self.last_seen_online: Optional[datetime] = None
         self.game: Optional[Game] = None
-        self.state: Optional[EPersonaState] = None
-        self.flags: list[EPersonaStateFlag] = []
-        self.privacy_state: Optional[ECommunityVisibilityState] = None
+        self.state: Optional[PersonaState] = None
+        self.flags: list[PersonaStateFlag] = []
+        self.privacy_state: Optional[CommunityVisibilityState] = None
         self._update(data)
 
     def _update(self, data: UserDict) -> None:
@@ -517,9 +517,9 @@ class BaseUser(Commentable):
             datetime.utcfromtimestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
         )
         self.game = Game(title=data.get("gameextrainfo"), id=data["gameid"]) if "gameid" in data else self.game
-        self.state = EPersonaState(data.get("personastate", 0)) or self.state
-        self.flags = EPersonaStateFlag.components(data.get("personastateflags", 0)) or self.flags
-        self.privacy_state = ECommunityVisibilityState(data.get("communityvisibilitystate", 0))
+        self.state = PersonaState(data.get("personastate", 0)) or self.state
+        self.flags = PersonaStateFlag.components(data.get("personastateflags", 0)) or self.flags
+        self.privacy_state = CommunityVisibilityState(data.get("communityvisibilitystate", 0))
         self._is_commentable = bool(data.get("commentpermission"))
         self._setup_profile = bool(data.get("profilestate"))
 
@@ -599,7 +599,7 @@ class BaseUser(Commentable):
             try:
                 clan = await self._state.client.fetch_clan(gid)
             except WSException as exc:
-                if exc.code == EResult.RateLimitExceeded:
+                if exc.code == Result.RateLimitExceeded:
                     await asyncio.sleep(20)
                     await getter(gid)
             else:
@@ -667,7 +667,7 @@ class BaseUser(Commentable):
 
     def is_private(self) -> bool:
         """:class:`bool`: Specifies if the user has a private profile."""
-        return self.privacy_state == ECommunityVisibilityState.Private
+        return self.privacy_state == CommunityVisibilityState.Private
 
     def has_setup_profile(self) -> bool:
         """:class:`bool`: Specifies if the user has a setup their profile."""
