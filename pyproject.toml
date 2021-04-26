@@ -17,6 +17,7 @@ classifiers=[
 ]
 include = [
     "LICENSE",
+    "steam/__metadata__.py",
     "steam/py.typed",
     "steam/ext/__init__.pyi",
 ]
