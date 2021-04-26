@@ -24,4 +24,4 @@ jobs:
         run: python -m isort steam tests --diff --check-only
 
       - name: Check formatting with black
-        uses: psf/black@20.8b1
+        uses: psf/black@21.4b0

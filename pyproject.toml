@@ -54,7 +54,7 @@ rjsmin = { version = "*", optional = true }
 docs = ["sphinx", "sphinxcontrib_trio", "csscompressor", "htmlmin", "rjsmin"]
 
 [tool.poetry.dev-dependencies]
-black = "*"
+black = "^21.4b0"
 isort = "*"
 flake8 = "*"
 pytest = "*"
