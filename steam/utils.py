@@ -39,13 +39,16 @@ from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable,
 from inspect import isawaitable
 from io import BytesIO
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsIndex, SupportsInt, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union, overload
 
 import aiohttp
 from typing_extensions import Final, Literal
 
 from .enums import InstanceFlag, Type, TypeChar, Universe
 from .errors import InvalidSteamID
+
+if TYPE_CHECKING:
+    from typing import SupportsIndex  # doesn't exist in 3.7
 
 _T = TypeVar("_T")
 _PROTOBUF_MASK = 0x80000000
@@ -79,7 +82,7 @@ class Intable(metaclass=IntableMeta):
     __slots__ = ()
 
 
-Intable: Union[Intable, SupportsIndex, str, bytes]
+Intable: Union[SupportsInt, SupportsIndex, str, bytes]
 
 
 # fmt: off
