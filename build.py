@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import pathlib
 import re
 import subprocess
@@ -36,12 +37,11 @@ if release_level != "final":
     # try to find out the commit hash if checked out from git, and append it to __version__ (since we use this value
     # from setup.py, it gets automatically propagated to an installed copy as well)
     try:
-        out = subprocess.run("git rev-list --count HEAD").stdout.decode("utf-8")
-        if out:
-            VERSION = f"{VERSION}{out.strip()}"
-        out = subprocess.run("git rev-parse --short HEAD").stdout.decode("utf-8")
-        if out:
-            VERSION = f"{VERSION}+g{out.strip()}"
+        commit_count = subprocess.check_output(["git", "rev-list", "--count", "HEAD"]).decode("utf-8").strip()
+        if commit_count:
+            commit_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
+            if commit_hash:
+                VERSION = f"{VERSION}{commit_hash}+g{commit_hash}"
     except Exception:
         pass
 
