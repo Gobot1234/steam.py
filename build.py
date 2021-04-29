@@ -45,7 +45,7 @@ if release_level != "final":
     except Exception:
         pass
 
-
+raise RuntimeError("oh no", VERSION)
 major, minor, micro = VERSION.split(".")
 micro = micro.split(end_char, maxsplit=1)[0]
 # TypeAlias to allow for syntax highlighting
