@@ -6,15 +6,15 @@ import re
 import subprocess
 from typing import TYPE_CHECKING
 
-import tomlkit
+import toml
 
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
 
 ROOT = pathlib.Path(".").resolve()
-PYPROJECT = tomlkit.loads((ROOT / "pyproject.toml").read_text("utf-8"))
+PYPROJECT = toml.load(ROOT / "pyproject.toml")
 try:
-    VERSION: str = PYPROJECT["tool"]["poetry"]["version"].value  # noqa
+    VERSION: str = PYPROJECT["tool"]["poetry"]["version"]
 except KeyError:
     raise RuntimeError("Version is not set") from None
 
@@ -41,7 +41,7 @@ if release_level != "final":
         if commit_count:
             commit_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
             if commit_hash:
-                VERSION = f"{VERSION}{commit_hash}+g{commit_hash}"
+                VERSION = f"{VERSION}{commit_count}+g{commit_hash}"
     except Exception:
         pass
 
@@ -75,19 +75,8 @@ __author__ = "Gobot1234"
 __license__ = "MIT"
 __version__ = "{VERSION}"
 version_info = VersionInfo(major={major}, minor={minor}, micro={micro}, releaselevel="{release_level}")
-""".strip()
+""".lstrip()
 
 
 metadata = ROOT / "steam" / "__metadata__.py"
 metadata.write_text(file)
-
-build = lambda *args, **kwargs: open("/Users/James/pip-install-stuff", "w+").write(
-    f"hi, {VERSION}, {end_char}, {release_level}, {globals().get('commit_count')}, {globals().get('commit_hash')} {args} {kwargs}"
-)
-
-open("/Users/James/pip-install-stuff", "w+").write(
-    f"hi, {VERSION}, {end_char}, {release_level}, {globals().get('commit_count')}, {globals().get('commit_hash')}"
-)
-print("\n" * 100)
-print(f"hi, {VERSION}, {end_char}, {release_level}, {globals().get('commit_count')}, {globals().get('commit_hash')}")
-print("\n" * 100)
