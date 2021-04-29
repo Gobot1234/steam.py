@@ -108,11 +108,7 @@ traceback and ignoring the exception.
 
 .. automethod:: Client.on_socket_receive
 
-.. automethod:: Client.on_socket_raw_receive
-
 .. automethod:: Client.on_socket_send
-
-.. automethod:: Client.on_socket_raw_send
 
 
 Utilities
