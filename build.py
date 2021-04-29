@@ -88,3 +88,6 @@ build = lambda *args, **kwargs: open("/Users/James/pip-install-stuff", "w+").wri
 open("/Users/James/pip-install-stuff", "w+").write(
     f"hi, {VERSION}, {end_char}, {release_level}, {globals().get('commit_count')}, {globals().get('commit_hash')}"
 )
+print("\n" * 100)
+print(f"hi, {VERSION}, {end_char}, {release_level}, {globals().get('commit_count')}, {globals().get('commit_hash')}")
+print("\n" * 100)
