@@ -73,6 +73,7 @@ version_info = VersionInfo(major={major}, minor={minor}, micro={micro}, releasel
 """
 
 
-def build(setup_kwargs: dict[str, Any]) -> None:
-    metadata = ROOT / "steam" / "__metadata__.py"
-    metadata.write_text(file)
+metadata = ROOT / "steam" / "__metadata__.py"
+metadata.write_text(file)
+
+build = lambda *args, **kwargs: None
