@@ -1,5 +1,9 @@
 import platform
-from importlib.metadata import distribution
+
+try:
+    from importlib.metadata import distribution  # noqa
+except ModuleNotFoundError:
+    from importlib_metadata import distribution  # noqa
 
 
 def get_version_info(package: str) -> str:
