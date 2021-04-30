@@ -198,7 +198,7 @@ class Query(Generic[T], metaclass=QueryMeta):
 
         .. describe:: x == y
 
-            Checks if two queries are equal order is checked.
+            Checks if two queries are equal, order is checked.
 
         .. describe:: x / y
 
@@ -275,17 +275,16 @@ class Query(Generic[T], metaclass=QueryMeta):
     def query(self) -> str:
         """:class:`str`: The actual query used for querying Global Master Servers."""
 
-        ret = []
         if len(self._raw) == 1:  # string query
-            ret.append(self._raw[0])
-        else:  # normal
-            query_1, op, query_2 = self._raw
-            ret.append(
-                op.format(query_1.query,
-                          query_2.query if isinstance(query_2, Query) else query_1._callback(query_2))
-            )
+            return self._raw[0]
 
-        return "\\".join(ret)
+        # normal
+        query_1, op, query_2 = self._raw
+
+        return op.format(
+            query_1.query,
+            query_2.query if isinstance(query_2, Query) else query_1._callback(query_2)
+        )
 
 
 class StructIO(StructIO):
