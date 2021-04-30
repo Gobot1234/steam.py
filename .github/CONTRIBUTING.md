@@ -21,7 +21,8 @@ any relevant links to further reading (if applicable).
 
 Submitting a pull request is fairly simple. It is best to keep commits focused on one aspect of the library. It would
 be better if the style is consistent with that found in the project. This project follows the black code style but with
-a column limit of 120 and uses isort to sort imports.
+a column limit of 120 and uses isort to sort imports. If you don't remember to format, the
+[restyled bot](https://restyled.io) should open a Pull Request to your repo to fix any of the issues.
 
 ### Git Commit Guidelines
 
@@ -29,10 +30,5 @@ a column limit of 120 and uses isort to sort imports.
 - Limit commit messages to 79 characters or less.
 - Reference issues or pull requests outside of the first line.
   - Please use the shorthand for the issue (#123) and not the full URL.
-
-Any issues with code should, however, be fixed before being pushed, so don't worry if it isn't perfect. If you want this
-process to be as fast as possible, cd to the main steam.py directory, install the development requirements using
-`python3 -m pip install ".[dev]"` and then run the formatter if using `python3 tests -f`. If you don't do this the
-[restyled bot](https://restyled.io) should open a Pull Request to your repo to fix any of the issues.
 
 Thank you for taking any time to perform any of these actions they help to make the library better for everyone.

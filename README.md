@@ -36,9 +36,9 @@ Or for the development version.
 
 ```sh
 # Linux/macOS
-python3 -m pip install -U "steamio[dev] @ git+https://github.com/Gobot1234/steam.py@master"
+python3 -m pip install -U "steamio @ git+https://github.com/Gobot1234/steam.py@master"
 # Windows
-py -m pip install -U "steamio[dev] @ git+https://github.com/Gobot1234/steam.py@master"
+py -m pip install -U "steamio @ git+https://github.com/Gobot1234/steam.py@master"
 ```
 
 ## Quick Example
