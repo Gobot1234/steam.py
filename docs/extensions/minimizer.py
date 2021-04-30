@@ -14,8 +14,7 @@ templates = DOCS / "_templates"
 
 
 def get_files(suffix: str) -> Generator[Path, None, None]:
-    yield from static.glob(f"**/*{suffix}")
-    yield from templates.glob(f"**/*{suffix}")
+    yield from DOCS.glob(f"**/*{suffix}")
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
