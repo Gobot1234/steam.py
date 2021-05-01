@@ -135,18 +135,26 @@ class EnumMeta(type):
 class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates `enum.Enum`."""
 
-    name: str
-    value: Any
-    _value_map_: dict[Any, Enum]
-    _member_map_: dict[str, Enum]
+    if TYPE_CHECKING:  # picked up by sphinx otherwise
+        name: str
+        value: Any
+        _value_map_: dict[Any, Enum]
+        _member_map_: dict[str, Enum]
 
     def __new__(cls, *, name: str, value: Any) -> Enum:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
         # for creating Enum members
-        self = super().__new__(cls)
-        self.name = name
-        self.value = value
+        super_ = super()
+        self = super_.__new__(cls, value) if len(cls.__bases__) != 1 else super_.__new__(cls)
+        super_.__setattr__(self, "name", name)
+        super_.__setattr__(self, "value", value)
         return self
+
+    def __setattr__(self, key: str, value: Any) -> NoReturn:
+        raise AttributeError(f"{self.__class__.__name__} Cannot reassign an Enum members attribute's.")
+
+    def __delattr__(self, item: Any) -> NoReturn:
+        raise AttributeError(f"{self.__class__.__name__} Cannot delete an Enum members attribute's.")
 
     def __bool__(self) -> Literal[True]:
         return True  # an enum member with a zero value would return False otherwise
@@ -168,13 +176,8 @@ class Enum(metaclass=EnumMeta):
 class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
-    value: int
-
-    def __new__(cls, *, name: str, value: int) -> IntEnum:
-        self = int.__new__(cls, value)
-        self.name = name
-        self.value = value
-        return self
+    if TYPE_CHECKING:  # picked up by sphinx otherwise
+        value: int
 
 
 if TYPE_CHECKING:
@@ -539,7 +542,7 @@ def __getattr__(name: str) -> Any:
     try:
         enum = _globals_dict[name[1:]]
     except KeyError:
-        raise AttributeError(name)
+        raise AttributeError(name) from None
     else:
         import sys
 
