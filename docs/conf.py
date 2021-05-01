@@ -131,16 +131,3 @@ html_static_path = ["_static"]
 html_search_scorer = "_static/scorer.js"
 
 html_js_files = ["custom.js", "settings.js", "copy.js", "sidebar.js"]
-
-
-def setup(app: Sphinx) -> None:
-
-    if html_context.get(
-        "READTHEDOCS"
-    ):  # called after setting up READTHEDOCS in html_context so we can add the minifier
-
-        import atexit
-
-        from docs.extensions.minimizer import minimize
-
-        atexit.register(minimize)

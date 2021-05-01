@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Generator
 
@@ -69,7 +70,8 @@ def minimize_css() -> None:
 
 
 def setup(app: Sphinx) -> None:
-    minimize_html()
-    minimize_js()
-    minimize_css()
-    print(list(get_files(".js")))
+    if os.getenv("READTHEDOCS"):
+        minimize_html()
+        minimize_js()
+        minimize_css()
+        print(list(get_files(".js")))
