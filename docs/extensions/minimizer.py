@@ -6,8 +6,10 @@ from typing import Generator
 import csscompressor
 import htmlmin
 import rjsmin
+from sphinx.application import Sphinx
 
-DOCS = Path("../../docs").resolve()
+ROOT = Path("../../").resolve()
+DOCS = ROOT / "docs"
 
 static = DOCS / "_static"
 templates = DOCS / "_templates"
@@ -66,6 +68,11 @@ def minimize_css() -> None:
 
 
 def minimize() -> None:
+    print(list(ROOT.glob(".html")))
     minimize_html()
     minimize_js()
     minimize_css()
+
+
+def setup(app: Sphinx) -> None:
+    pass
