@@ -17,24 +17,6 @@ Bot
                       on_trade_expire, on_trade_counter, on_comment, on_user_invite, on_user_invite_accept,
                       on_clan_invite, on_clan_invite_accept, on_user_update, on_socket_receive, on_socket_send,
                       on_command, on_command_error, on_command_completion,
-                      event, trade_history,
-                      command, group, listen
-
-    .. automethod:: event()
-        :decorator:
-
-    .. automethod:: trade_history
-        :async-for: trade
-
-    .. automethod:: command(name=None, cls=None, **attrs)
-        :decorator:
-
-    .. automethod:: group(name=None, cls=None, **attrs)
-        :decorator:
-
-    .. automethod:: listen
-        :decorator:
-
 
 .. autofunction:: when_mentioned
 
@@ -78,37 +60,13 @@ Commands
 .. autoclass:: Command
     :members:
     :special-members: __call__
-    :exclude-members: error, before_invoke, after_invoke
 
-    .. automethod:: error()
-        :decorator:
-
-    .. automethod:: before_invoke()
-        :decorator:
-
-    .. automethod:: after_invoke()
-        :decorator:
+hmgh
 
 .. autoclass:: Group
     :members:
     :inherited-members:
     :special-members: __call__
-    :exclude-members: error, command, group, before_invoke, after_invoke
-
-    .. automethod:: error()
-        :decorator:
-
-    .. automethod:: command(name=None, cls=None, **attrs)
-        :decorator:
-
-    .. automethod:: group(name=None, cls=None, **attrs)
-        :decorator:
-
-    .. automethod:: before_invoke()
-        :decorator:
-
-    .. automethod:: after_invoke()
-        :decorator:
 
 
 Command Parsing
@@ -212,29 +170,12 @@ Help Commands
     :members:
     :inherited-members:
     :special-members: __call__
-    :exclude-members: error, before_invoke, after_invoke
-
-    .. automethod:: error()
-        :decorator:
-
-    .. automethod:: before_invoke()
-        :decorator:
-
-    .. automethod:: after_invoke()
-        :decorator:
 
 
 .. autoclass:: DefaultHelpCommand
     :members:
     :inherited-members:
     :special-members: __call__
-    :exclude-members: error, before_invoke, after_invoke
-
-    .. automethod:: before_invoke()
-        :decorator:
-
-    .. automethod:: after_invoke()
-        :decorator:
 
 
 Cogs
@@ -242,10 +183,6 @@ Cogs
 
 .. autoclass:: Cog
     :members:
-    :exclude-members: listener
-
-    .. automethod:: listener(name=None)
-        :decorator:
 
 
 Context
@@ -270,10 +207,6 @@ Converters
 .. autoclass:: Converter()
     :members:
     :special-members: __class_getitem__
-    :exclude-members: register
-
-    .. automethod:: register
-        :decorator:
 
 .. autoclass:: UserConverter()
 
