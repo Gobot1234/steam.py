@@ -69,9 +69,12 @@ def minimize_css() -> None:
         file.write_text(minimized)
 
 
-def setup(app: Sphinx) -> None:
+def minimize(app: Sphinx, exception: Exception) -> None:
     if os.getenv("READTHEDOCS"):
         minimize_html()
         minimize_js()
         minimize_css()
-        print(list(get_files(".js")))
+
+
+def setup(app: Sphinx) -> None:
+    app.connect("build-finished", minimize)
