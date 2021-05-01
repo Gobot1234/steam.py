@@ -68,7 +68,7 @@ def minimize_css() -> None:
 
 
 def minimize() -> None:
-    print(list(ROOT.glob(".html")))
+    print(list(ROOT.glob("**/*.html")))
     minimize_html()
     minimize_js()
     minimize_css()
