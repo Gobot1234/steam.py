@@ -16,7 +16,7 @@ templates = DOCS / "_templates"
 
 
 def get_files(suffix: str) -> Generator[Path, None, None]:
-    yield from ROOT.glob(f"**/*{suffix}")
+    yield from ROOT.rglob(f"*{suffix}")
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
@@ -71,6 +71,7 @@ def minimize() -> None:
     minimize_html()
     minimize_js()
     minimize_css()
+    print(list(get_files(".js")))
 
 
 def setup(app: Sphinx) -> None:
