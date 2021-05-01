@@ -16,7 +16,7 @@ templates = DOCS / "_templates"
 
 
 def get_files(suffix: str) -> Generator[Path, None, None]:
-    yield from DOCS.glob(f"**/*{suffix}")
+    yield from ROOT.glob(f"**/*{suffix}")
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
@@ -68,7 +68,6 @@ def minimize_css() -> None:
 
 
 def minimize() -> None:
-    print(list(ROOT.glob("**/*.html")))
     minimize_html()
     minimize_js()
     minimize_css()
