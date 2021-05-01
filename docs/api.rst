@@ -358,18 +358,10 @@ Users
 .. autoclass:: ClientUser()
     :members:
     :inherited-members:
-    :exclude-members: comments
-
-    .. automethod:: comments
-        :async-for: comment
 
 .. autoclass:: User()
     :members:
     :inherited-members:
-    :exclude-members: comments
-
-    .. automethod:: comments
-        :async-for: comment
 
 
 Data-Classes
