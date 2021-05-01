@@ -68,12 +68,8 @@ def minimize_css() -> None:
         file.write_text(minimized)
 
 
-def minimize() -> None:
+def setup(app: Sphinx) -> None:
     minimize_html()
     minimize_js()
     minimize_css()
     print(list(get_files(".js")))
-
-
-def setup(app: Sphinx) -> None:
-    pass
