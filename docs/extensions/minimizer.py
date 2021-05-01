@@ -53,6 +53,7 @@ def minimize_html() -> None:
 
 def minimize_js() -> None:
     for file in get_files(".js"):
+        print("attempting to minimise", file)
         text = file.read_text()
         minimized = rjsmin.jsmin(text, keep_bang_comments=False)
 
