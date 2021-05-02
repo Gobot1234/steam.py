@@ -145,7 +145,11 @@ class Enum(metaclass=EnumMeta):
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
         # for creating Enum members
         super_ = super()
-        self = super_.__new__(cls, value) if len(cls.__bases__) != 1 else super_.__new__(cls)
+        self = (
+            super_.__new__(cls, value)
+            if any(not issubclass(base, Enum) for base in cls.__mro__)  # is it is a mixin enum
+            else super_.__new__(cls)
+        )
         super_.__setattr__(self, "name", name)
         super_.__setattr__(self, "value", value)
         return self
