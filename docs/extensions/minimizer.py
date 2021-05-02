@@ -10,10 +10,6 @@ import rjsmin
 from sphinx.application import Sphinx
 
 ROOT = Path("../../").resolve()
-DOCS = ROOT / "docs"
-
-static = DOCS / "_static"
-templates = DOCS / "_templates"
 
 
 def get_files(suffix: str) -> Generator[Path, None, None]:
@@ -54,7 +50,6 @@ def minimize_html() -> None:
 
 def minimize_js() -> None:
     for file in get_files(".js"):
-        print("attempting to minimise", file)
         text = file.read_text()
         minimized = rjsmin.jsmin(text, keep_bang_comments=False)
 
