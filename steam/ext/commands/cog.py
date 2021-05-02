@@ -152,8 +152,7 @@ class Cog:
     @classmethod
     def listener(cls, name: Union[E, str, None] = None) -> Callable[[E], E]:
         """|maybecallabledeco|
-        A decorator that registers a :term:`coroutine function` as a listener. Similar to
-        :meth:`~steam.ext.commands.Bot.listen`
+        Register a :term:`coroutine function` as a listener. Similar to :meth:`~steam.ext.commands.Bot.listen`.
 
         Parameters
         ----------
