@@ -1,21 +1,19 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Generator
 
 import csscompressor
 import htmlmin
 import rjsmin
+from sphinx.application import Sphinx
 
-DOCS = Path("../../docs").resolve()
-
-static = DOCS / "_static"
-templates = DOCS / "_templates"
+ROOT = Path("../../").resolve()
 
 
 def get_files(suffix: str) -> Generator[Path, None, None]:
-    yield from static.glob(f"**/*{suffix}")
-    yield from templates.glob(f"**/*{suffix}")
+    yield from ROOT.rglob(f"*{suffix}")
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
@@ -66,7 +64,12 @@ def minimize_css() -> None:
         file.write_text(minimized)
 
 
-def minimize() -> None:
-    minimize_html()
-    minimize_js()
-    minimize_css()
+def minimize(app: Sphinx, exception: Exception) -> None:
+    if os.getenv("READTHEDOCS"):
+        minimize_html()
+        minimize_js()
+        minimize_css()
+
+
+def setup(app: Sphinx) -> None:
+    app.connect("build-finished", minimize)

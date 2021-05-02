@@ -28,14 +28,7 @@ Client
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_logout, on_error, on_message, on_typing,
                       on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline, on_trade_cancel,
                       on_trade_expire, on_trade_counter, on_comment, on_user_invite, on_user_invite_accept,
-                      on_clan_invite, on_clan_invite_accept, on_user_update, on_socket_receive, on_socket_send,
-                      event, trade_history
-
-    .. automethod:: event()
-        :decorator:
-
-    .. automethod:: trade_history
-        :async-for: trade
+                      on_clan_invite, on_clan_invite_accept, on_user_update, on_socket_receive, on_socket_send
 
 
 .. _event-reference:
@@ -233,10 +226,6 @@ An :term:`abstract base class` (also known as an ``abc``) is a class that models
 
 .. autoclass:: steam.abc.BaseUser()
     :members:
-    :exclude-members: comments
-
-    .. automethod:: comments
-        :async-for: comment
 
 .. autoclass:: steam.abc.Channel()
     :members:
@@ -288,10 +277,8 @@ Clan
 .. autoclass:: Clan()
     :members:
     :inherited-members:
-    :exclude-members: comments
 
-    .. automethod:: comments
-        :async-for: comment
+nf
 
 Comment
 ~~~~~~~~~~~~~~~
@@ -371,18 +358,10 @@ Users
 .. autoclass:: ClientUser()
     :members:
     :inherited-members:
-    :exclude-members: comments
-
-    .. automethod:: comments
-        :async-for: comment
 
 .. autoclass:: User()
     :members:
     :inherited-members:
-    :exclude-members: comments
-
-    .. automethod:: comments
-        :async-for: comment
 
 
 Data-Classes
