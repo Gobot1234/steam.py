@@ -52,7 +52,7 @@ class Client(steam.Client):
 
 
 @pytest.mark.skipif(
-    not USERNAME if not RUNNING_AS_ACTION else sys.version_info == (3, 8),
+    not USERNAME if not RUNNING_AS_ACTION else sys.version_info.minor == 8,  # 3.8
     reason="If there are issues they are normally present in one of the 2 versions, "
     "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
 )
