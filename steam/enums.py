@@ -147,7 +147,7 @@ class Enum(metaclass=EnumMeta):
         super_ = super()
         self = (
             super_.__new__(cls, value)
-            if any(not issubclass(base, Enum) for base in cls.__mro__)  # is it is a mixin enum
+            if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
             else super_.__new__(cls)
         )
         super_.__setattr__(self, "name", name)
