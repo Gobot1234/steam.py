@@ -29,9 +29,7 @@ class Client(steam.Client):
                 await super().login(*args, **kwargs)
         except steam.LoginError as exc:
             if (
-                exc.args[0] != "There have been too many login failures from your network in a short time period.  "
-                "Please wait and try again later."
-                or not exc.__cause__
+                not exc.__cause__
                 or not isinstance(exc.__cause__, steam.HTTPException)
                 or exc.__cause__.code != 429
             ):
