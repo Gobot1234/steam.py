@@ -183,7 +183,7 @@ class MsgHdrProto(BaseMsgHdr, proto=True):
 
 
 class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
-    __slots__ = ("header_version", "target_job_id", "source_job_id", "msg", "body")
+    __slots__ = ("header_version", "job_id_target", "job_id_source", "msg", "body")
 
     STRUCT = struct.Struct("<Hqq")
     PACK = ()
@@ -192,8 +192,8 @@ class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
         self.msg = None
 
         self.header_version = 1
-        self.target_job_id = -1
-        self.source_job_id = 0  # might be -1 again
+        self.job_id_target = -1
+        self.job_id_source = 0  # might be -1 again
         self.body = self
 
         if data:
