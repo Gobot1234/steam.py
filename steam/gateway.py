@@ -438,9 +438,9 @@ class SteamWebSocket(Registerable):
 
     @register(EMsg.ClientLogOnResponse)
     async def handle_logon(self, msg: MsgProto[CMsgClientLogonResponse]) -> None:
-        if msg.eresult != Result.OK:
-            log.debug(f"Failed to login with result: {msg.eresult}")
-            if msg.eresult == Result.InvalidPassword:
+        if msg.result != Result.OK:
+            log.debug(f"Failed to login with result: {msg.result}")
+            if msg.result == Result.InvalidPassword:
                 http = self._connection.http
                 await http.logout()
                 await http.login(http.username, http.password, shared_secret=http.shared_secret)

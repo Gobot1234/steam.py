@@ -124,7 +124,7 @@ class MsgBase(Generic[M]):
             self.header.body.session_id = value
 
     @property
-    def eresult(self) -> Optional[Result]:
+    def result(self) -> Optional[Result]:
         """Optional[:class:`.Result`]: The :attr:`header`'s eresult."""
         if isinstance(self.header, ALLOWED_HEADERS):
             return Result.try_value(getattr(self.body, "eresult", 0) or self.header.body.eresult)

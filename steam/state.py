@@ -236,9 +236,9 @@ class ConnectionState(Registerable):
         msg: MsgProto[chat.CClanChatRoomsGetClanChatRoomInfoResponse] = await self.ws.send_um_and_wait(
             "ClanChatRooms.GetClanChatRoomInfo", steamid=id64
         )
-        if msg.eresult == Result.Busy:
+        if msg.result == Result.Busy:
             raise WSNotFound(msg)
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         return await Clan._from_proto(self, msg.body)
@@ -405,9 +405,9 @@ class ConnectionState(Registerable):
             contains_bbcode=utils.contains_bbcode(content),
         )
 
-        if msg.eresult == Result.LimitExceeded:
+        if msg.result == Result.LimitExceeded:
             raise WSForbidden(msg)
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         proto = friend_messages.CFriendMessagesIncomingMessageNotification(
@@ -438,11 +438,11 @@ class ConnectionState(Registerable):
             "ChatRoom.SendChatMessage", chat_id=chat_id, chat_group_id=group_id, message=content
         )
 
-        if msg.eresult == Result.LimitExceeded:
+        if msg.result == Result.LimitExceeded:
             raise WSForbidden(msg)
-        if msg.eresult == Result.InvalidParameter:
+        if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         proto = chat.CChatRoomIncomingChatMessageNotification(
@@ -470,17 +470,17 @@ class ConnectionState(Registerable):
             "ChatRoom.JoinChatRoomGroup", chat_group_id=chat_id, invite_code=invite_code or ""
         )
 
-        if msg.eresult == Result.InvalidParameter:
+        if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.eresult != Result.OK:
+        elif msg.result != Result.OK:
             raise WSException(msg)
 
     async def leave_chat(self, chat_id: int) -> None:
         msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup", chat_group_id=chat_id)
 
-        if msg.eresult == Result.InvalidParameter:
+        if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.eresult != Result.OK:
+        elif msg.result != Result.OK:
             raise WSException(msg)
 
     async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
@@ -488,16 +488,16 @@ class ConnectionState(Registerable):
             "ChatRoom.InviteFriendToChatRoomGroup", chat_group_id=group_id, steamid=user_id64
         )
 
-        if msg.eresult == Result.InvalidParameter:
+        if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.eresult != Result.OK:
+        elif msg.result != Result.OK:
             raise WSException(msg)
 
     async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
         msg = await self.ws.send_um_and_wait("ChatRoom.RenameRole", chat_group_id=group_id, role_id=role_id, name=name)
-        if msg.eresult == Result.InvalidParameter:
+        if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
-        elif msg.eresult != Result.OK:
+        elif msg.result != Result.OK:
             raise WSException(msg)
 
     async def fetch_user_history(
@@ -512,7 +512,7 @@ class ConnectionState(Registerable):
             count=100,
         )
 
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         return msg
@@ -529,7 +529,7 @@ class ConnectionState(Registerable):
             max_count=100,
         )
 
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         return msg
@@ -541,7 +541,7 @@ class ConnectionState(Registerable):
             limit=limit,
         )
 
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         return msg.body.servers
@@ -554,7 +554,7 @@ class ConnectionState(Registerable):
             server_steamids=list(ids),
         )
 
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         return msg.body.servers
@@ -568,7 +568,7 @@ class ConnectionState(Registerable):
             include_played_free_games=True,
         )
 
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         return msg.body.games
@@ -580,7 +580,7 @@ class ConnectionState(Registerable):
         msg: MsgProto[client_server_friends.CMsgClientFriendProfileInfoResponse] = await self.ws.wait_for(
             EMsg.ClientFriendProfileInfoResponse, check=lambda m: m.body.steamid_friend == user_id64
         )
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
 
         return msg.body
@@ -589,7 +589,7 @@ class ConnectionState(Registerable):
         msg: MsgProto[econ.CEconGetTradeOfferAccessTokenResponse] = await self.ws.send_um_and_wait(
             "Econ.GetTradeOfferAccessToken", generate_new_token=new
         )
-        if msg.eresult != Result.OK:
+        if msg.result != Result.OK:
             raise WSException(msg)
         return (
             f"https://steamcommunity.com/tradeoffer/new/?partner={self.client.user.id}"
