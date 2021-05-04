@@ -162,8 +162,7 @@ class ConnectionState(Registerable):
 
     async def __ainit__(self) -> None:
         if self.http.api_key is not None:
-            self._id64 = self.client.user.id64
-            self._device_id = generate_device_id(str(self._id64))
+            self._device_id = generate_device_id(self.client.user)
 
             await self.poll_trades()
 

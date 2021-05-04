@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from .errors import ConfirmationError
 from .models import community_route
+from .utils import Intable
 
 if TYPE_CHECKING:
     from .state import ConnectionState
@@ -103,7 +104,7 @@ def generate_confirmation_code(identity_secret: str, tag: str, timestamp: Option
     return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
 
 
-def generate_device_id(user_id64: str) -> str:
+def generate_device_id(user_id64: Intable) -> str:
     """
     Parameters
     -----------
@@ -117,7 +118,7 @@ def generate_device_id(user_id64: str) -> str:
     """
     # it works, however it's different that one generated from mobile app
 
-    hexed_steam_id = sha1(user_id64.encode("ascii")).hexdigest()
+    hexed_steam_id = sha1(str(int(user_id64)).encode("ascii")).hexdigest()
     partial_id = [
         hexed_steam_id[:8],
         hexed_steam_id[8:12],

@@ -42,7 +42,7 @@ from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union, overload
 
 import aiohttp
-from typing_extensions import Final, Literal
+from typing_extensions import Final, Literal, TypeAlias
 
 from .enums import InstanceFlag, Type, TypeChar, Universe
 from .errors import InvalidSteamID
@@ -68,21 +68,7 @@ def clear_proto_bit(emsg: int) -> int:
     return int(emsg) & ~_PROTOBUF_MASK
 
 
-class IntableMeta(type):
-    def __instancecheck__(cls, instance: Any) -> bool:
-        try:
-            int(instance)
-        except (ValueError, TypeError):
-            return False
-        else:
-            return True
-
-
-class Intable(metaclass=IntableMeta):
-    __slots__ = ()
-
-
-Intable: Union[SupportsInt, SupportsIndex, str, bytes]
+Intable: TypeAlias = "Union[SupportsInt, SupportsIndex, str, bytes]"  # anything int(x) wouldn't normally fail on
 
 
 # fmt: off
@@ -149,9 +135,16 @@ def make_id64(
     if not any((id, type, universe, instance)):
         return 0
 
-    # numeric input
-    if isinstance(id, Intable):
+    try:
         id = int(id)
+    except (ValueError, TypeError):
+        # textual input e.g. [g:1:4]
+        try:
+            id, type, universe, instance = id2_to_tuple(id) or id3_to_tuple(id)
+        except TypeError:
+            raise InvalidSteamID(id, "it cannot be parsed") from None
+    else:
+        # numeric input
         # 32 bit account id
         if 0 <= id < 2 ** 32:
             type = type or Type.Individual
@@ -165,21 +158,15 @@ def make_id64(
             universe = (value >> 56) & 0xFF
         else:
             raise InvalidSteamID(id, "it is too large" if id > 2 ** 64 else "it is too small")
-    # textual input e.g. [g:1:4]
-    else:
-        try:
-            id, type, universe, instance = id2_to_tuple(id) or id3_to_tuple(id)
-        except TypeError:
-            raise InvalidSteamID(id, "it cannot be parsed") from None
 
-    try:
-        type = Type(type) if isinstance(type, int) else Type[type]
-    except (KeyError, ValueError):
-        raise InvalidSteamID(id, f"{type!r} is not a valid Type") from None
-    try:
-        universe = Universe(universe) if isinstance(universe, int) else Universe[universe]
-    except (KeyError, ValueError):
-        raise InvalidSteamID(id, f"{universe!r} is not a valid Universe") from None
+        try:
+            type = Type(type) if isinstance(type, int) else Type[type]
+        except (KeyError, ValueError):
+            raise InvalidSteamID(id, f"{type!r} is not a valid Type") from None
+        try:
+            universe = Universe(universe) if isinstance(universe, int) else Universe[universe]
+        except (KeyError, ValueError):
+            raise InvalidSteamID(id, f"{universe!r} is not a valid Universe") from None
 
     if instance is None:
         instance = 1 if type in (Type.Individual, Type.GameServer) else 0
