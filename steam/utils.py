@@ -177,7 +177,7 @@ def make_id64(
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d+)")
 
 
-def id2_to_tuple(value: str) -> Optional[tuple[int, Type, Universe, int]]:
+def id2_to_tuple(value: str) -> Optional[tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]]]:
     """
     Parameters
     ----------
@@ -192,15 +192,15 @@ def id2_to_tuple(value: str) -> Optional[tuple[int, Type, Universe, int]]:
 
     Note
     ----
-        The universe will be always set to ``1``. See :attr:`SteamID.id2_zero`.
+    The universe will be always set to ``1``. See :attr:`SteamID.id2_zero`.
     """
     search = ID2_REGEX.search(value)
 
     if search is None:
         return None
 
-    id = (int(search.group("id")) << 1) | int(search.group("remainder"))
-    universe = int(search.group("universe"))
+    id = (int(search["id"]) << 1) | int(search["remainder"])
+    universe = int(search["universe"])
 
     # games before orange box used to incorrectly display universe as 0, we support that
     if universe == 0:
@@ -235,11 +235,11 @@ def id3_to_tuple(value: str) -> Optional[tuple[int, Type, Universe, int]]:
     if search is None:
         return None
 
-    id = int(search.group("id"))
-    universe = Universe(int(search.group("universe")))
-    type_char = search.group("type").replace("i", "I")
+    id = int(search["id"])
+    universe = Universe(int(search["universe"]))
+    type_char = search["type"].replace("i", "I")
     type = Type(TypeChar[type_char].value.value)
-    instance = search.group("instance")
+    instance = search["instance"]
 
     if type_char in "gT":
         instance = 0
@@ -267,7 +267,9 @@ _INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+))|(?P<code_2>[\-{_INVITE_VALID}]+)")
 
 
-def invite_code_to_tuple(code: str) -> Optional[tuple[int, Type, Universe, int]]:
+def invite_code_to_tuple(
+    code: str,
+) -> Optional[tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]]]:
     """
     Parameters
     ----------
@@ -287,10 +289,7 @@ def invite_code_to_tuple(code: str) -> Optional[tuple[int, Type, Universe, int]]
 
     code = (search.group("code_1") or search.group("code_2")).replace("-", "")
 
-    def repl_mapper(x: re.Match) -> str:
-        return _INVITE_INVERSE_MAPPING[x.group()]
-
-    id = int(re.sub(f"[{_INVITE_CUSTOM}]", repl_mapper, code), 16)
+    id = int(re.sub(f"[{_INVITE_CUSTOM}]", lambda m: _INVITE_INVERSE_MAPPING[m.group()], code), 16)
 
     if 0 < id < 2 ** 32:
         return id, Type(1), Universe.Public, 1
@@ -343,15 +342,15 @@ async def id64_from_url(url: aiohttp.client.StrOrURL, session: Optional[aiohttp.
     session = session or aiohttp.ClientSession()
 
     try:
-        if search.group("type") in ("id", "profiles"):
+        if search["type"] in ("id", "profiles"):
             # user profile
-            r = await session.get(search.group("clean_url"))
+            r = await session.get(search["clean_url"])
             text = await r.text()
             data_match = re.search(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*", text)
-            data = json.loads(data_match.group("json"))
+            data = json.loads(data_match["json"])
         else:
             # group profile
-            r = await session.get(search.group("clean_url"))
+            r = await session.get(search["clean_url"])
             text = await r.text()
             data = re.search(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)", text)
         return int(data["steamid"])
