@@ -56,16 +56,7 @@ from .game import Game, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
 from .models import Ban, community_route
 from .trade import Inventory
-from .utils import (
-    _INVITE_HEX,
-    _INVITE_MAPPING,
-    ETypeType,
-    EUniverseType,
-    InstanceType,
-    Intable,
-    id64_from_url,
-    make_id64,
-)
+from .utils import _INVITE_HEX, _INVITE_MAPPING, InstanceType, Intable, TypeType, UniverseType, id64_from_url, make_id64
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
@@ -145,8 +136,8 @@ class SteamID(metaclass=abc.ABCMeta):
     def __init__(
         self,
         id: Intable = 0,
-        type: Optional[ETypeType] = None,
-        universe: Optional[EUniverseType] = None,
+        type: Optional[TypeType] = None,
+        universe: Optional[UniverseType] = None,
         instance: Optional[InstanceType] = None,
     ):
         ...
@@ -154,8 +145,8 @@ class SteamID(metaclass=abc.ABCMeta):
     def __init__(
         self,
         id: Intable = 0,
-        type: Optional[ETypeType] = None,
-        universe: Optional[EUniverseType] = None,
+        type: Optional[TypeType] = None,
+        universe: Optional[UniverseType] = None,
         instance: Optional[InstanceType] = None,
     ):
         self.__BASE: Final[int] = make_id64(id, type, universe, instance)

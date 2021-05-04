@@ -72,7 +72,7 @@ Intable: TypeAlias = "Union[SupportsInt, SupportsIndex, str, bytes]"  # anything
 
 
 # fmt: off
-ETypeType = Union[
+TypeType = Union[
     Type,
     Literal[
         "Invalid", "Individual", "Multiseat", "GameServer", "AnonGameServer", "Pending", "ContentServer", "Clan",
@@ -80,7 +80,7 @@ ETypeType = Union[
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
     ],
 ]
-EUniverseType = Union[Universe, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6]]
+UniverseType = Union[Universe, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6]]
 InstanceType = Literal[0, 1]
 # fmt: on
 
@@ -93,8 +93,8 @@ def make_id64() -> Literal[0]:
 @overload
 def make_id64(
     id: Intable = 0,
-    type: Optional[ETypeType] = None,
-    universe: Optional[EUniverseType] = None,
+    type: Optional[TypeType] = None,
+    universe: Optional[UniverseType] = None,
     instance: Optional[InstanceType] = None,
 ) -> int:
     ...
@@ -102,8 +102,8 @@ def make_id64(
 
 def make_id64(
     id: Intable = 0,
-    type: Optional[ETypeType] = None,
-    universe: Optional[EUniverseType] = None,
+    type: Optional[TypeType] = None,
+    universe: Optional[UniverseType] = None,
     instance: Optional[InstanceType] = None,
 ) -> int:
     """Convert various representations of Steam IDs to its Steam 64 bit ID.
