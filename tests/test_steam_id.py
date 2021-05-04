@@ -34,17 +34,6 @@ import pytest
 from steam import InvalidSteamID, SteamID, Type, Universe
 
 
-def create_id64(id: int, type: int, universe: int, instance: int) -> int:
-    return universe << 56 | type << 52 | instance << 32 | id
-
-
-def compare(steam_id: SteamID, components: list[int]) -> None:
-    assert steam_id.id == components[0]
-    assert steam_id.type == components[1]
-    assert steam_id.universe == components[2]
-    assert steam_id.instance == components[3]
-
-
 def test_hash() -> None:
     assert hash(SteamID(1)) == hash(SteamID(1))
     assert SteamID(12345) != hash(SteamID(8888))
@@ -80,7 +69,10 @@ def test_hash() -> None:
     ],
 )
 def test_from_id(steam_id: SteamID, components: list[int]) -> None:
-    compare(steam_id, components)
+    assert steam_id.id == components[0]
+    assert steam_id.type == components[1]
+    assert steam_id.universe == components[2]
+    assert steam_id.instance == components[3]
 
 
 @pytest.mark.parametrize(
