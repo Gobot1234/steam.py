@@ -301,8 +301,8 @@ class SteamID(metaclass=abc.ABCMeta):
 
         return True
 
-    @classmethod
-    async def from_url(cls, url: StrOrURL, session: Optional[ClientSession] = None) -> Optional[SteamID]:
+    @staticmethod
+    async def from_url(url: StrOrURL, session: Optional[ClientSession] = None) -> Optional[SteamID]:
         """|coro|
         A helper function creates a SteamID instance from a Steam community url.
 
@@ -319,7 +319,7 @@ class SteamID(metaclass=abc.ABCMeta):
             :class:`SteamID` instance or ``None``.
         """
         id64 = await id64_from_url(url, session)
-        return cls(id64) if id64 else None
+        return SteamID(id64) if id64 else None
 
 
 class Commentable(SteamID):
