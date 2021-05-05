@@ -275,18 +275,8 @@ class ConnectionState(Registerable):
             trade._update(data)
             if trade.state != before_state:
                 log.info(f"Trade #{trade.id} has updated its trade state to {trade.state}")
-                try:
-                    event_name = {
-                        TradeOfferState.Accepted: "accept",
-                        TradeOfferState.Countered: "counter",
-                        TradeOfferState.Expired: "expire",
-                        TradeOfferState.Canceled: "cancel",
-                        TradeOfferState.Declined: "decline",
-                        TradeOfferState.CanceledBySecondaryFactor: "cancel",
-                    }[trade.state]
-                except KeyError:
-                    pass
-                else:
+                event_name = trade.state.event_name
+                if event_name:
                     self.dispatch(f"trade_{event_name}", trade)
                     self._trades_to_watch.remove(trade.id)
         return trade

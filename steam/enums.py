@@ -436,6 +436,20 @@ class TradeOfferState(IntEnum):
     CanceledBySecondaryFactor = 10  #: The trade offer was cancelled by second factor.
     StateInEscrow             = 11  #: The trade offer is in escrow.
 
+    @property
+    def event_name(self) -> Optional[str]:
+        try:
+            return {
+                TradeOfferState.Accepted: "accept",
+                TradeOfferState.Countered: "counter",
+                TradeOfferState.Expired: "expire",
+                TradeOfferState.Canceled: "cancel",
+                TradeOfferState.Declined: "decline",
+                TradeOfferState.CanceledBySecondaryFactor: "cancel",
+            }[self]
+        except KeyError:
+            return None
+
 
 class ChatEntryType(IntEnum):
     Invalid          = 0   #: An Invalid Chat entry.
