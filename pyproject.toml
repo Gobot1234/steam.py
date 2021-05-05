@@ -60,7 +60,7 @@ isort = "*"
 flake8 = "*"
 pytest = "*"
 pytest-asyncio = "*"
-mypy = "*"
+mypy = { git = "https://github.com/python/mypy" }  # TODO: update to next full release that supports pyproject.toml
 
 [tool.black]
 line-length = 120
