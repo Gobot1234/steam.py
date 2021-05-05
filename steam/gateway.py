@@ -83,16 +83,17 @@ def return_true(*_, **__) -> Literal[True]:
     return True
 
 
-@attr.dataclass(slots=True)
+@dataclass
 class EventListener(Generic[M]):
+    __slots__ = ("emsg", "check", "future")
+
     emsg: EMsg
     check: Callable[[M], bool]
     future: asyncio.Future[M]
 
-    if not TYPE_CHECKING:
 
-        def __class_getitem__(cls, item: M) -> type[EventListener[M]]:
-            return cls
+if not TYPE_CHECKING:
+    EventListener.__class_getitem__ = classmethod(lambda cls, params: cls)
 
 
 @attr.dataclass(slots=True)
