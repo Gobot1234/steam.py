@@ -585,9 +585,9 @@ class ConnectionState(Registerable):
 
         return msg.body
 
-    async def get_trade_url(self, new: bool):
+    async def get_trade_url(self, generate_new: bool) -> str:
         msg: MsgProto[econ.CEconGetTradeOfferAccessTokenResponse] = await self.ws.send_um_and_wait(
-            "Econ.GetTradeOfferAccessToken", generate_new_token=new
+            "Econ.GetTradeOfferAccessToken", generate_new_token=generate_new
         )
         if msg.result != Result.OK:
             raise WSException(msg)

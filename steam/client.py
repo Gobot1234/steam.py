@@ -817,8 +817,7 @@ class Client:
         generate_new: :class:`bool`
             Whether or not to generate a new trade token, defaults to ``False``.
         """
-        url = await self._connection.get_trade_url(generate_new)
-        return url
+        return await self._connection.get_trade_url(generate_new)
 
     async def wait_until_ready(self) -> None:
         """|coro|
