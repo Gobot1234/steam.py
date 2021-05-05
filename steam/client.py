@@ -37,7 +37,7 @@ from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
 
 import aiohttp
-from typing_extensions import Literal, TypeAlias, final
+from typing_extensions import Literal, ParamSpec, TypeAlias, final
 
 from . import errors, utils
 from .abc import SteamID
@@ -70,6 +70,7 @@ TASK_HAS_NAME = sys.version_info >= (3, 8)
 EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
 EventDeco: TypeAlias = "Union[Callable[[E], E], E]"
 E = TypeVar("E", bound=EventType)
+S = ParamSpec("_P", bound="Client.start")  # 90% sure this is the way to use ParamSpec
 
 
 class Client:
@@ -281,7 +282,7 @@ class Client:
         self.dispatch("ready")
 
     @final
-    def run(self, *args: Any, **kwargs: Any) -> None:
+    def run(self, *args: S.args, **kwargs: S.kwargs) -> None:
         """A blocking call that abstracts away the event loop initialisation from you.
 
         This is roughly equivalent to::
