@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     from .comment import Comment
     from .enums import PersonaState, PersonaStateFlag, UIMode
     from .group import Group
-    from .invite import ClanInvite, Invite, UserInvite
+    from .invite import ClanInvite, UserInvite
     from .protobufs import Msg, MsgProto
     from .trade import TradeOffer
     from .user import ClientUser, User

@@ -37,8 +37,6 @@ from .context import Context
 if TYPE_CHECKING:
     from steam.ext import commands
 
-    from .cog import Cog
-
 __all__ = (
     "HelpCommand",
     "DefaultHelpCommand",

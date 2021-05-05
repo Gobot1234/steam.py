@@ -53,7 +53,6 @@ from .utils import Shlex
 if TYPE_CHECKING:
     import datetime
 
-    import steam
     from steam.ext import commands
 
     from ...comment import Comment

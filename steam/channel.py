@@ -28,7 +28,7 @@ import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from .abc import Channel, M, _EndPointReturnType, _SupportsStr
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator

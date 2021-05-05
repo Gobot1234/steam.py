@@ -41,7 +41,6 @@ if TYPE_CHECKING:
 
     from ...client import E, EventType
     from .bot import Bot
-    from .context import Context
 
 __all__ = ("Cog",)
 
