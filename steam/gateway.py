@@ -39,6 +39,7 @@ import threading
 import time
 import traceback
 from collections.abc import Callable
+from dataclasses import dataclass
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 from zlib import MAX_WBITS, decompress
@@ -554,3 +555,9 @@ class SteamWebSocket(Registerable):
             ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
             log.debug(f"Sending {ui_mode} to change UI mode")
             await self.send_as_proto(ui_mode)
+
+        self._connection._games = games
+        self._connection._state = state
+        self._connection._ui_mode = ui_mode
+        self._connection._flags = flags
+        self._connection._force_kick = force_kick
