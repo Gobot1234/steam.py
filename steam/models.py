@@ -25,7 +25,6 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-import functools
 import inspect
 import logging
 import re
@@ -95,19 +94,24 @@ class Registerable:
         bases = tuple(reversed(cls.__mro__[:-2]))  # skip Registerable and object
         for idx, cls in enumerate(bases):
             parsers_name = tuple(cls.__annotations__)[0]
-            for name, attr in inspect.getmembers(cls, lambda attr: hasattr(attr, "__wrapped__")):
+            for name, attr in inspect.getmembers(cls, lambda attr: hasattr(attr, "msg")):
                 parsers = getattr(cls, parsers_name)
                 msg_parser = getattr(self, name)
-                msg = msg_parser.__wrapped__.msg
-                if idx != 0 and isinstance(msg, EMsg):
+                if idx != 0 and isinstance(attr.msg, EMsg):
                     base = bases[0]
                     if hasattr(base, name):
                         continue
 
                     parsers = getattr(base, tuple(base.__annotations__)[0])
-                parsers[msg] = msg_parser
+                parsers[attr.msg] = msg_parser
 
         return self
+
+    @staticmethod
+    def _run_parser_callback(task: asyncio.Task) -> None:
+        exception = task.exception()
+        if exception:
+            traceback.print_exception(exception.__class__, exception, exception.__traceback__)
 
     def run_parser(self, emsg: IE, msg: Msgs) -> None:
         try:
@@ -120,21 +124,13 @@ class Registerable:
                 except Exception:
                     log.debug(f"Ignoring event {msg.msg}")
         else:
-            self.loop.create_task(utils.maybe_coroutine(event_parser, msg)).add_done_callback(
-                lambda t: traceback.print_exception(t.exception().__class__, t.exception(), t.exception().__traceback__)
-                if t.exception()
-                else None
-            )
+            self.loop.create_task(utils.maybe_coroutine(event_parser, msg)).add_done_callback(self._run_parser_callback)
 
 
 def register(msg: IE) -> Callable[[E], E]:
     def wrapper(callback: E) -> E:
-        @functools.wraps(callback)
-        def inner(*args: Any, **kwargs: Any) -> Optional[Coroutine[None, None, None]]:
-            return callback(*args, **kwargs)
-
         callback.msg = msg
-        return inner
+        return callback
 
     return wrapper
 
