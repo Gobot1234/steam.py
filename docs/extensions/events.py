@@ -14,5 +14,5 @@ typing.TYPE_CHECKING = False
 
 
 def setup(_):
-    steam.Client = steam.client.Client
-    commands.Bot = commands.bot.Bot
+    steam.Client = steam.client.Client  # type: ignore
+    commands.Bot = commands.bot.Bot  # type: ignore

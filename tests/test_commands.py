@@ -94,7 +94,7 @@ class CustomConverter(commands.Converter[tuple]):
         ("int", int),
     ],
 )
-def test_greedy(param_type: Union[type, str], expected: Union[int, "type[Exception]"]):
+def test_greedy(param_type: Union[type, str], expected: type) -> None:
     global param_type_  # hack to make typing.get_type_hints work with locals
     param_type_ = param_type
     if issubclass(expected, Exception):
@@ -114,7 +114,7 @@ def test_greedy(param_type: Union[type, str], expected: Union[int, "type[Excepti
 
 
 class TheTestBot(commands.Bot):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(command_prefix="")
         self.MESSAGE = GROUP_MESSAGE
         self.to_finish: "list[str]" = []
