@@ -326,6 +326,7 @@ class SteamWebSocket(Registerable):
                 chat_mode=2,
                 ui_mode=4,
                 qos_level=2,
+                client_language="english",
             )
             ws = cls(socket)
             # dynamically add attributes needed
@@ -394,7 +395,7 @@ class SteamWebSocket(Registerable):
 
     async def send(self, data: bytes) -> None:
         try:
-            await self.socket.send_bytes(data=data)
+            await self.socket.send_bytes(data)
         except ConnectionResetError:
             log.info("Connection closed")
             await self.handle_close()
@@ -460,9 +461,9 @@ class SteamWebSocket(Registerable):
         await self.change_presence(
             games=self._connection._games,
             state=self._connection._state,
-            ui_mode=self._connection._ui_mode,
             flags=self._connection._flags,
             force_kick=self._connection._force_kick,
+            ui_mode=None,  # set above
         )
         await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
 
@@ -557,8 +558,8 @@ class SteamWebSocket(Registerable):
             log.debug(f"Sending {ui_mode} to change UI mode")
             await self.send_as_proto(ui_mode)
 
-        self._connection._games = games
-        self._connection._state = state
-        self._connection._ui_mode = ui_mode
-        self._connection._flags = flags
+        self._connection._games = games or self._connection._games
+        self._connection._state = state or self._connection._state
+        self._connection._ui_mode = ui_mode or self._connection._ui_mode
+        self._connection._flags = flags or self._connection._flags
         self._connection._force_kick = force_kick
