@@ -9,13 +9,8 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-from steam.__metadata__ import __version__ as release, __version__ as version, version_info
-
-if TYPE_CHECKING:
-    from sphinx.application import Sphinx
-
+from steam.__metadata__ import __version__ as release, __version__ as version, version_info  # noqa
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -40,7 +35,7 @@ extensions = [
     *[p.with_suffix("").name for p in Path("extensions").glob("*.py")],
 ]
 
-autodoc_member_order = "bysource"  # TODO I feel like there is a way to get a better order for redefined ones
+autodoc_member_order = "bysource"
 autodoc_typehints = "none"
 
 # Links used for cross-referencing stuff in other documentation
