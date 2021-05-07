@@ -70,7 +70,7 @@ TASK_HAS_NAME = sys.version_info >= (3, 8)
 EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
 EventDeco: TypeAlias = "Union[Callable[[E], E], E]"
 E = TypeVar("E", bound=EventType)
-S = ParamSpec("_P", bound="Client.start")  # 90% sure this is the way to use ParamSpec
+S = ParamSpec("S", bound="Client.start")  # 90% sure this is the way to use ParamSpec
 
 
 class Client:
@@ -284,13 +284,6 @@ class Client:
     @final
     def run(self, *args: S.args, **kwargs: S.kwargs) -> None:
         """A blocking call that abstracts away the event loop initialisation from you.
-
-        This is roughly equivalent to::
-
-            try:
-                asyncio.run(client.start(username, password))
-            finally:
-                asyncio.run(client.close())
 
         It is not recommended to subclass this method, it is normally favourable to subclass :meth:`start` as it is a
         :ref:`coroutine <coroutine>`.
