@@ -42,7 +42,7 @@ from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union, overload
 
 import aiohttp
-from typing_extensions import Final, Literal, TypeAlias
+from typing_extensions import Final, Literal, ParamSpec, TypeAlias
 
 from .enums import InstanceFlag, Type, TypeChar, Universe
 from .errors import InvalidSteamID
@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from typing import SupportsIndex  # doesn't exist in 3.7
 
 _T = TypeVar("_T")
+_P = ParamSpec("_P")
 _PROTOBUF_MASK = 0x80000000
 
 # from ValvePython/steam
@@ -606,7 +607,11 @@ def get(iterable: Iterable[_T], **attrs: Any) -> Optional[_T]:
     return None
 
 
-async def maybe_coroutine(func: Callable[..., Union[_T, Awaitable[_T]]], *args: Any, **kwargs: Any) -> _T:
+async def maybe_coroutine(
+    func: Callable[_P, Union[_T, Awaitable[_T]]],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _T:
     value = func(*args, **kwargs)
     if isawaitable(value):
         return await value
