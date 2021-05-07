@@ -126,7 +126,7 @@ class ConnectionState(Registerable):
             games.append(game.to_dict())
         self._games: list[GameToDict] = games
         self._state: PersonaState = kwargs.get("state", PersonaState.Online)
-        self._ui_mode: Optional[UIMode] = kwargs.get("ui_mode")
+        self._ui_mode: Optional[UIMode] = kwargs.get("ui_mode", UIMode.Desktop)
         flag: int = kwargs.get("flag")
         flags: list[int] = kwargs.get("flag", [0])
         if flag is not None:
@@ -394,6 +394,8 @@ class ConnectionState(Registerable):
             chat_entry_type=ChatEntryType.Text,
             contains_bbcode=utils.contains_bbcode(content),
         )
+
+        print(msg)
 
         if msg.result == Result.LimitExceeded:
             raise WSForbidden(msg)
