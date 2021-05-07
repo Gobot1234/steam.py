@@ -395,7 +395,7 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
         last_message_timestamp = before_timestamp
 
         while True:
-            msgs = await self._state.get_user_history(
+            msgs = await self._state.fetch_user_history(
                 self.participant.id64, start=after_timestamp, last=last_message_timestamp
             )
             if msgs is None:
@@ -447,7 +447,7 @@ class GroupChannelHistoryIterator(
         group_id = getattr(self.group, "chat_id", None) or self.group.id
 
         while True:
-            msgs = await self._state.get_group_history(
+            msgs = await self._state.fetch_group_history(
                 group_id, self.channel.id, start=after_timestamp, last=last_message_timestamp
             )
             if msgs is None:
