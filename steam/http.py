@@ -206,58 +206,63 @@ class HTTPClient:
             connector=self.connector,
         )
 
-        resp = await self._send_login_request()
+        try:
+            resp = await self._send_login_request()
 
-        if resp.get("captcha_needed") and resp.get("message") != "Please wait and try again later.":
-            self._captcha_id = resp["captcha_gid"]
-            print(
-                "Please enter the captcha text at "
-                f"https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
-            )
-            captcha_text = await utils.ainput(">>> ")
-            self._captcha_text = captcha_text.strip()
-            return await self.login(username, password, shared_secret)
+            if resp.get("captcha_needed") and resp.get("message") != "Please wait and try again later.":
+                self._captcha_id = resp["captcha_gid"]
+                print(
+                    "Please enter the captcha text at "
+                    f"https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
+                )
+                captcha_text = await utils.ainput(">>> ")
+                self._captcha_text = captcha_text.strip()
+                return await self.login(username, password, shared_secret)
 
-        if not resp["success"]:
-            raise errors.InvalidCredentials(resp.get("message", "An unexpected error occurred"))
+            if not resp["success"]:
+                raise errors.InvalidCredentials(resp.get("message", "An unexpected error occurred"))
 
-        data = resp.get("transfer_parameters")
-        if data is None:
-            raise errors.LoginError(
-                "Cannot perform redirects after login. Steam is likely down, please try again later."
-            )
+            data = resp.get("transfer_parameters")
+            if data is None:
+                raise errors.LoginError(
+                    "Cannot perform redirects after login. Steam is likely down, please try again later."
+                )
 
-        for url in resp["transfer_urls"]:
-            await self.request("POST", url=url, data=data)
+            for url in resp["transfer_urls"]:
+                await self.request("POST", url=url, data=data)
 
-        self.api_key = self._client.api_key = await self.get_api_key()
-        if self.api_key is None:
-            log.info("Failed to get API key")
+            self.api_key = self._client.api_key = await self.get_api_key()
+            if self.api_key is None:
+                log.info("Failed to get API key")
 
-            async def get_user(self, user_id64: int) -> dict:
-                user_id = int(user_id64) & 0xFFFFFFFF
-                ret = await self.request("GET", community_route(f"miniprofile/{user_id}/json"))
-                ret["steamid"] = user_id64
-                return ret
+                async def get_user(self, user_id64: int) -> dict:
+                    user_id = int(user_id64) & 0xFFFFFFFF
+                    ret = await self.request("GET", community_route(f"miniprofile/{user_id}/json"))
+                    ret["steamid"] = user_id64
+                    return ret
 
-            async def get_users(self, user_id64s: list[int]) -> list[dict]:
-                return await asyncio.gather(*(self.get_user(user_id64) for user_id64 in user_id64s))
+                async def get_users(self, user_id64s: list[int]) -> list[dict]:
+                    return await asyncio.gather(*(self.get_user(user_id64) for user_id64 in user_id64s))
 
-            BaseUser._patch_without_api()
-            self.__class__.get_user = get_user
-            self.__class__.get_users = get_users
-            utils.warn("Some methods of User objects are not available as no API key can be generated", UserWarning)
-            await self.request("GET", community_route("home"))
+                BaseUser._patch_without_api()
+                self.__class__.get_user = get_user
+                self.__class__.get_users = get_users
+                utils.warn("Some methods of User objects are not available as no API key can be generated", UserWarning)
+                await self.request("GET", community_route("home"))
 
-        cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
-        self.session_id = cookies["sessionid"].value
+            cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
+            self.session_id = cookies["sessionid"].value
 
-        data = await self.get_user(resp["transfer_parameters"]["steamid"])
-        state = self._client._connection
-        self.user = ClientUser(state=state, data=data)
-        state._users[self.user.id64] = self.user
-        self.logged_in = True
-        self._client.dispatch("login")
+            data = await self.get_user(resp["transfer_parameters"]["steamid"])
+            state = self._client._connection
+            self.user = ClientUser(state=state, data=data)
+            state._users[self.user.id64] = self.user
+            self.logged_in = True
+            self._client.dispatch("login")
+
+        except:
+            await self._session.close()
+            raise
 
     async def close(self) -> None:
         await self.logout()
