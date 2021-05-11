@@ -72,7 +72,7 @@ class BaseMsgHdr:
 def parse(self, data: bytes) -> None:
     msg, {", ".join(f"self.{p}" for p in cls.PACK[1:])} = self.STRUCT.unpack_from(data)
     {f"self.msg = {cast}({'clear_proto_bit(msg)' if proto else 'msg'})"}
-    
+
     {f"self.length += {cls.STRUCT.size}" if proto else ""}
     {f"self.body = self.body.parse(data[{cls.STRUCT.size} : self.length])" if proto else ""}
 
@@ -90,7 +90,7 @@ def __bytes__(self) -> bytes:
     {"proto_data = bytes(self.body)" if proto else ""}
     {f"self.length = len(proto_data)" if proto else ""}
     return self.STRUCT.pack(
-        {"set_proto_bit(self.msg)" if proto else "self.msg"}, 
+        {"set_proto_bit(self.msg)" if proto else "self.msg"},
         {", ".join(f"self.{p}" for p in cls.PACK[1:])}
     ) {"+ proto_data" if proto else ""}
 
@@ -206,8 +206,8 @@ class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
     def parse(self, data: bytes) -> None:
         (
             self.header_version,
-            self.target_job_id,
-            self.source_job_id,
+            self.job_id_target,
+            self.job_id_source,
         ) = self.STRUCT.unpack_from(data)
 
 
