@@ -9,8 +9,8 @@ class EMsg(IntEnum):
     Multi                                                    = 1
     ProtobufWrapped                                          = 2
 
-    GenericReply                                             = 100
     BaseGeneral                                              = 100
+    GenericReply                                             = 100
     DestJobFailed                                            = 113
     Alert                                                    = 115
     SCIDRequest                                              = 120
@@ -42,8 +42,8 @@ class EMsg(IntEnum):
     ServiceMethodCallFromClient                              = 151
     ServiceMethodSendToClient                                = 152
 
-    AssignSysID                                              = 200
     BaseShell                                                = 200
+    AssignSysID                                              = 200
     Exit                                                     = 201
     DirRequest                                               = 202
     DirResponse                                              = 203
@@ -66,9 +66,10 @@ class EMsg(IntEnum):
     TestFlushDelayedSQL                                      = 240
     TestFlushDelayedSQLResponse                              = 241
     ContentDescriptionDeltaUpdate                            = 246
+    GMShellAndServerAddressUpdates                           = 247
 
-    Heartbeat                                                = 300
     BaseGM                                                   = 300
+    Heartbeat                                                = 300
     ShellFailed                                              = 301
     ExitShells                                               = 307
     ExitShell                                                = 308
@@ -89,11 +90,11 @@ class EMsg(IntEnum):
     GMWriteStatsToSOS                                        = 330
     GMGetServiceMethodRouting                                = 331
     GMGetServiceMethodRoutingResponse                        = 332
-
     GMTestNextBuildSchemaConversion                          = 334
     GMTestNextBuildSchemaConversionResponse                  = 335
     ExpectShellRestart                                       = 336
     HotFixProgress                                           = 337
+    GMStatsForwardToAdminConnections                         = 338
 
     BaseAIS                                                  = 400
     AISRequestContentDescription                             = 402
@@ -148,7 +149,7 @@ class EMsg(IntEnum):
     AMSendCartRepurchaseResponse                             = 542
     AllowUserToPlayQuery                                     = 550
     AllowUserToPlayResponse                                  = 551
-    AMVerfiyUser                                             = 552
+    AMVerifyUser                                             = 552
     AMClientNotPlaying                                       = 553
     AMClientRequestFriendship                                = 554
     AMRelayPublishStatus                                     = 555
@@ -171,8 +172,8 @@ class EMsg(IntEnum):
     AMChatActionResult                                       = 579
     AMFindAccounts                                           = 580
     AMFindAccountsResponse                                   = 581
-    AMRequestAccountData                                     = 582
-    AMRequestAccountDataResponse                             = 583
+    AMIsAccountNameInUse                                     = 582
+    AMIsAccountNameInUseResponse                             = 583
     AMSetAccountFlags                                        = 584
     AMCreateClan                                             = 586
     AMCreateClanResponse                                     = 587
@@ -186,8 +187,8 @@ class EMsg(IntEnum):
     ClientChatAction                                         = 597
     AMClientChatActionRelay                                  = 598
 
-    ReqChallenge                                             = 600
     BaseVS                                                   = 600
+    ReqChallenge                                             = 600
     VACResponse                                              = 601
     ReqChallengeTest                                         = 602
     VSMarkCheat                                              = 604
@@ -317,6 +318,7 @@ class EMsg(IntEnum):
     GSUserPlaying                                            = 905
     GSStatus2                                                = 906
     GSServerType                                             = 908
+    GSPlayerList                                             = 909
     GSGetUserAchievementStatus                               = 910
     GSGetUserAchievementStatusResponse                       = 911
     GSGetPlayStats                                           = 918
@@ -332,8 +334,8 @@ class EMsg(IntEnum):
     GSComputeNewPlayerCompatibility                          = 940
     GSComputeNewPlayerCompatibilityResponse                  = 941
 
-    AdminCmd                                                 = 1000
     BaseAdmin                                                = 1000
+    AdminCmd                                                 = 1000
     AdminCmdResponse                                         = 1004
     AdminLogListenRequest                                    = 1005
     AdminLogEvent                                            = 1006
@@ -347,8 +349,8 @@ class EMsg(IntEnum):
     FBSConnectionData                                        = 1027
     AdminMsgSpew                                             = 1028
 
-    FBSReqVersion                                            = 1100
     BaseFBS                                                  = 1100
+    FBSReqVersion                                            = 1100
     FBSVersionInfo                                           = 1101
     FBSForceRefresh                                          = 1102
     FBSForceBounce                                           = 1103
@@ -383,15 +385,15 @@ class EMsg(IntEnum):
     FBSRestartBootstrapper                                   = 1133
     FBSPauseFrozenDumps                                      = 1134
 
-    FileXferRequest                                          = 1200
     BaseFileXfer                                             = 1200
+    FileXferRequest                                          = 1200
     FileXferResponse                                         = 1201
     FileXferData                                             = 1202
     FileXferEnd                                              = 1203
     FileXferDataAck                                          = 1204
 
-    ChannelAuthChallenge                                     = 1300
     BaseChannelAuth                                          = 1300
+    ChannelAuthChallenge                                     = 1300
     ChannelAuthResponse                                      = 1301
     ChannelAuthResult                                        = 1302
     ChannelEncryptRequest                                    = 1303
@@ -470,6 +472,7 @@ class EMsg(IntEnum):
     BSGenerateBoaCompraMD5Response                           = 1497
     BSCommitWPTxn                                            = 1498
     BSCommitAdyenTxn                                         = 1499
+
     BaseATS                                                  = 1500
     ATSStartStressTest                                       = 1501
     ATSStopStressTest                                        = 1502
@@ -498,7 +501,6 @@ class EMsg(IntEnum):
     DPBlockingStats                                          = 1607
     DPNatTraversalStats                                      = 1608
     DPCloudStats                                             = 1612
-    DPAchievementStats                                       = 1613
     DPGetPlayerCount                                         = 1615
     DPGetPlayerCountResponse                                 = 1616
     DPGameServersPlayersStats                                = 1617
@@ -508,7 +510,6 @@ class EMsg(IntEnum):
     ClientDPSendSpecialSurveyResponseReply                   = 1623
     DPStoreSaleStatistics                                    = 1624
     ClientDPUpdateAppJobReport                               = 1625
-    DPUpdateContentEvent                                     = 1626
     ClientDPUnsignedInstallScript                            = 1627
     DPPartnerMicroTxns                                       = 1628
     DPPartnerMicroTxnsResponse                               = 1629
@@ -552,6 +553,9 @@ class EMsg(IntEnum):
     GCHAccountPhoneNumberChange                              = 2236
     GCHAccountTwoFactorChange                                = 2237
     GCHInviteUserToLobby                                     = 2238
+    GCHUpdateMultipleSessions                                = 2239
+    GCHMarkAppSessionsAuthoritative                          = 2240
+    GCHRecurringSubscriptionStatusChange                     = 2241
 
     BaseP2P                                                  = 2500
     P2PIntroducerMessage                                     = 2502
@@ -599,34 +603,8 @@ class EMsg(IntEnum):
     OGSWriteAppSessionRow                                    = 3406
 
     BaseBRP                                                  = 3600
-    BRPStartShippingJobs                                     = 3601
-    BRPProcessUSBankReports                                  = 3602
-    BRPProcessGCReports                                      = 3603
-    BRPProcessPPReports                                      = 3604
-    BRPCommitGC                                              = 3607
-    BRPCommitGCResponse                                      = 3608
-    BRPFindHungTransactions                                  = 3609
-    BRPCheckFinanceCloseOutDate                              = 3610
-    BRPProcessLicenses                                       = 3611
-    BRPProcessLicensesResponse                               = 3612
-    BRPRemoveExpiredPaymentData                              = 3613
-    BRPRemoveExpiredPaymentDataResponse                      = 3614
-    BRPConvertToCurrentKeys                                  = 3615
-    BRPConvertToCurrentKeysResponse                          = 3616
-    BRPPruneCardUsageStats                                   = 3617
-    BRPPruneCardUsageStatsResponse                           = 3618
-    BRPCheckActivationCodes                                  = 3619
-    BRPCheckActivationCodesResponse                          = 3620
-    BRPCommitWP                                              = 3621
-    BRPCommitWPResponse                                      = 3622
-    BRPProcessWPReports                                      = 3623
-    BRPProcessPaymentRules                                   = 3624
-    BRPProcessPartnerPayments                                = 3625
-    BRPCheckSettlementReports                                = 3626
-    BRPPostTaxToAvalara                                      = 3628
     BRPPostTransactionTax                                    = 3629
     BRPPostTransactionTaxResponse                            = 3630
-    BRPProcessIMReports                                      = 3631
 
     BaseAMRange2                                             = 4000
     AMCreateChat                                             = 4001
@@ -641,13 +619,6 @@ class EMsg(IntEnum):
     AMClanPermissionsResponse                                = 4012
     AMCreateClanEventDummyForRateLimiting                    = 4013
     AMUpdateClanEventDummyForRateLimiting                    = 4015
-    AMCreateClanEventResponse                                = 4014
-    AMUpdateClanEvent                                        = 4015
-    AMUpdateClanEventResponse                                = 4016
-    AMGetClanEvents                                          = 4017
-    AMGetClanEventsResponse                                  = 4018
-    AMDeleteClanEvent                                        = 4019
-    AMDeleteClanEventResponse                                = 4020
     AMSetClanPermissionSettings                              = 4021
     AMSetClanPermissionSettingsResponse                      = 4022
     AMGetClanPermissionSettings                              = 4023
@@ -663,8 +634,6 @@ class EMsg(IntEnum):
     AMSessionInfoRequest                                     = 4045
     AMSessionInfoResponse                                    = 4046
     AMValidateWGToken                                        = 4047
-    AMGetSingleClanEvent                                     = 4048
-    AMGetSingleClanEventResponse                             = 4049
     AMGetClanRank                                            = 4050
     AMGetClanRankResponse                                    = 4051
     AMSetClanRank                                            = 4052
@@ -677,7 +646,6 @@ class EMsg(IntEnum):
     AMKickUserFromClan                                       = 4060
     AMAddFounderToClan                                       = 4061
     AMValidateWGTokenResponse                                = 4062
-    AMSetCommunityState                                      = 4063
     AMSetAccountDetails                                      = 4064
     AMGetChatBanList                                         = 4065
     AMGetChatBanListResponse                                 = 4066
@@ -692,7 +660,6 @@ class EMsg(IntEnum):
     AMCheckClanMembership                                    = 4075
     AMGetClanMembers                                         = 4076
     AMGetClanMembersResponse                                 = 4077
-    AMJoinPublicClan                                         = 4078
     AMNotifyChatOfClanChange                                 = 4079
     AMResubmitPurchase                                       = 4080
     AMAddFriend                                              = 4081
@@ -705,7 +672,6 @@ class EMsg(IntEnum):
     AMClansInCommon                                          = 4090
     AMClansInCommonResponse                                  = 4091
     AMIsValidAccountID                                       = 4092
-    AMConvertClan                                            = 4093
     AMWipeFriendsList                                        = 4095
     AMSetIgnored                                             = 4096
     AMClansInCommonCountResponse                             = 4097
@@ -720,7 +686,6 @@ class EMsg(IntEnum):
     AMFindGSByIP                                             = 4106
     AMFoundGSByIP                                            = 4107
     AMGiftRevoked                                            = 4108
-    AMCreateAccountRecord                                    = 4109
     AMUserClanList                                           = 4110
     AMUserClanListResponse                                   = 4111
     AMGetAccountDetails2                                     = 4112
@@ -740,13 +705,6 @@ class EMsg(IntEnum):
     AMServiceModulesCache                                    = 4126
     AMServiceModulesCall                                     = 4127
     AMServiceModulesCallResponse                             = 4128
-    AMGetCaptchaDataForIP                                    = 4129
-    AMGetCaptchaDataForIPResponse                            = 4130
-    AMValidateCaptchaDataForIP                               = 4131
-    AMValidateCaptchaDataForIPResponse                       = 4132
-    AMTrackFailedAuthByIP                                    = 4133
-    AMGetCaptchaDataByGID                                    = 4134
-    AMGetCaptchaDataByGIDResponse                            = 4135
     CommunityAddFriendNews                                   = 4140
     AMFindClanUser                                           = 4143
     AMFindClanUserResponse                                   = 4144
@@ -790,8 +748,6 @@ class EMsg(IntEnum):
     MarketingMessageUpdate                                   = 4216
     ChatServerRouteFriendMsg                                 = 4219
     AMTicketAuthRequestOrResponse                            = 4220
-    AMVerifyDepotManagementRights                            = 4222
-    AMVerifyDepotManagementRightsResponse                    = 4223
     AMAddFreeLicense                                         = 4224
     AMValidateEmailLink                                      = 4231
     AMValidateEmailLinkResponse                              = 4232
@@ -810,11 +766,8 @@ class EMsg(IntEnum):
     AMSetPreApproval                                         = 4255
     AMSetPreApprovalResponse                                 = 4256
     AMCreateRefund                                           = 4258
-    AMCreateRefundResponse                                   = 4259
     AMCreateChargeback                                       = 4260
-    AMCreateChargebackResponse                               = 4261
     AMCreateDispute                                          = 4262
-    AMCreateDisputeResponse                                  = 4263
     AMClearDispute                                           = 4264
     AMCreateFinancialAdjustment                              = 4265
     AMPlayerNicknameList                                     = 4266
@@ -824,8 +777,6 @@ class EMsg(IntEnum):
     AMGetUserCurrentGameInfoResponse                         = 4270
     AMGetGSPlayerList                                        = 4271
     AMGetGSPlayerListResponse                                = 4272
-    AMGetGameMembers                                         = 4276
-    AMGetGameMembersResponse                                 = 4277
     AMGetSteamIDForMicroTxn                                  = 4278
     AMGetSteamIDForMicroTxnResponse                          = 4279
     AMSetPartnerMember                                       = 4280
@@ -900,8 +851,6 @@ class EMsg(IntEnum):
     AMHandlePendingTransactionResponse                       = 4360
     AMGrantGuestPasses2                                      = 4361
     AMGrantGuestPasses2Response                              = 4362
-    AMSessionQuery                                           = 4363
-    AMSessionQueryResponse                                   = 4364
     AMGetPlayerBanDetails                                    = 4365
     AMGetPlayerBanDetailsResponse                            = 4366
     AMFinalizePurchase                                       = 4367
@@ -912,17 +861,12 @@ class EMsg(IntEnum):
     AMGetPendingNotificationCount                            = 4375
     AMGetPendingNotificationCountResponse                    = 4376
     AMPasswordHashUpgrade                                    = 4377
-    AMMoPayPayment                                           = 4378
-    AMMoPayPaymentResponse                                   = 4379
     AMBoaCompraPayment                                       = 4380
     AMBoaCompraPaymentResponse                               = 4381
-    AMExpireCaptchaByGID                                     = 4382
     AMCompleteExternalPurchase                               = 4383
     AMCompleteExternalPurchaseResponse                       = 4384
     AMResolveNegativeWalletCredits                           = 4385
     AMResolveNegativeWalletCreditsResponse                   = 4386
-    AMPayelpPayment                                          = 4387
-    AMPayelpPaymentResponse                                  = 4388
     AMPlayerGetClanBasicDetails                              = 4389
     AMPlayerGetClanBasicDetailsResponse                      = 4390
     AMMOLPayment                                             = 4391
@@ -963,8 +907,6 @@ class EMsg(IntEnum):
     PSCreateShoppingCartResponse                             = 5002
     PSIsValidShoppingCart                                    = 5003
     PSIsValidShoppingCartResponse                            = 5004
-    PSAddPackageToShoppingCart                               = 5005
-    PSAddPackageToShoppingCartResponse                       = 5006
     PSRemoveLineItemFromShoppingCart                         = 5007
     PSRemoveLineItemFromShoppingCartResponse                 = 5008
     PSGetShoppingCartContents                                = 5009
@@ -990,9 +932,6 @@ class EMsg(IntEnum):
     UFSSynchronizeFileResponse                               = 5218
     ClientUFSDeleteFileRequest                               = 5219
     ClientUFSDeleteFileResponse                              = 5220
-    UFSDownloadRequest                                       = 5221
-    UFSDownloadResponse                                      = 5222
-    UFSDownloadChunk                                         = 5223
     ClientUFSGetUGCDetails                                   = 5226
     ClientUFSGetUGCDetailsResponse                           = 5227
     UFSUpdateFileFlags                                       = 5228
@@ -1029,7 +968,6 @@ class EMsg(IntEnum):
     ClientCreateAccountResponse                              = 5403
     ClientResetForgottenPassword                             = 5404
     ClientResetForgottenPasswordResponse                     = 5405
-    ClientCreateAccount2                                     = 5406
     ClientInformOfResetForgottenPassword                     = 5407
     ClientInformOfResetForgottenPasswordResponse             = 5408
     ClientGamesPlayedWithDataBlob                            = 5410
@@ -1064,8 +1002,6 @@ class EMsg(IntEnum):
     ClientCheckAppBetaPasswordResponse                       = 5451
     ClientToGC                                               = 5452
     ClientFromGC                                             = 5453
-    ClientRequestChangeMail                                  = 5454
-    ClientRequestChangeMailResponse                          = 5455
     ClientEmailAddrInfo                                      = 5456
     ClientPasswordChange3                                    = 5457
     ClientEmailChange3                                       = 5458
@@ -1103,7 +1039,6 @@ class EMsg(IntEnum):
     ClientMicroTxnAuthRequest                                = 5504
     ClientMicroTxnAuthorize                                  = 5505
     ClientMicroTxnAuthorizeResponse                          = 5506
-    ClientAppMinutesPlayedData                               = 5507
     ClientGetMicroTxnInfo                                    = 5508
     ClientGetMicroTxnInfoResponse                            = 5509
     ClientMarketingMessageUpdate2                            = 5510
@@ -1137,8 +1072,6 @@ class EMsg(IntEnum):
     ClientRequestMachineAuth                                 = 5541
     ClientRequestMachineAuthResponse                         = 5542
     ClientScreenshotsChanged                                 = 5543
-    ClientEmailChange4                                       = 5544
-    ClientEmailChangeResponse4                               = 5545
     ClientGetCDNAuthToken                                    = 5546
     ClientGetCDNAuthTokenResponse                            = 5547
     ClientDownloadRateStatistics                             = 5548
@@ -1172,7 +1105,6 @@ class EMsg(IntEnum):
     ClientItemAnnouncements                                  = 5576
     ClientRequestItemAnnouncements                           = 5577
     ClientFriendMsgEchoToSender                              = 5578
-    ClientOGSGameServerPingSample                            = 5581
     ClientCommentNotifications                               = 5582
     ClientRequestCommentNotifications                        = 5583
     ClientPersonaChangeResponse                              = 5584
@@ -1181,8 +1113,6 @@ class EMsg(IntEnum):
     ClientPlayerNicknameList                                 = 5587
     AMClientSetPlayerNickname                                = 5588
     AMClientSetPlayerNicknameResponse                        = 5589
-    ClientCreateAccountProto                                 = 5590
-    ClientCreateAccountProtoResponse                         = 5591
     ClientGetNumberOfCurrentPlayersDP                        = 5592
     ClientGetNumberOfCurrentPlayersDPResponse                = 5593
     ClientServiceMethodLegacy                                = 5594
@@ -1232,12 +1162,11 @@ class EMsg(IntEnum):
     MDSGetDepotChunk                                         = 5832
     MDSGetDepotChunkResponse                                 = 5833
     MDSGetDepotChunkChunk                                    = 5834
-    MDSGetServerListForUser                                  = 5836
-    MDSGetServerListForUserResponse                          = 5837
     MDSToCSFlushChunk                                        = 5844
     MDSMigrateChunk                                          = 5847
     MDSMigrateChunkResponse                                  = 5848
     MDSToCSFlushManifest                                     = 5849
+
     CSBase                                                   = 6200
     CSPing                                                   = 6201
     CSPingResponse                                           = 6202
@@ -1291,6 +1220,7 @@ class EMsg(IntEnum):
     ClientMMSGetLobbyStatusResponse                          = 6627
     MMSGetLobbyList                                          = 6628
     MMSGetLobbyListResponse                                  = 6629
+
     NonStdMsgBase                                            = 6800
     NonStdMsgMemcached                                       = 6801
     NonStdMsgHTTPServer                                      = 6802
@@ -1333,10 +1263,6 @@ class EMsg(IntEnum):
     ClientUCMPublishFileResponse                             = 7312
     ClientUCMDeletePublishedFile                             = 7315
     ClientUCMDeletePublishedFileResponse                     = 7316
-    ClientUCMEnumerateUserPublishedFiles                     = 7317
-    ClientUCMEnumerateUserPublishedFilesResponse             = 7318
-    ClientUCMEnumerateUserSubscribedFiles                    = 7321
-    ClientUCMEnumerateUserSubscribedFilesResponse            = 7322
     ClientUCMUpdatePublishedFile                             = 7325
     ClientUCMUpdatePublishedFileResponse                     = 7326
     UCMUpdatePublishedFile                                   = 7327
@@ -1344,8 +1270,6 @@ class EMsg(IntEnum):
     UCMDeletePublishedFile                                   = 7329
     UCMDeletePublishedFileResponse                           = 7330
     UCMUpdatePublishedFileStat                               = 7331
-    UCMUpdatePublishedFileBan                                = 7332
-    UCMUpdatePublishedFileBanResponse                        = 7333
     UCMReloadPublishedFile                                   = 7337
     UCMReloadUserFileListCaches                              = 7338
     UCMPublishedFileReported                                 = 7339
@@ -1353,8 +1277,6 @@ class EMsg(IntEnum):
     UCMPublishedFilePreviewAddResponse                       = 7342
     UCMPublishedFilePreviewRemove                            = 7343
     UCMPublishedFilePreviewRemoveResponse                    = 7344
-    ClientUCMPublishedFileSubscribed                         = 7347
-    ClientUCMPublishedFileUnsubscribed                       = 7348
     UCMPublishedFileSubscribed                               = 7349
     UCMPublishedFileUnsubscribed                             = 7350
     UCMPublishFile                                           = 7351
@@ -1364,13 +1286,10 @@ class EMsg(IntEnum):
     UCMPublishedFileChildRemove                              = 7355
     UCMPublishedFileChildRemoveResponse                      = 7356
     UCMPublishedFileParentChanged                            = 7359
-    ClientUCMGetPublishedFilesForUser                        = 7360
-    ClientUCMGetPublishedFilesForUserResponse                = 7361
     ClientUCMSetUserPublishedFileAction                      = 7364
     ClientUCMSetUserPublishedFileActionResponse              = 7365
     ClientUCMEnumeratePublishedFilesByUserAction             = 7366
     ClientUCMEnumeratePublishedFilesByUserActionResponse     = 7367
-    ClientUCMPublishedFileDeleted                            = 7368
     UCMGetUserSubscribedFiles                                = 7369
     UCMGetUserSubscribedFilesResponse                        = 7370
     UCMFixStatsPublishedFile                                 = 7371
@@ -1380,8 +1299,6 @@ class EMsg(IntEnum):
     ClientUCMPublishedFileUpdated                            = 7381
     ClientWorkshopItemChangesRequest                         = 7382
     ClientWorkshopItemChangesResponse                        = 7383
-    ClientWorkshopItemInfoRequest                            = 7384
-    ClientWorkshopItemInfoResponse                           = 7385
 
     FSBase                                                   = 7500
     ClientRichPresenceUpload                                 = 7501
@@ -1413,9 +1330,8 @@ class EMsg(IntEnum):
     ClientFSGetFriendsSteamLevels                            = 7528
     ClientFSGetFriendsSteamLevelsResponse                    = 7529
     AMRequestFriendData                                      = 7530
-
-    CEGVersionSetEnableDisableRequest                        = 7600
     DRMRange2                                                = 7600
+    CEGVersionSetEnableDisableRequest                        = 7600
     CEGVersionSetEnableDisableResponse                       = 7601
     CEGPropStatusDRMSRequest                                 = 7602
     CEGPropStatusDRMSResponse                                = 7603
@@ -1437,7 +1353,6 @@ class EMsg(IntEnum):
     EconCDKeyProcessTransactionResponse                      = 7712
     EconGetErrorLogs                                         = 7713
     EconGetErrorLogsResponse                                 = 7714
-
     RMRange                                                  = 7800
     RMTestVerisignOTP                                        = 7800
     RMTestVerisignOTPResponse                                = 7801
@@ -1448,15 +1363,15 @@ class EMsg(IntEnum):
     RMMsgTraceRemoveTrigger                                  = 7807
     RMMsgTraceEvent                                          = 7808
 
-    UGSUpdateGlobalStats                                     = 7900
     UGSBase                                                  = 7900
+    UGSUpdateGlobalStats                                     = 7900
     ClientUGSGetGlobalStats                                  = 7901
     ClientUGSGetGlobalStatsResponse                          = 7902
 
     StoreBase                                                = 8000
 
-    UMQLogonRequest                                          = 8100
     UMQBase                                                  = 8100
+    UMQLogonRequest                                          = 8100
     UMQLogonResponse                                         = 8101
     UMQLogoffRequest                                         = 8102
     UMQLogoffResponse                                        = 8103
@@ -1468,8 +1383,8 @@ class EMsg(IntEnum):
 
     WorkshopBase                                             = 8200
 
-    WebAPIValidateOAuth2Token                                = 8300
     WebAPIBase                                               = 8300
+    WebAPIValidateOAuth2Token                                = 8300
     WebAPIValidateOAuth2TokenResponse                        = 8301
     WebAPIRegisterGCInterfaces                               = 8303
     WebAPIInvalidateOAuthClientCache                         = 8304
@@ -1487,20 +1402,17 @@ class EMsg(IntEnum):
     CREUpdateUserPublishedItemVoteResponse                   = 8508
     CREGetUserPublishedItemVoteDetails                       = 8509
     CREGetUserPublishedItemVoteDetailsResponse               = 8510
-    CREEnumeratePublishedFiles                               = 8511
-    CREEnumeratePublishedFilesResponse                       = 8512
-    CREPublishedFileVoteAdded                                = 8513
 
-    SecretsRequestCredentialPair                             = 8600
     SecretsBase                                              = 8600
+    SecretsRequestCredentialPair                             = 8600
     SecretsCredentialPairResponse                            = 8601
 
-    BoxMonitorReportRequest                                  = 8700
     BoxMonitorBase                                           = 8700
+    BoxMonitorReportRequest                                  = 8700
     BoxMonitorReportResponse                                 = 8701
 
-    LogsinkWriteReport                                       = 8800
     LogsinkBase                                              = 8800
+    LogsinkWriteReport                                       = 8800
 
     PICSBase                                                 = 8900
     ClientPICSChangesSinceRequest                            = 8901
@@ -1509,12 +1421,10 @@ class EMsg(IntEnum):
     ClientPICSProductInfoResponse                            = 8904
     ClientPICSAccessTokenRequest                             = 8905
     ClientPICSAccessTokenResponse                            = 8906
-
     WorkerProcess                                            = 9000
     WorkerProcessPingRequest                                 = 9000
     WorkerProcessPingResponse                                = 9001
     WorkerProcessShutdown                                    = 9002
-
     DRMWorkerProcess                                         = 9100
     DRMWorkerProcessDRMAndSign                               = 9100
     DRMWorkerProcessDRMAndSignResponse                       = 9101
@@ -1548,7 +1458,6 @@ class EMsg(IntEnum):
     DRMWorkerProcessUnpackBlobResponse                       = 9131
     DRMWorkerProcessInstallAllRequest                        = 9132
     DRMWorkerProcessInstallAllResponse                       = 9133
-
     TestWorkerProcess                                        = 9200
     TestWorkerProcessLoadUnloadModuleRequest                 = 9200
     TestWorkerProcessLoadUnloadModuleResponse                = 9201
@@ -1556,12 +1465,11 @@ class EMsg(IntEnum):
     TestWorkerProcessServiceModuleCallResponse               = 9203
 
     QuestServerBase                                          = 9300
-
     ClientGetEmoticonList                                    = 9330
     ClientEmoticonList                                       = 9331
 
-    SLCUserSessionStatus                                     = 9400
     SLCBase                                                  = 9400
+    SLCUserSessionStatus                                     = 9400
     SLCRequestUserSessionStatus                              = 9401
     SLCSharedLicensesLockStatus                              = 9402
     ClientSharedLibraryLockStatus                            = 9405
@@ -1586,30 +1494,33 @@ class EMsg(IntEnum):
     RemoteClientStatusRequest                                = 9515
     RemoteClientStatusResponse                               = 9516
 
-    ClientPlayingSessionState                                = 9600
     ClientConcurrentSessionsBase                             = 9600
+    ClientPlayingSessionState                                = 9600
     ClientKickPlayingSession                                 = 9601
 
     ClientBroadcastBase                                      = 9700
+    ClientBroadcastInit                                      = 9700
     ClientBroadcastFrames                                    = 9701
     ClientBroadcastDisconnect                                = 9702
     ClientBroadcastScreenshot                                = 9703
     ClientBroadcastUploadConfig                              = 9704
 
     BaseClient3                                              = 9800
+    ClientVoiceCallPreAuthorize                              = 9800
     ClientVoiceCallPreAuthorizeResponse                      = 9801
     ClientServerTimestampRequest                             = 9802
     ClientServerTimestampResponse                            = 9803
 
-    ClientLANP2PRequestChunk                                 = 9900
     ClientLANP2PBase                                         = 9900
+    ClientLANP2PRequestChunk                                 = 9900
     ClientLANP2PRequestChunkResponse                         = 9901
     ClientLANP2PMax                                          = 9999
 
+    BaseWatchdogServer                                       = 10000
     NotifyWatchdog                                           = 10000
 
-    ClientSiteLicenseSiteInfoNotification                    = 10100
     ClientSiteLicenseBase                                    = 10100
+    ClientSiteLicenseSiteInfoNotification                    = 10100
     ClientSiteLicenseCheckout                                = 10101
     ClientSiteLicenseCheckoutResponse                        = 10102
     ClientSiteLicenseGetAvailableSeats                       = 10103
@@ -1617,9 +1528,9 @@ class EMsg(IntEnum):
     ClientSiteLicenseGetContentCacheInfo                     = 10105
     ClientSiteLicenseGetContentCacheInfoResponse             = 10106
 
-    ChatServerGetPendingNotificationCount                    = 12000
     BaseChatServer                                           = 12000
+    ChatServerGetPendingNotificationCount                    = 12000
     ChatServerGetPendingNotificationCountResponse            = 12001
 
-    ServerSecretChanged                                      = 12100
     BaseSecretServer                                         = 12100
+    ServerSecretChanged                                      = 12100
