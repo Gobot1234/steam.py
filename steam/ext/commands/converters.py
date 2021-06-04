@@ -309,13 +309,13 @@ class UserConverter(Converter[User]):
         except (InvalidSteamID, HTTPException):
             if argument.startswith("@"):  # probably a mention
                 try:
-                    account_id = ctx.message.mentions.mention_accountids[0]
+                    account_id = ctx.message.mentions.ids[0]
                 except (IndexError, AttributeError):
                     pass
                 else:
                     user = await ctx.bot.fetch_user(account_id)
                     if user is not None and user.id == account_id:
-                        ctx.message.mentions.mention_accountids.remove(account_id)
+                        del ctx.message.mentions.ids[0]
                         return user
             user = utils.find(lambda u: u.name == argument, ctx.bot.users)
 

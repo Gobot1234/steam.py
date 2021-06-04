@@ -378,7 +378,7 @@ class Command:
         """
         try:
             try:  # we mess with mentions in UserConverter.convert so we need to copy them for later
-                mentions = ctx.message.mentions.mention_accountids.copy()
+                mentions = ctx.message.mentions.ids.copy()
             except AttributeError:
                 pass
             if not self.enabled:
@@ -401,7 +401,7 @@ class Command:
             raise
         finally:
             try:
-                ctx.message.mentions.mention_accountids = mentions
+                ctx.message.mentions.ids = mentions
             except (UnboundLocalError, AttributeError):
                 pass
             await self._call_after_invoke(ctx)

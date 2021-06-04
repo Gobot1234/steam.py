@@ -944,7 +944,7 @@ class CClanChatRoomsSetClanChatRoomPrivateResponse(betterproto.Message):
 class CChatMentions(betterproto.Message):
     mention_all: bool = betterproto.bool_field(1)
     mention_here: bool = betterproto.bool_field(2)
-    mention_accountids: List[int] = betterproto.uint32_field(3)
+    ids: List[int] = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
