@@ -77,11 +77,11 @@ class Cog:
         The cleaned up doc-string for the cog.
     """
 
-    __commands__: Final[dict[str, Command]]  # type: ignore
-    __listeners__: Final[dict[str, list[EventType]]]  # type: ignore
-    command_attrs: Final[dict[str, Any]]  # type: ignore
-    qualified_name: Final[str]  # type: ignore
-    description: Final[Optional[str]]  # type: ignore
+    __commands__: Final[dict[str, Command]] = ...
+    __listeners__: Final[dict[str, list[EventType]]] = ...
+    command_attrs: Final[dict[str, Any]] = ...
+    qualified_name: Final[str] = ...
+    description: Final[Optional[str]] = ...
 
     def __init_subclass__(cls, name: Optional[str] = None, command_attrs: Optional[dict[str, Any]] = None) -> None:
         cls.qualified_name = name or cls.__name__  # type: ignore
@@ -127,6 +127,7 @@ class Cog:
     def __repr__(self) -> str:
         return f"<Cog {f'{self.__class__.__module__}.{self.__class__.__name__}'!r}>"
 
+    # TODO for 3.9 make these class properties
     @property
     def commands(self) -> set[Command]:
         """set[:class:`Command`]: A set of the :class:`Cog`'s commands."""
@@ -256,7 +257,8 @@ class Cog:
         for command in self.__commands__.values():
             if isinstance(command, Group):
                 command.recursively_remove_all_commands()
-            bot.remove_command(command.name)
+            else:
+                bot.remove_command(command.name)
 
         for name, listeners in self.__listeners__.items():
             for listener in listeners:
