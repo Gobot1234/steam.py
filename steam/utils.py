@@ -431,6 +431,15 @@ def contains_bbcode(string: str) -> bool:
         "random",
         "flip",
         "store",
+        "emoticon",
+        "tradeofferlink",
+        "tradeoffer",
+        "sticker",
+        "gameinvite",
+        "og",
+        "roomeffect",
+        "img",
+        "url",
     ]
     return any(string.startswith(f"/{bbcode}") for bbcode in bbcodes)
 
