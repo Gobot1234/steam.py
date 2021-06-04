@@ -35,8 +35,7 @@ from collections.abc import Callable, Coroutine, Iterable
 from time import time
 from typing import TYPE_CHECKING, Any, ForwardRef, Optional, TypeVar, Union, get_type_hints, overload
 
-from chardet import detect
-from typing_extensions import Literal, TypeAlias, get_args, get_origin
+from typing_extensions import Literal, ParamSpec, TypeAlias, get_args, get_origin
 
 from ...channel import DMChannel
 from ...errors import ClientException
@@ -172,8 +171,7 @@ class Command:
         else:
             help_doc = inspect.getdoc(func)
             if isinstance(help_doc, bytes):
-                encoding = detect(help_doc)["encoding"]
-                help_doc = help_doc.decode(encoding)
+                help_doc = help_doc.decode("utf-8")
         self.help: Optional[str] = help_doc
 
         try:

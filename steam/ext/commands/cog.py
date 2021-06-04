@@ -30,7 +30,6 @@ import traceback
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Optional, Union, overload
 
-from chardet import detect
 from typing_extensions import Final
 
 from ... import ClientException
@@ -90,8 +89,7 @@ class Cog:
         if cls.__doc__ is not None:
             help_doc = inspect.cleandoc(cls.__doc__)
             if isinstance(help_doc, bytes):
-                encoding = detect(help_doc)["encoding"]
-                help_doc.decode(encoding)
+                help_doc.decode("utf-8")
 
             cls.description = help_doc  # type: ignore
         else:
