@@ -58,8 +58,8 @@ __all__ = (
 )
 
 
-# fmt: off
 class Operator(Enum):
+    # fmt: off
     div  = "\\"
     or_  = "\\nor\\"
     and_ = "\\nand\\"
@@ -133,22 +133,22 @@ class QueryMeta(type):
     @property
     def version_match(cls) -> Query[str]:
         """Fetches servers running version "x" (``"*"`` is wildcard)."""
-        return Query("\\version_match\\", type=str, callback=lambda a: a)
+        return Query("\\version_match\\", type=str)
 
     @property
     def name_match(cls) -> Query[str]:
         """Fetches servers with their hostname matching "x" (``"*"`` is wildcard)."""
-        return Query("\\name_match\\", type=str, callback=lambda a: a)
+        return Query("\\name_match\\", type=str)
 
     @property
     def running_mod(cls) -> Query[str]:
         """Fetches servers running the specified modification (e.g. cstrike)."""
-        return Query("\\gamedir\\", type=str, callback=lambda a: a)
+        return Query("\\gamedir\\", type=str)
 
     @property
     def running_map(cls) -> Query[str]:
         """Fetches servers running the specified map (e.g. cs_italy)"""
-        return Query("\\map\\", type=str, callback=lambda a: a)
+        return Query("\\map\\", type=str)
 
     @property
     def ip(cls) -> Query[str]:
@@ -158,7 +158,7 @@ class QueryMeta(type):
         --------
         :meth:`Client.fetch_server` for an query free version of this.
         """
-        return Query("\\gameaddr\\", type=str, callback=lambda a: a)
+        return Query("\\gameaddr\\", type=str)
 
     @property
     def running(cls) -> Query[Union[Game, int]]:
@@ -234,7 +234,7 @@ class Query(Generic[T], metaclass=QueryMeta):
         cls,
         *raw: Union[Query, Operator, str],
         type: Union[type[T], tuple[type[T], ...], None] = None,
-        callback: Optional[Callable[[T], str]] = None,
+        callback: Optional[Callable[[T], str]] = lambda x: x,
     ) -> Query:
         self = super().__new__(cls)
         self._raw = raw
@@ -285,11 +285,6 @@ class Query(Generic[T], metaclass=QueryMeta):
             query_1.query,
             query_2.query if isinstance(query_2, Query) else query_1._callback(query_2)
         )
-
-
-class StructIO(StructIO):
-    def read_cstring(self, *args: Any, **kwargs: Any) -> str:
-        return super().read_cstring(*args, **kwargs).decode("utf-8", "replace")
 
 
 class ServerPlayer(NamedTuple):
@@ -454,7 +449,7 @@ class GameServer(SteamID):
             except ValueError:
                 return
 
-            yield StructIO(data)
+        yield StructIO(data)
 
     async def players(self, *, challenge: Literal[-1, 0] = 0) -> Optional[list[ServerPlayer]]:
         """|coro|
@@ -493,7 +488,7 @@ class GameServer(SteamID):
             return [
                 ServerPlayer(
                     index=buffer.read_u8(),
-                    name=buffer.read_cstring(),
+                    name=buffer.read_cstring().decode("utf-8", "replace"),
                     score=buffer.read_long(),
                     play_time=timedelta(seconds=buffer.read_f32()),
                 )
@@ -524,4 +519,7 @@ class GameServer(SteamID):
             if header != b"E":
                 return None
 
-            return {buffer.read_cstring(): buffer.read_cstring() for _ in range(number_of_rules)}
+            return {
+                buffer.read_cstring().decode("utf-8", "replace"): buffer.read_cstring().decode("utf-8", "replace")
+                for _ in range(number_of_rules)
+            }
