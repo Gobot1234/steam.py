@@ -283,7 +283,7 @@ class Query(Generic[T], metaclass=QueryMeta):
 
         return op.format(
             query_1.query,
-            query_2.query if isinstance(query_2, Query) else query_1._callback(query_2)
+            query_2.query if isinstance(query_2, Query) else query_1._callback(query_2),
         )
 
 
