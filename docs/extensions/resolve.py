@@ -50,7 +50,7 @@ def add_directive_header(self: autodoc.Documenter, sig: str) -> None:
                 self.add_line("   :async-for:", source_name)
 
 
-autodoc.Documenter.add_directive_header = add_directive_header
+# autodoc.Documenter.add_directive_header = add_directive_header  # TODO: fix
 
 
 def setup(app: Sphinx) -> None:

@@ -40,8 +40,8 @@ def make_link_role(resource_links: dict[str, str]) -> RoleFunction:
         text: str,
         lineno: int,
         in_liner: Inliner,
-        options: Dict = {},  # noqa
-        content: List[str] = [],  # noqa
+        options: dict = {},  # noqa
+        content: list[str] = [],  # noqa
     ) -> tuple[list[Node], list[system_message]]:
 
         text = utils.unescape(text)
@@ -59,7 +59,7 @@ def add_link_role(app: Sphinx) -> None:
     app.add_role("resource", make_link_role(app.config.resource_links))
 
 
-def setup(app: Sphinx) -> dict[str, int]:
+def setup(app: Sphinx) -> dict[str, str | bool]:
     app.add_config_value("resource_links", {}, "env")
     app.connect("builder-inited", add_link_role)
     return {"version": sphinx.__display_version__, "parallel_read_safe": True}
