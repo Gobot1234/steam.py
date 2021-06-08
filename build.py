@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from typing_extensions import TypeAlias
 
 ROOT = pathlib.Path(".").resolve()
-PYPROJECT = tomli.load(ROOT / "pyproject.toml")
+PYPROJECT = tomli.load(open(ROOT / "pyproject.toml"))
 try:
     VERSION: str = PYPROJECT["tool"]["poetry"]["version"]
 except KeyError:
