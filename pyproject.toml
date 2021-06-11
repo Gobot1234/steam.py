@@ -17,9 +17,7 @@ classifiers=[
 ]
 include = [
     "LICENSE",
-    "steam/__metadata__.py",
     "steam/py.typed",
-    "steam/ext/__init__.pyi",
 ]
 packages = [
     { include = "steam" },
@@ -37,12 +35,12 @@ generate-setup-file = false
 [tool.poetry.dependencies]
 python = "^3.7"
 aiohttp = ">=3.7.0,<3.8.0"
-beautifulsoup4 = ">=4.9.1"
-rsa = ">=4.6"
+beautifulsoup4 = "^4.9.0"
+rsa = "^4.6"
 betterproto = "2.0.0b3"
 typing-extensions = "3.10.0.0"
-tomli = "^0.2.10"
-importlib-metadata = { version = ">=1.7.0", python = "<3.8" }
+tomli = "^1.0.0"
+importlib-metadata = { version = "^1.0.0", python = "<3.8" }
 
 # docs option
 sphinx = { version = "4.0.2", optional = true }
@@ -60,7 +58,7 @@ isort = "*"
 flake8 = "*"
 pytest = "*"
 pytest-asyncio = "*"
-mypy = { git = "https://github.com/python/mypy" }  # TODO: update to next full release that supports pyproject.toml
+mypy = "^0.900"
 
 [tool.black]
 line-length = 120
@@ -90,5 +88,5 @@ exclude = "venv, .venv"
 testpaths = ["tests"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0", "tomli"]
 build-backend = "poetry.core.masonry.api"

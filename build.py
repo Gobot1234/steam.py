@@ -27,7 +27,6 @@ RELEASE_LEVELS = {
 try:
     end_char = re.findall(r"\d+.\d+.\d+([^\d]*).*", VERSION)[0]
 except IndexError:
-    end_char = ""
     release_level = "final"
 else:
     release_level = RELEASE_LEVELS[end_char]
