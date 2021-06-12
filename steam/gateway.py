@@ -541,6 +541,12 @@ class SteamWebSocket(Registerable):
         ui_mode: Optional[UIMode],
         force_kick: bool,
     ) -> None:
+        self._connection._games = games or self._connection._games
+        self._connection._state = state or self._connection._state
+        self._connection._ui_mode = ui_mode or self._connection._ui_mode
+        self._connection._flags = flags or self._connection._flags
+        self._connection._force_kick = force_kick
+
         if force_kick:
             kick = MsgProto(EMsg.ClientKickPlayingSession)
             log.debug("Kicking any currently playing sessions")
@@ -557,9 +563,3 @@ class SteamWebSocket(Registerable):
             ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
             log.debug(f"Sending {ui_mode} to change UI mode")
             await self.send_as_proto(ui_mode)
-
-        self._connection._games = games or self._connection._games
-        self._connection._state = state or self._connection._state
-        self._connection._ui_mode = ui_mode or self._connection._ui_mode
-        self._connection._flags = flags or self._connection._flags
-        self._connection._force_kick = force_kick
