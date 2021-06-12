@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar, overload
 from typing_extensions import Literal, TypedDict
 
 from .enums import IntEnum, ReviewType
+from .models import URL
 
 if TYPE_CHECKING:
     from .utils import Intable
@@ -181,10 +182,6 @@ class Game:
     def __init__(self, *, id: Intable, title: str, context_id: Optional[int] = None):
         ...
 
-    @overload
-    def __init__(self, *, id: Optional[Intable] = None, title: Optional[str] = None, context_id: Optional[int] = None):
-        ...
-
     def __init__(self, *, id: Optional[Intable] = None, title: Optional[str] = None, context_id: Optional[int] = None):
         if title is None and id is None:
             raise TypeError("__init__() missing a required keyword argument: 'id' or 'title'")
@@ -243,6 +240,13 @@ class Game:
     def is_steam_game(self) -> bool:
         """:class:`bool`: Whether the game could be a Steam game."""
         return self.id <= APP_ID_MAX
+
+    @property
+    def url(self) -> str:
+        """:class:`str`: The game's url on store.steampowered if applicable."""
+        if not self.id:
+            raise ValueError("Game's without id's can't have associated URLs")
+        return f"{URL.STORE}/apps/{self.id}"
 
 
 TF2 = Game(title="Team Fortress 2")
@@ -440,8 +444,10 @@ class FetchedGame(Game):
         The developers of the game.
     publishers: list[:class:`str`]
         The publishers of the game.
-    description: :class:`description`
-        The description of the game.
+    description: :class:`str`
+        The short description of the game.
+    full_description: :class:`str`
+        The full description of the game.
     movies: list[:class:`Movie`]
         A list of the game's movies, each of which has ``name``, ``id``, ``url`` and optional ``created_at`` attributes.
     """
@@ -456,6 +462,7 @@ class FetchedGame(Game):
         "developers",
         "publishers",
         "description",
+        "full_description",
         "movies",
         "_free",
         "_on_windows",
@@ -476,7 +483,8 @@ class FetchedGame(Game):
         self.website_url = data.get("website")
         self.developers = data["developers"]
         self.publishers = data["publishers"]
-        self.description = data["detailed_description"]
+        self.description = data["short_description"]
+        self.full_description = data["detailed_description"]
 
         self.movies = [Movie(movie) for movie in data["movies"]] if data.get("movies") else None
 
