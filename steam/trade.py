@@ -388,6 +388,8 @@ class TradeOffer:
         The the trade token used to send trades to users who aren't on the ClientUser's friend's list.
     message: Optional[:class:`str`]
          The offer message to send with the trade.
+    connection_state: Optional[:class:`ConnectionState`]
+        The instance of ConnectionState to send a new trade offer to an user.
 
     Attributes
     ----------
@@ -437,6 +439,7 @@ class TradeOffer:
         item_to_receive: Optional[Items] = None,
         items_to_send: Optional[list[Items]] = None,
         items_to_receive: Optional[list[Items]] = None,
+        connection_state: Optional[ConnectionState] = None,
     ):
         self.items_to_receive: list[Items] = items_to_receive or []
         self.items_to_send: list[Items] = items_to_send or []
@@ -449,6 +452,8 @@ class TradeOffer:
         self._has_been_sent = False
         self.partner: Optional[User] = None
         self.state = TradeOfferState.Invalid
+        # used to accept, confirm, etc
+        self._state = connection_state
 
     @classmethod
     async def _from_api(cls, state: ConnectionState, data: TradeOfferDict) -> TradeOffer:
