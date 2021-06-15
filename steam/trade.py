@@ -556,13 +556,13 @@ class TradeOffer:
         Raises
         ------
         :exc:`~steam.ClientException`
-            The trade is either not active, already cancelled or is from the ClientUser.
+            The trade is either not active, already cancelled or is a gift.
         """
         self._check_active()
         if self.state == TradeOfferState.Canceled:
             raise ClientException("This trade has already been cancelled")
-        if not self.is_gift():
-            raise ClientException("Offer wasn't created by the ClientUser and therefore cannot be canceled")
+        if self.is_gift():
+            raise ClientException("You try to cancel a gift.")
         await self._state.http.cancel_user_trade(self.id)
 
     async def counter(self, trade: TradeOffer) -> None:
