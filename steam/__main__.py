@@ -1,20 +1,16 @@
 import platform
 
-try:
-    from importlib.metadata import distribution  # noqa
-except ModuleNotFoundError:
-    from importlib_metadata import distribution  # noqa
+import aiohttp
+import betterproto
 
-
-def get_version_info(package: str) -> str:
-    return distribution(package).version
+import steam
 
 
 def main() -> None:
     print("python version:", platform.python_version())
-    print("steam.py version:", get_version_info("steamio"))
-    print("aiohttp version:", get_version_info("aiohttp"))
-    print("betterproto version:", get_version_info("betterproto"))
+    print("steam.py version:", steam.__version__)
+    print("aiohttp version:", aiohttp.__version__)
+    print("betterproto version:", betterproto.__version__)
     print("operating system info:", platform.platform())
 
 

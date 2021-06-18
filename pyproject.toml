@@ -42,7 +42,6 @@ rsa = "^4.6"
 betterproto = "2.0.0b3"
 typing-extensions = "3.10.0.0"
 tomli = "^1.0.0"
-importlib-metadata = { version = "^1.0.0", python = "<3.8" }
 
 # docs option
 sphinx = { version = "4.0.2", optional = true }
