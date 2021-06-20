@@ -297,7 +297,7 @@ class ConnectionState(Registerable):
         timestamp = int(time())
         return {
             "p": self._device_id,
-            "a": self._id64,
+            "a": self.client.user.id64,
             "k": self._generate_confirmation(tag, timestamp),
             "t": timestamp,
             "m": "android",

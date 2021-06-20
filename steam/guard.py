@@ -165,7 +165,7 @@ class Confirmation:
         timestamp = int(time())
         return {
             "p": self._state._device_id,
-            "a": self._state._id64,
+            "a": self._state.client.user.id64,
             "k": self._state._generate_confirmation(tag, timestamp),
             "t": timestamp,
             "m": "android",
