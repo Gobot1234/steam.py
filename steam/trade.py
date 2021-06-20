@@ -388,8 +388,6 @@ class TradeOffer:
         The the trade token used to send trades to users who aren't on the ClientUser's friend's list.
     message: Optional[:class:`str`]
          The offer message to send with the trade.
-    connection_state: Optional[:class:`ConnectionState`]
-        The instance of ConnectionState to send a new trade offer to an user.
 
     Attributes
     ----------
@@ -439,7 +437,6 @@ class TradeOffer:
         item_to_receive: Optional[Items] = None,
         items_to_send: Optional[list[Items]] = None,
         items_to_receive: Optional[list[Items]] = None,
-        connection_state: Optional[ConnectionState] = None,
     ):
         self.items_to_receive: list[Items] = items_to_receive or []
         self.items_to_send: list[Items] = items_to_send or []
@@ -452,8 +449,6 @@ class TradeOffer:
         self._has_been_sent = False
         self.partner: Optional[User] = None
         self.state = TradeOfferState.Invalid
-        # used to accept, confirm, etc
-        self._state = connection_state
 
     @classmethod
     async def _from_api(cls, state: ConnectionState, data: TradeOfferDict) -> TradeOffer:
@@ -518,11 +513,11 @@ class TradeOffer:
         :exc:`~steam.ConfirmationError`
             No matching confirmation could not be found.
         """
-        self._check_active()
         if self.state == TradeOfferState.Accepted:
             raise ClientException("This trade has already been accepted")
         if self.is_our_offer():
             raise ClientException("You cannot accept an offer the ClientUser has made")
+        self._check_active()
         resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
         if resp.get("needs_mobile_confirmation", False):
             for tries in range(5):
@@ -542,11 +537,11 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade is either not active, already declined or not from the ClientUser.
         """
-        self._check_active()
         if self.state == TradeOfferState.Declined:
             raise ClientException("This trade has already been declined")
         if self.is_our_offer():
             raise ClientException("You cannot decline an offer the ClientUser has made")
+        self._check_active()
         await self._state.http.decline_user_trade(self.id)
 
     async def cancel(self) -> None:
@@ -556,13 +551,11 @@ class TradeOffer:
         Raises
         ------
         :exc:`~steam.ClientException`
-            The trade is either not active, already cancelled or is a gift.
+            The trade is either not active  already cancelled.
         """
-        self._check_active()
         if self.state == TradeOfferState.Canceled:
             raise ClientException("This trade has already been cancelled")
-        if self.is_gift():
-            raise ClientException("You try to cancel a gift.")
+        self._check_active()
         await self._state.http.cancel_user_trade(self.id)
 
     async def counter(self, trade: TradeOffer) -> None:
@@ -579,8 +572,7 @@ class TradeOffer:
         :exc:`~steam.ClientException`
             The trade from the ClientUser or it isn't active.
         """
-        if not self._has_been_sent:
-            raise ClientException("This trade isn't active")
+        self._check_active()
         if self.is_our_offer():
             raise ClientException("You cannot counter an offer the ClientUser has made")
 
