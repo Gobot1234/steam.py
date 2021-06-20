@@ -33,7 +33,7 @@ from collections.abc import Callable, Coroutine
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
-from typing_extensions import Final, Protocol
+from typing_extensions import Final, Protocol, TypeAlias
 from yarl import URL as _URL
 
 from . import utils
@@ -67,7 +67,7 @@ class URL:
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
 
 
-EventParser = Callable[[MsgProto], Optional["Coroutine[None, None, None]"]]
+EventParser: TypeAlias = "Callable[[MsgProto], Optional[Coroutine[None, None, None]]]"
 
 
 class Registerable:
