@@ -47,7 +47,7 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .models import URL, PriceOverview
+from .models import TASK_HAS_NAME, URL, PriceOverview
 from .state import ConnectionState
 
 if TYPE_CHECKING:
@@ -233,7 +233,11 @@ class Client:
 
     def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
-        return asyncio.Task(wrapped, name=event_name) if TASK_HAS_NAME else asyncio.Task(wrapped)
+        return (
+            self.loop.create_task(wrapped, name=f"task_{event_name}")
+            if TASK_HAS_NAME
+            else self.loop.create_task(wrapped)
+        )
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
         log.debug(f"Dispatching event {event}")

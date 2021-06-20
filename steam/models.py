@@ -28,6 +28,7 @@ import asyncio
 import inspect
 import logging
 import re
+import sys
 import traceback
 from collections.abc import Callable, Coroutine
 from datetime import timedelta
@@ -54,6 +55,7 @@ __all__ = (
 
 E = TypeVar("E", bound="EventParser")
 R = TypeVar("R", bound="Registerable")
+TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 
 def api_route(path: str, version: int = 1) -> _URL:
@@ -110,7 +112,11 @@ class Registerable:
                 except Exception:
                     log.debug(f"Ignoring event {msg.msg}")
         else:
-            self.loop.create_task(utils.maybe_coroutine(event_parser, msg)).add_done_callback(self._run_parser_callback)
+            (
+                self.loop.create_task(utils.maybe_coroutine(event_parser, msg), name=f"task_{event_parser.__name__}")
+                if TASK_HAS_NAME
+                else self.loop.create_task(utils.maybe_coroutine(event_parser, msg))
+            ).add_done_callback(self._run_parser_callback)
 
 
 def register(msg: IntEnum) -> Callable[[E], E]:
