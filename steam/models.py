@@ -67,7 +67,7 @@ class URL:
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
 
 
-EventParser = Callable[[MsgProto], Optional[Coroutine[None, None, None]]]
+EventParser = Callable[[MsgProto], Optional["Coroutine[None, None, None]"]]
 
 
 class Registerable:
