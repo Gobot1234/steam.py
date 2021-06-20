@@ -47,7 +47,7 @@ from .guard import *
 from .invite import ClanInvite, UserInvite
 from .message import *
 from .message import ClanMessage
-from .models import EventParser, Registerable, community_route, register
+from .models import URL, EventParser, Registerable, register
 from .protobufs import (
     EMsg,
     MsgProto,
@@ -114,7 +114,6 @@ class ConnectionState(Registerable):
         self.client = client
         self.dispatch = client.dispatch
         self.http: HTTPClient = client.http
-        self.request = self.http.request
 
         self.handled_friends = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)
@@ -339,7 +338,7 @@ class ConnectionState(Registerable):
     async def _fetch_confirmations(self) -> dict[int, Confirmation]:
         params = self._create_confirmation_params("conf")
         headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
-        resp = await self.request("GET", community_route("mobileconf/conf"), params=params, headers=headers)
+        resp = await self.http.get(URL.COMMUNITY / "mobileconf/conf", params=params, headers=headers)
 
         if "incorrect Steam Guard codes." in resp:
             raise InvalidCredentials("identity_secret is incorrect")
@@ -694,7 +693,7 @@ class ConnectionState(Registerable):
         cms = msg.body.cm_websocket_addresses
         cm_list = self.ws.cm_list
         cm_list.merge_list(cms)
-        await cm_list.ping_cms()  # ping all the cms, we have time.
+        await cm_list.ping()  # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)
     async def parse_persona_state_update(self, msg: MsgProto[client_server_friends.CMsgClientPersonaState]) -> None:
@@ -774,7 +773,7 @@ class ConnectionState(Registerable):
                     self.dispatch("user_invite", invite)
                 if steam_id.type == Type.Clan:
                     if elements is None:
-                        resp = await self.request("GET", community_route("my/groups/pending"), params={"ajax": "1"})
+                        resp = await self.http.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
                         soup = BeautifulSoup(resp, "html.parser")
                         elements = soup.find_all("a", attrs={"class": "linkStandard"})
                     invitee_id = 0
@@ -812,7 +811,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, _: MsgProto[client_server_2.CMsgClientCommentNotifications]) -> None:
         previous = None
-        resp = await self.request("GET", community_route("my/commentnotifications"))
+        resp = await self.http.get(URL.COMMUNITY / "my/commentnotifications")
         soup = BeautifulSoup(resp, "html.parser")
         for attr in soup.find_all("div", attrs={"class": "commentnotification_click_overlay"}):
             steam_id = await SteamID.from_url(attr.contents[1]["href"], self.http._session)
@@ -848,6 +847,8 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[client_server_login.CMsgClientAccountInfo]) -> None:
+        if not self.client.user:
+            return
         if msg.body.persona_name != self.client.user.name:
             before = self.client.user.copy()
             self.client.user.name = msg.body.persona_name or self.client.user.name

@@ -39,7 +39,7 @@ from time import time
 from typing import TYPE_CHECKING, Any, Optional
 
 from .errors import ConfirmationError
-from .models import community_route
+from .models import URL
 from .utils import Intable
 
 if TYPE_CHECKING:
@@ -182,7 +182,7 @@ class Confirmation:
         params["op"] = "allow"
         params["cid"] = self.data_conf_id
         params["ck"] = self.data_key
-        resp = await self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
+        resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
         self._assert_valid(resp)
 
     async def cancel(self) -> None:
@@ -190,11 +190,11 @@ class Confirmation:
         params["op"] = "cancel"
         params["cid"] = self.data_conf_id
         params["ck"] = self.data_key
-        resp = await self._state.request("GET", community_route("mobileconf/ajaxop"), params=params)
+        resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
         self._assert_valid(resp)
 
     async def details(self) -> dict:
         params = self._confirm_params(self.tag)
-        resp = await self._state.request("GET", community_route(f"mobileconf/details/{self.id}"), params=params)
+        resp = await self._state.http.get(URL.COMMUNITY / f"mobileconf/details/{self.id}", params=params)
         self._assert_valid(resp)
         return resp["html"]

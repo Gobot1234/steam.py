@@ -54,7 +54,7 @@ from .enums import (
 from .errors import WSException
 from .game import Game, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
-from .models import Ban, community_route
+from .models import URL, Ban
 from .trade import Inventory
 from .utils import _INVITE_HEX, _INVITE_MAPPING, InstanceType, Intable, TypeType, UniverseType, id64_from_url, make_id64
 
@@ -497,7 +497,7 @@ class BaseUser(Commentable):
         self.real_name = data.get("realname") or self.real_name
         self.community_url = data.get("profileurl") or super().community_url
         self.avatar_url = data.get("avatarfull") or self.avatar_url
-        self.trade_url = community_route(f"tradeoffer/new/?partner={self.id}")
+        self.trade_url = URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}"
 
         self.primary_clan = SteamID(data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan
         self.country = data.get("loccountrycode") or self.country

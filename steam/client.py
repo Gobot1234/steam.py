@@ -47,7 +47,7 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .models import PriceOverview, community_route
+from .models import URL, PriceOverview
 from .state import ConnectionState
 
 if TYPE_CHECKING:
@@ -412,7 +412,7 @@ class Client:
         """
         while not self.is_closed():
             try:
-                resp = await self.http.request("GET", url=community_route("chat/clientjstoken"))
+                resp = await self.http.get(URL.COMMUNITY / "chat/clientjstoken")
                 if not resp["logged_in"]:  # we got logged out :(
                     await self.http.login(self.username, self.password, shared_secret=self.shared_secret)
                     continue
@@ -506,7 +506,7 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        id64 = await utils.id64_from_url(community_route(f"id/{name}"), self.http._session)
+        id64 = await utils.id64_from_url(URL.COMMUNITY / "id" / name, self.http._session)
         return await self._connection.fetch_user(id64) if id64 is not None else None
 
     def get_trade(self, id: int) -> Optional[TradeOffer]:
@@ -607,7 +607,7 @@ class Client:
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        steam_id = await SteamID.from_url(community_route(f"clans/{name}"), self.http._session)
+        steam_id = await SteamID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
 
     async def fetch_game(self, id: Union[int, Game]) -> Optional[FetchedGame]:

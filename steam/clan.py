@@ -151,7 +151,7 @@ class Clan(Commentable, comment_path="Clan"):
         self.default_channel: Optional[ClanChannel] = None
 
     async def __ainit__(self) -> None:
-        resp = await self._state.request("GET", self.community_url)
+        resp = await self._state.http.get(self.community_url)
         if not self.id:
             search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
             if search is None:
@@ -274,13 +274,13 @@ class Clan(Commentable, comment_path="Clan"):
             endpoint.
         """
         ret = []
-        resp = await self._state.request("GET", f"{self.community_url}/members?p=1&content_only=true")
+        resp = await self._state.http.get(f"{self.community_url}/members?p=1&content_only=true")
         soup = BeautifulSoup(resp, "html.parser")
         number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", attrs={"class": "group_paging"}).text)[0])
 
         async def getter(i: int) -> None:
             try:
-                resp = await self._state.request("GET", f"{self.community_url}/members?p={i + 1}")
+                resp = await self._state.http.get(f"{self.community_url}/members?p={i + 1}")
             except HTTPException:
                 await asyncio.sleep(20)
                 await getter(i)

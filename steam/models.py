@@ -56,19 +56,9 @@ E = TypeVar("E", bound="EventParser")
 R = TypeVar("R", bound="Registerable")
 
 
-def api_route(path: str) -> _URL:
+def api_route(path: str, version: int = 1) -> _URL:
     """Format an API URL for usage with HTTPClient.request"""
-    return URL.API / f'{path}{"/v1" if path[-2:] != "v2" else ""}'
-
-
-def community_route(path: str) -> _URL:
-    """Format a Steam Community URL for usage with HTTPClient.request"""
-    return URL.COMMUNITY / path
-
-
-def store_route(path: str) -> _URL:
-    """Format a Steam store URL for usage with HTTPClient.request"""
-    return URL.STORE / path
+    return URL.API / f"{path}/v{version}"
 
 
 class URL:
