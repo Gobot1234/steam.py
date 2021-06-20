@@ -551,7 +551,7 @@ class TradeOffer:
         Raises
         ------
         :exc:`~steam.ClientException`
-            The trade is either not active  already cancelled.
+            The trade is either not active or already cancelled.
         """
         if self.state == TradeOfferState.Canceled:
             raise ClientException("This trade has already been cancelled")
