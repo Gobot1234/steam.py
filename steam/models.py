@@ -31,13 +31,13 @@ import re
 import traceback
 from collections.abc import Callable, Coroutine
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 from typing_extensions import Final, Protocol
 from yarl import URL as _URL
 
 from . import utils
-from .enums import IE
+from .enums import IntEnum
 from .protobufs import EMsg, MsgProto
 
 if TYPE_CHECKING:
@@ -67,11 +67,7 @@ class URL:
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
 
 
-class EventParser(MethodType, Generic[IE]):
-    msg: IE
-
-    def __call__(self, msg: MsgProto) -> Optional[Coroutine[None, None, None]]:
-        ...
+EventParser = Callable[[MsgProto], Optional[Coroutine[None, None, None]]]
 
 
 class Registerable:
@@ -103,7 +99,7 @@ class Registerable:
         if exception:
             traceback.print_exception(exception.__class__, exception, exception.__traceback__)
 
-    def run_parser(self, emsg: IE, msg: Msgs) -> None:
+    def run_parser(self, emsg: IntEnum, msg: Msgs) -> None:
         try:
             event_parser = getattr(self, self.parsers_name)[emsg]
         except KeyError:
@@ -117,7 +113,7 @@ class Registerable:
             self.loop.create_task(utils.maybe_coroutine(event_parser, msg)).add_done_callback(self._run_parser_callback)
 
 
-def register(msg: IE) -> Callable[[E], E]:
+def register(msg: IntEnum) -> Callable[[E], E]:
     def wrapper(callback: E) -> E:
         callback.msg = msg
         return callback

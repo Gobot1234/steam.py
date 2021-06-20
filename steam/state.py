@@ -77,38 +77,7 @@ log = logging.getLogger(__name__)
 
 
 class ConnectionState(Registerable):
-    parsers: dict[EMsg, EventParser[EMsg]] = {}
-
-    __slots__ = (
-        "http",
-        "request",
-        "client",
-        "dispatch",
-        "handled_friends",
-        "handled_emoticons",
-        "handled_groups",
-        "invites",
-        "max_messages",
-        "_users",
-        "_trades",
-        "_groups",
-        "_clans",
-        "_confirmations",
-        "_confirmations_to_ignore",
-        "_trades_task",
-        "_trades_to_watch",
-        "_trades_received_cache",
-        "_trades_sent_cache",
-        "_descriptions_cache",
-        "_id64",
-        "_device_id",
-        "_messages",
-        "_games",
-        "_state",
-        "_ui_mode",
-        "_flags",
-        "_force_kick",
-    )
+    parsers: dict[EMsg, EventParser] = {}
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client

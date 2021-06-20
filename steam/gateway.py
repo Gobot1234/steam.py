@@ -258,22 +258,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
 
 class SteamWebSocket(Registerable):
-    parsers: dict[EMsg, EventParser[EMsg]] = {}
-
-    __slots__ = (
-        "socket",
-        "cm_list",
-        "cm",
-        "session_id",
-        "thread_id",
-        "listeners",
-        "steam_id",
-        "_connection",
-        "_dispatch",
-        "_current_job_id",
-        "_gc_current_job_id",
-        "_keep_alive",
-    )
+    parsers: dict[EMsg, EventParser] = {}
 
     def __init__(self, socket: aiohttp.ClientWebSocketResponse):
         self.socket = socket
@@ -284,12 +269,12 @@ class SteamWebSocket(Registerable):
         # the keep alive
         self._keep_alive: Optional[KeepAliveHandler] = None
         # an empty dispatcher to prevent crashes
-        self._dispatch = lambda *args, **kwargs: None
+        self._dispatch: Callable[..., None] = lambda *args, **kwargs: None
         self.cm: Optional[CMServer] = None
         self.thread_id = threading.get_ident()
 
         # ws related stuff
-        self.listeners: list[EventListener] = []
+        self.listeners: list[EventListener[Msgs]] = []
 
         self.session_id = 0
         self.steam_id = 0
