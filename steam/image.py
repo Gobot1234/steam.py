@@ -59,7 +59,7 @@ class Image:
 
     # TODO add support for "webm", "mpg", "mp4", "mpeg", "ogv"
 
-    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash")
+    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash", "_tell")
     fp: io.BufferedIOBase
 
     def __init__(self, fp: Union[io.BufferedIOBase, AnyPath], *, spoiler: bool = False):
@@ -69,6 +69,8 @@ class Image:
 
         if len(self) > 10485760:
             raise ValueError("file is too large to upload")
+
+        self._tell = fp.tell()
 
         # from https://stackoverflow.com/questions/8032642
         headers = self.fp.read(24)
@@ -84,10 +86,10 @@ class Image:
             width, height = struct.unpack("<HH", headers[6:10])
         elif self.type == "jpeg":
             try:
-                self.fp.seek(0)  # read 0xff next
-                size = 2
+                self.fp.seek(self._tell)  # read 0xff next
+                size = self._tell + 2
                 ftype = 0
-                while not 0xC0 <= ftype <= 0xCF or ftype in (0xC4, 0xC8, 0xCC):
+                while not 0xC0 <= ftype <= 0xCF or ftype in {0xC4, 0xC8, 0xCC}:
                     self.fp.seek(size, 1)
                     byte = self.fp.read(1)
                     while ord(byte) == 0xFF:
@@ -111,9 +113,9 @@ class Image:
         return len(self.read())
 
     def read(self) -> bytes:
-        self.fp.seek(0)
+        self.fp.seek(self._tell)
         read = self.fp.read()
-        self.fp.seek(0)
+        self.fp.seek(self._tell)
         return read
 
 
