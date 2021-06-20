@@ -245,7 +245,7 @@ class Game:
     def url(self) -> str:
         """:class:`str`: The game's url on store.steampowered if applicable."""
         if not self.id:
-            raise ValueError("Game's without id's can't have associated URLs")
+            raise ValueError("Games without id's can't have associated URLs")
         return f"{URL.STORE}/apps/{self.id}"
 
 
