@@ -495,10 +495,8 @@ class SteamWebSocket(Registerable):
     async def handle_multi(self, msg: MsgProto[CMsgMulti]) -> None:
         log.debug("Received a multi")
         data = self.unpack_multi(msg) if msg.body.size_unzipped else msg.body.message_body
-        if not data:
-            return
 
-        while len(data) > 0:
+        while data:
             (size,) = READ_U32(data)
             await self.receive(data[4 : 4 + size])
             data = data[4 + size :]
