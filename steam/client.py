@@ -66,7 +66,6 @@ if TYPE_CHECKING:
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
-TASK_HAS_NAME = sys.version_info >= (3, 8)
 EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
 EventDeco: TypeAlias = "Union[Callable[[E], E], E]"
 E = TypeVar("E", bound=EventType)

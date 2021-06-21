@@ -38,10 +38,10 @@ from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable,
 from inspect import isawaitable
 from io import BytesIO
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Generic, Optional, Protocol, SupportsInt, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union, overload
 
 import aiohttp
-from typing_extensions import Final, Literal, ParamSpec, TypeAlias
+from typing_extensions import Final, Literal, ParamSpec, Protocol, TypeAlias
 
 from .enums import InstanceFlag, Type, TypeChar, Universe
 from .errors import InvalidSteamID
