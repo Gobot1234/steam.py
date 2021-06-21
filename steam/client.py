@@ -104,10 +104,11 @@ class Client:
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
         if loop:
             import inspect
+            import warnings
 
-            utils.warn(
+            warnings.warn(
                 "The loop argument is deprecated and scheduled for removal in V.1",
-                stack_level=len(inspect.stack())
+                stacklevel=len(inspect.stack())
                 + 1,  # make sure its always at the top of the stack most likely where the Client was created
             )
         self.loop = asyncio.get_event_loop()

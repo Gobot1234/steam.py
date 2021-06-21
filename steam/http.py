@@ -28,6 +28,7 @@ import asyncio
 import json
 import logging
 import re
+import warnings
 from base64 import b64encode
 from collections.abc import Callable, Coroutine
 from functools import partialmethod
@@ -247,7 +248,9 @@ class HTTPClient:
                 BaseUser._patch_without_api()
                 self.__class__.get_user = get_user
                 self.__class__.get_users = get_users
-                utils.warn("Some methods of User objects are not available as no API key can be generated", UserWarning)
+                warnings.warn(
+                    "Some methods of User objects are not available as no API key can be generated", UserWarning
+                )
                 await self.get(URL.COMMUNITY / "home")
 
             cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)

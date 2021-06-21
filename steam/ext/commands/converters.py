@@ -25,6 +25,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import types
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
 from typing import (
@@ -272,8 +273,9 @@ class Converter(ConverterBase[T], ABC):
             converter_for = get_args(cls.__orig_bases__[0])[0]
         except IndexError:
             # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
-            utils.warn(
-                "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1"
+            warnings.warn(
+                "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1",
+                DeprecationWarning,
             )
             CONVERTERS[cls] = cls
         else:

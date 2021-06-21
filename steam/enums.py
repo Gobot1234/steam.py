@@ -547,25 +547,10 @@ class GameServerRegion(IntEnum):
 
 
 # shim for old enum names
-_globals_dict = globals()
-__all__ += tuple(
-    f"E{name}"
-    for name, value in _globals_dict.items()
-    if issubclass(value if isinstance(value, type) else value.__class__, Enum)
-    and name not in ("Enum", "IntEnum")
-)
-
-
 def __getattr__(name: str) -> Any:
-    try:
-        enum = _globals_dict[name[1:]]
-    except KeyError:
-        raise AttributeError(name) from None
-    else:
-        import sys
+    if name[0] == "E" and name[1:] in __all__:
+        import warnings
+        warnings.warn('Enums with "E" prefix are depreciated and scheduled for removal in V.1', DeprecationWarning)
+        return globals()[name[1:]]
 
-        from . import __file__, utils
-
-        if sys._getframe(1).f_globals.get("__file__") != __file__:  # __init__.py triggers this otherwise
-            utils.warn('Enums with "E" prefix are depreciated and scheduled for removal in V.1')
-        return enum
+    raise AttributeError(name)

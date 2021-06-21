@@ -34,7 +34,6 @@ import json
 import re
 import struct
 import sys
-import warnings
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
 from inspect import isawaitable
 from io import BytesIO
@@ -453,15 +452,6 @@ class SupportsChunk(Protocol[_T_co], Sized):
 def chunk(iterable: SupportsChunk[_T_co], size: int) -> Generator[_T_co, None, None]:
     for i in range(0, len(iterable), size):
         yield iterable[i : i + size]
-
-
-def warn(message: str, warning_type: type[Warning] = DeprecationWarning, stack_level: int = 3) -> None:
-    warnings.simplefilter("once", warning_type)  # turn off filter
-    warnings.warn(
-        message,
-        stacklevel=stack_level,
-        category=warning_type,
-    )
 
 
 PACK_FORMATS: Final[dict[str, str]] = {
