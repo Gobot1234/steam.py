@@ -35,11 +35,11 @@ import re
 import struct
 import sys
 import warnings
-from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sequence
+from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
 from inspect import isawaitable
 from io import BytesIO
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, Optional, Protocol, SupportsInt, TypeVar, Union, overload
 
 import aiohttp
 from typing_extensions import Final, Literal, ParamSpec, TypeAlias
@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from typing import SupportsIndex  # doesn't exist in 3.7
 
 _T = TypeVar("_T")
+_T_co = TypeVar("_T_co", covariant=True)
 _P = ParamSpec("_P")
 _PROTOBUF_MASK = 0x80000000
 
@@ -444,12 +445,14 @@ def contains_bbcode(string: str) -> bool:
     return any(string.startswith(f"/{bbcode}") for bbcode in bbcodes)
 
 
-def chunk(iterable: Sequence[_T], size: int) -> list[Sequence[_T]]:
-    def chunker() -> Generator[Sequence[_T], None, None]:
-        for i in range(0, len(iterable), size):
-            yield iterable[i : i + size]
+class SupportsChunk(Protocol[_T_co], Sized):
+    def __getitem__(self, item: slice) -> _T_co:
+        ...
 
-    return list(chunker())
+
+def chunk(iterable: SupportsChunk[_T_co], size: int) -> Generator[_T_co, None, None]:
+    for i in range(0, len(iterable), size):
+        yield iterable[i : i + size]
 
 
 def warn(message: str, warning_type: type[Warning] = DeprecationWarning, stack_level: int = 3) -> None:
