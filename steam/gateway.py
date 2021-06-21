@@ -302,17 +302,7 @@ class SteamWebSocket(Registerable):
             log.info(f"Attempting to create a websocket connection to: {cm}")
             socket = await client.http.connect_to_cm(cm.url)
             log.debug(f"Connected to {cm}")
-            payload = MsgProto(
-                EMsg.ClientLogon,
-                account_name=client.username,
-                web_logon_nonce=client.token,
-                client_os_type=4294966596,
-                protocol_version=65580,
-                chat_mode=2,
-                ui_mode=4,
-                qos_level=2,
-                client_language="english",
-            )
+
             ws = cls(socket)
             # dynamically add attributes needed
             ws._connection = connection
@@ -321,7 +311,19 @@ class SteamWebSocket(Registerable):
             ws.steam_id = client.user.id64
             ws.cm = cm
             ws.cm_list = cm_list
-            await ws.send_as_proto(payload)  # send the identification message straight away
+            await ws.send_as_proto(
+                MsgProto(
+                    EMsg.ClientLogon,
+                    account_name=client.username,
+                    web_logon_nonce=client.token,
+                    client_os_type=4294966596,
+                    protocol_version=65580,
+                    chat_mode=2,
+                    ui_mode=4,
+                    qos_level=2,
+                    client_language="english",
+                )
+            )
             ws._dispatch("connect")
             return ws
 
@@ -341,7 +343,7 @@ class SteamWebSocket(Registerable):
             await self.handle_close()
 
     async def receive(self, message: bytes) -> None:
-        emsg_value = struct.unpack_from("<I", message)[0]
+        (emsg_value,) = READ_U32(message)
         emsg = EMsg(utils.clear_proto_bit(emsg_value))
 
         try:
@@ -448,7 +450,7 @@ class SteamWebSocket(Registerable):
             state=self._connection._state,
             flags=self._connection._flags,
             force_kick=self._connection._force_kick,
-            ui_mode=None,  # set above
+            ui_mode=self._connection._ui_mode,
         )
         await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
 
