@@ -4,6 +4,7 @@ version = "0.7.0"
 description = "A Python wrapper for the Steam API"
 authors = ["Gobot1234"]
 license = "MIT"
+readme = "README.md"
 keywords = ["steam.py", "steam", "steamio", "steam-api"]
 classifiers=[
     "Development Status :: 5 - Production/Stable",
