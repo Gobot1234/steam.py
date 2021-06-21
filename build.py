@@ -25,13 +25,13 @@ RELEASE_LEVELS = {
 }
 
 try:
-    end_char = re.findall(r"\d+.\d+.\d+([^\d]*).*", VERSION)[0]
+    end_char = re.findall(r"\d+.\d+.\d+([^\d]+).*", VERSION)[0]
 except IndexError:
     release_level = "final"
+    end_char = " "  # if this was empty, it would raise a ValueError
 else:
     release_level = RELEASE_LEVELS[end_char]
 
-if release_level != "final":
     # try to find out the commit hash if checked out from git, and append it to __version__ (since we use this value
     # from setup.py, it gets automatically propagated to an installed copy as well)
     try:
