@@ -59,7 +59,7 @@ isort = "*"
 flake8 = "*"
 pytest = "*"
 pytest-asyncio = "*"
-mypy = "^0.902"
+mypy = "^0.910"
 
 [tool.black]
 line-length = 120
