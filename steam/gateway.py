@@ -132,8 +132,7 @@ class CMServerList(AsyncIterator[CMServer]):
             self.reset_all()
             return await self.fill()
 
-        random.shuffle(self.cms)
-        for cm in await self.ping_cms():
+        for cm in await self.ping():
             self.append(cm)
 
     def clear(self) -> None:
@@ -157,11 +156,11 @@ class CMServerList(AsyncIterator[CMServer]):
             )
             return False
 
-        websockets_list = resp["serverlist_websockets"]
-        log.debug(f"Received {len(websockets_list)} servers from WebAPI")
+        hosts = resp["serverlist_websockets"]
+        log.debug(f"Received {len(hosts)} servers from WebAPI")
 
         self.cell_id = cell_id
-        self.merge_list(websockets_list)
+        self.extend(hosts)
 
         return True
 
@@ -170,7 +169,7 @@ class CMServerList(AsyncIterator[CMServer]):
         for cm in self.cms:
             cm.score = 0.0
 
-    def merge_list(self, hosts: list[str]) -> None:
+    def extend(self, hosts: list[str]) -> None:
         total = len(self.cms)
         urls = [cm.url for cm in self.cms]
         for url in hosts:
@@ -179,13 +178,12 @@ class CMServerList(AsyncIterator[CMServer]):
         if len(self.cms) > total:
             log.debug(f"Added {len(self.cms) - total} new CM server addresses.")
 
-    async def ping_cms(self) -> list[CMServer]:
-        best_cms = []
-
+    async def ping(self) -> list[CMServer]:
         async def ping_cm(cm: CMServer) -> None:
-            start = time.perf_counter()
             try:
+                start = time.perf_counter()
                 resp = await asyncio.wait_for(self._state.http._session.get(f"https://{cm.url}/cmping/"), timeout=5)
+                latency = time.perf_counter() - start
                 if resp.status != 200:
                     raise aiohttp.ClientError
                 load = resp.headers["X-Steam-CMLoad"]
@@ -195,14 +193,14 @@ class CMServerList(AsyncIterator[CMServer]):
                 except ValueError:
                     pass
             else:
-                latency = time.perf_counter() - start
                 cm.score = (int(load) * 2) + latency
                 best_cms.append(cm)
 
+        best_cms = []
         await asyncio.gather(*(ping_cm(cm) for cm in self.cms))
-        # TODO dynamically make sure we get good ones by checking len and stuff
+        # TODO dynamically make sure we get good ones by doing maths or just check how the client does it
         log.debug("Finished pinging CMs")
-        return sorted(best_cms, key=lambda cm: cm.score, reverse=True)  # NOTE: lower is better
+        return sorted(best_cms, key=lambda cm: cm.score)
 
 
 class KeepAliveHandler(threading.Thread):  # ping commands are cool

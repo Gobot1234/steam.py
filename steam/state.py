@@ -363,8 +363,6 @@ class ConnectionState(Registerable):
             contains_bbcode=utils.contains_bbcode(content),
         )
 
-        print(msg)
-
         if msg.result == Result.LimitExceeded:
             raise WSForbidden(msg)
         if msg.result != Result.OK:
@@ -661,7 +659,7 @@ class ConnectionState(Registerable):
         log.debug("Updating CM list")
         cms = msg.body.cm_websocket_addresses
         cm_list = self.ws.cm_list
-        cm_list.merge_list(cms)
+        cm_list.extend(cms)
         await cm_list.ping()  # ping all the cms, we have time.
 
     @register(EMsg.ClientPersonaState)
