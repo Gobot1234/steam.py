@@ -83,7 +83,11 @@ class Registerable:
         for idx, cls in enumerate(bases):
             parsers_name = tuple(cls.__annotations__)[0]
             for name, attr in inspect.getmembers(cls, lambda attr: hasattr(attr, "msg")):
-                parsers = getattr(cls, parsers_name)
+                try:
+                    parsers = getattr(self, parsers_name)
+                except AttributeError:
+                    parsers = {}
+                    setattr(self, parsers_name, parsers)
                 msg_parser = getattr(self, name)
                 if idx != 0 and isinstance(attr.msg, EMsg):
                     base = bases[0]

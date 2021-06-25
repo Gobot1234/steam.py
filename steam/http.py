@@ -44,6 +44,7 @@ from . import errors, utils
 from .__metadata__ import __version__
 from .models import URL, api_route
 from .user import BaseUser, ClientUser
+from .utils import cached_property
 
 if TYPE_CHECKING:
     from .client import Client
@@ -69,27 +70,6 @@ async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
 class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
 
-    __slots__ = (
-        "_session",
-        "_client",
-        "username",
-        "password",
-        "api_key",
-        "shared_secret",
-        "_one_time_code",
-        "_email_code",
-        "_captcha_id",
-        "_captcha_text",
-        "_steam_id",
-        "session_id",
-        "user",
-        "logged_in",
-        "user_agent",
-        "proxy",
-        "proxy_auth",
-        "connector",
-    )
-
     SUCCESS_LOG = "{method} {url} has received {text}"
     REQUEST_LOG = "{method} {url} with {payload} has returned {status}"
 
@@ -107,7 +87,6 @@ class HTTPClient:
         self._captcha_text = ""
         self._steam_id = ""
 
-        self.session_id: Optional[str] = None
         self.user: Optional[ClientUser] = None
         self.logged_in = False
         self.user_agent = (
@@ -178,7 +157,7 @@ class HTTPClient:
                     # api key either got revoked or it was never valid
                     if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
                         # time to fetch a new key
-                        self._client.api_key = self.api_key = kwargs["key"] = await self.get_api_key()
+                        self.api_key = kwargs["key"] = await self.get_api_key()
                         # retry with our new key
 
                 # the usual error cases
@@ -232,7 +211,7 @@ class HTTPClient:
             for url in resp["transfer_urls"]:
                 await self.post(url=url, data=data)
 
-            self.api_key = self._client.api_key = await self.get_api_key()
+            self.api_key = await self.get_api_key()
             if self.api_key is None:
                 log.info("Failed to get API key")
 
@@ -253,9 +232,6 @@ class HTTPClient:
                 )
                 await self.get(URL.COMMUNITY / "home")
 
-            cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
-            self.session_id = cookies["sessionid"].value
-
             data = await self.get_user(resp["transfer_parameters"]["steamid"])
             state = self._client._connection
             self.user = ClientUser(state=state, data=data)
@@ -266,6 +242,11 @@ class HTTPClient:
         except:
             await self._session.close()
             raise
+
+    @cached_property  # should always be called after making at least one request
+    def session_id(self) -> str:
+        cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
+        return cookies["sessionid"].value
 
     async def close(self) -> None:
         await self.logout()
@@ -716,7 +697,8 @@ class HTTPClient:
         ):
             return
 
-        match = re.findall(r"<p>Key: ([0-9A-F]+)</p>", resp)
+        key_re = re.compile(r"<p>Key: ([0-9A-F]+)</p>")
+        match = key_re.findall(resp)
         if match:
             return match[0]
 
@@ -727,4 +709,4 @@ class HTTPClient:
             "Submit": "Register",
         }
         resp = await self.post(URL.COMMUNITY / "dev/registerkey", data=payload)
-        return re.findall(r"<p>Key: ([0-9A-F]+)</p>", resp)[0]
+        return key_re.findall(resp)[0]

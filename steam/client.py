@@ -338,7 +338,7 @@ class Client:
         :exc:`.NoCMsFound`
             No community managers could be found to connect to.
         """
-        log.info(f"Logging in to steamcommunity.com")
+        log.info("Logging in to steamcommunity.com")
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
