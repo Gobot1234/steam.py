@@ -118,7 +118,6 @@ class Client:
         self.ws: Optional[SteamWebSocket] = None
 
         self.username: Optional[str] = None
-        self.api_key: Optional[str] = None
         self.password: Optional[str] = None
         self.shared_secret: Optional[str] = None
         self.identity_secret: Optional[str] = None
