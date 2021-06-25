@@ -41,6 +41,7 @@ from typing_extensions import Literal, ParamSpec, TypeAlias, final
 
 from . import errors, utils
 from .abc import SteamID
+from .enums import Type
 from .game import FetchedGame, Game
 from .game_server import GameServer, Query
 from .gateway import *
@@ -49,6 +50,7 @@ from .http import HTTPClient
 from .iterators import TradesIterator
 from .models import TASK_HAS_NAME, URL, PriceOverview
 from .state import ConnectionState
+from .utils import make_id64
 
 if TYPE_CHECKING:
     import steam
@@ -457,8 +459,8 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        steam_id = SteamID(id=id, type="Individual")
-        return self._connection.get_user(steam_id.id64)
+        id64 = make_id64(id=id, type="Individual")
+        return self._connection.get_user(id64)
 
     async def fetch_user(self, id: utils.Intable) -> Optional[User]:
         """|coro|
@@ -475,8 +477,8 @@ class Client:
         Optional[:class:`~steam.User`]
             The user or ``None`` if the user was not found.
         """
-        steam_id = SteamID(id=id, type="Individual")
-        return await self._connection.fetch_user(steam_id.id64)
+        id64 = make_id64(id=id, type=Type.Individual)
+        return await self._connection.fetch_user(id64)
 
     async def fetch_users(self, *ids: utils.Intable) -> list[Optional[User]]:
         """|coro|
@@ -493,8 +495,8 @@ class Client:
         list[Optional[:class:`~steam.User`]]
             A list of the users or ``None`` if the user was not found.
         """
-        steam_ids = [SteamID(id).id64 for id in ids]
-        return await self._connection.fetch_users(steam_ids)
+        id64s = [make_id64(id, type=Type.Individual) for id in ids]
+        return await self._connection.fetch_users(id64s)
 
     async def fetch_user_named(self, name: str) -> Optional[User]:
         """|coro|
@@ -558,7 +560,7 @@ class Client:
         Optional[:class:`~steam.Group`]
             The group or ``None`` if the group was not found.
         """
-        steam_id = SteamID(id=id, type="Chat")
+        steam_id = SteamID(id=id, type=Type.Chat)
         return self._connection.get_group(steam_id.id)
 
     def get_clan(self, id: utils.Intable) -> Optional[Clan]:
@@ -575,7 +577,7 @@ class Client:
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        steam_id = SteamID(id=id, type="Clan")
+        steam_id = SteamID(id=id, type=Type.Clan)
         return self._connection.get_clan(steam_id.id)
 
     async def fetch_clan(self, id: utils.Intable) -> Optional[Clan]:
@@ -594,8 +596,8 @@ class Client:
         Optional[:class:`~steam.Clan`]
             The clan or ``None`` if the clan was not found.
         """
-        steam_id = SteamID(id=id, type="Clan")
-        return await self._connection.fetch_clan(steam_id.id64)
+        id64 = make_id64(id=id, type=Type.Clan)
+        return await self._connection.fetch_clan(id64)
 
     async def fetch_clan_named(self, name: str) -> Optional[Clan]:
         """|coro|
@@ -678,7 +680,7 @@ class Client:
             raise TypeError("Too many arguments passed to fetch_server")
         if id:
             # we need to fetch the ip and port
-            servers = await self._connection.fetch_server_ip_from_steam_id(SteamID(id).id64)
+            servers = await self._connection.fetch_server_ip_from_steam_id(make_id64(id, type=Type.GameServer))
             ip, port = servers[0].addr.split(":")
         elif not (ip and port):
             raise TypeError(f"fetch_server missing argument {'ip' if not ip else 'port'}")
