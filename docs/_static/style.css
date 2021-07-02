@@ -1,28 +1,4 @@
 /*
-The MIT License (MIT)
-
-Copyright (c) 2015-2020 Rapptz
-
-Permission is hereby granted, free of charge, to any person obtaining a
-copy of this software and associated documentation files (the "Software"),
-to deal in the Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute, sublicense,
-and/or sell copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-*/
-
-/*
 This theme was created from scratch.
 Historically however, thanks to:
 - Alabaster for being a good base
@@ -121,6 +97,8 @@ Historically however, thanks to:
   --rtd-ad-background: var(--grey-2);
   --rtd-ad-main-text: var(--grey-6);
   --rtd-ad-small-text: var(--grey-4);
+  --rtd-version-background: #272525;
+  --rtd-version-main-text: #fcfcfc;
   --attribute-table-title: var(--grey-6);
   --attribute-table-entry-border: var(--grey-3);
   --attribute-table-entry-text: var(--grey-5);
@@ -337,7 +315,7 @@ header > nav > a:hover {
   border-bottom: 1px solid var(--search-border);
 
   appearance: none;
-  background-image: url('../images/drop_down_icon.svg');
+  background-image: url('/_images/drop_down_icon.svg');
   background-repeat: no-repeat;
   background-position-x: 100%;
   background-position-y: 50%;
@@ -600,6 +578,37 @@ div.modal input {
   cursor: pointer;
 }
 
+/* scroll to top button */
+
+#to-top {
+  position: fixed;
+  bottom: 50px;
+  right: 20px;
+
+  cursor: pointer;
+}
+
+#to-top.is-rtd {
+  bottom: 90px;
+}
+
+#to-top > span {
+  display: block;
+
+  width: auto;
+  height: 30px;
+  padding: 0 6px;
+
+  background-color: var(--rtd-version-background);
+  color: var(--rtd-version-main-text);
+}
+
+#to-top span {
+  line-height: 30px;
+  font-size: 90%;
+  text-align: center;
+}
+
 /* copy button */
 
 .relative-copy {
@@ -763,8 +772,7 @@ li > blockquote {
 
 /* admonitions */
 div.admonition {
-  padding: 0 0.8em;
-  padding-bottom: 0.8em;
+  padding: 0 0.8em 0.8em 0.8em !important;
   margin: 0.8em 0;
   border-radius: 2.5px;
   border-left-width: 6px;
@@ -774,7 +782,7 @@ div.admonition {
 
 p.admonition-title {
   font-weight: bold;
-  margin: 0 -0.8rem;
+  margin: 0 -0.8rem !important;
   padding: 0.4rem 0.6rem 0.4rem 2.5rem;
   position: relative;
   -moz-user-select: none;
@@ -885,10 +893,14 @@ dl.field-list {
   display: block;
 }
 
-/* internal references are forced to bold for some reason */
-a.reference.internal > strong {
+/* cross-references are forced to bold for some reason */
+a.reference > strong {
   font-weight: unset;
   font-family: var(--monospace-font-family);
+}
+a.reference.pep > strong,
+a.reference.rfc > strong {
+  font-family: inherit;
 }
 
 /* exception hierarchy */
@@ -1028,12 +1040,18 @@ dl.function > dt,
 dl.attribute > dt,
 dl.classmethod > dt,
 dl.method > dt,
+dl.property > dt,
 dl.class > dt,
 dl.decorator > dt,
 dl.decoratormethod > dt,
 dl.exception > dt {
   background-color: var(--api-entry-background);
   padding: 1px 10px;
+}
+
+/* bug in sphinx: https://github.com/sphinx-doc/sphinx/issues/9384 */
+dl.property > dt > span.descname + em.property {
+  display: none;
 }
 
 dd {
@@ -1129,6 +1147,10 @@ table.docutils thead tr td ol.last,
 table.docutils tfoot tr td ol.last,
 table.docutils tbody tr td ol.last {
   margin-bottom: 0;
+}
+
+.align-default {
+  text-align: left !important;
 }
 
 /* hide the welcome text */
