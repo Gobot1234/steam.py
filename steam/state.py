@@ -77,7 +77,7 @@ log = logging.getLogger(__name__)
 
 
 class ConnectionState(Registerable):
-    parsers: dict[EMsg, EventParser]
+    parsers: dict[EMsg, EventParser] = {}
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
