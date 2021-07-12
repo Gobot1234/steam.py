@@ -256,7 +256,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
 
 class SteamWebSocket(Registerable):
-    parsers: dict[EMsg, EventParser]
+    parsers: dict[EMsg, EventParser] = {}
 
     def __init__(self, socket: aiohttp.ClientWebSocketResponse):
         self.socket = socket
