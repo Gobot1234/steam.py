@@ -75,29 +75,21 @@ EventParser: TypeAlias = "Callable[[MsgProto], Optional[Coroutine[None, None, No
 class Registerable:
     __slots__ = ("loop", "parsers_name")
 
-    def __new__(cls: type[R], *args: Any, **kwargs: Any) -> R:
-        self = super().__new__(cls)
-        self.loop = asyncio.get_event_loop()
+    def __init_subclass__(cls) -> None:
         cls.parsers_name = tuple(cls.__annotations__)[0]
+        cls.loop = asyncio.get_event_loop()
         bases = tuple(reversed(cls.__mro__[:-2]))  # skip Registerable and object
         for idx, cls in enumerate(bases):
-            parsers_name = tuple(cls.__annotations__)[0]
-            for name, attr in inspect.getmembers(cls, lambda attr: hasattr(attr, "msg")):
-                try:
-                    parsers = getattr(self, parsers_name)
-                except AttributeError:
-                    parsers = {}
-                    setattr(self, parsers_name, parsers)
-                msg_parser = getattr(self, name)
-                if idx != 0 and isinstance(attr.msg, EMsg):
-                    base = bases[0]
-                    if hasattr(base, name):
-                        continue
+            parsers = getattr(cls, cls.parsers_name)
+            for name, parser in cls.__dict__.items():
+                if not hasattr(parser, "msg"):
+                    continue
 
-                    parsers = getattr(base, tuple(base.__annotations__)[0])
-                parsers[attr.msg] = msg_parser
-
-        return self
+                if idx != 0 and isinstance(parser.msg, EMsg):
+                    super_base = bases[idx - 1]
+                    getattr(super_base, tuple(super_base.__annotations__)[0])[parser.msg] = parser
+                else:
+                    parsers[parser.msg] = parser
 
     @staticmethod
     def _run_parser_callback(task: asyncio.Task) -> None:
@@ -116,10 +108,11 @@ class Registerable:
                 except Exception:
                     log.debug(f"Ignoring event {msg.msg}")
         else:
+            coro = utils.maybe_coroutine(self, event_parser, msg)
             (
-                self.loop.create_task(utils.maybe_coroutine(event_parser, msg), name=f"task_{event_parser.__name__}")
+                self.loop.create_task(coro, name=f"task_{event_parser.__name__}")
                 if TASK_HAS_NAME
-                else self.loop.create_task(utils.maybe_coroutine(event_parser, msg))
+                else self.loop.create_task(coro)
             ).add_done_callback(self._run_parser_callback)
 
 
