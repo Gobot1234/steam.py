@@ -75,24 +75,30 @@ EventParser: TypeAlias = "Callable[[MsgProto], Optional[Coroutine[None, None, No
 class Registerable:
     __slots__ = ("loop", "parsers_name")
 
-    def __init_subclass__(cls) -> None:
+    def __new__(cls: type[R], *args: Any, **kwargs: Any) -> R:
+        self = super().__new__(cls)
+        self.loop = asyncio.get_event_loop()
         cls.parsers_name = tuple(cls.__annotations__)[0]
-        cls.loop = asyncio.get_event_loop()
         bases = tuple(reversed(cls.__mro__[:-2]))  # skip Registerable and object
         for idx, cls in enumerate(bases):
-            parsers = getattr(cls, cls.parsers_name)
-            for name, parser in cls.__dict__.items():
-                if not hasattr(parser, "msg"):
+            parsers_name = tuple(cls.__annotations__)[0]
+            for name, attr in cls.__dict__.items():
+                if not hasattr(attr, "msg"):
                     continue
+                try:
+                    parsers = getattr(self, parsers_name)
+                except AttributeError:
+                    parsers = {}
+                    setattr(self, parsers_name, parsers)
+                msg_parser = getattr(self, name)
+                if idx != 0 and isinstance(attr.msg, EMsg):
+                    parsers = getattr(self, tuple(bases[0].__annotations__)[0])
+                parsers[attr.msg] = msg_parser
 
-                if idx != 0 and isinstance(parser.msg, EMsg):
-                    super_base = bases[idx - 1]
-                    getattr(super_base, tuple(super_base.__annotations__)[0])[parser.msg] = parser
-                else:
-                    parsers[parser.msg] = parser
+        return self
 
     @staticmethod
-    def _run_parser_callback(task: asyncio.Task) -> None:
+    def _run_parser_callback(task: asyncio.Task[None]) -> None:
         exception = task.exception()
         if exception:
             traceback.print_exception(exception.__class__, exception, exception.__traceback__)
@@ -108,7 +114,8 @@ class Registerable:
                 except Exception:
                     log.debug(f"Ignoring event {msg.msg}")
         else:
-            coro = utils.maybe_coroutine(self, event_parser, msg)
+            coro = utils.maybe_coroutine(event_parser, msg)
+
             (
                 self.loop.create_task(coro, name=f"task_{event_parser.__name__}")
                 if TASK_HAS_NAME
