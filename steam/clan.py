@@ -160,10 +160,15 @@ class Clan(Commentable, comment_path="Clan"):
 
         soup = BeautifulSoup(resp, "html.parser")
         self.name = soup.find("title").text[28:]
-        self.description = soup.find("meta", attrs={"property": "og:description"})["content"]
-        self.icon_url = soup.find("link", attrs={"rel": "image_src"})["href"]
-        stats = soup.find("div", attrs={"class": "grouppage_resp_stats"})
-        for stat in stats.find_all("div", attrs={"class": "groupstat"}):
+        description = soup.find("meta", property="og:description")
+        self.description = description["content"] if description is not None else None
+        icon_url = soup.find("link", rel="image_src")
+        self.icon_url = icon_url["href"] if icon_url else None
+        stats = soup.find("div", class_="grouppage_resp_stats")
+        if stats is None:
+            return
+
+        for stat in stats.find_all("div", class_="groupstat"):
             if "Founded" in stat.text:
                 text = stat.text.split("Founded")[1].strip()
                 if ", " not in stat.text:
