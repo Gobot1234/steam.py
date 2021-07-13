@@ -421,6 +421,8 @@ class TradeOffer:
         "message",
         "token",
         "expires",
+        "updated_at",
+        "created_at",
         "items_to_send",
         "items_to_receive",
         "_has_been_sent",
@@ -469,8 +471,12 @@ class TradeOffer:
         self.id = int(data["tradeofferid"])
         expires = data.get("expiration_time")
         escrow = data.get("escrow_end_date")
+        updated_at = data.get("time_updated")
+        created_at = data.get("time_created")
         self.expires = datetime.utcfromtimestamp(expires) if expires else None
         self.escrow = datetime.utcfromtimestamp(escrow) - datetime.utcnow() if escrow else None
+        self.updated_at = datetime.utcfromtimestamp(updated_at) if updated_at else None
+        self.created_at = datetime.utcfromtimestamp(created_at) if created_at else None
         self.state = TradeOfferState(data.get("trade_offer_state", 1))
         self.items_to_send = [Item(data=item) for item in data.get("items_to_give", [])]
         self.items_to_receive = [Item(data=item) for item in data.get("items_to_receive", [])]
