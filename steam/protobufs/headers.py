@@ -29,7 +29,7 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 from __future__ import annotations
 
 import struct
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from ..enums import Result
 from ..utils import clear_proto_bit, set_proto_bit  # noqa
@@ -53,13 +53,12 @@ def do_nothing_case(value: str) -> str:
 class BaseMsgHdr:
     __slots__ = ()
 
-    STRUCT: struct.Struct
-    PACK: tuple[str, ...]
-    body: object
+    STRUCT: ClassVar[struct.Struct]
+    PACK: ClassVar[tuple[str, ...]]
 
     def __init_subclass__(cls, proto: bool = False, cast_msg_to_emsg: bool = True) -> None:
         if cls.__name__ == "GCMsgHdr":
-            return  # can't generate parse and bytes for this as it doesn't have a
+            return  # can't generate parse and bytes for this as it doesn't have a "normal" structure
 
         # generate the parse and __bytes__ methods
         cast = "EMsg" if cast_msg_to_emsg else ""
@@ -118,6 +117,7 @@ class MsgHdr(BaseMsgHdr):
 
     STRUCT = struct.Struct("<Iqq")
     PACK = ("msg", "job_id_target", "job_id_source")
+    body: MsgHdr
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
@@ -147,6 +147,7 @@ class ExtendedMsgHdr(BaseMsgHdr):
 
     STRUCT = struct.Struct("<IBHqqBqi")
     PACK = __slots__[1:]
+    body: ExtendedMsgHdr
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
@@ -172,6 +173,7 @@ class MsgHdrProto(BaseMsgHdr, proto=True):
 
     STRUCT = struct.Struct("<II")
     PACK = ("msg", "length")
+    body: CMsgProtoBufHeader
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
@@ -187,6 +189,7 @@ class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
 
     STRUCT = struct.Struct("<Hqq")
     PACK = ()
+    body: GCMsgHdr
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
@@ -201,7 +204,7 @@ class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
 
     # special cases
     def __bytes__(self) -> bytes:
-        return self.STRUCT.pack(self.header_version, self.target_job_id, self.source_job_id)
+        return self.STRUCT.pack(self.header_version, self.job_id_target, self.job_id_source)
 
     def parse(self, data: bytes) -> None:
         (
@@ -216,6 +219,7 @@ class GCMsgHdrProto(BaseMsgHdr, proto=True, cast_msg_to_emsg=False):
 
     STRUCT = struct.Struct("<Ii")
     PACK = ("msg", "length")
+    body: CMsgProtoBufHeader
 
     def __init__(self, data: Optional[bytes] = None):
         self.msg = None
