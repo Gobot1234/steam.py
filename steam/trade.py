@@ -383,7 +383,7 @@ class TradeOffer:
     items_to_send: Optional[list[:class:`steam.Item`]]
         The items you are sending to the other user.
     items_to_receive: Optional[list[:class:`steam.Item`]]
-        The items you are sending to the other user.
+        The items you are receiving from the other user.
     token: Optional[:class:`str`]
         The the trade token used to send trades to users who aren't on the ClientUser's friend's list.
     message: Optional[:class:`str`]
