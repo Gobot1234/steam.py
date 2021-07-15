@@ -150,7 +150,7 @@ class _GroupChannel(Channel[M]):
         )
 
     def __repr__(self) -> str:
-        attrs = ("id", "group")
+        attrs = ("name", "id", "group")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<GroupChannel {' '.join(resolved)}>"
 
@@ -212,7 +212,7 @@ class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same t
         self.clan = clan
 
     def __repr__(self) -> str:
-        attrs = ("id", "clan")
+        attrs = ("name", "id", "clan")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<ClanChannel {' '.join(resolved)}>"
 
