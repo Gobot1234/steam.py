@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import abc
 import asyncio
-import inspect
 import re
 from collections.abc import Callable, Coroutine
 from datetime import datetime
@@ -56,7 +55,17 @@ from .game import Game, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
 from .models import URL, Ban
 from .trade import Inventory
-from .utils import _INVITE_HEX, _INVITE_MAPPING, InstanceType, Intable, TypeType, UniverseType, id64_from_url, make_id64
+from .utils import (
+    _INVITE_HEX,
+    _INVITE_MAPPING,
+    InstanceType,
+    Intable,
+    TypeType,
+    UniverseType,
+    id64_from_url,
+    make_id64,
+    update_class,
+)
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
@@ -339,12 +348,7 @@ class Commentable(SteamID):
     def copy(self: C) -> C:
         cls = self.__class__
         commentable = cls.__new__(cls)
-        for name, attr in inspect.getmembers(self):
-            try:
-                setattr(commentable, name, attr)
-            except (AttributeError, TypeError):
-                pass
-        return commentable
+        return update_class(self, commentable)
 
     __copy__ = copy
 

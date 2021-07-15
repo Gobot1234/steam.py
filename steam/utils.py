@@ -454,6 +454,21 @@ def chunk(iterable: SupportsChunk[_T_co], size: int) -> Generator[_T_co, None, N
         yield iterable[i : i + size]
 
 
+def update_class(
+    instance: _T,
+    new_instance: _T,
+    *,
+    _check=lambda x: not _is_descriptor(x) or (isinstance(x, property) and x.fset is not None),
+) -> _T:
+    for name, attr in getmembers(instance, predicate=_check):
+        try:
+            setattr(new_instance, name, attr)
+        except (AttributeError, TypeError):
+            pass
+
+    return new_instance
+
+
 def call_once(func: Callable[_P, None]) -> Callable[_P, None]:
     called = False
 
