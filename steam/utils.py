@@ -35,7 +35,7 @@ import re
 import struct
 import sys
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
-from inspect import isawaitable
+from inspect import isawaitable, getmembers
 from io import BytesIO
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union, overload
@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, 
 import aiohttp
 from typing_extensions import Final, Literal, ParamSpec, Protocol, TypeAlias
 
-from .enums import InstanceFlag, Type, TypeChar, Universe
+from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor
 from .errors import InvalidSteamID
 
 if TYPE_CHECKING:
