@@ -454,6 +454,24 @@ def chunk(iterable: SupportsChunk[_T_co], size: int) -> Generator[_T_co, None, N
         yield iterable[i : i + size]
 
 
+def call_once(func: Callable[_P, None]) -> Callable[_P, None]:
+    called = False
+
+    @functools.wraps(func)
+    def inner(*args: _P.args, **kwargs: _P.kwargs) -> None:
+        nonlocal called
+        if called:
+            return
+
+        called = True
+        try:
+            return func(*args, **kwargs)
+        finally:
+            called = False
+
+    return inner
+
+
 PACK_FORMATS: Final[dict[str, str]] = {
     "i8": "b",
     "u8": "B",

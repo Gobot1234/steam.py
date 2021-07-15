@@ -264,6 +264,7 @@ class ConnectionState(Registerable):
             ret.append(await self._store_trade(trade))
         return ret
 
+    @utils.call_once
     async def poll_trades(self) -> None:
         async def poll_trades_inner() -> None:
             try:
