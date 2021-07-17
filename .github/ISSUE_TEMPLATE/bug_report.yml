@@ -1,7 +1,6 @@
 name: Bug Report
-about: Report broken or incorrect behaviour
+description: Report broken or incorrect behaviour
 labels: bug
-issue_body: true
 
 body:
   - type: markdown
