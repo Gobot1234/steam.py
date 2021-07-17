@@ -1,0 +1,64 @@
+name: Bug Report
+about: Report broken or incorrect behaviour
+labels: bug
+issue_body: true
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for taking the time to fill out a bug.
+        The discord server https://discord.gg/MQ68WUS is a better place for general questions.
+
+  - type: input
+    attributes:
+      label: Summary
+      description: A simple summary of your bug report
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Reproduction Steps
+      description: >
+        What you did to make it happen.
+        Ideally there should be a short code snippet in this section to help reproduce the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected Results
+      description: >
+        What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Actual Results
+      description: >
+        What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: System Information
+      description: >
+        Paste the result of "python3 -m steam" (Linux and macOS) or "py -m steam" (Windows) below.
+    validations:
+      required: true
+
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      description: >
+        Let's make sure you've properly done due diligence when reporting this issue!
+      options:
+        - label: I have searched the issues for duplicates.
+          required: true
+        - label: I have shown the entire traceback, if possible.
+          required: true
+        - label: I have removed my username/password/secrets from display, if visible.
+          required: true
