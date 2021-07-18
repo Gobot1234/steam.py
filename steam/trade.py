@@ -25,7 +25,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
@@ -48,7 +48,7 @@ __all__ = (
 )
 
 Items = Union["Item", "Asset"]
-I = TypeVar("I", "Item", "Asset")
+I = TypeVar("I", bound="Item")
 
 
 class AssetToDict(TypedDict):
@@ -246,43 +246,14 @@ class Item(Asset):
         return self._is_marketable
 
 
-class Inventory(Generic[I]):
-    """Represents a User's inventory.
+class BaseInventory(Generic[I]):
+    """Base for all inventories."""
 
-    .. container:: operations
-
-        .. describe:: len(x)
-
-            Returns how many items are in the inventory.
-
-        .. describe:: iter(x)
-
-            Iterates over the inventory's items.
-
-        .. describe:: y in x
-
-            Determines if an item is in the inventory based off of its :attr:`class_id` and :attr:`instance_id`.
-
-
-    Attributes
-    -------------
-    items: list[Union[:class:`Item`, :class:`Asset`]]
-        A list of the inventory's items.
-    owner: :class:`~steam.User`
-        The owner of the inventory.
-    game: Optional[:class:`steam.Game`]
-        The game the inventory the game belongs to.
-    """
-
-    __slots__ = ("game", "items", "owner", "_state", "_total_inventory_count")
-
-    items: list[I]
-    game: Optional[Game]
+    __slots__ = ("game", "items", "owner", "_state")
 
     def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser):
         self._state = state
         self.owner = owner
-        self.items = []
         self._update(data)
 
     def __repr__(self) -> str:
@@ -291,7 +262,7 @@ class Inventory(Generic[I]):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __len__(self) -> int:
-        return self._total_inventory_count
+        return len(self.items)
 
     def __iter__(self) -> Iterator[I]:
         return iter(self.items)
@@ -304,27 +275,28 @@ class Inventory(Generic[I]):
         return item in self.items
 
     def _update(self, data: InventoryDict) -> None:
+        self.items: Sequence[I] = []
         try:
             self.game = Game(id=int(data["assets"][0]["appid"]))
         except KeyError:  # they don't have an inventory in this game
             self.game = None
             self.items = []
-            self._total_inventory_count = 0
         else:
             for asset in data["assets"]:
                 for item in data["descriptions"]:
                     if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                         item.update(asset)
-                        self.items.append(Item(data=item))
+                        self.items.append(Item(data=item))  # type: ignore
                         break
                 else:
-                    self.items.append(Asset(data=asset))
-            self._total_inventory_count = data["total_inventory_count"]
+                    self.items.append(Asset(data=asset))  # type: ignore
 
     async def update(self) -> None:
         """|coro|
         Re-fetches the inventory.
         """
+        if not self.game:
+            return
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
@@ -368,6 +340,37 @@ class Inventory(Generic[I]):
         """
         item = self.filter_items(name, limit=1)
         return item[0] if item else None
+
+
+class Inventory(BaseInventory[Item]):
+    """Represents a User's inventory.
+
+    .. container:: operations
+
+        .. describe:: len(x)
+
+            Returns how many items are in the inventory.
+
+        .. describe:: iter(x)
+
+            Iterates over the inventory's items.
+
+        .. describe:: y in x
+
+            Determines if an item is in the inventory based off of its :attr:`class_id` and :attr:`instance_id`.
+
+
+    Attributes
+    -------------
+    items: list[Union[:class:`Item`, :class:`Asset`]]
+        A list of the inventory's items.
+    owner: :class:`~steam.User`
+        The owner of the inventory.
+    game: Optional[:class:`steam.Game`]
+        The game the inventory the game belongs to.
+    """
+
+    __slots__ = ()
 
 
 class TradeOffer:
