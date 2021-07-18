@@ -406,6 +406,10 @@ class TradeOffer:
         The message included with the trade offer.
     id: :class:`int`
         The trade's offer ID.
+    created_at: Optional[:class:`datetime.datetime`]
+        The time at which the trade was created.
+    updated_at: Optional[:class:`datetime.datetime`]
+        The time at which the trade was last updated.
     expires: :class:`datetime.datetime`
         The time at which the trade automatically expires.
     escrow: Optional[:class:`datetime.timedelta`]
