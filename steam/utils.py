@@ -39,6 +39,7 @@ from inspect import getmembers, isawaitable
 from io import BytesIO
 from operator import attrgetter
 from types import MemberDescriptorType
+from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union
 
 import aiohttp
 from typing_extensions import Final, Literal, ParamSpec, Protocol, TypeAlias
@@ -58,15 +59,15 @@ _PROTOBUF_MASK = 0x80000000
 
 
 def is_proto(emsg: int) -> bool:
-    return (int(emsg) & _PROTOBUF_MASK) > 0
+    return (emsg & _PROTOBUF_MASK) > 0
 
 
 def set_proto_bit(emsg: int) -> int:
-    return int(emsg) | _PROTOBUF_MASK
+    return emsg | _PROTOBUF_MASK
 
 
 def clear_proto_bit(emsg: int) -> int:
-    return int(emsg) & ~_PROTOBUF_MASK
+    return emsg & ~_PROTOBUF_MASK
 
 
 Intable: TypeAlias = "Union[SupportsInt, SupportsIndex, str, bytes]"  # anything int(x) wouldn't normally fail on
@@ -84,21 +85,6 @@ TypeType = Union[
 UniverseType = Union[Universe, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6]]
 InstanceType = Literal[0, 1]
 # fmt: on
-
-
-@overload
-def make_id64() -> Literal[0]:
-    ...
-
-
-@overload
-def make_id64(
-    id: Intable = 0,
-    type: Optional[TypeType] = None,
-    universe: Optional[UniverseType] = None,
-    instance: Optional[InstanceType] = None,
-) -> int:
-    ...
 
 
 def make_id64(
@@ -207,7 +193,7 @@ def id2_to_tuple(value: str) -> Optional[tuple[int, Literal[Type.Individual], Li
     if universe == 0:
         universe = 1
 
-    return id, Type(1), Universe(universe), 1
+    return id, Type.Individual, Universe(universe), 1
 
 
 ID3_REGEX = re.compile(
@@ -293,7 +279,7 @@ def invite_code_to_tuple(
     id = int(re.sub(f"[{_INVITE_CUSTOM}]", lambda m: _INVITE_INVERSE_MAPPING[m.group()], code), 16)
 
     if 0 < id < 2 ** 32:
-        return id, Type(1), Universe.Public, 1
+        return id, Type.Individual, Universe.Public, 1
 
 
 URL_REGEX = re.compile(
@@ -388,11 +374,11 @@ if sys.version_info >= (3, 9):
     from asyncio import to_thread
 else:
 
-    def to_thread(callable: Callable[..., _T], *args: Any, **kwargs: Any) -> asyncio.Future[_T]:
+    async def to_thread(callable: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T:
         loop = asyncio.get_running_loop()
         ctx = contextvars.copy_context()
         partial = functools.partial(ctx.run, callable, *args, **kwargs)
-        return loop.run_in_executor(None, partial)
+        return await loop.run_in_executor(None, partial)
 
 
 class cached_property(Generic[_T]):
@@ -400,9 +386,9 @@ class cached_property(Generic[_T]):
 
     def __init__(self, function: Callable[[Any], _T]):
         self.function = function
-        self.__doc__ = getattr(function, "__doc__", None)
+        self.__doc__: Optional[str] = getattr(function, "__doc__", None)
 
-    def __get__(self, instance: Optional[Any], _) -> Union[_T, cached_property]:
+    def __get__(self, instance: Optional[Any], _) -> Union[_T, cached_property[_T]]:
         if instance is None:
             return self
 
@@ -445,11 +431,12 @@ def contains_bbcode(string: str) -> bool:
 
 
 class SupportsChunk(Protocol[_T_co], Sized):
-    def __getitem__(self, item: slice) -> _T_co:
+    def __getitem__(self, item: slice) -> SupportsChunk[_T_co]:
         ...
 
 
-def chunk(iterable: SupportsChunk[_T_co], size: int) -> Generator[_T_co, None, None]:
+# higher kinded type vars needed here
+def chunk(iterable: SupportsChunk[_T_co], size: int) -> Generator[SupportsChunk[_T_co], None, None]:
     for i in range(0, len(iterable), size):
         yield iterable[i : i + size]
 
