@@ -138,7 +138,8 @@ class Asset:
         The classid of the item.
     """
 
-    __slots__ = ("game", "amount", "class_id", "asset_id", "instance_id", "name")
+    __slots__ = ("game", "amount", "class_id", "asset_id", "instance_id")
+    REPR_ATTRS = __slots__
 
     def __init__(self, data: AssetDict):
         self.asset_id = int(data["assetid"])
@@ -146,18 +147,11 @@ class Asset:
         self.amount = int(data["amount"])
         self.instance_id = int(data["instanceid"])
         self.class_id = int(data["classid"])
-        self.name = None  # so we don't raise AttributeError
 
     def __repr__(self) -> str:
-        attrs = (
-            "game",
-            "amount",
-            "class_id",
-            "asset_id",
-            "instance_id",
-        )
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<Asset {' '.join(resolved)}>"
+        cls = self.__class__
+        resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in cls.REPR_ATTRS]
+        return f"<{cls.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
@@ -210,17 +204,11 @@ class Item(Asset):
         "_is_tradable",
         "_is_marketable",
     )
+    REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
     def __init__(self, data: ItemDict):
         super().__init__(data)
         self._from_data(data)
-
-    def __repr__(self) -> str:
-        asset_repr = super().__repr__()[7:-1]
-        attrs = ("name",)
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        resolved.append(asset_repr)
-        return f"<Item {' '.join(resolved)}>"
 
     def _from_data(self, data: ItemDict) -> None:
         self.name = data.get("market_name")
