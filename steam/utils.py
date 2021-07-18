@@ -35,10 +35,10 @@ import re
 import struct
 import sys
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
-from inspect import isawaitable, getmembers
+from inspect import getmembers, isawaitable
 from io import BytesIO
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union, overload
+from types import MemberDescriptorType
 
 import aiohttp
 from typing_extensions import Final, Literal, ParamSpec, Protocol, TypeAlias
@@ -457,14 +457,23 @@ def chunk(iterable: SupportsChunk[_T_co], size: int) -> Generator[_T_co, None, N
 def update_class(
     instance: _T,
     new_instance: _T,
-    *,
-    _check=lambda x: not _is_descriptor(x) or (isinstance(x, property) and x.fset is not None),
 ) -> _T:
-    for name, attr in getmembers(instance, predicate=_check):
-        try:
-            setattr(new_instance, name, attr)
-        except (AttributeError, TypeError):
-            pass
+    cls = instance.__class__
+    is_descriptor = _is_descriptor
+
+    for name, attr in getmembers(instance):
+        attr = getattr(instance, name)
+        cls_attr = getattr(cls, name, None)
+        if (
+            not is_descriptor(cls_attr)
+            or isinstance(cls_attr, MemberDescriptorType)  # might be a slot member
+            or (isinstance(cls_attr, property) and cls_attr.fset is not None)
+            or (name.startswith("__") and name.endswith("__"))
+        ):
+            try:
+                setattr(new_instance, name, attr)
+            except (AttributeError, TypeError):
+                pass
 
     return new_instance
 
