@@ -145,22 +145,13 @@ class FetchedGameDict(TypedDict):
 class Game:
     """Represents a Steam game.
 
-    Parameters
-    ----------
-    title: Optional[:class:`str`]
-        The game's title.
-    id: Optional[:class:`int`]
-        The game's app ID.
-    context_id: Optional[:class:`int`]
-        The game's context ID by default 2.
-
     Attributes
-    -----------
-    title: Optional[:class:`str`]
-        The game's title.
-    id: :class:`int`
+    ----------
+    name
+        The game's name.
+    id
         The game's app ID.
-    context_id: :class:`int`
+    context_id
         The context id of the game normally ``2``.
     """
 
@@ -238,15 +229,13 @@ class Game:
         )
 
     def is_steam_game(self) -> bool:
-        """:class:`bool`: Whether the game could be a Steam game."""
-        return self.id <= APP_ID_MAX
+        """Whether the game could be a Steam game."""
+        return bool(self.id is not None and self.id <= APP_ID_MAX)
 
     @property
     def url(self) -> str:
-        """:class:`str`: The game's url on store.steampowered if applicable."""
-        if not self.id:
-            raise ValueError("Games without id's can't have associated URLs")
-        return f"{URL.STORE}/apps/{self.id}"
+        """What should be the game's url on steamcommunity if applicable."""
+        return f"{URL.COMMUNITY}/apps/{self.id}"
 
 
 TF2 = Game(title="Team Fortress 2")
@@ -260,13 +249,15 @@ def CUSTOM_GAME(title: str) -> Game:
     """Create a custom game instance for :meth:`~steam.Client.change_presence`.
     The :attr:`Game.id` will be set to ``15190414816125648896`` and the :attr:`Game.context_id` to ``None``.
 
-    Example: ::
+    Example:
 
-        await client.change_presence(game=steam.CUSTOM_GAME('my cool game'))
+    .. code-block:: python3
+
+        await client.change_presence(game=steam.CUSTOM_GAME("my cool game"))
 
     Parameters
     ----------
-    title: :class:`str`
+    name
         The name of the game to set your playing status to.
 
     Returns
@@ -282,11 +273,11 @@ class UserGame(Game):
 
     Attributes
     ----------
-    total_play_time: :class:`datetime.timedelta`
+    total_play_time
         The total time the game has been played for.
-    icon_url: Optional[:class:`str`]
+    icon_url
         The icon url of the game.
-    logo_url: Optional[:class:`str`]
+    logo_url
         The logo url of the game.
     """
 
@@ -311,9 +302,7 @@ class UserGame(Game):
         self._stats_visible = data.get("has_community_visible_stats", False)
 
     def has_visible_stats(self) -> bool:
-        """:class:`bool`: Whether the game has publicly visible stats.
-        Only applies to a :class:`~steam.User`'s games from :meth:`~steam.User.games`.
-        """
+        """Whether the game has publicly visible stats."""
         return self._stats_visible
 
 
@@ -322,29 +311,29 @@ class WishlistGame(Game):
 
     Attributes
     ----------
-    priority: :class:`int`
+    priority
         The priority of the game in the wishlist.
-    added_at: :class:`.datetime`
+    added_at
         The time the the game was added to their wishlist.
-    created_at: :class:`.datetime`
+    created_at
         The time the game was uploaded at.
-    background_url: :class:`str`
+    background_url
         The background URL of the game.
-    rank: :class:`int`
+    rank
         The global rank of the game by popularity.
-    review_status: :class:`.ReviewType`
+    review_status
         The review status of the game.
-    score: :class:`int`
+    score
         The score of the game out of ten.
-    screenshots: list[:class:`str`]
+    screenshots
         The screenshots of the game.
-    tags: list[:class:`str`]
+    tags
         The tags of the game.
-    total_reviews: :class:`int`
+    total_reviews
         The total number reviews for the game.
-    type: :class:`str`
+    type
         The type of the app.
-    logo_url: :class:`str`
+    logo_url
         The logo url of the game.
     """
 
@@ -391,19 +380,19 @@ class WishlistGame(Game):
         self._on_linux = bool(data.get("linux", False))
 
     def is_free(self) -> bool:
-        """:class:`bool`: Whether or not the game is free to download."""
+        """Whether or not the game is free to download."""
         return self._free
 
     def is_on_windows(self) -> bool:
-        """:class:`bool`: Whether or not the game is able to be played on Windows."""
+        """Whether or not the game is able to be played on Windows."""
         return self._on_windows
 
     def is_on_mac_os(self) -> bool:
-        """:class:`bool`: Whether or not the game is able to be played on MacOS."""
+        """Whether or not the game is able to be played on MacOS."""
         return self._on_mac_os
 
     def is_on_linux(self) -> bool:
-        """:class:`bool`: Whether or not the game is able to be played on Linux."""
+        """Whether or not the game is able to be played on Linux."""
         return self._on_linux
 
 
@@ -428,28 +417,29 @@ class FetchedGame(Game):
 
     Attributes
     ----------
-    created_at: :class:`.datetime`
+    created_at
         The time the game was uploaded at.
-    background_url: :class:`str`
+    background_url
         The background URL of the game.
-    type: :class:`str`
+    type
         The type of the app.
-    logo_url: :class:`str`
+    logo_url
         The logo URL of the game.
-    dlc: list[:class:`Game`]
+    dlc
         The game's downloadable content.
-    website_url: :class:`str`
+    website_url
         The website URL of the game.
-    developers: list[:class:`str`]
+    developers
         The developers of the game.
-    publishers: list[:class:`str`]
+    publishers
         The publishers of the game.
-    description: :class:`str`
+    description
         The short description of the game.
-    full_description: :class:`str`
+    full_description
         The full description of the game.
-    movies: list[:class:`Movie`]
-        A list of the game's movies, each of which has ``name``, ``id``, ``url`` and optional ``created_at`` attributes.
+    movies
+        A list of the game's movies, each of which has ``name``\\, ``id``\\, ``url`` and optional
+        ``created_at`` attributes.
     """
 
     __slots__ = (
@@ -494,17 +484,17 @@ class FetchedGame(Game):
         self._on_linux = bool(data["platforms"].get("linux", False))
 
     def is_free(self) -> bool:
-        """:class:`bool`: Whether or not the game is free to download."""
+        """Whether or not the game is free to download."""
         return self._free
 
     def is_on_windows(self) -> bool:
-        """:class:`bool`: Whether or not the game is able to be played on Windows."""
+        """Whether or not the game is able to be played on Windows."""
         return self._on_windows
 
     def is_on_mac_os(self) -> bool:
-        """:class:`bool`: Whether or not the game is able to be played on MacOS."""
+        """Whether or not the game is able to be played on MacOS."""
         return self._on_mac_os
 
     def is_on_linux(self) -> bool:
-        """:class:`bool`: Whether or not the game is able to be played on Linux."""
+        """Whether or not the game is able to be played on Linux."""
         return self._on_linux

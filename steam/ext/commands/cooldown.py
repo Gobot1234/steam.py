@@ -44,7 +44,7 @@ T_Bucket = TypeVar("T_Bucket", "tuple[int, ...]", int)
 class BucketType(IntEnum):
     """A enumeration that handles cooldowns.
 
-    Each attribute operates on a per-x basis. So :attr:`User` operates on a per :class:`~steam.User` basis.
+    Each attribute operates on a per x basis. So :attr:`User` operates on a per :class:`~steam.User` basis.
     """
 
     # fmt: off
@@ -58,18 +58,13 @@ class BucketType(IntEnum):
     Admin   = 7  #: The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`.
     # fmt: on
 
-    def get_bucket(self, ctx: Union[Message, Messageable]) -> T_Bucket:
-        """Get a bucket for a message or context.
+    def get_bucket(self, ctx: Union[Message, Messageable]) -> Union[int, tuple[int, ...]]:
+        """Get a bucket key for a message or context.
 
         Parameters
         ----------
-        ctx: Union[:class:`steam.Message`, :class:`steam.abc.Messageable`]
+        ctx
             The message or context to get the bucket for.
-
-        Returns
-        -------
-        Union[:class:`int`, tuple[:class:`int`, ...]]
-            The key for the bucket.
         """
         if self == BucketType.Default:
             return 0
@@ -89,14 +84,10 @@ class BucketType(IntEnum):
             return (ctx.clan and (ctx.author in ctx.clan.admins)), ctx.author.id
 
 
-class Cooldown:
-    """The class that holds a command's cooldown.
+class Cooldown(Generic[T_Bucket]):
+    """The class that holds a command's cooldown."""
 
-    Attributes
-    ----------
-    bucket: :class:`BucketType`
-        The bucket that should be used to determine this command's cooldown.
-    """
+    bucket: BucketType  #: The bucket that should be used to determine this command's cooldown.
 
     def __init__(self, rate: int, per: float, bucket: BucketType):
         self._rate = rate
@@ -121,9 +112,9 @@ class Cooldown:
 
         Parameters
         ----------
-        bucket: Union[:class:`int`, tuple[:class:`int`, ...]]
+        bucket
             The bucket to find in the cache.
-        now: :class:`float`
+        now
             The UNIX timestamp to find times after.
         """
         calls = self._calls(bucket)
@@ -139,7 +130,7 @@ class Cooldown:
 
         Parameters
         ----------
-        ctx: Union[:class:`steam.Message`, :class:`steam.abc.Messageable`]
+        ctx
             The context for invocation to check for a cooldown on.
         """
         bucket = self.bucket.get_bucket(ctx)

@@ -65,48 +65,46 @@ class Clan(Commentable, comment_path="Clan"):
 
     Attributes
     ------------
-    name: :class:`str`
+    name
         The name of the clan.
-    chat_id: Optional[:class:`int`]
+    chat_id
         The clan's chat_id.
-    icon_url: :class:`str`
+    icon_url
         The icon url of the clan. Uses the large (184x184 px) image url.
-    description: :class:`str`
+    description
         The description of the clan.
-    tagline: Optional[:class:`str`]
+    tagline
         The clan's tagline.
-    member_count: :class:`int`
+    member_count
         The amount of users in the clan.
-    online_count: :class:`int`
+    online_count
         The amount of users currently online.
-    active_member_count: :class:`int`
+    active_member_count
         The amount of currently users in the clan's chat room.
-    in_game_count: :class:`int`
+    in_game_count
         The amount of user's currently in game.
-    created_at: :class:`datetime.datetime`
+    created_at
         The time the clan was created_at.
-    language: :class:`str`
+    language
         The language set for the clan.
-    location: :class:`str`
+    location
         The location set for the clan.
-    game: :class:`.Game`
+    game
         The clan's associated game.
-    owner: :class:`~steam.User`
+    owner
         The clan's owner.
-    admins: list[:class:`~steam.User`]
+    admins
         A list of the clan's administrators.
-    mods: list[:class:`~steam.User`]
+    mods
         A list of the clan's moderators.
-    top_members: list[:class:`~steam.User`]
+    top_members
         A list of the clan's top_members.
-    roles: list[:class:`.Role`]
+    roles
         A list of the clan's roles.
-    default_role: :class:`.Role`
-        The clan's default_role.
-    channels: list[:class:`.ClanChannel`]
-        A list of the clan's channels.
-    default_channel: :class:`.ClanChannel`
-        The clan's default_channel.
+    default_role
+        The clan's default role.
+    default_channel
+        The clan's default channel.
     """
 
     __slots__ = (
@@ -128,9 +126,9 @@ class Clan(Commentable, comment_path="Clan"):
         "tagline",
         "top_members",
         "roles",
-        "channels",
         "default_channel",
         "game",
+        "_channels",
     )
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
@@ -138,16 +136,28 @@ class Clan(Commentable, comment_path="Clan"):
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type="Clan")
         self._state = state
-        self.name: Optional[str] = None
+
+        self.name: str
+        self.description: str
+        self.icon_url: str
+        self.created_at: Optional[datetime]
+        self.member_count: int
+        self.online_count: int
+        self.in_game_count: int
+        self.language: str
+        self.location: str
+        self.mods: list[Optional[User]]
+        self.admins: list[Optional[User]]
+
         self.chat_id: Optional[int] = None
         self.tagline: Optional[str] = None
         self.game: Optional[Game] = None
         self.owner: Optional[User] = None
         self.active_member_count: Optional[int] = None
-        self.top_members: list[User] = []
+        self.top_members: list[Optional[User]] = []
         self.roles: list[Role] = []
         self.default_role: Optional[Role] = None
-        self.channels: list[ClanChannel] = []
+        self._channels: dict[int, ClanChannel] = {}
         self.default_channel: Optional[ClanChannel] = None
 
     async def __ainit__(self) -> None:
@@ -268,56 +278,72 @@ class Clan(Commentable, comment_path="Clan"):
     def __str__(self) -> str:
         return self.name
 
-    async def fetch_members(self) -> list[SteamID]:
-        """|coro|
-        Fetches a clan's member list.
+    @property
+    def channels(self) -> list[ClanChannel]:
+        """A list of the clan's channels."""
+        return list(self._channels.values())
 
-        Returns
-        --------
-        list[:class:`~steam.SteamID`]
-            A basic list of the clan's members. This can be a very slow operation due to the rate limits on this
-            endpoint.
+    def get_channel(self, id: int) -> ClanChannel | None:
+        """Get a channel from cache.
+
+        Parameters
+        ----------
+        id
+            The id of the channel.
         """
-        ret = []
-        resp = await self._state.http.get(f"{self.community_url}/members?p=1&content_only=true")
-        soup = BeautifulSoup(resp, "html.parser")
-        number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", attrs={"class": "group_paging"}).text)[0])
+        return self._channels.get(id)
+
+    async def members(self) -> list[SteamID]:
+        """Fetches a clan's member list.
+
+        Note
+        ----
+        This can be a very slow operation due to the rate limits on this endpoint.
+        """
+
+        def process(resp: str) -> BeautifulSoup:
+            soup = BeautifulSoup(resp, "html.parser")
+            for s in soup.find_all("div", id="memberList"):
+                for user in s.find_all("div", class_="member_block"):
+                    ret.append(SteamID(user["data-miniprofile"]))
+
+            return soup
 
         async def getter(i: int) -> None:
             try:
-                resp = await self._state.http.get(f"{self.community_url}/members?p={i + 1}")
+                resp = await self._state.http.get(f"{self.community_url}/members?p={i + 1}&content_only=true")
             except HTTPException:
                 await asyncio.sleep(20)
                 await getter(i)
             else:
-                soup = BeautifulSoup(resp, "html.parser")
-                for s in soup.find_all("div", attrs={"id": "memberList"}):
-                    for user in s.find_all("div", attrs={"class": "member_block"}):
-                        ret.append(SteamID(user["data-miniprofile"]))
+                process(resp)
 
-        await asyncio.gather(*(getter(i) for i in range(number_of_pages)))
+        ret = []
+        resp = await self._state.http.get(f"{self.community_url}/members?p=1&content_only=true")
+        soup = process(resp)
+        number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
+        await asyncio.gather(*(getter(i) for i in range(1, number_of_pages)))
         return ret
 
+    async def fetch_members(self) -> list[SteamID]:
+        warnings.warn("fetch_members is depreciated, use Clan.members instead", DeprecationWarning)
+        return await self.members()
+
     async def join(self) -> None:
-        """|coro|
-        Joins the :class:`Clan`. This will also join the clan's chat.
-        """
+        """Joins the clan. This will also join the clan's chat."""
         await self._state.http.join_clan(self.id64)
         await self._state.join_chat(self.chat_id)
 
     async def leave(self) -> None:
-        """|coro|
-        Leaves the :class:`Clan`.
-        """
+        """Leaves the clan."""
         await self._state.http.leave_clan(self.id64)
 
     async def invite(self, user: User) -> None:
-        """|coro|
-        Invites a :class:`~steam.User` to the :class:`Clan`.
+        """Invites a :class:`~steam.User` to the clan.
 
         Parameters
         -----------
-        user: :class:`~steam.User`
+        user
             The user to invite to the clan.
         """
         await self._state.http.invite_user_to_clan(user_id64=user.id64, clan_id=self.id64)

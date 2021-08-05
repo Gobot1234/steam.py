@@ -201,6 +201,7 @@ if TYPE_CHECKING:
 
 # fmt: off
 class Result(IntEnum):
+    # these are a combination of https://partner.steamgames.com/doc/api/steam_api#EResult and https://steamerrors.com
     Invalid                         = 0  #: Invalid Result.
     OK                              = 1  #: Success.
     Fail                            = 2  #: Generic failure.
@@ -302,7 +303,7 @@ class Result(IntEnum):
     GSOwnerDenied                   = 103  #: Game server owner is denied for other reason.
     InvalidItemType                 = 104  #: The type of thing we were requested to act on is invalid.
     IPBanned                        = 105  #: The IP address has been banned from taking this action.
-    GSLTExpired                     = 106  #: This token has expired from disuse; can be reset for use.
+    GSLTExpired                     = 106  #: This Game Server Login Token has expired from disuse; can be reset for use.
     InsufficientFunds               = 107  #: User doesn't have enough wallet funds to complete the action.
     TooManyPending                  = 108  #: There are too many of this thing pending already.
     NoSiteLicensesFound             = 109  #: No site licenses found.
@@ -312,6 +313,10 @@ class Result(IntEnum):
     CantRemoveItem                  = 113  #: Cannot remove the item.
     AccountHasBeenDeleted           = 114  #: The relevant account has been deleted.
     AccountHasCancelledLicense      = 115  #: The user has a user cancelled license.
+    DeniedDueToCommunityCooldown    = 116  #: The request was denied due to community cooldown.
+    NoLauncherSpecified             = 117  #: No launcher was specified.
+    MustAgreeToSSA                  = 118  #: User must agree to china SSA or global SSA before login.
+    ClientNoLongerSupported         = 119  #: The specified launcher type is no longer supported.
 
 
 class Universe(IntEnum):
@@ -401,16 +406,11 @@ class PersonaStateFlag(IntEnum):
 
         Parameters
         ----------
-        flag: :class:`int`
+        flag
             The flag to break down.
-
-        Returns
-        -------
-        list[:class:`PersonaStateFlag`]
-            The resolved flags.
         """
         flags = [enum for enum in cls if enum & flag]
-        value = 0
+        value = 0  # check the values are the same
         for f in flags:
             value |= f
         return flags if value == flag else []
@@ -518,38 +518,84 @@ class UserBadge(IntEnum):
     Summer2019TeamPig                 = 42  #: The Summer sale badge for 2014 for team pig.
     SteamAwards2019Nominations        = 43  #: The Steam Awards Nominations badge for 2019.
     WinterSaleEvent2019               = 44  #: The Winter sale badge for 2019.
+    WinterSale2019Steamville          = 45  #: The Winter sale Steamville badge for 2019.
+    LunarNewYearSale2020              = 46  #: The lunar new years sale badge for 2020.
+    SpringCleaning2020                = 47  #: The Spring cleaning badge for 2020.
+    AwardsCommunityContributor        = 48  #: The Steam Awards Community Contributor badge.
+    AwardsCommunityPatron             = 49  #: The Steam Awards Community Patron badge.
+    SteamAwards2020Nominations        = 50  #: The Steam Awards Nominations badge for 2020.
 
 
 class ReviewType(IntEnum):
-    OverwhelminglyPositive = 9  #: 95 - 99% positive reviews.
-    VeryPositive           = 8  #: 94 - 80% positive reviews.
-    Positive               = 7  #: 80 - 99% positive reviews but few of them.
-    MostlyPositive         = 6  #: 70 - 79% positive reviews.
-    Mixed                  = 5  #: 40 - 69% positive reviews.
-    MostlyNegative         = 4  #: 20? - 39% positive reviews but few of them.
-    Negative               = 3  #: 0 - 39% positive reviews.
+    NONE                   = 0  #: No reviews.
+    OverwhelminglyNegative = 1  #: 0 - 19% positive reviews and few of them.
     VeryNegative           = 2  #: 0 - 19% positive reviews.
-    OverwhelminglyNegative = 1  #: 0 - 19% positive reviews and many of them.
-    NONE                   = 0  #: No reviews
+    Negative               = 3  #: 0 - 39% positive reviews.
+    MostlyNegative         = 4  #: 20 - 39% positive reviews but few of them.
+    Mixed                  = 5  #: 40 - 69% positive reviews.
+    MostlyPositive         = 6  #: 70 - 79% positive reviews.
+    Positive               = 7  #: 80 - 100% positive reviews but few of them.
+    VeryPositive           = 8  #: 94 - 80% positive reviews.
+    OverwhelminglyPositive = 9  #: 95 - 100% positive reviews.
 
 
 class GameServerRegion(IntEnum):
-    NONE         = -1
-    USEastCoast  = 0
-    USWestCoast  = 1
-    SouthAmerica = 2
-    Europe       = 3
-    Asia         = 4
-    Australia    = 5
-    MiddleEast   = 6
-    Africa       = 7
-    World        = 255
+    NONE         = -1  #: No set game region.
+    USEastCoast  = 0  #: A server on the USA's East Coast.
+    USWestCoast  = 1  #: A server on the USA's West Coast.
+    SouthAmerica = 2  #: A server in South America.
+    Europe       = 3  #: A server in Europe.
+    Asia         = 4  #: A server in Asia.
+    Australia    = 5  #: A server in Australia.
+    MiddleEast   = 6  #: A server in the Middle East.
+    Africa       = 7  #: A server in Africa.
+    World        = 255  #: A server somewhere in the world.
+
+
+class ClanEvent(IntEnum):
+    Other                  = 1
+    Game                   = 2
+    Party                  = 3
+    Meeting                = 4
+    SpecialCause           = 5
+    MusicAndArts           = 6
+    Sports                 = 7
+    Trip                   = 8
+    Chat                   = 9
+    GameRelease            = 10
+    Broadcast              = 11
+    SmallUpdate            = 12
+    PreAnnounceMajorUpdate = 13
+    MajorUpdate            = 14
+    DLCRelease             = 15
+    FutureRelease          = 16
+    ESportTournamentStream = 17
+    DevStream              = 18
+    FamousStream           = 19
+    GameSales              = 20
+    GameItemSales          = 21
+    InGameBonusXP          = 22
+    InGameLoot             = 23
+    InGamePerks            = 24
+    InGameChallenge        = 25
+    InGameContest          = 26
+    IRL                    = 27
+    News                   = 28
+    BetaRelease            = 29
+    InGameContentRelease   = 30
+    FreeTrial              = 31
+    SeasonRelease          = 32
+    SeasonUpdate           = 33
+    Crosspost              = 34
+    InGameGeneral          = 35
+# fmt: on
 
 
 # shim for old enum names
 def __getattr__(name: str) -> Any:
     if name[0] == "E" and name[1:] in __all__:
         import warnings
+
         warnings.warn('Enums with "E" prefix are depreciated and scheduled for removal in V.1', DeprecationWarning)
         return globals()[name[1:]]
 

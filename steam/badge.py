@@ -24,6 +24,7 @@ SOFTWARE.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
@@ -53,17 +54,17 @@ class Badge:
 
     Attributes
     ----------
-    id: Union[:class:`.UserBadge`, :class:`int`]
+    id
         The badge's ID.
-    level: :class:`int`
+    level
         The badge's level.
-    xp: :class:`int`
+    xp
         The badge's XP.
-    completion_time: :class:`datetime.datetime`
+    completion_time
         The time the badge was completed at.
-    scarcity: :class:`int`
+    scarcity
         The scarcity of the badge.
-    game: Optional[:class:`~steam.Game`]
+    game
         The game associated with the badge.
     """
 
@@ -88,15 +89,15 @@ class UserBadges:
 
     Attributes
     ----------
-    level: :class:`int`
+    level
         The badge's level.
-    xp: :class:`int`
+    xp
         The badge's XP.
-    xp_needed_to_level_up: :class:`int`
+    xp_needed_to_level_up
         The amount of XP the user needs to level up.
-    xp_needed_for_current_level: :class:`int`
+    xp_needed_for_current_level
         The amount of XP the user's current level requires to achieve.
-    badges: list[:class:`Badge`]
+    badges
         A list of the user's badges.
     """
 
@@ -113,7 +114,7 @@ class UserBadges:
         self.xp: int = data["player_xp"]
         self.xp_needed_to_level_up: int = data["player_xp_needed_to_level_up"]
         self.xp_needed_for_current_level: int = data["player_xp_needed_current_level"]
-        self.badges: list[Badge] = [Badge(data) for data in data["badges"]]
+        self.badges: Sequence[Badge] = [Badge(data) for data in data["badges"]]
 
     def __repr__(self) -> str:
         attrs = ("level", "xp")

@@ -48,7 +48,7 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .models import TASK_HAS_NAME, URL, PriceOverview
+from .models import TASK_HAS_NAME, URL, PriceOverview, return_true
 from .state import ConnectionState
 from .utils import make_id64
 
@@ -81,7 +81,7 @@ class Client:
     ----------
     game: :class:`~steam.Game`
         A games to set your status as on connect.
-    games: list[:class:`~steam.Game`]
+    games: :class:`list`\\[:class:`~steam.Game`]
         A list of games to set your status to on connect.
     state: :class:`~steam.PersonaState`
         The state to show your account as on connect.
@@ -95,11 +95,6 @@ class Client:
         The UI mode to set your status to on connect.
     force_kick: :class:`bool`
         Whether or not to forcefully kick any other playing sessions on connect.
-
-    Attributes
-    -----------
-    ws:
-        The connected websocket/CM server, this can be used to directly send messages to said CM.
     """
 
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
@@ -129,47 +124,42 @@ class Client:
         self._ready = asyncio.Event()
 
     @property
-    def user(self) -> Optional[ClientUser]:
-        """Optional[:class:`~steam.ClientUser`]: Represents the connected client. ``None`` if not logged in."""
-        return self.http.user
+    def user(self) -> ClientUser:
+        """Represents the connected client. ``None`` if not logged in."""
+        return self.http.user  # type: ignore
 
     @property
     def users(self) -> list[User]:
-        """list[:class:`~steam.User`]: Returns a list of all the users the account can see."""
+        """A list of all the users the connected client can see."""
         return self._connection.users
 
     @property
     def trades(self) -> list[TradeOffer]:
-        """list[:class:`~steam.TradeOffer`]: Returns a list of all the trades the connected client has seen."""
+        """A list of all the trades the connected client can see."""
         return self._connection.trades
 
     @property
     def groups(self) -> list[Group]:
-        """list[:class:`~steam.Group`]: Returns a list of all the groups the connected client is in."""
+        """A list of all the groups the connected client is in."""
         return self._connection.groups
 
     @property
     def clans(self) -> list[Clan]:
-        """list[:class:`~steam.Clan`]: Returns a list of all the clans the connected client is in."""
+        """A list of all the clans the connected client is in."""
         return self._connection.clans
 
     @property
     def latency(self) -> float:
-        """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
+        """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return float("nan") if self.ws is None else self.ws.latency
 
     async def code(self) -> str:
-        """|coro|
+        """Get the current steam guard code.
 
         Warning
         -------
-        This function will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed to
-        :meth:`run` or :meth:`start` blocking exiting until one is entered.
-
-        Returns
-        -------
-        :class:`str`
-            The current steam guard code.
+        This function will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed
+        to :meth:`run` or :meth:`start`, which blocks exiting until one is entered.
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)
@@ -178,11 +168,11 @@ class Client:
         return code.strip()
 
     def is_ready(self) -> bool:
-        """:class:`bool`: Specifies if the client's internal cache is ready for use."""
+        """Specifies if the client's internal cache is ready for use."""
         return self._ready.is_set()
 
     def is_closed(self) -> bool:
-        """:class:`bool`: Indicates if connection is closed to the API or CMs."""
+        """Indicates if connection is closed to the API or CMs."""
         return self._closed
 
     @overload
@@ -193,17 +183,19 @@ class Client:
     def event(self, coro: E) -> E:
         ...
 
-    def event(self, coro: Optional[EventDeco] = None) -> EventDeco:
+    def event(self, coro: Union[Callable[[E], E], E, None] = None) -> Union[Callable[[E], E], E]:
         """|maybecallabledeco|
         Register an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
 
-        Usage: ::
+        Usage:
+
+        .. code-block:: python3
 
             @client.event
             async def on_ready():
-                print('Ready!')
+                print("Ready!")
 
         Raises
         ------
@@ -315,23 +307,20 @@ class Client:
             log.info("Closing the event loop")
 
     async def login(self, username: str, password: str, *, shared_secret: Optional[str] = None) -> None:
-        """|coro|
-        Logs in a Steam account and the Steam API with the specified credentials.
+        """Login a Steam account and the Steam API with the specified credentials.
 
         Parameters
         ----------
-        username: :class:`str`
+        username
             The username of the user's account.
-        password: :class:`str`
+        password
             The password of the user's account.
-        shared_secret: Optional[:class:`str`]
+        shared_secret
             The shared_secret of the desired Steam account, used to generate the 2FA code for login. If ``None`` is
             passed, the code will need to be inputted by the user via :meth:`code`.
 
         Raises
         ------
-        :exc:`TypeError`
-            Unexpected keyword arguments were received.
         :exc:`.InvalidCredentials`
             Invalid credentials were passed.
         :exc:`.LoginError`
@@ -349,9 +338,7 @@ class Client:
         self.loop.create_task(self._connection.__ainit__())
 
     async def close(self) -> None:
-        """|coro|
-        Closes the connection to Steam.
-        """
+        """Close the connection to Steam."""
         if self.is_closed():
             return
 
@@ -384,19 +371,19 @@ class Client:
         shared_secret: Optional[str] = None,
         identity_secret: Optional[str] = None,
     ) -> None:
-        """|coro|
-        A shorthand coroutine for :meth:`login` and :meth:`connect`. If no ``shared_secret`` is passed, you will have to
-        manually enter a Steam guard code using :meth:`code`.
+        """A shorthand coroutine for :meth:`login` and :meth:`connect`.
+
+        If no ``shared_secret`` is passed, you will have to manually enter a Steam guard code using :meth:`code`.
 
         Parameters
-        -----------
-        username: :class:`str`
+        ----------
+        username
             The username of the account to login to.
-        password: :class:`str`
+        password
             The password of the account to login to.
-        shared_secret: Optional[:class:`str`]
+        shared_secret
             The shared secret for the account to login to.
-        identity_secret: Optional[:class:`str`]
+        identity_secret
             The identity secret for the account to login to.
         """
 
@@ -412,9 +399,8 @@ class Client:
         await self.connect()
 
     async def connect(self) -> None:
-        """|coro|
-        Initialize a connection to a Steam CM after logging in.
-        """
+        """Initialize a connection to a Steam CM after logging in."""
+        last_connect = None
         while not self.is_closed():
             try:
                 resp = await self.http.get(URL.COMMUNITY / "chat/clientjstoken")
@@ -445,189 +431,129 @@ class Client:
     # state stuff
 
     def get_user(self, id: utils.Intable) -> Optional[User]:
-        """Returns a user from cache with a matching ID.
+        """Returns a user from cache with a matching ID or ``None`` if the user was not found.
 
         Parameters
         ----------
-        id: Union[:class:`int`, :class:`str`]
+        id
             The ID of the user, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
             :attr:`.SteamID.id3`.
-
-        Returns
-        -------
-        Optional[:class:`~steam.User`]
-            The user or ``None`` if the user was not found.
         """
         id64 = make_id64(id=id, type="Individual")
         return self._connection.get_user(id64)
 
     async def fetch_user(self, id: utils.Intable) -> Optional[User]:
-        """|coro|
-        Fetches a user from the API with a matching ID.
+        """Fetches a user with a matching ID or ``None`` if the user was not found.
 
         Parameters
         ----------
-        id: Union[:class:`int`, :class:`str`]
+        id
             The ID of the user, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
             :attr:`.SteamID.id3`.
-
-        Returns
-        -------
-        Optional[:class:`~steam.User`]
-            The user or ``None`` if the user was not found.
         """
         id64 = make_id64(id=id, type=Type.Individual)
         return await self._connection.fetch_user(id64)
 
     async def fetch_users(self, *ids: utils.Intable) -> list[Optional[User]]:
-        """|coro|
-        Fetches a list of :class:`~steam.User` from their IDs from the API with a matching ID. The
-        :class:`~steam.User` objects returned are unlikely to retain the order they were originally in.
+        """Fetches a list of :class:`~steam.User` or ``None`` if the user was not found, from their IDs.
+
+        Note
+        ----
+        The :class:`~steam.User` objects returned are unlikely to retain the order they were originally in.
 
         Parameters
         ----------
-        *ids: Union[:class:`int`, :class:`str`]
+        ids
             The user's IDs.
-
-        Returns
-        -------
-        list[Optional[:class:`~steam.User`]]
-            A list of the users or ``None`` if the user was not found.
         """
         id64s = [make_id64(id, type=Type.Individual) for id in ids]
         return await self._connection.fetch_users(id64s)
 
     async def fetch_user_named(self, name: str) -> Optional[User]:
-        """|coro|
-        Fetches a user from https://steamcommunity.com from there community URL name.
+        """Fetches a user from https://steamcommunity.com from their community URL name.
 
         Parameters
         ----------
-        name: :class:`str`
+        name
             The name of the user after https://steamcommunity.com/id
-
-        Returns
-        -------
-        Optional[:class:`~steam.User`]
-            The user or ``None`` if the user was not found.
         """
         id64 = await utils.id64_from_url(URL.COMMUNITY / "id" / name, self.http._session)
         return await self._connection.fetch_user(id64) if id64 is not None else None
 
     def get_trade(self, id: int) -> Optional[TradeOffer]:
-        """Get a trade from cache with a matching ID.
+        """Get a trade from cache with a matching ID or ``None`` if the trade was not found.
 
         Parameters
         ----------
-        id: :class:`int`
+        id
             The id of the trade to search for from the cache.
-
-        Returns
-        -------
-        Optional[:class:`~steam.TradeOffer`]
-            The trade offer or ``None`` if the trade was not found.
         """
         return self._connection.get_trade(id)
 
     async def fetch_trade(self, id: int) -> Optional[TradeOffer]:
-        """|coro|
-        Fetches a trade from the API with a matching ID.
+        """Fetches a trade with a matching ID or ``None`` if the trade was not found.
 
         Parameters
         ----------
-        id: :class:`int`
+        id
             The ID of the trade to search for from the API.
-
-        Returns
-        -------
-        Optional[:class:`~steam.TradeOffer`]
-            The trade offer or ``None`` if the trade was not found.
         """
         return await self._connection.fetch_trade(id)
 
     def get_group(self, id: utils.Intable) -> Optional[Group]:
-        """Get a group from cache with a matching ID.
+        """Get a group from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
         ----------
-        id: Union[:class:`int`, :class:`str`]
+        id
             The ID of the group, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
             :attr:`.SteamID.id3`.
-
-        Returns
-        -------
-        Optional[:class:`~steam.Group`]
-            The group or ``None`` if the group was not found.
         """
         steam_id = SteamID(id=id, type=Type.Chat)
         return self._connection.get_group(steam_id.id)
 
     def get_clan(self, id: utils.Intable) -> Optional[Clan]:
-        """Get a clan from cache with a matching ID.
+        """Get a clan from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
         ----------
-        id: Union[:class:`int`, :class:`str`]
+        id
             The ID of the clan, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
             :attr:`.SteamID.id3`.
-
-        Returns
-        -------
-        Optional[:class:`~steam.Clan`]
-            The clan or ``None`` if the clan was not found.
         """
         steam_id = SteamID(id=id, type=Type.Clan)
         return self._connection.get_clan(steam_id.id)
 
     async def fetch_clan(self, id: utils.Intable) -> Optional[Clan]:
-        """|coro|
-        Fetches a clan from the websocket with a matching ID.
+        """Fetches a clan from the websocket with a matching ID or ``None`` if the clan was not found.
 
         Parameters
         ----------
-        id: Union[:class:`int`, :class:`str`]
+        id
             The ID of the clan, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
             :attr:`.SteamID.id3`.
-
-
-        Returns
-        -------
-        Optional[:class:`~steam.Clan`]
-            The clan or ``None`` if the clan was not found.
         """
         id64 = make_id64(id=id, type=Type.Clan)
         return await self._connection.fetch_clan(id64)
 
     async def fetch_clan_named(self, name: str) -> Optional[Clan]:
-        """|coro|
-        Fetches a clan from https://steamcommunity.com with a matching name.
+        """Fetches a clan from https://steamcommunity.com with a matching name or ``None`` if the clan was not found.
 
         Parameters
         ----------
-        name: :class:`str`
+        name
             The name of the Steam clan.
-
-        Returns
-        -------
-        Optional[:class:`~steam.Clan`]
-            The clan or ``None`` if the clan was not found.
         """
         steam_id = await SteamID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
 
     async def fetch_game(self, id: Union[int, Game]) -> Optional[FetchedGame]:
-        """|coro|
-        Fetch a game from its ID.
+        """Fetch a game from its ID or ``None`` if the game was not found.
 
         Parameters
         ----------
-        id: :class:`int`
+        id
             The app id of the game or a :class:`~steam.Game` instance.
-
-        Returns
-        -------
-        Optional[:class:`.FetchedGame`]
-            The fetched game or ``None`` if the game was not found.
         """
         id = id if isinstance(id, int) else id.id
         data = await self.http.get_game(id)
@@ -655,24 +581,23 @@ class Client:
         *,
         id: Optional[utils.Intable] = None,
         ip: Optional[str] = None,
-        port: Optional[int] = None,
+        port: Union[int, str, None] = None,
     ) -> Optional[GameServer]:
-        """|coro|
-        Fetch a specific game server from its ip and port.
+        """Fetch a :class:`.GameServer` from its ip and port or its SteamID or ``None`` if fetching the server failed.
 
         Parameters
         ----------
-        id: Union[:class:`int`, :class:`str`]
-            The ID of the game server, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id2` or an :attr:`.SteamID.id3`.
-        ip: :class:`str`
+        ip
             The ip of the server.
-        port: :class:`int`
+        port
             The port of the server.
+        id
+            The ID of the game server, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id2` or an :attr:`.SteamID.id3`.
+            If this is passed, it makes a call to the master server to fetch its ip and port.
 
-        Returns
-        -------
-        Optional[:class:`GameServer`]
-            The found game server or ``None`` if fetching the server failed.
+        Note
+        ----
+        Passing an ``ip``, ``port`` and ``id`` to this function will raise an :exc:`TypeError`.
         """
 
         if all((id, ip, port)):
@@ -688,20 +613,14 @@ class Client:
         return servers[0] if servers else None
 
     async def fetch_servers(self, query: Query, limit: int = 100) -> list[GameServer]:
-        """|coro|
-        Query game servers.
+        """Query game servers.
 
         Parameters
         ----------
-        query: :class:`Query`
+        query
             The query to match servers with.
-        limit: :class:`int`
+        limit
             The maximum amount of servers to return.
-
-        Returns
-        -------
-        list[:class:`.GameServer`]
-            The matched servers.
         """
         servers = await self._connection.fetch_servers(query.query, limit)
         return [GameServer(server) for server in servers]
@@ -721,18 +640,19 @@ class Client:
         Examples
         --------
 
-        Usage: ::
+        Usage:
+
+        .. code-block:: python3
 
             async for trade in client.trade_history(limit=10):
+                items = [getattr(item, "name", str(item.asset_id)) for item in trade.items_to_receive]
+                items = ", ".join(items) or "Nothing"
                 print("Partner:", trade.partner)
-                print(
-                    "Sent:",
-                    item.name or str(item.asset_id) for item in trade.items_to_receive
-                    if trade.items_to_receive
-                    else "Nothing",
-                )
+                print("Sent:", items)
 
-        Flattening into a list: ::
+        Flattening into a list:
+
+        .. code-block:: python3
 
             trades = await client.trade_history(limit=50).flatten()
             # trades is now a list of TradeOffer
@@ -741,14 +661,14 @@ class Client:
 
         Parameters
         ----------
-        limit: Optional[:class:`int`]
-            The maximum number of trades to search through. Default is 100 which will fetch the first 100 trades.
-            Setting this to ``None`` will fetch all of the user's trades, but this will be a very slow operation.
-        before: Optional[:class:`datetime.datetime`]
+        limit
+            The maximum number of trades to search through. Default is ``100``. Setting this to ``None`` will fetch all
+            of the user's trades, but this will be a very slow operation.
+        before
             A time to search for trades before.
-        after: Optional[:class:`datetime.datetime`]
+        after
             A time to search for trades after.
-        active_only: Optional[:class:`bool`]
+        active_only
             Whether or not to fetch only active trades defaults to ``True``.
 
         Yields
@@ -768,16 +688,15 @@ class Client:
         flags: Optional[list[PersonaStateFlag]] = None,
         force_kick: bool = False,
     ) -> None:
-        """|coro|
-        Set your status.
+        """Set your status.
 
         Parameters
         ----------
-        game: Optional[:class:`~steam.Game`]
+        game
             A games to set your status as.
-        games: Optional[list[:class:`~steam.Game`]]
+        games
             A list of games to set your status to.
-        state: Optional[:class:`~steam.PersonaState`]
+        state
             The state to show your account as.
 
             Warning
@@ -785,13 +704,13 @@ class Client:
             Setting your status to :attr:`~steam.PersonaState.Offline`, will stop you receiving persona state updates
             and by extension :meth:`on_user_update` will stop being dispatched.
 
-        ui_mode: Optional[:class:`~steam.UIMode`]
+        ui_mode
             The UI mode to set your status to.
-        flag: Optional[:class:`PersonaStateFlag`]
+        flag
             The flag to update your account with.
-        flags: Optional[list[:class:`PersonaStateFlag`]
+        flags
             The flags to update your account with.
-        force_kick: :class:`bool`
+        force_kick
             Whether or not to forcefully kick any other playing sessions.
         """
         games = [game.to_dict() for game in games] if games is not None else []
@@ -808,39 +727,30 @@ class Client:
         )
 
     async def trade_url(self, generate_new: bool = False) -> str:
-        """|coro|
-        Fetches this accounts trade url.
+        """Fetches this accounts trade url.
 
         Parameters
         ----------
-        generate_new: :class:`bool`
+        generate_new
             Whether or not to generate a new trade token, defaults to ``False``.
         """
         return await self._connection.get_trade_url(generate_new)
 
     async def wait_until_ready(self) -> None:
-        """|coro|
-        Waits until the client's internal cache is all ready.
-        """
+        """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
     async def fetch_price(self, name: str, game: Game, currency: Optional[int] = None) -> PriceOverview:
-        """|coro|
-        Fetch the price for an item.
+        """Fetch the :class:`PriceOverview` for an item.
 
         Parameters
         ----------
-        name: :class:`str`
+        name
             The name of the item.
-        game: :class:`.Game`
+        game
             The game the item is from.
-        currency: :class:`int`
+        currency
             The currency to fetch the price in.
-
-        Returns
-        --------
-        :class:`.PriceOverview`
-            The price overview for the item.
         """
         price = await self.http.get_price(game.id, name, currency)
         return PriceOverview(price)
@@ -848,8 +758,7 @@ class Client:
     # events to be subclassed
 
     async def on_error(self, event: str, error: Exception, *args, **kwargs):
-        """|coro|
-        The default error handler provided by the client.
+        """The default error handler provided by the client.
 
         Usually when an event raises an uncaught exception, a traceback is printed to :attr:`sys.stderr` and the
         exception is ignored. If you want to change this behaviour and handle the exception yourself, this event can
@@ -861,122 +770,109 @@ class Client:
 
         Parameters
         ----------
-        event: :class:`str`
+        event
             The name of the event that errored.
-        error: :exc:`Exception`
+        error
             The error that was raised.
-        *args:
+        args
             The positional arguments associated with the event.
-        **kwargs:
+        kwargs
             The key-word arguments associated with the event.
         """
         print(f"Ignoring exception in {event}", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    if TYPE_CHECKING:  # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs
+    if TYPE_CHECKING or utils.DOCS_BUILDING:
+        # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs
 
         async def on_connect(self) -> None:
-            """|coro|
-            Called when the client has successfully connected to Steam. This is not the same as the client being
+            """Called when the client has successfully connected to Steam. This is not the same as the client being
             fully prepared, see :func:`on_ready` for that.
 
             The warnings on :meth:`on_ready` also apply.
             """
 
         async def on_disconnect(self) -> None:
-            """|coro|
-            Called when the client has disconnected from Steam. This could happen either through the internet
+            """Called when the client has disconnected from Steam. This could happen either through the internet
             disconnecting, an explicit call to logout, or Steam terminating the connection.
 
             This function can be called multiple times.
             """
 
         async def on_ready(self) -> None:
-            """|coro|
-            Called after a successful login and the client has handled setting up everything.
+            """Called after a successful login and the client has handled setting up everything.
 
             Warning
             -------
-            This function is not guaranteed to be the first event called. Likewise, this function is **not**
-            guaranteed to only be called once. This library implements reconnection logic and will therefore
-            end up calling this event whenever a CM disconnects.
+            This function is not guaranteed to be the first event called. Likewise, this function is **not** guaranteed
+            to only be called once. This library implements reconnection logic and will therefore end up calling this
+            event whenever a CM disconnects.
             """
 
         async def on_login(self) -> None:
-            """|coro|
-            Called when the client has logged into https://steamcommunity.com.
-            """
+            """Called when the client has logged into https://steamcommunity.com."""
 
         async def on_logout(self) -> None:
-            """|coro|
-            Called when the client has logged out of https://steamcommunity.com.
-            """
+            """Called when the client has logged out of https://steamcommunity.com."""
 
         async def on_message(self, message: "steam.Message") -> None:
-            """|coro|
-            Called when a message is created.
+            """Called when a message is created.
 
             Parameters
             ----------
-            message: :class:`~steam.Message`
+            message
                 The message that was received.
             """
 
         async def on_typing(self, user: "steam.User", when: "datetime.datetime") -> None:
-            """|coro|
-            Called when typing is started.
+            """Called when typing is started.
 
             Parameters
             ----------
-            user: :class:`~steam.User`
+            user
                 The user that started typing.
-            when: :class:`datetime.datetime`
+            when
                 The time the user started typing at.
             """
 
         async def on_trade_receive(self, trade: "steam.TradeOffer") -> None:
-            """|coro|
-            Called when the client receives a trade offer.
+            """Called when the client receives a trade offer.
 
             Parameters
             ----------
-            trade: :class:`~steam.TradeOffer`
+            trade
                 The trade offer that was received.
             """
 
         async def on_trade_send(self, trade: "steam.TradeOffer") -> None:
-            """|coro|
-            Called when the client sends a trade offer.
+            """Called when the client sends a trade offer.
 
             Parameters
             ----------
-            trade: :class:`~steam.TradeOffer`
+            trade
                 The trade offer that was sent.
             """
 
         async def on_trade_accept(self, trade: "steam.TradeOffer") -> None:
-            """|coro|
-            Called when the client or the trade partner accepts a trade offer.
+            """Called when the client or the trade partner accepts a trade offer.
 
             Parameters
             ----------
-            trade: :class:`~steam.TradeOffer`
+            trade
                 The trade offer that was accepted.
             """
 
         async def on_trade_decline(self, trade: "steam.TradeOffer") -> None:
-            """|coro|
-            Called when the client or the trade partner declines a trade offer.
+            """Called when the client or the trade partner declines a trade offer.
 
             Parameters
             ----------
-            trade: :class:`~steam.TradeOffer`
+            trade
                 The trade offer that was declined.
             """
 
         async def on_trade_cancel(self, trade: "steam.TradeOffer") -> None:
-            """|coro|
-            Called when the client or the trade partner cancels a trade offer.
+            """Called when the client or the trade partner cancels a trade offer.
 
             Note
             ----
@@ -985,84 +881,76 @@ class Client:
 
             Parameters
             ----------
-            trade: :class:`~steam.TradeOffer`
+            trade
                 The trade offer that was cancelled.
             """
 
         async def on_trade_expire(self, trade: "steam.TradeOffer") -> None:
-            """|coro|
-            Called when a trade offer expires due to being active for too long.
+            """Called when a trade offer expires due to being active for too long.
 
             Parameters
             ----------
-            trade: :class:`~steam.TradeOffer`
+            trade
                 The trade offer that expired.
             """
 
         async def on_trade_counter(self, trade: "steam.TradeOffer") -> None:
-            """|coro|
-            Called when the client or the trade partner counters a trade offer.
+            """Called when the client or the trade partner counters a trade offer.
 
             Parameters
             ----------
-            trade: :class:`~steam.TradeOffer`
+            trade
                 The trade offer that was countered.
             """
 
         async def on_comment(self, comment: "steam.Comment") -> None:
-            """|coro|
-            Called when the client receives a comment notification.
+            """Called when the client receives a comment notification.
 
             Parameters
             ----------
-            comment: :class:`~steam.Comment`
+            comment
                 The comment received.
             """
 
         async def on_user_invite(self, invite: "steam.UserInvite") -> None:
-            """|coro|
-            Called when the client receives/sends an invite from/to a :class:`~steam.User` to become a friend.
+            """Called when the client receives/sends an invite from/to a :class:`~steam.User` to become a friend.
 
             Parameters
             ----------
-            invite: :class:`~steam.UserInvite`
+            invite
                 The invite received.
             """
 
         async def on_user_invite_accept(self, invite: "steam.UserInvite") -> None:
-            """|coro|
-            Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
+            """Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
 
             Parameters
             ----------
-            invite: :class:`~steam.UserInvite`
+            invite
                 The invite that was accepted.
             """
 
         async def on_clan_invite(self, invite: "steam.ClanInvite") -> None:
-            """|coro|
-            Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a
+            """Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a
             :class:`~steam.Clan`.
 
             Parameters
             ----------
-            invite: :class:`~steam.ClanInvite`
+            invite
                 The invite received.
             """
 
         async def on_clan_invite_accept(self, invite: "steam.ClanInvite") -> None:
-            """|coro|
-            Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
+            """Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
 
             Parameters
             ----------
-            invite: :class:`~steam.ClanInvite`
+            invite
                 The invite that was accepted.
             """
 
         async def on_user_update(self, before: "steam.User", after: "steam.User") -> None:
-            """|coro|
-            Called when a user's their state, due to one or more of the following attributes changing:
+            """Called when a user's their state, due to one or more of the following attributes changing:
 
                 - :attr:`~steam.User.name`
                 - :attr:`~steam.User.state`
@@ -1076,29 +964,27 @@ class Client:
 
             Parameters
             ----------
-            before: :class:`~steam.User`
+            before
                 The user's state before it was updated.
-            after: :class:`~steam.User`
+            after
                 The user's state now.
             """
 
         async def on_socket_receive(self, msg: "Union[Msg, MsgProto]") -> None:
-            """|coro|
-            Called when the connected web-socket parses a received ``Msg``/``MsgProto``
+            """Called when the connected web-socket parses a received ``Msg``/``MsgProto``
 
             Parameters
             ----------
-            msg: Union[:class:`~steam.protobufs.Msg`, :class:`~steam.protobufs.MsgProto`]
+            msg
                 The received message.
             """
 
         async def on_socket_send(self, msg: "Union[Msg, MsgProto]") -> None:
-            """|coro|
-            Called when the client sends a parsed ``Msg``/``MsgProto`` to the connected web-socket.
+            """Called when the client sends a parsed ``Msg``/``MsgProto`` to the connected web-socket.
 
             Parameters
             ----------
-            msg: Union[:class:`~steam.protobufs.Msg`, :class:`~steam.protobufs.MsgProto`]
+            msg
                 The sent message.
             """
 
@@ -1113,7 +999,7 @@ class Client:
             "logout",
         ],
         *,
-        check: Optional[Callable[[], bool]] = ...,
+        check: Callable[[], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> None:
         ...
@@ -1123,7 +1009,7 @@ class Client:
         self,
         event: Literal["error"],
         *,
-        check: Optional[Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool]] = ...,
+        check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> tuple[str, Exception, tuple, dict]:
         ...
@@ -1133,7 +1019,7 @@ class Client:
         self,
         event: Literal["message"],
         *,
-        check: Optional[Callable[[Message], bool]] = ...,
+        check: Callable[[Message], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> Message:
         ...
@@ -1143,7 +1029,7 @@ class Client:
         self,
         event: Literal["comment"],
         *,
-        check: Optional[Callable[[Comment], bool]] = ...,
+        check: Callable[[Comment], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> Comment:
         ...
@@ -1153,7 +1039,7 @@ class Client:
         self,
         event: Literal["user_update"],
         *,
-        check: Optional[Callable[[User, User], bool]] = ...,
+        check: Callable[[User, User], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> tuple[User, User]:
         ...
@@ -1163,7 +1049,7 @@ class Client:
         self,
         event: Literal["typing"],
         *,
-        check: Optional[Callable[[User, datetime.datetime], bool]] = ...,
+        check: Callable[[User, datetime.datetime], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> tuple[User, datetime.datetime]:
         ...
@@ -1181,7 +1067,7 @@ class Client:
             "trade_counter",
         ],
         *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
+        check: Callable[[TradeOffer], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> TradeOffer:
         ...
@@ -1194,7 +1080,7 @@ class Client:
             "user_invite_accept",
         ],
         *,
-        check: Optional[Callable[[UserInvite], bool]] = ...,
+        check: Callable[[UserInvite], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> UserInvite:
         ...
@@ -1207,7 +1093,7 @@ class Client:
             "clan_invite_accept",
         ],
         *,
-        check: Optional[Callable[[ClanInvite], bool]] = ...,
+        check: Callable[[ClanInvite], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> ClanInvite:
         ...
@@ -1220,7 +1106,7 @@ class Client:
             "socket_send",
         ],
         *,
-        check: Optional[Callable[[Msgs], bool]] = ...,
+        check: Callable[[Msgs], bool] = ...,
         timeout: Optional[float] = ...,
     ) -> Msgs:
         ...
@@ -1229,38 +1115,35 @@ class Client:
         self,
         event: str,
         *,
-        check: Optional[Callable[..., bool]] = None,
+        check: Callable[..., bool] = return_true,
         timeout: Optional[float] = None,
     ) -> Any:
-        """|coro|
-        Wait for the first event to be dispatched that meets the requirements, this by default is the first event
+        """Wait for the first event to be dispatched that meets the requirements, this by default is the first event
         with a matching event name.
 
         Parameters
-        -----------
-        event: :class:`str`
+        ----------
+        event
             The event name from the :ref:`event reference <event-reference>`, but without the ``on_`` prefix, to wait
             for.
-        check: Optional[Callable[..., :class:`bool`]]
+        check
             A callable predicate that checks the received event. The arguments must match the parameters of the
             ``event`` being waited for and must return a :class:`bool`.
-        timeout: Optional[:class:`float`]
+        timeout
             By default, :meth:`wait_for` function does not timeout, however, in the case a ``timeout`` parameter is
             passed after the amount of seconds pass :exc:`asyncio.TimeoutError` is raised.
 
         Raises
-        -------
+        ------
         :exc:`asyncio.TimeoutError`
             If the provided timeout was reached.
 
         Returns
-        --------
-        Optional[Any]
-            Returns ``None``, a single argument, or a :class:`tuple` of multiple arguments that mirrors the parameters
-            for the ``event`` parameter from the :ref:`event reference <event-reference>`.
+        -------
+        Returns ``None``, a single argument or a :class:`tuple` of multiple arguments that mirrors the parameters for
+        the ``event`` parameter from the :ref:`event reference <event-reference>`.
         """
         future = self.loop.create_future()
-        check = check or return_true
 
         event_lower = event.lower()
         try:

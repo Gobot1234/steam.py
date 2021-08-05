@@ -44,15 +44,9 @@ __all__ = (
 
 
 class HelpCommand(Command):
-    """The base implementation of the help command.
+    """The base implementation of the help command."""
 
-    Attributes
-    ----------
-    context: :class:`~steam.ext.commands.Context`
-        The context for the command's invocation.
-    """
-
-    context: Context
+    context: Context  #: The context for the command's invocation.
 
     def __init__(self, **kwargs: Any):
         default = dict(name="help", help="Shows this message.", cog=self)
@@ -61,8 +55,7 @@ class HelpCommand(Command):
 
     @final
     async def command_callback(self, ctx: Context, *, content: str = None) -> None:
-        """|coro|
-        The actual implementation of the help command.
+        """The actual implementation of the help command.
 
         This method should not directly subclassed instead you should change the behaviour through the methods that
         actually get dispatched:
@@ -91,12 +84,8 @@ class HelpCommand(Command):
 
     def get_bot_mapping(self) -> "dict[Optional[str], list[commands.Command]]":
         """
-        Generate a mapping of the bot's commands. It's not normally necessary to subclass this.
-
-        Returns
-        -------
-        dict[Optional[:class:`str`], list[:class:`Command`]]
-            The mapping of commands passed to :meth:`send_help`.
+        Generate a mapping of the bot's commands. It's not normally necessary to subclass this. This is passed to
+        :meth:`send_help`.
         """
         bot = self.context.bot
         mapping = {cog.qualified_name: list(cog.commands) for name, cog in bot.cogs.items() if cog.commands}
@@ -106,75 +95,69 @@ class HelpCommand(Command):
 
     @abc.abstractmethod
     async def send_help(self, mapping: "dict[Optional[str], list[commands.Command]]") -> None:
-        """|coro|
-        Send the basic help message for the bot's command.
+        """Send the basic help message for the bot's command.
 
         Parameters
         ----------
-        mapping: dict[Optional[:class:`str`], list[commands.Command]]
+        mapping
             The mapping from :meth:`get_bot_mapping`.
         """
 
     @abc.abstractmethod
     async def send_cog_help(self, cog: "commands.Cog") -> None:
-        """|coro|
-        The method called with a cog is passed as an argument.
+        """The method called with a cog is passed as an argument.
 
         Note
         ----
-        Cogs are case-sensitive.
+        Cog names are case-sensitive.
 
         Parameters
         ----------
-        cog: :class:`~steam.ext.commands.Cog`
+        cog
             The cog that was passed as an argument.
         """
 
     @abc.abstractmethod
     async def send_command_help(self, command: "commands.Command") -> None:
-        """|coro|
-        The method called when a normal command is passed as an argument.
+        """The method called when a normal command is passed as an argument.
 
         Parameters
         ----------
-        command: :class:`~steam.ext.commands.Command`
+        command
             The command that was passed as an argument.
         """
 
     @abc.abstractmethod
     async def send_group_help(self, command: "commands.Group") -> None:
-        """|coro|
-        The method called when a group command is passed as an argument.
+        """The method called when a group command is passed as an argument.
 
         Parameters
         ----------
-        command: :class:`~steam.ext.commands.Group`
+        command
             The command that was passed as an argument.
         """
 
     @abc.abstractmethod
     async def command_not_found(self, command: str) -> None:
-        """|coro|
-        The default implementation for when a command isn't found.
+        """The default implementation for when a command isn't found.
 
         This by default sends "The command {command} was not found."
 
         Parameters
         ----------
-        command: :class:`str`
+        command
             The command that was not found.
         """
 
     async def on_error(self, ctx: "commands.Context", error: Exception) -> None:
-        """|coro|
-        The default error handler for the help command. This performs the functionality as
+        """The default error handler for the help command. This performs the functionality as
         :meth:`steam.ext.commands.Bot.on_command_error`.
 
         Parameters
         ----------
-        ctx: :class:`.Context`
+        ctx
             The context for the invocation.
-        error: :exc:`Exception`
+        error
             The error that was raised.
         """
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
@@ -187,7 +170,7 @@ class DefaultHelpCommand(HelpCommand):
     """The default implementation of the help command."""
 
     def __repr__(self) -> str:
-        return "<default help command>"
+        return "<default_help_command>"
 
     def _get_doc(self, command: Command) -> str:
         try:
@@ -225,14 +208,13 @@ class DefaultHelpCommand(HelpCommand):
         await self.context.send("\n".join(msg))
 
     async def command_not_found(self, command: str) -> None:
-        """|coro|
-        The default implementation for when a command isn't found.
+        """The default implementation for when a command isn't found.
 
         This by default sends "The command {command} was not found."
 
         Parameters
         ----------
-        command: :class:`str`
+        command
             The command that was not found.
         """
         await self.context.send(f"The command {command!r} was not found.")

@@ -121,29 +121,29 @@ class Command:
 
     Attributes
     ----------
-    name: :class:`str`
+    name
         The command's name.
-    help: Optional[:class:`str`]
+    help
         The command's help docstring.
-    checks: list[Callable[[:class:`steam.ext.commands.Context`], Union[:class:`bool`, Awaitable[:class:`bool`]]
+    checks
         A list of the command's checks.
-    cooldown: list[:class:`.Cooldown`]
+    cooldown
         The command's cooldowns.
-    special_converters: list[type[converters.Converter]]
+    special_converters
         A list of the command's special converters as registered by :meth:`steam.ext.commands.Converter.register`.
-    enabled: :class:`bool`
+    enabled
         Whether or not the command is enabled.
-    cog: Optional[:class:`~steam.ext.commands.Cog`]
+    cog
         The command's cog.
-    parent: Optional[:class:`Command`]
+    parent
         The command's parent.
-    description: :class:`str`
+    description
         The command's description.
-    hidden: :class:`bool`
+    hidden
         Whether or not the command is hidden.
-    aliases: Iterable[:class:`str`]
+    aliases
         The command's aliases.
-    params: dict[:class:`str`, :class:`inspect.Parameter`]
+    params
         The command's parameters.
     """
 
@@ -158,11 +158,12 @@ class Command:
         self.__original_kwargs__: dict[str, Any] = kwargs.copy()
         return self
 
-    def __init__(self, func: CFT, **kwargs: Any):
-        self.name: str = kwargs.get("name") or func.__name__
-        if not isinstance(self.name, str):
+    def __init__(self, func: CallbackType[P], **kwargs: Any):
+        name = kwargs.get("name") or func.__name__
+        if not isinstance(name, str):
             raise TypeError("name must be a string.")
 
+        self.name = name
         self.callback = func
 
         help_doc = kwargs.get("help")
@@ -243,7 +244,7 @@ class Command:
 
     @cached_property
     def clean_params(self) -> dict[str, inspect.Parameter]:
-        """dict[:class:`str`, :class:`inspect.Parameter`]: The command's parameters without ``"self"`` and ``"ctx"``."""
+        """The command's parameters without ``"self"`` and ``"ctx"``."""
         params = self.params.copy()
         keys = list(params)
         if self.cog is not None:
@@ -259,12 +260,17 @@ class Command:
 
     @property
     def qualified_name(self) -> str:
-        """:class:`str`: The full name of the command, this takes into account subcommands etc."""
-        return " ".join(c.name for c in reversed(list(self.parents)))
+        """The full name of the command, this takes into account subcommands etc."""
+        return " ".join(c.name for c in reversed(self.parents))
 
     @property
     def parents(self: C) -> list[C]:
-        """list[:class:`Command`]: The command's parents."""
+        """The command's parents.
+
+        Returns
+        -------
+        :class:`list`\\[:class:`Command`]
+        """
         commands = []
         command = self
         while command is not None:
@@ -275,9 +281,8 @@ class Command:
 
         return commands
 
-    async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
-        """|coro|
-        Calls the internal callback that the command holds.
+    async def __call__(self, ctx: Context, *args: P.args, **kwargs: P.kwargs) -> None:
+        """Calls the internal callback that the command holds.
 
         Note
         ----
@@ -303,7 +308,9 @@ class Command:
         Register a :term:`coroutine function` to handle a commands ``on_error`` functionality similarly to
         :meth:`steam.ext.commands.Bot.on_command_error`.
 
-        Example: ::
+        Example:
+
+        .. code-block:: python3
 
             @bot.command
             async def raise_an_error(ctx: commands.Context) -> None:
@@ -366,12 +373,11 @@ class Command:
         return decorator(coro) if coro is not None else decorator
 
     async def invoke(self, ctx: Context) -> None:
-        """|coro|
-        Invoke the callback the command holds.
+        """InvokeT the callback the command holds.
 
         Parameters
         ----------
-        ctx: :class:`~steam.ext.commands.Context`
+        ctx
             The invocation context.
         """
         try:
@@ -405,17 +411,12 @@ class Command:
             await self._call_after_invoke(ctx)
 
     async def can_run(self, ctx: Context) -> bool:
-        """|coro|
-        Whether or not the command can be ran.
+        """Whether or not the command can be ran.
 
         Parameters
         ----------
-        ctx: :class:`~steam.ext.commands.Context`
+        ctx
             The invocation context.
-
-        Returns
-        -------
-        :class:`bool`
         """
         if not self.enabled:
             return False
@@ -620,7 +621,7 @@ class GroupMixin:
 
     Attributes
     ----------
-    case_insensitive: :class:`bool`
+    case_insensitive
         Whether or not commands should be invoke-able case insensitively.
     """
 
@@ -631,12 +632,12 @@ class GroupMixin:
 
     @property
     def all_commands(self) -> list[Command]:
-        """list[:class:`Command`]: A list of the loaded commands."""
+        """A list of the loaded commands."""
         return list(self.__commands__.values())
 
     @property
     def commands(self) -> set[Command]:
-        """set[:class:`Command`]: A set of the loaded commands without duplicates."""
+        """A set of the loaded commands without duplicates."""
         return set(self.__commands__.values())
 
     def add_command(self, command: Command) -> None:
@@ -644,7 +645,7 @@ class GroupMixin:
 
         Parameters
         ----------
-        command: :class:`Command`
+        command
             The command to register.
         """
         if not isinstance(command, Command):
@@ -667,17 +668,16 @@ class GroupMixin:
             self.__commands__[alias] = command
 
     def remove_command(self, name: str) -> Optional[Command]:
-        """Removes a command from the internal commands list.
+        """Remove a command from the internal commands list.
 
         Parameters
         ----------
-        name: :class:`str`
+        name
             The name of the command to remove.
 
         Returns
         --------
-        Optional[:class:`Command`]
-            The removed command.
+        The removed command or ``None`` if the command was not found.
         """
         try:
             command = self.__commands__.pop(name)
@@ -693,13 +693,12 @@ class GroupMixin:
 
         Parameters
         ----------
-        name: :class:`str`
+        name
             The name of the command.
 
         Returns
         -------
-        Optional[:class:`Command`]
-            The found command or ``None``.
+        The found command or ``None``.
         """
 
         # fast path, no space in name
@@ -763,12 +762,16 @@ class GroupMixin:
 
         Parameters
         ----------
-        name: Optional[:class:`str`]
+        name
             The name of the command. Will default to ``callback.__name__``.
         cls: type[:class:`Command`]
             The class to construct the command from. Defaults to :class:`Command`.
-        **attrs:
-            The attributes to pass to the command's ``__init__``.
+        attrs
+            The parameters to pass to the command's ``__init__``.
+
+        Returns
+        -------
+        The created command.
         """
 
         def decorator(callback: CFT) -> C:
@@ -821,12 +824,16 @@ class GroupMixin:
 
         Parameters
         ----------
-        name: Optional[:class:`str`]
+        name
             The name of the command. Will default to ``callback.__name__``.
         cls: type[:class:`Group`]
             The class to construct the command from. Defaults to :class:`Group`.
-        **attrs:
-            The attributes to pass to the command's ``__init__``.
+        attrs
+            The parameters to pass to the command's ``__init__``.
+
+        Returns
+        -------
+        The created group command.
         """
 
         def decorator(callback: CFT) -> G:
@@ -839,7 +846,12 @@ class GroupMixin:
 
     @property
     def children(self: C) -> list[C]:
-        """list[:class:`Command`]: The commands children."""
+        """The commands children.
+
+        Returns
+        -------
+        :class:`list`\\[:class:`Command`]
+        """
         commands = []
         for command in self.commands:
             commands.append(command)
@@ -908,16 +920,20 @@ def command(
     **attrs: Any,
 ) -> Union[Callable[[CFT], C], C]:
     """|maybecallabledeco|
-    A decorator that registers a :term:`coroutine function` as a :class:`Command`.
+    A decorator that turns a :term:`coroutine function` into a :class:`Command`.
 
     Parameters
     ----------
-    name: Optional[:class:`str`]
+    name
         The name of the command. Will default to ``callback.__name__``.
     cls: type[:class:`Command`]
         The class to construct the command from. Defaults to :class:`Command`.
-    **attrs:
+    attrs
         The attributes to pass to the command's ``__init__``.
+
+    Returns
+    -------
+    The created command.
     """
     cls = cls or Command
 
@@ -966,16 +982,20 @@ def group(
     **attrs: Any,
 ) -> Union[Callable[[CFT], G], G]:
     """|maybecallabledeco|
-    A decorator that registers a :term:`coroutine function` as a :class:`Group`.
+    A decorator that turns a :term:`coroutine function` into a :class:`Group`.
 
     Parameters
     ----------
-    name: Optional[:class:`str`]
+    name
         The name of the command. Will default to ``callback.__name__``.
     cls: type[:class:`Group`]
         The class to construct the command from. Defaults to :class:`Group`.
-    **attrs:
+    attrs
         The attributes to pass to the command's ``__init__``.
+
+    Returns
+    -------
+    The created group command.
     """
 
     return command(callback, name=name, cls=cls or Group, **attrs)
@@ -989,10 +1009,11 @@ def check(predicate: CheckType) -> CheckReturnType:
 
     Examples
     --------
-    .. code-block::
+    .. code-block:: python3
 
         def is_mod(ctx: commands.Context) -> bool:
             return ctx.clan and ctx.author in ctx.clan.mods
+
 
         @commands.check(is_mod)
         @bot.command
@@ -1003,8 +1024,8 @@ def check(predicate: CheckType) -> CheckReturnType:
 
     Attributes
     ----------
-    predicate: Callable[[:class:`Context`], Awaitable[:class:`bool`]]
-        The registered check, this will always be a wrapped in a :term:`coroutine function`
+    predicate
+        The registered check, this will always be a :term:`coroutine function` even if the original check wasn't.
     """
 
     def decorator(func: MC) -> MC:
@@ -1092,24 +1113,24 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
 
     Parameters
     ----------
-    rate: :class:`int`
+    rate
         The amount of times a command can be executed
         before being put on cooldown.
-    per: :class:`float`
+    per
         The amount of time to wait between cooldowns.
-    type: :class:`.BucketType`
-        The :class:`.BucketType` that the cooldown applies to.
+    type
+        The bucket that the cooldown applies to.
 
     Examples
     --------
-    Usage::
+    Usage
+
+    .. code-block:: python3
 
         @bot.command
         @commands.cooldown(rate=1, per=10, commands.BucketType.User)
         async def once_every_ten_seconds(ctx: commands.Context) -> None:
-            ...
-
-    This can only be invoked a user every ten seconds.
+            ...  # this can only be invoked a user every ten seconds.
     """
 
     def decorator(command: MC) -> MC:

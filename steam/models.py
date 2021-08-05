@@ -69,7 +69,19 @@ class URL:
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
 
 
-EventParser: TypeAlias = "Callable[[MsgProto], Optional[Coroutine[None, None, None]]]"
+class _ReturnTrue:
+    __slots__ = ()
+
+    def __call__(self, *_: Any, **__: Any) -> Literal[True]:
+        return True
+
+    def __repr__(self) -> str:
+        return "<return_true>"
+
+
+return_true = _ReturnTrue()
+
+EventParser: TypeAlias = "Callable[[MsgProto], Optional[Coroutine[Any, Any, None]]]"
 
 
 class Registerable:
@@ -139,13 +151,13 @@ class PriceOverview:
 
     Attributes
     -------------
-    currency: :class:`str`
-        The currency identifier for the item eg. "$" or "£".
-    volume: :class:`int`
+    currency
+        The currency identifier for the item e.g. "$" or "£".
+    volume
         The amount of items are currently on the market.
-    lowest_price: :class:`float`
+    lowest_price
         The lowest price observed by the market.
-    median_price: :class:`float`
+    median_price
         The median price observed by the market.
     """
 
@@ -175,9 +187,9 @@ class Ban:
 
     Attributes
     ----------
-    since_last_ban: :class:`datetime.timedelta`
+    since_last_ban
         How many days since the user was last banned
-    number_of_game_bans: :class:`int`
+    number_of_game_bans
         The number of game bans the User has.
     """
 
@@ -194,7 +206,7 @@ class Ban:
         self._community_banned = data["CommunityBanned"]
         self._market_banned = data["EconomyBan"]
         self.since_last_ban = timedelta(days=data["DaysSinceLastBan"])
-        self.number_of_game_bans = data["NumberOfGameBans"]
+        self.number_of_game_bans: int = data["NumberOfGameBans"]
 
     def __repr__(self) -> str:
         attrs = [
@@ -207,19 +219,19 @@ class Ban:
         return f"<Ban {' '.join(resolved)}>"
 
     def is_banned(self) -> bool:
-        """:class:`bool`: Species if the user is banned from any part of Steam."""
+        """Species if the user is banned from any part of Steam."""
         return any((self.is_vac_banned(), self.is_community_banned(), self.is_market_banned()))
 
     def is_vac_banned(self) -> bool:
-        """:class:`bool`: Species if the user is VAC banned."""
+        """Whether or not  the user is VAC banned."""
         return self._vac_banned
 
     def is_community_banned(self) -> bool:
-        """:class:`bool`: Species if the user is community banned."""
+        """Whether or not the user is community banned."""
         return self._community_banned
 
     def is_market_banned(self) -> bool:
-        """:class:`bool`: Species if the user is market banned."""
+        """Whether or not the user is market banned."""
         return self._market_banned
 
 

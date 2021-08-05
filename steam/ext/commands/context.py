@@ -50,23 +50,23 @@ class Context(Messageable):
 
     Attributes
     ----------
-    message: :class:`~steam.Message`
+    message
         The message the context was generated from.
-    prefix: :class:`str`
+    prefix
         The prefix of the message the context was generated from
-    author: :class:`~steam.User`
+    author
         The author of the message.
-    channel: :class:`~steam.Channel`
+    channel
         The channel the message was sent in.
-    clan: Optional[:class:`~steam.Clan`]
+    clan
         The clan the message was sent in ``None`` if the message wasn't sent in a clan.
-    group: Optional[:class:`~steam.Group`]
+    group
         The group the message was sent in ``None`` if the message wasn't sent in a group.
-    bot: :class:`~steam.ext.commands.Bot`
+    bot
         The bot instance.
-    command: Optional[:class:`~steam.ext.commands.Command`]
+    command
         The command the context is attached to.
-    cog: Optional[:class:`~steam.ext.commands.Cog`]
+    cog
         The cog the command is in.
     """
 
@@ -97,10 +97,11 @@ class Context(Messageable):
         return self.channel._get_image_endpoint()
 
     async def invoke(self) -> None:
-        """|coro|
-        A shortcut method that invokes the current context using :meth:`~steam.ext.commands.Command.invoke`.
+        """A shortcut method that invokes the current context using :meth:`~steam.ext.commands.Command.invoke`.
 
-        Equivalent to::
+        Equivalent to
+
+        .. code-block:: python3
 
             await ctx.command.invoke(ctx)
         """
@@ -112,16 +113,17 @@ class Context(Messageable):
         before: Optional[datetime] = None,
         after: Optional[datetime] = None,
     ) -> AsyncIterator[Message]:
-        """|coro|
-        A shortcut method that gets the current channel's history.
+        """A shortcut method that gets the current channel's history.
 
-        Equivalent to::
+        Equivalent to
 
-            return ctx.channel.history(**kwargs)
+        .. code-block:: python3
+
+            ctx.channel.history(**kwargs)
         """
         return self.channel.history(limit=limit, before=before, after=after)
 
     @property
     def valid(self) -> bool:
-        """:class:`bool`: Whether or not the context could be invoked."""
+        """Whether or not the context could be invoked."""
         return self.prefix is not None and self.command is not None

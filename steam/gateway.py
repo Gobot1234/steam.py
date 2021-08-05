@@ -52,7 +52,7 @@ from . import utils
 from .enums import PersonaState, Result
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
-from .models import Registerable, register
+from .models import Registerable, register, return_true
 from .protobufs import EMsg, GCMsg, GCMsgProto, Msg, MsgBase, MsgProto
 from .protobufs.steammessages_clientserver_2 import CMsgGcClient
 
@@ -281,7 +281,7 @@ class SteamWebSocket(Registerable):
 
     @property
     def latency(self) -> float:
-        """:class:`float`: Measures latency between a heartbeat send and the heartbeat interval in seconds."""
+        """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
 
     def wait_for(self, emsg: EMsg, check: Callable[[M], bool] = return_true) -> asyncio.Future[M]:

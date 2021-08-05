@@ -41,18 +41,17 @@ class Comment:
 
     Attributes
     ----------
-    id: :class:`int`
+    id
         The comment's id.
-    content: :class:`str`
+    content
         The comment's content.
-    author: :class:`~steam.User`
+    author
         The author of the comment.
-    created_at: :class:`datetime.datetime`
+    created_at
         The time the comment was posted at.
-    owner: Union[:class:`~steam.Clan`, :class:`~steam.User`]
-        The comment sections owner. If the comment section is for a clan
-        it will be a :class:`~steam.Clan` instance otherwise it
-        will be an :class:`~steam.User` instance.
+    owner
+        The comment sections owner. If the comment section is for a clan it will be a :class:`~steam.Clan` instance
+        otherwise it will be an :class:`~steam.User` instance.
     """
 
     __slots__ = ("content", "id", "created_at", "author", "owner", "_state")
@@ -79,9 +78,7 @@ class Comment:
         return f"<Comment {' '.join(resolved)}>"
 
     async def report(self) -> None:
-        """|coro|
-        Reports the :class:`Comment`.
-        """
+        """Reports the comment."""
         await self._state.http.report_comment(
             id64=self.owner.id64,
             comment_id=self.id,
@@ -89,9 +86,7 @@ class Comment:
         )
 
     async def delete(self) -> None:
-        """|coro|
-        Deletes the :class:`Comment`.
-        """
+        """Deletes the comment."""
         await self._state.http.delete_comment(
             id64=self.owner.id64,
             comment_id=self.id,

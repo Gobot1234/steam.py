@@ -206,22 +206,28 @@ class Query(Generic[T], metaclass=QueryMeta):
 
         .. describe:: x | y
 
-            Combines the two queries in ``\nor\[x\y]``.
+            Combines the two queries in ``\nor\[x\y]`` (not or).
 
         .. describe:: x & y
 
-            Combines the two queries in ``\nand\[x\y]``.
+            Combines the two queries in ``\nand\[x\y]`` (not and).
 
     Examples
     --------
-    .. code-block::
+    .. code-block:: pycon
 
         >>> Query.running / TF2 / Query.not_empty / Query.secure
         <Query query='\\appid\\440\\empty\\1\\secure\\1'>
+        # matches games running TF2, that are not empty and are using VAC
         >>> Query.not_empty / Query.not_full | Query.secure
         <Query query='\\empty\\1\\nor\\[\\full\\1\\secure\\1]'>
-        >>> Query.name_match / "A cool server" | Query.match_tags / ["alltalk", "increased_maxplayers"]
-        <Query query='\\nor\\[\\name_match\\A cool server\\gametype\\[alltalk,increased_maxplayers]]'>
+        # matches games that are not empty, not full and are using VAC
+        >>> Query.name_match / "A not cool server" | Query.match_tags / ["alltalk", "increased_maxplayers"]
+        <Query query='\\nor\\[\\name_match\\A not cool server\\gametype\\[alltalk,increased_maxplayers]]'>
+        # matches games where the server name is not "A cool Server" or the server doesn't support alltalk or increased
+        # max players
+        >>> Query.linux & Query.no_password
+        # matches games where the server is not on linux and the server doesn't have no password (has a password)
     """
 
     # simple specification:
@@ -273,7 +279,7 @@ class Query(Generic[T], metaclass=QueryMeta):
 
     @property
     def query(self) -> str:
-        """:class:`str`: The actual query used for querying Global Master Servers."""
+        """The actual query used for querying Global Master Servers."""
 
         if len(self._raw) == 1:  # string query
             return self._raw[0]
@@ -354,27 +360,27 @@ class GameServer(SteamID):
 
     Attributes
     ----------
-    name: :class:`str`
+    name
         The name of the server.
-    game: :class:`.Game`
+    game
         The game of the server.
-    ip: :class:`str`
+    ip
         The ip of the server.
-    port: :class:`int`
+    port
         The port of the server.
-    tags: list[:class:`str`]
+    tags
         The tags of the server.
-    map: :class:`str`
+    map
         The map the server is running.
-    bot_count: :class:`int`
+    bot_count
         The number of bots in the server.
-    player_count: :class:`int`
+    player_count
         The number of players the server.
-    max_player_count: :class:`str`
+    max_player_count
         The maximum player count of the server.
-    region: :class:`GameServerRegion`
+    region
         The region the server is in.
-    version: :class:`str`
+    version
         The version of the server.
     """
 
@@ -422,11 +428,11 @@ class GameServer(SteamID):
         return self.name
 
     def is_secure(self) -> bool:
-        """:class:`bool`: Whether the sever is secured, likely with VAC."""
+        """Whether the sever is secured, likely with VAC."""
         return self._secure
 
     def is_dedicated(self) -> bool:
-        """:class:`bool`: Whether the sever is dedicated."""
+        """Whether the sever is dedicated."""
         return self._dedicated
 
     @asynccontextmanager
@@ -452,12 +458,11 @@ class GameServer(SteamID):
         yield StructIO(data)
 
     async def players(self, *, challenge: Literal[-1, 0] = 0) -> Optional[list[ServerPlayer]]:
-        """|coro|
-        Fetch a server's players.
+        """Fetch a server's players  or ``None`` if something went wrong getting the info.
 
         Parameters
         ----------
-        challenge: :class:`int`
+        challenge
             The challenge for the request default is 0 can also be -1. You may need to change if the server doesn't seem
             to respond.
 
@@ -466,11 +471,7 @@ class GameServer(SteamID):
         It is recommended to use :func:`asyncio.wait_for` to allow this to return if the server doesn't respond.
 
         Returns
-        -------
-        Optional[list[:class:`ServerPlayer`]]
-            The players, or ``None`` if something went wrong getting the info.
-
-            ServerPlayer is a :class:`typing.NamedTuple` defined as:
+        ServerPlayer is a :class:`typing.NamedTuple` defined as:
 
             .. code-block:: python3
 
@@ -496,23 +497,17 @@ class GameServer(SteamID):
             ]
 
     async def rules(self, *, challenge: Literal[-1, 0] = 0) -> Optional[dict[str, str]]:
-        """|coro|
-        Fetch a server's rules (console variables). e.g. ``sv_gravity`` or ``sv_voiceenable``.
+        """Fetch a console variables. e.g. ``sv_gravity`` or ``sv_voiceenable``.
 
         Parameters
         ----------
-        challenge: :class:`int`
+        challenge
             The challenge for the request default is 0 can also be -1. You may need to change if the server doesn't seem
             to respond.
 
         Note
         ----
         It is recommended to use :func:`asyncio.wait_for` to allow this to return if the server doesn't respond.
-
-        Returns
-        -------
-        Optional[dict[:class:`str`, :class:`str`]]
-            The server's rules.
         """
         async with self.connect(challenge, b"V") as buffer:
             header, number_of_rules = buffer.read_struct("<4xcH")

@@ -49,17 +49,21 @@ class Cog:
 
     Attributes
     ----------
-    qualified_name: :class:`str`
-        The name of the cog. Can be set in a subclass e.g. ::
+    qualified_name
+        The name of the cog. Can be set in a subclass e.g.
 
-            class MyCog(commands.Cog, name='SpecialCogName'):
+        .. code-block:: python3
+
+            class MyCog(commands.Cog, name="SpecialCogName"):
                 ...
 
         Defaults to ``Cog.__name__``.
 
-    command_attrs: dict[:class:`str`, Any]
+    command_attrs
         Attributes to pass to every command registered in the cog.
-        Can be set in subclass e.g. ::
+        Can be set in subclass e.g.
+
+        .. code-block:: python3
 
             class MyBrokenCog(commands.Cog, command_attrs=dict(enabled=False)):
                 # all the commands by default would be disabled
@@ -72,7 +76,7 @@ class Cog:
                 async def working(self, ctx):  # enabled
                     ...
 
-    description: Optional[:class:`str`]
+    description
         The cleaned up doc-string for the cog.
     """
 
@@ -128,13 +132,12 @@ class Cog:
     # TODO for 3.9 make these class properties
     @property
     def commands(self) -> set[Command]:
-        """set[:class:`Command`]: A set of the :class:`Cog`'s commands."""
+        """A set of the cog's commands."""
         return set(self.__commands__.values())
 
     @property
     def listeners(self) -> list[tuple[str, EventType]]:
-        """list[tuple[:class:`str`, Callable[..., Awaitable]]]:
-        A list of tuples of the events registered with the format (name, listener)"""
+        """A list of tuples of the events registered with the format (name, listener)"""
         return [(listener.__name__, listener) for listeners in self.__listeners__.values() for listener in listeners]
 
     @classmethod
@@ -154,7 +157,7 @@ class Cog:
 
         Parameters
         ----------
-        name: Optional[:class:`str`]
+        name: :class:`str`
             The name of the event to listen for. Defaults to ``func.__name__``.
         """
 
@@ -167,15 +170,14 @@ class Cog:
         return decorator(name) if callable(name) else decorator
 
     async def cog_command_error(self, ctx: "commands.Context", error: Exception) -> None:
-        """|coro|
-        A special method that is called when an error is dispatched inside this cog. This is similar to
+        """A special method that is called when an error is dispatched inside this cog. This is similar to
         :func:`~commands.Bot.on_command_error` except it only applies to the commands inside this cog.
 
         Parameters
         -----------
-        ctx: :class:`~steam.ext.commands.Context`
+        ctx
             The invocation context where the error happened.
-        error: :exc:`Exception`
+        error
             The error that happened.
         """
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
@@ -188,12 +190,8 @@ class Cog:
 
         Parameters
         -----------
-        ctx: :class:`~commands.Context`
+        ctx
             The invocation context.
-
-        Returns
-        -------
-        :class:`bool`
         """
 
     async def bot_check(self, ctx: "commands.Context") -> bool:
@@ -202,12 +200,8 @@ class Cog:
 
         Parameters
         -----------
-        ctx: :class:`~commands.Context`
+        ctx
             The invocation context.
-
-        Returns
-        -------
-        :class:`bool`
         """
 
     def cog_unload(self) -> None:

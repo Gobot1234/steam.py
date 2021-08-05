@@ -76,7 +76,7 @@ class MissingRequiredArgument(BadArgument):
 
     Attributes
     ----------
-    param: :class:`inspect.Parameter`
+    param
         The argument that is missing.
     """
 
@@ -92,7 +92,7 @@ class DuplicateKeywordArgument(BadArgument):
 
     Attributes
     ----------
-    name: :class:`str`
+    name
         The argument that would shadow another.
     """
 
@@ -122,7 +122,7 @@ class CommandDisabled(CheckFailure):
 
     Attributes
     -----------
-    command: :class:`~steam.ext.commands.Command`
+    command
         The command that has been disabled.
     """
 
@@ -158,7 +158,7 @@ class CommandOnCooldown(CommandError):
 
     Attributes
     ----------
-    retry_after: :class:`float`
+    retry_after
         The time in seconds at which that the next command can successfully be executed.
     """
 

@@ -88,22 +88,24 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
     :attr:`.Bot.command_prefix` attribute.
 
     Example
-    --------
+    -------
     .. code-block:: python3
 
-        bot = commands.Bot(command_prefix=commands.when_mentioned_or('!'))
+        bot = commands.Bot(command_prefix=commands.when_mentioned_or("!"))
 
     Note
     ----
     This callable returns another callable, so if this is done inside a custom callable, you must call the
-    returned callable, for example: ::
+    returned callable, for example:
 
-        async def get_prefix(bot, message):
-            extras = await prefixes_for(message.clan)  # returns a list
+    .. code-block:: python3
+
+        async def get_prefix(bot: commands.Bot, message: steam.Message) -> list[str]:
+            extras = await prefixes_for(message.clan)  # a user defined function that returns a list
             return commands.when_mentioned_or(*extras)(bot, message)
 
     See Also
-    ---------
+    --------
     :func:`.when_mentioned`
     """
 
@@ -139,11 +141,13 @@ class Bot(GroupMixin, Client):
         ----
         The first prefix matched when getting context will always be returned,
         ensure that no prefix matches a longer prefix later in the sequence.
-        e.g. ::
+        e.g.
 
-            bot = commands.Bot(command_prefix=('!', '!?'))
-            # the '!?' prefix will never be matched as the previous
-            # prefix would match the '!' at the start of the message
+        .. code-block:: python3
+
+            bot = commands.Bot(command_prefix=("!", "!?"))
+            # the "!?" prefix will never be matched as the previous
+            # prefix would match the "!" at the start of the message
 
         This is especially important when passing an empty string,
         it should always be last as no prefix after it will be matched.
@@ -153,7 +157,7 @@ class Bot(GroupMixin, Client):
     owner_ids: set[:class:`int`]
         The Steam IDs of the owners, these are converted to their 64 bit ID representations upon initialization.
     case_insensitive: :class:`bool`
-        Whether or not to use CaseInsensitiveDict for registering commands.
+        Whether or not commands should be invoke-able case insensitively.
     """
 
     def __init__(
@@ -185,18 +189,17 @@ class Bot(GroupMixin, Client):
 
     @property
     def cogs(self) -> MappingProxyType[str, Cog]:
-        """Mapping[:class:`str`, :class:`.Cog`]: A read only mapping of any loaded cogs."""
+        """A read only mapping of any loaded cogs."""
         return MappingProxyType(self.__cogs__)
 
     @property
     def extensions(self) -> MappingProxyType[str, ModuleType]:
-        """Mapping[:class:`str`, :class:`types.ModuleType`]: A read only mapping of any loaded extensions."""
+        """A read only mapping of any loaded extensions."""
         return MappingProxyType(self.__extensions__)
 
     @property
     def converters(self) -> MappingProxyType[type, tuple[Converters, ...]]:
-        """Mapping[:class:`type`, tuple[:class:`~steam.ext.commands.Converter`, ...]]:
-        A read only mapping of registered converters."""
+        """A read only mapping of registered converters."""
         return MappingProxyType(CONVERTERS)
 
     @property
@@ -224,9 +227,7 @@ class Bot(GroupMixin, Client):
             self._schedule_event(ev, method, *args, **kwargs)
 
     async def close(self) -> None:
-        """|coro|
-        Unloads any extensions and cogs, then closes the connection to Steam.
-        """
+        """Unloads any extensions and cogs, then closes the connection to Steam."""
         for extension in tuple(self.extensions):
             try:
                 self.unload_extension(extension)
@@ -246,7 +247,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        extension: :class:`os.PathLike`
+        extension
             The name of the extension to load.
 
         Raises
@@ -273,7 +274,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        extension: :class:`os.PathLike`
+        extension
             The name of the extension to unload.
 
         Raises
@@ -308,7 +309,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        extension: :class:`os.PathLike`
+        extension
             The name of the extension to reload.
 
         Raises
@@ -341,7 +342,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        cog: :class:`.Cog`
+        cog
             The cog to add.
         """
         if not isinstance(cog, Cog):
@@ -355,7 +356,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        cog: :class:`.Cog`
+        cog
             The cog to remove.
         """
         cog._eject(self)
@@ -366,9 +367,9 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        func: Callable[..., Awaitable[None]]
+        func
             The listener event to listen for.
-        name: Optional[:class:`str`]
+        name
             The name of the event to listen for. Defaults to ``func.__name__``.
         """
         name = name or func.__name__
@@ -386,9 +387,9 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        func: Callable[..., Awaitable[None]]
+        func
             The listener to remove.
-        name: Optional[:class:`str`]
+        name
             The name of the event to remove. Defaults to ``func.__name__``.
         """
         name = name or func.__name__
@@ -412,7 +413,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        name: Optional[:class:`str`]
+        name: :class:`str`
             The name of the event to listen for. Will default to ``func.__name__``.
         """
 
@@ -458,17 +459,12 @@ class Bot(GroupMixin, Client):
             pass
 
     async def can_run(self, ctx: Context) -> bool:
-        """|coro|
-        Whether or not the context's command can be ran.
+        """Whether or not the context's command can be ran.
 
         Parameters
         ----------
-        ctx: :class:`.Context`
+        ctx
             The invocation context.
-
-        Returns
-        -------
-        :class:`bool`
         """
         for check in self.checks:
             if not await utils.maybe_coroutine(check, ctx):
@@ -518,19 +514,10 @@ class Bot(GroupMixin, Client):
         return decorator(coro) if coro is not None else decorator
 
     async def on_message(self, message: Message) -> None:
-        """|coro|
-        Called when a message is created.
-
-        Parameters
-        ----------
-        message: :class:`~steam.Message`
-            The message that was received.
-        """
         await self.process_commands(message)
 
     async def process_commands(self, message: Message) -> None:
-        """|coro|
-        A method to process commands for a message.
+        """A method to process commands for a message.
 
         Warning
         -------
@@ -540,7 +527,7 @@ class Bot(GroupMixin, Client):
 
         Parameters
         ----------
-        message: :class:`~steam.Message`
+        message
             The message to get the context for.
         """
         if message.author != self.user:
@@ -548,12 +535,11 @@ class Bot(GroupMixin, Client):
             await self.invoke(ctx)
 
     async def invoke(self, ctx: Context) -> None:
-        """|coro|
-        Invoke a command. This will parse arguments, checks, cooldowns etc. correctly.
+        """Invoke a command. This will parse arguments, checks, cooldowns etc. correctly.
 
         Parameters
         ----------
-        ctx: :class:`.Context`
+        ctx
             The invocation context.
         """
         if ctx.command is not None:
@@ -568,20 +554,14 @@ class Bot(GroupMixin, Client):
             self.dispatch("command_error", ctx, CommandNotFound(f"The command {ctx.invoked_with!r} was not found"))
 
     async def get_context(self, message: Message, *, cls: type[C] = Context) -> C:
-        """|coro|
-        Get context for a certain message.
+        """Get the context for a certain message.
 
         Parameters
         ----------
-        message: :class:`~steam.Message`
+        message
             The message to get the context for.
-        cls: type[:class:`.Context`]
-            The class to construct the context with.
-
-        Returns
-        -------
-        :class:`.Context`
-            The context for the message.
+        cls
+            The class to construct the context with, this is the type of the return type
         """
         lex = Shlex(message.clean_content)
 
@@ -603,18 +583,12 @@ class Bot(GroupMixin, Client):
         )
 
     async def get_prefix(self, message: Message) -> Optional[str]:
-        """|coro|
-        Get a command prefix for a certain message.
+        """Get the command prefix for a certain message.
 
         Parameters
         ----------
-        message: :class:`~steam.Message`
+        message
             The message to get the prefix for.
-
-        Returns
-        -------
-        Optional[:class:`str`]
-            The prefix for the message.
         """
         prefixes = self.command_prefix
         if callable(prefixes):
@@ -632,30 +606,24 @@ class Bot(GroupMixin, Client):
             raise TypeError(f"command_prefix must return an iterable of strings not {type(prefixes)}") from exc
 
     def get_cog(self, name: str) -> Optional[Cog]:
-        """Get a loaded cog.
+        """Get a loaded cog or ``None``.
 
         Parameters
         ----------
-        name: :class:`str`
+        name
             The name of the cog.
-
-        Returns
-        -------
-        Optional[:class:`.Cog`]
-            The found cog or ``None``.
         """
         return self.__cogs__.get(name)
 
     async def on_command_error(self, ctx: "commands.Context", error: Exception) -> None:
-        """|coro|
-        The default command error handler provided by the bot. This only fires if you do not specify any listeners for
+        """The default command error handler provided by the bot. This only fires if you do not specify any listeners for
         command error.
 
         Parameters
         ----------
-        ctx: :class:`.Context`
+        ctx
             The invocation context where the error happened.
-        error: :exc:`Exception`
+        error
             The error that was raised.
         """
         if self.__listeners__.get("on_command_error"):
@@ -670,25 +638,25 @@ class Bot(GroupMixin, Client):
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    if TYPE_CHECKING:  # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs
+    if TYPE_CHECKING or utils.DOCS_BUILDING:
+        # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs or we are building the
+        # docs
 
         async def on_command(self, ctx: "commands.Context") -> None:
-            """|coro|
-            A method that is called every time a command is dispatched.
+            """A method that is called every time a command is dispatched.
 
             Parameters
             ----------
-            ctx: :class:`.Context`
+            ctx
                 The invocation context.
             """
 
         async def on_command_completion(self, ctx: "commands.Context") -> None:
-            """|coro|
-            A method that is called every time a command is dispatched and completed without error.
+            """A method that is called every time a command is dispatched and completed without error.
 
             Parameters
             ----------
-            ctx: :class:`.Context`
+            ctx
                 The invocation context.
             """
 

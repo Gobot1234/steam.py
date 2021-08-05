@@ -65,13 +65,13 @@ class AsyncIterator(Generic[T]):
 
     Attributes
     ----------
-    before: :class:`datetime.datetime`
+    before
         When to find objects before.
-    after: :class:`datetime.datetime`
+    after
         When to find objects after.
-    limit: Optional[:class:`int`]
+    limit
         The maximum size of the :attr:`AsyncIterator.queue`.
-    queue: :class:`collections.deque[T]`
+    queue
         The queue containing the elements of the iterator.
     """
 
@@ -99,31 +99,34 @@ class AsyncIterator(Generic[T]):
 
         return False
 
-    def get(self, **attrs: Any) -> Coroutine[None, None, Optional[T]]:
-        """|coro|
-        A helper function which is similar to :func:`~steam.utils.get` except it runs over the :class:`AsyncIterator`.
+    async def get(self, **attrs: Any) -> Optional[T]:
+        """A helper function which is similar to :func:`~steam.utils.get` except it runs over the async iterator.
 
-        This is roughly equipment to: ::
+        This is roughly equipment to:
+
+        .. code-block:: python3
+
 
             elements = await AsyncIterator.flatten()
-            element = steam.utils.get(name='Item', elements)
+            element = steam.utils.get(name="Item", elements)
 
         Example
         -------
-        Getting the last comment from a user named 'Dave' or None: ::
+        Getting the last comment from a user named 'Dave' or None:
 
-            msg = await User.comments().get(author__name='Dave')
+        .. code-block:: python3
+
+            msg = await User.comments().get(author__name="Dave")
 
         Parameters
         ----------
-        **attrs
+        attrs
             Keyword arguments that denote attributes to match.
 
         Returns
         -------
-        Optional[T]
-            The first element from the ``iterable`` which matches all the traits passed in ``attrs`` or ``None`` if no
-            matching element was found.
+        The first element from the ``iterable`` which matches all the traits passed in ``attrs`` or ``None`` if no
+        matching element was found.
         """
 
         def predicate(elem: T) -> bool:
@@ -137,37 +140,40 @@ class AsyncIterator(Generic[T]):
                     return False
             return True
 
-        return self.find(predicate)
+        return await self.find(predicate)
 
     async def find(self, predicate: MaybeCoro[T]) -> Optional[T]:
-        """|coro|
-        A helper function which is similar to :func:`~steam.utils.find` except it runs over the :class:`AsyncIterator`.
+        """A helper function which is similar to :func:`~steam.utils.find` except it runs over the async iterator.
         However unlike :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
 
-        This is roughly equivalent to: ::
+        This is roughly equivalent to:
+
+        .. code-block:: python3
 
             elements = await AsyncIterator.flatten()
-            element = steam.utils.find(elements, lambda e: e.name == 'Item')
+            element = steam.utils.find(elements, lambda e: e.name == "Item")
 
         Example
         -------
-        Getting the last trade with a message or None: ::
+        Getting the last trade with a message or None:
+
+        .. code-block:: python3
 
             def predicate(trade: steam.TradeOffer) -> bool:
                 return trade.message is not None
+
 
             trade = await Client.trade_history().find(predicate)
 
         Parameters
         ----------
-        predicate: Callable[[T], Union[:class:`bool`, Awaitable[:class:`bool`]]]
+        predicate
             A callable/coroutine that returns a boolean.
 
         Returns
         -------
-        Optional[T]
-            The first element from the iterator for which the ``predicate`` returns ``True`` or ``None`` if no matching
-            element was found.
+        The first element from the iterator for which the ``predicate`` returns ``True`` or ``None`` if no matching
+        element was found.
         """
         async for elem in self:
             ret = await utils.maybe_coroutine(predicate, elem)
@@ -175,18 +181,14 @@ class AsyncIterator(Generic[T]):
                 return elem
 
     async def flatten(self) -> list[T]:
-        """|coro|
-        A helper function that iterates over the :class:`AsyncIterator` returning a list of all the elements in the
+        """A helper function that iterates over the :class:`AsyncIterator` returning a list of all the elements in the
         iterator.
 
-        This is equivalent to: ::
+        This is equivalent to:
+
+        .. code-block:: python3
 
             elements = [element async for element in AsyncIterator]
-
-        Returns
-        -------
-        list[T]
-            A list of every element in the iterator.
         """
         return [element async for element in self]
 
@@ -197,11 +199,10 @@ class AsyncIterator(Generic[T]):
         return self.next()
 
     async def next(self) -> T:
-        """|coro|
-        Advances the iterator by one, if possible.
+        """Advances the iterator by one, if possible.
 
         Raises
-        --------
+        ------
         :exc:`StopAsyncIteration`
             There are no more elements in the iterator.
         """

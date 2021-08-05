@@ -55,19 +55,14 @@ __all__ = (
 
 
 def generate_one_time_code(shared_secret: str, timestamp: Optional[int] = None) -> str:
-    """Generate a Steam Guard code for signing in.
+    """Generate a Steam Guard code for signing in or at a specific time.
 
     Parameters
     -----------
-    shared_secret: :class:`str`
+    shared_secret
         Identity secret from steam guard.
-    timestamp: Optional[:class:`int`]
+    timestamp
         The unix timestamp to generate the key for.
-
-    Returns
-    --------
-    :class:`str`
-        The desired 2FA code for the timestamp.
     """
     timestamp = timestamp or int(time())
     time_buffer = struct.pack(">Q", timestamp // 30)  # pack as Big endian, uint64
@@ -87,17 +82,12 @@ def generate_confirmation_code(identity_secret: str, tag: str, timestamp: Option
 
     Parameters
     -----------
-    identity_secret: :class:`str`
+    identity_secret
         Identity secret from steam guard.
-    tag: :class:`str`
+    tag
         Tag to encode to.
-    timestamp: Optional[:class:`int`]
+    timestamp
         The time to generate the key for.
-
-    Returns
-    --------
-    :class:`str`
-        Confirmation code for the set timestamp.
     """
     timestamp = timestamp or int(time())
     buffer = struct.pack(">Q", timestamp) + tag.encode("ascii")
@@ -105,16 +95,12 @@ def generate_confirmation_code(identity_secret: str, tag: str, timestamp: Option
 
 
 def generate_device_id(user_id64: Intable) -> str:
-    """
+    """Generate the device id for a user's 64 bit ID.
+
     Parameters
     -----------
-    user_id64: :class:`str`
+    user_id64
         The 64 bit steam id to generate the device id for.
-
-    Returns
-    --------
-    :class:`str`
-        The device id.
     """
     # it works, however it's different that one generated from mobile app
 

@@ -126,15 +126,15 @@ class Asset:
 
     Attributes
     -------------
-    game: :class:`~steam.Game`
+    game
         The game the item is from.
-    asset_id: :class:`str`
+    asset_id
         The assetid of the item.
-    amount: :class:`int`
+    amount
         The amount of the same asset there are in the inventory.
-    instance_id: :class:`str`
+    instance_id
         The instanceid of the item.
-    class_id: :class:`str`
+    class_id
         The classid of the item.
     """
 
@@ -176,20 +176,19 @@ class Item(Asset):
 
     Attributes
     -------------
-    name: Optional[:class:`str`]
+    name
         The market_name of the item.
-    display_name: Optional[:class:`str`]
-        The displayed name of the item. This could be different to
-        :attr:`Item.name` if the item is user re-nameable.
-    colour: Optional[:class:`int`]
+    display_name
+        The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.
+    colour
         The colour of the item.
-    descriptions: Optional[:class:`str`]
+    descriptions
         The descriptions of the item.
-    type: Optional[:class:`str`]
+    type
         The type of the item.
-    tags: Optional[:class:`str`]
+    tags
         The tags of the item.
-    icon_url: Optional[:class:`str`]
+    icon_url
         The icon_url of the item. Uses the large (184x184 px) image url.
     """
 
@@ -226,11 +225,11 @@ class Item(Asset):
         self._is_marketable = bool(data.get("marketable", False))
 
     def is_tradable(self) -> bool:
-        """:class:`bool`: Whether the item is tradable."""
+        """Whether the item is tradable."""
         return self._is_tradable
 
     def is_marketable(self) -> bool:
-        """:class:`bool`: Whether the item is marketable."""
+        """Whether the item is marketable."""
         return self._is_marketable
 
 
@@ -280,9 +279,7 @@ class BaseInventory(Generic[I]):
                     self.items.append(Asset(data=asset))  # type: ignore
 
     async def update(self) -> None:
-        """|coro|
-        Re-fetches the inventory.
-        """
+        """Re-fetches the inventory."""
         if not self.game:
             return
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
@@ -293,9 +290,9 @@ class BaseInventory(Generic[I]):
 
         Parameters
         ------------
-        *names: :class:`str`
+        names
             The names of the items to filter for.
-        limit: Optional[:class:`int`]
+        limit
             The maximum amount of items to return. Checks from the front of the items.
 
         Raises
@@ -305,8 +302,7 @@ class BaseInventory(Generic[I]):
 
         Returns
         ---------
-        list[:class:`Item`]
-            The matching items.
+        The matching items.
         """
         if len(names) > 1 and limit:
             raise ValueError("Cannot pass a limit with multiple items")
@@ -314,17 +310,12 @@ class BaseInventory(Generic[I]):
         return items if limit is None else items[:limit]
 
     def get_item(self, name: str) -> Optional[I]:
-        """A helper function that gets an item by name from the inventory.
+        """A helper function that gets an item or ``None`` if no matching item is found by name from the inventory.
 
         Parameters
         ----------
-        name: :class:`str`
+        name
             The item to get from the inventory.
-
-        Returns
-        -------
-        Optional[:class:`Item`]
-            Returns the first item found with a matching name. Could be ``None`` if no matching item is found.
         """
         item = self.filter_items(name, limit=1)
         return item[0] if item else None
@@ -350,11 +341,11 @@ class Inventory(BaseInventory[Item]):
 
     Attributes
     -------------
-    items: list[Union[:class:`Item`, :class:`Asset`]]
+    items
         A list of the inventory's items.
-    owner: :class:`~steam.User`
+    owner
         The owner of the inventory.
-    game: Optional[:class:`steam.Game`]
+    game
         The game the inventory the game belongs to.
     """
 
@@ -367,40 +358,40 @@ class TradeOffer:
 
     Parameters
     ----------
-    item_to_send: Optional[:class:`steam.Item`]
+    item_to_send
         The item to send with the trade offer.
-    item_to_receive: Optional[:class:`steam.Item`]
+    item_to_receive
         The item to receive with the trade offer.
-    items_to_send: Optional[list[:class:`steam.Item`]]
+    items_to_send
         The items you are sending to the other user.
-    items_to_receive: Optional[list[:class:`steam.Item`]]
+    items_to_receive
         The items you are receiving from the other user.
-    token: Optional[:class:`str`]
+    token
         The the trade token used to send trades to users who aren't on the ClientUser's friend's list.
-    message: Optional[:class:`str`]
+    message
          The offer message to send with the trade.
 
     Attributes
     ----------
-    partner: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
+    partner
         The trade offer partner. This should only ever be a :class:`~steam.SteamID` if the partner's profile is private.
-    items_to_send: Union[list[:class:`Item`]]
+    items_to_send
         A list of items to send to the partner.
-    items_to_receive: Union[list[:class:`Item`]]
+    items_to_receive
         A list of items to receive from the partner.
-    state: :class:`~steam.TradeOfferState`
-        The offer state of the trade for the possible types see :class:`~steam.ETradeOfferState`.
-    message: :class:`str`
+    state
+        The offer state of the trade for the possible types see :class:`~steam.TradeOfferState`.
+    message
         The message included with the trade offer.
-    id: :class:`int`
+    id
         The trade's offer ID.
-    created_at: Optional[:class:`datetime.datetime`]
+    created_at
         The time at which the trade was created.
-    updated_at: Optional[:class:`datetime.datetime`]
+    updated_at
         The time at which the trade was last updated.
-    expires: :class:`datetime.datetime`
+    expires
         The time at which the trade automatically expires.
-    escrow: Optional[:class:`datetime.timedelta`]
+    escrow
         The time at which the escrow will end. Can be ``None`` if there is no escrow on the trade.
 
         Warning
@@ -481,8 +472,7 @@ class TradeOffer:
         return isinstance(other, TradeOffer) and self._has_been_sent and other._has_been_sent and self.id == other.id
 
     async def confirm(self) -> None:
-        """|coro|
-        Confirms the :class:`TradeOffer`.
+        """Confirms the trade offer.
         This rarely needs to be called as the client handles most of these.
 
         Raises
@@ -500,8 +490,7 @@ class TradeOffer:
         del self._state._confirmations[self.id]
 
     async def accept(self) -> None:
-        """|coro|
-        Accepts the :class:`TradeOffer`.
+        """Accepts the trade offer.
 
         Note
         ----
@@ -530,8 +519,7 @@ class TradeOffer:
                     await asyncio.sleep(tries * 2)
 
     async def decline(self) -> None:
-        """|coro|
-        Declines the :class:`TradeOffer`.
+        """Declines the trade offer.
 
         Raises
         ------
@@ -546,8 +534,7 @@ class TradeOffer:
         await self._state.http.decline_user_trade(self.id)
 
     async def cancel(self) -> None:
-        """|coro|
-        Cancels the :class:`TradeOffer`
+        """Cancels the trade offer.
 
         Raises
         ------
@@ -560,12 +547,11 @@ class TradeOffer:
         await self._state.http.cancel_user_trade(self.id)
 
     async def counter(self, trade: TradeOffer) -> None:
-        """|coro|
-        Counters a trade offer from an :class:`User`.
+        """Counter a trade offer from an :class:`User`.
 
         Parameters
         -----------
-        trade: :class:`TradeOffer`
+        trade
             The trade offer to counter with.
 
         Raises
@@ -586,11 +572,11 @@ class TradeOffer:
             await self._state.get_and_confirm_confirmation(int(resp["tradeofferid"]))
 
     def is_gift(self) -> bool:
-        """:class:`bool`: Helper method that checks if an offer is a gift to the :class:`~steam.ClientUser`"""
-        return self.items_to_receive and not self.items_to_send
+        """Helper method that checks if an offer is a gift to the :class:`~steam.ClientUser`"""
+        return bool(self.items_to_receive and not self.items_to_send)
 
     def is_our_offer(self) -> bool:
-        """:class:`bool`: Whether the offer was created by the :class:`~steam.ClientUser`."""
+        """Whether the offer was created by the :class:`~steam.ClientUser`."""
         return self._is_our_offer
 
     def _check_active(self) -> None:

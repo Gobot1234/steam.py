@@ -46,7 +46,9 @@ __all__ = (
 
 
 class UserMessage(Message):
-    """Represents a message from a User."""
+    """Represents a message from a user."""
+
+    channel: DMChannel
 
     def __init__(self, proto: UserMessageNotification, channel: DMChannel):
         super().__init__(channel, proto)
@@ -62,14 +64,18 @@ class _GroupMessage(Message):
 
 
 class GroupMessage(_GroupMessage):
-    """Represents a message in a Group."""
+    """Represents a message in a group."""
+
+    channel: GroupChannel
 
     def __init__(self, proto: GroupMessageNotification, channel: GroupChannel, author: User):
         super().__init__(proto, channel, author)
 
 
 class ClanMessage(_GroupMessage):
-    """Represents a message in a Clan."""
+    """Represents a message in a clan."""
+
+    channel: ClanChannel
 
     def __init__(self, proto: GroupMessageNotification, channel: ClanChannel, author: User):
         super().__init__(proto, channel, author)

@@ -123,16 +123,9 @@ class UserDict(TypedDict):
 class SteamID(metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations.
 
-    Parameters
-    ----------
-    id: Union[:class:`int`, :class:`str`]
-        The ID of the Steam ID, can be an :attr:`id64`, :attr:`id`, :attr:`id2` or an :attr:`id3`.
-    type: Union[:class:`.Type`, :class:`int`, :class:`str`]
-        The Type for the Steam ID.
-    universe: Union[:class:`.Universe`, :class:`int`, :class:`str`]
-        The Universe for the Steam ID.
-    instance: :class:`int`
-        The instance for the Steam ID.
+    Note
+    ----
+    See :func:`steam.utils.make_id64` for the full parameter list.
     """
 
     __slots__ = ("__BASE",)
@@ -180,40 +173,40 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def instance(self) -> int:
-        """:class:`int`: The instance of the SteamID."""
-        return (int(self) >> 32) & 0xFFFFF
+        """The instance of the SteamID."""
+        return (self.__BASE >> 32) & 0xFFFFF
 
     @property
     def type(self) -> Type:
-        """:class:`~steam.Type`: The Steam type of the SteamID."""
-        return Type((int(self) >> 52) & 0xF)
+        """The Steam type of the SteamID."""
+        return Type((self.__BASE >> 52) & 0xF)
 
     @property
     def universe(self) -> Universe:
-        """:class:`~steam.Universe`: The Steam universe of the SteamID."""
-        return Universe((int(self) >> 56) & 0xFF)
+        """The Steam universe of the SteamID."""
+        return Universe((self.__BASE >> 56) & 0xFF)
 
     @property
     def id64(self) -> int:
-        """:class:`int`: The SteamID's 64 bit ID."""
+        """The SteamID's 64 bit ID."""
         return self.__BASE
 
     @property
     def id(self) -> int:
-        """:class:`int`: The SteamID's 32 bit ID."""
-        return int(self) & 0xFFFFFFFF
+        """The SteamID's 32 bit ID."""
+        return self.__BASE & 0xFFFFFFFF
 
     @property
     def id2(self) -> str:
-        """:class:`str`: The SteamID's ID 2.
+        """The SteamID's ID 2.
 
         e.g ``STEAM_1:0:1234``.
         """
-        return f"STEAM_{int(self.universe)}:{self.id % 2}:{self.id >> 1}"
+        return f"STEAM_{self.universe.value}:{self.id % 2}:{self.id >> 1}"
 
     @property
     def id2_zero(self) -> str:
-        """:class:`str`: The SteamID's ID 2 accounted for bugged GoldSrc and Orange Box games.
+        """The SteamID's ID 2 accounted for bugged GoldSrc and Orange Box games.
 
         Note
         ----
@@ -226,7 +219,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def id3(self) -> str:
-        """:class:`str`: The SteamID's ID 3.
+        """The SteamID's ID 3.
 
         e.g ``[U:1:1234]``.
         """
@@ -255,7 +248,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def invite_code(self) -> Optional[str]:
-        """Optional[:class:`str`]: The SteamID's invite code in the s.team invite code format.
+        """The SteamID's invite code in the s.team invite code format.
 
         e.g. ``cv-dgb``.
         """
@@ -266,7 +259,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def invite_url(self) -> Optional[str]:
-        """Optional[:class:`str`]: The SteamID's full invite code URL.
+        """The SteamID's full invite code URL.
 
         e.g ``https://s.team/p/cv-dgb``.
         """
@@ -275,7 +268,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def community_url(self) -> Optional[str]:
-        """Optional[:class:`str`]: The SteamID's community url.
+        """The SteamID's community url.
 
         e.g https://steamcommunity.com/profiles/123456789.
         """
@@ -312,20 +305,11 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @staticmethod
     async def from_url(url: StrOrURL, session: Optional[ClientSession] = None) -> Optional[SteamID]:
-        """|coro|
-        A helper function creates a SteamID instance from a Steam community url.
+        """A helper function creates a SteamID instance from a Steam community url.
 
-        Parameters
-        ----------
-        url: Union[:class:`str`, :class:`yarl.URL`]
-            The Steam community url to fetch.
-        session: Optional[:class:`aiohttp.ClientSession`]
-            The session to make the request with. If ``None`` is passed a new one is generated.
-
-        Returns
-        -------
-        Optional[:class:`SteamID`]
-            :class:`SteamID` instance or ``None``.
+        Note
+        ----
+        See :func:`id64_from_url` for the full parameter list.
         """
         id64 = await id64_from_url(url, session)
         return SteamID(id64) if id64 else None
@@ -353,18 +337,16 @@ class Commentable(SteamID):
     __copy__ = copy
 
     async def comment(self, content: str) -> Comment:
-        """|coro|
-        Post a comment to a profile.
+        """Post a comment to a profile.
 
         Parameters
         -----------
-        content: :class:`str`
+        content
             The message to add to the profile.
 
         Returns
         -------
-        :class:`~steam.Comment`
-            The created comment.
+        The created comment.
         """
         resp = await self._state.http.post_comment(self.id64, self.comment_path, content)
         id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
@@ -383,12 +365,16 @@ class Commentable(SteamID):
         Examples
         ---------
 
-        Usage: ::
+        Usage:
+
+        .. code-block:: python3
 
             async for comment in commentable.comments(limit=10):
-                print('Author:', comment.author, 'Said:', comment.content)
+                print("Author:", comment.author, "Said:", comment.content)
 
-        Flattening into a list: ::
+        Flattening into a list:
+
+        .. code-block:: python3
 
             comments = await commentable.comments(limit=50).flatten()
             # comments is now a list of Comment
@@ -397,18 +383,17 @@ class Commentable(SteamID):
 
         Parameters
         ----------
-        limit: Optional[:class:`int`]
+        limit
             The maximum number of comments to search through.
             Default is ``None`` which will fetch the clan's entire comments section.
-        before: Optional[:class:`datetime.datetime`]
+        before
             A time to search for comments before.
-        after: Optional[:class:`datetime.datetime`]
+        after
             A time to search for comments after.
 
         Yields
         ---------
         :class:`~steam.Comment`
-            The comment with the comment information parsed.
         """
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
@@ -432,26 +417,26 @@ class BaseUser(Commentable):
 
     Attributes
     ----------
-    name: :class:`str`
+    name
         The user's username.
-    state: :class:`~steam.PersonaState`
+    state
         The current persona state of the account (e.g. LookingToTrade).
-    game: Optional[:class:`~steam.Game`]
+    game
         The Game instance attached to the user. Is ``None`` if the user isn't in a game or one that is recognised by the
         api.
-    primary_clan: Optional[:class:`SteamID`]
+    primary_clan
         The primary clan the User displays on their profile.
-    avatar_url: :class:`str`
+    avatar_url
         The avatar url of the user. Uses the large (184x184 px) image url.
-    real_name: Optional[:class:`str`]
+    real_name
         The user's real name defined by them. Could be ``None``.
-    created_at: Optional[:class:`datetime.datetime`]
+    created_at
         The time at which the user's account was created. Could be ``None``.
-    last_logoff: Optional[:class:`datetime.datetime`]
+    last_logoff
         The last time the user logged into steam. Could be None (e.g. if they are currently online).
-    country: Optional[:class:`str`]
+    country
         The country code of the account. Could be ``None``.
-    flags: list[:class:`~steam.PersonaStateFlag`]
+    flags
         The persona state flags of the account.
     """
 
@@ -528,66 +513,38 @@ class BaseUser(Commentable):
 
     @property
     def mention(self) -> str:
-        """:class:`str`: The string used to mention the user."""
+        """The string used to mention the user in chat."""
         return f"[mention={self.id}]@{self.name}[/mention]"
 
     async def inventory(self, game: Game) -> Inventory:
-        """|coro|
-        Fetch an :class:`User`'s :class:`~steam.Inventory` for trading.
+        """Fetch a user's :class:`~steam.Inventory` for trading.
 
         Parameters
         -----------
-        game: :class:`~steam.Game`
+        game
             The game to fetch the inventory for.
 
         Raises
         ------
         :exc:`~steam.Forbidden`
             The user's inventory is private.
-
-        Returns
-        -------
-        :class:`Inventory`
-            The user's inventory.
         """
         resp = await self._state.http.get_user_inventory(self.id64, game.id, game.context_id)
         return Inventory(state=self._state, data=resp, owner=self)
 
     async def friends(self) -> list[User]:
-        """|coro|
-        Fetch the list of :class:`~steam.User`'s friends from the API.
-
-        Returns
-        -------
-        list[:class:`~steam.User`]
-            The list of user's friends from the API.
-        """
+        """Fetch the list of the users friends."""
         friends = await self._state.http.get_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
     async def games(self) -> list[UserGame]:
-        """|coro|
-        Fetches the :class:`~steam.Game` objects the :class:`User` owns from the API.
-
-        Returns
-        -------
-        list[:class:`.UserGame`]
-            The list of game objects from the API.
-        """
+        r"""Fetches the :class:`~steam.Game`\s the user owns."""
         data = await self._state.http.get_user_games(self.id64)
         games = data["response"].get("games", [])
         return [UserGame(game) for game in games]
 
     async def clans(self) -> list[Clan]:
-        """|coro|
-        Fetches a list of the :class:`User`'s :class:`~steam.Clan`
-        objects the :class:`User` is in from the API.
-
-        Returns
-        -------
-        list[:class:`~steam.Clan`]
-            The user's clans.
-        """
+        r"""Fetches a list of :class:`~steam.Clan`\s the user is in."""
         clans = []
 
         async def getter(gid: int) -> None:
@@ -606,81 +563,50 @@ class BaseUser(Commentable):
         return clans
 
     async def bans(self) -> Ban:
-        """|coro|
-        Fetches the :class:`User`'s :class:`~steam.Ban` objects.
-
-        Returns
-        -------
-        :class:`~steam.Ban`
-            The user's bans.
-        """
+        r"""Fetches the user's :class:`.Ban`\s."""
         resp = await self._state.http.get_user_bans(self.id64)
         resp = resp["players"][0]
         resp["EconomyBan"] = resp["EconomyBan"] != "none"
         return Ban(data=resp)
 
     async def badges(self) -> UserBadges:
-        """|coro|
-        Fetches the :class:`User`'s :class:`~steam.UserBadges` objects.
-
-        Returns
-        -------
-        :class:`~steam.UserBadges`
-            The user's badges.
-        """
+        r"""Fetches the user's :class:`.UserBadges`\s."""
         resp = await self._state.http.get_user_badges(self.id64)
         return UserBadges(data=resp["response"])
 
     async def level(self) -> int:
-        """|coro|
-        Fetches the :class:`User`'s level.
-
-        Returns
-        -------
-        :class:`int`
-            The user's level.
-        """
+        """Fetches the user's level if your account is premium, otherwise it's cached."""
         if self._state.http.api_key is not None:
             resp = await self._state.http.get_user_level(self.id64)
             return resp["response"]["player_level"]
         return self._level
 
     async def wishlist(self) -> list[WishlistGame]:
-        """|coro|
-        Get a users wishlist.
-
-        Returns
-        -------
-        list[:class:`.WishlistGame`]
-        """
+        r"""Get the :class:`.WishlistGame`\s the user has on their wishlist."""
         data = await self._state.http.get_wishlist(self.id64)
         return [WishlistGame(id=id, data=game_info) for id, game_info in data.items()]
 
     def is_commentable(self) -> bool:
-        """:class:`bool`: Specifies if the user's account is able to be commented on."""
+        """Specifies if the user's account is able to be commented on."""
         return self._is_commentable
 
     def is_private(self) -> bool:
-        """:class:`bool`: Specifies if the user has a private profile."""
+        """Specifies if the user has a private profile."""
         return self.privacy_state == CommunityVisibilityState.Private
 
     def has_setup_profile(self) -> bool:
-        """:class:`bool`: Specifies if the user has a setup their profile."""
+        """Specifies if the user has a setup their profile."""
         return self._setup_profile
 
     async def is_banned(self) -> bool:
-        """|coro|
-        Specifies if the user is banned from any part of Steam.
+        """Specifies if the user is banned from any part of Steam.
 
-        This is equivalent to: ::
+        This is equivalent to:
+
+        .. code-block:: python3
 
             bans = await user.bans()
             bans.is_banned()
-
-        Returns
-        -------
-        :class:`bool`
-            Whether or not the user is banned.
         """
         bans = await self.bans()
         return bans.is_banned()
@@ -775,16 +701,19 @@ class Messageable(Protocol[M]):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         raise NotImplementedError
 
-    async def send(self, content: Optional[_SupportsStr] = None, image: Optional[Image] = None) -> Optional[M]:
-        """|coro|
-        Send a message to a certain destination.
+    async def send(self, content: Any = None, image: Optional[Image] = None) -> Optional[M]:
+        """Send a message to a certain destination.
 
         Parameters
         ----------
-        content: Optional[:class:`str`]
+        content
             The content of the message to send.
-        image: Optional[:class:`.Image`]
+        image
             The image to send to the user.
+
+        Note
+        ----
+        Anything as passed is implicitly cast to a :class:`str`.
 
         Raises
         ------
@@ -795,8 +724,7 @@ class Messageable(Protocol[M]):
 
         Returns
         -------
-        Optional[:class:`Message`]
-            The sent message only applicable if ``content`` is passed.
+        The sent message, only applicable if ``content`` is passed.
         """
         message = None
         if content is not None:
@@ -822,18 +750,21 @@ class Channel(Messageable[M]):
         before: Optional[datetime] = None,
         after: Optional[datetime] = None,
     ) -> AsyncIterator[M]:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Channel`'s :class:`steam.Message`
-        objects.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a channel's :class:`steam.Message`\\s.
 
         Examples
         --------
 
-        Usage: ::
+        Usage:
+
+        .. code-block:: python3
 
             async for message in channel.history(limit=10):
-                print('Author:', message.author, 'Said:', message.content)
+                print("Author:", message.author, "Said:", message.content)
 
-        Flattening into a list: ::
+        Flattening into a list:
+
+        .. code-block:: python3
 
             messages = await channel.history(limit=50).flatten()
             # messages is now a list of Message
@@ -842,12 +773,12 @@ class Channel(Messageable[M]):
 
         Parameters
         ----------
-        limit: Optional[:class:`int`]
-            The maximum number of trades to search through.
-            Setting this to ``None`` will fetch all of the channel's messages, but this will be a very slow operation.
-        before: Optional[:class:`datetime.datetime`]
+        limit
+            The maximum number of trades to search through. Setting this to ``None`` will fetch all of the channel's
+            messages, but this will be a very slow operation.
+        before
             A time to search for messages before.
-        after: Optional[:class:`datetime.datetime`]
+        after
             A time to search for messages after.
 
         Yields
@@ -855,11 +786,6 @@ class Channel(Messageable[M]):
         :class:`~steam.Message`
         """
         raise NotImplementedError
-
-    if TYPE_CHECKING:
-
-        async def send(self, content: Optional[_SupportsStr] = None, image: Optional[Image] = None) -> Optional[M]:
-            ...
 
 
 def _clean_up_content(content: str) -> str:  # steam does weird stuff with content
@@ -877,23 +803,24 @@ class Message:
 
     Attributes
     ----------
-    channel: :class:`Channel`
+    channel
         The channel the message was sent in.
-    content: :class:`str`
+    content
         The message's content.
 
         Note
         ----
         This is **not** what you will see in the steam client see :attr:`clean_content` for that.
-    clean_content: :class:`str`
+
+    clean_content
         The message's clean content without bbcode.
-    author: :class:`~steam.User`
+    author
         The message's author.
-    created_at: :class:`datetime.datetime`
+    created_at
         The time the message was sent at.
-    group: Optional[:class:`~steam.Group`]
+    group
         The group the message was sent in. Will be ``None`` if the message wasn't sent in a :class:`~steam.Group`.
-    clan: Optional[:class:`~steam.Clan`]
+    clan
         The clan the message was sent in. Will be ``None`` if the message wasn't sent in a :class:`~steam.Clan`.
     """
 

@@ -42,16 +42,6 @@ __all__ = (
 
 
 class Invite:
-    """Represents a invite from a user.
-
-    Attributes
-    ----------
-    invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
-        The user who sent the invite.
-    relationship: Optional[:class:`~steam.FriendRelationship`]
-        The relationship you have with the invitee.
-    """
-
     __slots__ = ("invitee", "relationship", "_state")
 
     def __init__(
@@ -67,9 +57,9 @@ class UserInvite(Invite):
 
     Attributes
     ----------
-    invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
+    invitee
         The user who sent the invite.
-    relationship: Optional[:class:`~steam.FriendRelationship`]
+    relationship
         The relationship you have with the invitee. This ``None`` if the invite was sent while the bot is online.
     """
 
@@ -79,16 +69,12 @@ class UserInvite(Invite):
         return f"<UserInvite {' '.join(resolved)}>"
 
     async def accept(self) -> None:
-        """|coro|
-        Accepts the invite request.
-        """
+        """Accept the invite request."""
         await self._state.http.accept_user_invite(self.invitee.id64)
         self._state.client.user.friends.append(self.invitee)
 
     async def decline(self) -> None:
-        """|coro|
-        Declines the invite request.
-        """
+        """Decline the invite request."""
         await self._state.http.decline_user_invite(self.invitee.id64)
 
 
@@ -97,11 +83,11 @@ class ClanInvite(Invite):
 
     Attributes
     ----------
-    clan: Union[:class:`~steam.Clan`, :class:`~steam.SteamID`]
+    clan
         The clan to join.
-    invitee: Union[:class:`~steam.User`, :class:`~steam.SteamID`]
+    invitee
         The user who sent the invite.
-    relationship: :class:`~steam.FriendRelationship`
+    relationship
         The relationship you have with the clan.
     """
 
@@ -126,13 +112,9 @@ class ClanInvite(Invite):
         return f"<ClanInvite {' '.join(resolved)}>"
 
     async def accept(self) -> None:
-        """|coro|
-        Accepts the invite request.
-        """
+        """Accept the invite request."""
         await self._state.http.accept_clan_invite(self.clan.id64)
 
     async def decline(self) -> None:
-        """|coro|
-        Declines the invite request.
-        """
+        """Decline the invite request."""
         await self._state.http.decline_clan_invite(self.clan.id64)

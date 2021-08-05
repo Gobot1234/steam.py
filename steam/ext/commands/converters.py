@@ -110,14 +110,14 @@ def converter_for(converter_for: T) -> Callable[[BC], BC]:
 
     Examples
     --------
-    .. code-block:: python
+    .. code-block:: python3
 
         @commands.converter_for(commands.Command)  # this is the type hint used
         def command_converter(argument: str) -> commands.Command:
             return bot.get_command(argument)
 
-        # then later
 
+        # then later
         @bot.command
         async def source(ctx, command: commands.Command):  # this then calls command_converter on invocation.
             ...
@@ -149,20 +149,18 @@ class ConverterBase(Protocol[T]):
     # this is the base class we use for isinstance checks, don't actually this
     @abstractmethod
     async def convert(self, ctx: "commands.Context", argument: str) -> "T":
-        """|coro|
-        An abstract method all converters must derive.
+        """An abstract method all converters must derive.
 
         Parameters
         ----------
-        ctx: :class:`~commands.Context`
+        ctx
             The context for the invocation.
-        argument: :class:`str`
+        argument
             The argument that is passed from the argument parser.
 
         Returns
         -------
-        T
-            An object, should be of the same type of :attr:`converter_for`.
+        An object, should be of the same type of :attr:`converter_for`.
         """
         raise NotImplementedError("Derived classes must implement this")
 
@@ -186,18 +184,22 @@ class Converter(ConverterBase[T], ABC):
     Examples
     --------
 
-    Builtin: ::
+    Builtin:
+
+    .. code-block:: python3
 
         @bot.command
         async def command(ctx, user: steam.User):
-            # this will end up making the user variable a `steam.User` object.
-            ...
+            ...  # this will tell the parser to convert user from a str to a steam.User object.
+
 
         # invoked as
         # !command 76561198248053954
         # or !command Gobot1234
 
-    A custom converter: ::
+    A custom converter:
+
+    .. code-block:: python3
 
         class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
             async def convert(self, ctx: commands.Context, argument: str) -> steam.Image:
@@ -215,6 +217,7 @@ class Converter(ConverterBase[T], ABC):
         async def set_avatar(ctx: commands.Context, avatar: steam.Image) -> None:
             await bot.user.edit(avatar=avatar)
             await ctx.send("👌")
+
 
         # invoked as
         # !set_avatar https://my_image_url.com
@@ -239,11 +242,12 @@ class Converter(ConverterBase[T], ABC):
 
         Examples
         --------
-        .. code-block:: python
+        .. code-block:: python3
 
             class CustomUserConverter(commands.Converter[steam.User]):
                 async def convert(self, ctx: commands.Context, argument: str) -> steam.User:
                     ...
+
 
             @bot.command
             @CustomUserConverter.register
@@ -405,25 +409,29 @@ class Default(Protocol):
 
     Examples
     --------
-    Builtin: ::
+    Builtin:
+
+    .. code-block:: python3
 
         @bot.command()
         async def info(ctx, user=DefaultAuthor):
-            # if no user is passed it will be ctx.author
-            ...
+            ...  # if no user is passed it will be ctx.author
 
-    A custom default: ::
+    A custom default:
+
+    .. code-block:: python3
 
         class CurrentCommand(commands.Default):
             async def default(self, ctx: commands.Context) -> commands.Command:
                 return ctx.command  # return the current command
 
+
         # then later
 
         @bot.command
         async def source(ctx: commands.Context, command: commands.Command = CurrentCommand):
-            # command would now be source
-            ...
+            ...  # command would now be source
+
 
         # this could also be mixed in with a converter to convert a string to a command.
     """
@@ -491,7 +499,7 @@ class Greedy(Generic[T]):
 
     Example
     -------
-    .. code-block:: python
+    .. code-block:: python3
 
         @bot.command()
         async def test(ctx, numbers: commands.Greedy[int], reason: str):

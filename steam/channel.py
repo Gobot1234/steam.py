@@ -30,7 +30,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from .abc import Channel, M, _EndPointReturnType, _SupportsStr
+from typing_extensions import Literal
+
+from .abc import Channel, M, _EndPointReturnType
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
 
 if TYPE_CHECKING:
@@ -59,7 +61,7 @@ class DMChannel(Channel["UserMessage"]):
 
     Attributes
     ----------
-    participant: :class:`~steam.User`
+    participant
         The recipient of any messages sent.
     """
 
@@ -80,17 +82,6 @@ class DMChannel(Channel["UserMessage"]):
     def _get_image_endpoint(self) -> _EndPointReturnType:
         return self.participant._get_image_endpoint()
 
-    if TYPE_CHECKING:
-
-        async def send(
-            self,
-            content: Optional[_SupportsStr] = None,
-            *,
-            trade: Optional[TradeOffer] = None,
-            image: Optional[Image] = None,
-        ) -> Optional[UserMessage]:
-            ...
-
     @asynccontextmanager
     async def typing(self) -> AsyncGenerator[None, None]:
         """Send a typing indicator continuously to the channel while in the context manager.
@@ -99,10 +90,12 @@ class DMChannel(Channel["UserMessage"]):
         ----
         This only works in DMs.
 
-        Usage: ::
+        Usage:
+
+        .. code-block:: python3
 
             async with ctx.channel.typing():
-                # do your expensive operations
+                ...  # do your expensive operations
         """
 
         async def inner() -> None:
@@ -139,13 +132,14 @@ class _GroupChannel(Channel[M]):
     def __init__(self, state: ConnectionState, channel: Any):
         super().__init__(state)
         self.id = int(channel.chat_id)
-        self.joined_at: Optional[datetime]
+
         if hasattr(channel, "chat_name"):
-            split = channel.chat_name.split(" | ", 1)
-            self.name = split[1] if len(split) != 1 else split[0]
+            first, _, second = channel.chat_name.partition(" | ")
+            name = second or first
         else:
-            self.name = None
-        self.joined_at = (
+            name = None
+        self.name: Optional[str] = name
+        self.joined_at: Optional[datetime] = (
             datetime.utcfromtimestamp(int(channel.time_joined)) if hasattr(channel, "time_joined") else None
         )
 
@@ -174,19 +168,20 @@ class GroupChannel(_GroupChannel["GroupMessage"]):
 
     Attributes
     ----------
-    id: :class:`int`
+    id
         The ID of the channel.
-    name: Optional[:class:`str`]
+    name
         The name of the channel, this could be the same as the :attr:`~steam.Group.name` if it's the main channel.
-    group: :class:`~steam.Group`
+    group
         The group to which messages are sent.
-    joined_at: Optional[:class:`datetime.datetime`]
+    joined_at
         The time the client joined the chat.
     """
 
     def __init__(self, state: ConnectionState, group: Group, channel: Union[GroupMessageNotification, CChatRoomState]):
         super().__init__(state, channel)
-        self.group = group
+        self.group: Group = group
+        self.clan: Literal[None]
 
 
 class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same thing
@@ -194,14 +189,13 @@ class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same t
 
     Attributes
     ----------
-    id: :class:`int`
+    id
         The ID of the channel.
-    name: Optional[:class:`str`]
-        The name of the channel, this could be the same
-        as the :attr:`~steam.Clan.name` if it's the main channel.
-    clan: :class:`~steam.Clan`
+    name
+        The name of the channel, this could be the same as the :attr:`~steam.Clan.name` if it's the main channel.
+    clan
         The clan to which messages are sent.
-    joined_at: Optional[:class:`datetime.datetime`]
+    joined_at
         The time the client joined the chat.
     """
 
@@ -209,7 +203,8 @@ class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same t
         self, state: ConnectionState, clan: Clan, channel: Union[GroupMessageNotification, CUserChatRoomState]
     ):
         super().__init__(state, channel)
-        self.clan = clan
+        self.clan: Clan = clan
+        self.group: Literal[None]
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "clan")

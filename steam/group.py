@@ -44,21 +44,21 @@ class Group(SteamID):
 
     Attributes
     ----------
-    name: Optional[:class:`str`]
+    name
         The name of the group, could be ``None``.
-    owner: :class:`~steam.abc.BaseUser`
+    owner
         The owner of the group.
-    top_members: list[:class:`~steam.abc.BaseUser`]
+    top_members
         A list of the group's top members.
-    active_member_count: :class:`int`
+    active_member_count
         The group's active member count.
-    roles: list[:class:`~steam.Role`]
+    roles
         A list of the group's roles.
-    default_role: :class:`~steam.Role`
+    default_role
         The group's default role.
-    default_channel: :class:`~steam.GroupChannel`
+    default_channel
         The group's default channel.
-    channels: list[:class:`~steam.GroupChannel`]
+    channels
         A list of the group's channels.
     """
 
@@ -116,18 +116,15 @@ class Group(SteamID):
         return self.name or ""
 
     async def leave(self) -> None:
-        """|coro|
-        Leaves the :class:`Group`.
-        """
+        """Leaves the group."""
         await self._state.leave_chat(self.id)
 
     async def invite(self, user: User) -> None:
-        """|coro|
-        Invites a :class:`~steam.User` to the :class:`Group`.
+        """Invites a :class:`~steam.User` to the group.
 
         Parameters
         -----------
-        user: :class:`~steam.User`
+        user
             The user to invite to the group.
         """
         await self._state.invite_user_to_group(user.id64, self.id)

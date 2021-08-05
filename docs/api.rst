@@ -117,18 +117,8 @@ Then some functions from discord.py
 
 .. autofunction:: steam.utils.get
 
-.. code-block:: python3
-
-    bff = steam.utils.get(client.users, name="Gobot1234")
-    trade = steam.utils.get(client.trades, state=TradeOfferState.Active, partner=ctx.author)
-    # multiple attributes are also accepted
-
 .. autofunction:: steam.utils.find
 
-.. code-block:: python3
-
-    first_active_offer = steam.utils.find(lambda trade: trade.state == TradeOfferState.Active, client.trades)
-    # how to get an object using a conditional
 
 Enumerations
 -------------
@@ -197,9 +187,9 @@ Enumerations
 Guard
 ---------------
 
-.. autofunction:: steam.guard.generate_one_time_code(shared_secret, timestamp=time.time())
+.. autofunction:: steam.guard.generate_one_time_code
 
-.. autofunction:: steam.guard.generate_confirmation_code(identity_secret, tag, timestamp=time.time())
+.. autofunction:: steam.guard.generate_confirmation_code
 
 .. autofunction:: steam.guard.generate_device_id
 
@@ -209,10 +199,9 @@ Async Iterators
 
 An async iterator is a class that is capable of being used with the syntax :ref:`async for <py:async for>`.
 
-They can be used as follows: ::
+They can be used as follows:
 
-    async for elem in client.trade_history():
-        # do stuff with elem here
+.. code-block:: python3
 
 
 .. autoclass:: steam.iterators.AsyncIterator()

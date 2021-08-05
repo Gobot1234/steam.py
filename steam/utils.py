@@ -27,6 +27,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+import builtins
 import contextvars
 import functools
 import html
@@ -42,6 +43,7 @@ from types import MemberDescriptorType
 from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union
 
 import aiohttp
+from aiohttp.typedefs import StrOrURL
 from typing_extensions import Final, Literal, ParamSpec, Protocol, TypeAlias
 
 from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor
@@ -95,29 +97,40 @@ def make_id64(
 ) -> int:
     """Convert various representations of Steam IDs to its Steam 64 bit ID.
 
+    Parameters
+    ----------
+    id
+        The ID to convert.
+    type
+        The type of the ID. Can be the name, the integer value of the type or the recommended way is to use
+        :class:`steam.Type`\\.
+    universe
+        The universe of the ID. Can be the name, the integer value of the universe or the recommended way is to use
+        :class:`steam.Universe`\\.
+    instance
+        The instance of the ID.
+
     Examples
     --------
-    .. code:: python
+    .. code-block:: python3
 
-        make_id64()  # invalid steam_id
-        make_id64(12345)  # account_id
-        make_id64(12345, type='Clan')  # makes the account_id into a clan id
-        make_id64('12345')
-        make_id64(id=12345, type='Invalid', universe='Invalid', instance=0)
-        make_id64(103582791429521412)  # steam64
-        make_id64('103582791429521412')
-        make_id64('STEAM_1:0:2')  # steam2
-        make_id64('[g:1:4]')  # steam3
+        make_id64()  # invalid
+        make_id64(12345)
+        make_id64("12345")  # account ids
+        make_id64(12345, type=steam.Type.Clan)  # makes the clan id into a clan id64
+        make_id64(103582791429521412)
+        make_id64("103582791429521412")  # id64s
+        make_id64("STEAM_1:0:2")  # id2
+        make_id64("[g:1:4]")  # id3
 
     Raises
     ------
     :exc:`.InvalidSteamID`
-        The created SteamID would be invalid.
+        The created 64 bit Steam ID would be invalid.
 
     Returns
     -------
-    :class:`int`
-        The 64 bit Steam ID.
+    The 64 bit Steam ID.
     """
     if not any((id, type, universe, instance)):
         return 0
@@ -165,21 +178,22 @@ ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d+
 
 
 def id2_to_tuple(value: str) -> Optional[tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]]]:
-    """
+    """Convert an ID2 into its component parts.
+
     Parameters
     ----------
-    value: :class:`str`
-        steam2 e.g. ``STEAM_1:0:1234``.
-
-    Returns
-    -------
-    Optional[tuple[:class:`int`, :class:`.Type`, :class:`.Universe`, :class:`int`]]
-        A tuple of 32 bit ID, type, universe and instance or ``None``
-        e.g. (100000, Type.Individual, Universe.Public, 1).
+    value
+        The ID2 e.g. ``STEAM_1:0:1234``.
 
     Note
     ----
     The universe will be always set to ``1``. See :attr:`SteamID.id2_zero`.
+
+    Returns
+    -------
+    A tuple of 32 bit ID, type, universe and instance or ``None``
+
+    e.g. (100000, Type.Individual, Universe.Public, 1).
     """
     search = ID2_REGEX.search(value)
 
@@ -209,14 +223,14 @@ def id3_to_tuple(value: str) -> Optional[tuple[int, Type, Universe, int]]:
 
     Parameters
     ----------
-    value: :class:`str`
+    value
         The ID3 e.g. ``[U:1:1234]``.
 
     Returns
     -------
-    Optional[tuple[:class:`int`, :class:`.Type`, :class:`.Universe`, :class:`int`]]
-        A tuple of 32 bit ID, type, universe and instance or ``None``
-        e.g. (100000, Type.Individual, Universe.Public, 1)
+    A tuple of 32 bit ID, type, universe and instance or ``None``
+
+    e.g. (100000, Type.Individual, Universe.Public, 1)
     """
     search = ID3_REGEX.search(value)
     if search is None:
@@ -257,17 +271,18 @@ INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+
 def invite_code_to_tuple(
     code: str,
 ) -> Optional[tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]]]:
-    """
+    """Convert an invite code into its component parts.
+
     Parameters
     ----------
-    code: :class:`str`
+    code
         The invite code e.g. ``cv-dgb``
 
     Returns
     -------
-    Optional[tuple[:class:`int`, :class:`.Type`, :class:`.Universe`, :class:`int`]]
-        A tuple of 32 bit ID, type, universe and instance or ``None``
-        e.g. (100000, Type.Individual, Universe.Public, 1).
+    A tuple of 32 bit ID, type, universe and instance or ``None``
+
+    e.g. (100000, Type.Individual, Universe.Public, 1).
     """
     search = INVITE_REGEX.search(code)
 
@@ -283,12 +298,12 @@ def invite_code_to_tuple(
 
 
 URL_REGEX = re.compile(
-    r"(?P<clean_url>(?:http[s]?://)?(?:www\.)?steamcommunity\.com/(?P<type>profiles|id|gid|groups)/(?P<value>.+))/?"
+    r"(?P<clean_url>(?:http[s]?://)?(?:www\.)?steamcommunity\.com/(?P<type>profiles|id|gid|groups|app)/(?P<value>.+))"
 )
 
 
-async def id64_from_url(url: aiohttp.client.StrOrURL, session: Optional[aiohttp.ClientSession] = None) -> Optional[int]:
-    """Takes a Steam Community url and returns 64 bit steam ID or ``None``.
+async def id64_from_url(url: StrOrURL, session: Optional[aiohttp.ClientSession] = None) -> Optional[int]:
+    """Takes a Steam Community url and returns 64 bit Steam ID or ``None``.
 
     Notes
     -----
@@ -307,17 +322,18 @@ async def id64_from_url(url: aiohttp.client.StrOrURL, session: Optional[aiohttp.
 
         https://steamcommunity.com/id/johnc
 
+        https://steamcommunity.com/app/570
+
     Parameters
     ----------
-    url: :class:`str`
+    url
         The Steam community url.
-    session: Optional[:class:`aiohttp.ClientSession`]
+    session
         The session to make the request with. If ``None`` is passed a new one is generated.
 
     Returns
     -------
-    Optional[:class:`int`]
-        The found 64 bit ID or ``None`` if ``https://steamcommunity.com`` is down or no matching account is found.
+    The found 64 bit ID or ``None`` if ``https://steamcommunity.com`` is down or no matching account is found.
     """
 
     search = URL_REGEX.search(str(url))
@@ -348,18 +364,17 @@ async def id64_from_url(url: aiohttp.client.StrOrURL, session: Optional[aiohttp.
             await session.close()
 
 
-def parse_trade_url(url: str) -> Optional[re.Match[str]]:
+def parse_trade_url(url: StrOrURL) -> Optional[re.Match[str]]:
     """Parses a trade URL for useful information.
 
     Parameters
     -----------
-    url: :class:`str`
+    url
         The trade URL to search.
 
     Returns
     -------
-    Optional[re.Match[:class:`str`]]
-        The :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``
+    A :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``.
     """
     return re.search(
         r"(?:http[s]?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/\?partner=(?P<user_id>\d{,10})"
@@ -579,18 +594,27 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
 def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T]:
     """A helper to return the first element found in the sequence.
 
+    Examples
+    --------
+    .. code-block:: python3
+
+        first_active_offer = steam.utils.find(
+            lambda trade: trade.state == TradeOfferState.Active,
+            client.trades,
+        )
+        # how to get an object using a conditional
+
     Parameters
     -----------
-    predicate: Callable[[T], :class:`bool`]
+    predicate
         A function that returns a boolean and takes an element from the ``iterable`` as its first argument.
-    iterable: Iterable[T]
+    iterable
         The iterable to search through.
 
     Returns
     -------
-    Optional[T]
-        The first element from the ``iterable`` for which the ``predicate`` returns ``True`` or if no matching element
-        was found returns ``None``.
+    The first element from the ``iterable`` for which the ``predicate`` returns ``True`` or if no matching element was
+    found returns ``None``.
     """
 
     for element in iterable:
@@ -600,21 +624,28 @@ def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T
 
 
 def get(iterable: Iterable[_T], **attrs: Any) -> Optional[_T]:
-    r"""A helper that returns the first element in the iterable that meets all the traits passed in ``attrs``. This
-    is an alternative for :func:`utils.find`.
+    """A helper that returns the first element in the iterable that meets all the traits passed in ``attrs``. This
+    is an alternative for :func:`find`.
+
+    Examples
+    --------
+    .. code-block:: python3
+
+        bff = steam.utils.get(client.users, name="Gobot1234")
+        trade = steam.utils.get(client.trades, state=TradeOfferState.Active, partner=message.author)
+        # multiple attributes are also accepted
 
     Parameters
     -----------
-    iterable: Iterable[T]
+    iterable
         An iterable to search through.
-    \*\*attrs
+    attrs
         Keyword arguments that denote attributes to match.
 
     Returns
     -------
-    Optional[T]
-        The first element from the ``iterable`` which matches all the traits passed in ``attrs`` or ``None`` if no
-        matching element was found.
+    The first element from the ``iterable`` which matches all the traits passed in ``attrs`` or ``None`` if no matching
+    element was found.
     """
 
     # global -> local
@@ -647,3 +678,6 @@ async def maybe_coroutine(
     if isawaitable(value):
         return await value
     return value
+
+
+DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
