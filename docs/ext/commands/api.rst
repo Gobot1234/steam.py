@@ -9,6 +9,8 @@ The following section outlines the API of steam.py's command extension module.
 Bot
 ----
 
+.. attributetable:: Bot
+
 .. autoclass:: Bot
     :members:
     :inherited-members:
@@ -57,11 +59,13 @@ Commands
 
 .. autodecorator:: is_owner()
 
+.. attributetable:: Command
+
 .. autoclass:: Command
     :members:
     :special-members: __call__
 
-hmgh
+.. attributetable:: Group
 
 .. autoclass:: Group
     :members:
@@ -166,11 +170,14 @@ An invocation of ``!command some string=long`` would pass ``"some"`` to ``argume
 Help Commands
 -------------
 
+.. attributetable:: HelpCommand
+
 .. autoclass:: HelpCommand
     :members:
     :inherited-members:
     :special-members: __call__
 
+.. attributetable:: DefaultHelpCommand
 
 .. autoclass:: DefaultHelpCommand
     :members:
@@ -181,12 +188,16 @@ Help Commands
 Cogs
 ------
 
+.. attributetable:: Cog
+
 .. autoclass:: Cog
     :members:
 
 
 Context
 --------
+
+.. attributetable:: Context
 
 .. autoclass:: Context
     :members:
@@ -196,6 +207,8 @@ Context
 Cooldowns
 ----------
 
+.. attributetable:: Cooldown
+
 .. autoclass:: Cooldown
     :members:
 
@@ -203,6 +216,8 @@ Converters
 -----------
 
 .. autodecorator:: converter_for()
+
+.. attributetable:: Converter
 
 .. autoclass:: Converter()
     :members:
@@ -222,6 +237,8 @@ Converters
 Default Values
 ---------------
 
+.. attributetable:: Default
+
 .. autoclass:: Default()
 
 .. autoclass:: DefaultAuthor()
@@ -236,6 +253,8 @@ Default Values
 
 Greedy
 -------
+
+.. attributetable:: Greedy
 
 .. autoclass:: Greedy()
     :members:

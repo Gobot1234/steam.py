@@ -23,6 +23,8 @@ Version Related Info
 Client
 ------
 
+.. attributetable:: Client
+
 .. autoclass:: Client
     :members:
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_logout, on_error, on_message, on_typing,
@@ -203,6 +205,11 @@ They can be used as follows:
 
 .. code-block:: python3
 
+    async for trade in client.trade_history():
+        ...  # do stuff with trade here
+
+
+
 
 .. autoclass:: steam.iterators.AsyncIterator()
     :members:
@@ -213,12 +220,19 @@ Abstract Base Classes
 
 An :term:`abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
 
+.. attributetable:: steam.abc.BaseUser
+
 .. autoclass:: steam.abc.BaseUser()
     :members:
+    :inherited-members:
+
+.. attributetable:: steam.abc.Channel
 
 .. autoclass:: steam.abc.Channel()
     :members:
     :inherited-members:
+
+.. attributetable:: steam.abc.Messageable
 
 .. autoclass:: steam.abc.Messageable()
     :members:
@@ -232,8 +246,12 @@ These are not meant to be constructed by the user instead you receive them from 
 Badge
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: Badge
+
 .. autoclass:: Badge()
     :members:
+
+.. attributetable:: UserBadges
 
 .. autoclass:: UserBadges()
     :members:
@@ -241,19 +259,27 @@ Badge
 Ban
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: Ban
+
 .. autoclass:: Ban()
     :members:
 
 Channel
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: DMChannel
+
 .. autoclass:: DMChannel()
     :members:
     :inherited-members:
 
+.. attributetable:: GroupChannel
+
 .. autoclass:: GroupChannel()
     :members:
     :inherited-members:
+
+.. attributetable:: ClanChannel
 
 .. autoclass:: ClanChannel()
     :members:
@@ -263,6 +289,8 @@ Channel
 Clan
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: Clan
+
 .. autoclass:: Clan()
     :members:
     :inherited-members:
@@ -271,15 +299,21 @@ Clan
 Comment
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: Comment
+
 .. autoclass:: Comment()
     :members:
 
 Game Servers
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: GameServer
+
 .. autoclass:: GameServer()
     :members:
     :inherited-members:
+
+.. attributetable:: Query
 
 .. autoclass:: Query()
     :members:
@@ -288,15 +322,22 @@ Game Servers
 Group
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: Group
+
 .. autoclass:: Group()
     :members:
+    :inherited-members:
 
 Invite
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: UserInvite
+
 .. autoclass:: UserInvite()
     :members:
     :inherited-members:
+
+.. attributetable:: ClanInvite
 
 .. autoclass:: ClanInvite()
     :members:
@@ -305,16 +346,24 @@ Invite
 Message
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: Message
+
 .. autoclass:: Message()
     :members:
+
+.. attributetable:: UserMessage
 
 .. autoclass:: UserMessage()
     :members:
     :inherited-members:
 
+.. attributetable:: GroupMessage
+
 .. autoclass:: GroupMessage()
     :members:
     :inherited-members:
+
+.. attributetable:: ClanMessage
 
 .. autoclass:: ClanMessage()
     :members:
@@ -323,18 +372,27 @@ Message
 PriceOverview
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: PriceOverview
+
 .. autoclass:: PriceOverview()
     :members:
 
 Trading
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: Inventory
+
 .. autoclass:: Inventory()
     :members:
+    :inherited-members:
+
+.. attributetable:: Item
 
 .. autoclass:: Item()
     :members:
     :inherited-members:
+
+.. attributetable:: Asset
 
 .. autoclass:: Asset()
     :members:
@@ -343,9 +401,13 @@ Trading
 Users
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: ClientUser
+
 .. autoclass:: ClientUser()
     :members:
     :inherited-members:
+
+.. attributetable:: User
 
 .. autoclass:: User()
     :members:
@@ -359,6 +421,8 @@ There are a few classes that can be constructed by the user, these include.
 
 Game
 ~~~~~~~~~~~~~~~
+
+.. attributetable:: Game
 
 .. autoclass:: Game
     :members:
@@ -374,6 +438,8 @@ There are some predefined games which are:
 +---------------------------------+-----------------+
 | Counter Strike Global-Offensive | ``steam.CSGO``  |
 +---------------------------------+-----------------+
+| Leaft for Dead 2                | ``steam.LFD2``  |
++---------------------------------+-----------------+
 | Steam                           | ``steam.STEAM`` |
 +---------------------------------+-----------------+
 
@@ -387,13 +453,19 @@ Games can be manually constructed using there app id eg:
 
 .. autofunction:: CUSTOM_GAME
 
+.. attributetable:: UserGame
+
 .. autoclass:: UserGame()
     :inherited-members:
     :members:
 
+.. attributetable:: WishlistGame
+
 .. autoclass:: WishlistGame()
     :inherited-members:
     :members:
+
+.. attributetable:: FetchedGame
 
 .. autoclass:: FetchedGame()
     :inherited-members:
@@ -403,11 +475,15 @@ Games can be manually constructed using there app id eg:
 Steam IDs
 ~~~~~~~~~~~~~~~
 
+.. attributetable:: SteamID
+
 .. autoclass:: SteamID
     :members:
 
 TradeOffers
 ~~~~~~~~~~~~~~~
+
+.. attributetable:: TradeOffer
 
 .. autoclass:: TradeOffer
     :members:
@@ -415,6 +491,8 @@ TradeOffers
 
 Images
 ~~~~~~~~~~~~~~~
+
+.. attributetable:: Image
 
 .. autoclass:: Image
     :members:
