@@ -34,7 +34,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinxcontrib_trio",
-    *[p.with_suffix("").name for p in Path("extensions").glob("*.py")],
+    "myst_parser",
+    *(p.stem for p in Path("extensions").glob("*.py") if not p.stem.startswith("_")),
 ]
 
 autodoc_member_order = "bysource"
