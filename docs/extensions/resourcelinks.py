@@ -22,6 +22,10 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
+# Credit to sphinx.ext.extlinks for being a good starter
+# Copyright 2007-2020 by the Sphinx team
+# Licensed under BSD.
+
 from __future__ import annotations
 
 import sphinx

@@ -9,11 +9,11 @@ import htmlmin
 import rjsmin
 from sphinx.application import Sphinx
 
-ROOT = Path("../../").resolve()
+from docs.extensions import ROOT
 
 
 def get_files(suffix: str) -> Generator[Path, None, None]:
-    yield from ROOT.rglob(f"*{suffix}")
+    yield from (ROOT / "docs").rglob(f"*{suffix}")
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
