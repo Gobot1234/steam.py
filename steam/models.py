@@ -43,8 +43,7 @@ from .protobufs import EMsg, MsgProto
 
 if TYPE_CHECKING:
     from .gateway import Msgs
-else:
-    FunctionType = MethodType = Protocol
+
 
 __all__ = (
     "PriceOverview",

@@ -244,7 +244,7 @@ class Clan(Commentable, comment_path="Clan"):
         self.chat_id = proto.chat_group_id
         self.tagline = proto.chat_group_tagline or None
         self.active_member_count = proto.active_member_count
-        self.game = StatefulGame(self._state, id=proto.appid) if proto.appid else None
+        self.game = Game(id=proto.appid) if proto.appid else None  # StatefulGame(self._state, id=proto.appid)
 
         self.owner = await self._state.fetch_user(utils.make_id64(proto.accountid_owner))
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])

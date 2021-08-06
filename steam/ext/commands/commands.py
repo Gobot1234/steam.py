@@ -33,13 +33,12 @@ import functools
 import inspect
 from collections.abc import Callable, Coroutine, Iterable
 from time import time
-from typing import TYPE_CHECKING, Any, ForwardRef, Optional, TypeVar, Union, get_type_hints, overload
+from typing import TYPE_CHECKING, Any, ForwardRef, Generic, Optional, TypeVar, Union, get_type_hints, overload
 
 from typing_extensions import Literal, ParamSpec, TypeAlias, get_args, get_origin
 
 from ...channel import DMChannel
 from ...errors import ClientException
-from ...models import FunctionType
 from ...utils import cached_property, maybe_coroutine
 from . import converters
 from .cooldown import BucketType, Cooldown
@@ -78,7 +77,7 @@ E = TypeVar("E", bound="Callable[[Context, Exception], Coroutine[Any, Any, None]
 H = TypeVar("H", bound="Callable[[Context], Coroutine[Any, Any, None]]")
 MC = TypeVar("MC", bound=MaybeCommand)
 MCD = TypeVar("MCD", bound=Union["CommandDeco", MaybeCommand])
-CFT = TypeVar("CFT", bound="CommandFunctionType")
+CallT = TypeVar("CallT", bound="CallbackType")
 CHR = TypeVar("CHR", bound="CheckReturnType")
 CH = TypeVar("CH", bound="Callable[[CheckType], CheckReturnType]")
 
@@ -716,11 +715,15 @@ class GroupMixin:
     @overload
     def command(
         self,
-        callback: CFT,
-    ) -> C:
+        callback: CallbackType[P],
+    ) -> Command[P]:
         ...
 
     @overload
+    def command(self, callback: None) -> Callable[[CallbackType[P]], Command[P]]:
+        ...
+
+    @overload  # this also needs higher kinded types as cls should be type[C[P]] | None
     def command(
         self,
         *,
@@ -739,17 +742,17 @@ class GroupMixin:
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
-    ) -> Callable[[CFT], C]:
+    ) -> Callable[[CallT], C]:
         ...
 
     def command(
         self,
-        callback: Optional[CFT] = None,
+        callback: Optional[CallT] = None,
         *,
         name: Optional[str] = None,
         cls: Optional[type[C]] = None,
         **attrs: Any,
-    ) -> Union[Callable[[CFT], C], C]:
+    ) -> Union[Callable[[CallT], C], C]:
         """|maybecallabledeco|
         A decorator that invokes :func:`command` and adds the created :class:`Command` to the internal command list.
 
@@ -767,7 +770,7 @@ class GroupMixin:
         The created command.
         """
 
-        def decorator(callback: CFT) -> C:
+        def decorator(callback: CallT) -> C:
             attrs.setdefault("parent", self)
             result = command(callback, name=name, cls=cls or Command, **attrs)
             self.add_command(result)
@@ -778,8 +781,15 @@ class GroupMixin:
     @overload
     def group(
         self,
-        callback: CFT,
-    ) -> G:
+        callback: CallbackType[P],
+    ) -> Group[P]:
+        ...
+
+    @overload
+    def group(
+        self,
+        callback: None,
+    ) -> Callable[[CallbackType[P]], Group[P]]:
         ...
 
     @overload
@@ -801,17 +811,17 @@ class GroupMixin:
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
-    ) -> Callable[[CFT], G]:
+    ) -> Callable[[CallT], G]:
         ...
 
     def group(
         self,
-        callback: Optional[CFT] = None,
+        callback: Optional[CallT] = None,
         *,
         name: Optional[str] = None,
         cls: Optional[type[G]] = None,
         **attrs: Any,
-    ) -> Union[Callable[[CFT], G], G]:
+    ) -> Union[Callable[[CallT], G], G]:
         """|maybecallabledeco|
         A decorator that invokes :func:`group` and adds the created :class:`Group` to the internal command list.
 
@@ -829,7 +839,7 @@ class GroupMixin:
         The created group command.
         """
 
-        def decorator(callback: CFT) -> G:
+        def decorator(callback: CallbackType[P]) -> G:
             attrs.setdefault("parent", self)
             result = group(callback, name=name, cls=cls or Group, **attrs)
             self.add_command(result)
@@ -860,8 +870,8 @@ class GroupMixin:
             self.remove_command(command.name)
 
 
-class Group(GroupMixin, Command):
-    def __init__(self, func: CommandFunctionType, **kwargs: Any):
+class Group(GroupMixin, Command[P]):
+    def __init__(self, func: CallbackType[P], **kwargs: Any):
         super().__init__(func, **kwargs)
 
     async def invoke(self, ctx: Context) -> None:
@@ -878,8 +888,13 @@ class Group(GroupMixin, Command):
 
 @overload
 def command(
-    callback: CFT,
-) -> C:
+    callback: CallbackType[P],
+) -> Command[P]:
+    ...
+
+
+@overload
+def command(callback: None) -> Callable[[CallbackType[P]], Command[P]]:
     ...
 
 
@@ -901,17 +916,17 @@ def command(
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
-) -> Callable[[CFT], C]:
+) -> Callable[[CallbackType], Command]:
     ...
 
 
 def command(
-    callback: Optional[CFT] = None,
+    callback: Optional[CallbackType] = None,
     *,
     name: Optional[str] = None,
     cls: Optional[type[C]] = None,
     **attrs: Any,
-) -> Union[Callable[[CFT], C], C]:
+) -> Union[Callable[[CallT], C], C]:
     """|maybecallabledeco|
     A decorator that turns a :term:`coroutine function` into a :class:`Command`.
 
@@ -930,7 +945,7 @@ def command(
     """
     cls = cls or Command
 
-    def decorator(callback: CFT) -> C:
+    def decorator(callback: CallT) -> C:
         if isinstance(callback, Command):
             raise TypeError("callback is already a command.")
         return cls(callback, name=name, **attrs)
@@ -940,8 +955,13 @@ def command(
 
 @overload
 def group(
-    callback: CFT,
-) -> G:
+    callback: CallbackType[P],
+) -> Group[P]:
+    ...
+
+
+@overload
+def group(callback: None) -> Callable[[CallbackType[P]], Group[P]]:
     ...
 
 
@@ -963,17 +983,17 @@ def group(
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
-) -> Callable[[CFT], G]:
+) -> Callable[[CallT], G]:
     ...
 
 
 def group(
-    callback: Optional[CFT] = None,
+    callback: Optional[CallT] = None,
     *,
     name: Optional[str] = None,
     cls: Optional[type[G]] = None,
     **attrs: Any,
-) -> Union[Callable[[CFT], G], G]:
+) -> Union[Callable[[CallT], G], G]:
     """|maybecallabledeco|
     A decorator that turns a :term:`coroutine function` into a :class:`Group`.
 
