@@ -1026,9 +1026,7 @@ code.xref, a code {
   background-color: var(--xref-code-background);
 }
 
-span.pre {
-  padding: 0 2px;
-}
+span.pre {}
 
 dl.class {
   margin-bottom: 50px;
@@ -1149,7 +1147,7 @@ table.docutils tbody tr td ol.last {
 }
 
 /* hide the welcome text */
-section#welcome-to-discord-py > h1 {
+section#welcome-to-steam-py > h1 {
   display: none;
 }
 
