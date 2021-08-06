@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, TypeVar, Union
 
 from ...enums import IntEnum
 from .errors import CommandOnCooldown
