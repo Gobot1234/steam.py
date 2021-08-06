@@ -83,9 +83,8 @@ CH = TypeVar("CH", bound="Callable[[CheckType], CheckReturnType]")
 
 P = ParamSpec("P")
 
-class CommandDeco(FunctionType):  # bad Callable[[MC], MC]
-    def __call__(self, command: MC) -> MC:
-        ...
+
+CommandDeco = Callable[[MC], MC]
 
 
 class CheckReturnType(CommandDeco):
