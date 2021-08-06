@@ -35,6 +35,7 @@ import json
 import re
 import struct
 import sys
+import typing
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
 from inspect import getmembers, isawaitable
 from io import BytesIO
@@ -54,6 +55,17 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)
+
+
+if not hasattr(typing, "ParamSpec"):
+
+    class ParamSpec(ParamSpec):
+        __class__ = TypeVar  # TODO remove once new typing_extensions version arrives
+
+    import typing_extensions
+
+    typing_extensions.ParamSpec = ParamSpec
+
 _P = ParamSpec("_P")
 _PROTOBUF_MASK = 0x80000000
 

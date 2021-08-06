@@ -81,7 +81,6 @@ CallT = TypeVar("CallT", bound="CallbackType")
 CHR = TypeVar("CHR", bound="CheckReturnType")
 CH = TypeVar("CH", bound="Callable[[CheckType], CheckReturnType]")
 
-ParamSpec.__class__ = TypeVar  # TODO remove once new typing_extensions version arrives
 P = ParamSpec("P")
 
 
