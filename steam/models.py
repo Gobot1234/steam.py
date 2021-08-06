@@ -34,7 +34,7 @@ from collections.abc import Callable, Coroutine
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
-from typing_extensions import Final, Protocol, TypeAlias
+from typing_extensions import Final, Literal, TypeAlias
 from yarl import URL as _URL
 
 from . import utils
@@ -42,8 +42,6 @@ from .enums import IntEnum
 from .protobufs import EMsg, MsgProto
 
 if TYPE_CHECKING:
-    from types import FunctionType as FunctionType, MethodType as MethodType
-
     from .gateway import Msgs
 else:
     FunctionType = MethodType = Protocol

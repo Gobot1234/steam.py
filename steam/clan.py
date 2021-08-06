@@ -32,10 +32,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bs4 import BeautifulSoup
+from typing_extensions import Literal
 
 from . import utils
 from .abc import Commentable, SteamID
 from .channel import ClanChannel
+from .enums import ClanEvent, Type
 from .errors import HTTPException
 from .game import Game
 from .protobufs.steammessages_chat import (
@@ -43,6 +45,7 @@ from .protobufs.steammessages_chat import (
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
 )
 from .role import Role
+from .utils import update_class
 
 if TYPE_CHECKING:
     from .state import ConnectionState
@@ -135,7 +138,7 @@ class Clan(Commentable, comment_path="Clan"):
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
 
     def __init__(self, state: ConnectionState, id: int):
-        super().__init__(id, type="Clan")
+        super().__init__(id, type=Type.Clan)
         self._state = state
 
         self.name: str
@@ -166,11 +169,11 @@ class Clan(Commentable, comment_path="Clan"):
         if not self.id:
             search = re.search(r"OpenGroupChat\(\s*'(\d+)'\s*\)", resp)
             if search is None:
-                return
-            super().__init__(search.group(1), type="Clan")
+                raise ValueError("unreachable code reached")
+            super().__init__(search.group(1), type=Type.Clan)
 
         soup = BeautifulSoup(resp, "html.parser")
-        self.name = soup.find("title").text[28:]
+        self.name = soup.title.text[28:]
         description = soup.find("meta", property="og:description")
         self.description = description["content"] if description is not None else None
         icon_url = soup.find("link", rel="image_src")
@@ -193,7 +196,7 @@ class Clan(Commentable, comment_path="Clan"):
             if "Location" in stat.text:
                 self.location = stat.text.split("Location")[1].strip()
 
-        for count in stats.find_all("div", attrs={"class": "membercount"}):
+        for count in stats.find_all("div", class_="membercount"):
             if "MEMBERS" in count.text:
                 self.member_count = int(count.text.split("MEMBERS")[0].strip().replace(",", ""))
             if "IN-GAME" in count.text:
@@ -204,7 +207,7 @@ class Clan(Commentable, comment_path="Clan"):
         admins = []
         mods = []
         is_admins = True
-        for fields in soup.find_all("div", attrs={"class": "membergrid"}):
+        for fields in soup.find_all("div", class_="membergrid"):
             for idx, field in enumerate(fields.find_all("div")):
                 if "Members" in field.text:
                     if mods:
@@ -215,7 +218,7 @@ class Clan(Commentable, comment_path="Clan"):
                     mods.append(officer)
                     is_admins = False
                 try:
-                    account_id = fields.find_all("div", attrs={"class": "playerAvatar"})[idx]["data-miniprofile"]
+                    account_id = fields.find_all("div", _class="playerAvatar")[idx]["data-miniprofile"]
                 except IndexError:
                     break
                 else:
@@ -235,40 +238,31 @@ class Clan(Commentable, comment_path="Clan"):
             id = clan_proto.chat_group_summary.clanid
         self = cls(state, id)
         await self.__ainit__()
-        if isinstance(clan_proto, ReceivedResponse):
-            proto = clan_proto.group_summary
-        else:
-            proto = clan_proto.chat_group_summary
+
+        proto = clan_proto.group_summary if isinstance(clan_proto, ReceivedResponse) else clan_proto.chat_group_summary
 
         self.chat_id = proto.chat_group_id
         self.tagline = proto.chat_group_tagline or None
         self.active_member_count = proto.active_member_count
-        self.game = Game(id=proto.appid) if proto.appid else None
+        self.game = StatefulGame(self._state, id=proto.appid) if proto.appid else None
 
         self.owner = await self._state.fetch_user(utils.make_id64(proto.accountid_owner))
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
 
         self.roles = [Role(self._state, self, role) for role in proto.role_actions]
-        self.default_role = utils.find(lambda r: r.id == int(proto.default_role_id), self.roles)
+        self.default_role = utils.get(self.roles, id=int(proto.default_role_id))
 
-        self.channels = []
         self.default_channel = None
-        if isinstance(clan_proto, ReceivedResponse):
-            channels = clan_proto.user_chat_group_state.user_chat_room_state
-        else:
+        if not isinstance(clan_proto, ReceivedResponse):
             return self
-        for channel in channels:
-            channel = ClanChannel(state=self._state, clan=self, channel=channel)
-            if channel not in self.channels:
-                self.channels.append(channel)
-            else:  # update the old instance
-                idx = self.channels.index(channel)
-                old_channel = self.channels[idx]
-                for name, attr in inspect.getmembers(channel):
-                    if attr:
-                        setattr(old_channel, name, attr)
 
-        self.default_channel = utils.find(lambda c: c.id == int(proto.default_chat_id), self.channels)
+        for channel in clan_proto.user_chat_group_state.user_chat_room_state:
+            channel = ClanChannel(state=self._state, clan=self, channel=channel)
+            old_channel = self._channels.setdefault(channel.id, channel)
+            if channel is not old_channel:  # update the old instance
+                update_class(channel, old_channel)
+
+        self.default_channel = self._channels[int(proto.default_chat_id)]
         return self
 
     def __repr__(self) -> str:

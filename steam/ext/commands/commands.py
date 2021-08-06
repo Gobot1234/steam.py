@@ -82,6 +82,7 @@ CFT = TypeVar("CFT", bound="CommandFunctionType")
 CHR = TypeVar("CHR", bound="CheckReturnType")
 CH = TypeVar("CH", bound="Callable[[CheckType], CheckReturnType]")
 
+P = ParamSpec("P")
 
 class CommandDeco(FunctionType):  # bad Callable[[MC], MC]
     def __call__(self, command: MC) -> MC:
@@ -92,18 +93,10 @@ class CheckReturnType(CommandDeco):
     predicate: CheckType
 
 
-class CommandFunctionType(FunctionType):
+class CallbackType(Callable[P, Coroutine[None, None, Any]]):
     __commands_checks__: list[CheckType]
     __commands_cooldown__: list[Cooldown]
     __special_converters__: list[type[converters.Converter]]
-
-    @overload
-    async def __call__(self, ctx: Context, *args: Any, **kwargs: Any) -> None:
-        ...
-
-    @overload
-    async def __call__(self, cog: Cog, ctx: Context, *args: Any, **kwargs: Any) -> None:
-        ...
 
 
 @converters.converter_for(bool)
@@ -116,7 +109,7 @@ def to_bool(argument: str) -> bool:
     raise BadArgument(f"{argument!r} is not a recognised boolean option")
 
 
-class Command:
+class Command(Generic[P]):
     """A class to represent a command.
 
     Attributes
@@ -217,12 +210,12 @@ class Command:
         return self.qualified_name
 
     @property
-    def callback(self) -> CFT:
+    def callback(self) -> CallbackType[P]:
         """The internal callback the command holds."""
         return self._callback
 
     @callback.setter
-    def callback(self, function: CFT) -> None:
+    def callback(self, function: CallbackType[P]) -> None:
         if not inspect.iscoroutinefunction(function):
             raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine function.")
 
