@@ -91,11 +91,7 @@ class Cog:
         cls.command_attrs = command_attrs or {}  # type: ignore
 
         if cls.__doc__ is not None:
-            help_doc = inspect.cleandoc(cls.__doc__)
-            if isinstance(help_doc, bytes):
-                help_doc.decode("utf-8")
-
-            cls.description = help_doc  # type: ignore
+            cls.description = inspect.cleandoc(cls.__doc__)  # type: ignore
         else:
             cls.description = None  # type: ignore
 

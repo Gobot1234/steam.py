@@ -158,13 +158,7 @@ class Command(Generic[P]):
         self.callback = func
 
         help_doc = kwargs.get("help")
-        if help_doc is not None:
-            help_doc = inspect.cleandoc(help_doc)
-        else:
-            help_doc = inspect.getdoc(func)
-            if isinstance(help_doc, bytes):
-                help_doc = help_doc.decode("utf-8")
-        self.help: Optional[str] = help_doc
+        self.help: Optional[str] = inspect.cleandoc(help_doc) if help_doc is not None else inspect.getdoc(func)
 
         try:
             checks = func.__commands_checks__
