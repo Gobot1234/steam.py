@@ -31,9 +31,9 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
-from collections.abc import Callable, Coroutine, Iterable
+from collections.abc import Coroutine, Iterable
 from time import time
-from typing import TYPE_CHECKING, Any, ForwardRef, Generic, Optional, TypeVar, Union, get_type_hints, overload
+from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, Optional, TypeVar, Union, get_type_hints, overload
 
 from typing_extensions import Literal, ParamSpec, TypeAlias, get_args, get_origin
 
