@@ -33,9 +33,6 @@ class NullIO(io.IOBase):
         ...
 
 
-typing._module.types_Union = getattr(types, "UnionType", None) or TypesUnionType  # type: ignore
-typing._module.UnionType = getattr(types, "UnionType", None) or TypesUnionType  # type: ignore
-
 options = Options()
 options.export_types = True
 cache: dict[str, ChainMap[Expression, types.Type]] = {}
