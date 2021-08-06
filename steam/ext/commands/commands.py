@@ -81,10 +81,8 @@ CallT = TypeVar("CallT", bound="CallbackType")
 CHR = TypeVar("CHR", bound="CheckReturnType")
 CH = TypeVar("CH", bound="Callable[[CheckType], CheckReturnType]")
 
-if TYPE_CHECKING:
-    P = ParamSpec("P")
-else:
-    P = TypeVar("P")  # mmmm yes
+ParamSpec.__class__ = TypeVar  # TODO remove once new typing_extensions version arrives
+P = ParamSpec("P")
 
 
 CommandDeco = Callable[[MC], MC]
