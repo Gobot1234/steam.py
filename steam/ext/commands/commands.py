@@ -94,7 +94,7 @@ class CheckReturnType(CommandDeco):
     predicate: CheckType
 
 
-class CallbackType(Callable[P, Coroutine[None, None, Any]]):
+class CallbackType(Callable[P, "Coroutine[None, None, Any]"]):
     __commands_checks__: list[CheckType]
     __commands_cooldown__: list[Cooldown]
     __special_converters__: list[type[converters.Converter]]
