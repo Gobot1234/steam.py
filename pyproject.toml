@@ -46,6 +46,7 @@ tomli = "^1.0.0"
 
 # docs option
 sphinx = { git = "https://github.com/sphinx-doc/sphinx", optional = true }
+"myst-parser" = { version = "*", optional = true }
 mypy = { version = "^0.910", optional = true }
 sphinxcontrib_trio = { version = "1.1.2", optional = true }
 csscompressor = { version = "*", optional = true }
