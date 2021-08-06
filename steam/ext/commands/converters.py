@@ -51,7 +51,6 @@ from ...clan import Clan
 from ...errors import HTTPException, InvalidSteamID
 from ...game import Game
 from ...group import Group
-from ...models import FunctionType
 from ...user import User
 from .errors import BadArgument
 
@@ -90,7 +89,7 @@ class ConverterDict(Dict[type, Tuple[Converters, ...]]):
         super().__setitem__(key, old_value + (value,))
 
 
-class BasicConverter(FunctionType):
+class BasicConverter(Protocol[T]):
     converter_for: T
 
     def __call__(self, arg: str) -> T:
