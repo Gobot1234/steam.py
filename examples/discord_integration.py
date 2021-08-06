@@ -31,8 +31,12 @@ class DiscordBot(commands.Bot):
         await super().close()
 
 
-class UserNotFound(commands.CommandError):
+class UserNotFound(commands.BadArgument):
     """For when a matching user cannot be found"""
+
+    def __init__(self, argument: str):
+        self.argument = argument
+        super().__init__(f"User {argument!r} not found.")
 
 
 class UserConverter(commands.Converter):
@@ -44,10 +48,10 @@ class UserConverter(commands.Converter):
         except steam.InvalidSteamID:
             id64 = await steam.utils.id64_from_url(argument)
             if id64 is None:
-                raise UserNotFound
+                raise UserNotFound(argument)
             user = await ctx.bot.client.fetch_user(id64)
         if user is None:
-            raise UserNotFound
+            raise UserNotFound(argument)
         return user
 
 
@@ -65,8 +69,8 @@ async def user(ctx: commands.Context, user: UserConverter):
     embed.set_thumbnail(url=user.avatar_url)
     embed.add_field(name="64 bit ID:", value=str(user.id64))
     embed.add_field(name="Currently playing:", value=f"{user.game or 'Nothing'}")
-    embed.add_field(name="Friends:", value=str(len(await user.friends())))
-    embed.add_field(name="Games:", value=str(len(await user.games())))
+    embed.add_field(name="Friends:", value=len(await user.friends()))
+    embed.add_field(name="Games:", value=len(await user.games()))
     embed.set_footer(text="Account created on")  # set timestamp goes after this
     await ctx.send(f"Info on {user.name}", embed=embed)
 
@@ -74,7 +78,7 @@ async def user(ctx: commands.Context, user: UserConverter):
 @user.error
 async def on_user_command_error(ctx: commands.Context, error: commands.CommandError):
     if isinstance(error, UserNotFound):
-        return await ctx.send("User not found")
+        return await ctx.send(str(error))
     raise error
 
 
