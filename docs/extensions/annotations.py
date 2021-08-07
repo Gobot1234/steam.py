@@ -14,15 +14,13 @@ from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING, Any, Literal, Union
 
 from mypy import nodes, types
-from mypy.build import build
-from mypy.modulefinder import BuildSource
-from mypy.nodes import Expression, MemberExpr, NameExpr
+from mypy.build import BuildSource, build
 from mypy.options import Options
 from mypy.type_visitor import TypeVisitor
 from sphinx.application import Sphinx
-from sphinx.util import typing
 
 from docs.extensions import ROOT
+from docs.extensions.enums import isenumclass
 
 if TYPE_CHECKING:
     from types import GenericAlias
@@ -35,7 +33,7 @@ class NullIO(io.IOBase):
 
 options = Options()
 options.export_types = True
-cache: dict[str, ChainMap[Expression, types.Type]] = {}
+cache: dict[str, ChainMap[nodes.Expression, types.Type]] = {}
 
 stdout = stderr = NullIO()
 MISSING = object()
@@ -82,7 +80,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
     def visit_literal_type(self, t: types.LiteralType) -> GenericAlias:
         value = t.value_repr()
         try:
-            return Literal[ast.literal_eval(value)]
+            return Literal[ast.literal_eval(value)]  # this isn't really necessary
         except NameError:  # enum
             return Literal[self.get(value)]
 
@@ -92,7 +90,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
     def visit_instance(self, t: types.Instance) -> Any:
         instance = self.get(t.type.fullname)
         args = self.collect_types(t.args)
-        if args:
+        if args and not all(isinstance(arg, types.AnyType) for arg in args):
             try:
                 instance = instance[args]  # construct a generic alias
             except Exception:
@@ -117,17 +115,18 @@ class TypeEvalVisitor(TypeVisitor[Any]):
 
 
 @contextlib.contextmanager
-def load_module(module: str) -> Generator[dict[Expression, types.Type], None, None]:
+def load_module(module: str) -> Generator[dict[nodes.Expression, types.Type], None, None]:
     if not module.startswith("steam"):  # typing_extensions.TypeAlias
         yield {}
         return
-    mod = importlib.import_module(module)
 
     try:
         yield cache[module]
         return
     except KeyError:
         pass
+
+    mod = importlib.import_module(module)
 
     path = ROOT / f"{module.replace('.', '/')}.py"
     original = path.read_text()
@@ -151,7 +150,7 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
         if isinstance(object, type):
             for expr in type_map:
                 if (
-                    isinstance(expr, (NameExpr, MemberExpr))
+                    isinstance(expr, (nodes.NameExpr, nodes.MemberExpr))
                     and isinstance(expr.node, nodes.Var)
                     and not expr.name.startswith("_")
                     and (expr.node.fullname or "").startswith(f"{object.__module__}.{object.__qualname__}")
@@ -165,42 +164,38 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
 
             for node, type_ in type_map.items():
                 if what == "method":
-                    if isinstance(node, nodes.TypeInfo) and fullname.rpartition(".")[0] == node.fullname:
-                        method = node[object.__name__]
-                        is_static = isinstance(object, staticmethod)
+                    if not isinstance(node, nodes.TypeInfo) or fullname.rpartition(".")[0] != node.fullname:
+                        continue
+                    method = node[object.__name__]
+                    is_static = isinstance(object, staticmethod)
 
-                        if isinstance(method.type, types.CallableType):
-                            return_type = method.type.ret_type.args[-1] if is_coroutine else method.type.ret_type
-                            names = method.type.arg_names[1 if not is_static else 0 :]
-                            arg_types = method.type.arg_types[1 if not is_static else 0 :]
-                        elif isinstance(method.type, types.Overloaded):
-                            items: list[types.CallableType] = method.type.items()
-                            union = types.UnionType(
-                                [t.ret_type.args[-1] if is_coroutine else t.ret_type for t in items]
-                            )
-                            return_type = union if len(union.items) < 5 else types.AnyType(types.TypeOfAny.explicit)
-                            names = []
-                            arg_types = []
-                            for item in items:
-                                names.extend(item.arg_names[1 if not is_static else 0 :])
-                                arg_types.extend(item.arg_types[1 if not is_static else 0 :])
-                        else:
-                            continue
+                    if isinstance(method.type, types.CallableType):
+                        return_type = method.type.ret_type.args[-1] if is_coroutine else method.type.ret_type
+                        names = method.type.arg_names[1 if not is_static else 0 :]
+                        arg_types = method.type.arg_types[1 if not is_static else 0 :]
+                    elif isinstance(method.type, types.Overloaded):
+                        items = method.type.items()
+                        union = types.UnionType([t.ret_type.args[-1] if is_coroutine else t.ret_type for t in items])
+                        return_type = union if len(union.items) < 5 else types.AnyType(types.TypeOfAny.explicit)
+                        names = []
+                        arg_types = []
+                        for item in items:
+                            names.extend(item.arg_names[1 if not is_static else 0 :])
+                            arg_types.extend(item.arg_types[1 if not is_static else 0 :])
                     else:
                         continue
                 else:
-                    if isinstance(type_, types.CallableType) and type_.name == object.__name__:
-                        return_type = type_.ret_type.args[-1] if is_coroutine else type_.ret_type
-                        names = type_.arg_names
-                        arg_types = type_.arg_types
-                    else:
+                    if not isinstance(type_, types.CallableType) or type_.name != object.__name__:
                         continue
+                    return_type = type_.ret_type.args[-1] if is_coroutine else type_.ret_type
+                    names = type_.arg_names
+                    arg_types = type_.arg_types
                 yield from zip(names + ["return"], [t.accept(TypeEvalVisitor()) for t in (arg_types + [return_type])])
                 break
 
 
 def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any):
-    if what not in {"class", "function", "method"}:
+    if what not in {"class", "function", "method"} or isenumclass(object):
         return  # can't have annotations
     for name, evaled_type in get_annotations(object, what, name):
         if evaled_type is MISSING:
@@ -208,7 +203,10 @@ def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any):
         try:
             object.__annotations__[name] = evaled_type
         except AttributeError:  # TODO remove when postponed annotations are available
-            object.__annotations__ = {name: evaled_type}
+            try:
+                object.__annotations__ = {name: evaled_type}
+            except AttributeError:
+                break
 
     if isinstance(object, type) and getattr(object, "__annotations__", None):
         for base in object.__mro__[1:-1]:
@@ -222,12 +220,13 @@ def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any):
             add_annotations(
                 app,
                 "class",
-                f"{module}.{base.__qualname__}",
+                f"{module}.{base.__name__}",
                 base,
             )
-            annotations = getattr(base, "__annotations__", {}).copy()
-            annotations.update(object.__annotations__ or {})
-            object.__annotations__ = annotations
+            try:
+                object.__annotations__ = getattr(base, "__annotations__", {}) | object.__annotations__
+            except AttributeError:
+                pass
 
 
 def setup(app: Sphinx) -> None:
