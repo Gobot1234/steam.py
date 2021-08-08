@@ -18,11 +18,11 @@ name: Deploy
 on:
   push:
   release:
-    types: [ released ]
+    types: [released]
 
 jobs:
   job:
-    name: Deploy
+    name: Build docs
     runs-on: ubuntu-latest
 
     env:

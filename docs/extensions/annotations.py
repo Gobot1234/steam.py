@@ -34,8 +34,6 @@ from docs.extensions.enums import isenumclass
 if TYPE_CHECKING:
     from types import GenericAlias
 
-print(mypy.nodes)
-
 
 class NullIO(io.IOBase):
     def write(self, *_, **__) -> None:
