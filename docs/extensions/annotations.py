@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, Literal, Union
 
 import mypy  # Remove compiled mypy files  # https://github.com/mypyc/mypyc/issues/754
 
-for file in Path(mypy.__file__).rglob("*.so"):
+for file in Path(mypy.__file__).parent.rglob("*.so"):
     file.unlink()
 
 
@@ -33,6 +33,8 @@ from docs.extensions.enums import isenumclass
 
 if TYPE_CHECKING:
     from types import GenericAlias
+
+print(mypy.nodes)
 
 
 class NullIO(io.IOBase):
