@@ -46,8 +46,6 @@ jobs:
     steps:
     - name: Checkout ${{ github.repository }}
       uses: actions/checkout@v2
-      with:
-        path: ${{ github.event.repository.name }}
 
     - name: Checkout ${{ env.PUSH_REPOSITORY }}
       uses: actions/checkout@v2
