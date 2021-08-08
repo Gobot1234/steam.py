@@ -76,18 +76,18 @@ class Group(SteamID):
         "_state",
     )
 
+    owner: Optional[User]
+    top_members: list[Optional[User]]
+    name: Optional[str]
+    active_member_count: int
+    roles: list[Role]
+    default_role: Optional[Role]
+    _channels: dict[int, GroupChannel]
+    default_channel: Optional[GroupChannel]
+
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Chat)
         self._state = state
-
-        self.owner: Optional[User]
-        self.top_members: list[Optional[User]]
-        self.name: Optional[str]
-        self.active_member_count: int
-        self.roles: list[Role]
-        self.default_role: Optional[Role]
-        self._channels: dict[int, GroupChannel]
-        self.default_channel: Optional[GroupChannel]
 
     @classmethod
     async def _from_proto(cls, state: ConnectionState, proto: GroupProto) -> Group:

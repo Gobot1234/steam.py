@@ -28,25 +28,23 @@ import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeAlias
 
-from .abc import Channel, M, _EndPointReturnType
+from .abc import Channel, M, Message, SteamID, _EndPointReturnType
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
+from .protobufs.steammessages_chat import (
+    CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
+    CChatRoomState,
+    CUserChatRoomState,
+)
 
 if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
-    from .image import Image
     from .message import ClanMessage, GroupMessage, UserMessage
-    from .protobufs.steammessages_chat import (
-        CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
-        CChatRoomState,
-        CUserChatRoomState,
-    )
     from .state import ConnectionState
-    from .trade import TradeOffer
     from .user import User
 
 __all__ = (
@@ -126,33 +124,57 @@ class DMChannel(Channel["UserMessage"]):
         return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
+GroupChannelProtos: TypeAlias = "GroupMessageNotification | CChatRoomState | CUserChatRoomState"
+
+
 class _GroupChannel(Channel[M]):
-    __slots__ = ("id", "joined_at", "name")
+    __slots__ = ("id", "name", "joined_at", "position", "last_message")
 
-    def __init__(self, state: ConnectionState, channel: Any):
+    def __init__(self, state: ConnectionState, proto: GroupChannelProtos):
         super().__init__(state)
-        self.id = int(channel.chat_id)
+        self.id = int(proto.chat_id)
+        self.name: Optional[str] = None
+        self.joined_at: Optional[datetime] = None
+        self.position: Optional[int] = None
+        self.last_message: Optional[M] = None
+        self._update(proto)
 
-        if hasattr(channel, "chat_name"):
-            first, _, second = channel.chat_name.partition(" | ")
+    def _update(self, proto: GroupChannelProtos):
+        if hasattr(proto, "chat_name"):
+            first, _, second = proto.chat_name.partition(" | ")
             name = second or first
         else:
-            name = None
-        self.name: Optional[str] = name
-        self.joined_at: Optional[datetime] = (
-            datetime.utcfromtimestamp(int(channel.time_joined)) if hasattr(channel, "time_joined") else None
+            name = self.name
+        self.name = name
+        self.joined_at = (
+            datetime.utcfromtimestamp(int(proto.time_joined)) if hasattr(proto, "time_joined") else self.joined_at
         )
+        self.position = getattr(proto, "sort_order", None) or self.position
+        from .message import ClanMessage, GroupMessage
+
+        if isinstance(proto, GroupMessageNotification):
+            steam_id = SteamID(proto.steamid_sender)
+            last_message = (ClanMessage if isinstance(self, ClanChannel) else GroupMessage)(
+                proto, self, self._state.get_user(steam_id.id64) or steam_id
+            )
+        elif isinstance(proto, CChatRoomState):
+            steam_id = SteamID(proto.accountid_last_message)
+            cls = ClanMessage if isinstance(self, ClanChannel) else GroupMessage
+            last_message = cls.__new__(cls)
+            last_message.author = self._state.get_user(steam_id.id64) or steam_id
+            last_message.channel = self
+            last_message.created_at = datetime.utcfromtimestamp(proto.time_last_message)
+            proto.message = proto.last_message
+            Message.__init__(last_message, self, proto)
+        else:
+            last_message = self.last_message
+        self.last_message = last_message
 
     def __repr__(self) -> str:
-        attrs = ("name", "id", "group")
+        cls = self.__class__
+        attrs = ("name", "id", "group" if self.group is not None else "clan", "position")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<GroupChannel {' '.join(resolved)}>"
-
-    def _get_message_endpoint(self) -> _EndPointReturnType:
-        return (self.id, self.group.id), self._state.send_group_message
-
-    def _get_image_endpoint(self) -> _EndPointReturnType:
-        return (self.id, self.group.id), self._state.http.send_group_image
+        return f"<{cls.__name__} {' '.join(resolved)}>"
 
     def history(
         self,
@@ -178,10 +200,17 @@ class GroupChannel(_GroupChannel["GroupMessage"]):
         The time the client joined the chat.
     """
 
-    def __init__(self, state: ConnectionState, group: Group, channel: Union[GroupMessageNotification, CChatRoomState]):
-        super().__init__(state, channel)
+    clan: Literal[None]
+
+    def __init__(self, state: ConnectionState, group: Group, proto: GroupChannelProtos):
+        super().__init__(state, proto)
         self.group: Group = group
-        self.clan: Literal[None]
+
+    def _get_message_endpoint(self) -> _EndPointReturnType:
+        return (self.id, self.group.id), self._state.send_group_message
+
+    def _get_image_endpoint(self) -> _EndPointReturnType:
+        return (self.id, self.group.id), self._state.http.send_group_image
 
 
 class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same thing
@@ -199,17 +228,11 @@ class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same t
         The time the client joined the chat.
     """
 
-    def __init__(
-        self, state: ConnectionState, clan: Clan, channel: Union[GroupMessageNotification, CUserChatRoomState]
-    ):
-        super().__init__(state, channel)
-        self.clan: Clan = clan
-        self.group: Literal[None]
+    group: Literal[None]
 
-    def __repr__(self) -> str:
-        attrs = ("name", "id", "clan")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<ClanChannel {' '.join(resolved)}>"
+    def __init__(self, state: ConnectionState, clan: Clan, proto: GroupChannelProtos):
+        super().__init__(state, proto)
+        self.clan: Clan = clan
 
     def _get_message_endpoint(self) -> _EndPointReturnType:
         return (self.id, self.clan.chat_id), self._state.send_group_message

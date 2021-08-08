@@ -138,6 +138,18 @@ class Clan(Commentable, comment_path="Clan"):
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
 
+    name: str
+    description: str
+    icon_url: str
+    created_at: Optional[datetime]
+    member_count: int
+    online_count: int
+    in_game_count: int
+    language: str
+    location: str
+    mods: list[Optional[User]]
+    admins: list[Optional[User]]
+
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Clan)
         self._state = state
@@ -251,20 +263,34 @@ class Clan(Commentable, comment_path="Clan"):
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
 
         self.roles = [Role(self._state, self, role) for role in proto.role_actions]
-        self.default_role = utils.get(self.roles, id=int(proto.default_role_id))
+        self.default_role = utils.get(self.roles, id=proto.default_role_id)
 
         self.default_channel = None
         if not isinstance(clan_proto, ReceivedResponse):
             return self
 
         for channel in clan_proto.user_chat_group_state.user_chat_room_state:
-            channel = ClanChannel(state=self._state, clan=self, channel=channel)
-            old_channel = self._channels.setdefault(channel.id, channel)
-            if channel is not old_channel:  # update the old instance
-                update_class(channel, old_channel)
+            try:
+                new_channel = self._channels[channel.chat_id]
+            except KeyError:
+                new_channel = ClanChannel(state=self._state, clan=self, proto=channel)
+                self._channels[new_channel.id] = new_channel
+            else:
+                new_channel._update(channel)
 
         self.default_channel = self._channels[int(proto.default_chat_id)]
         return self
+
+    def _update(self, proto: UpdatedClan) -> None:
+        for channel in proto.chat_rooms:
+            try:
+                new_channel = self._channels[channel.chat_id]
+            except KeyError:
+                new_channel = ClanChannel(state=self._state, clan=self, proto=channel)
+                self._channels[new_channel.id] = new_channel
+            else:
+                new_channel._update(channel)
+        self.default_channel = self._channels[int(proto.default_chat_id)]
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "chat_id", "type", "universe", "instance")

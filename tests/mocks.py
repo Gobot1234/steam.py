@@ -15,8 +15,8 @@ from .test_bot import bot
 USER_DATA = {
     "steamid": 1234567890,
     "personaname": "a user",
-    "avatarfull": f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/fef49e7fa7e1997310d705b"
-    f"2a6158ff8dc1cdfeb_full.jpg",
+    "avatarfull": "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/"
+    "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg",
     "primaryclanid": 103582791443703793,
     "timecreated": 0,
     "lastlogoff": 0,
@@ -46,8 +46,7 @@ class MockUser(steam.User, DataclassesMock):
 
 class MockGroup(steam.Group, DataclassesMock):
     def __init__(self):
-        proto = CChatRoomGetChatRoomGroupSummaryResponse()
-        super().__init__(bot._connection, proto)
+        super().__init__(bot._connection, 0)
         self.name = "a group"
 
 
@@ -82,7 +81,7 @@ class MockGroupMessage(MockMessage, steam.GroupMessage):
 USER = MockUser()
 GROUP = MockGroup()
 GROUP_CHANNEL = MockGroupChannel(GROUP)
-GROUP.channels = [GROUP_CHANNEL]
+GROUP._channels = {GROUP_CHANNEL.id: GROUP_CHANNEL}
 GROUP_MESSAGE = MockGroupMessage(GROUP_CHANNEL)
 
 TEST_COMMAND_MESSAGE = MockGroupMessage(GROUP_CHANNEL, "!test command")
