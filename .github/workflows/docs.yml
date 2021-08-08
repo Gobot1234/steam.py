@@ -74,13 +74,12 @@ jobs:
       run: poetry check
 
     - name: Install dependencies
-      working-directory: ./${{ github.event.repository.name }}
       if: steps.cached-dependecies.outputs.cache-hit != 'true'
       run: poetry install -E docs
 
     - name: Remove compiled mypy files  #  https://github.com/mypyc/mypyc/issues/754
-      working-directory: ./${{ github.event.repository.name }}/.venv/lib/mypy
       run: |
+        cd .venv/lib/mypy
         find . -type f -name '*.so' -exec rm {} \;
 
     - name: Build
