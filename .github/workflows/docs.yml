@@ -41,7 +41,7 @@ jobs:
       PUSH_STABLE_PATH: stable
 
       PYTHON_VERSION: 3.9
-      SPHINX_OPTIONS: -b dirhtml -a -E -n -T -W --keep-going
+      SPHINX_OPTIONS: -b dirhtml -a -E -T
 
     steps:
     - name: Checkout ${{ github.repository }}
