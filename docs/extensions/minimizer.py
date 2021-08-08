@@ -65,7 +65,7 @@ def minimize_css() -> None:
 
 
 def minimize(app: Sphinx, exception: Exception) -> None:
-    if os.getenv("READTHEDOCS"):
+    if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
         minimize_html()
         minimize_js()
         minimize_css()
