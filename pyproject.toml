@@ -54,7 +54,7 @@ htmlmin = { version = "*", optional = true }
 rjsmin = { version = "*", optional = true }
 
 [tool.poetry.extras]
-docs = ["sphinx", "mypy", "sphinxcontrib_trio", "csscompressor", "htmlmin", "rjsmin"]
+docs = ["sphinx", "myst-parser", "mypy", "sphinxcontrib_trio", "csscompressor", "htmlmin", "rjsmin"]
 
 [tool.poetry.dev-dependencies]
 black = "^21.5b2"
