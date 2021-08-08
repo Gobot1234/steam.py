@@ -59,7 +59,7 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - uses: snok/install-poetry@v1.1.3
+    - uses: snok/install-poetry@v1
       with:
         virtualenvs-create: true
         virtualenvs-in-project: true
@@ -76,11 +76,6 @@ jobs:
     - name: Install dependencies
       if: steps.cached-dependecies.outputs.cache-hit != 'true'
       run: poetry install -E docs
-
-    - name: Remove compiled mypy files  #  https://github.com/mypyc/mypyc/issues/754
-      run: |
-        cd .venv/lib/mypy
-        find . -type f -name '*.so' -exec rm {} \;
 
     - name: Build
       if: ${{ github.event_name == 'push' }}

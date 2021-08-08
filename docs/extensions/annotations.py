@@ -11,8 +11,17 @@ import re
 import types
 from collections import ChainMap
 from collections.abc import Callable, Generator
+from importlib import reload
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Union
 
+import mypy  # Remove compiled mypy files  # https://github.com/mypyc/mypyc/issues/754
+
+for file in Path(mypy.__file__).rglob("*.so"):
+    file.unlink()
+
+
+reload(mypy)
 from mypy import nodes, types
 from mypy.build import BuildSource, build
 from mypy.options import Options
