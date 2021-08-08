@@ -24,17 +24,10 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      - uses: actions/cache@v2
-        id: cached-dependecies
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}-${{ matrix.python-version }}-no-dev
-
       - name: Validate pyproject.toml
         run: poetry check
 
       - name: Install dependencies
-        if: steps.cached-dependecies.outputs.cache-hit != 'true'
         run: poetry install
 
       - name: Run tests for CPython ${{ matrix.python-version }}
