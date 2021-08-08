@@ -160,17 +160,6 @@ DEALINGS IN THE SOFTWARE.
     </footer>
 {%- endblock %}
   </div>
-  {%- if READTHEDOCS %}
-  <script>
-    if (typeof READTHEDOCS_DATA !== "undefined") {
-        if (!READTHEDOCS_DATA.features) {
-          READTHEDOCS_DATA.features = {};
-        }
-        READTHEDOCS_DATA.features.docsearch_disabled = true;
-      }
-  </script>
-  {%- endif %}
-
   <div id="settings" class="modal" onclick="if (event.target == this){ settingsModal.close(); }" hidden>
     <div class="modal-content">
       <span class="close" onclick="settingsModal.close();" title="Close">
@@ -214,7 +203,7 @@ DEALINGS IN THE SOFTWARE.
     </div>
   </div>
 
-  <div id="to-top" onclick="scrollToTop()"{%- if READTHEDOCS %} class="is-rtd"{%- endif %} hidden>
+  <div id="to-top" onclick="window.scrollTo(0, 0)">
     <span><span class="material-icons">arrow_upward</span> to top</span>
   </div>
 
