@@ -26,8 +26,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
+from . import utils
 from .abc import SteamID
 from .channel import GroupChannel
+from .enums import Type
 from .role import Role
 
 if TYPE_CHECKING:
@@ -70,50 +72,51 @@ class Group(SteamID):
         "roles",
         "default_role",
         "default_channel",
-        "channels",
+        "_channels",
         "_state",
     )
 
-    def __init__(self, state: ConnectionState, proto: GroupProto):
-        super().__init__(proto.chat_group_id, type="Chat")
+    def __init__(self, state: ConnectionState, id: int):
+        super().__init__(id, type=Type.Chat)
         self._state = state
-        self._from_proto(proto)
 
-    async def __ainit__(self) -> None:
-        self.owner = await self._state.client.fetch_user(self.owner)
-        self.top_members = await self._state.client.fetch_users(*self.top_members)
+        self.owner: Optional[User]
+        self.top_members: list[Optional[User]]
+        self.name: Optional[str]
+        self.active_member_count: int
+        self.roles: list[Role]
+        self.default_role: Optional[Role]
+        self._channels: dict[int, GroupChannel]
+        self.default_channel: Optional[GroupChannel]
 
-    def _from_proto(self, proto: GroupProto) -> None:
-        self.owner: User = proto.accountid_owner
-        self.name: Optional[str] = proto.chat_group_name or None
+    @classmethod
+    async def _from_proto(cls, state: ConnectionState, proto: GroupProto) -> Group:
+        self = cls(state, proto.chat_group_id)
+        self.owner = await self._state._maybe_user(utils.make_id64(proto.accountid_owner))
+        self.top_members = await self._state.client.fetch_users(*proto.top_members)
+        self.name = proto.chat_group_name or None
 
         self.active_member_count = proto.active_member_count
-        self.top_members: list[User] = proto.top_members
-        self.roles: list[Role] = []
-        self.default_role: Optional[Role]
+        self.roles = [Role(self._state, self, role) for role in proto.role_actions]
 
-        for role in proto.role_actions:
-            self.roles.append(Role(self._state, self, role))
-
-        default_role = [r for r in self.roles if r.id == int(proto.default_role_id)]
-        self.default_role: Optional[Role] = default_role[0] if default_role else None
-        self.channels: list[GroupChannel] = [
-            GroupChannel(state=self._state, group=self, channel=channel) for channel in proto.chat_rooms
-        ]
-        default_channel = [c for c in self.channels if c.id == int(proto.default_chat_id)]
-        self.default_channel: Optional[GroupChannel] = default_channel[0] if default_channel else None
+        self.default_role: Optional[Role] = utils.get(self.roles, id=proto.default_role_id)
+        self._channels = {
+            channel.chat_id: GroupChannel(state=self._state, group=self, proto=channel) for channel in proto.chat_rooms
+        }
+        self.default_channel = self._channels.get(proto.default_chat_id)
 
     def __repr__(self) -> str:
-        attrs = (
-            "name",
-            "id",
-            "owner",
-        )
+        attrs = ("name", "id", "owner")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Group {' '.join(resolved)}>"
 
     def __str__(self) -> str:
         return self.name or ""
+
+    @property
+    def channels(self) -> list[GroupChannel]:
+        """A list of the group's channels."""
+        return list(self._channels.values())
 
     async def leave(self) -> None:
         """Leaves the group."""

@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from bs4 import BeautifulSoup
 
 from . import utils
-from .abc import SteamID, UserDict
+from .abc import BaseUser, Commentable, SteamID, UserDict
 from .channel import ClanChannel, DMChannel, GroupChannel
 from .clan import Clan
 from .enums import ChatEntryType, FriendRelationship, PersonaState, Result, TradeOfferState, Type, UIMode
@@ -163,7 +163,7 @@ class ConnectionState(Registerable):
 
     async def fetch_user(self, user_id64: int) -> Optional[User]:
         data = await self.http.get_user(user_id64)
-        return User(state=self, data=data) if data else None
+        return self._store_user(data) if data else None
         # return (await self.fetch_users([user_id64]))[0]
 
     async def fetch_users(self, user_id64s: list[int]) -> list[Optional[User]]:
@@ -177,7 +177,10 @@ class ConnectionState(Registerable):
         await self.ws.send_as_proto(msg)
         """
 
-        return [User(state=self, data=data) for data in resp]
+        return [self._store_user(data) for data in resp]
+
+    async def _maybe_user(self, id64: int) -> SteamID:
+        return self.get_user(id64) or await self.fetch_user(id64) or SteamID(id64)
 
     def _store_user(self, data: UserDict) -> User:
         try:
@@ -185,6 +188,8 @@ class ConnectionState(Registerable):
         except KeyError:
             user = User(state=self, data=data)
             self._users[user.id64] = user
+        else:
+            user._update(data)
         return user
 
     def get_confirmation(self, id: int) -> Optional[Confirmation]:
@@ -412,13 +417,13 @@ class ConnectionState(Registerable):
             message_no_bbcode=msg.body.message_without_bb_code,
             timestamp=int(time()),
         )
-        destination = self._combined.get(group_id)
-        if isinstance(destination, Clan):
-            channel = ClanChannel(state=self, channel=proto, clan=destination)
-            message = ClanMessage(proto=proto, channel=channel, author=self.client.user)
-        else:
-            channel = GroupChannel(state=self, channel=proto, group=destination)
-            message = GroupMessage(proto=proto, channel=channel, author=self.client.user)
+        group = self._combined[group_id]
+        channel = group._channels[chat_id]
+        channel._update(proto)
+
+        message = (ClanMessage if isinstance(group, Clan) else GroupMessage)(
+            proto=proto, channel=channel, author=self.client.user
+        )
         self._messages.append(message)
         self.dispatch("message", message)
 
@@ -565,6 +570,7 @@ class ConnectionState(Registerable):
                 "ChatRoomClient.NotifyIncomingChatMessage": self.handle_group_message,
                 "ChatRoomClient.NotifyChatRoomHeaderStateChange": self.handle_group_update,
                 "ChatRoomClient.NotifyChatGroupUserStateChanged": self.handle_group_user_action,
+                "ChatRoomClient.NotifyChatRoomGroupRoomsChange": self.handle_group_channel_update,
             }[msg.header.body.job_name_target](msg)
         except KeyError:
             pass
@@ -572,8 +578,7 @@ class ConnectionState(Registerable):
     async def handle_user_message(
         self, msg: MsgProto[friend_messages.CFriendMessagesIncomingMessageNotification]
     ) -> None:
-        user_id64 = msg.body.steamid_friend
-        partner = self.get_user(user_id64) or await self.fetch_user(user_id64) or SteamID(user_id64)
+        partner = await self._maybe_user(msg.body.steamid_friend)
         author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
 
         if msg.body.chat_entry_type == ChatEntryType.Text:
@@ -591,16 +596,13 @@ class ConnectionState(Registerable):
         destination = self._combined.get(msg.body.chat_group_id)
         if destination is None:
             return
-        if isinstance(destination, Clan):
-            channel = ClanChannel(state=self, channel=msg.body, clan=destination)
-            user_id64 = msg.body.steamid_sender
-            author = self.get_user(user_id64) or await self.fetch_user(user_id64)
-            message = ClanMessage(proto=msg.body, channel=channel, author=author)
-        else:
-            channel = GroupChannel(state=self, channel=msg.body, group=destination)
-            user_id64 = msg.body.steamid_sender
-            author = self.get_user(user_id64) or await self.fetch_user(user_id64)
-            message = GroupMessage(proto=msg.body, channel=channel, author=author)
+
+        channel = destination._channels[msg.body.chat_id]
+        channel._update(msg.body)
+        author = await self._maybe_user(msg.body.steamid_sender)
+        message = (ClanMessage if isinstance(destination, Clan) else GroupMessage)(
+            proto=msg.body, channel=channel, author=author
+        )
         self._messages.append(message)
         self.dispatch("message", message)
 
@@ -609,11 +611,7 @@ class ConnectionState(Registerable):
         if destination is None:
             return
 
-        if isinstance(destination, Clan):
-            await destination._from_proto(self, msg.body.header_state)
-        else:
-            destination._from_proto(msg.body.header_state)
-            await destination.__ainit__()
+        await destination._from_proto(self, msg.body.header_state)
 
     async def handle_group_user_action(
         self, msg: MsgProto[chat.ChatRoomClientNotifyChatGroupUserStateChangedNotification]
@@ -638,6 +636,14 @@ class ConnectionState(Registerable):
             else:
                 self.dispatch("group_leave", left)
 
+    async def handle_group_channel_update(self, msg: MsgProto[chat.CChatRoomChatRoomGroupRoomsChangeNotification]):
+        group = self._combined.get(msg.body.chat_group_id)
+        if group is None:
+            return
+
+        group._update(msg.body)
+        # self.dispatch(f"{group.__class__.__name__.lower()}_update", group)  TODO this needs an event
+
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto) -> None:
         if msg.header.body.job_name_target == "ChatRoom.GetMyChatRoomGroups":
@@ -647,8 +653,7 @@ class ConnectionState(Registerable):
                     clan = await Clan._from_proto(self, group)
                     self._clans[clan.id] = clan
                 else:  # else it's a group
-                    group = Group(state=self, proto=group.group_summary)
-                    await group.__ainit__()
+                    group = await Group._from_proto(self, group.group_summary)
                     self._groups[group.id] = group
 
             if not self.handled_groups:
@@ -679,7 +684,7 @@ class ConnectionState(Registerable):
             try:
                 data = self.patch_user_from_ws(data, friend)
             except (KeyError, TypeError):
-                invitee = await self.fetch_user(user_id64) or SteamID(user_id64)
+                invitee = await self._maybe_user(user_id64)
                 invite = UserInvite(self, invitee, FriendRelationship.RequestRecipient)
                 self.dispatch("user_invite", invite)
 
@@ -728,14 +733,14 @@ class ConnectionState(Registerable):
             self.handled_friends.set()
 
         for friend in msg.body.friends:
+            relationship = FriendRelationship(friend.efriendrelationship)
             if friend.efriendrelationship in (
                 FriendRelationship.RequestInitiator,
                 FriendRelationship.RequestRecipient,
             ):
                 steam_id = SteamID(friend.ulfriendid)
-                relationship = FriendRelationship(friend.efriendrelationship)
                 if steam_id.type == Type.Individual:
-                    invitee = await self.fetch_user(steam_id.id64) or steam_id
+                    invitee = await self._maybe_user(steam_id)
                     invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
                     self.invites[invitee.id64] = invite
                     self.dispatch("user_invite", invite)
@@ -750,11 +755,7 @@ class ConnectionState(Registerable):
                             invitee_id = elements[idx + 1]["data-miniprofile"]
                             break
                     invitee_steam_id = SteamID(invitee_id)
-                    invitee = (
-                        self.get_user(invitee_steam_id.id64)
-                        or await self.fetch_user(invitee_steam_id.id64)
-                        or invitee_steam_id
-                    )
+                    invitee = await self._maybe_user(invitee_id)
                     try:
                         clan = await asyncio.wait_for(self.fetch_clan(steam_id.id64), timeout=2)
                     except asyncio.TimeoutError:
@@ -764,7 +765,7 @@ class ConnectionState(Registerable):
                     self.invites[clan.id64] = invite
                     self.dispatch("clan_invite", invite)
 
-            if friend.efriendrelationship == FriendRelationship.Friend:
+            if relationship == FriendRelationship.Friend:
                 steam_id = SteamID(friend.ulfriendid)
                 try:
                     invite = self.invites.pop(steam_id.id64)

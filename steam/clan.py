@@ -41,6 +41,7 @@ from .enums import ClanEvent, Type
 from .errors import HTTPException
 from .game import Game
 from .protobufs.steammessages_chat import (
+    CChatRoomChatRoomGroupRoomsChangeNotification as UpdatedClan,
     CChatRoomSummaryPair as ReceivedResponse,
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
 )
@@ -246,7 +247,7 @@ class Clan(Commentable, comment_path="Clan"):
         self.active_member_count = proto.active_member_count
         self.game = Game(id=proto.appid) if proto.appid else None  # StatefulGame(self._state, id=proto.appid)
 
-        self.owner = await self._state.fetch_user(utils.make_id64(proto.accountid_owner))
+        self.owner = await self._state._maybe_user(utils.make_id64(proto.accountid_owner))
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
 
         self.roles = [Role(self._state, self, role) for role in proto.role_actions]
