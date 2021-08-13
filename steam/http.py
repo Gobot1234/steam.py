@@ -30,8 +30,8 @@ import logging
 import re
 import warnings
 from base64 import b64encode
-from collections.abc import Callable, Coroutine
-from functools import partialmethod
+from collections import defaultdict
+from collections.abc import Coroutine
 from sys import version_info
 from time import time
 from typing import TYPE_CHECKING, Any, Optional, TypeVar
@@ -54,7 +54,8 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 log = logging.getLogger(__name__)
 StrOrURL = aiohttp.client.StrOrURL
-RequestType: TypeAlias = "Coroutine[None, None, Optional[T]]"
+RequestType: TypeAlias = "Coroutine[None, None, T]"
+BACKPACK_LOCKS: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
 async def json_or_text(r: aiohttp.ClientResponse) -> Optional[Any]:
@@ -379,11 +380,15 @@ class HTTPClient:
         }
         return self.get(api_route("IPlayerService/GetOwnedGames"), params=params)
 
-    def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> RequestType:
+    async def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> InventoryDict:
         params = {
             "count": 5000,
         }
-        return self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
+        try:
+            async with BACKPACK_LOCKS[user_id64]:  # the endpoint requires a global per user lock
+                return await self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
+        finally:
+            del BACKPACK_LOCKS[user_id64]
 
     def get_user_escrow(self, user_id64: int, token: Optional[str]) -> RequestType:
         params = {
