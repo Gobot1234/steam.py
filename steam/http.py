@@ -261,7 +261,7 @@ class HTTPClient:
         self.user = None
         self._client.dispatch("logout")
 
-    async def _get_rsa_params(self, current_repetitions: int = 0) -> tuple[bytes, int]:
+    async def _get_rsa_params(self) -> tuple[bytes, int]:
         payload = {"username": self.username, "donotcache": int(time() * 1000)}
         try:
             key_response = await self.post(URL.COMMUNITY / "login/getrsakey", data=payload)
@@ -272,8 +272,6 @@ class HTTPClient:
             e = int(key_response["publickey_exp"], 16)
             rsa_timestamp = key_response["timestamp"]
         except KeyError:
-            if current_repetitions < 5:
-                return await self._get_rsa_params(current_repetitions + 1)
             raise errors.LoginError("Could not obtain rsa-key") from None
         else:
             return b64encode(rsa.encrypt(self.password.encode("utf-8"), rsa.PublicKey(n, e))), rsa_timestamp
