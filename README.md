@@ -11,7 +11,7 @@ A modern, easy to use, and async ready package to interact with the Steam API. H
 [![GitHub issues](https://img.shields.io/github/issues-raw/Gobot1234/steam.py)](https://github.com/Gobot1234/steam.py/issues)
 [![GitHub stars](https://img.shields.io/github/stars/Gobot1234/steam.py)](https://github.com/Gobot1234/steam.py/stargazers)
 [![Discord](https://img.shields.io/discord/678629505094647819?color=7289da&label=Discord&logo=discord)](https://discord.gg/MQ68WUS)
-[![Documentation Status](https://readthedocs.org/projects/steampy/badge/?version=latest)](https://steampy.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://github.com/Gobot1234/steam.py/actions/workflows/docs.yml/badge.svg)](https://github.com/Gobot1234/steam.py/actions/workflows/docs.yml)
 
 
 ## Key Features
@@ -87,5 +87,5 @@ bot.run("username", "password")
 
 ## Links
 
-- [Documentation](https://steampy.rtfd.io/en/latest/index.html)
+- [Documentation](https://steampy.github.io/docs)
 - [Official Discord Server](https://discord.gg/MQ68WUS)
