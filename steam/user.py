@@ -275,7 +275,7 @@ class ClientUser(BaseUser):
             return
 
         params = {"welcomed": 1}
-        await self._state.http.get(URL.COMMUNITY / "me/edit", params=params)
+        await self._state.http.get(URL.COMMUNITY / "my/edit", params=params)
 
     async def clear_nicks(self) -> None:
         """Clears the client user's nickname/alias history."""
