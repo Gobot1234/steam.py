@@ -104,6 +104,7 @@ class Group(SteamID):
             channel.chat_id: GroupChannel(state=self._state, group=self, proto=channel) for channel in proto.chat_rooms
         }
         self.default_channel = self._channels.get(proto.default_chat_id)
+        return self
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "owner")
