@@ -25,16 +25,15 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import logging
 import re
 import sys
 import traceback
 from collections.abc import Callable, Coroutine
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from typing_extensions import Final, Literal, TypeAlias
+from typing_extensions import Final, Literal, TypeAlias, TypedDict
 from yarl import URL as _URL
 
 from . import utils
@@ -78,7 +77,7 @@ class _ReturnTrue:
 
 return_true = _ReturnTrue()
 
-EventParser: TypeAlias = "Callable[[MsgProto], Optional[Coroutine[Any, Any, None]]]"
+EventParser: TypeAlias = "Callable[[MsgProto], Coroutine[Any, Any, None] | None]"
 
 
 class Registerable:
@@ -89,9 +88,9 @@ class Registerable:
         self.loop = asyncio.get_event_loop()
         cls.parsers_name = tuple(cls.__annotations__)[0]
         bases = tuple(reversed(cls.__mro__[:-2]))  # skip Registerable and object
-        for idx, cls in enumerate(bases):
-            parsers_name = tuple(cls.__annotations__)[0]
-            for name, attr in cls.__dict__.items():
+        for idx, base in enumerate(bases):
+            parsers_name = tuple(base.__annotations__)[0]
+            for name, attr in base.__dict__.items():
                 if not hasattr(attr, "msg"):
                     continue
                 try:
@@ -140,7 +139,14 @@ def register(msg: IntEnum) -> Callable[[E], E]:
     return wrapper
 
 
-PRICE_REGEX = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")
+PRICE_RE = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")
+
+
+class PriceOverviewDict(TypedDict):
+    success: bool
+    lowest_price: str
+    median_price: str
+    volume: str
 
 
 class PriceOverview:
@@ -160,19 +166,22 @@ class PriceOverview:
 
     __slots__ = ("currency", "volume", "lowest_price", "median_price")
 
-    def __init__(self, data: dict):
-        lowest_price = PRICE_REGEX.search(data["lowest_price"])["price"]
-        median_price = PRICE_REGEX.search(data["median_price"])["price"]
+    lowest_price: float | str
+    median_price: float | str
+
+    def __init__(self, data: PriceOverviewDict):
+        lowest_price = PRICE_RE.search(data["lowest_price"])["price"]
+        median_price = PRICE_RE.search(data["median_price"])["price"]
 
         try:
-            self.lowest_price: float = float(lowest_price.replace(",", "."))
-            self.median_price: float = float(median_price.replace(",", "."))
-        except (ValueError, TypeError):
-            self.lowest_price: str = lowest_price
-            self.median_price: str = median_price
+            self.lowest_price = float(lowest_price.replace(",", "."))
+            self.median_price = float(median_price.replace(",", "."))
+        except ValueError:
+            self.lowest_price = lowest_price
+            self.median_price = median_price
 
         self.volume: int = int(data["volume"].replace(",", ""))
-        self.currency: str = data["lowest_price"].replace(str(self.lowest_price).replace(",", "."), "")
+        self.currency: str = data["lowest_price"].replace(lowest_price, "").strip()
 
     def __repr__(self) -> str:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]
@@ -187,7 +196,7 @@ class Ban:
     since_last_ban
         How many days since the user was last banned
     number_of_game_bans
-        The number of game bans the User has.
+        The number of game bans the user has.
     """
 
     __slots__ = (
@@ -198,16 +207,16 @@ class Ban:
         "_market_banned",
     )
 
-    def __init__(self, data: dict):
-        self._vac_banned = data["VACBanned"]
-        self._community_banned = data["CommunityBanned"]
-        self._market_banned = data["EconomyBan"]
+    def __init__(self, data: dict[str, Any]):
+        self._vac_banned: bool = data["VACBanned"]
+        self._community_banned: bool = data["CommunityBanned"]
+        self._market_banned: bool = data["EconomyBan"]
         self.since_last_ban = timedelta(days=data["DaysSinceLastBan"])
         self.number_of_game_bans: int = data["NumberOfGameBans"]
 
     def __repr__(self) -> str:
         attrs = [
-            ("is_banned()", self.is_banned()),
+            ("number_of_game_bans", self.number_of_game_bans),
             ("is_vac_banned()", self.is_vac_banned()),
             ("is_community_banned()", self.is_community_banned()),
             ("is_market_banned()", self.is_market_banned()),
@@ -220,7 +229,7 @@ class Ban:
         return any((self.is_vac_banned(), self.is_community_banned(), self.is_market_banned()))
 
     def is_vac_banned(self) -> bool:
-        """Whether or not  the user is VAC banned."""
+        """Whether or not the user is VAC banned."""
         return self._vac_banned
 
     def is_community_banned(self) -> bool:
