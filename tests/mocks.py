@@ -56,7 +56,7 @@ class MockGroupChannel(steam.GroupChannel, DataclassesMock):
             chat_id=0,
             chat_name="a group channel",
         )
-        super().__init__(bot._connection, group=group, channel=proto)
+        super().__init__(bot._connection, group=group, proto=proto)
 
 
 class MockMessage(steam.Message, DataclassesMock):
