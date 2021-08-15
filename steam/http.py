@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import aiohttp
 import rsa
 from typing_extensions import TypeAlias
+from yarl import URL as _URL
 
 from . import errors, utils
 from .__metadata__ import __version__
@@ -209,8 +210,8 @@ class HTTPClient:
                     "Cannot perform redirects after login. Steam is likely down, please try again later."
                 )
 
-            self._session.cookie_jar.update_cookies(self._session.cookie_jar.filter_cookies(URL.COMMUNITY), URL.STORE)
-            self._session.cookie_jar.update_cookies(self._session.cookie_jar.filter_cookies(URL.COMMUNITY), URL.HELP)
+            for url in resp["transfer_urls"]:
+                self._session.cookie_jar.update_cookies(self._session.cookie_jar.filter_cookies(URL.COMMUNITY), _URL(url).origin())
 
             self.api_key = await self.get_api_key()
             if self.api_key is None:
