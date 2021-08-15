@@ -63,6 +63,7 @@ class URL:
     API: Final[_URL] = _URL("https://api.steampowered.com")
     COMMUNITY: Final[_URL] = _URL("https://steamcommunity.com")
     STORE: Final[_URL] = _URL("https://store.steampowered.com")
+    HELP: Final[_URL] = _URL("https://help.steampowered.com")
 
 
 class _ReturnTrue:
