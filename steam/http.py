@@ -209,8 +209,8 @@ class HTTPClient:
                     "Cannot perform redirects after login. Steam is likely down, please try again later."
                 )
 
-            for url in resp["transfer_urls"]:
-                await self.post(url=url, data=data)
+            self._session.cookie_jar.update_cookies(self._session.cookie_jar.filter_cookies(URL.COMMUNITY), URL.STORE)
+            self._session.cookie_jar.update_cookies(self._session.cookie_jar.filter_cookies(URL.COMMUNITY), URL.HELP)
 
             self.api_key = await self.get_api_key()
             if self.api_key is None:
