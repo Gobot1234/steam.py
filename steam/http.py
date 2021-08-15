@@ -211,7 +211,9 @@ class HTTPClient:
                 )
 
             for url in resp["transfer_urls"]:
-                self._session.cookie_jar.update_cookies(self._session.cookie_jar.filter_cookies(URL.COMMUNITY), _URL(url).origin())
+                self._session.cookie_jar.update_cookies(
+                    self._session.cookie_jar.filter_cookies(URL.COMMUNITY), _URL(url).origin()
+                )
 
             self.api_key = await self.get_api_key()
             if self.api_key is None:
