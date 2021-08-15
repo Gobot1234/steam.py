@@ -479,7 +479,7 @@ class HTTPClient:
         params = {"cellid": cell_id}
         return self.get(api_route("ISteamDirectory/GetCMList"), params=params)
 
-    def get_comments(self, id64: int, comment_path: str, limit: Optional[int] = None) -> RequestType:
+    def get_comments(self, id64: int, comment_path: str, limit: int | None = None) -> RequestType:
         params = {
             "start": 0,
             "totalcount": 9999999999,
