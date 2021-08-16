@@ -71,7 +71,7 @@ class Clan(Commentable, SteamID):
     name
         The name of the clan.
     chat_id
-        The clan's chat_id.
+        The clan's chat id, this is different to :attr:`id`.
     icon_url
         The icon url of the clan. Uses the large (184x184 px) image url.
     description
@@ -132,6 +132,7 @@ class Clan(Commentable, SteamID):
         "default_channel",
         "game",
         "_channels",
+        "_state",
     )
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js

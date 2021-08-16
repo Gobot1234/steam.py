@@ -1,5 +1,10 @@
+from collections.abc import Mapping
+
+import betterproto
+
 from . import (
     steammessages_chat,
+    steammessages_comments,
     steammessages_econ,
     steammessages_friendmessages,
     steammessages_gameservers,
@@ -157,4 +162,12 @@ UMS: Mapping[str, betterproto.Message] = {
     "UserAccount.RedeemFriendInviteToken#1_Request": steammessages_useraccount.CUserAccountRedeemFriendInviteTokenRequest,
     "UserAccount.RedeemFriendInviteToken#1_Response": steammessages_useraccount.CUserAccountRedeemFriendInviteTokenResponse,
     "UserAccount.RevokeFriendInviteToken#1_Request": steammessages_useraccount.CUserAccountRevokeFriendInviteTokenRequest,
+    "Community.GetCommentThread#1_Request": steammessages_comments.CommentThreadRequest,
+    "Community.GetCommentThread#1_Response": steammessages_comments.CommentThreadResponse,
+    "Community.PostCommentToThread#1_Request": steammessages_comments.PostCommentToThreadRequest,
+    "Community.PostCommentToThread#1_Response": steammessages_comments.PostCommentToThreadResponse,
+    "Community.DeleteCommentFromThread#1_Request": steammessages_comments.DeleteCommentFromThreadRequest,
+    "Community.DeleteCommentFromThread#1_Response": steammessages_comments.DeleteCommentFromThreadResponse,
+    "Community.RateCommentThread#1_Request": steammessages_comments.RateCommentThreadRequest,
+    "Community.RateCommentThread#1_Response": steammessages_comments.RateCommentThreadResponse,
 }

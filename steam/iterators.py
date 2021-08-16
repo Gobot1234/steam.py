@@ -29,8 +29,8 @@ import math
 import re
 from collections import deque
 from collections.abc import Callable, Coroutine
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from bs4 import BeautifulSoup
 from typing_extensions import TypeAlias
@@ -56,7 +56,7 @@ MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
 UNIX_EPOCH = datetime.utcfromtimestamp(0)
 
 
-class AsyncIterator(Generic[T]):
+class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
     """A class from which async iterators (see :pep:`525`) can ben easily derived.
 
     .. container:: operations
@@ -288,35 +288,21 @@ class CommentsIterator(AsyncIterator[Comment]):
         self.owner = owner
 
     async def fill(self) -> None:
-        data = await self._state.http.get_comments(
-            id64=self.owner.id64, comment_path=self.owner.comment_path, limit=self.limit
-        )
-        soup = BeautifulSoup(data["comments_html"], "html.parser")
-        to_fetch = []
-
-        after_timestamp = self.after.timestamp()
-        before_timestamp = self.before.timestamp()
-
-        for comment in soup.find_all("div", attrs={"class": "commentthread_comment responsive_body_text"}):
-            timestamp = int(comment.find("span", attrs={"class": "commentthread_comment_timestamp"})["data-timestamp"])
-            if after_timestamp < timestamp < before_timestamp:
-                author_id = int(comment.find("a", attrs={"class": "commentthread_author_link"})["data-miniprofile"])
-                comment_id = int(re.findall(r"comment_([0-9]*)", str(comment))[0])
-                content = comment.find("div", attrs={"class": "commentthread_comment_text"}).get_text().strip()
-                to_fetch.append(utils.make_id64(author_id))
-                comment = Comment(
-                    state=self._state,
-                    id=comment_id,
-                    timestamp=datetime.utcfromtimestamp(timestamp),
-                    content=content,
-                    author=author_id,
-                    owner=self.owner,
-                )
-                if not self.append(comment):
-                    return
-        users = await self._state.fetch_users(to_fetch)
+        comments = await self._state.fetch_comments(self.owner, self.before, self.after, self.limit)
+        for comment in comments:
+            comment = Comment(
+                self._state,
+                id=comment.id,
+                content=comment.content,
+                created_at=datetime.utcfromtimestamp(comment.timestamp),
+                author=SteamID(comment.author_id64),
+                owner=self.owner,
+            )
+            if not self.append(comment):
+                break
+        users = await self._state.fetch_users([comment.author_id64 for comment in comments])
         for user, comment in itertools.product(users, self.queue):
-            if comment.author == user.id:
+            if comment.author == user.id64:
                 comment.author = user
 
 

@@ -301,19 +301,18 @@ class SteamID(metaclass=abc.ABCMeta):
         return SteamID(id64) if id64 else None
 
 
-class Commentable(SteamID):
+class Commentable(Protocol):
     """A mixin that implements commenting functionality"""
 
-    __slots__ = (
-        "comment_path",
-        "_state",
-        "__weakref__",
-    )
+    __slots__ = ()
 
-    comment_path: Final[str]  # noqa  # type: ignore
+    if TYPE_CHECKING:
+        _state: ConnectionState
 
-    def __init_subclass__(cls, comment_path: str = "Profile") -> None:
-        cls.comment_path: Final[str] = comment_path  # noqa  # type: ignore
+    @property
+    @abc.abstractmethod
+    def _comment_kwargs(self) -> dict[str, Any]:
+        raise NotImplementedError
 
     def copy(self: C) -> C:
         cls = self.__class__
@@ -334,14 +333,7 @@ class Commentable(SteamID):
         -------
         The created comment.
         """
-        resp = await self._state.http.post_comment(self.id64, self.comment_path, content)
-        id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
-        timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
-        comment = Comment(
-            self._state, id=id, content=content, created_at=timestamp, author=self._state.client.user, owner=self
-        )
-        self._state.dispatch("comment", comment)
-        return comment
+        return await self._state.post_comment(self, content)
 
     def comments(
         self, limit: int | None = None, before: datetime | None = None, after: datetime | None = None
@@ -384,7 +376,7 @@ class Commentable(SteamID):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-class BaseUser(Commentable):
+class BaseUser(Commentable, SteamID):
     """An ABC that details the common operations on a Steam user.
     The following classes implement this ABC:
 
@@ -446,6 +438,7 @@ class BaseUser(Commentable):
         "_is_commentable",
         "_setup_profile",
         "_level",
+        "_state",
     )
 
     def __init__(self, state: ConnectionState, data: UserDict):
@@ -496,6 +489,16 @@ class BaseUser(Commentable):
 
     def __str__(self) -> str:
         return self.name
+
+    def __del__(self):
+        self._state._users.pop(self.id64, None)
+
+    @property
+    def _commentable_kwargs(self) -> dict[str, Any]:
+        return {
+            "id64": self.id64,
+            "comment_thread_type": 10,  # I'm not sure where these are from
+        }
 
     @property
     def mention(self) -> str:

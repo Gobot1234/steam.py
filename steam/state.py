@@ -39,6 +39,7 @@ from . import utils
 from .abc import BaseUser, Commentable, SteamID, UserDict
 from .channel import DMChannel
 from .clan import Clan
+from .comment import Comment
 from .enums import ChatEntryType, FriendRelationship, PersonaState, Result, TradeOfferState, Type, UIMode
 from .errors import *
 from .game import GameToDict
@@ -71,6 +72,7 @@ if TYPE_CHECKING:
         steammessages_clientserver_2 as client_server_2,
         steammessages_clientserver_friends as client_server_friends,
         steammessages_clientserver_login as client_server_login,
+        steammessages_comments as comments,
     )
 
 log = logging.getLogger(__name__)
@@ -780,13 +782,56 @@ class ConnectionState(Registerable):
                 except KeyError:
                     pass
                 else:
-                    if steam_id.type == Type.Individual:
-                        self.dispatch("user_invite_accept", invite)
-                    else:
-                        self.dispatch("clan_invite_accept", invite)
+                    self.dispatch(
+                        "user_invite_accept" if steam_id.type == Type.Individual else "clan_invite_accept", invite
+                    )
+
+    async def fetch_comments(
+        self, owner: Commentable, before: datetime, after: datetime, limit: int | None
+    ) -> list[comments.CommentThreadResponse.Comment]:
+        msg: MsgProto[comments.CommentThreadResponse] = await self.ws.send_um_and_wait(
+            "Community.GetCommentThread",
+            **owner._comment_kwargs,
+            time_oldest=int(before.timestamp()),
+            start=int(after.timestamp()),
+            count=-1 if limit is None else limit,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.comments
+
+    async def post_comment(self, owner: Commentable, content: str) -> Comment:
+        msg: MsgProto[comments.PostCommentToThreadResponse] = await self.ws.send_um_and_wait(
+            "Community.PostCommentToThread",
+            **owner._comment_kwargs,
+            content=content,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        comment = Comment(
+            self,
+            id=msg.body.id,
+            content=content,
+            created_at=datetime.utcnow(),
+            author=self.client.user,
+            owner=owner,
+        )
+        self.dispatch("comment", comment)
+        return comment
+
+    async def delete_comment(self, owner: Commentable, comment_id: int) -> None:
+        msg: MsgProto[comments.DeleteCommentFromThreadResponse] = await self.ws.send_um_and_wait(
+            "Community.DeleteCommentFromThread",
+            **owner._comment_kwargs,
+            id=comment_id,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
 
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, _: MsgProto[client_server_2.CMsgClientCommentNotifications]) -> None:
+        # TODO this needs rewriting
         resp = await self.http.get(URL.COMMUNITY / "my/commentnotifications")
         soup = BeautifulSoup(resp, "html.parser")
 

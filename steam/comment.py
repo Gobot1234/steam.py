@@ -70,7 +70,7 @@ class Comment:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Comment {' '.join(resolved)}>"
 
-    async def report(self) -> None:
+    async def report(self) -> None:  # TODO does this need removing?
         """Reports the comment."""
         await self._state.http.report_comment(
             id64=self.owner.id64,
@@ -80,8 +80,7 @@ class Comment:
 
     async def delete(self) -> None:
         """Deletes the comment."""
-        await self._state.http.delete_comment(
-            id64=self.owner.id64,
-            comment_id=self.id,
-            comment_type=self.owner.comment_path,
-        )
+        await self._state.delete_comment(self.owner, self.id)
+
+    async def upvote(self) -> None:
+        ...

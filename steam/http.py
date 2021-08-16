@@ -483,29 +483,6 @@ class HTTPClient:
         params = {"cellid": cell_id}
         return self.get(api_route("ISteamDirectory/GetCMList"), params=params)
 
-    def get_comments(self, id64: int, comment_path: str, limit: int | None = None) -> RequestType:
-        params = {
-            "start": 0,
-            "totalcount": 9999999999,
-            "count": 9999999999 if limit is None else limit,
-        }
-
-        return self.get(URL.COMMUNITY / f"comment/{comment_path}/render/{id64}", params=params)
-
-    def post_comment(self, id64: int, comment_type: str, content: str) -> RequestType:
-        payload = {
-            "sessionid": self.session_id,
-            "comment": content,
-        }
-        return self.post(URL.COMMUNITY / f"comment/{comment_type}/post/{id64}", data=payload)
-
-    def delete_comment(self, id64: int, comment_id: int, comment_type: str) -> RequestType[None]:
-        payload = {
-            "sessionid": self.session_id,
-            "gidcomment": comment_id,
-        }
-        return self.post(URL.COMMUNITY / f"comment/{comment_type}/delete/{id64}", data=payload)
-
     def report_comment(self, id64: int, comment_id: int, comment_type: str) -> RequestType[None]:
         payload = {"gidcomment": comment_id, "hide": 1}
         return self.post(URL.COMMUNITY / f"comment/{comment_type}/hideandreport/{id64}", data=payload)
