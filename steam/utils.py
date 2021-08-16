@@ -37,7 +37,7 @@ import struct
 import sys
 import typing
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
-from inspect import getmembers, isawaitable
+from inspect import getmembers, isawaitable, iscoroutinefunction
 from io import BytesIO
 from operator import attrgetter
 from types import MemberDescriptorType
@@ -484,14 +484,16 @@ def update_class(
     return new_instance
 
 
-def call_once(func: Callable[_P, None]) -> Callable[_P, None]:
+def call_once(func: Callable[_P, _T]) -> Callable[_P, _T]:
     called = False
+    is_coro_func = iscoroutinefunction(func)
 
     @functools.wraps(func)
-    def inner(*args: _P.args, **kwargs: _P.kwargs) -> None:
+    def inner(*args: _P.args, **kwargs: _P.kwargs) -> _T:
         nonlocal called
-        if called:
-            return
+
+        if called:  # call becomes a noop
+            return asyncio.sleep(0) if is_coro_func else None  # type: ignore
 
         called = True
         try:
