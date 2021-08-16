@@ -36,8 +36,9 @@ from .errors import ClientException, ConfirmationError
 from .game import Game
 
 if TYPE_CHECKING:
+    from .abc import BaseUser, SteamID
     from .state import ConnectionState
-    from .user import BaseUser, User
+    from .user import User
 
 
 __all__ = (
@@ -446,6 +447,13 @@ class TradeOffer:
         trade._update(data)
         trade.partner = int(data["accountid_other"])
         return trade
+
+    def _update_from_send(self, state: ConnectionState, data: dict[str, Any], partner: User) -> None:
+        self.id = int(data["tradeofferid"])
+        self._state = state
+        self.partner = partner
+        self.state = TradeOfferState.Active
+        self.created_at = datetime.utcnow()
 
     def __repr__(self) -> str:
         attrs = ("id", "state", "partner")

@@ -186,8 +186,7 @@ class User(BaseUser, Messageable):
                         break
                     except ClientException:
                         await asyncio.sleep(tries * 2)
-            trade.id = int(resp["tradeofferid"])
-            trade._state = self._state
+            trade._update_from_send(self._state, resp, self)
 
         return message
 
