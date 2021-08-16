@@ -51,7 +51,7 @@ from .enums import (
     Universe,
 )
 from .errors import WSException
-from .game import Game, UserGame, WishlistGame
+from .game import Game, StatefulGame, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
 from .models import URL, Ban
 from .trade import Inventory
@@ -475,7 +475,9 @@ class BaseUser(Commentable, SteamID):
         self.last_seen_online = (
             datetime.utcfromtimestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
         )
-        self.game = Game(title=data.get("gameextrainfo"), id=data["gameid"]) if "gameid" in data else self.game
+        self.game = (
+            StatefulGame(self._state, name=data["gameextrainfo"], id=data["gameid"]) if "gameid" in data else self.game
+        )
         self.state = PersonaState(data.get("personastate", 0)) or self.state
         self.flags = PersonaStateFlag.components(data.get("personastateflags", 0)) or self.flags
         self.privacy_state = CommunityVisibilityState(data.get("communityvisibilitystate", 0))
@@ -530,7 +532,7 @@ class BaseUser(Commentable, SteamID):
         r"""Fetches the :class:`~steam.Game`\s the user owns."""
         data = await self._state.http.get_user_games(self.id64)
         games = data["response"].get("games", [])
-        return [UserGame(game) for game in games]
+        return [UserGame(self._state, game) for game in games]
 
     async def clans(self) -> list[Clan]:
         r"""Fetches a list of :class:`~steam.Clan`\s the user is in."""
@@ -542,7 +544,8 @@ class BaseUser(Commentable, SteamID):
             except WSException as exc:
                 if exc.code == Result.RateLimitExceeded:
                     await asyncio.sleep(20)
-                    await getter(gid)
+                    return await getter(gid)
+                raise
             else:
                 clans.append(clan)
 
@@ -573,7 +576,7 @@ class BaseUser(Commentable, SteamID):
     async def wishlist(self) -> list[WishlistGame]:
         r"""Get the :class:`.WishlistGame`\s the user has on their wishlist."""
         data = await self._state.http.get_wishlist(self.id64)
-        return [WishlistGame(id=id, data=game_info) for id, game_info in data.items()]
+        return [WishlistGame(self._state, id=id, data=game_info) for id, game_info in data.items()]
 
     def is_commentable(self) -> bool:
         """Specifies if the user's account is able to be commented on."""
