@@ -25,6 +25,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import re
@@ -39,6 +40,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import aiohttp
 import rsa
 from typing_extensions import TypeAlias
+from yarl import URL as _URL
 
 from . import errors, utils
 from .__metadata__ import __version__
@@ -209,8 +211,10 @@ class HTTPClient:
                     "Cannot perform redirects after login. Steam is likely down, please try again later."
                 )
 
+            jar = self._session.cookie_jar
+            cookies = jar.filter_cookies(URL.COMMUNITY)
             for url in resp["transfer_urls"]:
-                await self.post(url=url, data=data)
+                jar.update_cookies(copy.deepcopy(cookies), _URL(url).origin())
 
             self.api_key = await self.get_api_key()
             if self.api_key is None:
