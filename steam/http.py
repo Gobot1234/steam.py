@@ -81,8 +81,8 @@ class HTTPClient:
 
         self.username: str
         self.password: str
-        self.api_key: str
-        self.shared_secret: str
+        self.api_key: str | None = None
+        self.shared_secret: str | None
 
         self._one_time_code = ""
         self._email_code = ""
@@ -157,7 +157,9 @@ class HTTPClient:
                     # api key either got revoked or it was never valid
                     if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
                         # time to fetch a new key
-                        self.api_key = kwargs["key"] = await self.get_api_key()
+                        key = await self.get_api_key()
+                        assert key is not None
+                        self.api_key = kwargs["key"] = key
                         # retry with our new key
 
                 # the usual error cases
