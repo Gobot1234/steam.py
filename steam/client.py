@@ -31,7 +31,9 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+import random
 import sys
+import time
 import traceback
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -79,22 +81,39 @@ class Client:
 
     Parameters
     ----------
-    game: :class:`~steam.Game`
+    proxy
+        A proxy URL to use for requests.
+    proxy_auth
+        The proxy authentication to use with requests.
+    connector
+        The connector to use with the :class:`ClientSession`.
+    max_messages
+        The maximum number of messages to store in the internal cache, default is 1000.
+    game
         A games to set your status as on connect.
-    games: :class:`list`\\[:class:`~steam.Game`]
+    games
         A list of games to set your status to on connect.
-    state: :class:`~steam.PersonaState`
+    state
         The state to show your account as on connect.
 
         Note
         ----
-        Setting your status to :attr:`~steam.EPersonaState.Offline`, will stop you receiving persona state updates
+        Setting your status to :attr:`~steam.PersonaState.Offline`, will stop you receiving persona state updates
         and by extension :meth:`on_user_update` will stop being dispatched.
 
-    ui_mode: :class:`~steam.UIMode`
+    ui_mode
         The UI mode to set your status to on connect.
-    force_kick: :class:`bool`
-        Whether or not to forcefully kick any other playing sessions on connect.
+    flag
+        A flag to set your persona state to.
+    flags
+        A list of flags to set your persona state to
+
+        Note
+        ----
+        Use :meth:`~steam.PersonaStateFlags.components` to easily calculate these.
+
+    force_kick
+        Whether or not to forcefully kick any other playing sessions on connect. Defaults to ``False``.
     """
 
     @overload
