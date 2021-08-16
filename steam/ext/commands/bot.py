@@ -33,10 +33,11 @@ import inspect
 import os
 import sys
 import traceback
-from collections.abc import Callable, Coroutine, Iterable
+import warnings
+from collections.abc import Callable, Coroutine
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from typing_extensions import Literal, TypeAlias, overload
 
@@ -175,12 +176,19 @@ class Bot(GroupMixin, Client):
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
 
-        for _, command in inspect.getmembers(self, lambda attr: isinstance(attr, Command)):
-            command.cog = self
-
-            if isinstance(command, GroupMixin):
+        for member in dir(self):
+            try:
+                command = getattr(self, member)
+            except AttributeError:
                 continue
-            self.add_command(command)
+            if isinstance(command, Coroutine):
+                command.close()  # prevent RuntimeWarnings
+            elif isinstance(command, Command):
+                command.cog = self
+
+                if isinstance(command, GroupMixin):
+                    continue
+                self.add_command(command)
 
         self.help_command = help_command
 
