@@ -40,7 +40,7 @@ from .comment import Comment
 from .enums import TradeOfferState
 
 if TYPE_CHECKING:
-    from .abc import Channel, Message, SteamID
+    from .abc import Channel, Commentable, Message, SteamID
     from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage, UserMessage
     from .clan import Clan
     from .state import ConnectionState

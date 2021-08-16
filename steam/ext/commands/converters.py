@@ -28,7 +28,7 @@ import types
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
-from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Generic, NoReturn, Sequence, Tuple, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Generic, NoReturn, Sequence, TypeVar, Union, overload
 
 from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable
 

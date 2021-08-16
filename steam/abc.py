@@ -828,7 +828,7 @@ class Message:
         self.content: str = _clean_up_content(proto.message)
         self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
         self.mentions: CChatMentions | None = getattr(proto, "mentions", None)
-        self.reactions: list[Emoticon] = []
+        # self.reactions: list["Emoticon"] = []
 
     def __repr__(self) -> str:
         attrs = ("author", "channel")

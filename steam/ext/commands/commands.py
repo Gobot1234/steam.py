@@ -33,7 +33,7 @@ import functools
 import inspect
 from collections.abc import Coroutine, Iterable
 from time import time
-from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, TypeVar, get_type_hints, overload
+from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, TypeVar, Union, get_type_hints, overload
 
 from typing_extensions import Literal, ParamSpec, Protocol, TypeAlias, get_args, get_origin
 
