@@ -425,33 +425,40 @@ class Client:
 
     async def connect(self) -> None:
         """Initialize a connection to a Steam CM after logging in."""
-        last_connect = None
+        last_connect = 0
+        exceptions = (
+            OSError,
+            ConnectionClosed,
+            aiohttp.ClientError,
+            asyncio.TimeoutError,
+            errors.HTTPException,
+        )
+
+        async def throttle():
+            now = time.monotonic()
+            between = now - last_connect
+            sleep = random.random() if between > 600 else between ** 0.75
+            log.info(f"Attempting to connect to another CM in {sleep}")
+            await asyncio.sleep(sleep)
+
         while not self.is_closed():
             try:
-                resp = await self.http.get(URL.COMMUNITY / "chat/clientjstoken")
-                if not resp["logged_in"]:  # we got logged out :(
-                    await self.http.login(self.username, self.password, shared_secret=self.shared_secret)
-                    continue
-                self.token = resp["token"]
-                coro = SteamWebSocket.from_client(self, cm_list=self._cm_list)
-                self.ws: SteamWebSocket = await asyncio.wait_for(coro, timeout=60)
+                self.ws = await asyncio.wait_for(SteamWebSocket.from_client(self, cm_list=self._cm_list), timeout=60)
+            except exceptions:
+                await throttle()
+                continue
+
+            last_connect = time.monotonic()
+            try:
                 while True:
                     await self.ws.poll_event()
-            except (
-                OSError,
-                ConnectionClosed,
-                aiohttp.ClientError,
-                ConnectionResetError,
-                asyncio.TimeoutError,
-                errors.HTTPException,
-            ) as exc:
+            except exceptions as exc:
                 if isinstance(exc, ConnectionClosed):
                     self._cm_list = exc.cm_list
                 self.dispatch("disconnect")
             finally:
                 if not self.is_closed():
-                    log.info(f"Attempting to connect to another CM")
-                    await asyncio.sleep(5)
+                    await throttle()
 
     # state stuff
 
