@@ -311,7 +311,7 @@ class Commentable(Protocol):
 
     @property
     @abc.abstractmethod
-    def _comment_kwargs(self) -> dict[str, Any]:
+    def _commentable_kwargs(self) -> dict[str, Any]:
         raise NotImplementedError
 
     def copy(self: C) -> C:

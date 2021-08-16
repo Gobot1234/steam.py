@@ -791,7 +791,7 @@ class ConnectionState(Registerable):
     ) -> list[comments.CommentThreadResponse.Comment]:
         msg: MsgProto[comments.CommentThreadResponse] = await self.ws.send_um_and_wait(
             "Community.GetCommentThread",
-            **owner._comment_kwargs,
+            **owner._commentable_kwargs,
             time_oldest=int(before.timestamp()),
             start=int(after.timestamp()),
             count=-1 if limit is None else limit,
@@ -803,7 +803,7 @@ class ConnectionState(Registerable):
     async def post_comment(self, owner: Commentable, content: str) -> Comment:
         msg: MsgProto[comments.PostCommentToThreadResponse] = await self.ws.send_um_and_wait(
             "Community.PostCommentToThread",
-            **owner._comment_kwargs,
+            **owner._commentable_kwargs,
             content=content,
         )
         if msg.result != Result.OK:
@@ -823,7 +823,7 @@ class ConnectionState(Registerable):
     async def delete_comment(self, owner: Commentable, comment_id: int) -> None:
         msg: MsgProto[comments.DeleteCommentFromThreadResponse] = await self.ws.send_um_and_wait(
             "Community.DeleteCommentFromThread",
-            **owner._comment_kwargs,
+            **owner._commentable_kwargs,
             id=comment_id,
         )
         if msg.result != Result.OK:

@@ -288,7 +288,7 @@ class Clan(Commentable, SteamID):
         return self.name
 
     @property
-    def _comment_kwargs(self) -> dict[str, Any]:
+    def _commentable_kwargs(self) -> dict[str, Any]:
         return {
             "id64": self.id64,
             "comment_thread_type": 12,
