@@ -211,10 +211,10 @@ class HTTPClient:
                     "Cannot perform redirects after login. Steam is likely down, please try again later."
                 )
 
-            community_cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
-
+            jar = self._session.cookie_jar
+            cookies = jar.filter_cookies(URL.COMMUNITY)
             for url in resp["transfer_urls"]:
-                self._session.cookie_jar.update_cookies(copy.deepcopy(community_cookies), _URL(url).origin())
+                jar.update_cookies(copy.deepcopy(cookies), _URL(url).origin())
 
             self.api_key = await self.get_api_key()
             if self.api_key is None:
