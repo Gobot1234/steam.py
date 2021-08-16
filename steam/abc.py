@@ -376,7 +376,7 @@ class Commentable(Protocol):
         return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
 
 
-class BaseUser(Commentable, SteamID):
+class BaseUser(SteamID, Commentable):
     """An ABC that details the common operations on a Steam user.
     The following classes implement this ABC:
 

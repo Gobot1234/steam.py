@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 __all__ = ("Clan",)
 
 
-class Clan(Commentable, SteamID):
+class Clan(SteamID, Commentable):
     """Represents a Steam clan.
 
     .. container:: operations
