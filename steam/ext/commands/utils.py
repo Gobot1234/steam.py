@@ -33,7 +33,7 @@ _T = TypeVar("_T")
 _VT = TypeVar("_VT")
 
 
-class CaseInsensitiveDict(dict[str, _VT]):
+class CaseInsensitiveDict(Dict[str, _VT]):
     """A dictionary where keys are case insensitive."""
 
     def __init__(self, **kwargs: _VT):
