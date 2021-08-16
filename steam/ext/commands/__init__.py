@@ -5,7 +5,7 @@ ext.commands
 A basic commands framework for steam.py.
 """
 
-from . import utils
+from . import utils as utils
 from .bot import *
 from .cog import *
 from .commands import *

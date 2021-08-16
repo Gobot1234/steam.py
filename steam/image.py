@@ -31,7 +31,7 @@ import imghdr
 import io
 import struct
 from time import time
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 __all__ = ("Image",)
 
@@ -62,7 +62,7 @@ class Image:
     __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash", "_tell")
     fp: io.BufferedIOBase
 
-    def __init__(self, fp: Union[io.BufferedIOBase, AnyPath], *, spoiler: bool = False):
+    def __init__(self, fp: io.BufferedIOBase | AnyPath | int, *, spoiler: bool = False):  # TODO use a protocol here
         self.fp = fp if isinstance(fp, io.BufferedIOBase) else open(fp, "rb")
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
@@ -119,7 +119,7 @@ class Image:
         return read
 
 
-def test_jpeg(h: bytes, _) -> str:  # adds support for more header types
+def test_jpeg(h: bytes, _) -> str | None:  # adds support for more header types
     # SOI APP2 + ICC_PROFILE
     if h[0:4] == "\xff\xd8\xff\xe2" and h[6:17] == b"ICC_PROFILE":
         return "jpeg"

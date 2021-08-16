@@ -24,18 +24,20 @@ SOFTWARE.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .abc import BaseUser
     from .clan import Clan
     from .state import ConnectionState
+    from .user import ClientUser, User
 
 
 __all__ = ("Comment",)
 
 
+@dataclass
 class Comment:
     """Represents a comment on a Steam profile.
 
@@ -56,21 +58,12 @@ class Comment:
 
     __slots__ = ("content", "id", "created_at", "author", "owner", "_state")
 
-    def __init__(
-        self,
-        state: ConnectionState,
-        id: int,
-        content: str,
-        timestamp: datetime,
-        author: BaseUser,
-        owner: Union[Clan, BaseUser],
-    ):
-        self._state = state
-        self.content = content
-        self.id = id
-        self.created_at = timestamp
-        self.author = author
-        self.owner = owner
+    _state: ConnectionState
+    id: int
+    content: str
+    created_at: datetime
+    author: User | ClientUser
+    owner: Clan | User | ClientUser
 
     def __repr__(self) -> str:
         attrs = ("id", "author")

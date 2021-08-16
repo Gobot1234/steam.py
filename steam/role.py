@@ -24,7 +24,7 @@ SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from .models import Permissions
 
@@ -40,10 +40,12 @@ __all__ = ("Role",)
 class Role:
     __slots__ = ("id", "clan", "group", "permissions", "_state")
 
-    def __init__(self, state: ConnectionState, group: Union[Clan, Group], proto: RoleProto):
+    def __init__(self, state: ConnectionState, group: Clan | Group, proto: RoleProto):
         self._state = state
         self.id = int(proto.role_id)
-        if group.__class__.__name__ == "Clan":
+        from .clan import Clan
+
+        if isinstance(group, Clan):
             self.clan = group
             self.group = None
         else:
@@ -52,4 +54,4 @@ class Role:
         self.permissions = Permissions(proto)
 
     async def edit(self, *, name: str) -> None:
-        await self._state.edit_role(self.id, (self.clan or self.group).id, name=name)
+        await self._state.edit_role(self.id, (self.clan or self.group).id, name=name)  # type: ignore

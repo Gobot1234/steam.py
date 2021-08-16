@@ -5,7 +5,7 @@ steam.py
 A basic wrapper for the Steam API and its Community Managers.
 """
 
-from . import abc, guard, utils
+from . import abc as abc, guard as guard, utils as utils
 from .__metadata__ import *
 from .abc import *
 from .badge import *

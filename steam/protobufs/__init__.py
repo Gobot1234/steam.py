@@ -28,24 +28,24 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import betterproto
 from typing_extensions import TypeAlias
 
-from ..enums import IE, Result
+from ..enums import IE, IntEnum, Result
 from .emsg import *
 from .headers import *
 from .protobufs import *
 from .unified import *
 
 M = TypeVar("M", bound=betterproto.Message)
-GetProtoType: TypeAlias = "Optional[type[betterproto.Message]]"
+GetProtoType: TypeAlias = "type[betterproto.Message] | None"
 ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProto, GCMsgHdrProto)
 betterproto.safe_snake_case = do_nothing_case
 
 
-def get_cmsg(msg: IE) -> GetProtoType:
+def get_cmsg(msg: IntEnum) -> GetProtoType:
     """Get a protobuf from its EMsg."""
     try:
         return PROTOBUFS[msg]
@@ -69,10 +69,10 @@ class MsgBase(Generic[M]):
         def __new__(cls, *args: Any, **kwargs: Any):  # type: ignore
             return object.__new__(cls)
 
-    def __init__(self, msg: IE, data: Optional[bytes], **kwargs: Any):
-        self.msg: IE = msg
-        self.body: Optional[M] = None
-        self.payload: Optional[bytes] = data[self.skip :] if data else None
+    def __init__(self, msg: IntEnum, data: bytes | None, **kwargs: Any):
+        self.msg = msg
+        self.body: M = None  # type: ignore
+        self.payload: bytes | None = data[self.skip :] if data else None
 
         self.parse()
         if kwargs and self.body is not None:
@@ -88,24 +88,24 @@ class MsgBase(Generic[M]):
     def __bytes__(self) -> bytes:
         return bytes(self.header) + bytes(self.body)
 
-    def _parse(self, proto: Optional[type[M]]) -> None:
+    def _parse(self, proto: type[M] | None) -> None:
         if proto:
             self.body = proto()
             if self.payload:
                 self.body.parse(self.payload)
 
     @property
-    def msg(self) -> IE:
-        """:class:`IntEnum`: The :attr:`header.msg`."""
+    def msg(self) -> IntEnum:
+        """The :attr:`header.msg`."""
         return self.header.msg
 
     @msg.setter
-    def msg(self, value: int) -> None:
+    def msg(self, value: IntEnum) -> None:
         self.header.msg = value
 
     @property
-    def steam_id(self) -> Optional[int]:
-        """Optional[:class:`int`]: The :attr:`header`'s 64 bit Steam ID."""
+    def steam_id(self) -> int | None:
+        """The :attr:`header`'s 64 bit Steam ID."""
         return self.header.body.steam_id if isinstance(self.header, ALLOWED_HEADERS) else None
 
     @steam_id.setter
@@ -114,8 +114,8 @@ class MsgBase(Generic[M]):
             self.header.body.steam_id = value
 
     @property
-    def session_id(self) -> Optional[int]:
-        """Optional[:class:`int`]: The :attr:`header`'s session ID."""
+    def session_id(self) -> int | None:
+        """The :attr:`header`'s session ID."""
         return self.header.body.session_id if isinstance(self.header, ALLOWED_HEADERS) else None
 
     @session_id.setter
@@ -124,8 +124,8 @@ class MsgBase(Generic[M]):
             self.header.body.session_id = value
 
     @property
-    def result(self) -> Optional[Result]:
-        """Optional[:class:`.Result`]: The :attr:`header`'s eresult."""
+    def result(self) -> Result | None:
+        """The :attr:`header`'s eresult."""
         if isinstance(self.header, ALLOWED_HEADERS):
             return Result.try_value(getattr(self.body, "eresult", 0) or self.header.body.eresult)
 
@@ -149,7 +149,7 @@ class Msg(MsgBase[M]):
     def __init__(
         self,
         msg: EMsg,
-        data: Optional[bytes] = None,
+        data: bytes | None = None,
         extended: bool = False,
         **kwargs: Any,
     ):
@@ -166,8 +166,8 @@ class MsgProto(MsgBase[M]):
     def __init__(
         self,
         msg: EMsg,
-        data: Optional[bytes] = None,
-        um_name: Optional[str] = None,
+        data: bytes | None = None,
+        um_name: str | None = None,
         **kwargs: Any,
     ):
         self.header = MsgHdrProto(data)
@@ -177,7 +177,6 @@ class MsgProto(MsgBase[M]):
         super().__init__(msg, data, **kwargs)
 
     def parse(self) -> None:
-        """Parse the payload/data into a protobuf."""
         if self.msg in (
             EMsg.ServiceMethod,
             EMsg.ServiceMethodResponse,
@@ -204,8 +203,8 @@ class GCMsg(MsgBase[M]):
 
     def __init__(
         self,
-        msg: IE,
-        data: Optional[bytes] = None,
+        msg: IntEnum,
+        data: bytes | None = None,
         **kwargs: Any,
     ):
         self.header = GCMsgHdr(data)
@@ -220,8 +219,8 @@ class GCMsgProto(MsgBase[M]):
 
     def __init__(
         self,
-        msg: IE,
-        data: Optional[bytes] = None,
+        msg: IntEnum,
+        data: bytes | None = None,
         **kwargs: Any,
     ):
         self.header = GCMsgHdrProto(data)

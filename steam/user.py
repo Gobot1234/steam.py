@@ -25,11 +25,11 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Coroutine
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
-from .abc import BaseUser, Messageable, UserDict, _EndPointReturnType
-from .enums import TradeOfferState
+from .abc import BaseUser, Messageable, UserDict
 from .errors import ClientException, ConfirmationError
 from .models import URL
 
@@ -48,7 +48,7 @@ __all__ = (
 )
 
 
-class User(BaseUser, Messageable):
+class User(BaseUser, Messageable["UserMessage"]):
     """Represents a Steam user's account.
 
     .. container:: operations
@@ -91,6 +91,8 @@ class User(BaseUser, Messageable):
         The persona state flags of the account.
     """
 
+    __slots__ = ()
+
     async def add(self) -> None:
         """Sends a friend invite to the user to your friends list."""
         await self._state.http.add_user(self.id64)
@@ -115,7 +117,7 @@ class User(BaseUser, Messageable):
         """Unblocks the user."""
         await self._state.http.unblock_user(self.id64)
 
-    async def escrow(self, token: Optional[str] = None) -> Optional[timedelta]:
+    async def escrow(self, token: str | None = None) -> timedelta | None:
         """Check how long any received items would take to arrive. ``None`` if the user has no escrow or has a
         private inventory.
 
@@ -131,19 +133,19 @@ class User(BaseUser, Messageable):
         seconds = their_escrow["escrow_end_duration_seconds"]
         return timedelta(seconds=seconds) if seconds else None
 
-    def _get_message_endpoint(self) -> _EndPointReturnType:
-        return self.id64, self._state.send_user_message
+    def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
+        return self._state.send_user_message(self.id64, content)
 
-    def _get_image_endpoint(self) -> _EndPointReturnType:
-        return self.id64, self._state.http.send_user_image
+    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
+        return self._state.http.send_user_image(self.id64, image)
 
     async def send(
         self,
         content: Any = None,
         *,
-        trade: Optional[TradeOffer] = None,
-        image: Optional[Image] = None,
-    ) -> Optional[UserMessage]:
+        trade: TradeOffer | None = None,
+        image: Image | None = None,
+    ) -> UserMessage | None:
         """Send a message, trade or image to an :class:`User`.
 
         Parameters
@@ -283,14 +285,14 @@ class ClientUser(BaseUser):
     async def edit(
         self,
         *,
-        name: Optional[str] = None,
-        real_name: Optional[str] = None,
-        url: Optional[str] = None,
-        summary: Optional[str] = None,
-        country: Optional[str] = None,
-        state: Optional[str] = None,
-        city: Optional[str] = None,
-        avatar: Optional[Image] = None,
+        name: str | None = None,
+        real_name: str | None = None,
+        url: str | None = None,
+        summary: str | None = None,
+        country: str | None = None,
+        state: str | None = None,
+        city: str | None = None,
+        avatar: Image | None = None,
     ) -> None:
         """Edit the client user's profile. Any values that aren't set will use their defaults.
 

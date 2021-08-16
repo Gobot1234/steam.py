@@ -33,7 +33,7 @@ from collections.abc import Callable, Coroutine
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from typing_extensions import Final, Literal, TypeAlias, TypedDict
+from typing_extensions import Final, Literal, Protocol, TypeAlias, TypedDict
 from yarl import URL as _URL
 
 from . import utils
@@ -77,7 +77,12 @@ class _ReturnTrue:
 
 return_true = _ReturnTrue()
 
-EventParser: TypeAlias = "Callable[[MsgProto], Coroutine[Any, Any, None] | None]"
+
+class EventParser(Protocol):
+    msg: IntEnum
+
+    def __call__(self, msg: MsgProto[Any]) -> Coroutine[Any, Any, None] | None:
+        ...
 
 
 class Registerable:

@@ -88,6 +88,16 @@ pretty = true
 files = "steam/*.py, steam/ext/commands/*.py, steam/protobufs/__init__.py, steam/protobufs/headers.py"
 exclude = "venv, .venv"
 
+[tool.pyright]
+reportSelfClsParameterName = "none"
+reportUntypedFunctionDecorator = "error"
+reportUntypedClassDecorator = "error"
+reportUntypedNamedTuple = "error"
+reportImplicitStringConcatenation = "none"  # I like to use this a fair bit
+reportOverlappingOverload = "error"
+reportMissingTypeArgument = "error"
+venv = ".venv"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

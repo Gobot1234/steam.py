@@ -58,7 +58,7 @@ class BucketType(IntEnum):
     Admin   = 7  #: The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`.
     # fmt: on
 
-    def get_bucket(self, ctx: Union[Message, Messageable]) -> Union[int, tuple[int, ...]]:
+    def get_bucket(self, ctx: Message | Messageable) -> int | tuple[int, ...]:
         """Get a bucket key for a message or context.
 
         Parameters
@@ -125,7 +125,7 @@ class Cooldown(Generic[T_Bucket]):
             return last_call + self._per - now
         return 0.0
 
-    def __call__(self, ctx: Union[Message, Messageable]) -> None:
+    def __call__(self, ctx: Message | Messageable) -> None:
         """Invoke the command's cooldown properly and raise if the command is on cooldown.
 
         Parameters

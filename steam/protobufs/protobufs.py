@@ -1,3 +1,7 @@
+from collections.abc import Mapping
+
+import betterproto
+
 from . import (
     steammessages_base,
     steammessages_clientserver,
@@ -7,10 +11,11 @@ from . import (
 )
 from .emsg import *
 
+
 __all__ = ("PROTOBUFS",)
 
 
-PROTOBUFS = {
+PROTOBUFS: Mapping[EMsg, betterproto.Message] = {
     EMsg.Multi: steammessages_base.CMsgMulti,
     EMsg.ClientToGC: steammessages_clientserver_2.CMsgGcClient,
     EMsg.ClientFromGC: steammessages_clientserver_2.CMsgGcClient,

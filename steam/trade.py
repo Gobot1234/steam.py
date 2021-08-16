@@ -27,13 +27,13 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Iterator, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from typing_extensions import TypedDict
+from typing_extensions import TypeAlias, TypedDict
 
 from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
-from .game import Game
+from .game import Game, StatefulGame
 
 if TYPE_CHECKING:
     from .abc import BaseUser, SteamID
@@ -48,7 +48,7 @@ __all__ = (
     "TradeOffer",
 )
 
-Items = Union["Item", "Asset"]
+Items: TypeAlias = "Item | Asset"
 I = TypeVar("I", bound="Item")
 
 
@@ -265,7 +265,7 @@ class BaseInventory(Generic[I]):
     def _update(self, data: InventoryDict) -> None:
         self.items: Sequence[I] = []
         try:
-            self.game = Game(id=int(data["assets"][0]["appid"]))
+            self.game = StatefulGame(self._state, id=int(data["assets"][0]["appid"]))
         except KeyError:  # they don't have an inventory in this game
             self.game = None
             self.items = []
@@ -286,7 +286,7 @@ class BaseInventory(Generic[I]):
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
-    def filter_items(self, *names: str, limit: Optional[int] = None) -> list[I]:
+    def filter_items(self, *names: str, limit: int | None = None) -> list[I]:
         """A helper function that filters items by name from the inventory.
 
         Parameters
@@ -310,7 +310,7 @@ class BaseInventory(Generic[I]):
         items = [item for item in self if item.name in names]
         return items if limit is None else items[:limit]
 
-    def get_item(self, name: str) -> Optional[I]:
+    def get_item(self, name: str) -> I | None:
         """A helper function that gets an item or ``None`` if no matching item is found by name from the inventory.
 
         Parameters
@@ -420,12 +420,12 @@ class TradeOffer:
     def __init__(
         self,
         *,
-        message: Optional[str] = None,
-        token: Optional[str] = None,
-        item_to_send: Optional[Items] = None,
-        item_to_receive: Optional[Items] = None,
-        items_to_send: Optional[list[Items]] = None,
-        items_to_receive: Optional[list[Items]] = None,
+        message: str | None = None,
+        token: str | None = None,
+        item_to_send: Items | None = None,
+        item_to_receive: Items | None = None,
+        items_to_send: list[Items] | None = None,
+        items_to_receive: list[Items] | None = None,
     ):
         self.items_to_receive: list[Items] = items_to_receive or []
         self.items_to_send: list[Items] = items_to_send or []
@@ -433,10 +433,13 @@ class TradeOffer:
             self.items_to_receive.append(item_to_receive)
         if item_to_send:
             self.items_to_send.append(item_to_send)
-        self.message: str = message if message is not None else ""
-        self.token: Optional[str] = token
+        self.message: str | None = message or None
+        self.token: str | None = token
         self._has_been_sent = False
-        self.partner: Optional[User] = None
+        self.partner: User | SteamID | None = None
+        self.updated_at: datetime | None = None
+        self.created_at: datetime | None = None
+        self.escrow: datetime | None = None
         self.state = TradeOfferState.Invalid
 
     @classmethod
@@ -445,7 +448,7 @@ class TradeOffer:
         trade._has_been_sent = True
         trade._state = state
         trade._update(data)
-        trade.partner = int(data["accountid_other"])
+        trade.partner = int(data["accountid_other"])  # type: ignore
         return trade
 
     def _update_from_send(self, state: ConnectionState, data: dict[str, Any], partner: User) -> None:

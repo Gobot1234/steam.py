@@ -34,7 +34,7 @@ import logging
 import sys
 import traceback
 from collections.abc import Callable, Coroutine
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import aiohttp
 from typing_extensions import Literal, ParamSpec, TypeAlias, final
@@ -69,7 +69,7 @@ __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
 EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
-EventDeco: TypeAlias = "Union[Callable[[E], E], E]"
+EventDeco: TypeAlias = "Callable[[E], E] | E"
 E = TypeVar("E", bound=EventType)
 S = ParamSpec("S", bound="Client.start")  # 90% sure this is the way to use ParamSpec
 
@@ -97,7 +97,25 @@ class Client:
         Whether or not to forcefully kick any other playing sessions on connect.
     """
 
-    def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, **options: Any):
+    @overload
+    def __init__(  # type: ignore
+        self,
+        proxy: str | None = ...,
+        proxy_auth: aiohttp.BasicAuth | None = ...,
+        connector: aiohttp.BaseConnector | None = ...,
+        max_messages: int | None = ...,
+        game: Game | None = ...,
+        games: list[Game] = ...,
+        state: PersonaState | None = ...,
+        ui_mode: UIMode | None = ...,
+        flag: PersonaStateFlag | None = ...,
+        flags: list[PersonaStateFlag] = ...,
+        force_kick: bool = ...,
+    ):
+        ...
+
+    def __init__(self, **options: Any):
+        loop = options.get("loop")
         if loop:
             import inspect
             import warnings
@@ -110,16 +128,15 @@ class Client:
         self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self, **options)
         self._connection = ConnectionState(client=self, **options)
-        self.ws: Optional[SteamWebSocket] = None
+        self.ws: SteamWebSocket = None  # type: ignore
 
-        self.username: Optional[str] = None
-        self.password: Optional[str] = None
-        self.shared_secret: Optional[str] = None
-        self.identity_secret: Optional[str] = None
-        self.token: Optional[str] = None
+        self.username: str | None = None
+        self.password: str | None = None
+        self.shared_secret: str | None = None
+        self.identity_secret: str | None = None
 
         self._closed = True
-        self._cm_list: Optional[CMServerList] = None
+        self._cm_list: CMServerList | None = None
         self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
@@ -153,6 +170,14 @@ class Client:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return float("nan") if self.ws is None else self.ws.latency
 
+    @property
+    async def token(self) -> str:
+        resp = await self.http.get(URL.COMMUNITY / "chat/clientjstoken")
+        if not resp["logged_in"]:  # we got logged out :(
+            await self.http.login(self.username, self.password, shared_secret=self.shared_secret)  # type: ignore
+            return await self.token
+        return resp["token"]
+
     async def code(self) -> str:
         """Get the current steam guard code.
 
@@ -183,7 +208,7 @@ class Client:
     def event(self, coro: E) -> E:
         ...
 
-    def event(self, coro: Union[Callable[[E], E], E, None] = None) -> Union[Callable[[E], E], E]:
+    def event(self, coro: Callable[[E], E] | E | None = None) -> Callable[[E], E] | E:
         """|maybecallabledeco|
         Register an event to listen to.
 
@@ -306,7 +331,7 @@ class Client:
         except KeyboardInterrupt:
             log.info("Closing the event loop")
 
-    async def login(self, username: str, password: str, *, shared_secret: Optional[str] = None) -> None:
+    async def login(self, username: str, password: str, *, shared_secret: str | None = None) -> None:
         """Login a Steam account and the Steam API with the specified credentials.
 
         Parameters
@@ -361,15 +386,15 @@ class Client:
         self._closed = False
         self._ready.clear()
         self._connection.clear()
-        self.http.recreate()
+        self.http.clear()
 
     async def start(
         self,
         username: str,
         password: str,
         *,
-        shared_secret: Optional[str] = None,
-        identity_secret: Optional[str] = None,
+        shared_secret: str | None = None,
+        identity_secret: str | None = None,
     ) -> None:
         """A shorthand coroutine for :meth:`login` and :meth:`connect`.
 
@@ -430,7 +455,7 @@ class Client:
 
     # state stuff
 
-    def get_user(self, id: utils.Intable) -> Optional[User]:
+    def get_user(self, id: utils.Intable) -> User | None:
         """Returns a user from cache with a matching ID or ``None`` if the user was not found.
 
         Parameters
@@ -439,10 +464,10 @@ class Client:
             The ID of the user, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
             :attr:`.SteamID.id3`.
         """
-        id64 = make_id64(id=id, type="Individual")
+        id64 = make_id64(id=id, type=Type.Individual)
         return self._connection.get_user(id64)
 
-    async def fetch_user(self, id: utils.Intable) -> Optional[User]:
+    async def fetch_user(self, id: utils.Intable) -> User | None:
         """Fetches a user with a matching ID or ``None`` if the user was not found.
 
         Parameters
@@ -454,7 +479,7 @@ class Client:
         id64 = make_id64(id=id, type=Type.Individual)
         return await self._connection.fetch_user(id64)
 
-    async def fetch_users(self, *ids: utils.Intable) -> list[Optional[User]]:
+    async def fetch_users(self, *ids: utils.Intable) -> list[User | None]:
         """Fetches a list of :class:`~steam.User` or ``None`` if the user was not found, from their IDs.
 
         Note
@@ -469,7 +494,7 @@ class Client:
         id64s = [make_id64(id, type=Type.Individual) for id in ids]
         return await self._connection.fetch_users(id64s)
 
-    async def fetch_user_named(self, name: str) -> Optional[User]:
+    async def fetch_user_named(self, name: str) -> User | None:
         """Fetches a user from https://steamcommunity.com from their community URL name.
 
         Parameters
@@ -477,10 +502,10 @@ class Client:
         name
             The name of the user after https://steamcommunity.com/id
         """
-        id64 = await utils.id64_from_url(URL.COMMUNITY / "id" / name, self.http._session)
+        id64 = await utils.id64_from_url(URL.COMMUNITY / f"id/{name}", self.http._session)
         return await self._connection.fetch_user(id64) if id64 is not None else None
 
-    def get_trade(self, id: int) -> Optional[TradeOffer]:
+    def get_trade(self, id: int) -> TradeOffer | None:
         """Get a trade from cache with a matching ID or ``None`` if the trade was not found.
 
         Parameters
@@ -490,7 +515,7 @@ class Client:
         """
         return self._connection.get_trade(id)
 
-    async def fetch_trade(self, id: int) -> Optional[TradeOffer]:
+    async def fetch_trade(self, id: int) -> TradeOffer | None:
         """Fetches a trade with a matching ID or ``None`` if the trade was not found.
 
         Parameters
@@ -500,7 +525,7 @@ class Client:
         """
         return await self._connection.fetch_trade(id)
 
-    def get_group(self, id: utils.Intable) -> Optional[Group]:
+    def get_group(self, id: utils.Intable) -> Group | None:
         """Get a group from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
@@ -512,7 +537,7 @@ class Client:
         steam_id = SteamID(id=id, type=Type.Chat)
         return self._connection.get_group(steam_id.id)
 
-    def get_clan(self, id: utils.Intable) -> Optional[Clan]:
+    def get_clan(self, id: utils.Intable) -> Clan | None:
         """Get a clan from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
@@ -524,7 +549,7 @@ class Client:
         steam_id = SteamID(id=id, type=Type.Clan)
         return self._connection.get_clan(steam_id.id)
 
-    async def fetch_clan(self, id: utils.Intable) -> Optional[Clan]:
+    async def fetch_clan(self, id: utils.Intable) -> Clan | None:
         """Fetches a clan from the websocket with a matching ID or ``None`` if the clan was not found.
 
         Parameters
@@ -536,7 +561,7 @@ class Client:
         id64 = make_id64(id=id, type=Type.Clan)
         return await self._connection.fetch_clan(id64)
 
-    async def fetch_clan_named(self, name: str) -> Optional[Clan]:
+    async def fetch_clan_named(self, name: str) -> Clan | None:
         """Fetches a clan from https://steamcommunity.com with a matching name or ``None`` if the clan was not found.
 
         Parameters
@@ -547,7 +572,7 @@ class Client:
         steam_id = await SteamID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
 
-    async def fetch_game(self, id: Union[int, Game]) -> Optional[FetchedGame]:
+    async def fetch_game(self, id: int | Game) -> FetchedGame | None:
         """Fetch a game from its ID or ``None`` if the game was not found.
 
         Parameters
@@ -556,15 +581,18 @@ class Client:
             The app id of the game or a :class:`~steam.Game` instance.
         """
         id = id if isinstance(id, int) else id.id
-        data = await self.http.get_game(id)
-        if data is None:
+        if id is None:
+            raise ValueError("fetching a game with a base game requires an id")
+        resp = await self.http.get_game(id)
+        if resp is None:
             return None
-        if not data[str(id)]["success"]:
+        data = resp[str(id)]
+        if not data["success"]:
             return None
-        return FetchedGame(data[str(id)]["data"])
+        return FetchedGame(self._connection, data["data"])
 
     @overload
-    async def fetch_server(self, *, id: utils.Intable) -> Optional[GameServer]:
+    async def fetch_server(self, *, id: utils.Intable) -> GameServer | None:
         ...
 
     @overload
@@ -573,16 +601,16 @@ class Client:
         *,
         ip: str,
         port: int,
-    ) -> Optional[GameServer]:
+    ) -> GameServer | None:
         ...
 
     async def fetch_server(
         self,
         *,
-        id: Optional[utils.Intable] = None,
-        ip: Optional[str] = None,
-        port: Union[int, str, None] = None,
-    ) -> Optional[GameServer]:
+        id: utils.Intable | None = None,
+        ip: str | None = None,
+        port: int | str | None = None,
+    ) -> GameServer | None:
         """Fetch a :class:`.GameServer` from its ip and port or its SteamID or ``None`` if fetching the server failed.
 
         Parameters
@@ -605,14 +633,16 @@ class Client:
         if id:
             # we need to fetch the ip and port
             servers = await self._connection.fetch_server_ip_from_steam_id(make_id64(id, type=Type.GameServer))
-            ip, port = servers[0].addr.split(":")
+            if not servers:
+                raise ValueError(f"Master server didn't find a matching server for {id}")
+            ip, _, port = servers[0].addr.partition(":")
         elif not (ip and port):
             raise TypeError(f"fetch_server missing argument {'ip' if not ip else 'port'}")
 
         servers = await self.fetch_servers(Query.ip / f"{ip}:{port}", limit=1)
         return servers[0] if servers else None
 
-    async def fetch_servers(self, query: Query, limit: int = 100) -> list[GameServer]:
+    async def fetch_servers(self, query: Query[Any], limit: int = 100) -> list[GameServer]:
         """Query game servers.
 
         Parameters
@@ -623,15 +653,15 @@ class Client:
             The maximum amount of servers to return.
         """
         servers = await self._connection.fetch_servers(query.query, limit)
-        return [GameServer(server) for server in servers]
+        return [GameServer(self._connection, server) for server in servers]
 
     # miscellaneous stuff
 
     def trade_history(
         self,
-        limit: Optional[int] = 100,
-        before: Optional[datetime.datetime] = None,
-        after: Optional[datetime.datetime] = None,
+        limit: int | None = 100,
+        before: datetime.datetime | None = None,
+        after: datetime.datetime | None = None,
         active_only: bool = False,
     ) -> TradesIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.ClientUser`'s
@@ -680,12 +710,12 @@ class Client:
     async def change_presence(
         self,
         *,
-        game: Optional[Game] = None,
-        games: Optional[list[Game]] = None,
-        state: Optional[PersonaState] = None,
-        ui_mode: Optional[UIMode] = None,
-        flag: Optional[PersonaStateFlag] = None,
-        flags: Optional[list[PersonaStateFlag]] = None,
+        game: Game | None = None,
+        games: list[Game] | None = None,
+        state: PersonaState | None = None,
+        ui_mode: UIMode | None = None,
+        flag: PersonaStateFlag | None = None,
+        flags: list[PersonaStateFlag] | None = None,
         force_kick: bool = False,
     ) -> None:
         """Set your status.
@@ -713,17 +743,17 @@ class Client:
         force_kick
             Whether or not to forcefully kick any other playing sessions.
         """
-        games = [game.to_dict() for game in games] if games is not None else []
+        games_ = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
-            games.append(game.to_dict())
-        flags = flags or getattr(self.user, "flags", [])
+            games_.append(game.to_dict())
+        flags_: list[PersonaStateFlag] = flags or getattr(self.user, "flags", [])
         if flag is not None:
-            flags.append(flag)
+            flags_.append(flag)
         flag_value = 0
-        for flag in flags:
+        for flag in flags_:
             flag_value |= flag
         await self.ws.change_presence(
-            games=games, state=state, flags=flag_value, ui_mode=ui_mode, force_kick=force_kick
+            games=games_, state=state, flags=flag_value, ui_mode=ui_mode, force_kick=force_kick
         )
 
     async def trade_url(self, generate_new: bool = False) -> str:
@@ -740,7 +770,7 @@ class Client:
         """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
-    async def fetch_price(self, name: str, game: Game, currency: Optional[int] = None) -> PriceOverview:
+    async def fetch_price(self, name: str, game: Game, currency: int | None = None) -> PriceOverview:
         """Fetch the :class:`PriceOverview` for an item.
 
         Parameters
@@ -970,7 +1000,13 @@ class Client:
                 The user's state now.
             """
 
-        async def on_socket_receive(self, msg: "Union[Msg, MsgProto]") -> None:
+        async def on_emoticon_add(self, emoticon: "steam.Emoticon") -> None:
+            ...
+
+        async def on_emoticon_remove(self, emoticon: "steam.Emoticon") -> None:
+            ...
+
+        async def on_socket_receive(self, msg: "Msg | MsgProto") -> None:
             """Called when the connected web-socket parses a received ``Msg``/``MsgProto``
 
             Parameters
@@ -979,7 +1015,7 @@ class Client:
                 The received message.
             """
 
-        async def on_socket_send(self, msg: "Union[Msg, MsgProto]") -> None:
+        async def on_socket_send(self, msg: "Msg | MsgProto") -> None:
             """Called when the client sends a parsed ``Msg``/``MsgProto`` to the connected web-socket.
 
             Parameters
@@ -1000,7 +1036,7 @@ class Client:
         ],
         *,
         check: Callable[[], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> None:
         ...
 
@@ -1010,7 +1046,7 @@ class Client:
         event: Literal["error"],
         *,
         check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> tuple[str, Exception, tuple, dict]:
         ...
 
@@ -1020,7 +1056,7 @@ class Client:
         event: Literal["message"],
         *,
         check: Callable[[Message], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> Message:
         ...
 
@@ -1030,7 +1066,7 @@ class Client:
         event: Literal["comment"],
         *,
         check: Callable[[Comment], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> Comment:
         ...
 
@@ -1040,7 +1076,7 @@ class Client:
         event: Literal["user_update"],
         *,
         check: Callable[[User, User], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> tuple[User, User]:
         ...
 
@@ -1050,7 +1086,7 @@ class Client:
         event: Literal["typing"],
         *,
         check: Callable[[User, datetime.datetime], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> tuple[User, datetime.datetime]:
         ...
 
@@ -1068,7 +1104,7 @@ class Client:
         ],
         *,
         check: Callable[[TradeOffer], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> TradeOffer:
         ...
 
@@ -1081,7 +1117,7 @@ class Client:
         ],
         *,
         check: Callable[[UserInvite], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> UserInvite:
         ...
 
@@ -1094,7 +1130,7 @@ class Client:
         ],
         *,
         check: Callable[[ClanInvite], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> ClanInvite:
         ...
 
@@ -1107,7 +1143,7 @@ class Client:
         ],
         *,
         check: Callable[[Msgs], bool] = ...,
-        timeout: Optional[float] = ...,
+        timeout: float | None = ...,
     ) -> Msgs:
         ...
 
@@ -1116,7 +1152,7 @@ class Client:
         event: str,
         *,
         check: Callable[..., bool] = return_true,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> Any:
         """Wait for the first event to be dispatched that meets the requirements, this by default is the first event
         with a matching event name.

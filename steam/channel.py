@@ -25,14 +25,14 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Coroutine
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Literal, TypeAlias
 
-from .abc import Channel, M, Message, SteamID, _EndPointReturnType
+from .abc import Channel, M_co, Message, SteamID
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
 from .protobufs.steammessages_chat import (
     CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
@@ -43,6 +43,7 @@ from .protobufs.steammessages_chat import (
 if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
+    from .image import Image
     from .message import ClanMessage, GroupMessage, UserMessage
     from .state import ConnectionState
     from .user import User
@@ -54,7 +55,7 @@ __all__ = (
 )
 
 
-class DMChannel(Channel["UserMessage"]):
+class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message.
     """Represents the channel a DM is sent in.
 
     Attributes
@@ -64,6 +65,8 @@ class DMChannel(Channel["UserMessage"]):
     """
 
     __slots__ = ("participant",)
+    clan: Literal[None]
+    group: Literal[None]
 
     def __init__(self, state: ConnectionState, participant: User):
         super().__init__(state)
@@ -74,11 +77,11 @@ class DMChannel(Channel["UserMessage"]):
     def __repr__(self) -> str:
         return f"<DMChannel participant={self.participant!r}>"
 
-    def _get_message_endpoint(self) -> _EndPointReturnType:
-        return self.participant._get_message_endpoint()
+    def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
+        return self.participant._message_func(content)
 
-    def _get_image_endpoint(self) -> _EndPointReturnType:
-        return self.participant._get_image_endpoint()
+    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
+        return self.participant._image_func(image)
 
     @asynccontextmanager
     async def typing(self) -> AsyncGenerator[None, None]:
@@ -117,9 +120,9 @@ class DMChannel(Channel["UserMessage"]):
 
     def history(
         self,
-        limit: Optional[int] = 100,
-        before: Optional[datetime] = None,
-        after: Optional[datetime] = None,
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
     ) -> DMChannelHistoryIterator:
         return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
@@ -127,16 +130,16 @@ class DMChannel(Channel["UserMessage"]):
 GroupChannelProtos: TypeAlias = "GroupMessageNotification | CChatRoomState | CUserChatRoomState"
 
 
-class _GroupChannel(Channel[M]):
+class _GroupChannel(Channel[M_co]):
     __slots__ = ("id", "name", "joined_at", "position", "last_message")
 
     def __init__(self, state: ConnectionState, proto: GroupChannelProtos):
         super().__init__(state)
         self.id = int(proto.chat_id)
-        self.name: Optional[str] = None
-        self.joined_at: Optional[datetime] = None
-        self.position: Optional[int] = None
-        self.last_message: Optional[M] = None
+        self.name: str | None = None
+        self.joined_at: datetime | None = None
+        self.position: int | None = None
+        self.last_message: M_co | None = None
         self._update(proto)
 
     def _update(self, proto: GroupChannelProtos):
@@ -178,10 +181,10 @@ class _GroupChannel(Channel[M]):
 
     def history(
         self,
-        limit: Optional[int] = 100,
-        before: Optional[datetime] = None,
-        after: Optional[datetime] = None,
-    ) -> GroupChannelHistoryIterator:
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ) -> GroupChannelHistoryIterator[M_co, "Self"]:
         return GroupChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
@@ -198,6 +201,10 @@ class GroupChannel(_GroupChannel["GroupMessage"]):
         The group to which messages are sent.
     joined_at
         The time the client joined the chat.
+    position
+        The position of the channel in the channel list.
+    last_message
+        The last message sent in the channel.
     """
 
     clan: Literal[None]
@@ -206,11 +213,11 @@ class GroupChannel(_GroupChannel["GroupMessage"]):
         super().__init__(state, proto)
         self.group: Group = group
 
-    def _get_message_endpoint(self) -> _EndPointReturnType:
-        return (self.id, self.group.id), self._state.send_group_message
+    def _message_func(self, content: str) -> Coroutine[Any, Any, GroupMessage]:
+        return self._state.send_group_message(self.id, self.group.id)
 
-    def _get_image_endpoint(self) -> _EndPointReturnType:
-        return (self.id, self.group.id), self._state.http.send_group_image
+    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
+        return self._state.http.send_group_image(self.id, self.group.id)
 
 
 class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same thing
@@ -226,6 +233,10 @@ class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same t
         The clan to which messages are sent.
     joined_at
         The time the client joined the chat.
+    position
+        The position of the channel in the channel list.
+    last_message
+        The last message sent in the channel.
     """
 
     group: Literal[None]
@@ -234,8 +245,8 @@ class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same t
         super().__init__(state, proto)
         self.clan: Clan = clan
 
-    def _get_message_endpoint(self) -> _EndPointReturnType:
-        return (self.id, self.clan.chat_id), self._state.send_group_message
+    def _message_func(self, content: str) -> Coroutine[Any, Any, ClanMessage]:
+        return self._state.send_group_message(self.id, self.clan.chat_id)  # type: ignore
 
-    def _get_image_endpoint(self) -> _EndPointReturnType:
-        return (self.id, self.clan.chat_id), self._state.http.send_group_image
+    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
+        return self._state.http.send_group_image(self.id, self.clan.chat_id)  # type: ignore

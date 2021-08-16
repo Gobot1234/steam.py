@@ -40,17 +40,19 @@ from .comment import Comment
 from .enums import TradeOfferState
 
 if TYPE_CHECKING:
-    from .abc import BaseUser, Channel, Message
-    from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage
+    from .abc import Channel, Message, SteamID
+    from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage, UserMessage
     from .clan import Clan
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
 
-
 T = TypeVar("T")
+TT = TypeVar("TT")
+A = TypeVar("A", bound="AsyncIterator")
 C = TypeVar("C", bound="Channel")
 M = TypeVar("M", bound="Message")
-MaybeCoro: TypeAlias = "Callable[[T], Union[bool, Coroutine[Any, Any, bool]]]"
+E = TypeVar("E", bound="Event")
+MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
 UNIX_EPOCH = datetime.utcfromtimestamp(0)
 
 
@@ -75,13 +77,9 @@ class AsyncIterator(Generic[T]):
         The queue containing the elements of the iterator.
     """
 
-    __slots__ = ("before", "after", "limit", "queue", "_is_filled", "_state")
-
-    def __init__(
-        self, state: ConnectionState, limit: Optional[int], before: Optional[datetime], after: Optional[datetime]
-    ):
+    def __init__(self, state: ConnectionState, limit: int | None, before: datetime | None, after: datetime | None):
         self._state = state
-        self.before = before or (datetime.utcnow() + timedelta(seconds=30))  # dont run into race condition hell
+        self.before = before or datetime.utcnow()
         self.after = after or UNIX_EPOCH
         self._is_filled = False
         self.queue: deque[T] = deque()
@@ -99,7 +97,7 @@ class AsyncIterator(Generic[T]):
 
         return False
 
-    async def get(self, **attrs: Any) -> Optional[T]:
+    async def get(self, **attrs: Any) -> T | None:
         """A helper function which is similar to :func:`~steam.utils.get` except it runs over the async iterator.
 
         This is roughly equipment to:
@@ -142,7 +140,7 @@ class AsyncIterator(Generic[T]):
 
         return await self.find(predicate)
 
-    async def find(self, predicate: MaybeCoro[T]) -> Optional[T]:
+    async def find(self, predicate: MaybeCoro[T]) -> T | None:
         """A helper function which is similar to :func:`~steam.utils.find` except it runs over the async iterator.
         However unlike :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
 
@@ -192,6 +190,40 @@ class AsyncIterator(Generic[T]):
         """
         return [element async for element in self]
 
+    def filter(self, predicate: Callable[[TT], bool]) -> FilteredIterator[T, TT]:
+        """Filter members of the async iterator according to a predicate. This function acts similarly to :func:`filter`.
+
+        Examples
+        --------
+        .. code-block:: python3
+
+            for dave in AsyncIterator.map(lambda x: x.name == "Dave"):
+                ...  # the element now has to have a name of Dave.
+
+        Parameters
+        ----------
+        predicate
+            The predicate to filter elements through.
+        """
+        return FilteredIterator(predicate, self)
+
+    def map(self, func: Callable[[TT], Any]) -> MappedIterator[T, TT]:
+        """Map the elements of the async iterator through a function. This function acts similarly to :func:`map`.
+
+        Examples
+        --------
+        .. code-block:: python3
+
+            for name in AsyncIterator.map(lambda x: x.name):
+                ...  # name is now the iterators element's name.
+
+        Parameters
+        ----------
+        func
+            The function to map the elements through.
+        """
+        return MappedIterator(func, self)
+
     def __aiter__(self) -> AsyncIterator[T]:
         return self
 
@@ -219,16 +251,38 @@ class AsyncIterator(Generic[T]):
         raise NotImplementedError
 
 
+class FilteredIterator(AsyncIterator[T]):
+    def __init__(self, predicate: MaybeCoro[T], async_iterator: AsyncIterator[T]):
+        self.predicate = predicate
+        self.iterator = async_iterator
+
+    async def next(self) -> T:
+        while True:
+            item = await self.iterator.next()
+            if await utils.maybe_coroutine(self.predicate, item):
+                return item
+
+
+class MappedIterator(AsyncIterator[TT], Generic[T, TT]):
+    def __init__(self, map_func: Callable[[Any], TT | Coroutine[Any, Any, TT]], async_iterator: AsyncIterator[T]):
+        self.map_func = map_func
+        self.iterator = async_iterator
+
+    async def next(self) -> TT:
+        item = await self.iterator.next()
+        return await utils.maybe_coroutine(self.map_func, item)
+
+
 class CommentsIterator(AsyncIterator[Comment]):
     __slots__ = ("owner",)
 
     def __init__(
         self,
         state: ConnectionState,
-        limit: Optional[int],
-        before: Optional[datetime],
-        after: Optional[datetime],
-        owner: Union[BaseUser, Clan],
+        limit: int | None,
+        before: datetime | None,
+        after: datetime | None,
+        owner: Commentable,
     ):
         super().__init__(state, limit, before, after)
         self.owner = owner
@@ -272,9 +326,9 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
     def __init__(
         self,
         state: ConnectionState,
-        limit: Optional[int],
-        before: Optional[datetime],
-        after: Optional[datetime],
+        limit: int | None,
+        before: datetime | None,
+        after: datetime | None,
         active_only: bool,
     ):
         super().__init__(state, limit, before, after)
@@ -362,9 +416,9 @@ class ChannelHistoryIterator(AsyncIterator[M], Generic[M, C]):
         self,
         channel: C,
         state: ConnectionState,
-        limit: Optional[int],
-        before: Optional[datetime],
-        after: Optional[datetime],
+        limit: int | None,
+        before: datetime | None,
+        after: datetime | None,
     ):
         super().__init__(state, limit, before, after)
         self.before = before or UNIX_EPOCH
@@ -379,9 +433,9 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
         self,
         channel: DMChannel,
         state: ConnectionState,
-        limit: Optional[int],
-        before: Optional[datetime],
-        after: Optional[datetime],
+        limit: int | None,
+        before: datetime | None,
+        after: datetime | None,
     ):
         super().__init__(channel, state, limit, before, after)
         self.participant = channel.participant
@@ -421,19 +475,20 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
                 return
 
 
-class GroupChannelHistoryIterator(
-    ChannelHistoryIterator[Union["ClanMessage", "GroupMessage"], Union["ClanChannel", "GroupChannel"]]
-):
+GroupMessages = TypeVar("GroupMessages", "ClanMessage", "GroupMessage")
+GroupChannels = TypeVar("GroupChannels", "ClanChannel", "GroupChannel")
 
+
+class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupChannels]):
     __slots__ = ("group",)
 
     def __init__(
         self,
-        channel: Union[ClanChannel, GroupChannel],
+        channel: ClanChannel | GroupChannel,
         state: ConnectionState,
-        limit: Optional[int],
-        before: Optional[datetime],
-        after: Optional[datetime],
+        limit: int | None,
+        before: datetime | None,
+        after: datetime | None,
     ):
         super().__init__(channel, state, limit, before, after)
         self.group = channel.group or channel.clan

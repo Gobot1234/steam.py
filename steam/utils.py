@@ -41,7 +41,7 @@ from inspect import getmembers, isawaitable
 from io import BytesIO
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Generic, Optional, SupportsInt, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, overload
 
 import aiohttp
 from aiohttp.typedefs import StrOrURL
@@ -55,9 +55,10 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)
+_SupportsChunkT = TypeVar("_SupportsChunkT", bound="SupportsChunk")
 
 
-if not hasattr(typing, "ParamSpec"):
+if not hasattr(typing, "ParamSpec") and not TYPE_CHECKING:
 
     class ParamSpec(ParamSpec):
         __class__ = TypeVar  # TODO remove once new typing_extensions version arrives
@@ -84,28 +85,19 @@ def clear_proto_bit(emsg: int) -> int:
     return emsg & ~_PROTOBUF_MASK
 
 
-Intable: TypeAlias = "Union[SupportsInt, SupportsIndex, str, bytes]"  # anything int(x) wouldn't normally fail on
-
-
-# fmt: off
-TypeType = Union[
-    Type,
-    Literal[
-        "Invalid", "Individual", "Multiseat", "GameServer", "AnonGameServer", "Pending", "ContentServer", "Clan",
-        "Chat", "ConsoleUser", "AnonUser", "Max",
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-    ],
-]
-UniverseType = Union[Universe, Literal["Invalid ", "Public", "Beta", "Internal", "Dev", "Max", 0, 1, 2, 3, 4, 5, 6]]
-InstanceType = Literal[0, 1]
-# fmt: on
+Intable: TypeAlias = "SupportsInt | SupportsIndex | str | bytes"  # anything int(x) wouldn't normally fail on
+TypeType: TypeAlias = "Type | Literal['Invalid', 'Individual', 'Multiseat', 'GameServer', 'AnonGameServer', 'Pending', 'ContentServer', 'Clan', 'Chat', 'ConsoleUser', 'AnonUser', 'Max', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]"
+UniverseType: TypeAlias = (
+    "Universe | Literal['Invalid', 'Public', 'Beta', 'Internal', 'Dev', 'Max', 0, 1, 2, 3, 4, 5, 6]"
+)
+InstanceType: TypeAlias = "Literal[0, 1]"
 
 
 def make_id64(
     id: Intable = 0,
-    type: Optional[TypeType] = None,
-    universe: Optional[UniverseType] = None,
-    instance: Optional[InstanceType] = None,
+    type: TypeType | None = None,
+    universe: UniverseType | None = None,
+    instance: InstanceType | None = None,
 ) -> int:
     """Convert various representations of Steam IDs to its Steam 64 bit ID.
 
@@ -149,7 +141,7 @@ def make_id64(
 
     try:
         id = int(id)
-    except (ValueError, TypeError):
+    except ValueError:
         # textual input e.g. [g:1:4]
         try:
             id, type, universe, instance = id2_to_tuple(id) or id3_to_tuple(id)
@@ -189,7 +181,7 @@ def make_id64(
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d+)")
 
 
-def id2_to_tuple(value: str) -> Optional[tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]]]:
+def id2_to_tuple(value: str) -> tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]] | None:
     """Convert an ID2 into its component parts.
 
     Parameters
@@ -230,7 +222,7 @@ ID3_REGEX = re.compile(
 )
 
 
-def id3_to_tuple(value: str) -> Optional[tuple[int, Type, Universe, int]]:
+def id3_to_tuple(value: str) -> tuple[int, Type, Universe, int] | None:
     """Convert a Steam ID3 into its component parts.
 
     Parameters
@@ -251,7 +243,7 @@ def id3_to_tuple(value: str) -> Optional[tuple[int, Type, Universe, int]]:
     id = int(search["id"])
     universe = Universe(int(search["universe"]))
     type_char = search["type"].replace("i", "I")
-    type = Type(TypeChar[type_char].value.value)
+    type = Type(TypeChar[type_char])
     instance = search["instance"]
 
     if type_char in "gT":
@@ -282,7 +274,7 @@ INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+
 
 def invite_code_to_tuple(
     code: str,
-) -> Optional[tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]]]:
+) -> tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]] | None:
     """Convert an invite code into its component parts.
 
     Parameters
@@ -314,7 +306,7 @@ URL_REGEX = re.compile(
 )
 
 
-async def id64_from_url(url: StrOrURL, session: Optional[aiohttp.ClientSession] = None) -> Optional[int]:
+async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> int | None:
     """Takes a Steam Community url and returns 64 bit Steam ID or ``None``.
 
     Notes
@@ -322,6 +314,7 @@ async def id64_from_url(url: StrOrURL, session: Optional[aiohttp.ClientSession] 
     - Each call makes a http request to https://steamcommunity.com.
 
     - Example URLs:
+
         https://steamcommunity.com/gid/[g:1:4]
 
         https://steamcommunity.com/gid/103582791429521412
@@ -376,7 +369,7 @@ async def id64_from_url(url: StrOrURL, session: Optional[aiohttp.ClientSession] 
             await session.close()
 
 
-def parse_trade_url(url: StrOrURL) -> Optional[re.Match[str]]:
+def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:
     """Parses a trade URL for useful information.
 
     Parameters
@@ -389,7 +382,7 @@ def parse_trade_url(url: StrOrURL) -> Optional[re.Match[str]]:
     A :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``.
     """
     return re.search(
-        r"(?:http[s]?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/\?partner=(?P<user_id>\d{,10})"
+        r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/\?partner=(?P<user_id>\d{,10})"
         r"&token=(?P<token>[\w-]{7,})",
         html.unescape(str(url)),
     )
@@ -413,9 +406,9 @@ class cached_property(Generic[_T]):
 
     def __init__(self, function: Callable[[Any], _T]):
         self.function = function
-        self.__doc__: Optional[str] = getattr(function, "__doc__", None)
+        self.__doc__: str | None = getattr(function, "__doc__", None)
 
-    def __get__(self, instance: Optional[Any], _) -> Union[_T, cached_property[_T]]:
+    def __get__(self, instance: Any | None, _) -> _T | cached_property[_T]:
         if instance is None:
             return self
 
@@ -462,8 +455,7 @@ class SupportsChunk(Protocol[_T_co], Sized):
         ...
 
 
-# higher kinded type vars needed here
-def chunk(iterable: SupportsChunk[_T_co], size: int) -> Generator[SupportsChunk[_T_co], None, None]:
+def chunk(iterable: _SupportsChunkT, size: int) -> Generator[_SupportsChunkT, None, None]:
     for i in range(0, len(iterable), size):
         yield iterable[i : i + size]
 
@@ -554,7 +546,7 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
     def position(self) -> int:
         return self.tell()
 
-    def read_struct(self, format: str, position: Optional[int] = None) -> tuple:
+    def read_struct(self, format: str, position: int | None = None) -> tuple:
         buffer = self.read(position or struct.calcsize(format))
         return struct.unpack(format, buffer)
 
@@ -603,7 +595,7 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
 
 # everything below here is directly from discord.py's utils
 # https://github.com/Rapptz/discord.py/blob/master/discord/utils.py
-def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T]:
+def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> _T | None:
     """A helper to return the first element found in the sequence.
 
     Examples
@@ -635,7 +627,7 @@ def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> Optional[_T
     return None
 
 
-def get(iterable: Iterable[_T], **attrs: Any) -> Optional[_T]:
+def get(iterable: Iterable[_T], **attrs: Any) -> _T | None:
     """A helper that returns the first element in the iterable that meets all the traits passed in ``attrs``. This
     is an alternative for :func:`find`.
 
@@ -682,7 +674,7 @@ def get(iterable: Iterable[_T], **attrs: Any) -> Optional[_T]:
 
 
 async def maybe_coroutine(
-    func: Callable[_P, Union[_T, Awaitable[_T]]],
+    func: Callable[_P, _T | Awaitable[_T]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _T:

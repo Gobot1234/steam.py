@@ -24,7 +24,7 @@ SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from . import utils
 from .abc import SteamID
@@ -76,14 +76,14 @@ class Group(SteamID):
         "_state",
     )
 
-    owner: Optional[User]
-    top_members: list[Optional[User]]
-    name: Optional[str]
+    owner: User | None
+    top_members: list[User | None]
+    name: str | None
     active_member_count: int
     roles: list[Role]
-    default_role: Optional[Role]
+    default_role: Role | None
     _channels: dict[int, GroupChannel]
-    default_channel: Optional[GroupChannel]
+    default_channel: GroupChannel | None
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Chat)
@@ -99,7 +99,7 @@ class Group(SteamID):
         self.active_member_count = proto.active_member_count
         self.roles = [Role(self._state, self, role) for role in proto.role_actions]
 
-        self.default_role: Optional[Role] = utils.get(self.roles, id=proto.default_role_id)
+        self.default_role: Role | None = utils.get(self.roles, id=proto.default_role_id)
         self._channels = {
             channel.chat_id: GroupChannel(state=self._state, group=self, proto=channel) for channel in proto.chat_rooms
         }

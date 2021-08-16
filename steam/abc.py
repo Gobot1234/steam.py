@@ -31,12 +31,12 @@ from __future__ import annotations
 import abc
 import asyncio
 import re
-from collections.abc import Callable, Coroutine
+from collections.abc import Coroutine
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import attr
-from typing_extensions import Final, Protocol, TypeAlias, TypedDict, runtime_checkable
+from typing_extensions import Final, Protocol, TypedDict, runtime_checkable
 
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
@@ -85,7 +85,7 @@ __all__ = (
 )
 
 C = TypeVar("C", bound="Commentable")
-M = TypeVar("M", bound="Message")
+M_co = TypeVar("M", bound="Message", covariant=True)
 
 
 class UserDict(TypedDict):
@@ -130,26 +130,12 @@ class SteamID(metaclass=abc.ABCMeta):
 
     __slots__ = ("__BASE",)
 
-    @overload
-    def __init__(self):
-        ...
-
-    @overload
     def __init__(
         self,
         id: Intable = 0,
-        type: Optional[TypeType] = None,
-        universe: Optional[UniverseType] = None,
-        instance: Optional[InstanceType] = None,
-    ):
-        ...
-
-    def __init__(
-        self,
-        id: Intable = 0,
-        type: Optional[TypeType] = None,
-        universe: Optional[UniverseType] = None,
-        instance: Optional[InstanceType] = None,
+        type: TypeType | None = None,
+        universe: UniverseType | None = None,
+        instance: InstanceType | None = None,
     ):
         self.__BASE: Final[int] = make_id64(id, type, universe, instance)
 
@@ -158,7 +144,7 @@ class SteamID(metaclass=abc.ABCMeta):
 
     def __eq__(self, other: Any) -> bool:
         try:
-            return int(self) == int(other)
+            return self.__BASE == int(other)
         except (TypeError, ValueError):
             return NotImplemented
 
@@ -247,7 +233,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return f"[{':'.join(parts)}]"
 
     @property
-    def invite_code(self) -> Optional[str]:
+    def invite_code(self) -> str | None:
         """The SteamID's invite code in the s.team invite code format.
 
         e.g. ``cv-dgb``.
@@ -258,7 +244,7 @@ class SteamID(metaclass=abc.ABCMeta):
             return invite_code if split_idx == 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
 
     @property
-    def invite_url(self) -> Optional[str]:
+    def invite_url(self) -> str | None:
         """The SteamID's full invite code URL.
 
         e.g ``https://s.team/p/cv-dgb``.
@@ -267,7 +253,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return f"https://s.team/p/{code}" if code else None
 
     @property
-    def community_url(self) -> Optional[str]:
+    def community_url(self) -> str | None:
         """The SteamID's community url.
 
         e.g https://steamcommunity.com/profiles/123456789.
@@ -282,7 +268,7 @@ class SteamID(metaclass=abc.ABCMeta):
             return None
 
     def is_valid(self) -> bool:
-        """:class:`bool`: Whether or not the SteamID would be valid."""
+        """Whether or not the SteamID is valid."""
         if self.type == Type.Invalid or self.type >= Type.Max:
             return False
 
@@ -304,7 +290,7 @@ class SteamID(metaclass=abc.ABCMeta):
         return True
 
     @staticmethod
-    async def from_url(url: StrOrURL, session: Optional[ClientSession] = None) -> Optional[SteamID]:
+    async def from_url(url: StrOrURL, session: ClientSession | None = None) -> SteamID | None:
         """A helper function creates a SteamID instance from a Steam community url.
 
         Note
@@ -352,13 +338,13 @@ class Commentable(SteamID):
         id = int(re.findall(r'id="comment_(\d+)"', resp["comments_html"])[0])
         timestamp = datetime.utcfromtimestamp(resp["timelastpost"])
         comment = Comment(
-            state=self._state, id=id, owner=self, timestamp=timestamp, content=content, author=self._state.client.user
+            self._state, id=id, content=content, created_at=timestamp, author=self._state.client.user, owner=self
         )
         self._state.dispatch("comment", comment)
         return comment
 
     def comments(
-        self, limit: Optional[int] = None, before: Optional[datetime] = None, after: Optional[datetime] = None
+        self, limit: int | None = None, before: datetime | None = None, after: datetime | None = None
     ) -> CommentsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a profile's :class:`~steam.Comment` objects.
 
@@ -465,20 +451,20 @@ class BaseUser(Commentable):
     def __init__(self, state: ConnectionState, data: UserDict):
         super().__init__(data["steamid"])
         self._state = state
-        self.name: Optional[str] = None
-        self.real_name: Optional[str] = None
-        self.community_url: Optional[str] = None
-        self.avatar_url: Optional[str] = None
-        self.primary_clan: Optional[SteamID] = None
-        self.country: Optional[str] = None
-        self.created_at: Optional[datetime] = None
-        self.last_logoff: Optional[datetime] = None
-        self.last_logon: Optional[datetime] = None
-        self.last_seen_online: Optional[datetime] = None
-        self.game: Optional[Game] = None
-        self.state: Optional[PersonaState] = None
+        self.name: str
+        self.real_name: str | None = None
+        self.community_url: str | None = None
+        self.avatar_url: str | None = None  # TODO make this a property and add avatar hash
+        self.primary_clan: SteamID | None = None
+        self.country: str | None = None
+        self.created_at: datetime | None = None
+        self.last_logoff: datetime | None = None
+        self.last_logon: datetime | None = None
+        self.last_seen_online: datetime | None = None
+        self.game: StatefulGame | None = None
+        self.state: PersonaState | None = None
         self.flags: list[PersonaStateFlag] = []
-        self.privacy_state: Optional[CommunityVisibilityState] = None
+        self.privacy_state: CommunityVisibilityState | None = None
         self._update(data)
 
     def _update(self, data: UserDict) -> None:
@@ -672,16 +658,8 @@ class BaseUser(Commentable):
         not_implemented("is_banned")
 
 
-_EndPointReturnType: TypeAlias = "tuple[Union[tuple[int, int], int], Callable[..., Coroutine[None, None, Any]]]"
-
-
-class _SupportsStr(Protocol):
-    def __str__(self) -> str:
-        ...
-
-
 @runtime_checkable
-class Messageable(Protocol[M]):
+class Messageable(Protocol[M_co]):
     """An ABC that details the common operations on a Steam message.
     The following classes implement this ABC:
 
@@ -694,14 +672,14 @@ class Messageable(Protocol[M]):
     __slots__ = ()
 
     @abc.abstractmethod
-    def _get_message_endpoint(self) -> _EndPointReturnType:
+    def _message_func(self, content: str) -> Coroutine[Any, Any, M_co]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_image_endpoint(self) -> _EndPointReturnType:
+    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
         raise NotImplementedError
 
-    async def send(self, content: Any = None, image: Optional[Image] = None) -> Optional[M]:
+    async def send(self, content: Any = None, image: Image | None = None) -> M_co | None:
         """Send a message to a certain destination.
 
         Parameters
@@ -713,7 +691,7 @@ class Messageable(Protocol[M]):
 
         Note
         ----
-        Anything as passed is implicitly cast to a :class:`str`.
+        Anything as passed to ``content`` is implicitly cast to a :class:`str`.
 
         Raises
         ------
@@ -728,28 +706,26 @@ class Messageable(Protocol[M]):
         """
         message = None
         if content is not None:
-            destination, message_func = self._get_message_endpoint()
-            message = await message_func(destination, str(content))
+            message = await self._message_func(str(content))
         if image is not None:
-            destination, image_func = self._get_image_endpoint()
-            await image_func(destination, image)
+            await self._image_func(image)
 
         return message
 
 
 @attr.dataclass(slots=True)
-class Channel(Messageable[M]):
+class Channel(Messageable[M_co]):
     _state: ConnectionState
-    clan: Optional[Clan] = None
-    group: Optional[Group] = None
+    clan: Clan | None = None
+    group: Group | None = None
 
     @abc.abstractmethod
     def history(
         self,
-        limit: Optional[int] = 100,
-        before: Optional[datetime] = None,
-        after: Optional[datetime] = None,
-    ) -> AsyncIterator[M]:
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ) -> AsyncIterator[M_co]:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a channel's :class:`steam.Message`\\s.
 
         Examples
@@ -838,14 +814,15 @@ class Message:
     author: User
     created_at: datetime
 
-    def __init__(self, channel: Channel, proto: Any):
+    def __init__(self, channel: Channel[Message], proto: Any):
         self._state: ConnectionState = channel._state
         self.channel = channel
-        self.group: Optional[Group] = channel.group
-        self.clan: Optional[Clan] = channel.clan
+        self.group: Group | None = channel.group
+        self.clan: Clan | None = channel.clan
         self.content: str = _clean_up_content(proto.message)
         self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
-        self.mentions: Optional[CChatMentions] = getattr(proto, "mentions", None)
+        self.mentions: CChatMentions | None = getattr(proto, "mentions", None)
+        self.reactions: list[Emoticon] = []
 
     def __repr__(self) -> str:
         attrs = ("author", "channel")

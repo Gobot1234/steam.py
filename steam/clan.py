@@ -25,11 +25,10 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import re
 import warnings
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
 from typing_extensions import Literal
@@ -46,7 +45,6 @@ from .protobufs.steammessages_chat import (
     CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
 )
 from .role import Role
-from .utils import update_class
 
 if TYPE_CHECKING:
     from .state import ConnectionState
@@ -55,7 +53,7 @@ if TYPE_CHECKING:
 __all__ = ("Clan",)
 
 
-class Clan(Commentable, comment_path="Clan"):
+class Clan(Commentable, SteamID):
     """Represents a Steam clan.
 
     .. container:: operations
@@ -141,41 +139,29 @@ class Clan(Commentable, comment_path="Clan"):
     name: str
     description: str
     icon_url: str
-    created_at: Optional[datetime]
+    created_at: datetime | None
     member_count: int
     online_count: int
     in_game_count: int
     language: str
     location: str
-    mods: list[Optional[User]]
-    admins: list[Optional[User]]
+    mods: list[User | None]
+    admins: list[User | None]
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Clan)
         self._state = state
 
-        self.name: str
-        self.description: str
-        self.icon_url: str
-        self.created_at: Optional[datetime]
-        self.member_count: int
-        self.online_count: int
-        self.in_game_count: int
-        self.language: str
-        self.location: str
-        self.mods: list[Optional[User]]
-        self.admins: list[Optional[User]]
-
-        self.chat_id: Optional[int] = None
-        self.tagline: Optional[str] = None
-        self.game: Optional[Game] = None
-        self.owner: Optional[User] = None
-        self.active_member_count: Optional[int] = None
-        self.top_members: list[Optional[User]] = []
+        self.chat_id: int | None = None
+        self.tagline: str | None = None
+        self.game: Game | None = None
+        self.owner: User | None = None
+        self.active_member_count: int | None = None
+        self.top_members: list[User | None] = []
         self.roles: list[Role] = []
-        self.default_role: Optional[Role] = None
+        self.default_role: Role | None = None
         self._channels: dict[int, ClanChannel] = {}
-        self.default_channel: Optional[ClanChannel] = None
+        self.default_channel: ClanChannel | None = None
 
     async def __ainit__(self) -> None:
         resp = await self._state.http.get(self.community_url)
@@ -244,7 +230,7 @@ class Clan(Commentable, comment_path="Clan"):
         self.mods = await self._state.client.fetch_users(*mods)
 
     @classmethod
-    async def _from_proto(cls, state: ConnectionState, clan_proto: Union[ReceivedResponse, FetchedResponse]) -> Clan:
+    async def _from_proto(cls, state: ConnectionState, clan_proto: ReceivedResponse | FetchedResponse) -> Clan:
         if isinstance(clan_proto, ReceivedResponse):
             id = clan_proto.group_summary.clanid
         else:
@@ -299,6 +285,13 @@ class Clan(Commentable, comment_path="Clan"):
 
     def __str__(self) -> str:
         return self.name
+
+    @property
+    def _comment_kwargs(self) -> dict[str, Any]:
+        return {
+            "id64": self.id64,
+            "comment_thread_type": 12,
+        }
 
     @property
     def channels(self) -> list[ClanChannel]:

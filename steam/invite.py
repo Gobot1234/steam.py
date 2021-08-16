@@ -24,7 +24,7 @@ SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .abc import SteamID
@@ -44,9 +44,7 @@ __all__ = (
 class Invite:
     __slots__ = ("invitee", "relationship", "_state")
 
-    def __init__(
-        self, state: ConnectionState, invitee: Union[User, SteamID], relationship: Optional[FriendRelationship]
-    ):
+    def __init__(self, state: ConnectionState, invitee: User | SteamID, relationship: FriendRelationship | None):
         self._state = state
         self.invitee = invitee
         self.relationship = relationship
@@ -62,6 +60,8 @@ class UserInvite(Invite):
     relationship
         The relationship you have with the invitee. This ``None`` if the invite was sent while the bot is online.
     """
+
+    __slots__ = ()
 
     def __repr__(self) -> str:
         attrs = ("invitee",)
@@ -99,9 +99,9 @@ class ClanInvite(Invite):
     def __init__(
         self,
         state: ConnectionState,
-        invitee: Union[User, SteamID],
-        clan: Union[Clan, SteamID],
-        relationship: Optional[FriendRelationship],
+        invitee: User | SteamID,
+        clan: Clan | SteamID,
+        relationship: FriendRelationship | None,
     ):
         super().__init__(state, invitee, relationship)
         self.clan = clan

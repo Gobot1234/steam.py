@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, NoReturn, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, TypeVar
 
 from typing_extensions import Literal
 
@@ -63,23 +63,23 @@ def _is_descriptor(obj: Any) -> bool:
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
-class EnumMeta(type):
-    _value_map_: dict[Any, Enum]
-    _member_map_: dict[str, Enum]
+class EnumMeta(type, Generic[E]):
+    _value_map_: dict[Any, E]
+    _member_map_: dict[str, E]
 
-    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> EnumMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> type[E]:
         set_attribute = super().__setattr__
-        enum_class = super().__new__(mcs, name, bases, attrs)
-        enum_class_new = enum_class.__new__
+        enum_class: type[E] = super().__new__(mcs, name, bases, attrs)  # type: ignore
+        enum_class_new: Callable[[type[E], str, Any], E] = enum_class.__new__  #: type: ignore
 
-        value_mapping: dict[Any, Enum] = {}
-        member_mapping: dict[str, Enum] = {}
+        value_mapping: dict[Any, E] = {}
+        member_mapping: dict[str, E] = {}
 
         for key, value in attrs.items():
             if key[0] == "_" or _is_descriptor(value):
                 continue
 
-            member: Optional[Enum] = value_mapping.get(value)
+            member = value_mapping.get(value)
             if member is None:
                 member = enum_class_new(enum_class, name=key, value=value)
                 value_mapping[value] = member
@@ -170,11 +170,11 @@ class Enum(metaclass=EnumMeta):
         return f"<{self.__class__.__name__}.{self.name}: {self.value!r}>"
 
     @classmethod
-    def try_value(cls: type[E], value: T) -> Union[E, T]:
+    def try_value(cls: type[E], value: Any) -> E:
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
-            return value
+            return cls.__new__(f"{cls.__name__}UnknownValue", value)
 
 
 class IntEnum(Enum, int):
@@ -185,14 +185,14 @@ class IntEnum(Enum, int):
 
 
 if TYPE_CHECKING:
-    from enum import Enum as _Enum
+    from enum import Enum as _Enum, IntEnum as _IntEnum
 
     class Enum(_Enum):
         @classmethod
-        def try_value(cls: type[E], value: T) -> Union[E, T]:
+        def try_value(cls: type[E], value: Any) -> E:
             ...
 
-    class IntEnum(int, Enum):
+    class IntEnum(_IntEnum, Enum):
         pass
 
     # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour
@@ -437,7 +437,7 @@ class TradeOfferState(IntEnum):
     StateInEscrow             = 11  #: The trade offer is in escrow.
 
     @property
-    def event_name(self) -> Optional[str]:
+    def event_name(self) -> str | None:
         try:
             return {
                 TradeOfferState.Accepted: "accept",

@@ -31,19 +31,20 @@ from __future__ import annotations
 import importlib
 import inspect
 import os
+from steam import ext
 import sys
 import traceback
 from collections.abc import Callable, Coroutine, Iterable
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 
 from typing_extensions import Literal, TypeAlias, overload
 
 from ... import utils
 from ...client import Client, E, EventType, log
 from .cog import Cog
-from .commands import CH, CHR, CheckReturnType, Command, GroupMixin, H, check
+from .commands import CHR, CheckReturnType, CheckType, Command, GroupMixin, InvokeT, check
 from .context import Context
 from .converters import CONVERTERS, Converters
 from .errors import CommandNotFound
@@ -69,11 +70,10 @@ __all__ = (
 )
 
 
-StrOrIterStr: TypeAlias = "Union[str, Iterable[str]]"
-CommandPrefixType: TypeAlias = """Union[
-    StrOrIterStr, Callable[[Bot, Message], Union[StrOrIterStr, Coroutine[Any, Any, StrOrIterStr]]]
-]"""
+StrOrIterStr: TypeAlias = "str | list[str] | tuple[str, ...] | set[str] | frozenset[str] | dict[str, Any]"
+CommandPrefixType: TypeAlias = "StrOrIterStr | Callable[[Bot, Message], StrOrIterStr | Coroutine[Any, Any, StrOrIterStr]]"
 C = TypeVar("C", bound="Context")
+Check = TypeVar("Check", bound="Callable[[CheckType], CheckReturnType]")
 
 
 def when_mentioned(bot: Bot, message: Message) -> list[str]:
@@ -203,12 +203,12 @@ class Bot(GroupMixin, Client):
         return MappingProxyType(CONVERTERS)
 
     @property
-    def help_command(self) -> HelpCommand:
-        """:class:`.HelpCommand`: The bot's help command."""
+    def help_command(self) -> HelpCommand | None:
+        """The bot's help command."""
         return self._help_command
 
     @help_command.setter
-    def help_command(self, value: Optional[HelpCommand]) -> None:
+    def help_command(self, value: HelpCommand | None) -> None:
         if value is None:
             self.remove_command("help")
             self._help_command = None
@@ -242,7 +242,7 @@ class Bot(GroupMixin, Client):
 
         await super().close()
 
-    def load_extension(self, extension: os.PathLike[str]) -> None:
+    def load_extension(self, extension: str | os.PathLike[str]) -> None:
         """Load an extension.
 
         Parameters
@@ -255,21 +255,22 @@ class Bot(GroupMixin, Client):
         :exc:`ImportError`
             The ``extension`` is missing a setup function.
         """
+        name = extension
         if isinstance(extension, Path):
-            extension = resolve_path(extension)
-        extension = os.fspath(extension)
-        if extension in self.__extensions__:
+            name = resolve_path(extension)
+        name = os.fspath(name)
+        if name in self.__extensions__:
             return
 
-        module = importlib.import_module(extension)
+        module = importlib.import_module(name)
         if not hasattr(module, "setup"):
-            del sys.modules[extension]
-            raise ImportError(f"{extension!r} is missing a setup function", path=module.__file__, name=module.__name__)
+            del sys.modules[name]
+            raise ImportError(f"{extension!r} is missing a setup function", name=name, path=extension)
 
-        module.setup(self)
-        self.__extensions__[extension] = module
+        module.setup(self)  # type: ignore
+        self.__extensions__[name] = module
 
-    def unload_extension(self, extension: os.PathLike[str]) -> None:
+    def unload_extension(self, extension: str | os.PathLike[str]) -> None:
         """Unload an extension.
 
         Parameters
@@ -282,15 +283,16 @@ class Bot(GroupMixin, Client):
         :exc:`ModuleNotFoundError`
             The ``extension`` wasn't found in the loaded extensions.
         """
+        name = extension
         if isinstance(extension, Path):
-            extension = resolve_path(extension)
-        extension = os.fspath(extension)
+            name = resolve_path(extension)
+        name = os.fspath(name)
 
         try:
-            module = self.__extensions__[extension]
+            module = self.__extensions__[name]
         except KeyError:
             raise ModuleNotFoundError(
-                f"The extension {extension!r} was not found", name=extension, path=extension
+                f"The extension {extension!r} was not found", name=name, path=extension
             ) from None
 
         for cog in tuple(self.cogs.values()):
@@ -300,10 +302,10 @@ class Bot(GroupMixin, Client):
         if hasattr(module, "teardown"):
             module.teardown(self)
 
-        del sys.modules[extension]
-        del self.__extensions__[extension]
+        del sys.modules[name]
+        del self.__extensions__[name]
 
-    def reload_extension(self, extension: os.PathLike[str]) -> None:
+    def reload_extension(self, extension: str | os.PathLike[str]) -> None:
         """Atomically reload an extension. If any error occurs during the reload the extension will be reverted to its
         original state.
 
@@ -317,24 +319,25 @@ class Bot(GroupMixin, Client):
         :exc:`ModuleNotFoundError`
             The ``extension`` wasn't found in the loaded extensions.
         """
+        name = extension
         if isinstance(extension, Path):
-            extension = resolve_path(extension)
-        extension = os.fspath(extension)
+            name = resolve_path(extension)
+        name = os.fspath(name)
 
         try:
-            previous = self.__extensions__[extension]
+            previous = self.__extensions__[name]
         except KeyError:
             raise ModuleNotFoundError(
-                f"The extension {extension!r} was not found", name=extension, path=extension
+                f"The extension {extension!r} was not found", name=name, path=extension
             ) from None
 
         try:
             self.unload_extension(extension)
             self.load_extension(extension)
-        except Exception:
-            previous.setup(self)
-            self.__extensions__[extension] = previous
-            sys.modules[extension] = previous
+        except:
+            previous.setup(self)  # type: ignore
+            self.__extensions__[name] = previous
+            sys.modules[name] = previous
             raise
 
     def add_cog(self, cog: Cog) -> None:
@@ -362,7 +365,7 @@ class Bot(GroupMixin, Client):
         cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: EventType, name: Optional[str] = None) -> None:
+    def add_listener(self, func: EventType, name: str | None = None) -> None:
         """Add a function from the internal listeners list.
 
         Parameters
@@ -382,7 +385,7 @@ class Bot(GroupMixin, Client):
         except KeyError:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: EventType, name: Optional[str] = None) -> None:
+    def remove_listener(self, func: EventType, name: str | None = None) -> None:
         """Remove a function from the internal listeners list.
 
         Parameters
@@ -404,10 +407,10 @@ class Bot(GroupMixin, Client):
         ...
 
     @overload
-    def listen(self, name: Optional[str] = None) -> Callable[[E], E]:
+    def listen(self, name: str | None = None) -> Callable[[E], E]:
         ...
 
-    def listen(self, name: Union[E, str, None] = None) -> Callable[[E], E]:
+    def listen(self, name: E | str | None = None) -> Callable[[E], E]:
         """|maybecallabledeco|
         Register a function as a listener. Calls :meth:`add_listener`. Similar to :meth:`.Cog.listener`
 
@@ -423,12 +426,12 @@ class Bot(GroupMixin, Client):
 
         return decorator(name) if callable(name) else decorator
 
-    def check(self, predicate: Optional[Union[CH, CHR]] = None) -> Union[CH, CHR]:
+    def check(self, predicate: Check | CHR | None = None) -> Check | CHR:
         """|maybecallabledeco|
         Register a global check for all commands. This is similar to :func:`commands.check`.
         """
 
-        def decorator(predicate: CH) -> CHR:
+        def decorator(predicate: Check) -> CHR:
             predicate = check(predicate)
             self.add_check(predicate)
             return predicate
@@ -472,19 +475,19 @@ class Bot(GroupMixin, Client):
         return await ctx.command.can_run(ctx)
 
     @overload
-    def before_invoke(self, coro: Literal[None] = ...) -> Callable[[H], H]:
+    def before_invoke(self, coro: Literal[None] = ...) -> Callable[[InvokeT], InvokeT]:
         ...
 
     @overload
-    def before_invoke(self, coro: H) -> H:
+    def before_invoke(self, coro: InvokeT) -> InvokeT:
         ...
 
-    def before_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
+    def before_invoke(self, coro: InvokeT | None = None) -> Callable[[InvokeT], InvokeT] | InvokeT:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
         """
 
-        def decorator(coro: H) -> H:
+        def decorator(coro: InvokeT) -> InvokeT:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
             self._before_hook = coro
@@ -493,19 +496,19 @@ class Bot(GroupMixin, Client):
         return decorator(coro) if coro is not None else decorator
 
     @overload
-    def after_invoke(self, coro: Literal[None] = ...) -> Callable[[H], H]:
+    def after_invoke(self, coro: Literal[None] = ...) -> Callable[[InvokeT], InvokeT]:
         ...
 
     @overload
-    def after_invoke(self, coro: H) -> H:
+    def after_invoke(self, coro: InvokeT) -> InvokeT:
         ...
 
-    def after_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
+    def after_invoke(self, coro: InvokeT | None = None) -> Callable[[InvokeT], InvokeT] | InvokeT:
         """|maybecallabledeco|
         Register a :ref:`coroutine <coroutine>` to be ran after a command has been invoked.
         """
 
-        def decorator(coro: H) -> H:
+        def decorator(coro: InvokeT) -> InvokeT:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
             self._after_hook = coro
@@ -582,7 +585,7 @@ class Bot(GroupMixin, Client):
             command=command,
         )
 
-    async def get_prefix(self, message: Message) -> Optional[str]:
+    async def get_prefix(self, message: Message) -> str | None:
         """Get the command prefix for a certain message.
 
         Parameters
@@ -605,7 +608,7 @@ class Bot(GroupMixin, Client):
         except TypeError as exc:
             raise TypeError(f"command_prefix must return an iterable of strings not {type(prefixes)}") from exc
 
-    def get_cog(self, name: str) -> Optional[Cog]:
+    def get_cog(self, name: str) -> Cog | None:
         """Get a loaded cog or ``None``.
 
         Parameters
@@ -660,151 +663,142 @@ class Bot(GroupMixin, Client):
                 The invocation context.
             """
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal[
-            "connect",
-            "disconnect",
-            "ready",
-            "login",
-            "logout",
-        ],
-        *,
-        check: Optional[Callable[[], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> None:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal[
+                "connect",
+                "disconnect",
+                "ready",
+                "login",
+                "logout",
+            ],
+            *,
+            check: Callable[[], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> None:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["error"],
-        *,
-        check: Optional[Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> tuple[str, Exception, tuple, dict]:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal["error"],
+            *,
+            check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> tuple[str, Exception, tuple[Any, ...], dict[str, Any]]:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["message"],
-        *,
-        check: Optional[Callable[[Message], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> Message:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal["message"],
+            *,
+            check: Callable[[Message], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> Message:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["comment"],
-        *,
-        check: Optional[Callable[[Comment], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> Comment:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal["comment"],
+            *,
+            check: Callable[[Comment], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> Comment:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["user_update"],
-        *,
-        check: Optional[Callable[[User, User], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> tuple[User, User]:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal["user_update"],
+            *,
+            check: Callable[[User, User], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> tuple[User, User]:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["typing"],
-        *,
-        check: Optional[Callable[[User, datetime.datetime], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> tuple[User, datetime.datetime]:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal["typing"],
+            *,
+            check: Callable[[User, datetime.datetime], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> tuple[User, datetime.datetime]:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal[
-            "trade_receive",
-            "trade_send",
-            "trade_accept",
-            "trade_decline",
-            "trade_cancel",
-            "trade_expire",
-            "trade_counter",
-        ],
-        *,
-        check: Optional[Callable[[TradeOffer], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> TradeOffer:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal[
+                "trade_receive",
+                "trade_send",
+                "trade_accept",
+                "trade_decline",
+                "trade_cancel",
+                "trade_expire",
+                "trade_counter",
+            ],
+            *,
+            check: Callable[[TradeOffer], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> TradeOffer:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["user_invite"],
-        *,
-        check: Optional[Callable[[UserInvite], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> UserInvite:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal["user_invite"],
+            *,
+            check: Callable[[UserInvite], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> UserInvite:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["clan_invite"],
-        *,
-        check: Optional[Callable[[ClanInvite], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> ClanInvite:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal["clan_invite"],
+            *,
+            check: Callable[[ClanInvite], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> ClanInvite:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal[
-            "socket_receive",
-            "socket_send",
-        ],
-        *,
-        check: Optional[Callable[[Msgs], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> Msgs:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal[
+                "socket_receive",
+                "socket_send",
+            ],
+            *,
+            check: Callable[[Msgs], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> Msgs:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal["command_error"],
-        *,
-        check: Optional[Callable[[Context, Exception], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> tuple[Context, Exception]:
-        ...
+        @overload
+        async def wait_for(
+            self,
+            event: Literal["command_error"],
+            *,
+            check: Callable[[Context, Exception], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> tuple[Context, Exception]:
+            ...
 
-    @overload
-    async def wait_for(
-        self,
-        event: Literal[
-            "command",
-            "command_completion",
-        ],
-        *,
-        check: Optional[Callable[[Context], bool]] = ...,
-        timeout: Optional[float] = ...,
-    ) -> Context:
-        ...
-
-    async def wait_for(
-        self,
-        event: str,
-        *,
-        check: Optional[Callable[..., bool]] = None,
-        timeout: Optional[float] = None,
-    ) -> Any:
-        return await super().wait_for(event, check=check, timeout=timeout)  # noqa
+        @overload
+        async def wait_for(
+            self,
+            event: Literal[
+                "command",
+                "command_completion",
+            ],
+            *,
+            check: Callable[[Context], bool] | None = ...,
+            timeout: float | None = ...,
+        ) -> Context:
+            ...

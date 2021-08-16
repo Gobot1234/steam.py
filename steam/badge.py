@@ -81,7 +81,7 @@ class Badge:
     def __repr__(self) -> str:
         attrs = ("id", "level", "xp", "game")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f'<Badge {" ".join(resolved)}>'
+        return f"<Badge {' '.join(resolved)}>"
 
 
 class UserBadges:

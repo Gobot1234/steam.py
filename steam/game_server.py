@@ -33,23 +33,24 @@ import socket
 import struct
 from binascii import crc32
 from bz2 import decompress
-from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from collections.abc import AsyncGenerator, Callable
+from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeAlias
 
 from .abc import SteamID
-from .enums import Enum, GameServerRegion
-from .game import Game
+from .enums import Enum, GameServerRegion, Type
+from .game import Game, StatefulGame
 from .utils import StructIO
 
 if TYPE_CHECKING:
     from .protobufs.steammessages_gameservers import CGameServersGetServerListResponseServer as GameServerProto
+    from .state import ConnectionState
 
 T = TypeVar("T")
-Q = TypeVar("Q", bound="Query")
+Q: TypeAlias = "Query[Q]"
 
 __all__ = (
     "Query",
@@ -61,17 +62,17 @@ __all__ = (
 class Operator(Enum):
     # fmt: off
     div  = "\\"
-    or_  = "\\nor\\"
-    and_ = "\\nand\\"
+    nor  = "\\nor\\"
+    nand = "\\nand\\"
     # fmt: on
 
     def format(self, query_1: str, query_2: str) -> str:
-        return f"{query_1}{query_2}" if self is Operator.div else rf"{self.value}[{query_1}{query_2}]"
+        return f"{query_1}{query_2}" if self is Operator.div else f"{self.value}[{query_1}{query_2}]"
 
 
 class QueryAll:
     def __repr__(self) -> str:
-        return "all"
+        return self.__class__.__name__
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__)
@@ -81,74 +82,74 @@ class QueryAll:
 
 class QueryMeta(type):
     @property
-    def not_empty(cls) -> Query[Q]:
+    def not_empty(cls) -> Q:
         """Fetches servers that are not empty."""
         return Query(r"\empty\1")
 
     @property
-    def empty(cls) -> Query[Q]:
+    def empty(cls) -> Q:
         """Fetches servers that are empty."""
         return Query(r"\noplayers\1")
 
     @property
-    def proxy(cls) -> Query[Q]:
+    def proxy(cls) -> Q:
         """Fetches servers that are spectator proxies."""
         return Query(r"\proxy\1")
 
     @property
-    def whitelisted(cls) -> Query[Q]:
+    def whitelisted(cls) -> Q:
         """Fetches servers that are whitelisted."""
         return Query(r"\white\1")
 
     @property
-    def dedicated(cls) -> Query[Q]:
+    def dedicated(cls) -> Q:
         """Fetches servers that are running dedicated."""
         return Query(r"\dedicated\1")
 
     @property
-    def secure(cls) -> Query[Q]:
+    def secure(cls) -> Q:
         """Fetches servers that are using anti-cheat technology (VAC, but potentially others as well)."""
         return Query(r"\secure\1")
 
     @property
-    def linux(cls) -> Query[Q]:
+    def linux(cls) -> Q:
         """Fetches servers running on a Linux platform."""
         return Query(r"\linux\1")
 
     @property
-    def no_password(cls) -> Query[Q]:
+    def no_password(cls) -> Q:
         """Fetches servers that are not password protected."""
         return Query(r"\password\0")
 
     @property
-    def not_full(cls) -> Query[Q]:
+    def not_full(cls) -> Q:
         """Fetches servers that are not full."""
         return Query(r"\full\1")
 
     @property
-    def unique_addresses(cls) -> Query[Q]:
+    def unique_addresses(cls) -> Q:
         """Fetches only one server for each unique IP address matched."""
         return Query(r"\collapse_addr_hash\1")
 
     @property
     def version_match(cls) -> Query[str]:
         """Fetches servers running version "x" (``"*"`` is wildcard)."""
-        return Query("\\version_match\\", type=str)
+        return Query[str]("\\version_match\\", type=str)
 
     @property
     def name_match(cls) -> Query[str]:
         """Fetches servers with their hostname matching "x" (``"*"`` is wildcard)."""
-        return Query("\\name_match\\", type=str)
+        return Query[str]("\\name_match\\", type=str)
 
     @property
     def running_mod(cls) -> Query[str]:
         """Fetches servers running the specified modification (e.g. cstrike)."""
-        return Query("\\gamedir\\", type=str)
+        return Query[str]("\\gamedir\\", type=str)
 
     @property
     def running_map(cls) -> Query[str]:
         """Fetches servers running the specified map (e.g. cs_italy)"""
-        return Query("\\map\\", type=str)
+        return Query[str]("\\map\\", type=str)
 
     @property
     def ip(cls) -> Query[str]:
@@ -158,15 +159,15 @@ class QueryMeta(type):
         --------
         :meth:`Client.fetch_server` for an query free version of this.
         """
-        return Query("\\gameaddr\\", type=str)
+        return Query[str]("\\gameaddr\\", type=str)
 
     @property
-    def running(cls) -> Query[Union[Game, int]]:
+    def running(cls) -> Query[Game | int]:
         """Fetches servers running a :class:`.Game` or an :class:`int` app id."""
         return Query("\\appid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
 
     @property
-    def not_running(cls) -> Query[Union[Game, int]]:
+    def not_running(cls) -> Query[Game | int]:
         """Fetches servers not running a :class:`.Game` or an :class:`int` app id."""
         return Query("\\nappid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
 
@@ -238,10 +239,10 @@ class Query(Generic[T], metaclass=QueryMeta):
 
     def __new__(
         cls,
-        *raw: Union[Query, Operator, str],
-        type: Union[type[T], tuple[type[T], ...], None] = None,
-        callback: Optional[Callable[[T], str]] = lambda x: x,
-    ) -> Query:
+        *raw: Query[Any] | Operator | str,
+        type: type[T] | tuple[type[T], ...] | None = None,
+        callback: Callable[[T], Any] = lambda x: x,
+    ) -> Query[T]:
         self = super().__new__(cls)
         self._raw = raw
         self._type = type
@@ -251,7 +252,7 @@ class Query(Generic[T], metaclass=QueryMeta):
     def __repr__(self) -> str:
         return f"<Query query={self.query!r}>"
 
-    def _process_op(self, other: T, op: Operator) -> Query[T]:
+    def _process_op(self, other: T, op: Operator) -> Query[Q]:
         cls = self.__class__
 
         if self._type and isinstance(other, self._type):
@@ -262,20 +263,19 @@ class Query(Generic[T], metaclass=QueryMeta):
 
         return cls(self, op, other, type=other._type, callback=other._callback)
 
-    def __truediv__(self, other: T) -> Query[T]:
+    def __truediv__(self, other: T) -> Query[Q]:
         return self._process_op(other, Operator.div)
 
-    def __and__(self, other: T) -> Query[T]:
-        # I'm not really sure what this does differently to __truediv__ or when to use it.
-        return self._process_op(other, Operator.and_)
+    def __and__(self, other: T) -> Query[Q]:
+        return self._process_op(other, Operator.nand)
 
-    def __or__(self, other: T) -> Query[T]:
-        return self._process_op(other, Operator.or_)
+    def __or__(self, other: T) -> Query[Q]:
+        return self._process_op(other, Operator.nor)
 
-    def __eq__(self, other: Query) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Query):
             return NotImplemented
-        return self._raw == other._raw
+        return self._raw == other._raw  # type: ignore
 
     @property
     def query(self) -> str:
@@ -338,7 +338,7 @@ async def _handle_a2s_response(loop: asyncio.AbstractEventLoop, sock: socket.soc
 
         packets = sorted({struct.unpack_from("<B", packet, 9)[0]: packet for packet in packets}.items())
         # reconstruct full response
-        data = b"".join(x[1][payload_offset:] for x in packets)
+        data = b"".join(packet[1][payload_offset:] for packet in packets)
 
         # decompress response if needed
         if compressed:
@@ -399,12 +399,13 @@ class GameServer(SteamID):
         "_secure",
         "_dedicated",
         "_loop",
+        "_state",
     )
 
-    def __init__(self, server: GameServerProto):
-        super().__init__(server.steamid, type="GameServer")
+    def __init__(self, state: ConnectionState, server: GameServerProto):
+        super().__init__(server.steamid, type=Type.GameServer)
         self.name = server.name
-        self.game = Game(id=server.appid)
+        self.game = StatefulGame(state, id=server.appid)
         self.ip = server.addr.split(":")[0]
         self.port = server.gameport
         self.tags = server.gametype.split(",")
@@ -417,7 +418,8 @@ class GameServer(SteamID):
 
         self._secure = server.secure
         self._dedicated = server.dedicated
-        self._loop = asyncio.get_event_loop()
+        self._loop = state.loop
+        self._state = state
 
     def __repr__(self) -> str:
         attrs = ("name", "game", "ip", "port", "region", "id", "type", "universe", "instance")
@@ -436,7 +438,7 @@ class GameServer(SteamID):
         return self._dedicated
 
     @asynccontextmanager
-    async def connect(self, challenge: int, char: bytes) -> AbstractAsyncContextManager[StructIO]:
+    async def connect(self, challenge: int, char: bytes) -> AsyncGenerator[StructIO, None]:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             # steam uses TCP over UDP. I would use asyncio streams otherwise
             sock.setblocking(False)
@@ -457,7 +459,7 @@ class GameServer(SteamID):
 
         yield StructIO(data)
 
-    async def players(self, *, challenge: Literal[-1, 0] = 0) -> Optional[list[ServerPlayer]]:
+    async def players(self, *, challenge: Literal[-1, 0] = 0) -> list[ServerPlayer] | None:
         """Fetch a server's players  or ``None`` if something went wrong getting the info.
 
         Parameters
@@ -496,7 +498,7 @@ class GameServer(SteamID):
                 for _ in range(number_of_players)
             ]
 
-    async def rules(self, *, challenge: Literal[-1, 0] = 0) -> Optional[dict[str, str]]:
+    async def rules(self, *, challenge: Literal[-1, 0] = 0) -> dict[str, str] | None:
         """Fetch a console variables. e.g. ``sv_gravity`` or ``sv_voiceenable``.
 
         Parameters

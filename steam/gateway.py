@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import random
 import struct
 import sys
 import threading
@@ -41,12 +40,12 @@ import traceback
 from collections.abc import Callable
 from dataclasses import dataclass
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from zlib import MAX_WBITS, decompress
 
 import aiohttp
 import attr
-from typing_extensions import Literal
+from typing_extensions import TypeAlias
 
 from . import utils
 from .enums import PersonaState, Result
@@ -69,18 +68,13 @@ __all__ = (
     "ConnectionClosed",
     "CMServerList",
     "SteamWebSocket",
-    "return_true",
     "Msgs",
 )
 
 log = logging.getLogger(__name__)
-Msgs = Union[MsgProto, Msg]
-M = TypeVar("M", bound=MsgBase)
+Msgs: TypeAlias = "MsgProto | Msg"
+M = TypeVar("M", bound=MsgBase[Any], covariant=True)
 READ_U32 = struct.Struct("<I").unpack_from
-
-
-def return_true(*_, **__) -> Literal[True]:
-    return True
 
 
 @dataclass
@@ -116,7 +110,7 @@ class WebSocketClosure(Exception):
 class CMServerList(AsyncIterator[CMServer]):
     __slots__ = ("cms", "cell_id")
 
-    def __init__(self, state: ConnectionState, first_cm_to_try: Optional[CMServer] = None):
+    def __init__(self, state: ConnectionState, first_cm_to_try: CMServer | None = None):
         super().__init__(state, None, None, None)
         self.cms: list[CMServer] = []
         self.cell_id = 0
@@ -221,7 +215,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
     def run(self) -> None:
         while not self._stop_ev.wait(self.interval):
             log.debug(self.msg.format(self.heartbeat))
-            coro = self.ws.send_as_proto(self.heartbeat)
+            coro = self.ws.send_proto(self.heartbeat)
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
             # block until sending is complete
             total = 0
@@ -262,13 +256,13 @@ class SteamWebSocket(Registerable):
         self.socket = socket
 
         # state stuff
-        self._connection: Optional[ConnectionState] = None
-        self.cm_list: Optional[CMServerList] = None
+        self._connection: ConnectionState | None = None
+        self.cm_list: CMServerList | None = None
         # the keep alive
-        self._keep_alive: Optional[KeepAliveHandler] = None
+        self._keep_alive: KeepAliveHandler | None = None
         # an empty dispatcher to prevent crashes
         self._dispatch: Callable[..., None] = lambda *args, **kwargs: None
-        self.cm: Optional[CMServer] = None
+        self.cm: CMServer | None = None
         self.thread_id = threading.get_ident()
 
         # ws related stuff
@@ -282,6 +276,8 @@ class SteamWebSocket(Registerable):
     @property
     def latency(self) -> float:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
+        if self._keep_alive is None:
+            return float("nan")
         return self._keep_alive.latency
 
     def wait_for(self, emsg: EMsg, check: Callable[[M], bool] = return_true) -> asyncio.Future[M]:
@@ -292,38 +288,40 @@ class SteamWebSocket(Registerable):
 
     @classmethod
     async def from_client(
-        cls, client: Client, cm: Optional[CMServer] = None, cm_list: Optional[CMServerList] = None
+        cls, client: Client, cm: CMServer | None = None, cm_list: CMServerList | None = None
     ) -> SteamWebSocket:
-        connection = client._connection
-        cm_list = cm_list or CMServerList(connection, cm)
+        state = client._connection
+        cm_list = cm_list or CMServerList(state, cm)
+        token = await client.token
         async for cm in cm_list:
             log.info(f"Attempting to create a websocket connection to: {cm}")
             socket = await client.http.connect_to_cm(cm.url)
             log.debug(f"Connected to {cm}")
 
-            ws = cls(socket)
+            self = cls(socket)
             # dynamically add attributes needed
-            ws._connection = connection
-            ws.parsers.update(connection.parsers)
-            ws._dispatch = client.dispatch
-            ws.steam_id = client.user.id64
-            ws.cm = cm
-            ws.cm_list = cm_list
-            await ws.send_as_proto(
+            self._connection = state
+            self.parsers.update(state.parsers)
+            self._dispatch = client.dispatch
+            self.steam_id = client.user.id64
+            self.cm = cm
+            self.cm_list = cm_list
+            await self.send_proto(
                 MsgProto(
                     EMsg.ClientLogon,
                     account_name=client.username,
-                    web_logon_nonce=client.token,
+                    web_logon_nonce=token,
                     client_os_type=4294966596,
                     protocol_version=65580,
                     chat_mode=2,
-                    ui_mode=4,
+                    ui_mode=self._connection._ui_mode,
                     qos_level=2,
                     client_language="english",
                 )
             )
-            ws._dispatch("connect")
-            return ws
+            self._dispatch("connect")
+            return self
+        raise NoCMsFound("No CMs found could be connected to")
 
     async def poll_event(self) -> None:
         try:
@@ -385,14 +383,14 @@ class SteamWebSocket(Registerable):
             log.info("Connection closed")
             await self.handle_close()
 
-    async def send_as_proto(self, message: Msgs) -> None:
+    async def send_proto(self, message: Msgs) -> None:
         message.steam_id = self.steam_id
         message.session_id = self.session_id
 
         self._dispatch("socket_send", message)
         await self.send(bytes(message))
 
-    async def send_gc_message(self, msg: Union[GCMsgProto, GCMsg]) -> int:  # for ext's to send GC messages
+    async def send_gc_message(self, msg: GCMsgProto[Any] | GCMsg[Any]) -> int:  # for ext's to send GC messages
         message = MsgProto[CMsgGcClient](
             EMsg.ClientToGC,
             appid=self._connection.client.GAME.id,
@@ -402,9 +400,9 @@ class SteamWebSocket(Registerable):
         message.header.body.routing_appid = self._connection.client.GAME.id
         message.header.body.job_id_source = self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
 
-        log.debug(f"Sending GC message %r", msg)
+        log.debug("Sending GC message %r", msg)
         self._dispatch("gc_message_send", msg)
-        await self.send_as_proto(message)
+        await self.send_proto(message)
         return message.header.body.job_id_source
 
     async def close(self, code: int = 1000) -> None:
@@ -448,14 +446,14 @@ class SteamWebSocket(Registerable):
             state=self._connection._state,
             flags=self._connection._flags,
             force_kick=self._connection._force_kick,
-            ui_mode=self._connection._ui_mode,
+            ui_mode=None,
         )
-        await self.send_as_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
+        await self.send_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
 
         log.debug("Logon completed")
 
     @staticmethod
-    def unpack_multi(msg: MsgProto[CMsgMulti]) -> Optional[bytes]:
+    def unpack_multi(msg: MsgProto[CMsgMulti]) -> bytes | None:
         log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
         data = msg.body.message_body
         if data[:2] != b"\037\213":
@@ -502,15 +500,15 @@ class SteamWebSocket(Registerable):
     async def send_um(self, name: str, **kwargs: Any) -> int:
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
         msg.header.body.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
-        await self.send_as_proto(msg)
+        await self.send_proto(msg)
         return msg.header.body.job_id_source
 
     async def send_um_and_wait(
         self,
         name: str,
-        check: Optional[Callable[[MsgProto], bool]] = None,
+        check: Callable[[M], bool] | None = None,
         **kwargs: Any,
-    ) -> MsgProto:
+    ) -> M:
         job_id = await self.send_um(name, **kwargs)
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)
         return await self.wait_for(EMsg.ServiceMethodResponse, check=check)
@@ -519,9 +517,9 @@ class SteamWebSocket(Registerable):
         self,
         *,
         games: list[GameToDict],
-        state: Optional[PersonaState],
+        state: PersonaState | None,
         flags: int,
-        ui_mode: Optional[UIMode],
+        ui_mode: UIMode | None,
         force_kick: bool,
     ) -> None:
         self._connection._games = games or self._connection._games
@@ -533,16 +531,16 @@ class SteamWebSocket(Registerable):
         if force_kick:
             kick = MsgProto(EMsg.ClientKickPlayingSession)
             log.debug("Kicking any currently playing sessions")
-            await self.send_as_proto(kick)
+            await self.send_proto(kick)
         if games:
             activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug(f"Sending {activity} to change activity")
-            await self.send_as_proto(activity)
+            await self.send_proto(activity)
         if state is not None or flags:
             state = MsgProto(EMsg.ClientChangeStatus, persona_state=state, persona_state_flags=flags)
             log.debug(f"Sending {state} to change state")
-            await self.send_as_proto(state)
+            await self.send_proto(state)
         if ui_mode is not None:
             ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
             log.debug(f"Sending {ui_mode} to change UI mode")
-            await self.send_as_proto(ui_mode)
+            await self.send_proto(ui_mode)

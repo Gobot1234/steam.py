@@ -29,7 +29,7 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 from __future__ import annotations
 
 import struct
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from ..enums import Result
 from ..utils import clear_proto_bit, set_proto_bit  # noqa
@@ -45,9 +45,12 @@ __all__ = (
     "GCMsgHdrProto",
 )
 
+try:
+    from _typing import _idfunc as do_nothing_case  # a fair bit faster than the python noop version
+except ImportError:
 
-def do_nothing_case(value: str) -> str:
-    return value
+    def do_nothing_case(value: str) -> str:
+        return value
 
 
 class BaseMsgHdr:
@@ -55,6 +58,7 @@ class BaseMsgHdr:
 
     STRUCT: ClassVar[struct.Struct]
     PACK: ClassVar[tuple[str, ...]]
+    body: ClassVar[Any]
 
     def __init_subclass__(cls, proto: bool = False, cast_msg_to_emsg: bool = True) -> None:
         if cls.__name__ == "GCMsgHdr":
@@ -119,7 +123,7 @@ class MsgHdr(BaseMsgHdr):
     PACK = ("msg", "job_id_target", "job_id_source")
     body: MsgHdr
 
-    def __init__(self, data: Optional[bytes] = None):
+    def __init__(self, data: bytes | None = None):
         self.msg = None
         self.eresult = Result.Invalid
         self.job_name_target = None
@@ -149,7 +153,7 @@ class ExtendedMsgHdr(BaseMsgHdr):
     PACK = __slots__[1:]
     body: ExtendedMsgHdr
 
-    def __init__(self, data: Optional[bytes] = None):
+    def __init__(self, data: bytes | None = None):
         self.msg = None
         self.header_size = 36
         self.header_version = 2
@@ -175,7 +179,7 @@ class MsgHdrProto(BaseMsgHdr, proto=True):
     PACK = ("msg", "length")
     body: CMsgProtoBufHeader
 
-    def __init__(self, data: Optional[bytes] = None):
+    def __init__(self, data: bytes | None = None):
         self.msg = None
         self.body = CMsgProtoBufHeader()
         self.length = 0
@@ -191,7 +195,7 @@ class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
     PACK = ()
     body: GCMsgHdr
 
-    def __init__(self, data: Optional[bytes] = None):
+    def __init__(self, data: bytes | None = None):
         self.msg = None
 
         self.header_version = 1
@@ -221,7 +225,7 @@ class GCMsgHdrProto(BaseMsgHdr, proto=True, cast_msg_to_emsg=False):
     PACK = ("msg", "length")
     body: CMsgProtoBufHeader
 
-    def __init__(self, data: Optional[bytes] = None):
+    def __init__(self, data: bytes | None = None):
         self.msg = None
         self.body = CMsgProtoBufHeader()
         self.length = 0

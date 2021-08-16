@@ -32,11 +32,12 @@ with extra doc-strings and performance improvements.
 from __future__ import annotations
 
 import base64
+import dataclasses
 import hmac
 import struct
 from hashlib import sha1
 from time import time
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from .errors import ConfirmationError
 from .models import URL
@@ -54,7 +55,7 @@ __all__ = (
 )
 
 
-def generate_one_time_code(shared_secret: str, timestamp: Optional[int] = None) -> str:
+def generate_one_time_code(shared_secret: str, timestamp: int | None = None) -> str:
     """Generate a Steam Guard code for signing in or at a specific time.
 
     Parameters
@@ -77,7 +78,7 @@ def generate_one_time_code(shared_secret: str, timestamp: Optional[int] = None) 
     return "".join(code)
 
 
-def generate_confirmation_code(identity_secret: str, tag: str, timestamp: Optional[int] = None) -> str:
+def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int | None = None) -> str:
     """Generate a trade confirmation code.
 
     Parameters
@@ -115,39 +116,33 @@ def generate_device_id(user_id64: Intable) -> str:
     return f'android:{"-".join(partial_id)}'
 
 
+@dataclasses.dataclass
 class Confirmation:
     __slots__ = (
         "_state",
         "id",
         "data_conf_id",
         "data_key",
-        "tag",
         "trade_id",
     )
 
-    def __init__(
-        self,
-        state: ConnectionState,
-        confirmation_id: int,
-        data_conf_id: int,
-        data_key: str,
-        trade_id: int,
-        tag: str,
-    ):
-        self._state = state
-        self.id = confirmation_id
-        self.data_conf_id = data_conf_id
-        self.data_key = data_key
-        self.tag = tag
-        self.trade_id = trade_id  # this isn't really always the trade ID, but for our purposes this is fine
+    _state: ConnectionState
+    id: str
+    data_conf_id: int
+    data_key: str
+    trade_id: int  # this isn't really always the trade ID, but for our purposes this is fine
 
     def __repr__(self) -> str:
         return f"<Confirmation id={self.id!r} trade_id={self.trade_id}>"
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return isinstance(other, Confirmation) and self.trade_id == other.trade_id and self.id == other.id
 
-    def _confirm_params(self, tag: str) -> dict:
+    @property
+    def tag(self) -> str:
+        return f"details{self.data_conf_id}"
+
+    def _confirm_params(self, tag: str) -> dict[str, str | int]:
         timestamp = int(time())
         return {
             "p": self._state._device_id,
@@ -158,7 +153,7 @@ class Confirmation:
             "tag": tag,
         }
 
-    def _assert_valid(self, resp: dict) -> None:
+    def _assert_valid(self, resp: dict[str, Any]) -> None:
         if not resp.get("success", False):
             self._state._confirmations_to_ignore.append(self.trade_id)
             raise ConfirmationError
@@ -179,7 +174,7 @@ class Confirmation:
         resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
         self._assert_valid(resp)
 
-    async def details(self) -> dict:
+    async def details(self) -> str:
         params = self._confirm_params(self.tag)
         resp = await self._state.http.get(URL.COMMUNITY / f"mobileconf/details/{self.id}", params=params)
         self._assert_valid(resp)

@@ -24,15 +24,17 @@ SOFTWARE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from collections.abc import Coroutine
+from typing import TYPE_CHECKING, Any
 
-from ...abc import Channel, Message, Messageable, _EndPointReturnType
+from ...abc import Channel, Message, Messageable
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from ...clan import Clan
     from ...group import Group
+    from ...image import Image
     from ...iterators import AsyncIterator
     from ...state import ConnectionState
     from ...user import User
@@ -45,7 +47,7 @@ if TYPE_CHECKING:
 __all__ = ("Context",)
 
 
-class Context(Messageable):
+class Context(Messageable["Message"]):
     """Represents the context of a command.
 
     Attributes
@@ -75,10 +77,10 @@ class Context(Messageable):
         self.message: Message = attrs["message"]
         self.prefix: str = attrs["prefix"]
 
-        self.command: Optional[Command] = attrs.get("command")
-        self.cog: Optional[Cog] = self.command.cog if self.command is not None else None
-        self.lex: Optional[Shlex] = attrs.get("lex")
-        self.invoked_with: Optional[str] = attrs.get("invoked_with")
+        self.command: Command | None = attrs.get("command")
+        self.cog: Cog | None = self.command.cog if self.command is not None else None
+        self.lex: Shlex | None = attrs.get("lex")
+        self.invoked_with: str | None = attrs.get("invoked_with")
 
         self.author: User = self.message.author
         self.channel: Channel = self.message.channel
@@ -86,15 +88,15 @@ class Context(Messageable):
         self.group: Group = self.message.group
         self._state: ConnectionState = self.message._state
 
-        self.args: Optional[tuple[Any, ...]] = None
-        self.kwargs: Optional[dict[str, Any]] = None
+        self.args: tuple[Any, ...] | None = None
+        self.kwargs: dict[str, Any] | None = None
         self.command_failed: bool = False
 
-    def _get_message_endpoint(self) -> _EndPointReturnType:
-        return self.channel._get_message_endpoint()
+    def _message_func(self, content: str) -> Coroutine[Any, Any, Message]:
+        return self.channel._message_func(content)
 
-    def _get_image_endpoint(self) -> _EndPointReturnType:
-        return self.channel._get_image_endpoint()
+    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
+        return self.channel._message_func(image)
 
     async def invoke(self) -> None:
         """A shortcut method that invokes the current context using :meth:`~steam.ext.commands.Command.invoke`.
@@ -109,9 +111,9 @@ class Context(Messageable):
 
     def history(
         self,
-        limit: Optional[int] = 100,
-        before: Optional[datetime] = None,
-        after: Optional[datetime] = None,
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
     ) -> AsyncIterator[Message]:
         """A shortcut method that gets the current channel's history.
 

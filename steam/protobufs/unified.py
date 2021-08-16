@@ -11,7 +11,7 @@ from . import (
 __all__ = ("UMS",)
 
 
-UMS = {
+UMS: Mapping[str, betterproto.Message] = {
     "GameServers.GetServerList#1_Request": steammessages_gameservers.CGameServersGetServerListRequest,
     "GameServers.GetServerList#1_Response": steammessages_gameservers.CGameServersGetServerListResponse,
     "GameServers.GetServerSteamIDsByIP#1_Request": steammessages_gameservers.CGameServersGetServerSteamIDsByIpRequest,

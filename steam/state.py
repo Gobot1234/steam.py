@@ -31,13 +31,13 @@ import weakref
 from collections import ChainMap, deque
 from datetime import datetime
 from time import time
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
 
 from . import utils
 from .abc import BaseUser, Commentable, SteamID, UserDict
-from .channel import ClanChannel, DMChannel, GroupChannel
+from .channel import DMChannel
 from .clan import Clan
 from .enums import ChatEntryType, FriendRelationship, PersonaState, Result, TradeOfferState, Type, UIMode
 from .errors import *
@@ -94,8 +94,8 @@ class ConnectionState(Registerable):
             games.append(game.to_dict())
         self._games: list[GameToDict] = games
         self._state: PersonaState = kwargs.get("state", PersonaState.Online)
-        self._ui_mode: Optional[UIMode] = kwargs.get("ui_mode", UIMode.Desktop)
-        flag: int = kwargs.get("flag")
+        self._ui_mode: UIMode | None = kwargs.get("ui_mode", UIMode.Desktop)
+        flag: int | None = kwargs.get("flag")
         flags: list[int] = kwargs.get("flag", [0])
         if flag is not None:
             flags.append(flag)
@@ -114,14 +114,15 @@ class ConnectionState(Registerable):
         self._clans: dict[int, Clan] = {}
         self._confirmations: dict[int, Confirmation] = {}
         self._confirmations_to_ignore: list[int] = []
-        self._messages: deque[Message] = self.max_messages and deque(maxlen=self.max_messages)
-        self.invites: dict[int, Union[UserInvite, ClanInvite]] = {}
+        self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
+        self.invites: dict[int, UserInvite | ClanInvite] = {}
+        self.emoticons: list[ClientEmoticon] = []
 
-        self._trades_task: Optional[asyncio.Task[None]] = None
+        self._trades_task: asyncio.Task[None] | None = None
         self._trades_to_watch: list[int] = []
-        self._trades_received_cache: list[dict] = []
-        self._trades_sent_cache: list[dict] = []
-        self._descriptions_cache: list[dict] = []
+        self._trades_received_cache: list[dict[str, Any]] = []
+        self._trades_sent_cache: list[dict[str, Any]] = []
+        self._descriptions_cache: list[dict[str, Any]] = []
 
         self.handled_friends.clear()
         self.handled_groups = False
@@ -158,15 +159,15 @@ class ConnectionState(Registerable):
     def confirmations(self) -> list[Confirmation]:
         return list(self._confirmations.values())
 
-    def get_user(self, id64: int) -> Optional[User]:
+    def get_user(self, id64: int) -> User | None:
         return self._users.get(id64)
 
-    async def fetch_user(self, user_id64: int) -> Optional[User]:
+    async def fetch_user(self, user_id64: int) -> User | None:
         data = await self.http.get_user(user_id64)
         return self._store_user(data) if data else None
         # return (await self.fetch_users([user_id64]))[0]
 
-    async def fetch_users(self, user_id64s: list[int]) -> list[Optional[User]]:
+    async def fetch_users(self, user_id64s: list[int]) -> list[User | None]:
         resp = await self.http.get_users(user_id64s)
         """
         msg: MsgProto[CMsgClientRequestFriendData] = MsgProto(
@@ -192,20 +193,20 @@ class ConnectionState(Registerable):
             user._update(data)
         return user
 
-    def get_confirmation(self, id: int) -> Optional[Confirmation]:
+    def get_confirmation(self, id: int) -> Confirmation | None:
         return self._confirmations.get(id)
 
-    async def fetch_confirmation(self, id: int) -> Optional[Confirmation]:
+    async def fetch_confirmation(self, id: int) -> Confirmation | None:
         await self._fetch_confirmations()
         return self.get_confirmation(id)
 
-    def get_group(self, id: int) -> Optional[Group]:
+    def get_group(self, id: int) -> Group | None:
         return self._groups.get(id)
 
-    def get_clan(self, id: int) -> Optional[Clan]:
+    def get_clan(self, id: int) -> Clan | None:
         return self._clans.get(id)
 
-    async def fetch_clan(self, id64: int) -> Optional[Clan]:
+    async def fetch_clan(self, id64: int) -> Clan | None:
         msg: MsgProto[chat.CClanChatRoomsGetClanChatRoomInfoResponse] = await self.ws.send_um_and_wait(
             "ClanChatRooms.GetClanChatRoomInfo", steamid=id64
         )
@@ -216,10 +217,10 @@ class ConnectionState(Registerable):
 
         return await Clan._from_proto(self, msg.body)
 
-    def get_trade(self, id: int) -> Optional[TradeOffer]:
+    def get_trade(self, id: int) -> TradeOffer | None:
         return self._trades.get(id)
 
-    async def fetch_trade(self, id: int) -> Optional[TradeOffer]:
+    async def fetch_trade(self, id: int) -> TradeOffer | None:
         resp = await self.http.get_trade(id)
         if resp.get("response"):
             trade = [resp["response"]["offer"]]
@@ -234,7 +235,7 @@ class ConnectionState(Registerable):
         except KeyError:
             log.info(f'Received trade #{data["tradeofferid"]}')
             trade = await TradeOffer._from_api(state=self, data=data)
-            trade.partner = await self.client.fetch_user(trade.partner) or SteamID(trade.partner)
+            trade.partner = await self._maybe_user(trade.partner)
             self._trades[trade.id] = trade
             if trade.state not in (
                 TradeOfferState.Active,
@@ -273,12 +274,11 @@ class ConnectionState(Registerable):
     async def poll_trades(self) -> None:
         async def poll_trades_inner() -> None:
             try:
-                # TODO this can probably be optimized using sets
                 resp = await self.http.get_trade_offers()
                 trades = resp["response"]
-                descriptions = trades.get("descriptions", [])
-                trades_received = trades.get("trade_offers_received", [])
-                trades_sent = trades.get("trade_offers_sent", [])
+                descriptions = trades.get("descriptions", ())
+                trades_received = trades.get("trade_offers_received", ())
+                trades_sent = trades.get("trade_offers_sent", ())
 
                 new_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
                 new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
@@ -299,7 +299,7 @@ class ConnectionState(Registerable):
 
     # confirmations
 
-    def _create_confirmation_params(self, tag: str) -> dict:
+    def _create_confirmation_params(self, tag: str) -> dict[str, Any]:
         timestamp = int(time())
         return {
             "p": self._device_id,
@@ -316,13 +316,15 @@ class ConnectionState(Registerable):
         resp = await self.http.get(URL.COMMUNITY / "mobileconf/conf", params=params, headers=headers)
 
         if "incorrect Steam Guard codes." in resp:
+            # TODO make this fetch server time before raising and try again or use the timestamp from the server when
+            # logging in steammessages_clientserver_login.CMsgClientLogonResponse.rtime32_server_time
             raise InvalidCredentials("identity_secret is incorrect")
         if "Oh nooooooes!" in resp:
             raise AuthenticatorError
 
         soup = BeautifulSoup(resp, "html.parser")
         if soup.select("#mobileconf_empty"):
-            return {}
+            return self._confirmations
         for confirmation in soup.select("#mobileconf_list .mobileconf_list_entry"):
             id = confirmation["id"]
             data_conf_id = confirmation["data-confid"]
@@ -331,12 +333,8 @@ class ConnectionState(Registerable):
             confirmation_id = id.split("conf")[1]
             if trade_id in self._confirmations_to_ignore:
                 continue
-            self._confirmations[trade_id] = Confirmation(
-                self, confirmation_id, data_conf_id, key, trade_id, f"details{data_conf_id}"
-            )
-        for trade_id in self._confirmations_to_ignore:
-            if trade_id in self._confirmations:
-                del self._confirmations[trade_id]
+            self._confirmations[trade_id] = Confirmation(self, confirmation_id, data_conf_id, key, trade_id)
+
         return self._confirmations
 
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:
@@ -354,7 +352,7 @@ class ConnectionState(Registerable):
     # ws stuff
 
     @property
-    def _combined(self) -> ChainMap[int, Union[Group, Clan]]:
+    def _combined(self) -> ChainMap[int, Group | Clan]:
         return ChainMap(
             {clan.chat_id: clan for clan in self._clans.values()},
             self._groups,
@@ -396,7 +394,7 @@ class ConnectionState(Registerable):
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
 
-    async def send_group_message(self, destination: tuple[int, int], content: str) -> Union[ClanMessage, GroupMessage]:
+    async def send_group_message(self, destination: tuple[int, int], content: str) -> ClanMessage | GroupMessage:
         chat_id, group_id = destination
         msg: MsgProto[chat.CChatRoomSendChatMessageResponse] = await self.ws.send_um_and_wait(
             "ChatRoom.SendChatMessage", chat_id=chat_id, chat_group_id=group_id, message=content
@@ -429,7 +427,7 @@ class ConnectionState(Registerable):
 
         return message
 
-    async def join_chat(self, chat_id: int, invite_code: Optional[str] = None) -> None:
+    async def join_chat(self, chat_id: int, invite_code: str | None = None) -> None:
         msg = await self.ws.send_um_and_wait(
             "ChatRoom.JoinChatRoomGroup", chat_group_id=chat_id, invite_code=invite_code or ""
         )
@@ -540,9 +538,19 @@ class ConnectionState(Registerable):
     async def fetch_user_profile_info(
         self, user_id64: int
     ) -> client_server_friends.CMsgClientFriendProfileInfoResponse:
-        await self.ws.send_as_proto(MsgProto(EMsg.ClientFriendProfileInfo, steamid_friend=user_id64))
+        await self.ws.send_proto(MsgProto(EMsg.ClientFriendProfileInfo, steamid_friend=user_id64))
         msg: MsgProto[client_server_friends.CMsgClientFriendProfileInfoResponse] = await self.ws.wait_for(
             EMsg.ClientFriendProfileInfoResponse, check=lambda m: m.body.steamid_friend == user_id64
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg.body
+
+    async def fetch_user_profile_items(self, user_id64: int) -> player.CPlayerGetProfileItemsEquippedResponse:
+        msg: MsgProto[player.CPlayerGetProfileItemsEquippedResponse] = await self.ws.send_um_and_wait(
+            "Player.GetProfileItemsEquipped",
+            steamid=user_id64,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -689,8 +697,8 @@ class ConnectionState(Registerable):
                 self.dispatch("user_invite", invite)
 
             after._update(data)
-            old = [getattr(before, attr, None) for attr in User.__slots__]
-            new = [getattr(after, attr, None) for attr in User.__slots__]
+            old = [getattr(before, attr, None) for attr in BaseUser.__slots__]
+            new = [getattr(after, attr, None) for attr in BaseUser.__slots__]
             if old != new:
                 self.dispatch("user_update", before, after)
 
@@ -748,7 +756,7 @@ class ConnectionState(Registerable):
                     if elements is None:
                         resp = await self.http.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
                         soup = BeautifulSoup(resp, "html.parser")
-                        elements = soup.find_all("a", attrs={"class": "linkStandard"})
+                        elements = soup.find_all("a", class_="linkStandard")
                     invitee_id = 0
                     for idx, element in enumerate(elements):
                         if str(steam_id.id64) in str(element):
@@ -779,14 +787,17 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, _: MsgProto[client_server_2.CMsgClientCommentNotifications]) -> None:
-        previous = None
         resp = await self.http.get(URL.COMMUNITY / "my/commentnotifications")
         soup = BeautifulSoup(resp, "html.parser")
-        for attr in soup.find_all("div", attrs={"class": "commentnotification_click_overlay"}):
-            steam_id = await SteamID.from_url(attr.contents[1]["href"], self.http._session)
-            if steam_id is None:
-                continue
-            if steam_id != previous:
+
+        previous: Commentable | None = None
+        url: str | None = None
+        for attr in soup.find_all("div", class_="commentnotification_click_overlay"):
+            new_url = attr.contents[1]["href"]
+            if new_url != url:
+                steam_id = await SteamID.from_url(url, self.http._session)
+                if steam_id is None:
+                    continue
                 obj = await (self.fetch_clan if steam_id.type == Type.Clan else self.fetch_user)(steam_id.id64)
                 if obj is None:
                     continue
@@ -795,7 +806,8 @@ class ConnectionState(Registerable):
                 obj = previous
                 index += 1
 
-            comments = await obj.comments(limit=index + 1)
+            url = new_url
+            comments = await obj.comments(limit=index + 1).flatten()
             try:
                 self.dispatch("comment", comments[index])
             except IndexError:
@@ -816,7 +828,7 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[client_server_login.CMsgClientAccountInfo]) -> None:
-        if not self.client.user:
+        if self.client.user is None:
             return
         if msg.body.persona_name != self.client.user.name:
             before = self.client.user.copy()

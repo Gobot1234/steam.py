@@ -27,7 +27,8 @@ from __future__ import annotations
 import abc
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any, Optional
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import final
 
@@ -82,7 +83,7 @@ class HelpCommand(Command):
 
         await self.command_not_found(content)
 
-    def get_bot_mapping(self) -> "dict[Optional[str], list[commands.Command]]":
+    def get_bot_mapping(self) -> "Mapping[str | None, list[commands.Command]]":
         """
         Generate a mapping of the bot's commands. It's not normally necessary to subclass this. This is passed to
         :meth:`send_help`.
@@ -94,7 +95,7 @@ class HelpCommand(Command):
         return mapping
 
     @abc.abstractmethod
-    async def send_help(self, mapping: "dict[Optional[str], list[commands.Command]]") -> None:
+    async def send_help(self, mapping: "Mapping[str | None, list[commands.Command]]") -> None:
         """Send the basic help message for the bot's command.
 
         Parameters
@@ -178,7 +179,7 @@ class DefaultHelpCommand(HelpCommand):
         except (IndexError, AttributeError):
             return ""
 
-    async def send_help(self, mapping: "dict[Optional[str], list[commands.Command]]") -> None:
+    async def send_help(self, mapping: "Mapping[str | None, list[commands.Command]]") -> None:
         message = ["/pre"]
         for cog_name, commands in mapping.items():
             (

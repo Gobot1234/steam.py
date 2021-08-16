@@ -33,9 +33,9 @@ import functools
 import inspect
 from collections.abc import Coroutine, Iterable
 from time import time
-from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, Optional, TypeVar, Union, get_type_hints, overload
+from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, TypeVar, get_type_hints, overload
 
-from typing_extensions import Literal, ParamSpec, TypeAlias, get_args, get_origin
+from typing_extensions import Literal, ParamSpec, Protocol, TypeAlias, get_args, get_origin
 
 from ...channel import DMChannel
 from ...errors import ClientException
@@ -70,31 +70,35 @@ __all__ = (
 )
 
 CheckType: TypeAlias = "Callable[[Context], Union[bool, Coroutine[Any, Any, bool]]]"
-MaybeCommand: TypeAlias = "Union[Callable[..., Command], CommandFunctionType]"
+MaybeCommand: TypeAlias = "Callable[..., Command] | CallbackType"
 C = TypeVar("C", bound="Command")
 G = TypeVar("G", bound="Group")
-E = TypeVar("E", bound="Callable[[Context, Exception], Coroutine[Any, Any, None]]")
-H = TypeVar("H", bound="Callable[[Context], Coroutine[Any, Any, None]]")
+Err = TypeVar("Err", bound="Callable[[Context, Exception], Coroutine[Any, Any, None]]")
+InvokeT = TypeVar("InvokeT", bound="Callable[[Context], Coroutine[Any, Any, None]]")
 MC = TypeVar("MC", bound=MaybeCommand)
-MCD = TypeVar("MCD", bound=Union["CommandDeco", MaybeCommand])
+MCD = TypeVar("MCD", bound="CommandDeco[MaybeCommand] | MaybeCommand")
 CallT = TypeVar("CallT", bound="CallbackType")
 CHR = TypeVar("CHR", bound="CheckReturnType")
-CH = TypeVar("CH", bound="Callable[[CheckType], CheckReturnType]")
 
 P = ParamSpec("P")
 
 
-CommandDeco = Callable[[MC], MC]
+class CommandDeco(Protocol):
+    def __call__(self, __command: MC) -> MC:
+        ...
 
 
 class CheckReturnType(CommandDeco):
     predicate: CheckType
 
 
-class CallbackType(Callable[P, "Coroutine[None, None, Any]"]):
+class CallbackType(Protocol[P]):
     __commands_checks__: list[CheckType]
-    __commands_cooldown__: list[Cooldown]
+    __commands_cooldown__: list[Cooldown[Any]]
     __special_converters__: list[type[converters.Converter]]
+
+    async def __call__(self, *args: P.args, **kwds: P.kwargs) -> Any:
+        ...
 
 
 @converters.converter_for(bool)
@@ -158,7 +162,7 @@ class Command(Generic[P]):
         self.callback = func
 
         help_doc = kwargs.get("help")
-        self.help: Optional[str] = inspect.cleandoc(help_doc) if help_doc is not None else inspect.getdoc(func)
+        self.help: str | None = inspect.cleandoc(help_doc) if help_doc is not None else inspect.getdoc(func)
 
         try:
             checks = func.__commands_checks__
@@ -183,10 +187,10 @@ class Command(Generic[P]):
             self.special_converters: list[type[converters.Converter]] = special_converters
 
         self.enabled: bool = kwargs.get("enabled", True)
-        self.brief: Optional[str] = kwargs.get("brief")
-        self.usage: Optional[str] = kwargs.get("usage")
-        self.cog: Optional[Union[Cog, Bot]] = kwargs.get("cog")
-        self.parent: Optional[GroupMixin] = kwargs.get("parent")
+        self.brief: str | None = kwargs.get("brief")
+        self.usage: str | None = kwargs.get("usage")
+        self.cog: Cog | Bot | None = kwargs.get("cog")
+        self.parent: GroupMixin | None = kwargs.get("parent")
         self.description: str = inspect.cleandoc(kwargs.get("description", ""))
         self.hidden: bool = kwargs.get("hidden", False)
         self.aliases: Iterable[str] = kwargs.get("aliases", ())
@@ -281,14 +285,14 @@ class Command(Generic[P]):
             return await self.callback(ctx, *args, **kwargs)
 
     @overload
-    def error(self, coro: Literal[None] = ...) -> Callable[[E], E]:
+    def error(self, coro: None = ...) -> Callable[[Err], Err]:
         ...
 
     @overload
-    def error(self, coro: E) -> E:
+    def error(self, coro: Err) -> Err:
         ...
 
-    def error(self, coro: Optional[E] = None) -> Union[Callable[[E], E], E]:
+    def error(self, coro: Err | None = None) -> Callable[[Err], Err] | Err:
         """|maybecallabledeco|
         Register a :term:`coroutine function` to handle a commands ``on_error`` functionality similarly to
         :meth:`steam.ext.commands.Bot.on_command_error`.
@@ -307,7 +311,7 @@ class Command(Generic[P]):
                 await ctx.send(f"{ctx.command.name} raised an exception {error!r}")
         """
 
-        def decorator(coro: E) -> E:
+        def decorator(coro: Err) -> Err:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Error handler for {self.name} must be a coroutine function")
             self.on_error = coro
@@ -316,19 +320,19 @@ class Command(Generic[P]):
         return decorator(coro) if coro is not None else decorator
 
     @overload
-    def before_invoke(self, coro: Literal[None] = ...) -> Callable[[H], H]:
+    def before_invoke(self, coro: Literal[None] = ...) -> Callable[[InvokeT], InvokeT]:
         ...
 
     @overload
-    def before_invoke(self, coro: H) -> H:
+    def before_invoke(self, coro: InvokeT) -> InvokeT:
         ...
 
-    def before_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
+    def before_invoke(self, coro: InvokeT | None = None) -> Callable[[InvokeT], InvokeT] | InvokeT:
         """|maybecallabledeco|
         Register a :term:`coroutine function` to be ran before any arguments are parsed.
         """
 
-        def decorator(coro: H) -> H:
+        def decorator(coro: InvokeT) -> InvokeT:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Hook for {self.name} must be a coroutine function")
             self._before_hook = coro
@@ -337,19 +341,19 @@ class Command(Generic[P]):
         return decorator(coro) if coro is not None else decorator
 
     @overload
-    def after_invoke(self, coro: Literal[None] = ...) -> Callable[[H], H]:
+    def after_invoke(self, coro: Literal[None] = ...) -> Callable[[InvokeT], InvokeT]:
         ...
 
     @overload
-    def after_invoke(self, coro: H) -> H:
+    def after_invoke(self, coro: InvokeT) -> InvokeT:
         ...
 
-    def after_invoke(self, coro: Optional[H] = None) -> Union[Callable[[H], H], H]:
+    def after_invoke(self, coro: InvokeT | None = None) -> Callable[[InvokeT], InvokeT] | InvokeT:
         """|maybecallabledeco|
         Register a :term:`coroutine function` to be ran after the command has been invoked.
         """
 
-        def decorator(coro: H) -> H:
+        def decorator(coro: InvokeT) -> InvokeT:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Hook for {self.name} must be a coroutine function")
             self._after_hook = coro
@@ -652,7 +656,7 @@ class GroupMixin:
                 raise ClientException(f"{alias} is already an existing command or alias.")
             self.__commands__[alias] = command
 
-    def remove_command(self, name: str) -> Optional[Command]:
+    def remove_command(self, name: str) -> Command | None:
         """Remove a command from the internal commands list.
 
         Parameters
@@ -673,7 +677,7 @@ class GroupMixin:
             del self.__commands__[alias]
         return command
 
-    def get_command(self, name: str) -> Optional[Command]:
+    def get_command(self, name: str) -> Command | None:
         """Get a command.
 
         Parameters
@@ -720,18 +724,18 @@ class GroupMixin:
     def command(
         self,
         *,
-        name: Optional[str] = ...,
-        cls: Optional[type[C]] = ...,
-        help: Optional[str] = ...,
-        brief: Optional[str] = ...,
-        usage: Optional[str] = ...,
-        description: Optional[str] = ...,
-        aliases: Optional[Iterable[str]] = ...,
+        name: str | None = ...,
+        cls: type[C] | None = ...,
+        help: str | None = ...,
+        brief: str | None = ...,
+        usage: str | None = ...,
+        description: str | None = ...,
+        aliases: Iterable[str] | None = ...,
         checks: list[CheckReturnType] = ...,
         cooldown: list[Cooldown] = ...,
         special_converters: list[type[converters.Converters]] = ...,
-        cog: Optional[Cog] = ...,
-        parent: Optional[GroupMixin] = ...,
+        cog: Cog | None = ...,
+        parent: GroupMixin | None = ...,
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
@@ -740,12 +744,12 @@ class GroupMixin:
 
     def command(
         self,
-        callback: Optional[CallT] = None,
+        callback: CallT | None = None,
         *,
-        name: Optional[str] = None,
-        cls: Optional[type[C]] = None,
+        name: str | None = None,
+        cls: type[C] | None = None,
         **attrs: Any,
-    ) -> Union[Callable[[CallT], C], C]:
+    ) -> Callable[[CallT], C] | C:
         """|maybecallabledeco|
         A decorator that invokes :func:`command` and adds the created :class:`Command` to the internal command list.
 
@@ -789,18 +793,18 @@ class GroupMixin:
     def group(
         self,
         *,
-        name: Optional[str] = ...,
-        cls: Optional[type[G]] = ...,
-        help: Optional[str] = ...,
-        brief: Optional[str] = ...,
-        usage: Optional[str] = ...,
-        description: Optional[str] = ...,
-        aliases: Optional[Iterable[str]] = ...,
+        name: str | None = ...,
+        cls: type[G] | None = ...,
+        help: str | None = ...,
+        brief: str | None = ...,
+        usage: str | None = ...,
+        description: str | None = ...,
+        aliases: Iterable[str] | None = ...,
         checks: list[CheckReturnType] = ...,
         cooldown: list[Cooldown] = ...,
         special_converters: list[type[converters.Converters]] = ...,
-        cog: Optional[Cog] = ...,
-        parent: Optional[GroupMixin] = ...,
+        cog: Cog | None = ...,
+        parent: GroupMixin | None = ...,
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
@@ -809,12 +813,12 @@ class GroupMixin:
 
     def group(
         self,
-        callback: Optional[CallT] = None,
+        callback: CallT | None = None,
         *,
-        name: Optional[str] = None,
-        cls: Optional[type[G]] = None,
+        name: str | None = None,
+        cls: type[G] | None = None,
         **attrs: Any,
-    ) -> Union[Callable[[CallT], G], G]:
+    ) -> Callable[[CallT], G] | G:
         """|maybecallabledeco|
         A decorator that invokes :func:`group` and adds the created :class:`Group` to the internal command list.
 
@@ -894,18 +898,18 @@ def command(callback: None) -> Callable[[CallbackType[P]], Command[P]]:
 @overload
 def command(
     *,
-    name: Optional[str] = ...,
-    cls: Optional[type[C]] = ...,
-    help: Optional[str] = ...,
-    brief: Optional[str] = ...,
-    usage: Optional[str] = ...,
-    description: Optional[str] = ...,
-    aliases: Optional[Iterable[str]] = ...,
+    name: str | None = ...,
+    cls: type[C] | None = ...,
+    help: str | None = ...,
+    brief: str | None = ...,
+    usage: str | None = ...,
+    description: str | None = ...,
+    aliases: Iterable[str] | None = ...,
     checks: list[CheckReturnType] = ...,
     cooldown: list[Cooldown] = ...,
     special_converters: list[type[converters.Converters]] = ...,
-    cog: Optional[Cog] = ...,
-    parent: Optional[Command] = ...,
+    cog: Cog | None = ...,
+    parent: Command | None = ...,
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
@@ -914,12 +918,12 @@ def command(
 
 
 def command(
-    callback: Optional[CallbackType] = None,
+    callback: CallbackType | None = None,
     *,
-    name: Optional[str] = None,
-    cls: Optional[type[C]] = None,
+    name: str | None = None,
+    cls: type[C] | None = None,
     **attrs: Any,
-) -> Union[Callable[[CallT], C], C]:
+) -> Callable[[CallT], C] | C:
     """|maybecallabledeco|
     A decorator that turns a :term:`coroutine function` into a :class:`Command`.
 
@@ -961,18 +965,18 @@ def group(callback: None) -> Callable[[CallbackType[P]], Group[P]]:
 @overload
 def group(
     *,
-    name: Optional[str] = ...,
-    cls: Optional[type[G]] = ...,
-    help: Optional[str] = ...,
-    brief: Optional[str] = ...,
-    usage: Optional[str] = ...,
-    description: Optional[str] = ...,
-    aliases: Optional[Iterable[str]] = ...,
+    name: str | None = ...,
+    cls: type[G] | None = ...,
+    help: str | None = ...,
+    brief: str | None = ...,
+    usage: str | None = ...,
+    description: str | None = ...,
+    aliases: Iterable[str] | None = ...,
     checks: list[CheckReturnType] = ...,
     cooldown: list[Cooldown] = ...,
     special_converters: list[type[converters.Converters]] = ...,
-    cog: Optional[Cog] = ...,
-    parent: Optional[Command] = ...,
+    cog: Cog | None = ...,
+    parent: Command | None = ...,
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
@@ -981,12 +985,12 @@ def group(
 
 
 def group(
-    callback: Optional[CallT] = None,
+    callback: CallT | None = None,
     *,
-    name: Optional[str] = None,
-    cls: Optional[type[G]] = None,
+    name: str | None = None,
+    cls: type[G] | None = None,
     **attrs: Any,
-) -> Union[Callable[[CallT], G], G]:
+) -> Callable[[CallT], G] | G:
     """|maybecallabledeco|
     A decorator that turns a :term:`coroutine function` into a :class:`Group`.
 
@@ -1068,7 +1072,7 @@ def is_owner(command: MCD) -> MCD:
     ...
 
 
-def is_owner(command: Optional[MCD] = None) -> MCD:
+def is_owner(command: MCD | None = None) -> MCD:
     """|maybecallabledeco|
     A decorator that will only allow the bot's owner(s) to invoke the command.
 
@@ -1099,7 +1103,7 @@ def dm_only(command: MCD) -> MCD:
     ...
 
 
-def dm_only(command: Optional[MCD] = None) -> MCD:
+def dm_only(command: MCD | None = None) -> MCD:
     """|maybecallabledeco|
     A decorator that will make a command only invokable in a :class:`steam.DMChannel`.
     """

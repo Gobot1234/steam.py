@@ -28,7 +28,7 @@ import inspect
 import sys
 import traceback
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from typing_extensions import Final
 
@@ -84,9 +84,9 @@ class Cog:
     __listeners__: Final[dict[str, list[EventType]]] = ...
     command_attrs: Final[dict[str, Any]] = ...
     qualified_name: Final[str] = ...
-    description: Final[Optional[str]] = ...
+    description: Final[str | None] = ...
 
-    def __init_subclass__(cls, name: Optional[str] = None, command_attrs: Optional[dict[str, Any]] = None) -> None:
+    def __init_subclass__(cls, name: str | None = None, command_attrs: dict[str, Any] | None = None) -> None:
         cls.qualified_name = name or cls.__name__  # type: ignore
         cls.command_attrs = command_attrs or {}  # type: ignore
 
@@ -143,11 +143,11 @@ class Cog:
 
     @classmethod
     @overload
-    def listener(cls, name: Optional[str] = None) -> Callable[[E], E]:
+    def listener(cls, name: str | None = None) -> Callable[[E], E]:
         ...
 
     @classmethod
-    def listener(cls, name: Union[E, str, None] = None) -> Callable[[E], E]:
+    def listener(cls, name: E | str | None = None) -> Callable[[E], E]:
         """|maybecallabledeco|
         Register a :term:`coroutine function` as a listener. Similar to :meth:`~steam.ext.commands.Bot.listen`.
 

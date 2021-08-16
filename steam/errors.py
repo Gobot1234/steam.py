@@ -25,7 +25,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
 
@@ -86,7 +86,7 @@ class HTTPException(SteamException):
         The Steam specific error code for the failure.
     """
 
-    def __init__(self, response: ClientResponse, data: Optional[Any]):
+    def __init__(self, response: ClientResponse, data: Any | None):
         self.response = response
         self.status = response.status
         self.code = Result.Invalid
@@ -150,7 +150,7 @@ class WSException(SteamException):
     def __init__(self, msg: Msgs):
         self.msg = msg
         self.code = msg.result or Result.Invalid
-        self.message: str = getattr(msg.header.body, "error_message", None)
+        self.message: str | None = getattr(msg.header.body, "error_message", None)
         super().__init__(
             f"The request {msg.header.body.job_name_target} failed. (error code: {self.code!r})"
             f"{f': {self.message}' if self.message else ''}"
@@ -219,7 +219,7 @@ class InvalidSteamID(SteamException):
         The invalid id.
     """
 
-    def __init__(self, id: Any, msg: Optional[str] = None):
+    def __init__(self, id: Any, msg: str | None = None):
         self.id = id
         super().__init__(
             f"{id!r} cannot be converted to any valid SteamID {f'as {msg}' if msg is not None else ''}".strip()

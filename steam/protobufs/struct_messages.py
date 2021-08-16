@@ -21,7 +21,7 @@ class StructMessageMeta(type):
 
         cls = super().__new__(mcs, name, bases, attrs)
         if cls.__module__ == __name__ and name != "StructMessage":
-            PROTOBUFS[EMsg[name]] = cls
+            PROTOBUFS[EMsg[name]] = cls  # type: ignore
 
         return cls
 

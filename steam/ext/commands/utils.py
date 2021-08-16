@@ -25,7 +25,7 @@ SOFTWARE.
 from __future__ import annotations
 
 from collections import deque
-from typing import Dict, Generator, Optional, TypeVar, Union, overload
+from typing import Dict, Generator, TypeVar, overload
 
 from .errors import MissingClosingQuotation
 
@@ -33,7 +33,7 @@ _T = TypeVar("_T")
 _VT = TypeVar("_VT")
 
 
-class CaseInsensitiveDict(Dict[str, _VT]):
+class CaseInsensitiveDict(dict[str, _VT]):
     """A dictionary where keys are case insensitive."""
 
     def __init__(self, **kwargs: _VT):
@@ -55,25 +55,25 @@ class CaseInsensitiveDict(Dict[str, _VT]):
         super().__setitem__(k.lower(), v)
 
     @overload
-    def get(self, k: str) -> Optional[_VT]:
+    def get(self, k: str) -> _VT | None:
         ...
 
     @overload
-    def get(self, k: str, default: Optional[_T] = None) -> Optional[Union[_VT, _T]]:
+    def get(self, k: str, default: _T | None = None) -> _VT | _T | None:
         ...
 
-    def get(self, k: str, default: Optional[_T] = None) -> Optional[Union[_VT, _T]]:
+    def get(self, k: str, default: _T | None = None) -> _VT | _T | None:
         return super().get(k.lower(), default)
 
     @overload
-    def pop(self, k: str) -> Optional[_VT]:
+    def pop(self, k: str) -> _VT | None:
         ...
 
     @overload
-    def pop(self, k: str, default: Optional[_T] = None) -> Optional[Union[_VT, _T]]:
+    def pop(self, k: str, default: _T | None = None) -> _VT | _T | None:
         ...
 
-    def pop(self, k: str, default: Optional[_T] = None) -> Optional[Union[_VT, _T]]:
+    def pop(self, k: str, default: _T | None = None) -> _VT | _T | None:
         return super().pop(k.lower())
 
 
@@ -109,7 +109,7 @@ class Shlex:
         self.end = len(self.in_stream)
         self._undo_pushback: deque[int] = deque()
 
-    def read(self) -> Optional[str]:
+    def read(self) -> str | None:
         if self.position >= self.end:
             return None
 
