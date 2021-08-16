@@ -51,7 +51,7 @@ TT = TypeVar("TT")
 A = TypeVar("A", bound="AsyncIterator")
 C = TypeVar("C", bound="Channel")
 M = TypeVar("M", bound="Message")
-E = TypeVar("E", bound="Event")
+
 MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
 UNIX_EPOCH = datetime.utcfromtimestamp(0)
 

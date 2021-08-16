@@ -184,7 +184,7 @@ class _GroupChannel(Channel[M_co]):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> GroupChannelHistoryIterator[M_co, "Self"]:
+    ) -> GroupChannelHistoryIterator[M_co, GroupChannel | ClanChannel]:
         return GroupChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
