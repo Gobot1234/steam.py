@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 
 import betterproto
@@ -10,7 +12,6 @@ from . import (
     steammessages_clientserver_login,
 )
 from .emsg import *
-
 
 __all__ = ("PROTOBUFS",)
 

@@ -31,7 +31,6 @@ from __future__ import annotations
 import importlib
 import inspect
 import os
-from steam import ext
 import sys
 import traceback
 from collections.abc import Callable, Coroutine, Iterable
@@ -71,7 +70,9 @@ __all__ = (
 
 
 StrOrIterStr: TypeAlias = "str | list[str] | tuple[str, ...] | set[str] | frozenset[str] | dict[str, Any]"
-CommandPrefixType: TypeAlias = "StrOrIterStr | Callable[[Bot, Message], StrOrIterStr | Coroutine[Any, Any, StrOrIterStr]]"
+CommandPrefixType: TypeAlias = (
+    "StrOrIterStr | Callable[[Bot, Message], StrOrIterStr | Coroutine[Any, Any, StrOrIterStr]]"
+)
 C = TypeVar("C", bound="Context")
 Check = TypeVar("Check", bound="Callable[[CheckType], CheckReturnType]")
 
@@ -291,9 +292,7 @@ class Bot(GroupMixin, Client):
         try:
             module = self.__extensions__[name]
         except KeyError:
-            raise ModuleNotFoundError(
-                f"The extension {extension!r} was not found", name=name, path=extension
-            ) from None
+            raise ModuleNotFoundError(f"The extension {extension!r} was not found", name=name, path=extension) from None
 
         for cog in tuple(self.cogs.values()):
             if cog.__module__ == module.__name__:
@@ -327,9 +326,7 @@ class Bot(GroupMixin, Client):
         try:
             previous = self.__extensions__[name]
         except KeyError:
-            raise ModuleNotFoundError(
-                f"The extension {extension!r} was not found", name=name, path=extension
-            ) from None
+            raise ModuleNotFoundError(f"The extension {extension!r} was not found", name=name, path=extension) from None
 
         try:
             self.unload_extension(extension)
