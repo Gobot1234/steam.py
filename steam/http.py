@@ -388,11 +388,14 @@ class HTTPClient:
         params = {
             "count": 5000,
         }
+
+        lock = BACKPACK_LOCKS[user_id64]
         try:
-            async with BACKPACK_LOCKS[user_id64]:  # the endpoint requires a global per user lock
+            async with lock:  # the endpoint requires a global per user lock
                 return await self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
         finally:
-            BACKPACK_LOCKS.pop(user_id64, None)
+            if not lock._waiters:  # type: ignore  # fully aware this is bad but I don't want my own lock class
+                del BACKPACK_LOCKS[user_id64]
 
     def get_user_escrow(self, user_id64: int, token: str | None) -> RequestType[dict[str, Any]]:
         params = {
