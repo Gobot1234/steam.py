@@ -181,7 +181,7 @@ class ConnectionState(Registerable):
 
         return [self._store_user(data) for data in resp]
 
-    async def _maybe_user(self, id64: int) -> SteamID:
+    async def _maybe_user(self, id64: int) -> User | SteamID:
         return self.get_user(id64) or await self.fetch_user(id64) or SteamID(id64)
 
     def _store_user(self, data: UserDict) -> User:
@@ -749,7 +749,7 @@ class ConnectionState(Registerable):
             ):
                 steam_id = SteamID(friend.ulfriendid)
                 if steam_id.type == Type.Individual:
-                    invitee = await self._maybe_user(steam_id)
+                    invitee = await self._maybe_user(steam_id.id64)
                     invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
                     self.invites[invitee.id64] = invite
                     self.dispatch("user_invite", invite)
