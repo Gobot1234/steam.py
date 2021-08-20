@@ -392,7 +392,7 @@ class HTTPClient:
             async with BACKPACK_LOCKS[user_id64]:  # the endpoint requires a global per user lock
                 return await self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
         finally:
-            del BACKPACK_LOCKS[user_id64]
+            BACKPACK_LOCKS.pop(user_id64, None)
 
     def get_user_escrow(self, user_id64: int, token: str | None) -> RequestType[dict[str, Any]]:
         params = {
