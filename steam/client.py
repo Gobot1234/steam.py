@@ -146,7 +146,7 @@ class Client:
             )
         self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self, **options)
-        self._connection = ConnectionState(client=self, **options)
+        self._connection = self._get_state(**options)
         self.ws: SteamWebSocket = None  # type: ignore
 
         self.username: str | None = None
@@ -158,6 +158,9 @@ class Client:
         self._cm_list: CMServerList | None = None
         self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
+
+    def _get_state(**options: Any) -> None:
+        return ConnectionState(client=self, **options)
 
     @property
     def user(self) -> ClientUser:
