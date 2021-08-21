@@ -631,7 +631,7 @@ class ConnectionState(Registerable):
                 self._clans[clan.id] = clan
                 self.dispatch("clan_join", clan)  # TODO test/doc
             else:
-                group = Group(state=self, proto=msg.body.group_summary)
+                group = await Group._from_proto(self, msg.body.group_summary)
                 self._groups[group.id] = group
                 self.dispatch("group_join", group)
 
