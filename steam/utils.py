@@ -486,20 +486,34 @@ def update_class(
 
 def call_once(func: Callable[_P, _T]) -> Callable[_P, _T]:
     called = False
-    is_coro_func = iscoroutinefunction(func)
+    if not iscoroutinefunction(func):
 
-    @functools.wraps(func)
-    def inner(*args: _P.args, **kwargs: _P.kwargs) -> _T:
-        nonlocal called
+        @functools.wraps(func)
+        def inner(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+            nonlocal called
 
-        if called:  # call becomes a noop
-            return asyncio.sleep(0) if is_coro_func else None  # type: ignore
+            if called:  # call becomes a noop
+                return None  # type: ignore
 
-        called = True
-        try:
-            return func(*args, **kwargs)
-        finally:
-            called = False
+            called = True
+            try:
+                return func(*args, **kwargs)
+            finally:
+                called = False
+    else:
+
+        @functools.wraps(func)
+        async def inner(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+            nonlocal called
+
+            if called:  # call becomes a noop
+                return await asyncio.sleep(0)  # type: ignore
+
+            called = True
+            try:
+                return await func(*args, **kwargs)
+            finally:
+                called = False
 
     return inner
 
