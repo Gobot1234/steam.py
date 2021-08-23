@@ -120,7 +120,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
         if len(t.items) == 1:
             return t.items[0]
         if all(isinstance(arg, LiteralGenericAlias) for arg in t.items):
-            return Literal[tuple(t.items)]
+            return Literal[tuple(t.__args__[0] for t in self.collect_types(t.items))]
         return Union[self.collect_types(t.items)]
 
     def visit_type_alias_type(self, t: types.TypeAliasType) -> Any:
@@ -226,10 +226,8 @@ def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any) 
                         break
 
             base.__module__ = (
-                base.__module__
-                if base.__module__.endswith(("abc", "guard", "utils"))
-                else "steam"
-                if base.__module__.startswith("steam")
+                "steam"
+                if base.__module__.startswith("steam") and not base.__module__.endswith(("abc", "guard", "utils"))
                 else base.__module__
             )
             try:
