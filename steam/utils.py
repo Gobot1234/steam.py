@@ -500,6 +500,7 @@ def call_once(func: Callable[_P, _T]) -> Callable[_P, _T]:
                 return func(*args, **kwargs)
             finally:
                 called = False
+
     else:
 
         @functools.wraps(func)

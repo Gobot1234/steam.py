@@ -438,7 +438,7 @@ There are some predefined games which are:
 +---------------------------------+-----------------+
 | Counter Strike Global-Offensive | ``steam.CSGO``  |
 +---------------------------------+-----------------+
-| Leaft for Dead 2                | ``steam.LFD2``  |
+| Left for Dead 2                 | ``steam.LFD2``  |
 +---------------------------------+-----------------+
 | Steam                           | ``steam.STEAM`` |
 +---------------------------------+-----------------+
@@ -452,6 +452,12 @@ Games can be manually constructed using there app id eg:
     # but it is for setting in game statuses if the game isn't a Steam game.
 
 .. autofunction:: CUSTOM_GAME
+
+.. attributetable:: steam.game.StatefulGame
+
+.. autoclass:: steam.game.StatefulGame()
+    :inherited-members:
+    :members:
 
 .. attributetable:: UserGame
 

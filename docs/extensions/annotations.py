@@ -13,7 +13,7 @@ from collections import ChainMap
 from collections.abc import Callable, Generator
 from importlib import reload
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, Union
 
 import mypy  # Remove compiled mypy files  # https://github.com/mypyc/mypyc/issues/754
 
@@ -73,6 +73,10 @@ class TypeEvalVisitor(TypeVisitor[Any]):
             return getattr(importlib.import_module(module), name)
         except AttributeError:
             return MISSING
+        except ModuleNotFoundError:
+            if name == "Self":
+                return TypeVar("Self")
+            raise
 
     def visit_none_type(self, type: types.NoneType) -> None:
         return None
@@ -162,7 +166,7 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
                     isinstance(expr, (nodes.NameExpr, nodes.MemberExpr))
                     and isinstance(expr.node, nodes.Var)
                     and not expr.name.startswith("_")
-                    and (expr.node.fullname or "").startswith(f"{object.__module__}.{object.__qualname__}")
+                    and f"{object.__module__}.{object.__name__}" == (expr.node.fullname or "").rpartition(".")[0]
                     and expr.node.type
                 ):
                     yield expr.name, expr.node.type.accept(TypeEvalVisitor())
@@ -210,16 +214,6 @@ def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any) 
     if isinstance(object, type):
         annotations: dict[str, Any] = {}
         for base in reversed(object.__mro__[:-1]):
-            base.__module__ = (
-                base.__module__
-                if base.__module__.endswith(("abc", "guard", "utils"))
-                else "steam"
-                if base.__module__.startswith("steam")
-                else base.__module__
-            )
-            if not base.__module__.startswith("steam"):
-                continue
-
             for name, evaled_type in get_annotations(base, what, f"{base.__module__}.{base.__name__}"):
                 if evaled_type is MISSING:
                     continue
@@ -231,6 +225,13 @@ def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any) 
                     except AttributeError:
                         break
 
+            base.__module__ = (
+                base.__module__
+                if base.__module__.endswith(("abc", "guard", "utils"))
+                else "steam"
+                if base.__module__.startswith("steam")
+                else base.__module__
+            )
             try:
                 base.__annotations__ = annotations = getattr(base, "__annotations__", {}) | annotations
             except AttributeError:
@@ -246,6 +247,7 @@ def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any) 
                     object.__annotations__ = {name: evaled_type}
                 except AttributeError:
                     break
+
 
 def setup(app: Sphinx) -> None:
     app.connect("autodoc-process-docstring", add_annotations, priority=1)  # should be ran before any other event
