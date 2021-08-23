@@ -448,7 +448,6 @@ class Client:
 
     async def connect(self) -> None:
         """Initialize a connection to a Steam CM after logging in."""
-        last_connect = 0
         exceptions = (
             OSError,
             ConnectionClosed,
@@ -457,21 +456,22 @@ class Client:
             errors.HTTPException,
         )
 
-        async def throttle():
+        async def throttle() -> None:
             now = time.monotonic()
             between = now - last_connect
-            sleep = random.random() if between > 600 else between ** 0.75
+            sleep = random.random() * 4 if between > 600 else 100 / between ** 0.5
             log.info(f"Attempting to connect to another CM in {sleep}")
             await asyncio.sleep(sleep)
 
         while not self.is_closed():
+            last_connect = time.monotonic()
+
             try:
                 self.ws = await asyncio.wait_for(SteamWebSocket.from_client(self, cm_list=self._cm_list), timeout=60)
             except exceptions:
                 await throttle()
                 continue
 
-            last_connect = time.monotonic()
             try:
                 while True:
                     await self.ws.poll_event()
