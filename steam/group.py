@@ -33,7 +33,10 @@ from .enums import Type
 from .role import Role
 
 if TYPE_CHECKING:
-    from .protobufs.steammessages_chat import CChatRoomGetChatRoomGroupSummaryResponse as GroupProto
+    from .protobufs.steammessages_chat import (
+        CChatRoomChatRoomGroupRoomsChangeNotification as UpdatedGroupProto,
+        CChatRoomGetChatRoomGroupSummaryResponse as GroupProto,
+    )
     from .state import ConnectionState
     from .user import User
 
@@ -76,7 +79,7 @@ class Group(SteamID):
         "_state",
     )
 
-    owner: User | None
+    owner: User | SteamID
     top_members: list[User | None]
     name: str | None
     active_member_count: int
@@ -99,7 +102,7 @@ class Group(SteamID):
         self.active_member_count = proto.active_member_count
         self.roles = [Role(self._state, self, role) for role in proto.role_actions]
 
-        self.default_role: Role | None = utils.get(self.roles, id=proto.default_role_id)
+        self.default_role = utils.get(self.roles, id=proto.default_role_id)
         self._channels = {
             channel.chat_id: GroupChannel(state=self._state, group=self, proto=channel) for channel in proto.chat_rooms
         }
@@ -113,6 +116,17 @@ class Group(SteamID):
 
     def __str__(self) -> str:
         return self.name or ""
+
+    def _update(self, proto: UpdatedGroupProto) -> None:
+        for channel in proto.chat_rooms:
+            try:
+                new_channel = self._channels[channel.chat_id]
+            except KeyError:
+                new_channel = GroupChannel(state=self._state, group=self, proto=channel)
+                self._channels[new_channel.id] = new_channel
+            else:
+                new_channel._update(channel)
+        self.default_channel = self._channels[int(proto.default_chat_id)]
 
     @property
     def channels(self) -> list[GroupChannel]:

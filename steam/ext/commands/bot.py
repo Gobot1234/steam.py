@@ -480,7 +480,7 @@ class Bot(GroupMixin, Client):
         return await ctx.command.can_run(ctx)
 
     @overload
-    def before_invoke(self, coro: Literal[None] = ...) -> Callable[[InvokeT], InvokeT]:
+    def before_invoke(self, coro: None = ...) -> Callable[[InvokeT], InvokeT]:
         ...
 
     @overload
@@ -501,7 +501,7 @@ class Bot(GroupMixin, Client):
         return decorator(coro) if coro is not None else decorator
 
     @overload
-    def after_invoke(self, coro: Literal[None] = ...) -> Callable[[InvokeT], InvokeT]:
+    def after_invoke(self, coro: None = ...) -> Callable[[InvokeT], InvokeT]:
         ...
 
     @overload

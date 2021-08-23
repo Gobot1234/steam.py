@@ -55,6 +55,8 @@ from .errors import (
 from .utils import CaseInsensitiveDict
 
 if TYPE_CHECKING:
+    from _typeshed import Self
+
     from .bot import Bot
     from .cog import Cog
     from .context import Context
@@ -70,9 +72,9 @@ __all__ = (
 )
 
 CheckType: TypeAlias = "Callable[[Context], Union[bool, Coroutine[Any, Any, bool]]]"
-MaybeCommand: TypeAlias = "Callable[..., Command] | CallbackType"
-C = TypeVar("C", bound="Command")
-G = TypeVar("G", bound="Group")
+MaybeCommand: TypeAlias = "Callable[..., Command[Any]] | CallbackType"
+C = TypeVar("C", bound="Command[Any]")
+G = TypeVar("G", bound="Group[Any]")
 Err = TypeVar("Err", bound="Callable[[Context, Exception], Coroutine[Any, Any, None]]")
 InvokeT = TypeVar("InvokeT", bound="Callable[[Context], Coroutine[Any, Any, None]]")
 MC = TypeVar("MC", bound=MaybeCommand)
@@ -253,7 +255,7 @@ class Command(Generic[P]):
         return " ".join(c.name for c in reversed(self.parents))
 
     @property
-    def parents(self: C) -> list[C]:
+    def parents(self: Self) -> list[Self]:
         """The command's parents.
 
         Returns
@@ -320,7 +322,7 @@ class Command(Generic[P]):
         return decorator(coro) if coro is not None else decorator
 
     @overload
-    def before_invoke(self, coro: Literal[None] = ...) -> Callable[[InvokeT], InvokeT]:
+    def before_invoke(self, coro: None = ...) -> Callable[[InvokeT], InvokeT]:
         ...
 
     @overload
@@ -341,7 +343,7 @@ class Command(Generic[P]):
         return decorator(coro) if coro is not None else decorator
 
     @overload
-    def after_invoke(self, coro: Literal[None] = ...) -> Callable[[InvokeT], InvokeT]:
+    def after_invoke(self, coro: None = ...) -> Callable[[InvokeT], InvokeT]:
         ...
 
     @overload
@@ -362,7 +364,7 @@ class Command(Generic[P]):
         return decorator(coro) if coro is not None else decorator
 
     async def invoke(self, ctx: Context) -> None:
-        """InvokeT the callback the command holds.
+        """Invoke the callback the command holds.
 
         Parameters
         ----------
@@ -845,7 +847,7 @@ class GroupMixin:
         return decorator(callback) if callback is not None else decorator
 
     @property
-    def children(self: C) -> list[C]:
+    def children(self: Self) -> list[Self]:
         """The commands children.
 
         Returns
@@ -1063,7 +1065,7 @@ def check(predicate: CheckType) -> CheckReturnType:
 
 
 @overload
-def is_owner(command: Literal[None] = ...) -> MCD:
+def is_owner(command: None = ...) -> MCD:
     ...
 
 
@@ -1094,7 +1096,7 @@ def is_owner(command: MCD | None = None) -> MCD:
 
 
 @overload
-def dm_only(command: Literal[None] = ...) -> MCD:
+def dm_only(command: None = ...) -> MCD:
     ...
 
 

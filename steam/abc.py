@@ -77,7 +77,7 @@ if TYPE_CHECKING:
     from .image import Image
     from .protobufs.steammessages_chat import CChatMentions
     from .state import ConnectionState
-    from .user import User
+    from .user import ClientUser, User
 
 __all__ = (
     "SteamID",
@@ -86,7 +86,7 @@ __all__ = (
 )
 
 C = TypeVar("C", bound="Commentable")
-M_co = TypeVar("M", bound="Message", covariant=True)
+M_co = TypeVar("M_co", bound="Message", covariant=True)
 
 
 class UserDict(TypedDict):
@@ -333,7 +333,7 @@ class Commentable(Protocol):
         """An :class:`~steam.iterators.AsyncIterator` for accessing a comment section's :class:`~steam.Comment` objects.
 
         Examples
-        ---------
+        --------
 
         Usage:
 
@@ -817,7 +817,7 @@ class Message:
         "mentions",
         "_state",
     )
-    author: User
+    author: User | ClientUser
     created_at: datetime
 
     def __init__(self, channel: Channel[Message], proto: Any):

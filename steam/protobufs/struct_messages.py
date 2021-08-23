@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from ..utils import StructIO
 from .emsg import EMsg
 from .protobufs import PROTOBUFS
 
-M = TypeVar("M", bound="StructMessage")
+if TYPE_CHECKING:
+    from _typeshed import Self
 
 
 class StructMessageMeta(type):
@@ -27,7 +28,7 @@ class StructMessageMeta(type):
 
 
 class StructMessage(metaclass=StructMessageMeta):
-    def from_dict(self: M, dict: dict[str, Any]) -> M:
+    def from_dict(self: Self, dict: dict[str, Any]) -> Self:
         self.__init__(**dict)
         return self
 
@@ -44,5 +45,5 @@ class StructMessage(metaclass=StructMessageMeta):
 
         return buffer.buffer
 
-    def parse(self: M, data: bytes) -> M:
+    def parse(self: Self, data: bytes) -> Self:
         raise NotImplementedError

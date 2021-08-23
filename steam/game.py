@@ -229,7 +229,7 @@ class Game:
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Game):
             return NotImplemented
-        return self.id == other.id or self.name == other.name
+        return self.id == other.id
 
     @property
     def title(self) -> str | None:
@@ -265,6 +265,11 @@ DOTA2 = Game(name="DOTA 2")
 CSGO = Game(name="Counter Strike Global-Offensive")
 LFD2 = Game(name="Left 4 Dead 2")
 STEAM = Game(name="Steam", context_id=6)
+
+
+@overload
+def CUSTOM_GAME(name: str) -> Game:  # type: ignore
+    ...
 
 
 def CUSTOM_GAME(name: str = None, title: str = None) -> Game:

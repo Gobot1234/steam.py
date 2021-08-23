@@ -33,7 +33,7 @@ from collections.abc import Callable, Coroutine
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from typing_extensions import Final, Literal, Protocol, TypeAlias, TypedDict
+from typing_extensions import Final, Literal, ParamSpec, Protocol, TypeAlias, TypedDict
 from yarl import URL as _URL
 
 from . import utils
@@ -51,6 +51,7 @@ __all__ = (
 
 E = TypeVar("E", bound="EventParser")
 R = TypeVar("R", bound="Registerable")
+P = ParamSpec("P")
 TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 
@@ -78,10 +79,10 @@ class _ReturnTrue:
 return_true = _ReturnTrue()
 
 
-class EventParser(Protocol):
+class EventParser(Protocol[P]):
     msg: IntEnum
 
-    def __call__(self, msg: MsgProto[Any]) -> Coroutine[Any, Any, None] | None:
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Coroutine[Any, Any, None] | None:
         ...
 
 
@@ -136,10 +137,10 @@ class Registerable:
             ).add_done_callback(self._run_parser_callback)
 
 
-def register(msg: IntEnum) -> Callable[[E], E]:
-    def wrapper(callback: E) -> E:
+def register(msg: IntEnum) -> Callable[[Callable[P, Any]], EventParser[P]]:
+    def wrapper(callback: Callable[P, Any]) -> EventParser[P]:
         callback.msg = msg
-        return callback
+        return callback  # type: ignore
 
     return wrapper
 

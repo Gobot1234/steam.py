@@ -36,6 +36,8 @@ from .errors import ClientException, ConfirmationError
 from .game import Game, StatefulGame
 
 if TYPE_CHECKING:
+    from typing_extensions import Required
+
     from .abc import BaseUser, SteamID
     from .state import ConnectionState
     from .user import User
@@ -66,8 +68,8 @@ class AssetDict(AssetToDict):
 
 
 class DescriptionDict(TypedDict, total=False):
-    instanceid: str
-    classid: str
+    instanceid: Required[str]
+    classid: Required[str]
     market_name: str
     currency: int
     name: str
@@ -439,7 +441,7 @@ class TradeOffer:
         self.partner: User | SteamID | None = None
         self.updated_at: datetime | None = None
         self.created_at: datetime | None = None
-        self.escrow: datetime | None = None
+        self.escrow: timedelta | None = None
         self.state = TradeOfferState.Invalid
 
     @classmethod
@@ -577,7 +579,7 @@ class TradeOffer:
         to_send = [item.to_dict() for item in trade.items_to_send]
         to_receive = [item.to_dict() for item in trade.items_to_receive]
         resp = await self._state.http.send_trade_offer(
-            self.partner, to_send, to_receive, trade.token, trade.message, trade_id=self.id
+            self.partner, to_send, to_receive, trade.token, trade.message or "", trade_id=self.id
         )
         if resp.get("needs_mobile_confirmation", False):
             await self._state.get_and_confirm_confirmation(int(resp["tradeofferid"]))

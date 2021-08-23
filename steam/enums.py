@@ -92,8 +92,6 @@ class EnumMeta(type, Generic[E]):
         return enum_class
 
     def __call__(cls: type[E], value: Any) -> E:
-        if value.__class__ is cls:
-            return value
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
@@ -135,11 +133,10 @@ class EnumMeta(type, Generic[E]):
 class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates `enum.Enum`."""
 
-    if TYPE_CHECKING:  # picked up by sphinx otherwise
-        name: str
-        value: Any
-        _value_map_: dict[Any, Enum]
-        _member_map_: dict[str, Enum]
+    name: str
+    value: Any
+    _value_map_: dict[Any, Enum]
+    _member_map_: dict[str, Enum]
 
     def __new__(cls, *, name: str, value: Any) -> Enum:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
@@ -180,8 +177,6 @@ class Enum(metaclass=EnumMeta):
 class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
-    if TYPE_CHECKING:  # picked up by sphinx otherwise
-        value: int
 
 
 if TYPE_CHECKING:

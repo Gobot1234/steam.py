@@ -33,6 +33,7 @@ import warnings
 from base64 import b64encode
 from collections import defaultdict
 from collections.abc import Coroutine
+from datetime import datetime
 from sys import version_info
 from time import time
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -44,6 +45,7 @@ from yarl import URL as _URL
 
 from . import errors, utils
 from .__metadata__ import __version__
+from .abc import SteamID
 from .models import URL, PriceOverviewDict, api_route
 from .trade import AssetToDict, InventoryDict
 from .user import BaseUser, ClientUser
@@ -207,8 +209,7 @@ class HTTPClient:
             if not resp["success"]:
                 raise errors.InvalidCredentials(resp.get("message", "An unexpected error occurred"))
 
-            data = resp.get("transfer_parameters")
-            if data is None:
+            if "transfer_parameters" not in resp:
                 raise errors.LoginError(
                     "Cannot perform redirects after login. Steam is likely down, please try again later."
                 )
@@ -457,7 +458,7 @@ class HTTPClient:
 
     def send_trade_offer(
         self,
-        user: User,
+        user: SteamID,
         to_send: list[AssetToDict],
         to_receive: list[AssetToDict],
         token: str | None,
@@ -487,10 +488,6 @@ class HTTPClient:
     def get_cm_list(self, cell_id: int) -> RequestType[dict[str, Any]]:
         params = {"cellid": cell_id}
         return self.get(api_route("ISteamDirectory/GetCMList"), params=params)
-
-    def report_comment(self, id64: int, comment_id: int, comment_type: str) -> RequestType[None]:
-        payload = {"gidcomment": comment_id, "hide": 1}
-        return self.post(URL.COMMUNITY / f"comment/{comment_type}/hideandreport/{id64}", data=payload)
 
     def accept_clan_invite(self, clan_id: int) -> RequestType[None]:
         payload = {
@@ -786,8 +783,7 @@ class HTTPClient:
         )
         await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
 
-    async def send_group_image(self, destination: tuple[int, int], image: Image) -> None:
-        chat_id, channel_id = destination
+    async def send_group_image(self, chat_id: int, channel_id: int, image: Image) -> None:
         payload = {
             "sessionid": self.session_id,
             "l": "english",

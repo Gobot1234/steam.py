@@ -414,7 +414,15 @@ class cached_property(Generic[_T]):
         self.function = function
         self.__doc__: str | None = getattr(function, "__doc__", None)
 
-    def __get__(self, instance: Any | None, _) -> _T | cached_property[_T]:
+    @overload
+    def __get__(self: Self, instance: None, _) -> Self:
+        ...
+
+    @overload
+    def __get__(self, instance: Any, _) -> _T:
+        ...
+
+    def __get__(self: Self, instance: Any | None, _) -> _T | Self:
         if instance is None:
             return self
 

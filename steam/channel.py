@@ -65,10 +65,10 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
     """
 
     __slots__ = ("participant",)
-    clan: Literal[None]
-    group: Literal[None]
+    clan: None
+    group: None
 
-    def __init__(self, state: ConnectionState, participant: User):
+    def __init__(self, state: ConnectionState, participant: User | SteamID):
         super().__init__(state)
         self.participant = participant
         self.clan = None
@@ -207,17 +207,17 @@ class GroupChannel(_GroupChannel["GroupMessage"]):
         The last message sent in the channel.
     """
 
-    clan: Literal[None]
+    clan: None
 
     def __init__(self, state: ConnectionState, group: Group, proto: GroupChannelProtos):
         super().__init__(state, proto)
         self.group: Group = group
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, GroupMessage]:
-        return self._state.send_group_message(self.id, self.group.id)
+        return self._state.send_group_message(self.id, self.group.id, content)
 
     def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_group_image(self.id, self.group.id)
+        return self._state.http.send_group_image(self.id, self.group.id, image)
 
 
 class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same thing
@@ -239,14 +239,14 @@ class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same t
         The last message sent in the channel.
     """
 
-    group: Literal[None]
+    group: None
 
     def __init__(self, state: ConnectionState, clan: Clan, proto: GroupChannelProtos):
         super().__init__(state, proto)
         self.clan: Clan = clan
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, ClanMessage]:
-        return self._state.send_group_message(self.id, self.clan.chat_id)  # type: ignore
+        return self._state.send_group_message(self.id, self.clan.chat_id, content)  # type: ignore
 
     def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_group_image(self.id, self.clan.chat_id)  # type: ignore
+        return self._state.http.send_group_image(self.id, self.clan.chat_id, image)  # type: ignore

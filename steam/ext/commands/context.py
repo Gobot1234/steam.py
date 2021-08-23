@@ -75,17 +75,17 @@ class Context(Messageable["Message"]):
     def __init__(self, **attrs: Any):
         self.bot: Bot = attrs["bot"]
         self.message: Message = attrs["message"]
-        self.prefix: str = attrs["prefix"]
+        self.lex: Shlex = attrs["lex"]
+        self.prefix: str | None = attrs["prefix"]
 
         self.command: Command | None = attrs.get("command")
         self.cog: Cog | None = self.command.cog if self.command is not None else None
-        self.lex: Shlex | None = attrs.get("lex")
         self.invoked_with: str | None = attrs.get("invoked_with")
 
         self.author: User = self.message.author
-        self.channel: Channel = self.message.channel
-        self.clan: Clan = self.message.clan
-        self.group: Group = self.message.group
+        self.channel: Channel[Message] = self.message.channel
+        self.clan: Clan | None = self.message.clan
+        self.group: Group | None = self.message.group
         self._state: ConnectionState = self.message._state
 
         self.args: tuple[Any, ...] | None = None
@@ -96,7 +96,7 @@ class Context(Messageable["Message"]):
         return self.channel._message_func(content)
 
     def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self.channel._message_func(image)
+        return self.channel._image_func(image)
 
     async def invoke(self) -> None:
         """A shortcut method that invokes the current context using :meth:`~steam.ext.commands.Command.invoke`.

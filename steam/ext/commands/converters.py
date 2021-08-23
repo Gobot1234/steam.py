@@ -210,7 +210,7 @@ class Converter(ConverterBase[T_co], ABC):
 
     @classmethod
     @overload
-    def register(cls, command: Literal[None] = ...) -> Callable[[MC], MC]:
+    def register(cls, command: None = ...) -> Callable[[MC], MC]:
         ...
 
     @classmethod

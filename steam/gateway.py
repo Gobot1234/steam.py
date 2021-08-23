@@ -72,8 +72,8 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
-Msgs: TypeAlias = "MsgProto | Msg"
-M = TypeVar("M", bound=MsgBase[Any], covariant=True)
+Msgs: TypeAlias = "MsgProto[Any] | Msg[Any]"
+M = TypeVar("M", bound=MsgProto[Any])
 READ_U32 = struct.Struct("<I").unpack_from
 
 

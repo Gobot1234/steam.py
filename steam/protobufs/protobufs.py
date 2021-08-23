@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-
-import betterproto
+from typing import TYPE_CHECKING
 
 from . import (
     steammessages_base,
@@ -13,10 +11,17 @@ from . import (
 )
 from .emsg import *
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    import betterproto
+
+    from ..enums import IntEnum
+
 __all__ = ("PROTOBUFS",)
 
 
-PROTOBUFS: Mapping[EMsg, betterproto.Message] = {
+PROTOBUFS: Mapping[IntEnum, betterproto.Message] = {
     EMsg.Multi: steammessages_base.CMsgMulti,
     EMsg.ClientToGC: steammessages_clientserver_2.CMsgGcClient,
     EMsg.ClientFromGC: steammessages_clientserver_2.CMsgGcClient,

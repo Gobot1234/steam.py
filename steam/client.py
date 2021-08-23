@@ -119,6 +119,7 @@ class Client:
     @overload
     def __init__(  # type: ignore
         self,
+        *,
         proxy: str | None = ...,
         proxy_auth: aiohttp.BasicAuth | None = ...,
         connector: aiohttp.BaseConnector | None = ...,
@@ -223,7 +224,7 @@ class Client:
         return self._closed
 
     @overload
-    def event(self, coro: Literal[None] = ...) -> Callable[[E], E]:
+    def event(self, coro: None = ...) -> Callable[[E], E]:
         ...
 
     @overload
@@ -610,8 +611,6 @@ class Client:
             The app id of the game or a :class:`~steam.Game` instance.
         """
         id = id if isinstance(id, int) else id.id
-        if id is None:
-            raise ValueError("fetching a game with a base game requires an id")
         resp = await self.http.get_game(id)
         if resp is None:
             return None
@@ -629,7 +628,7 @@ class Client:
         self,
         *,
         ip: str,
-        port: int,
+        port: int | None = ...,
     ) -> GameServer | None:
         ...
 
@@ -663,12 +662,12 @@ class Client:
             # we need to fetch the ip and port
             servers = await self._connection.fetch_server_ip_from_steam_id(make_id64(id, type=Type.GameServer))
             if not servers:
-                raise ValueError(f"Master server didn't find a matching server for {id}")
+                raise ValueError(f"The master server didn't find a matching server for {id}")
             ip, _, port = servers[0].addr.partition(":")
-        elif not (ip and port):
-            raise TypeError(f"fetch_server missing argument {'ip' if not ip else 'port'}")
+        elif not ip:
+            raise TypeError(f"fetch_server missing argument ip")
 
-        servers = await self.fetch_servers(Query.ip / f"{ip}:{port}", limit=1)
+        servers = await self.fetch_servers(Query.ip / f"{ip}{f':{port}' if port is not None else ''}", limit=1)
         return servers[0] if servers else None
 
     async def fetch_servers(self, query: Query[Any], limit: int = 100) -> list[GameServer]:

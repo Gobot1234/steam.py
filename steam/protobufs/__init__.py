@@ -33,13 +33,13 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 import betterproto
 from typing_extensions import TypeAlias
 
-from ..enums import IE, IntEnum, Result
+from ..enums import IntEnum, Result
 from .emsg import *
 from .headers import *
 from .protobufs import *
 from .unified import *
 
-M = TypeVar("M", bound=betterproto.Message)
+M = TypeVar("M", bound=betterproto.Message, covariant=True)
 GetProtoType: TypeAlias = "type[betterproto.Message] | None"
 ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProto, GCMsgHdrProto)
 betterproto.safe_snake_case = do_nothing_case
