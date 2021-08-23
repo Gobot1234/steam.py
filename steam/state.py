@@ -786,15 +786,14 @@ class ConnectionState(Registerable):
                     )
 
     async def fetch_comments(
-        self, owner: Commentable, before: datetime, after: datetime, limit: int | None
+        self, owner: Commentable, after: datetime, limit: int | None
     ) -> list[comments.CommentThreadResponse.Comment]:
         msg: MsgProto[comments.CommentThreadResponse] = await self.ws.send_um_and_wait(
             "Community.GetCommentThread",
             **owner._commentable_kwargs,
-            time_oldest=int(before.timestamp()),
-            start=int(after.timestamp()),
-            count=-1 if limit is None else limit,
-        )
+            time_oldest=int(after.timestamp()),
+            count=2147483647 if limit is None else limit,
+        )  # int(i32::MAX / 2) not entirely sure why this is the max and not i32 which is the max for the field
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.body.comments
@@ -824,6 +823,28 @@ class ConnectionState(Registerable):
             "Community.DeleteCommentFromThread",
             **owner._commentable_kwargs,
             id=comment_id,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def report_comment(self, owner: Commentable, comment_id: int) -> None:
+        msg: MsgProto[comments.PostCommentToThreadResponse] = await self.ws.send_um_and_wait(
+            "Community.PostCommentToThread",  # some odd api here
+            **owner._commentable_kwargs,
+            is_report=True,
+            parent_id=comment_id,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def rate_comment(self, owner: Commentable, comment_id: int, upvote: bool) -> None:
+        kwargs = owner._commentable_kwargs
+        kwargs["thread_type"] = str(kwargs["thread_type"])  # this is dumb
+        msg: MsgProto[comments.RateCommentThreadResponse] = await self.ws.send_um_and_wait(
+            "Community.RateCommentThread",
+            **kwargs,
+            id=comment_id,
+            rate_up=upvote,
         )
         if msg.result != Result.OK:
             raise WSException(msg)

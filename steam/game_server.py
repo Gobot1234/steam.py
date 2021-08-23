@@ -153,7 +153,7 @@ class QueryMeta(type):
 
     @property
     def ip(cls) -> Query[str]:
-        """Fetches servers on the specified IP address.
+        """Fetches servers on the specified IP address, port is optional.
 
         See Also
         --------

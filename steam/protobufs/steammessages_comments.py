@@ -12,7 +12,7 @@ from .steammessages_clientserver import CMsgIpAddress
 @dataclass(eq=False, repr=False)
 class CommentThreadRequest(betterproto.Message):
     id64: int = betterproto.fixed64_field(1)
-    comment_thread_type: int = betterproto.uint32_field(2)
+    thread_type: int = betterproto.uint32_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
     gidfeature2: int = betterproto.fixed64_field(4)
     thread_id: int = betterproto.fixed64_field(5)

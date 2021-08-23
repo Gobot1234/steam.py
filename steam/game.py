@@ -257,7 +257,7 @@ class Game:
     @property
     def url(self) -> str:
         """What should be the game's url on steamcommunity if applicable."""
-        return f"{URL.COMMUNITY}/apps/{self.id}"
+        return f"{URL.COMMUNITY}/app/{self.id}"
 
 
 TF2 = Game(name="Team Fortress 2")
@@ -288,7 +288,7 @@ def CUSTOM_GAME(name: str = None, title: str = None) -> Game:
 
 
 class StatefulGame(Game):
-    """Games with state."""
+    """Games that have state."""
 
     __slots__ = ("_state",)
 
@@ -304,7 +304,9 @@ class StatefulGame(Game):
         .. code-block:: python3
 
             clan = await game.clan()
-            async for update in clan.events().filter(lambda event: event.type.is_update()):
+            async for update in clan.announcements().filter(
+                lambda announcement: announcement.type in (steam.ClanEvent.MajorUpdate, steam.ClanEvent.SmallUpdate)
+            ):
                 ...  # do something with the update
 
         Raises

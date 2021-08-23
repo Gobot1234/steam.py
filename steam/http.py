@@ -570,18 +570,146 @@ class HTTPClient:
     def get_wishlist(self, user_id64: int) -> RequestType[dict[str, Any]]:
         return self.get(URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata")
 
-    def get_game(self, id: int) -> RequestType[dict[str, Any]]:
-        return self.get(URL.STORE / "api/appdetails", params={"appids": id, "cc": "english"})
+    def get_game(self, game_id: int) -> RequestType[dict[str, Any]]:
+        return self.get(URL.STORE / "api/appdetails", params={"appids": game_id, "cc": "english"})
 
-    def get_clan_events_rss(self, clan_id64: int) -> RequestType[str]:
+    def get_game_player_count(self, game_id: int) -> RequestType[dict[str, Any]]:
+        return self.get(api_route("ISteamUserStats/GetNumberOfCurrentPlayers"), params={"appid": game_id})
+
+    def get_clan_rss(self, clan_id64: int) -> RequestType[str]:
         return self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
+
+    def _edit_clan_event(
+        self,
+        action: str,
+        clan_id64: int,
+        name: str,
+        description: str,
+        event_type: str,
+        game_id: str,
+        server_ip: str,
+        server_password: str,
+        start: datetime | None,
+        event_id: int | None,
+    ) -> RequestType[str]:
+        if start is None:
+            tz_offset = int((datetime.utcnow() - datetime.now()).total_seconds())
+            start_date = "MM/DD/YY"
+            start_hour = "12"
+            start_minute = "00"
+            start_ampm = "PM"
+            time_choice = "quick"
+        else:
+            if start.tzinfo is None:
+                tz_offset = int((datetime.utcnow() - start).total_seconds())
+            else:
+                tz_offset = int(start.tzinfo.utcoffset(start).total_seconds())
+
+            start_date = f"{start:%m/%d/%y}"
+            start_hour = f"{start:%I}"
+            start_minute = f"{start:%M}"
+            start_ampm = "AM" if start.hour <= 12 else "PM"
+            time_choice = "specific"
+
+        data = {
+            "sessionid": self.session_id,
+            "action": action,
+            "tzOffset": tz_offset,
+            "name": name,
+            "type": event_type,
+            "appID": game_id,
+            "serverIP": server_ip,
+            "serverPassword": server_password,
+            "notes": description,
+            "eventQuickTime": "now",
+            "startDate": start_date,
+            "startHour": start_hour,
+            "startMinute": start_minute,
+            "startAMPM": start_ampm,
+            "timeChoice": time_choice,
+        }
+
+        if event_id is not None:
+            data["eventID"] = event_id
+
+        return self.post(URL.COMMUNITY / f"gid/{clan_id64}/eventEdit", data=data)
+
+    def create_clan_event(self, *args: Any, **kwargs: Any) -> RequestType[str]:
+        return self._edit_clan_event("newEvent", *args, event_id=None, **kwargs)
+
+    def edit_clan_event(self, *args: Any, **kwargs: Any) -> RequestType[str]:
+        return self._edit_clan_event("updateEvent", *args, **kwargs)
+
+    def delete_clan_event(self, clan_id64: int, event_id: int) -> RequestType[None]:
+        data = {
+            "sessionid": self.session_id,
+            "action": "deleteEvent",
+            "eventID": event_id,
+        }
+        return self.post(URL.COMMUNITY / f"gid/{clan_id64}/events", data=data)
 
     def get_clan_events(self, clan_id: int, event_ids: list[int]) -> RequestType[dict[str, Any]]:
         params = {
-            "clanid_list": str(clan_id) * len(event_ids),
-            "uniqueid_list": ", ".join(str(id) for id in event_ids),
+            "clanid_list": ",".join([str(clan_id)] * len(event_ids)),
+            "uniqueid_list": ",".join(str(id) for id in event_ids),
         }
         return self.get(URL.STORE / "events/ajaxgeteventdetails", params=params)
+
+    def create_clan_announcement(
+        self, clan_id64: int, name: str, description: str, hidden: bool = False
+    ) -> RequestType[None]:
+        data = {
+            "sessionID": self.session_id,
+            "action": "post",
+            "headline": name,
+            "body": description,
+            "languages[0][headline]": name,
+            "languages[0][body]": description,
+        }
+        if hidden:
+            data["is_hidden"] = "is_hidden"
+        return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements", data=data)
+
+    def edit_clan_announcement(
+        self, clan_id64: int, announcement_id: int, name: str, description: str
+    ) -> RequestType[None]:
+        data = {
+            "sessionID": self.session_id,
+            "gid": announcement_id,
+            "action": "update",
+            "headline": name,
+            "body": description,
+            "languages[0][headline]": name,
+            "languages[0][body]": description,
+            "languages[0][updated]": 1,
+        }
+        return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements", data=data)
+
+    def delete_clan_announcement(self, clan_id64, announcement_id: int) -> RequestType[None]:
+        params = {
+            "sessionID": self.session_id,
+        }
+        return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements/delete/{announcement_id}", params=params)
+
+    def get_clan_announcement(
+        self,
+        clan_id: int,
+        announcement_id: int,
+        game_id: int | None = None,
+    ) -> RequestType[dict[str, Any]]:
+        params = {
+            "clan_accountid": clan_id,
+            "gidannouncement": announcement_id,
+        }
+        if game_id is not None:  # game clans need these for some odd reason
+            params.update(
+                {
+                    "appid": game_id,
+                    "count_before": 1,
+                    "count_after": 0,
+                }
+            )
+        return self.get(URL.STORE / "events/ajaxgetadjacentpartnerevents", params=params)
 
     async def edit_profile(
         self,

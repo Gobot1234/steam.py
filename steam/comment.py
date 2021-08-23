@@ -26,19 +26,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from .clan import Clan
     from .state import ConnectionState
     from .user import ClientUser, User
 
 
 __all__ = ("Comment",)
 
+C = TypeVar("C", bound="Commentable")
 
-@dataclass
-class Comment:
+
+@dataclass(repr=False)
+class Comment(Generic[C]):
     """Represents a comment on a Steam profile.
 
     Attributes
@@ -52,8 +53,7 @@ class Comment:
     created_at
         The time the comment was posted at.
     owner
-        The comment sections owner. If the comment section is for a clan it will be a :class:`~steam.Clan` instance
-        otherwise it will be an :class:`~steam.User` instance.
+        The comment sections owner.
     """
 
     __slots__ = ("content", "id", "created_at", "author", "owner", "_state")
@@ -63,24 +63,25 @@ class Comment:
     content: str
     created_at: datetime
     author: User | ClientUser
-    owner: Clan | User | ClientUser
+    owner: C
 
     def __repr__(self) -> str:
         attrs = ("id", "author")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Comment {' '.join(resolved)}>"
 
-    async def report(self) -> None:  # TODO does this need removing?
+    async def report(self) -> None:
         """Reports the comment."""
-        await self._state.http.report_comment(
-            id64=self.owner.id64,
-            comment_id=self.id,
-            comment_type=self.owner.comment_path,
-        )
+        await self._state.report_comment(self.owner, self.id)
 
     async def delete(self) -> None:
         """Deletes the comment."""
         await self._state.delete_comment(self.owner, self.id)
 
     async def upvote(self) -> None:
-        ...
+        """Upvote the comment."""
+        await self._state.rate_comment(self.owner, self.id, True)
+
+    async def downvote(self) -> None:
+        """Downvote the comment."""
+        await self._state.rate_comment(self.owner, self.id, False)

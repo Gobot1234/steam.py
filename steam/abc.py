@@ -68,6 +68,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
+    from _typeshed import Self
     from aiohttp import ClientSession
 
     from .clan import Clan
@@ -305,29 +306,20 @@ class Commentable(Protocol):
     """A mixin that implements commenting functionality"""
 
     __slots__ = ()
-
-    if TYPE_CHECKING:
-        _state: ConnectionState
+    _state: ConnectionState
 
     @property
     @abc.abstractmethod
     def _commentable_kwargs(self) -> dict[str, Any]:
         raise NotImplementedError
 
-    def copy(self: C) -> C:
-        cls = self.__class__
-        commentable = cls.__new__(cls)
-        return update_class(self, commentable)
-
-    __copy__ = copy
-
-    async def comment(self, content: str) -> Comment:
+    async def comment(self: Self, content: str) -> Comment[Self]:
         """Post a comment to a profile.
 
         Parameters
         -----------
         content
-            The message to add to the profile.
+            The message to add to the comment section.
 
         Returns
         -------
@@ -336,9 +328,9 @@ class Commentable(Protocol):
         return await self._state.post_comment(self, content)
 
     def comments(
-        self, limit: int | None = None, before: datetime | None = None, after: datetime | None = None
-    ) -> CommentsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a profile's :class:`~steam.Comment` objects.
+        self: Self, limit: int | None = None, before: datetime | None = None, after: datetime | None = None
+    ) -> CommentsIterator[Self]:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a comment section's :class:`~steam.Comment` objects.
 
         Examples
         ---------
@@ -499,7 +491,7 @@ class BaseUser(SteamID, Commentable):
     def _commentable_kwargs(self) -> dict[str, Any]:
         return {
             "id64": self.id64,
-            "comment_thread_type": 10,  # I'm not sure where these are from
+            "thread_type": 10,
         }
 
     @property

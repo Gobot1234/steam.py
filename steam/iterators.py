@@ -24,36 +24,38 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import asyncio
 import itertools
 import math
 import re
 from collections import deque
 from collections.abc import Callable, Coroutine
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from bs4 import BeautifulSoup
-from typing_extensions import TypeAlias
+from typing_extensions import ClassVar, TypeAlias
 
 from . import utils
 from .comment import Comment
 from .enums import TradeOfferState
 
 if TYPE_CHECKING:
-    from .abc import Channel, Commentable, Message, SteamID
+    from .abc import Channel, Commentable, Message
     from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage, UserMessage
     from .clan import Clan
+    from .event import Announcement, Event
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
 
 T = TypeVar("T")
 TT = TypeVar("TT")
-A = TypeVar("A", bound="AsyncIterator")
-C = TypeVar("C", bound="Channel")
+ChannelT = TypeVar("ChannelT", bound="Channel[Any]")
+CommentableT = TypeVar("CommentableT", bound="Commentable")
 M = TypeVar("M", bound="Message")
 
 MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
-UNIX_EPOCH = datetime.utcfromtimestamp(0)
+UNIX_EPOCH = datetime.fromtimestamp(0, tz=timezone.utc)
 
 
 class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
@@ -79,7 +81,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
 
     def __init__(self, state: ConnectionState, limit: int | None, before: datetime | None, after: datetime | None):
         self._state = state
-        self.before = before or datetime.utcnow()
+        self.before = before or datetime.now(tz=timezone.utc)
         self.after = after or UNIX_EPOCH
         self._is_filled = False
         self.queue: deque[T] = deque()
@@ -96,6 +98,16 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
             self.queue.append(element)
 
         return False
+
+    async def fill_queue_users(
+        self,
+        id64s: set[Any],  # should be set[int] but # type: ignore stuff forces this
+        attributes: tuple[str, ...] = ("author",),
+    ) -> None:
+        for user, element in itertools.product(await self._state.fetch_users(list(id64s)), self.queue):
+            for attribute in attributes:
+                if getattr(element, attribute, None) == user:
+                    setattr(element, attribute, user)
 
     async def get(self, **attrs: Any) -> T | None:
         """A helper function which is similar to :func:`~steam.utils.get` except it runs over the async iterator.
@@ -190,7 +202,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
         """
         return [element async for element in self]
 
-    def filter(self, predicate: Callable[[TT], bool]) -> FilteredIterator[T, TT]:
+    def filter(self, predicate: Callable[[T], bool]) -> FilteredIterator[T]:
         """Filter members of the async iterator according to a predicate. This function acts similarly to :func:`filter`.
 
         Examples
@@ -273,7 +285,7 @@ class MappedIterator(AsyncIterator[TT], Generic[T, TT]):
         return await utils.maybe_coroutine(self.map_func, item)
 
 
-class CommentsIterator(AsyncIterator[Comment]):
+class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
     __slots__ = ("owner",)
 
     def __init__(
@@ -282,28 +294,30 @@ class CommentsIterator(AsyncIterator[Comment]):
         limit: int | None,
         before: datetime | None,
         after: datetime | None,
-        owner: Commentable,
+        owner: CommentableT,
     ):
         super().__init__(state, limit, before, after)
         self.owner = owner
 
     async def fill(self) -> None:
-        comments = await self._state.fetch_comments(self.owner, self.before, self.after, self.limit)
+        comments = await self._state.fetch_comments(self.owner, self.after, self.limit)
+        author_id64s = set()
         for comment in comments:
             comment = Comment(
                 self._state,
                 id=comment.id,
                 content=comment.content,
                 created_at=datetime.utcfromtimestamp(comment.timestamp),
-                author=SteamID(comment.author_id64),
+                author=comment.author_id64,
                 owner=self.owner,
             )
+            if comment.created_at < self.before:
+                continue  # needs rewriting when we add oldest_first support
             if not self.append(comment):
                 break
-        users = await self._state.fetch_users([comment.author_id64 for comment in comments])
-        for user, comment in itertools.product(users, self.queue):
-            if comment.author == user.id64:
-                comment.author = user
+            author_id64s.add(comment.author)
+
+        await self.fill_queue_users(author_id64s)
 
 
 class TradesIterator(AsyncIterator["TradeOffer"]):
@@ -329,12 +343,14 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         if not total:
             return
 
-        users_to_fetch = []
         descriptions = resp.get("descriptions", [])
         after_timestamp = self.after.timestamp()
         before_timestamp = self.before.timestamp()
 
-        async def process_trade(data: dict, descriptions: DescriptionDict) -> None:
+        class Stop(Exception):
+            ...
+
+        async def process_trade(data: dict[str, Any], descriptions: list[DescriptionDict]) -> None:
             if not after_timestamp < data["time_init"] < before_timestamp:
                 return
             for item in descriptions:
@@ -352,55 +368,40 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
             data["items_to_give"] = data.get("assets_given", [])
             data["items_to_receive"] = data.get("assets_received", [])
 
-            trade = await TradeOffer._from_api(state=self._state, data=data)
-            users_to_fetch.append(trade.partner)
+            trade = TradeOffer._from_api(state=self._state, data=data)
 
-            if not self._active_only:
+            if not self._active_only and trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed):
                 if not self.append(trade):
-                    raise StopAsyncIteration
-            elif trade.state in (
-                TradeOfferState.Active,
-                TradeOfferState.ConfirmationNeed,
-            ):
-                if not self.append(trade):
-                    raise StopAsyncIteration
+                    raise Stop
+                partner_id64s.add(trade.partner)
+
+        partner_id64s = set()
 
         try:
             for trade in resp.get("trades", []):
                 await process_trade(trade, descriptions)
 
             previous_time = trade["time_init"]
-            users = await self._state.fetch_users(users_to_fetch)
-            for user, trade in itertools.product(users, self.queue):
-                if trade.partner == user.id64:
-                    trade.partner = user
-
             if total < 100:
                 for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
-                    users_to_fetch = []
                     resp = await self._state.http.get_trade_history(page, previous_time)
                     resp = resp["response"]
 
                     for trade in resp.get("trades", []):
                         previous_time = trade["time_init"]
                         await process_trade(trade, descriptions)
-                    users = await self._state.fetch_users(users_to_fetch)
-                    for user, trade in itertools.product(users, self.queue):
-                        if trade.partner == user.id64:
-                            trade.partner = user
-        except StopAsyncIteration:
-            users = await self._state.fetch_users(users_to_fetch)  # fetch the final users
-            for user, trade in itertools.product(users, self.queue):
-                if trade.partner == user.id64:
-                    trade.partner = user
+        except Stop:
+            pass
+
+        await self.fill_queue_users(partner_id64s, ("partner",))
 
 
-class ChannelHistoryIterator(AsyncIterator[M], Generic[M, C]):
+class ChannelHistoryIterator(AsyncIterator[M], Generic[M, ChannelT]):
     __slots__ = ("channel", "_actual_before")
 
     def __init__(
         self,
-        channel: C,
+        channel: ChannelT,
         state: ConnectionState,
         limit: int | None,
         before: datetime | None,
@@ -436,19 +437,19 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
         last_message_timestamp = before_timestamp
 
         while True:
-            msgs = await self._state.fetch_user_history(
+            resp = await self._state.fetch_user_history(
                 self.participant.id64, start=after_timestamp, last=last_message_timestamp
             )
-            if msgs is None:
+            if not resp.messages:
                 return
 
-            for message in msgs.body.messages:
+            for message in resp.messages:
                 if not (after_timestamp < message.timestamp <= actual_before_timestamp):
                     return
 
                 new_message = UserMessage.__new__(UserMessage)
                 Message.__init__(new_message, channel=self.channel, proto=message)
-                new_message.author = (
+                new_message.author = (  # type: ignore[assignment]
                     self.participant if message.accountid == self.participant.id else self._state.client.user
                 )
                 new_message.created_at = datetime.utcfromtimestamp(message.timestamp)
@@ -457,12 +458,12 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
 
             last_message_timestamp = int(message.timestamp)
 
-            if not msgs.body.more_available:
+            if not resp.more_available:
                 return
 
 
-GroupMessages = TypeVar("GroupMessages", "ClanMessage", "GroupMessage")
-GroupChannels = TypeVar("GroupChannels", "ClanChannel", "GroupChannel")
+GroupMessages = TypeVar("GroupMessages", bound="ClanMessage | GroupMessage")
+GroupChannels = TypeVar("GroupChannels", bound="ClanChannel | GroupChannel")
 
 
 class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupChannels]):
@@ -487,17 +488,16 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
         actual_before_timestamp = int(self._actual_before.timestamp())
         last_message_timestamp = before_timestamp
         group_id = getattr(self.group, "chat_id", None) or self.group.id
+        author_id64s = set()
 
         while True:
-            msgs = await self._state.fetch_group_history(
+            resp = await self._state.fetch_group_history(
                 group_id, self.channel.id, start=after_timestamp, last=last_message_timestamp
             )
-            if msgs is None:
+            if not resp.messages:
                 return
 
-            to_fetch = []
-
-            for message in msgs.body.messages:
+            for message in resp.messages:
                 if not (after_timestamp < message.server_timestamp <= actual_before_timestamp):
                     return
 
@@ -505,24 +505,87 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
                     GroupMessage.__new__(GroupMessage) if self.channel.group else ClanMessage.__new__(ClanMessage)
                 )
                 Message.__init__(new_message, channel=self.channel, proto=message)
-                new_message.author = utils.make_id64(message.sender)
-                to_fetch.append(new_message.author)
+                new_message.author = utils.make_id64(message.sender)  # type: ignore
+                author_id64s.add(new_message.author)
                 new_message.created_at = datetime.utcfromtimestamp(message.server_timestamp)
                 if not self.append(new_message):
-                    users = await self._state.fetch_users(to_fetch)
-
-                    for user, message in itertools.product(users, self.queue):
-                        if message.author == user.id64:
-                            message.author = user
-
-                    return
+                    break
 
             last_message_timestamp = int(message.server_timestamp)
 
-            users = await self._state.fetch_users(to_fetch)
-            for user, message in itertools.product(users, self.queue):
-                if message.author == user.id64:
-                    message.author = user
+            if not resp.more_available:
+                break
 
-            if not msgs.body.more_available:
-                return
+        await self.fill_queue_users(author_id64s)
+
+
+class _EventIterator(AsyncIterator[T]):
+    ID_PARSE_REGEX: ClassVar[re.Pattern[str]]
+
+    def __init__(
+        self, clan: Clan, state: ConnectionState, limit: int | None, before: datetime | None, after: datetime | None
+    ):
+        super().__init__(state, limit, before, after)
+        self.clan = clan
+
+    async def fill(self) -> None:
+        cls = self.__class__
+        rss = await self._state.http.get_clan_rss(
+            self.clan.id64
+        )  # TODO make this use the calendar? does that work for announcements
+
+        soup = BeautifulSoup(rss, "html.parser")
+
+        ids = []
+        for url in soup.find_all("guid"):
+            match = cls.ID_PARSE_REGEX.findall(url.text)
+            if match:
+                ids.append(int(match[0]))
+
+        if not ids:
+            return
+
+        events = await self.get_events(ids)
+        to_fetch_id64s = set()
+        from . import event
+
+        event_cls: type[Announcement | Event] = getattr(
+            event, cls.__orig_bases__[0].__args__[0].__forward_arg__  # type: ignore
+        )
+
+        for event_ in events["events"]:
+            event = event_cls(self._state, self.clan, event_)
+            to_fetch_id64s.add(event.author)
+            to_fetch_id64s.add(event.last_edited_by)
+            if not self.append(event):
+                break
+
+        await self.fill_queue_users(to_fetch_id64s, ("author", "last_edited_by", "approved_by"))
+
+    async def get_events(self, ids: list[int]) -> dict[str, Any]:
+        raise NotImplementedError
+
+
+class EventIterator(_EventIterator["Event"]):
+    ID_PARSE_REGEX = re.compile(r"events/+(\d+)")
+
+    async def get_events(self, ids: list[int]) -> dict[str, Any]:
+        return await self._state.http.get_clan_events(self.clan.id, ids)
+
+
+class AnnouncementsIterator(_EventIterator["Announcement"]):
+    ID_PARSE_REGEX = re.compile(r"announcements/detail/(\d+)")
+
+    async def get_events(self, ids: list[int]) -> dict[str, Any]:
+        announcements = await asyncio.gather(
+            *(
+                self._state.http.get_clan_announcement(
+                    self.clan.id, id, self.clan.game.id if self.clan.is_game_clan else None  # type: ignore
+                )
+                for id in ids
+            )
+        )
+        events = []
+        for announcement in announcements:
+            events += announcement["events"]
+        return {"events": events}
