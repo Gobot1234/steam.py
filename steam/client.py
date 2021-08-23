@@ -44,7 +44,7 @@ from typing_extensions import Literal, ParamSpec, TypeAlias, final
 from . import errors, utils
 from .abc import SteamID
 from .enums import Type
-from .game import FetchedGame, Game
+from .game import FetchedGame, Game, StatefulGame
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
@@ -601,6 +601,16 @@ class Client:
         """
         steam_id = await SteamID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
+
+    def get_game(self, id: int | Game) -> StatefulGame:
+        """Creates a stateful game from its ID.
+
+        Parameters
+        ----------
+        id
+            The app id of the game or a :class:`~steam.Game` instance.
+        """
+        return StatefulGame(self._connection, id=getattr(id, "id", id))
 
     async def fetch_game(self, id: int | Game) -> FetchedGame | None:
         """Fetch a game from its ID or ``None`` if the game was not found.
