@@ -396,6 +396,11 @@ class BaseUser(SteamID, Commentable):
         api.
     primary_clan
         The primary clan the User displays on their profile.
+
+        Note
+        ----
+        This can be lazily awaited to get more attributes of the clan.
+
     avatar_url
         The avatar url of the user. Uses the large (184x184 px) image url.
     real_name
@@ -440,7 +445,7 @@ class BaseUser(SteamID, Commentable):
         self.real_name: str | None = None
         self.community_url: str | None = None
         self.avatar_url: str | None = None  # TODO make this a property and add avatar hash
-        self.primary_clan: SteamID | None = None
+        self.primary_clan: Clan | None = None
         self.country: str | None = None
         self.created_at: datetime | None = None
         self.last_logoff: datetime | None = None
@@ -458,8 +463,11 @@ class BaseUser(SteamID, Commentable):
         self.community_url = data.get("profileurl") or super().community_url
         self.avatar_url = data.get("avatarfull") or self.avatar_url
         self.trade_url = URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}"
+        from .clan import Clan  # circular import
 
-        self.primary_clan = SteamID(data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan
+        self.primary_clan = (
+            Clan(self._state, data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan  # type: ignore
+        )
         self.country = data.get("loccountrycode") or self.country
         self.created_at = datetime.utcfromtimestamp(data["timecreated"]) if "timecreated" in data else self.created_at
         self.last_logoff = datetime.utcfromtimestamp(data["lastlogoff"]) if "lastlogoff" in data else self.last_logoff
