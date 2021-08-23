@@ -293,7 +293,7 @@ def invite_code_to_tuple(
     if not search:
         return None
 
-    code = (search.group("code_1") or search.group("code_2")).replace("-", "")
+    code = (search["code_1"] or search["code_2"]).replace("-", "")
 
     id = int(re.sub(f"[{_INVITE_CUSTOM}]", lambda m: _INVITE_INVERSE_MAPPING[m.group()], code), 16)
 
@@ -302,8 +302,11 @@ def invite_code_to_tuple(
 
 
 URL_REGEX = re.compile(
-    r"(?P<clean_url>(?:http[s]?://)?(?:www\.)?steamcommunity\.com/(?P<type>profiles|id|gid|groups|app)/(?P<value>.+))"
+    r"(?P<clean_url>(?:https?://)?(?:www\.)?"
+    r"steamcommunity\.com/(?P<type>profiles|id|gid|groups|app|games)/(?P<value>.+))"
 )
+USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*")
+CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
 
 
 async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> int | None:
@@ -354,13 +357,13 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = N
             # user profile
             r = await session.get(search["clean_url"])
             text = await r.text()
-            data_match = re.search(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*", text)
+            data_match = USER_ID64_FROM_URL_REGEX.search(text)
             data = json.loads(data_match["json"])
         else:
             # group profile
             r = await session.get(search["clean_url"])
             text = await r.text()
-            data = re.search(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)", text)
+            data = CLAN_ID64_FROM_URL_REGEX.search(text)
         return int(data["steamid"])
     except (TypeError, AttributeError):
         return None
