@@ -26,6 +26,7 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import abc
 import asyncio
 import builtins
 import contextvars
@@ -52,6 +53,8 @@ from .errors import InvalidSteamID
 
 if TYPE_CHECKING:
     from typing import SupportsIndex  # doesn't exist in 3.7
+
+    from _typeshed import Self
 
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)
@@ -520,6 +523,19 @@ def call_once(func: Callable[_P, _T]) -> Callable[_P, _T]:
                 called = False
 
     return inner
+
+
+class AsyncInit(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    async def __ainit__(self) -> None:
+        ...
+
+    async def __await_inner__(self: Self) -> Self:
+        await self.__ainit__()
+        return self
+
+    def __await__(self: Self) -> Generator[Any, None, Self]:
+        return self.__await_inner__().__await__()
 
 
 PACK_FORMATS: Final[dict[str, str]] = {
