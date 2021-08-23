@@ -328,6 +328,11 @@ class StatefulGame(Game):
             raise ValueError("Game has no associated clan")
         return clan
 
+    async def player_count(self) -> int:
+        """The games current player count."""
+        resp = await self._state.http.get_game_player_count(self.id)
+        return int(resp["response"]["player_count"])
+
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
     #     fetched = await self._state.client.fetch_game(self)
     #     return utils.update_class(fetched, copy.copy(self))
