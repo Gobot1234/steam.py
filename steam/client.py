@@ -792,7 +792,7 @@ class Client:
         generate_new
             Whether or not to generate a new trade token, defaults to ``False``.
         """
-        return await self._connection.get_trade_url(generate_new)
+        return await self._connection.fetch_trade_url(generate_new)
 
     async def wait_until_ready(self) -> None:
         """Waits until the client's internal cache is all ready."""

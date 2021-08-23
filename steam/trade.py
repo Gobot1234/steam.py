@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from typing_extensions import TypeAlias, TypedDict
@@ -445,7 +445,7 @@ class TradeOffer:
         self.state = TradeOfferState.Invalid
 
     @classmethod
-    async def _from_api(cls, state: ConnectionState, data: TradeOfferDict) -> TradeOffer:
+    def _from_api(cls, state: ConnectionState, data: TradeOfferDict) -> TradeOffer:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
@@ -498,7 +498,7 @@ class TradeOffer:
         self._check_active()
         if self.is_gift():
             return  # no point trying to confirm it
-        if not await self._state.get_and_confirm_confirmation(self.id):
+        if not await self._state.fetch_and_confirm_confirmation(self.id):
             raise ConfirmationError("No matching confirmation could be found for this trade")
         del self._state._confirmations[self.id]
 
@@ -582,7 +582,7 @@ class TradeOffer:
             self.partner, to_send, to_receive, trade.token, trade.message or "", trade_id=self.id
         )
         if resp.get("needs_mobile_confirmation", False):
-            await self._state.get_and_confirm_confirmation(int(resp["tradeofferid"]))
+            await self._state.fetch_and_confirm_confirmation(int(resp["tradeofferid"]))
 
     def is_gift(self) -> bool:
         """Helper method that checks if an offer is a gift to the :class:`~steam.ClientUser`"""
