@@ -203,40 +203,49 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
                 break
 
 
-def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any):
+def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any) -> None:
     if what not in {"class", "function", "method"} or isenumclass(object):
         return  # can't have annotations
-    for name, evaled_type in get_annotations(object, what, name):
-        if evaled_type is MISSING:
-            continue
-        try:
-            object.__annotations__[name] = evaled_type
-        except AttributeError:  # TODO remove when postponed annotations are available
-            try:
-                object.__annotations__ = {name: evaled_type}
-            except AttributeError:
-                break
 
-    if isinstance(object, type) and getattr(object, "__annotations__", None):
-        for base in object.__mro__[1:-1]:
-            module = (
+    if isinstance(object, type):
+        annotations: dict[str, Any] = {}
+        for base in reversed(object.__mro__[:-1]):
+            base.__module__ = (
                 base.__module__
                 if base.__module__.endswith(("abc", "guard", "utils"))
                 else "steam"
                 if base.__module__.startswith("steam")
                 else base.__module__
             )
-            add_annotations(
-                app,
-                "class",
-                f"{module}.{base.__name__}",
-                base,
-            )
+            if not base.__module__.startswith("steam"):
+                continue
+
+            for name, evaled_type in get_annotations(base, what, f"{base.__module__}.{base.__name__}"):
+                if evaled_type is MISSING:
+                    continue
+                try:
+                    base.__annotations__[name] = evaled_type
+                except AttributeError:  # TODO remove when postponed annotations are available
+                    try:
+                        base.__annotations__ = {name: evaled_type}
+                    except AttributeError:
+                        break
+
             try:
-                object.__annotations__ = getattr(base, "__annotations__", {}) | object.__annotations__
+                base.__annotations__ = annotations = getattr(base, "__annotations__", {}) | annotations
             except AttributeError:
                 pass
-
+    else:
+        for name, evaled_type in get_annotations(object, what, name):
+            if evaled_type is MISSING:
+                continue
+            try:
+                object.__annotations__[name] = evaled_type
+            except AttributeError:  # TODO remove when postponed annotations are available
+                try:
+                    object.__annotations__ = {name: evaled_type}
+                except AttributeError:
+                    break
 
 def setup(app: Sphinx) -> None:
     app.connect("autodoc-process-docstring", add_annotations, priority=1)  # should be ran before any other event
