@@ -27,6 +27,7 @@ EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discor
 
 from __future__ import annotations
 
+import builtins
 from collections.abc import Generator
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, TypeVar
@@ -178,8 +179,7 @@ class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
 
-
-if TYPE_CHECKING:
+if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
     from enum import Enum as _Enum, IntEnum as _IntEnum
 
     class Enum(_Enum):

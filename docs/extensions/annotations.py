@@ -27,9 +27,9 @@ from mypy.build import BuildSource, build
 from mypy.options import Options
 from mypy.type_visitor import TypeVisitor
 from sphinx.application import Sphinx
+from sphinx.util.inspect import isenumclass
 
 from docs.extensions import ROOT
-from docs.extensions.enums import isenumclass
 
 if TYPE_CHECKING:
     from types import GenericAlias
