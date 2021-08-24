@@ -51,7 +51,10 @@ __all__ = (
 
 E = TypeVar("E", bound="EventParser")
 R = TypeVar("R", bound="Registerable")
-P = ParamSpec("P")
+if TYPE_CHECKING:
+    P = ParamSpec("P")
+else:
+    P = utils.ParamSpec("P")
 TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 
