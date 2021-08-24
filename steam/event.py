@@ -28,10 +28,10 @@ import abc
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from . import utils
-from .abc import Commentable
+from .abc import Commentable, SteamID
 from .enums import ClanEvent
 from .game import Game, StatefulGame
 
