@@ -204,9 +204,9 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         self.interval = interval
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
-        self.msg = "Keeping websocket alive with heartbeat {}."
-        self.block_msg = "Heartbeat blocked for more than {} seconds."
-        self.behind_msg = "Can't keep up, websocket is {:.1f} behind."
+        self.msg = "Keeping websocket alive with heartbeat %s."
+        self.block_msg = "Heartbeat blocked for more than %s seconds."
+        self.behind_msg = "Can't keep up, websocket is %.1fs behind."
         self._stop_ev = threading.Event()
         self._last_ack = time.perf_counter()
         self._last_send = time.perf_counter()
@@ -214,7 +214,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
     def run(self) -> None:
         while not self._stop_ev.wait(self.interval):
-            log.debug(self.msg.format(self.heartbeat))
+            log.debug(self.msg, self.heartbeat)
             coro = self.ws.send_proto(self.heartbeat)
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
             # block until sending is complete
@@ -231,7 +231,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                     else:
                         stack = traceback.format_stack(frame)
                         msg = f'{self.block_msg}\nLoop thread traceback (most recent call last):\n{"".join(stack)}'
-                    log.warning(msg.format(total))
+                    log.warning(msg, total)
                 except Exception:
                     self.stop()
                 else:
@@ -246,7 +246,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
         self._last_ack = time.perf_counter()
         self.latency = self._last_ack - self._last_send - self.interval
         if self.latency > 10:
-            log.warning(self.behind_msg.format(self.latency))
+            log.warning(self.behind_msg, self.latency)
 
 
 class SteamWebSocket(Registerable):
