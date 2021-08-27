@@ -31,12 +31,12 @@ import logging
 import re
 import warnings
 from base64 import b64encode
-from collections import defaultdict
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from datetime import datetime
 from sys import version_info
 from time import time
 from typing import TYPE_CHECKING, Any, TypeVar
+from weakref import WeakValueDictionary
 
 import aiohttp
 import rsa
@@ -54,13 +54,13 @@ from .utils import cached_property
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
-    from .user import User, UserDict
+    from .user import UserDict
 
 T = TypeVar("T")
 log = logging.getLogger(__name__)
 StrOrURL = aiohttp.client.StrOrURL
-RequestType: TypeAlias = "Coroutine[None, None, T]"
-BACKPACK_LOCKS: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+RequestType: TypeAlias = "Coroutine[Any, None, T]"
+INVENTORY_LOCKS: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
 
 
 async def json_or_text(r: aiohttp.ClientResponse) -> Any:
@@ -389,14 +389,12 @@ class HTTPClient:
         params = {
             "count": 5000,
         }
-
-        lock = BACKPACK_LOCKS[user_id64]
-        try:
-            async with lock:  # the endpoint requires a global per user lock
-                return await self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
-        finally:
-            if not lock._waiters:  # type: ignore  # fully aware this is bad but I don't want my own lock class
-                del BACKPACK_LOCKS[user_id64]
+        lock = INVENTORY_LOCKS.get(user_id64)
+        if lock is None:
+            lock = asyncio.Lock()
+            INVENTORY_LOCKS[user_id64] = lock
+        async with lock:  # the endpoint requires a global per user lock
+            return await self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
 
     def get_user_escrow(self, user_id64: int, token: str | None) -> RequestType[dict[str, Any]]:
         params = {
