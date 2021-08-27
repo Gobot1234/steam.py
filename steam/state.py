@@ -125,7 +125,6 @@ class ConnectionState(Registerable):
         self._trades_to_watch: list[int] = []
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
-        self._descriptions_cache: Sequence[dict[str, Any]] = ()
 
         self.handled_friends.clear()
         self.handled_groups = False
@@ -227,10 +226,9 @@ class ConnectionState(Registerable):
         resp = await self.http.get_trade(id)
         if resp.get("response"):
             trade = [resp["response"]["offer"]]
-            descriptions = resp["response"].get("descriptions", [])
+            descriptions = resp["response"].get("descriptions", ())
             trades = await self._process_trades(trade, descriptions)
             return trades[0]
-        return None
 
     async def _store_trade(self, data: TradeOfferDict) -> TradeOffer:
         try:
@@ -240,20 +238,18 @@ class ConnectionState(Registerable):
             trade = TradeOffer._from_api(state=self, data=data)
             trade.partner = await self._maybe_user(trade.partner)  # type: ignore
             self._trades[trade.id] = trade
-            if trade.state not in (
-                TradeOfferState.Active,
-                TradeOfferState.ConfirmationNeed,
-            ):
-                return trade
-            self.dispatch("trade_send" if trade.is_our_offer() else "trade_receive", trade)
-            self._trades_to_watch.append(trade.id)
+            if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed,) and (
+                trade.items_to_send or trade.items_to_receive
+            ):  # trade is glitched
+                self.dispatch("trade_send" if trade.is_our_offer() else "trade_receive", trade)
+                self._trades_to_watch.append(trade.id)
         else:
             before_state = trade.state
             trade._update(data)
             if trade.state != before_state:
                 log.info(f"Trade #{trade.id} has updated its trade state to {trade.state}")
                 event_name = trade.state.event_name
-                if event_name:
+                if event_name and (trade.items_to_send or trade.items_to_receive):
                     self.dispatch(f"trade_{event_name}", trade)
                     self._trades_to_watch.remove(trade.id)
         return trade
@@ -264,10 +260,10 @@ class ConnectionState(Registerable):
         ret = []
         for trade in trades:
             for item in descriptions:
-                for asset in trade.get("items_to_receive", []):
+                for asset in trade.get("items_to_receive", ()):
                     if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
                         asset.update(item)
-                for asset in trade.get("items_to_give", []):
+                for asset in trade.get("items_to_give", ()):
                     if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
                         asset.update(item)
             ret.append(await self._store_trade(trade))
@@ -277,20 +273,16 @@ class ConnectionState(Registerable):
     async def poll_trades(self) -> None:
         async def poll_trades_inner() -> None:
             try:
-                resp = await self.http.get_trade_offers()
-                trades = resp["response"]
+                trades = await self.http.get_trade_offers()
                 descriptions = trades.get("descriptions", ())
                 trades_received = trades.get("trade_offers_received", ())
                 trades_sent = trades.get("trade_offers_sent", ())
-
                 new_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
                 new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
-                new_descriptions = [item for item in descriptions if item not in self._descriptions_cache]
-                await self._process_trades(new_received_trades, new_descriptions)
-                await self._process_trades(new_sent_trades, new_descriptions)
+                await self._process_trades(new_received_trades, descriptions)
+                await self._process_trades(new_sent_trades, descriptions)
                 self._trades_received_cache = trades_received
                 self._trades_sent_cache = trades_sent
-                self._descriptions_cache = descriptions
             except Exception as exc:
                 await asyncio.sleep(30)
                 log.info("Error while polling trades", exc_info=exc)

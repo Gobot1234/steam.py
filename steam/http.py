@@ -411,17 +411,36 @@ class HTTPClient:
         friends = await self.get(api_route("ISteamUser/GetFriendList"), params=params)
         return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])
 
-    def get_trade_offers(
+    async def get_trade_offers(
         self, active_only: bool = True, sent: bool = True, received: bool = True
-    ) -> RequestType[dict[str, dict[str, Any]]]:
+    ) -> dict[str, Any]:
         params = {
             "key": self.api_key,
             "active_only": int(active_only),
             "get_sent_offers": int(sent),
-            "get_descriptions": 1,
             "get_received_offers": int(received),
+            "get_descriptions": 1,
+            "cursor": 0,
         }
-        return self.get(api_route("IEconService/GetTradeOffers"), params=params)
+        resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
+        first_page = resp["response"]
+        next_cursor = first_page["next_cursor"]
+        current_cursor = 0
+        while current_cursor != next_cursor:
+            params["cursor"] = next_cursor
+            resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
+            page = resp["response"]
+            for key, value in page:
+                value_in_first_page = first_page[key]
+                if isinstance(value_in_first_page, dict):
+                    value_in_first_page.update(value)
+                elif isinstance(value_in_first_page, list):
+                    value_in_first_page += value
+
+            current_cursor = next_cursor
+            next_cursor = page["next_cursor"]
+
+        return first_page
 
     def get_trade_history(self, limit: int, previous_time: int | None) -> RequestType[dict[str, Any]]:
         params = {
