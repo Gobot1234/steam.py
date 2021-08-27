@@ -29,6 +29,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
+    from .abc import Commentable
     from .state import ConnectionState
     from .user import ClientUser, User
 

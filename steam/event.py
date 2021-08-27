@@ -30,6 +30,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from typing_extensions import Literal
+
 from . import utils
 from .abc import Commentable, SteamID
 from .enums import ClanEvent
