@@ -81,7 +81,7 @@ READ_U32 = struct.Struct("<I").unpack_from
 class EventListener(Generic[M]):
     __slots__ = ("emsg", "check", "future")
 
-    emsg: EMsg
+    emsg: EMsg | None
     check: Callable[[M], bool]
     future: asyncio.Future[M]
 
@@ -250,7 +250,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
 
 class SteamWebSocket(Registerable):
-    parsers: dict[EMsg, EventParser]
+    parsers: dict[EMsg, EventParser[Any]]
 
     def __init__(self, socket: aiohttp.ClientWebSocketResponse):
         self.socket = socket
@@ -280,7 +280,7 @@ class SteamWebSocket(Registerable):
             return float("nan")
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg, check: Callable[[M], bool] = return_true) -> asyncio.Future[M]:
+    def wait_for(self, emsg: EMsg | None, check: Callable[[M], bool] = return_true) -> asyncio.Future[M]:
         future = self.loop.create_future()
         entry = EventListener[M](emsg=emsg, check=check, future=future)
         self.listeners.append(entry)
@@ -355,7 +355,7 @@ class SteamWebSocket(Registerable):
         # remove the dispatched listener
         removed = []
         for idx, entry in enumerate(self.listeners):
-            if entry.emsg != emsg:
+            if entry.emsg != emsg and entry.emsg is not None:
                 continue
 
             future = entry.future
@@ -441,6 +441,7 @@ class SteamWebSocket(Registerable):
         log.debug("Heartbeat started.")
 
         await self.send_um("ChatRoom.GetMyChatRoomGroups")
+        await self.send_um("Player.GetEmoticonList")
         await self.change_presence(
             games=self._connection._games,
             state=self._connection._state,
@@ -497,9 +498,14 @@ class SteamWebSocket(Registerable):
             await self.receive(data[4 : 4 + size])
             data = data[4 + size :]
 
+    @property
+    def next_job_id(self) -> int:
+        self._current_job_id = (self._current_job_id + 1) % 10000 or 1
+        return self._current_job_id
+
     async def send_um(self, name: str, **kwargs: Any) -> int:
         msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
-        msg.header.body.job_id_source = self._current_job_id = (self._current_job_id + 1) % 10000 or 1
+        msg.header.body.job_id_source = self.next_job_id
         await self.send_proto(msg)
         return msg.header.body.job_id_source
 
@@ -512,6 +518,12 @@ class SteamWebSocket(Registerable):
         job_id = await self.send_um(name, **kwargs)
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)
         return await self.wait_for(EMsg.ServiceMethodResponse, check=check)
+
+    async def send_proto_and_wait(self, msg: MsgBase, check: Callable[[M], bool] | None = None) -> M:
+        msg.header.body.job_id_source = job_id = self.next_job_id
+        await self.send_proto(msg)
+        check = check or (lambda msg: msg.header.body.job_id_target == job_id)
+        return await self.wait_for(None, check=check)
 
     async def change_presence(
         self,

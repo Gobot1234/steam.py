@@ -330,8 +330,7 @@ class StatefulGame(Game):
 
     async def player_count(self) -> int:
         """The games current player count."""
-        resp = await self._state.http.get_game_player_count(self.id)
-        return int(resp["response"]["player_count"])
+        return await self._state.fetch_game_player_count(self.id)
 
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
     #     fetched = await self._state.client.fetch_game(self)

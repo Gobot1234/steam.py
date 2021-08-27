@@ -511,6 +511,14 @@ class ConnectionState(Registerable):
 
         return msg.body.servers
 
+    async def fetch_game_player_count(self, game_id: int) -> int:
+        msg: MsgProto[client_server_2.CMsgDpGetNumberOfCurrentPlayersResponse] = await self.ws.send_proto_and_wait(
+            MsgProto(EMsg.ClientGetNumberOfCurrentPlayersDP, appid=game_id)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.player_count
+
     # TODO use this in V.1
     async def fetch_user_games(self, user_id64: int) -> list[player.CPlayerGetOwnedGamesResponseGame]:
         msg: MsgProto[player.CPlayerGetOwnedGamesResponse] = await self.ws.send_um_and_wait(
