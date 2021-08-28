@@ -747,7 +747,7 @@ class ConnectionState(Registerable):
             self.handled_friends.set()
 
         for friend in msg.body.friends:
-            relationship = FriendRelationship(friend.efriendrelationship)
+            relationship = FriendRelationship.try_value(friend.efriendrelationship)
             if friend.efriendrelationship in (
                 FriendRelationship.RequestInitiator,
                 FriendRelationship.RequestRecipient,
