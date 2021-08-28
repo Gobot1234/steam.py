@@ -769,7 +769,10 @@ class ConnectionState(Registerable):
                             invitee_id = elements[idx + 1]["data-miniprofile"]
                             break
                     invitee = await self._maybe_user(invitee_id)
-                    clan = await self.fetch_clan(steam_id.id64) or steam_id
+                    try:
+                        clan = await self.fetch_clan(steam_id.id64) or steam_id
+                    except WSException:
+                        clan = steam_ID
                     invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
                     self.invites[clan.id64] = invite
                     self.dispatch("clan_invite", invite)
