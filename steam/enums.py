@@ -172,7 +172,7 @@ class Enum(metaclass=EnumMeta):
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
-            return cls.__new__(f"{cls.__name__}UnknownValue", value)
+            return cls.__new__(cls, name=f"{cls.__name__}UnknownValue", value=value)
 
 
 class IntEnum(Enum, int):
