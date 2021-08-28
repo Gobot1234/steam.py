@@ -94,18 +94,23 @@ class HTTPException(SteamException):
 
         if data:
             if isinstance(data, dict):
-                if len(data) != 1 and data.get("success", False):  # ignore {'success': False} as the message
-                    message = data.get("message") or str(list(data.values())[0])
-                    code = (
-                        data.get("result")  # try the data if possible
-                        or response.headers.get("X-Result")  # then the headers
-                        or CODE_FINDER.findall(message)  # finally the message
-                    )
-                    if code:
-                        if isinstance(code, list):
-                            self.message = CODE_FINDER.sub("", message)
-                            code = code[0]
-                        self.code = Result.try_value(int(code))
+                message = data.get("message")
+                if message is None:
+                    truthy_str_values = [  # ignore {'success': False} as the message
+                        value for value in data.values() if value and isinstance(value, str)
+                    ]
+                    if truthy_str_values:
+                        message = truthy_str_values[0]
+                code = (
+                    data.get("result")  # try the data if possible
+                    or response.headers.get("X-EResult")  # then the headers
+                    or CODE_FINDER.findall(message)  # finally the message
+                )
+                if code:
+                    if isinstance(code, list):
+                        self.message = CODE_FINDER.sub("", message)
+                        code = code[0]
+                    self.code = Result.try_value(int(code))
             else:
                 text = BeautifulSoup(data, "html.parser").get_text("\n")
                 self.message = text or ""
