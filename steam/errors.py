@@ -90,7 +90,6 @@ class HTTPException(SteamException):
         self.response = response
         self.status = response.status
         self.code = Result.Invalid
-        self.message = ""
 
         if data:
             if isinstance(data, dict):
@@ -101,6 +100,7 @@ class HTTPException(SteamException):
                     ]
                     if truthy_str_values:
                         message = truthy_str_values[0]
+                self.message = message or ""
                 code = (
                     data.get("result")  # try the data if possible
                     or response.headers.get("X-EResult")  # then the headers
