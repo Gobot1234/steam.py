@@ -453,11 +453,11 @@ class TradeOffer:
         trade.partner = int(data["accountid_other"])  # type: ignore
         return trade
 
-    def _update_from_send(self, state: ConnectionState, data: dict[str, Any], partner: User) -> None:
+    def _update_from_send(self, state: ConnectionState, data: dict[str, Any], partner: User, active: bool = True) -> None:
         self.id = int(data["tradeofferid"])
         self._state = state
         self.partner = partner
-        self.state = TradeOfferState.Active
+        self.state = TradeOfferState.Active if active else TradeOfferState.ConfirmationNeed
         self.created_at = datetime.utcnow()
 
     def __repr__(self) -> str:
