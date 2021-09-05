@@ -453,7 +453,9 @@ class TradeOffer:
         trade.partner = int(data["accountid_other"])  # type: ignore
         return trade
 
-    def _update_from_send(self, state: ConnectionState, data: dict[str, Any], partner: User, active: bool = True) -> None:
+    def _update_from_send(
+        self, state: ConnectionState, data: dict[str, Any], partner: User, active: bool = True
+    ) -> None:
         self.id = int(data["tradeofferid"])
         self._state = state
         self.partner = partner
