@@ -30,6 +30,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from .abc import BaseUser, Messageable, UserDict
+from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .models import URL
 
@@ -180,7 +181,9 @@ class User(BaseUser, Messageable["UserMessage"]):
             to_receive = [item.to_dict() for item in trade.items_to_receive]
             resp = await self._state.http.send_trade_offer(self, to_send, to_receive, trade.token, trade.message or "")
             trade._has_been_sent = True
-            if resp.get("needs_mobile_confirmation", False):
+            needs_confirmation = resp.get("needs_mobile_confirmation", False)
+            trade._update_from_send(self._state, resp, self, active=not needs_confirmation)
+            if needs_confirmation:
                 for tries in range(5):
                     try:
                         await trade.confirm()
@@ -188,7 +191,7 @@ class User(BaseUser, Messageable["UserMessage"]):
                         break
                     except ClientException:
                         await asyncio.sleep(tries * 2)
-            trade._update_from_send(self._state, resp, self)
+                trade.state = TradeOfferState.Active
 
         return message
 
