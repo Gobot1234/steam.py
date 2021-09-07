@@ -33,7 +33,7 @@ from collections.abc import Callable, Coroutine
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from typing_extensions import Final, Literal, ParamSpec, Protocol, TypeAlias, TypedDict
+from typing_extensions import Final, Literal, ParamSpec, Protocol, TypedDict
 from yarl import URL as _URL
 
 from . import utils
@@ -51,10 +51,7 @@ __all__ = (
 
 E = TypeVar("E", bound="EventParser")
 R = TypeVar("R", bound="Registerable")
-if TYPE_CHECKING:
-    P = ParamSpec("P")
-else:
-    P = utils.ParamSpec("P")
+P = ParamSpec("P")
 TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 

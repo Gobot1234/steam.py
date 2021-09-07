@@ -59,17 +59,6 @@ if TYPE_CHECKING:
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)
 _SupportsChunkT = TypeVar("_SupportsChunkT", bound="SupportsChunk")
-
-
-if not hasattr(typing, "ParamSpec") and not TYPE_CHECKING:
-
-    class ParamSpec(ParamSpec):
-        __class__ = TypeVar  # TODO remove once new typing_extensions version arrives
-
-    import typing_extensions
-
-    typing_extensions.ParamSpec = ParamSpec
-
 _P = ParamSpec("_P")
 _PROTOBUF_MASK = 0x80000000
 
