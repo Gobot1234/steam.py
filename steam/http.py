@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from weakref import WeakValueDictionary
 
 import aiohttp
-import rsa
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from typing_extensions import TypeAlias
 from yarl import URL as _URL
 
@@ -281,7 +281,12 @@ class HTTPClient:
         except KeyError:
             raise errors.LoginError("Could not obtain rsa-key") from None
         else:
-            return b64encode(rsa.encrypt(self.password.encode("utf-8"), rsa.PublicKey(n, e))), rsa_timestamp
+            return (
+                b64encode(
+                    rsa.RSAPublicNumbers(e, n).public_key().encrypt(self.password.encode("utf-8"), padding.PKCS1v15())
+                ),
+                rsa_timestamp,
+            )
 
     async def _send_login_request(self) -> dict[str, Any]:
         password, timestamp = await self._get_rsa_params()
