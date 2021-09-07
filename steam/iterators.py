@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage, UserMessage
     from .clan import Clan
     from .event import Announcement, Event
+    from .game import StatefulGame
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
 
@@ -58,7 +59,7 @@ MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
 UNIX_EPOCH = datetime.fromtimestamp(0, tz=timezone.utc)
 
 
-class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
+class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
     """A class from which async iterators (see :pep:`525`) can ben easily derived.
 
     .. container:: operations
@@ -87,7 +88,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
         self.queue: deque[T] = deque()
         self.limit = limit
 
-    def append(self, element: T) -> bool:
+    def _append(self, element: T) -> bool:
         if self.limit is None:
             self.queue.append(element)
             return True
@@ -99,7 +100,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
 
         return False
 
-    async def fill_queue_users(
+    async def _fill_queue_users(
         self,
         id64s: set[Any],  # should be set[int] but # type: ignore stuff forces this
         attributes: tuple[str, ...] = ("author",),
@@ -118,7 +119,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks
 
 
             elements = await AsyncIterator.flatten()
-            element = steam.utils.get(name="Item", elements)
+            element = steam.utils.get(elements, name="Item")
 
         Example
         -------
@@ -313,11 +314,11 @@ class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
             )
             if comment.created_at < self.before:
                 continue  # needs rewriting when we add oldest_first support
-            if not self.append(comment):
+            if not self._append(comment):
                 break
             author_id64s.add(comment.author)
 
-        await self.fill_queue_users(author_id64s)
+        await self._fill_queue_users(author_id64s)
 
 
 class TradesIterator(AsyncIterator["TradeOffer"]):
@@ -371,7 +372,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
             trade = TradeOffer._from_api(state=self._state, data=data)
 
             if not self._active_only and trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed):
-                if not self.append(trade):
+                if not self._append(trade):
                     raise Stop
                 partner_id64s.add(trade.partner)
 
@@ -393,7 +394,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         except Stop:
             pass
 
-        await self.fill_queue_users(partner_id64s, ("partner",))
+        await self._fill_queue_users(partner_id64s, ("partner",))
 
 
 class ChannelHistoryIterator(AsyncIterator[M], Generic[M, ChannelT]):
@@ -449,11 +450,11 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
 
                 new_message = UserMessage.__new__(UserMessage)
                 Message.__init__(new_message, channel=self.channel, proto=message)
-                new_message.author = (  # type: ignore[assignment]
+                new_message.author = (  # type: ignore
                     self.participant if message.accountid == self.participant.id else self._state.client.user
                 )
                 new_message.created_at = datetime.utcfromtimestamp(message.timestamp)
-                if not self.append(new_message):
+                if not self._append(new_message):
                     return
 
             last_message_timestamp = int(message.timestamp)
@@ -508,7 +509,7 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
                 new_message.author = utils.make_id64(message.sender)  # type: ignore
                 author_id64s.add(new_message.author)
                 new_message.created_at = datetime.utcfromtimestamp(message.server_timestamp)
-                if not self.append(new_message):
+                if not self._append(new_message):
                     break
 
             last_message_timestamp = int(message.server_timestamp)
@@ -516,7 +517,7 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
             if not resp.more_available:
                 break
 
-        await self.fill_queue_users(author_id64s)
+        await self._fill_queue_users(author_id64s)
 
 
 class _EventIterator(AsyncIterator[T]):
@@ -557,10 +558,10 @@ class _EventIterator(AsyncIterator[T]):
             event = event_cls(self._state, self.clan, event_)
             to_fetch_id64s.add(event.author)
             to_fetch_id64s.add(event.last_edited_by)
-            if not self.append(event):
+            if not self._append(event):
                 break
 
-        await self.fill_queue_users(to_fetch_id64s, ("author", "last_edited_by", "approved_by"))
+        await self._fill_queue_users(to_fetch_id64s, ("author", "last_edited_by", "approved_by"))
 
     async def get_events(self, ids: list[int]) -> dict[str, Any]:
         raise NotImplementedError

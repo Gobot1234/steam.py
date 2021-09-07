@@ -115,7 +115,7 @@ class CMServerList(AsyncIterator[CMServer]):
         self.cms: list[CMServer] = []
         self.cell_id = 0
         if first_cm_to_try is not None:
-            self.append(first_cm_to_try)
+            self._append(first_cm_to_try)
 
     async def fill(self) -> None:
         if not await self.fetch_servers_from_api():
@@ -127,7 +127,7 @@ class CMServerList(AsyncIterator[CMServer]):
             return await self.fill()
 
         for cm in await self.ping():
-            self.append(cm)
+            self._append(cm)
 
     def clear(self) -> None:
         if self.cms:
