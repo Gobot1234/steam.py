@@ -36,7 +36,6 @@ import json
 import re
 import struct
 import sys
-import typing
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
 from inspect import getmembers, isawaitable, iscoroutinefunction
 from io import BytesIO
@@ -78,11 +77,16 @@ def clear_proto_bit(emsg: int) -> int:
 
 
 Intable: TypeAlias = "SupportsInt | SupportsIndex | str | bytes"  # anything int(x) wouldn't normally fail on
-TypeType: TypeAlias = "Type | Literal['Invalid', 'Individual', 'Multiseat', 'GameServer', 'AnonGameServer', 'Pending', 'ContentServer', 'Clan', 'Chat', 'ConsoleUser', 'AnonUser', 'Max', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]"
-UniverseType: TypeAlias = (
-    "Universe | Literal['Invalid', 'Public', 'Beta', 'Internal', 'Dev', 'Max', 0, 1, 2, 3, 4, 5, 6]"
-)
-InstanceType: TypeAlias = "Literal[0, 1]"
+TypeType: TypeAlias = """
+Type | Literal[
+    'Invalid', 'Individual', 'Multiseat', 'GameServer', 'AnonGameServer', 'Pending', 'ContentServer', 'Clan',
+    'Chat', 'ConsoleUser', 'AnonUser', 'Max', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+]
+"""
+UniverseType: TypeAlias = """
+    Universe | Literal['Invalid', 'Public', 'Beta', 'Internal', 'Dev', 'Max', 0, 1, 2, 3, 4, 5, 6]
+"""
+InstanceType: TypeAlias = "Literal[0, 1, 2, 4]"
 
 
 def make_id64(
@@ -170,7 +174,7 @@ def make_id64(
     return universe << 56 | type << 52 | instance << 32 | id
 
 
-ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d+)")
+ID2_REGEX = re.compile(r"STEAM_(?P<universe>[0-9]+):(?P<remainder>[0-1]):(?P<id>[0-9]{1,10})")
 
 
 def id2_to_tuple(value: str) -> tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]] | None:
@@ -209,7 +213,7 @@ def id2_to_tuple(value: str) -> tuple[int, Literal[Type.Individual], Literal[Uni
 ID3_REGEX = re.compile(
     rf"\[(?P<type>[i{''.join(TypeChar._member_map_)}]):"
     r"(?P<universe>[0-4]):"
-    r"(?P<id>\d{1,10})"
+    r"(?P<id>[0-9]{1,10})"
     r"(:(?P<instance>\d+))?]",
 )
 
@@ -377,7 +381,7 @@ def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:
     A :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``.
     """
     return re.search(
-        r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/\?partner=(?P<user_id>\d{,10})"
+        r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/\?partner=(?P<user_id>[0-9]{,10})"
         r"&token=(?P<token>[\w-]{7,})",
         html.unescape(str(url)),
     )
@@ -477,8 +481,7 @@ def update_class(
             not is_descriptor(cls_attr)
             or isinstance(cls_attr, MemberDescriptorType)  # might be a slot member
             or (isinstance(cls_attr, property) and cls_attr.fset is not None)
-            or (name.startswith("__") and name.endswith("__"))
-        ):
+        ) and not (name.startswith("__") and name.endswith("__")):
             try:
                 setattr(new_instance, name, attr)
             except (AttributeError, TypeError):
@@ -487,37 +490,21 @@ def update_class(
     return new_instance
 
 
-def call_once(func: Callable[_P, _T]) -> Callable[_P, _T]:
+def call_once(func: Callable[_P, Awaitable[_T]]) -> Callable[_P, Coroutine[Any, Any, _T]]:
     called = False
-    if not iscoroutinefunction(func):
 
-        @functools.wraps(func)
-        def inner(*args: _P.args, **kwargs: _P.kwargs) -> _T:
-            nonlocal called
+    @functools.wraps(func)
+    async def inner(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+        nonlocal called
 
-            if called:  # call becomes a noop
-                return None  # type: ignore
+        if called:  # call becomes a noop
+            return await asyncio.sleep(0)  # type: ignore
 
-            called = True
-            try:
-                return func(*args, **kwargs)
-            finally:
-                called = False
-
-    else:
-
-        @functools.wraps(func)
-        async def inner(*args: _P.args, **kwargs: _P.kwargs) -> _T:
-            nonlocal called
-
-            if called:  # call becomes a noop
-                return await asyncio.sleep(0)  # type: ignore
-
-            called = True
-            try:
-                return await func(*args, **kwargs)
-            finally:
-                called = False
+        called = True
+        try:
+            return await func(*args, **kwargs)
+        finally:
+            called = False
 
     return inner
 

@@ -153,7 +153,7 @@ class Client:
         self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
-    def _get_state(self, **options: Any) -> None:
+    def _get_state(self, **options: Any) -> ConnectionState:
         return ConnectionState(client=self, **options)
 
     @property

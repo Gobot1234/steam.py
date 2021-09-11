@@ -110,9 +110,9 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self.server_password: str | None = data["server_password"]
 
     async def __ainit__(self) -> None:
-        self.author = await self._state._maybe_user(self.author)
+        self.author = await self._state._maybe_user(self.author)  # type: ignore
         if self.last_edited_by:
-            self.last_edited_by = await self._state._maybe_user(self.last_edited_by)
+            self.last_edited_by = await self._state._maybe_user(self.last_edited_by)  # type: ignore
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} name={self.name!r} author={self.author!r} clan={self.clan!r}>"

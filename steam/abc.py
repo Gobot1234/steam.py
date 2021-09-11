@@ -55,17 +55,7 @@ from .game import Game, StatefulGame, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
 from .models import URL, Ban
 from .trade import Inventory
-from .utils import (
-    _INVITE_HEX,
-    _INVITE_MAPPING,
-    InstanceType,
-    Intable,
-    TypeType,
-    UniverseType,
-    id64_from_url,
-    make_id64,
-    update_class,
-)
+from .utils import _INVITE_HEX, _INVITE_MAPPING, InstanceType, Intable, TypeType, UniverseType, id64_from_url, make_id64
 
 if TYPE_CHECKING:
     from _typeshed import Self

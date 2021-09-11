@@ -41,7 +41,7 @@ from .comment import Comment
 from .enums import TradeOfferState
 
 if TYPE_CHECKING:
-    from .abc import Channel, Commentable, Message
+    from .abc import Channel, Commentable
     from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage, UserMessage
     from .clan import Clan
     from .event import Announcement, Event
@@ -287,8 +287,6 @@ class MappedIterator(AsyncIterator[TT], Generic[T, TT]):
 
 
 class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
-    __slots__ = ("owner",)
-
     def __init__(
         self,
         state: ConnectionState,
@@ -309,7 +307,7 @@ class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
                 id=comment.id,
                 content=comment.content,
                 created_at=datetime.utcfromtimestamp(comment.timestamp),
-                author=comment.author_id64,
+                author=comment.author_id64,  # type: ignore
                 owner=self.owner,
             )
             if comment.created_at < self.before:
@@ -322,8 +320,6 @@ class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
 
 
 class TradesIterator(AsyncIterator["TradeOffer"]):
-    __slots__ = ("_active_only",)
-
     def __init__(
         self,
         state: ConnectionState,
@@ -398,8 +394,6 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
 
 
 class ChannelHistoryIterator(AsyncIterator[M], Generic[M, ChannelT]):
-    __slots__ = ("channel", "_actual_before")
-
     def __init__(
         self,
         channel: ChannelT,
@@ -410,7 +404,6 @@ class ChannelHistoryIterator(AsyncIterator[M], Generic[M, ChannelT]):
     ):
         super().__init__(state, limit, before, after)
         self.before = before or UNIX_EPOCH
-        self._actual_before = before or datetime.utcnow()  # steam doesn't know how timestamps work with this endpoint
         self.channel = channel
 
 
@@ -429,11 +422,10 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
         self.participant = channel.participant
 
     async def fill(self) -> None:
-        from .message import UserMessage
+        from .message import Message, UserMessage
 
         after_timestamp = int(self.after.timestamp())
         before_timestamp = int(self.before.timestamp())
-        actual_before_timestamp = int(self._actual_before.timestamp())
 
         last_message_timestamp = before_timestamp
 
@@ -445,9 +437,6 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
                 return
 
             for message in resp.messages:
-                if not (after_timestamp < message.timestamp <= actual_before_timestamp):
-                    return
-
                 new_message = UserMessage.__new__(UserMessage)
                 Message.__init__(new_message, channel=self.channel, proto=message)
                 new_message.author = (  # type: ignore
@@ -482,11 +471,10 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
         self.group = channel.group or channel.clan
 
     async def fill(self) -> None:
-        from .message import ClanMessage, GroupMessage
+        from .message import ClanMessage, GroupMessage, Message
 
         after_timestamp = int(self.after.timestamp())
         before_timestamp = int(self.before.timestamp())
-        actual_before_timestamp = int(self._actual_before.timestamp())
         last_message_timestamp = before_timestamp
         group_id = getattr(self.group, "chat_id", None) or self.group.id
         author_id64s = set()
@@ -499,9 +487,6 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
                 return
 
             for message in resp.messages:
-                if not (after_timestamp < message.server_timestamp <= actual_before_timestamp):
-                    return
-
                 new_message = (
                     GroupMessage.__new__(GroupMessage) if self.channel.group else ClanMessage.__new__(ClanMessage)
                 )
@@ -581,7 +566,9 @@ class AnnouncementsIterator(_EventIterator["Announcement"]):
         announcements = await asyncio.gather(
             *(
                 self._state.http.get_clan_announcement(
-                    self.clan.id, id, self.clan.game.id if self.clan.is_game_clan else None  # type: ignore
+                    self.clan.id,
+                    id,
+                    self.clan.game.id if self.clan.is_game_clan else None,  # type: ignore
                 )
                 for id in ids
             )

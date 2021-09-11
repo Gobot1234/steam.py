@@ -30,7 +30,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import TypeAlias
 
 from .abc import Channel, M_co, Message, SteamID
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator

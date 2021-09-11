@@ -38,7 +38,7 @@ from yarl import URL as _URL
 
 from . import utils
 from .enums import IntEnum
-from .protobufs import EMsg, MsgProto
+from .protobufs import EMsg
 
 if TYPE_CHECKING:
     from .gateway import Msgs

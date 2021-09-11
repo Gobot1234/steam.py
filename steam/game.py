@@ -343,7 +343,10 @@ class StatefulGame(Game):
 
             game = await client.fetch_game(game)
         """
-        return await self._state.client.fetch_game(self)  # type: ignore
+        game = await self._state.client.fetch_game(self)
+        if game is None:
+            raise ValueError("Fetched game was not valid.")
+        return game
 
 
 class UserGame(StatefulGame):

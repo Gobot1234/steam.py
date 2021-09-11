@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from ..utils import StructIO
 from .emsg import EMsg
@@ -36,14 +36,14 @@ class StructMessage(metaclass=StructMessageMeta):
         return {key: getattr(self, key) for key in self.__annotations__}
 
     def __bytes__(self) -> bytes:
-        buffer = StructIO()
-        for key, annotation in self.__annotations__.items():
-            if annotation == "int":
-                buffer.write_u64(getattr(self, key))
-            elif annotation == "bool":
-                buffer.write_u8(getattr(self, key))
+        with StructIO() as io:
+            for key, annotation in self.__annotations__.items():
+                if annotation == "int":
+                    io.write_u64(getattr(self, key))
+                elif annotation == "bool":
+                    io.write_u8(getattr(self, key))
 
-        return buffer.buffer
+            return io.buffer
 
     def parse(self: Self, data: bytes) -> Self:
         raise NotImplementedError

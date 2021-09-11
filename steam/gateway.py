@@ -393,11 +393,11 @@ class SteamWebSocket(Registerable):
     async def send_gc_message(self, msg: GCMsgProto[Any] | GCMsg[Any]) -> int:  # for ext's to send GC messages
         message = MsgProto[CMsgGcClient](
             EMsg.ClientToGC,
-            appid=self._connection.client.GAME.id,
+            appid=self._connection.client.GAME.id,  # type: ignore
             msgtype=utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg,
         )
         message.body.payload = bytes(msg)
-        message.header.body.routing_appid = self._connection.client.GAME.id
+        message.header.body.routing_appid = self._connection.client.GAME.id  # type: ignore
         message.header.body.job_id_source = self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
 
         log.debug("Sending GC message %r", msg)
@@ -519,7 +519,7 @@ class SteamWebSocket(Registerable):
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)
         return await self.wait_for(EMsg.ServiceMethodResponse, check=check)
 
-    async def send_proto_and_wait(self, msg: MsgBase, check: Callable[[M], bool] | None = None) -> M:
+    async def send_proto_and_wait(self, msg: Msgs, check: Callable[[M], bool] | None = None) -> M:
         msg.header.body.job_id_source = job_id = self.next_job_id
         await self.send_proto(msg)
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)

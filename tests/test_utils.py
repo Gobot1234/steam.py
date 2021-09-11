@@ -18,7 +18,7 @@ class FakeModel(NamedTuple):
 
 def test_find() -> None:
     # Generate a random collection of instances
-    instances = [FakeModel(data=bytes([random.randrange(256) for _ in range(128)])) for _ in range(256)]
+    instances = [FakeModel(data=bytes(random.randrange(256) for _ in range(128))) for _ in range(256)]
 
     # Select a model to be found
     model_to_find = instances[0]
@@ -32,7 +32,7 @@ def test_find() -> None:
 
 def test_get() -> None:
     # Generate a random collection of instances
-    instances = [FakeModel(data=bytes([random.randrange(256) for _ in range(128)])) for _ in range(256)]
+    instances = [FakeModel(data=bytes(random.randrange(256) for _ in range(128))) for _ in range(256)]
 
     # Select a model to be found
     model_to_find = instances[0]

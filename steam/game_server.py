@@ -457,7 +457,8 @@ class GameServer(SteamID):
             except ValueError:
                 return
 
-        yield StructIO(data)
+        with StructIO(data) as io:
+            yield io
 
     async def players(self, *, challenge: Literal[-1, 0] = 0) -> list[ServerPlayer] | None:
         """Fetch a server's players  or ``None`` if something went wrong getting the info.

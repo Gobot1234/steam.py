@@ -115,7 +115,7 @@ class HTTPException(SteamException):
                 text = BeautifulSoup(data, "html.parser").get_text("\n")
                 self.message = text or ""
 
-        self.message = self.message.replace("  ", " ")
+        self.message = self.message.replace("  ", " ").strip()
         super().__init__(
             f"{response.status} {response.reason} (error code: {self.code})"
             f"{f': {self.message}' if self.message else ''}"
@@ -157,7 +157,7 @@ class WSException(SteamException):
         self.code = msg.result or Result.Invalid
         self.message: str | None = getattr(msg.header.body, "error_message", None)
         super().__init__(
-            f"The request {msg.header.body.job_name_target} failed. (error code: {self.code!r})"
+            f"The request {msg.header.body.job_name_target or msg.msg} failed. (error code: {self.code!r})"
             f"{f': {self.message}' if self.message else ''}"
         )
 

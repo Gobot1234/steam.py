@@ -31,7 +31,7 @@ import logging
 import re
 import warnings
 from base64 import b64encode
-from collections.abc import Callable, Coroutine
+from collections.abc import Coroutine
 from datetime import datetime
 from sys import version_info
 from time import time
@@ -208,11 +208,6 @@ class HTTPClient:
 
             if not resp["success"]:
                 raise errors.InvalidCredentials(resp.get("message", "An unexpected error occurred"))
-
-            if "transfer_parameters" not in resp:
-                raise errors.LoginError(
-                    "Cannot perform redirects after login. Steam is likely down, please try again later."
-                )
 
             jar = self._session.cookie_jar
             cookies = jar.filter_cookies(URL.COMMUNITY)

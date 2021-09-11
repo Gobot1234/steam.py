@@ -115,7 +115,6 @@ class ConnectionState(Registerable):
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
 
-        self._trades_task: asyncio.Task[None] | None = None
         self._trades_to_watch: list[int] = []
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
@@ -731,7 +730,7 @@ class ConnectionState(Registerable):
 
         for friend in msg.body.friends:
             relationship = FriendRelationship.try_value(friend.efriendrelationship)
-            if friend.efriendrelationship in (
+            if relationship in (
                 FriendRelationship.RequestInitiator,
                 FriendRelationship.RequestRecipient,
             ):
