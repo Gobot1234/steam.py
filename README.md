@@ -7,7 +7,6 @@ A modern, easy to use, and async ready package to interact with the Steam API. H
 ![Supports](https://img.shields.io/pypi/pyversions/steamio)
 ![Version](https://img.shields.io/pypi/v/steamio?color=%2366c0f4)
 ![License](https://img.shields.io/github/license/Gobot1234/steam.py)
-[![Codacy](https://img.shields.io/codacy/grade/a0405599d4ab4a8c82655873d7443532)](https://app.codacy.com/manual/Gobot1234/steam.py)
 [![GitHub issues](https://img.shields.io/github/issues-raw/Gobot1234/steam.py)](https://github.com/Gobot1234/steam.py/issues)
 [![GitHub stars](https://img.shields.io/github/stars/Gobot1234/steam.py)](https://github.com/Gobot1234/steam.py/stargazers)
 [![Discord](https://img.shields.io/discord/678629505094647819?color=7289da&label=Discord&logo=discord)](https://discord.gg/MQ68WUS)
