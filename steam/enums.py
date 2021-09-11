@@ -34,9 +34,14 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, TypeVar
 
 from typing_extensions import Literal
 
+if TYPE_CHECKING:
+    from _typeshed import Self
+
+
 __all__ = (
     "Enum",
     "IntEnum",
+    "Flags",
     "Result",
     "Universe",
     "Type",
@@ -119,11 +124,9 @@ class EnumMeta(type, Generic[E]):
     def __delattr__(cls, name: str) -> NoReturn:
         raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
 
-    def __contains__(cls: type[E], member: E) -> bool:
+    def __contains__(cls, member: object) -> bool:
         if not isinstance(member, Enum):
-            raise TypeError(
-                f"unsupported operand type(s) for 'in': {member.__class__.__qualname__!r} and {cls.__qualname__!r}"
-            )
+            return NotImplemented
         return isinstance(member, cls) and member.name in cls._member_map_
 
     @property
@@ -131,15 +134,15 @@ class EnumMeta(type, Generic[E]):
         return MappingProxyType(cls._member_map_)
 
 
-class Enum(metaclass=EnumMeta):
+class Enum(metaclass=EnumMeta["Self"]):
     """A general enumeration, emulates `enum.Enum`."""
 
     name: str
     value: Any
-    _value_map_: dict[Any, Enum]
-    _member_map_: dict[str, Enum]
+    _value_map_: dict[Any, Self]
+    _member_map_: dict[str, Self]
 
-    def __new__(cls, *, name: str, value: Any) -> Enum:
+    def __new__(cls: type[Self], *, name: str, value: Any) -> Self:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
         # for creating Enum members
         super_ = super()
@@ -168,7 +171,7 @@ class Enum(metaclass=EnumMeta):
         return f"<{self.__class__.__name__}.{self.name}: {self.value!r}>"
 
     @classmethod
-    def try_value(cls: type[E], value: Any) -> E:
+    def try_value(cls: type[Self], value: Any) -> Self:
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
@@ -184,7 +187,7 @@ if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
 
     class Enum(_Enum):
         @classmethod
-        def try_value(cls: type[E], value: Any) -> E:
+        def try_value(cls: type[Self], value: Any) -> Self:
             ...
 
     class IntEnum(_IntEnum, Enum):
@@ -192,6 +195,27 @@ if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
 
     # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour
     # I can't seem to replicate
+
+
+class Flags(IntEnum):
+    @classmethod
+    def try_value(cls: type[E], value: int) -> E:
+        flags = [enum for enum in cls if enum.value & value]
+        if flags:
+            returning_flag = flags[0]
+            for flag in flags[1:]:
+                returning_flag |= flag
+            if returning_flag == value:
+                return returning_flag
+        return cls.__new__(cls, name=f"{cls.__name__}UnknownValue", value=value)
+
+    def __or__(self: Self, other: Self | int) -> Self:
+        cls = self.__class__
+        return cls.__new__(cls, name=f"{self.name} | {other.name}", value=self.value | int(other))
+
+    def __and__(self: Self, other: Self | int) -> Self:
+        cls = self.__class__
+        return cls.__new__(cls, name=f"{self.name} & {other.name}", value=self.value & int(other))
 
 
 # fmt: off
@@ -353,7 +377,7 @@ class TypeChar(IntEnum):
     a = Type.AnonUser        #: The character used for :class:`~steam.Type.Invalid`.
 
 
-class InstanceFlag(IntEnum):
+class InstanceFlag(Flags):
     MMSLobby = 0x20000  #: The Steam ID is for a MMS Lobby.
     Lobby    = 0x40000  #: The Steam ID is for a Lobby.
     Clan     = 0x80000  #: The Steam ID is for a Clan.
@@ -382,7 +406,7 @@ class PersonaState(IntEnum):
     Max            = 8  #: The total number of states. Only used for looping and validation.
 
 
-class PersonaStateFlag(IntEnum):
+class PersonaStateFlag(Flags):
     NONE                 = 0
     HasRichPresence      = 1
     InJoinableGame       = 2
@@ -394,21 +418,6 @@ class PersonaStateFlag(IntEnum):
     ClientTypeVR         = 2048
     LaunchTypeGamepad    = 4096
     LaunchTypeCompatTool = 8192
-
-    @classmethod
-    def components(cls, flag: int) -> list[PersonaStateFlag]:
-        """A helper function to breakdown a flag into its component parts.
-
-        Parameters
-        ----------
-        flag
-            The flag to break down.
-        """
-        flags = [enum for enum in cls if enum & flag]
-        value = 0  # check the values are the same
-        for f in flags:
-            value |= f
-        return flags if value == flag else []
 
 
 class CommunityVisibilityState(IntEnum):

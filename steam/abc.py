@@ -453,7 +453,7 @@ class BaseUser(SteamID, Commentable):
         self.last_seen_online: datetime | None = None
         self.game: StatefulGame | None = None
         self.state: PersonaState | None = None
-        self.flags: list[PersonaStateFlag] = []
+        self.flags: PersonaStateFlag | None = None
         self.privacy_state: CommunityVisibilityState | None = None
         self._update(data)
 
@@ -478,9 +478,9 @@ class BaseUser(SteamID, Commentable):
         self.game = (
             StatefulGame(self._state, name=data["gameextrainfo"], id=data["gameid"]) if "gameid" in data else self.game
         )
-        self.state = PersonaState(data.get("personastate", 0)) or self.state
-        self.flags = PersonaStateFlag.components(data.get("personastateflags", 0)) or self.flags
-        self.privacy_state = CommunityVisibilityState(data.get("communityvisibilitystate", 0))
+        self.state = PersonaState.try_value(data.get("personastate", 0)) or self.state
+        self.flags = PersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
+        self.privacy_state = CommunityVisibilityState.try_value(data.get("communityvisibilitystate", 0))
         self._is_commentable = bool(data.get("commentpermission"))
         self._setup_profile = bool(data.get("profilestate"))
 

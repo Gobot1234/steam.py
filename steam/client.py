@@ -103,14 +103,8 @@ class Client:
 
     ui_mode
         The UI mode to set your status to on connect.
-    flag
-        A flag to set your persona state to.
     flags
-        A list of flags to set your persona state to
-
-        Note
-        ----
-        Use :meth:`~steam.PersonaStateFlags.components` to easily calculate these.
+        Flags to set your persona state to.
 
     force_kick
         Whether or not to forcefully kick any other playing sessions on connect. Defaults to ``False``.
@@ -128,8 +122,7 @@ class Client:
         games: list[Game] = ...,
         state: PersonaState | None = ...,
         ui_mode: UIMode | None = ...,
-        flag: PersonaStateFlag | None = ...,
-        flags: list[PersonaStateFlag] = ...,
+        flags: PersonaStateFlag | None = ...,
         force_kick: bool = ...,
     ):
         ...
@@ -752,8 +745,7 @@ class Client:
         games: list[Game] | None = None,
         state: PersonaState | None = None,
         ui_mode: UIMode | None = None,
-        flag: PersonaStateFlag | None = None,
-        flags: list[PersonaStateFlag] | None = None,
+        flags: PersonaStateFlag | None = None,
         force_kick: bool = False,
     ) -> None:
         """Set your status.
@@ -774,8 +766,6 @@ class Client:
 
         ui_mode
             The UI mode to set your status to.
-        flag
-            The flag to update your account with.
         flags
             The flags to update your account with.
         force_kick
@@ -784,15 +774,7 @@ class Client:
         games_ = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games_.append(game.to_dict())
-        flags_: list[PersonaStateFlag] = flags or getattr(self.user, "flags", [])
-        if flag is not None:
-            flags_.append(flag)
-        flag_value = 0
-        for flag in flags_:
-            flag_value |= flag
-        await self.ws.change_presence(
-            games=games_, state=state, flags=flag_value, ui_mode=ui_mode, force_kick=force_kick
-        )
+        await self.ws.change_presence(games=games_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
 
     async def trade_url(self, generate_new: bool = False) -> str:
         """Fetches this accounts trade url.

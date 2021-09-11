@@ -98,15 +98,8 @@ class ConnectionState(Registerable):
             games.append(game.to_dict())
         self._games: list[GameToDict] = games
         self._state: PersonaState = kwargs.get("state", PersonaState.Online)
-        self._ui_mode: UIMode | None = kwargs.get("ui_mode", UIMode.Desktop)
-        flag: int | None = kwargs.get("flag")
-        flags: list[int] = kwargs.get("flag", [0])
-        if flag is not None:
-            flags.append(flag)
-        flag_value = 0
-        for flag in flags:
-            flag_value |= flag
-        self._flags: int = flag_value
+        self._ui_mode: UIMode = kwargs.get("ui_mode", UIMode.Desktop)
+        self._flags: PersonaStateFlag = kwargs.get("flags", PersonaStateFlag.NONE)
         self._force_kick: bool = kwargs.get("force_kick", False)
 
         self.clear()
