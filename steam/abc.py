@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     from .group import Group
     from .http import StrOrURL
     from .image import Image
-    from .protobufs.steammessages_chat import CChatMentions
+    from .protobufs.chat import Mentions
     from .state import ConnectionState
     from .user import ClientUser, User
 
@@ -827,7 +827,7 @@ class Message:
         self.clan: Clan | None = channel.clan
         self.content: str = _clean_up_content(proto.message)
         self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
-        self.mentions: CChatMentions | None = getattr(proto, "mentions", None)
+        self.mentions: Mentions | None = getattr(proto, "mentions", None)
         # self.reactions: list["Emoticon"] = []
 
     def __repr__(self) -> str:

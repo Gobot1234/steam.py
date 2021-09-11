@@ -34,11 +34,7 @@ from typing_extensions import Literal, TypeAlias
 
 from .abc import Channel, M_co, Message, SteamID
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
-from .protobufs.steammessages_chat import (
-    CChatRoomIncomingChatMessageNotification as GroupMessageNotification,
-    CChatRoomState,
-    CUserChatRoomState,
-)
+from .protobufs.chat import ChatRoomState, IncomingChatMessageNotification, State
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -127,7 +123,7 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
         return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
-GroupChannelProtos: TypeAlias = "GroupMessageNotification | CChatRoomState | CUserChatRoomState"
+GroupChannelProtos: TypeAlias = "IncomingChatMessageNotification | State | ChatRoomState"
 
 
 class _GroupChannel(Channel[M_co]):
@@ -155,12 +151,12 @@ class _GroupChannel(Channel[M_co]):
         self.position = getattr(proto, "sort_order", None) or self.position
         from .message import ClanMessage, GroupMessage
 
-        if isinstance(proto, GroupMessageNotification):
+        if isinstance(proto, IncomingChatMessageNotification):
             steam_id = SteamID(proto.steamid_sender)
             last_message = (ClanMessage if isinstance(self, ClanChannel) else GroupMessage)(
                 proto, self, self._state.get_user(steam_id.id64) or steam_id
             )
-        elif isinstance(proto, CChatRoomState):
+        elif isinstance(proto, State):
             steam_id = SteamID(proto.accountid_last_message)
             cls = ClanMessage if isinstance(self, ClanChannel) else GroupMessage
             last_message = cls.__new__(cls)

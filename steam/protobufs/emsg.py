@@ -1341,12 +1341,12 @@ class EMsg(IntEnum):
     DRMSFetchVersionSetResponse                              = 7607
 
     EconBase                                                 = 7700
-    EconTradingInitiateTradeRequest                          = 7701
-    EconTradingInitiateTradeProposed                         = 7702
-    EconTradingInitiateTradeResponse                         = 7703
-    EconTradingInitiateTradeResult                           = 7704
-    EconTradingStartSession                                  = 7705
-    EconTradingCancelTradeRequest                            = 7706
+    EconInitiateTradeRequest                                 = 7701
+    EconInitiateTradeProposed                                = 7702
+    EconInitiateTradeResponse                                = 7703
+    EconInitiateTradeResult                                  = 7704
+    EconStartSession                                         = 7705
+    EconCancelTradeRequest                                   = 7706
     EconFlushInventoryCache                                  = 7707
     EconFlushInventoryCacheResponse                          = 7708
     EconCDKeyProcessTransaction                              = 7711

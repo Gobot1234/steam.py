@@ -96,7 +96,6 @@ class MsgBase(Generic[M]):
 
     @property
     def msg(self) -> IntEnum:
-        """The :attr:`header.msg`."""
         return self.header.msg
 
     @msg.setter
@@ -104,33 +103,26 @@ class MsgBase(Generic[M]):
         self.header.msg = value
 
     @property
-    def steam_id(self) -> int | None:
-        """The :attr:`header`'s 64 bit Steam ID."""
-        return self.header.body.steam_id if isinstance(self.header, ALLOWED_HEADERS) else None
+    def steam_id(self) -> int:
+        return self.header.body.steam_id
 
     @steam_id.setter
     def steam_id(self, value: int) -> None:
-        if isinstance(self.header, ALLOWED_HEADERS):
-            self.header.body.steam_id = value
+        self.header.body.steam_id = value
 
     @property
-    def session_id(self) -> int | None:
-        """The :attr:`header`'s session ID."""
-        return self.header.body.session_id if isinstance(self.header, ALLOWED_HEADERS) else None
+    def session_id(self) -> int:
+        return self.header.body.session_id
 
     @session_id.setter
     def session_id(self, value: int) -> None:
-        if isinstance(self.header, ALLOWED_HEADERS):
-            self.header.body.session_id = value
+        self.header.body.session_id = value
 
     @property
-    def result(self) -> Result | None:
-        """The :attr:`header`'s eresult."""
-        if isinstance(self.header, ALLOWED_HEADERS):
-            return Result.try_value(getattr(self.body, "eresult", 0) or self.header.body.eresult)
+    def result(self) -> Result:
+        return Result.try_value(getattr(self.body, "eresult", 0) or self.header.body.eresult)
 
     def parse(self) -> None:
-        """Parse the payload/data into a protobuf."""
         proto = get_cmsg(self.msg)
         self._parse(proto)
 
@@ -185,7 +177,8 @@ class MsgProto(MsgBase[M]):
         ):
             name = self.header.body.job_name_target
             if name:
-                self.header.body.job_name_target = name = name.rsplit("#", maxsplit=1)[0]
+                name, _, __ = name.partition("#")
+                self.header.body.job_name_target = name
                 proto = get_um(name, self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodCallFromClient))
             else:
                 proto = None

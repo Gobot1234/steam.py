@@ -1,12 +1,13 @@
 # These were removed for some reason, pulled from:
 # https://github.com/SteamDatabase/Protobufs/blob/master/webui/service_community.proto and its history.
+# Last updated 9/9/2021
 
 from dataclasses import dataclass
 from typing import List
 
 import betterproto
 
-from .steammessages_clientserver import CMsgIpAddress
+from .base import CMsgIpAddress
 
 
 @dataclass(eq=False, repr=False)
@@ -47,6 +48,7 @@ class CommentThreadResponse(betterproto.Message):
             count: int = betterproto.uint32_field(1)
 
         reactions: List[Reaction] = betterproto.message_field(12)
+        parent_id: int = betterproto.fixed64_field(13)
 
     comments: List[Comment] = betterproto.message_field(1)
     deleted_comments: List[Comment] = betterproto.message_field(2)

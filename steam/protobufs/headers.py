@@ -33,8 +33,8 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from ..enums import Result
 from ..utils import clear_proto_bit, set_proto_bit  # noqa
+from .base import CMsgProtoBufHeader
 from .emsg import EMsg  # noqa
-from .steammessages_base import CMsgProtoBufHeader
 
 __all__ = (
     "do_nothing_case",
@@ -200,7 +200,7 @@ class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
 
         self.header_version = 1
         self.job_id_target = -1
-        self.job_id_source = 0  # might be -1 again
+        self.job_id_source = 0
         self.body = self
 
         if data:

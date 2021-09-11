@@ -52,15 +52,15 @@ from .enums import PersonaState, Result
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .models import Registerable, register, return_true
-from .protobufs import EMsg, GCMsg, GCMsgProto, Msg, MsgBase, MsgProto
-from .protobufs.steammessages_clientserver_2 import CMsgGcClient
+from .protobufs import EMsg, GCMsg, GCMsgProto, Msg, MsgProto
+from .protobufs.client_server_2 import CMsgGcClient
 
 if TYPE_CHECKING:
     from .client import Client
     from .enums import UIMode
     from .game import GameToDict
-    from .protobufs.steammessages_base import CMsgMulti
-    from .protobufs.steammessages_clientserver_login import CMsgClientLogonResponse
+    from .protobufs.base import CMsgMulti
+    from .protobufs.login import CMsgClientLogonResponse
     from .state import ConnectionState, EventParser
 
 

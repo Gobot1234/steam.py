@@ -42,11 +42,7 @@ from .errors import HTTPException
 from .event import Announcement, Event
 from .game import Game, StatefulGame
 from .iterators import AnnouncementsIterator, EventIterator
-from .protobufs.steammessages_chat import (
-    CChatRoomChatRoomGroupRoomsChangeNotification as UpdatedClan,
-    CChatRoomSummaryPair as ReceivedResponse,
-    CClanChatRoomsGetClanChatRoomInfoResponse as FetchedResponse,
-)
+from .protobufs.chat import GetClanChatRoomInfoResponse, ChatRoomGroupRoomsChangeNotification, SummaryPair
 from .role import Role
 
 if TYPE_CHECKING:
@@ -246,14 +242,14 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self.admins = [user for user in users if user and user.id in mods]
 
     @classmethod
-    async def _from_proto(cls, state: ConnectionState, clan_proto: ReceivedResponse | FetchedResponse) -> Clan:
-        if isinstance(clan_proto, ReceivedResponse):
+    async def _from_proto(cls, state: ConnectionState, clan_proto: SummaryPair | GetClanChatRoomInfoResponse) -> Clan:
+        if isinstance(clan_proto, SummaryPair):
             id = clan_proto.group_summary.clanid
         else:
             id = clan_proto.chat_group_summary.clanid
         self = await cls(state, id)
 
-        proto = clan_proto.group_summary if isinstance(clan_proto, ReceivedResponse) else clan_proto.chat_group_summary
+        proto = clan_proto.group_summary if isinstance(clan_proto, SummaryPair) else clan_proto.chat_group_summary
 
         self.chat_id = proto.chat_group_id
         self.tagline = proto.chat_group_tagline or None
@@ -267,7 +263,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self.default_role = utils.get(self.roles, id=proto.default_role_id)
 
         self.default_channel = None
-        if not isinstance(clan_proto, ReceivedResponse):
+        if not isinstance(clan_proto, SummaryPair):
             return self
 
         for channel in clan_proto.user_chat_group_state.user_chat_room_state:
@@ -282,7 +278,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self.default_channel = self._channels[int(proto.default_chat_id)]
         return self
 
-    def _update(self, proto: UpdatedClan) -> None:
+    def _update(self, proto: ChatRoomGroupRoomsChangeNotification) -> None:
         for channel in proto.chat_rooms:
             try:
                 new_channel = self._channels[channel.chat_id]
