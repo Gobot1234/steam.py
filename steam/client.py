@@ -86,7 +86,7 @@ class Client:
     proxy_auth
         The proxy authentication to use with requests.
     connector
-        The connector to use with the :class:`ClientSession`.
+        The connector to use with the :class:`aiohttp.ClientSession`.
     max_messages
         The maximum number of messages to store in the internal cache, default is 1000.
     game
