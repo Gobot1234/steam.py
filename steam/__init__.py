@@ -23,6 +23,7 @@ from .image import *
 from .invite import *
 from .message import *
 from .models import *
+from .profile import *
 from .role import *
 from .trade import *
 from .user import *

@@ -41,7 +41,7 @@ from .abc import BaseUser, Commentable, SteamID, UserDict
 from .channel import DMChannel
 from .clan import Clan
 from .comment import Comment
-from .enums import ChatEntryType, FriendRelationship, PersonaState, Result, TradeOfferState, Type, UIMode
+from .enums import *
 from .errors import *
 from .game import GameToDict
 from .group import Group
@@ -533,9 +533,28 @@ class ConnectionState(Registerable):
 
         return msg.body
 
-    async def fetch_user_profile_items(self, user_id64: int) -> player.CPlayerGetProfileItemsEquippedResponse:
-        msg: MsgProto[player.CPlayerGetProfileItemsEquippedResponse] = await self.ws.send_um_and_wait(
+    async def fetch_user_equipped_profile_items(self, user_id64: int) -> player.GetProfileItemsEquippedResponse:
+        msg: MsgProto[player.GetProfileItemsEquippedResponse] = await self.ws.send_um_and_wait(
             "Player.GetProfileItemsEquipped",
+            steamid=user_id64,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg.body
+
+    async def fetch_profile_items(self) -> player.GetProfileItemsOwnedResponse:
+        msg: MsgProto[player.GetProfileItemsOwnedResponse] = await self.ws.send_um_and_wait(
+            "Player.GetProfileItemsOwned",
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg.body
+
+    async def fetch_user_favourite_badge(self, user_id64) -> player.GetFavoriteBadgeResponse:
+        msg: MsgProto[player.GetFavoriteBadgeResponse] = await self.ws.send_um_and_wait(
+            "Player.GetFavoriteBadge",
             steamid=user_id64,
         )
         if msg.result != Result.OK:

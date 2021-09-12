@@ -209,8 +209,6 @@ They can be used as follows:
         ...  # do stuff with trade here
 
 
-
-
 .. autoclass:: steam.iterators.AsyncIterator()
     :members:
 
@@ -254,6 +252,11 @@ Badge
 .. attributetable:: UserBadges
 
 .. autoclass:: UserBadges()
+    :members:
+
+.. attributetable:: FavouriteBadge
+
+.. autoclass:: FavouriteBadge()
     :members:
 
 Ban
@@ -376,6 +379,36 @@ PriceOverview
 
 .. autoclass:: PriceOverview()
     :members:
+
+Profile
+~~~~~~~~~~~~~~~
+
+.. attributetable:: ProfileInfo
+
+.. autoclass:: ProfileInfo()
+    :members:
+
+.. attributetable:: ProfileItem
+
+.. autoclass:: ProfileItem()
+    :members:
+
+.. attributetable:: OwnedProfileItems
+
+.. autoclass:: OwnedProfileItems()
+    :members:
+
+.. attributetable:: EquippedProfileItems
+
+.. autoclass:: EquippedProfileItems()
+    :members:
+
+.. attributetable:: Profile
+
+.. autoclass:: Profile()
+    :members:
+    :inherited-members:
+
 
 Trading
 ~~~~~~~~~~~~~~~

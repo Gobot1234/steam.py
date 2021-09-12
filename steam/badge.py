@@ -25,13 +25,16 @@ SOFTWARE.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
-
-import attr
+from typing import TYPE_CHECKING, Any
 
 from .enums import UserBadge
-from .game import Game
+from .game import StatefulGame
+
+if TYPE_CHECKING:
+    from .state import ConnectionState
+
 
 __all__ = (
     "Badge",
@@ -40,16 +43,63 @@ __all__ = (
 )
 
 
-@attr.dataclass(slots=True)
-class FavouriteBadge:
-    name: str
-    xp: int = attr.ib(converter=int)  # it's passed as a str
-    description: str
-    icon_url: str
-    level: int = attr.ib(converter=int)  # it's passed as a str
+class BaseBadge:
+    """
+    Attributes
+    ----------
+    id
+        The badge's ID.
+    level
+        The badge's level.
+    game
+        The game associated with the badge.
+    """
+
+    __slots__ = ()
+    id: int
+    level: int
+    game: StatefulGame | None
+
+    def __repr__(self) -> str:
+        attrs = ("id", "level", "game")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, self.__class__) and self.id == other.id
 
 
-class Badge:
+@dataclass(repr=False)
+class FavouriteBadge(BaseBadge):
+    """Represents a User's favourite badge.
+
+    Attributes
+    ----------
+    id
+        The badge's ID.
+    level
+        The badge's level.
+    game
+        The game associated with the badge.
+    item_id
+        The badge's item's ID.
+    type
+        The badge's type.
+    border_colour
+        The colour of the boarder of the badge.
+    """
+
+    __slots__ = ("id", "level", "game", "item_id", "type", "border_colour")
+
+    id: int
+    level: int
+    game: StatefulGame | None
+    item_id: int
+    type: int
+    border_colour: int
+
+
+class Badge(BaseBadge):
     """Represents a Steam badge.
 
     Attributes
@@ -58,30 +108,25 @@ class Badge:
         The badge's ID.
     level
         The badge's level.
+    game
+        The game associated with the badge.
     xp
         The badge's XP.
     completion_time
         The time the badge was completed at.
     scarcity
         The scarcity of the badge.
-    game
-        The game associated with the badge.
     """
 
     __slots__ = ("id", "xp", "game", "level", "scarcity", "completion_time")
 
-    def __init__(self, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, data: dict[str, Any]):
         self.id = UserBadge.try_value(data["badgeid"])
         self.level: int = data["level"]
         self.xp: int = data["xp"]
         self.completion_time = datetime.utcfromtimestamp(data["completion_time"])
         self.scarcity: int = data["scarcity"]
-        self.game = Game(id=data["appid"]) if "appid" in data else None
-
-    def __repr__(self) -> str:
-        attrs = ("id", "level", "xp", "game")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<Badge {' '.join(resolved)}>"
+        self.game = StatefulGame(state, id=data["appid"]) if "appid" in data else None
 
 
 class UserBadges:
@@ -109,12 +154,12 @@ class UserBadges:
         "xp_needed_for_current_level",
     )
 
-    def __init__(self, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, data: dict[str, Any]):
         self.level: int = data["player_level"]
         self.xp: int = data["player_xp"]
         self.xp_needed_to_level_up: int = data["player_xp_needed_to_level_up"]
         self.xp_needed_for_current_level: int = data["player_xp_needed_current_level"]
-        self.badges: Sequence[Badge] = [Badge(data) for data in data["badges"]]
+        self.badges: Sequence[Badge] = [Badge(state, data) for data in data["badges"]]
 
     def __repr__(self) -> str:
         attrs = ("level", "xp")

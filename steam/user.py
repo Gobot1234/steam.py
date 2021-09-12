@@ -33,6 +33,7 @@ from .abc import BaseUser, Messageable, UserDict
 from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .models import URL
+from .profile import OwnedProfileItems, ProfileItem
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -284,6 +285,28 @@ class ClientUser(BaseUser):
     async def clear_nicks(self) -> None:
         """Clears the client user's nickname/alias history."""
         await self._state.http.clear_nickname_history()
+
+    async def profile_items(self) -> OwnedProfileItems:
+        """Fetch all of the client user's profile items."""
+        items = await self._state.fetch_profile_items()
+        return OwnedProfileItems(
+            backgrounds=[
+                ProfileItem(self._state, background, um_name="ProfileBackground")
+                for background in items.profile_backgrounds
+            ],
+            mini_profile_backgrounds=[
+                ProfileItem(self._state, mini_profile_background, um_name="MiniProfileBackground")
+                for mini_profile_background in items.mini_profile_backgrounds
+            ],
+            avatar_frames=[
+                ProfileItem(self._state, avatar_frame, um_name="AvatarFrame") for avatar_frame in items.avatar_frames
+            ],
+            animated_avatars=[
+                ProfileItem(self._state, animated_avatar, um_name="AnimatedAvatar")
+                for animated_avatar in items.animated_avatars
+            ],
+            modifiers=[ProfileItem(self._state, modifier) for modifier in items.profile_modifiers],
+        )
 
     async def edit(
         self,

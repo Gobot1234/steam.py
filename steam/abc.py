@@ -40,20 +40,12 @@ from typing_extensions import Final, Protocol, TypedDict, runtime_checkable
 
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
-from .enums import (
-    CommunityVisibilityState,
-    InstanceFlag,
-    PersonaState,
-    PersonaStateFlag,
-    Result,
-    Type,
-    TypeChar,
-    Universe,
-)
+from .enums import *
 from .errors import WSException
 from .game import Game, StatefulGame, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
 from .models import URL, Ban
+from .profile import *
 from .trade import Inventory
 from .utils import _INVITE_HEX, _INVITE_MAPPING, InstanceType, Intable, TypeType, UniverseType, id64_from_url, make_id64
 
@@ -420,7 +412,6 @@ class BaseUser(SteamID, Commentable):
         "last_logoff",
         "last_logon",
         "privacy_state",
-        "favourite_badge",
         "community_url",
         "_is_commentable",
         "_setup_profile",
@@ -554,7 +545,7 @@ class BaseUser(SteamID, Commentable):
     async def badges(self) -> UserBadges:
         r"""Fetches the user's :class:`.UserBadges`\s."""
         resp = await self._state.http.get_user_badges(self.id64)
-        return UserBadges(data=resp["response"])
+        return UserBadges(self._state, data=resp["response"])
 
     async def level(self) -> int:
         """Fetches the user's level if your account is premium, otherwise it's cached."""
@@ -567,6 +558,69 @@ class BaseUser(SteamID, Commentable):
         r"""Get the :class:`.WishlistGame`\s the user has on their wishlist."""
         data = await self._state.http.get_wishlist(self.id64)
         return [WishlistGame(self._state, id=id, data=game_info) for id, game_info in data.items()]
+
+    async def favourite_badge(self) -> FavouriteBadge | None:
+        """The user's favourite badge"""
+        badge = await self._state.fetch_user_favourite_badge(self.id64)
+        if not badge.has_favorite_badge:
+            return
+
+        return FavouriteBadge(
+            id=UserBadge.try_value(badge.badgeid),
+            item_id=badge.communityitemid,
+            type=badge.item_type,
+            border_colour=badge.border_color,
+            game=StatefulGame(self._state, id=badge.appid) if badge.appid else None,
+            level=badge.level,
+        )
+
+    async def equipped_profile_items(self) -> EquippedProfileItems:
+        """The user's equipped profile items."""
+        items = await self._state.fetch_user_equipped_profile_items(self.id64)
+        return EquippedProfileItems(
+            background=ProfileItem(self._state, items.profile_background) if items.profile_background else None,
+            mini_profile_background=ProfileItem(self._state, items.mini_profile_background)
+            if items.mini_profile_background
+            else None,
+            avatar_frame=ProfileItem(self._state, items.avatar_frame) if items.avatar_frame else None,
+            animated_avatar=ProfileItem(self._state, items.animated_avatar) if items.animated_avatar else None,
+            modifier=ProfileItem(self._state, items.profile_modifier) if items.profile_modifier else None,
+        )
+
+    async def profile_info(self) -> ProfileInfo:
+        """The user's profile info."""
+        info = await self._state.fetch_user_profile_info(self.id64)
+        return ProfileInfo(
+            created_at=datetime.utcfromtimestamp(info.time_created),
+            real_name=info.real_name,
+            city_name=info.city_name,
+            state_name=info.state_name,
+            country_name=info.country_name,
+            headline=info.headline,
+            summary=info.summary,
+        )
+
+    async def profile(self) -> Profile:
+        """Fetch a user's entire profile information.
+
+        Note
+        ----
+        This calls all the ``profile_x`` functions to return a Profile object which has all the info set.
+        """
+
+        coros = [
+            self.equipped_profile_items(),
+            self.profile_info(),
+        ]
+
+        if hasattr(self, "profile_items"):
+            coros.append(self.profile_items())
+
+        profiles: tuple[EquippedProfileItems, ProfileInfo] | tuple[
+            EquippedProfileItems, ProfileInfo, OwnedProfileItems
+        ] = await asyncio.gather(*coros)
+
+        return Profile(*profiles)
 
     def is_commentable(self) -> bool:
         """Specifies if the user's account is able to be commented on."""
@@ -617,15 +671,6 @@ class BaseUser(SteamID, Commentable):
             self.privacy_state = NotImplemented
             self._is_commentable = NotImplemented
             self._setup_profile = NotImplemented
-
-            try:
-                favourite_badge = data["favorite_badge"]
-            except KeyError:
-                self.favourite_badge = None
-            else:
-                icon_url = favourite_badge.pop("icon")
-                self.favourite_badge = FavouriteBadge(**favourite_badge, icon_url=icon_url)
-
             self._level = data["level"]
 
         def __repr__(self) -> str:

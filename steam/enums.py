@@ -592,6 +592,33 @@ class ClanEvent(IntEnum):
     SeasonUpdate           = 33
     Crosspost              = 34
     InGameGeneral          = 35
+
+
+class ProfileItemType(IntEnum):
+    Invalid                   = 0
+    RareAchievementShowcase   = 1
+    GameCollector             = 2
+    ItemShowcase              = 3
+    TradeShowcase             = 4
+    Badges                    = 5
+    FavoriteGame              = 6
+    ScreenshotShowcase        = 7
+    CustomText                = 8
+    FavoriteGroup             = 9
+    Recommendation            = 10
+    WorkshopItem              = 11
+    MyWorkshop                = 12
+    ArtworkShowcase           = 13
+    VideoShowcase             = 14
+    Guides                    = 15
+    MyGuides                  = 16
+    Achievements              = 17
+    Greenlight                = 18
+    MyGreenlight              = 19
+    Salien                    = 20
+    LoyaltyRewardReactions    = 21
+    SingleArtworkShowcase     = 22
+    AchievementsCompletionist = 23
 # fmt: on
 
 

@@ -737,7 +737,7 @@ class HTTPClient:
         avatar: Image | None,
     ) -> None:
         if any((name, real_name, url, summary, country, state, city, avatar)):
-            info = await self._client._connection.fetch_user_profile_info(self.user.id64)
+            info = await self._client.user.profile_info()
 
             payload = {
                 "sessionID": self.session_id,
