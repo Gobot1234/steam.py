@@ -42,7 +42,7 @@ from .errors import HTTPException
 from .event import Announcement, Event
 from .game import Game, StatefulGame
 from .iterators import AnnouncementsIterator, EventIterator
-from .protobufs.chat import GetClanChatRoomInfoResponse, ChatRoomGroupRoomsChangeNotification, SummaryPair
+from .protobufs.chat import ChatRoomGroupRoomsChangeNotification, GetClanChatRoomInfoResponse, SummaryPair
 from .role import Role
 
 if TYPE_CHECKING:

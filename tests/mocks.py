@@ -4,11 +4,7 @@ from typing import Optional
 from unittest.mock import MagicMock
 
 import steam
-from steam.protobufs.steammessages_chat import (
-    CChatRoomGetChatRoomGroupSummaryResponse,
-    CChatRoomIncomingChatMessageNotification,
-    CChatRoomState,
-)
+from steam.protobufs.chat import IncomingChatMessageNotification, State
 
 from .test_bot import bot
 
@@ -52,7 +48,7 @@ class MockGroup(steam.Group, DataclassesMock):
 
 class MockGroupChannel(steam.GroupChannel, DataclassesMock):
     def __init__(self, group):
-        proto = CChatRoomState(
+        proto = State(
             chat_id=0,
             chat_name="a group channel",
         )
@@ -61,7 +57,7 @@ class MockGroupChannel(steam.GroupChannel, DataclassesMock):
 
 class MockMessage(steam.Message, DataclassesMock):
     def __init__(self, channel, content: Optional[str] = None):
-        proto = CChatRoomIncomingChatMessageNotification(message=content or "a message")
+        proto = IncomingChatMessageNotification(message=content or "a message")
         steam.Message.__init__(self, channel, proto)
         self.author = USER
 
