@@ -56,7 +56,7 @@ CommentableT = TypeVar("CommentableT", bound="Commentable")
 M = TypeVar("M", bound="Message")
 
 MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
-UNIX_EPOCH = datetime.fromtimestamp(0, tz=timezone.utc)
+UNIX_EPOCH = datetime.utcfromtimestamp(0)
 
 
 class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
@@ -82,7 +82,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
 
     def __init__(self, state: ConnectionState, limit: int | None, before: datetime | None, after: datetime | None):
         self._state = state
-        self.before = before or datetime.now(tz=timezone.utc)
+        self.before = before or datetime.utcnow()
         self.after = after or UNIX_EPOCH
         self._is_filled = False
         self.queue: deque[T] = deque()
@@ -299,7 +299,7 @@ class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
         self.owner = owner
 
     async def fill(self) -> None:
-        comments = await self._state.fetch_comments(self.owner, self.after, self.limit)
+        comments = await self._state.fetch_comments(self.owner, self.limit)
         author_id64s = set()
         for comment in comments:
             comment = Comment(
@@ -310,8 +310,8 @@ class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
                 author=comment.author_id64,  # type: ignore
                 owner=self.owner,
             )
-            if comment.created_at < self.before:
-                continue  # needs rewriting when we add oldest_first support
+            if not self.after < comment.created_at < self.before:  # needs rewriting when we add oldest_first support
+                continue
             if not self._append(comment):
                 break
             author_id64s.add(comment.author)

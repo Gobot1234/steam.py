@@ -790,19 +790,18 @@ class ConnectionState(Registerable):
                     )
 
     async def fetch_comments(
-        self, owner: Commentable, after: datetime, limit: int | None
+        self, owner: Commentable, limit: int | None
     ) -> list[comments.CommentThreadResponse.Comment]:
         msg: MsgProto[comments.CommentThreadResponse] = await self.ws.send_um_and_wait(
             "Community.GetCommentThread",
             **owner._commentable_kwargs,
-            time_oldest=int(after.timestamp()),
             count=2147483647 if limit is None else limit,
         )  # int(i32::MAX / 2) not entirely sure why this is the max and not i32 which is the max for the field
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.body.comments
 
-    async def post_comment(self, owner: Commentable, content: str) -> Comment:
+    async def post_comment(self, owner: Commentable, content: str) -> Comment[Commentable]:
         msg: MsgProto[comments.PostCommentToThreadResponse] = await self.ws.send_um_and_wait(
             "Community.PostCommentToThread",
             **owner._commentable_kwargs,

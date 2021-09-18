@@ -65,7 +65,7 @@ class CommentThreadResponse(betterproto.Message):
     answer_actor: int = betterproto.uint32_field(13)
     answer_actor_rank: int = betterproto.int32_field(14)
     can_post: bool = betterproto.bool_field(15)
-    comment_thread_type: int = betterproto.uint32_field(16)
+    thread_type: int = betterproto.uint32_field(16)
     gidfeature: int = betterproto.fixed64_field(17)
     gidfeature2: int = betterproto.fixed64_field(18)
 
@@ -73,13 +73,13 @@ class CommentThreadResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PostCommentToThreadRequest(betterproto.Message):
     id64: int = betterproto.fixed64_field(1)
-    comment_thread_type: int = betterproto.uint32_field(2)
+    thread_type: int = betterproto.uint32_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
     gidfeature2: int = betterproto.fixed64_field(4)
     content: str = betterproto.string_field(6)
     parent_id: int = betterproto.fixed64_field(7)
-    suppress_notifications: int = betterproto.bool_field(8)
-    is_report: int = betterproto.bool_field(9)
+    suppress_notifications: bool = betterproto.bool_field(8)
+    is_report: bool = betterproto.bool_field(9)
 
 
 @dataclass(eq=False, repr=False)
@@ -93,7 +93,7 @@ class PostCommentToThreadResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class DeleteCommentFromThreadRequest(betterproto.Message):
     id64: int = betterproto.fixed64_field(1)
-    comment_thread_type: int = betterproto.uint32_field(2)
+    thread_type: int = betterproto.uint32_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
     gidfeature2: int = betterproto.fixed64_field(4)
     id: int = betterproto.fixed64_field(5)
@@ -102,12 +102,12 @@ class DeleteCommentFromThreadRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class DeleteCommentFromThreadResponse(betterproto.Message):
-    ...
+    pass
 
 
 @dataclass(eq=False, repr=False)
 class RateCommentThreadRequest(betterproto.Message):
-    comment_thread_type: str = betterproto.string_field(1)
+    thread_type: str = betterproto.string_field(1)
     id64: int = betterproto.fixed64_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
     gidfeature2: int = betterproto.fixed64_field(4)
