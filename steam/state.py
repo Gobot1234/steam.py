@@ -115,7 +115,7 @@ class ConnectionState(Registerable):
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
 
-        self._trades_to_watch: list[int] = []
+        self._trades_to_watch: set[int] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
 
@@ -235,7 +235,7 @@ class ConnectionState(Registerable):
                 trade.items_to_send or trade.items_to_receive
             ):  # trade is glitched
                 self.dispatch("trade_send" if trade.is_our_offer() else "trade_receive", trade)
-                self._trades_to_watch.append(trade.id)
+                self._trades_to_watch.add(trade.id)
         else:
             before_state = trade.state
             trade._update(data)
@@ -244,7 +244,7 @@ class ConnectionState(Registerable):
                 event_name = trade.state.event_name
                 if event_name and (trade.items_to_send or trade.items_to_receive):
                     self.dispatch(f"trade_{event_name}", trade)
-                    self._trades_to_watch.remove(trade.id)
+                    self._trades_to_watch.discard(trade.id)
         return trade
 
     async def _process_trades(

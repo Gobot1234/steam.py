@@ -194,6 +194,8 @@ class User(BaseUser, Messageable["UserMessage"]):
                         await asyncio.sleep(tries * 2)
                 trade.state = TradeOfferState.Active
 
+            await self._state.poll_trades()
+
         return message
 
     async def invite_to_group(self, group: Group) -> None:
