@@ -592,11 +592,11 @@ class BaseUser(SteamID, Commentable):
         info = await self._state.fetch_user_profile_info(self.id64)
         return ProfileInfo(
             created_at=datetime.utcfromtimestamp(info.time_created),
-            real_name=info.real_name,
-            city_name=info.city_name,
-            state_name=info.state_name,
-            country_name=info.country_name,
-            headline=info.headline,
+            real_name=info.real_name or None,
+            city_name=info.city_name or None,
+            state_name=info.state_name or None,
+            country_name=info.country_name or None,
+            headline=info.headline or None,
             summary=info.summary,
         )
 

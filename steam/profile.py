@@ -69,11 +69,11 @@ class ProfileInfo:
     """
 
     created_at: datetime
-    real_name: str
-    city_name: str
-    state_name: str
-    country_name: str
-    headline: str
+    real_name: str | None
+    city_name: str | None
+    state_name: str | None
+    country_name: str | None
+    headline: str | None
     summary: str
 
 
@@ -230,4 +230,4 @@ class Profile(ProfileInfo, EquippedProfileItems):
         self.items = items
 
     def __repr__(self) -> str:
-        return f"<Profile real_name={self.real_name!r} created_at={self.created_at}>"
+        return f"<Profile real_name={self.real_name!r}>"
