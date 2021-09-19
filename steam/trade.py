@@ -478,7 +478,7 @@ class TradeOffer:
         self.escrow = datetime.utcfromtimestamp(escrow) - datetime.utcnow() if escrow else None
         self.updated_at = datetime.utcfromtimestamp(updated_at) if updated_at else None
         self.created_at = datetime.utcfromtimestamp(created_at) if created_at else None
-        self.state = TradeOfferState(data.get("trade_offer_state", 1))
+        self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
         self.items_to_send = [Item(data=item) for item in data.get("items_to_give", [])]
         self.items_to_receive = [Item(data=item) for item in data.get("items_to_receive", [])]
         self._is_our_offer = data.get("is_our_offer", False)
