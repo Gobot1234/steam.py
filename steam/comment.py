@@ -26,10 +26,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar, overload
 
 if TYPE_CHECKING:
     from .abc import Commentable
+    from .event import Discussion
     from .state import ConnectionState
     from .user import ClientUser, User
 
@@ -79,10 +80,39 @@ class Comment(Generic[C]):
         """Deletes the comment."""
         await self._state.delete_comment(self.owner, self.id)
 
-    async def upvote(self) -> None:
-        """Upvote the comment."""
-        await self._state.rate_comment(self.owner, self.id, True)
+    async def upvote(self, subscribe: bool = True) -> None:
+        """Upvote the comment.
 
-    async def downvote(self) -> None:
-        """Downvote the comment."""
-        await self._state.rate_comment(self.owner, self.id, False)
+        Parameters
+        ----------
+        subscribe
+            WWhether or not to subscribe to notifications on any future activity in this comment's thread.
+        """
+        await self._state.rate_comment(self.owner, self.id, True, subscribe)
+
+    async def downvote(self, subscribe: bool = True) -> None:
+        """Downvote the comment.
+
+        Parameters
+        ----------
+        subscribe
+            WWhether or not to subscribe to notifications on any future activity in this comment's thread.
+        """
+        await self._state.rate_comment(self.owner, self.id, False, subscribe)
+
+    @overload
+    def is_answer(self: Comment[Discussion]) -> bool:
+        ...
+
+    @overload
+    def is_answer(self: Comment[C]) -> None:
+        ...
+
+    def is_answer(self) -> bool | None:
+        """Whether or not this comment has been marked as the answer to the discussion. ``None``` if the :attr:`owner`
+        cannot mark an answer for the section.
+        """
+        if not hasattr(self.owner, "answer_id"):
+            return
+
+        return self.id == self.owner.answer_id

@@ -800,11 +800,12 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.body.comments
 
-    async def post_comment(self, owner: Commentable, content: str) -> Comment[Commentable]:
+    async def post_comment(self, owner: Commentable, content: str, subscribe: bool) -> Comment[Commentable]:
         msg: MsgProto[comments.PostCommentToThreadResponse] = await self.ws.send_um_and_wait(
             "Community.PostCommentToThread",
             **owner._commentable_kwargs,
             content=content,
+            surpress_notifications=not subscribe,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -839,7 +840,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def rate_comment(self, owner: Commentable, comment_id: int, upvote: bool) -> None:
+    async def rate_comment(self, owner: Commentable, comment_id: int, upvote: bool, subscribe: bool) -> None:
         kwargs = owner._commentable_kwargs
         kwargs["thread_type"] = str(kwargs["thread_type"])  # this is dumb
         msg: MsgProto[comments.RateCommentThreadResponse] = await self.ws.send_um_and_wait(
@@ -847,6 +848,7 @@ class ConnectionState(Registerable):
             **kwargs,
             id=comment_id,
             rate_up=upvote,
+            suppress_notifications=not subscribe,
         )
         if msg.result != Result.OK:
             raise WSException(msg)

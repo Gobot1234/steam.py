@@ -295,19 +295,21 @@ class Commentable(Protocol):
     def _commentable_kwargs(self) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def comment(self: Self, content: str) -> Comment[Self]:
+    async def comment(self: Self, content: str, subscribe: bool = True) -> Comment[Self]:
         """Post a comment to a profile.
 
         Parameters
         -----------
         content
             The message to add to the comment section.
+        subscribe
+            WWhether or not to subscribe to notifications on any future activity in this comment's thread.
 
         Returns
         -------
         The created comment.
         """
-        return await self._state.post_comment(self, content)
+        return await self._state.post_comment(self, content, subscribe)
 
     def comments(
         self: Self, limit: int | None = None, before: datetime | None = None, after: datetime | None = None
