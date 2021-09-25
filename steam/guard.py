@@ -61,7 +61,7 @@ def generate_one_time_code(shared_secret: str, timestamp: int | None = None) -> 
     Parameters
     -----------
     shared_secret
-        Identity secret from steam guard.
+        Shared secret from steam guard.
     timestamp
         The unix timestamp to generate the key for.
     """

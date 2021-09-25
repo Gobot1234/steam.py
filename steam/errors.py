@@ -148,8 +148,7 @@ class WSException(SteamException):
     message
         The message that Steam sent back with the request, could be ``None``.
     code
-        The Steam specific error code for the failure. It will attempt to find a matching a :class:`~steam.Result`
-        for the value.
+        The Steam specific error code for the failure.
     """
 
     def __init__(self, msg: Msgs):

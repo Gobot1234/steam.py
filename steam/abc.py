@@ -793,7 +793,7 @@ class Channel(Messageable[M_co]):
         Parameters
         ----------
         limit
-            The maximum number of trades to search through. Setting this to ``None`` will fetch all of the channel's
+            The maximum number of messages to search through. Setting this to ``None`` will fetch all of the channel's
             messages, but this will be a very slow operation.
         before
             A time to search for messages before.
