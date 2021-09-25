@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     from .client import Client
     from .enums import UIMode
     from .game import GameToDict
+    from .protobufs import login
     from .protobufs.base import CMsgMulti
     from .protobufs.login import CMsgClientLogonResponse
     from .state import ConnectionState, EventParser
@@ -197,13 +198,13 @@ class CMServerList(AsyncIterator[CMServer]):
         return sorted(best_cms, key=lambda cm: cm.score)
 
 
-class KeepAliveHandler(threading.Thread):  # ping commands are cool
+class KeepAliveHandler(threading.Thread):
     def __init__(self, ws: SteamWebSocket, interval: int):
         super().__init__()
         self.ws = ws
         self.interval = interval
         self._main_thread_id = self.ws.thread_id
-        self.heartbeat = MsgProto(EMsg.ClientHeartBeat)
+        self.heartbeat = MsgProto(EMsg.ClientHeartBeat, send_reply=True)
         self.msg = "Keeping websocket alive with heartbeat %s."
         self.block_msg = "Heartbeat blocked for more than %s seconds."
         self.behind_msg = "Can't keep up, websocket is %.1fs behind."
@@ -225,7 +226,7 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                 except asyncio.TimeoutError:  # alias to concurrent.futures.TimeoutError
                     total += 10
                     try:
-                        frame = sys._current_frames()[self._main_thread_id]
+                        frame = sys._current_frames()[self._main_thread_id]  # noqa
                     except KeyError:
                         msg = self.block_msg
                     else:
@@ -235,7 +236,6 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
                 except Exception:
                     self.stop()
                 else:
-                    self.ack()
                     self._last_send = time.perf_counter()
                     break
 
@@ -244,13 +244,13 @@ class KeepAliveHandler(threading.Thread):  # ping commands are cool
 
     def ack(self) -> None:
         self._last_ack = time.perf_counter()
-        self.latency = self._last_ack - self._last_send - self.interval
+        self.latency = self._last_ack - self._last_send
         if self.latency > 10:
             log.warning(self.behind_msg, self.latency)
 
 
 class SteamWebSocket(Registerable):
-    parsers: dict[EMsg, EventParser[Any]]
+    parsers: dict[EMsg, Callable[..., Any]]
 
     def __init__(self, socket: aiohttp.ClientWebSocketResponse):
         self.socket = socket
@@ -276,8 +276,6 @@ class SteamWebSocket(Registerable):
     @property
     def latency(self) -> float:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
-        if self._keep_alive is None:
-            return float("nan")
         return self._keep_alive.latency
 
     def wait_for(self, emsg: EMsg | None, check: Callable[[M], bool] = return_true) -> asyncio.Future[M]:
@@ -416,14 +414,14 @@ class SteamWebSocket(Registerable):
         if not self.socket.closed:
             await self.close()
             self.cm_list.queue.pop()  # pop the disconnected cm
-        if self._keep_alive is not None:
+        if hasattr(self, "_keep_alive"):
             self._keep_alive.stop()
-            self._keep_alive = None
+            del self._keep_alive
         log.info(f"Websocket closed, cannot reconnect.")
         raise ConnectionClosed(self.cm, self.cm_list)
 
     @register(EMsg.ClientLogOnResponse)
-    async def handle_logon(self, msg: MsgProto[CMsgClientLogonResponse]) -> None:
+    async def handle_logon(self, msg: MsgProto[login.CMsgClientLogonResponse]) -> None:
         if msg.result != Result.OK:
             log.debug(f"Failed to login with result: {msg.result}")
             if msg.result == Result.InvalidPassword:
@@ -452,6 +450,10 @@ class SteamWebSocket(Registerable):
         await self.send_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
 
         log.debug("Logon completed")
+
+    @register(EMsg.ClientHeartBeat)
+    def ack_heartbeat(self, msg: MsgProto[login.CMsgClientHeartBeat]) -> None:
+        self._keep_alive.ack()
 
     @staticmethod
     def unpack_multi(msg: MsgProto[CMsgMulti]) -> bytes | None:
