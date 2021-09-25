@@ -120,7 +120,7 @@ class SteamID(metaclass=abc.ABCMeta):
         universe: UniverseType | None = None,
         instance: InstanceType | None = None,
     ):
-        self.__BASE: Final[int] = make_id64(id, type, universe, instance)
+        self.__BASE: Final = make_id64(id, type, universe, instance)
 
     def __int__(self) -> int:
         return self.__BASE

@@ -29,7 +29,9 @@ https://github.com/ValvePython/steam/blob/master/steam/core/msg/headers.py
 from __future__ import annotations
 
 import struct
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
+
+import betterproto
 
 from ..enums import Result
 from ..utils import clear_proto_bit, set_proto_bit  # noqa
@@ -51,6 +53,9 @@ except ImportError:
 
     def do_nothing_case(value: str) -> str:
         return value
+
+
+do_nothing_case = cast(betterproto.Casing, do_nothing_case)
 
 
 class BaseMsgHdr:

@@ -29,7 +29,7 @@ import logging
 import re
 import sys
 import traceback
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -38,7 +38,7 @@ from yarl import URL as _URL
 
 from . import utils
 from .enums import IntEnum
-from .protobufs import EMsg
+from .protobufs import EMsg, chat
 
 if TYPE_CHECKING:
     from .gateway import Msgs
@@ -61,9 +61,9 @@ def api_route(path: str, version: int = 1) -> _URL:
 
 
 class URL:
-    API: Final[_URL] = _URL("https://api.steampowered.com")
-    COMMUNITY: Final[_URL] = _URL("https://steamcommunity.com")
-    STORE: Final[_URL] = _URL("https://store.steampowered.com")
+    API: Final = _URL("https://api.steampowered.com")
+    COMMUNITY: Final = _URL("https://steamcommunity.com")
+    STORE: Final = _URL("https://store.steampowered.com")
 
 
 class _ReturnTrue:
@@ -248,7 +248,7 @@ class Ban:
 
 
 class Permissions:
-    def __init__(self, proto: Any):
+    def __init__(self, proto: chat.RoleActions):
         self.kick = proto.can_kick
         self.ban_members = proto.can_ban
         self.invite = proto.can_invite

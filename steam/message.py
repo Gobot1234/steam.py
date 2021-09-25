@@ -31,10 +31,7 @@ from .abc import Message
 
 if TYPE_CHECKING:
     from .channel import ClanChannel, DMChannel, GroupChannel
-    from .protobufs.steammessages_chat import CChatRoomIncomingChatMessageNotification as GroupMessageNotification
-    from .protobufs.steammessages_friendmessages import (
-        CFriendMessagesIncomingMessageNotification as UserMessageNotification,
-    )
+    from .protobufs import chat, friend_messages
     from .user import User
 
 
@@ -50,14 +47,14 @@ class UserMessage(Message):
 
     channel: DMChannel
 
-    def __init__(self, proto: UserMessageNotification, channel: DMChannel):
+    def __init__(self, proto: friend_messages.IncomingMessageNotification, channel: DMChannel):
         super().__init__(channel, proto)
         self.author = channel.participant
         self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
 
 
 class _GroupMessage(Message):
-    def __init__(self, proto: GroupMessageNotification, channel: Any, author: User):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: User):
         super().__init__(channel, proto)
         self.author = author
         self.created_at = datetime.utcfromtimestamp(proto.timestamp)
@@ -68,7 +65,7 @@ class GroupMessage(_GroupMessage):
 
     channel: GroupChannel
 
-    def __init__(self, proto: GroupMessageNotification, channel: GroupChannel, author: User):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: GroupChannel, author: User):
         super().__init__(proto, channel, author)
 
 
@@ -77,5 +74,5 @@ class ClanMessage(_GroupMessage):
 
     channel: ClanChannel
 
-    def __init__(self, proto: GroupMessageNotification, channel: ClanChannel, author: User):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: ClanChannel, author: User):
         super().__init__(proto, channel, author)

@@ -490,7 +490,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
             ClanEvent.Sports,
             ClanEvent.Trip,
         ] = ClanEvent.Other,
-        game: Game | int | None = None,
+        game: Game | None = None,
         start: datetime | None = None,
         server_address: str | None = None,
         server_password: str | None = None,
@@ -522,14 +522,13 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         -------
         The created event.
         """
-        game_id = str(getattr(game, "id", game))
 
         resp = await self._state.http.create_clan_event(
             self.id64,
             name,
             description,
             f"{type.name}Event",
-            game_id or "",
+            str(game.id) if game is not None else "",
             server_address or "",
             server_password or "",
             start,
@@ -552,7 +551,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                     "event_name": name,
                     "event_notes": description,
                     "event_type": type.value,
-                    "appid": game_id,
+                    "appid": str(game.id) if game is not None else "",
                     "rtime32_start_time": timestamp,
                     "rtime32_last_modified": timestamp,
                     "server_address": server_address,

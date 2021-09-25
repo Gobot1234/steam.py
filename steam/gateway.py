@@ -48,7 +48,7 @@ import attr
 from typing_extensions import TypeAlias
 
 from . import utils
-from .enums import PersonaState, Result
+from .enums import PersonaState, PersonaStateFlag, Result
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .models import Registerable, register, return_true
@@ -61,8 +61,7 @@ if TYPE_CHECKING:
     from .game import GameToDict
     from .protobufs import login
     from .protobufs.base import CMsgMulti
-    from .protobufs.login import CMsgClientLogonResponse
-    from .state import ConnectionState, EventParser
+    from .state import ConnectionState
 
 
 __all__ = (
@@ -73,7 +72,7 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
-Msgs: TypeAlias = "MsgProto[Any] | Msg[Any]"
+Msgs: TypeAlias = "MsgProto[Any] | Msg[Any] | GCMsgProto[Any] | GCMsg[Any]"
 M = TypeVar("M", bound=MsgProto[Any])
 READ_U32 = struct.Struct("<I").unpack_from
 
@@ -252,24 +251,26 @@ class KeepAliveHandler(threading.Thread):
 class SteamWebSocket(Registerable):
     parsers: dict[EMsg, Callable[..., Any]]
 
-    def __init__(self, socket: aiohttp.ClientWebSocketResponse):
+    def __init__(
+        self, state: ConnectionState, socket: aiohttp.ClientWebSocketResponse, cm_list: CMServerList, cm: CMServer
+    ):
         self.socket = socket
 
         # state stuff
-        self._connection: ConnectionState | None = None
-        self.cm_list: CMServerList | None = None
+        self._connection: ConnectionState = state
+        self.cm_list: CMServerList = cm_list
         # the keep alive
-        self._keep_alive: KeepAliveHandler | None = None
-        # an empty dispatcher to prevent crashes
-        self._dispatch: Callable[..., None] = lambda *args, **kwargs: None
-        self.cm: CMServer | None = None
+        self._keep_alive: KeepAliveHandler
+        self._dispatch = state.dispatch
+        self.cm: CMServer = cm
         self.thread_id = threading.get_ident()
 
         # ws related stuff
-        self.listeners: list[EventListener[Msgs]] = []
+        self.listeners: list[EventListener[Any]] = []
+        self.parsers.update(state.parsers)
 
         self.session_id = 0
-        self.steam_id = 0
+        self.steam_id = state.client.user.id64
         self._current_job_id = 0
         self._gc_current_job_id = 0
 
@@ -296,14 +297,7 @@ class SteamWebSocket(Registerable):
             socket = await client.http.connect_to_cm(cm.url)
             log.debug(f"Connected to {cm}")
 
-            self = cls(socket)
-            # dynamically add attributes needed
-            self._connection = state
-            self.parsers.update(state.parsers)
-            self._dispatch = client.dispatch
-            self.steam_id = client.user.id64
-            self.cm = cm
-            self.cm_list = cm_list
+            self = cls(state, socket, cm_list, cm)
             await self.send_proto(
                 MsgProto(
                     EMsg.ClientLogon,
@@ -530,11 +524,11 @@ class SteamWebSocket(Registerable):
     async def change_presence(
         self,
         *,
-        games: list[GameToDict],
-        state: PersonaState | None,
-        flags: int,
-        ui_mode: UIMode | None,
-        force_kick: bool,
+        games: list[GameToDict] | None = None,
+        state: PersonaState | None = None,
+        flags: PersonaStateFlag = None,
+        ui_mode: UIMode | None = None,
+        force_kick: bool = False,
     ) -> None:
         self._connection._games = games or self._connection._games
         self._connection._state = state or self._connection._state
@@ -543,18 +537,18 @@ class SteamWebSocket(Registerable):
         self._connection._force_kick = force_kick
 
         if force_kick:
-            kick = MsgProto(EMsg.ClientKickPlayingSession)
+            kick_msg = MsgProto(EMsg.ClientKickPlayingSession)
             log.debug("Kicking any currently playing sessions")
-            await self.send_proto(kick)
+            await self.send_proto(kick_msg)
         if games:
-            activity = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
-            log.debug(f"Sending {activity} to change activity")
-            await self.send_proto(activity)
+            games_msg = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
+            log.debug(f"Sending %r to change activity", games_msg)
+            await self.send_proto(games_msg)
         if state is not None or flags:
-            state = MsgProto(EMsg.ClientChangeStatus, persona_state=state, persona_state_flags=flags)
-            log.debug(f"Sending {state} to change state")
-            await self.send_proto(state)
+            state_msg = MsgProto(EMsg.ClientChangeStatus, persona_state=state, persona_state_flags=flags)
+            log.debug(f"Sending %r to change state", state_msg)
+            await self.send_proto(state_msg)
         if ui_mode is not None:
-            ui_mode = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
-            log.debug(f"Sending {ui_mode} to change UI mode")
-            await self.send_proto(ui_mode)
+            ui_mode_msg = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
+            log.debug(f"Sending %r to change UI mode", ui_mode_msg)
+            await self.send_proto(ui_mode_msg)

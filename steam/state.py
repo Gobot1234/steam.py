@@ -75,7 +75,6 @@ if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
     from .gateway import SteamWebSocket
-    from .http import HTTPClient
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +85,7 @@ class ConnectionState(Registerable):
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
         self.dispatch = client.dispatch
-        self.http: HTTPClient = client.http
+        self.http = client.http
 
         self.handled_friends = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)

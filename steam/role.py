@@ -31,7 +31,7 @@ from .models import Permissions
 if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
-    from .protobufs.steammessages_chat import CChatRoleActions as RoleProto
+    from .protobufs import chat
     from .state import ConnectionState
 
 __all__ = ("Role",)
@@ -40,7 +40,7 @@ __all__ = ("Role",)
 class Role:
     __slots__ = ("id", "clan", "group", "permissions", "_state")
 
-    def __init__(self, state: ConnectionState, group: Clan | Group, proto: RoleProto):
+    def __init__(self, state: ConnectionState, group: Clan | Group, role: chat.Role, permissions: chat.RoleActions):
         self._state = state
         self.id = int(proto.role_id)
         from .clan import Clan

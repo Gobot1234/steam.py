@@ -458,7 +458,7 @@ def contains_bbcode(string: str) -> bool:
 
 
 class SupportsChunk(Protocol[_T_co], Sized):
-    def __getitem__(self, item: slice) -> SupportsChunk[_T_co]:
+    def __getitem__(self: Self, item: slice) -> Self:
         ...
 
 

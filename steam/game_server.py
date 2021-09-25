@@ -46,7 +46,7 @@ from .game import Game, StatefulGame
 from .utils import StructIO
 
 if TYPE_CHECKING:
-    from .protobufs.steammessages_gameservers import CGameServersGetServerListResponseServer as GameServerProto
+    from .protobufs.game_servers import GetServerListResponseServer
     from .state import ConnectionState
 
 T = TypeVar("T")
@@ -402,7 +402,7 @@ class GameServer(SteamID):
         "_state",
     )
 
-    def __init__(self, state: ConnectionState, server: GameServerProto):
+    def __init__(self, state: ConnectionState, server: GetServerListResponseServer):
         super().__init__(server.steamid, type=Type.GameServer)
         self.name = server.name
         self.game = StatefulGame(state, id=server.appid)
