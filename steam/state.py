@@ -25,7 +25,6 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-import gc
 import logging
 from collections import ChainMap, deque
 from collections.abc import Sequence
@@ -88,6 +87,9 @@ class ConnectionState(Registerable):
         self.http = client.http
 
         self.handled_friends = asyncio.Event()
+        self.handled_emoticons = asyncio.Event()
+        self.handled_groups = asyncio.Event()
+        self.handled_group_members = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -119,9 +121,8 @@ class ConnectionState(Registerable):
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
 
         self.handled_friends.clear()
-        self.handled_groups = False
-
-        gc.collect()
+        self.handled_emoticons.clear()
+        self.handled_groups.clear()
 
     async def __ainit__(self) -> None:
         if self.http.api_key is not None:
@@ -665,10 +666,11 @@ class ConnectionState(Registerable):
                 else:  # else it's a group
                     group = await Group._from_proto(self, group.group_summary)
                     self._groups[group.id] = group
-
-            if not self.handled_groups:
-                await self.handled_friends.wait()  # ensure friend cache is ready
-                self.client._handle_ready()
+            self.handled_groups.set()  # signal to process_group_members that we are ready
+            await self.handled_group_members.wait()  # ensure the members are ready
+            await self.handled_friends.wait()  # ensure friend cache is ready
+            # await self.handled_emoticons.wait()  # ensure emoticon cache is ready
+            self.client._handle_ready()
 
     @register(EMsg.ClientCMList)
     async def parse_cm_list_update(self, msg: MsgProto[client_server.CMsgClientCmList]) -> None:
@@ -775,6 +777,17 @@ class ConnectionState(Registerable):
         if is_load:
             self.client.user.friends = await self.fetch_users(client_user_friends)
             self.handled_friends.set()
+
+    @register(EMsg.ClientFriendsGroupsList)
+    async def process_group_members(self, msg: MsgProto[friends.CMsgClientFriendsGroupsList]):
+        await self.handled_groups.wait()
+        members = await self.fetch_users([m.ul_steam_id for m in msg.body.memberships])
+        for membership in msg.body.memberships:
+            for member in members:
+                if member and member.id64 == membership.ul_steam_id:
+                    self._groups[membership.n_group_id].members.append(member)
+
+        self.handled_group_members.set()
 
     async def fetch_comments(
         self, owner: Commentable, limit: int | None

@@ -33,10 +33,7 @@ from .enums import Type
 from .role import Role
 
 if TYPE_CHECKING:
-    from .protobufs.steammessages_chat import (
-        CChatRoomChatRoomGroupRoomsChangeNotification as UpdatedGroupProto,
-        CChatRoomGetChatRoomGroupSummaryResponse as GroupProto,
-    )
+    from .protobufs.chat import ChatRoomGroupRoomsChangeNotification, GetChatRoomGroupSummaryResponse
     from .state import ConnectionState
     from .user import User
 
@@ -53,8 +50,8 @@ class Group(SteamID):
         The name of the group, could be ``None``.
     owner
         The owner of the group.
-    top_members
-        A list of the group's top members.
+    members
+        A list of the group's members.
     active_member_count
         The group's active member count.
     roles
@@ -69,34 +66,36 @@ class Group(SteamID):
 
     __slots__ = (
         "owner",
-        "top_members",
         "name",
-        "active_member_count",
+        "members",
         "roles",
+        "active_member_count",
         "default_role",
         "default_channel",
         "_channels",
+        "_top_members_id64s",
         "_state",
     )
 
     owner: User | SteamID
-    top_members: list[User | None]
+    members: list[User]
     name: str | None
     active_member_count: int
     roles: list[Role]
     default_role: Role | None
-    _channels: dict[int, GroupChannel]
     default_channel: GroupChannel | None
+    _channels: dict[int, GroupChannel]
+    _top_members_id64s: list[int]
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Chat)
         self._state = state
 
     @classmethod
-    async def _from_proto(cls, state: ConnectionState, proto: GroupProto) -> Group:
+    async def _from_proto(cls, state: ConnectionState, proto: GetChatRoomGroupSummaryResponse) -> Group:
         self = cls(state, proto.chat_group_id)
         self.owner = await self._state._maybe_user(utils.make_id64(proto.accountid_owner))
-        self.top_members = await self._state.client.fetch_users(*proto.top_members)
+        self._top_members_id64s = proto.top_members
         self.name = proto.chat_group_name or None
 
         self.active_member_count = proto.active_member_count
@@ -117,7 +116,7 @@ class Group(SteamID):
     def __str__(self) -> str:
         return self.name or ""
 
-    def _update(self, proto: UpdatedGroupProto) -> None:
+    def _update(self, proto: ChatRoomGroupRoomsChangeNotification) -> None:
         for channel in proto.chat_rooms:
             try:
                 new_channel = self._channels[channel.chat_id]
@@ -132,6 +131,11 @@ class Group(SteamID):
     def channels(self) -> list[GroupChannel]:
         """A list of the group's channels."""
         return list(self._channels.values())
+
+    @property
+    def top_members(self) -> list[User | None]:
+        """A list of the group's top members according to Steam."""
+        return [self._state.get_user(id64) for id64 in self._top_members_id64s]
 
     async def leave(self) -> None:
         """Leaves the group."""
