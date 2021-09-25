@@ -725,34 +725,26 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: MsgProto[friends.CMsgClientFriendsList]) -> None:
         elements = None
-
-        if not self.handled_friends.is_set():
-            self.client.user.friends = [
-                user
-                for user in await self.fetch_users(
-                    [
-                        friend.ulfriendid
-                        for friend in msg.body.friends
-                        if friend.efriendrelationship == FriendRelationship.Friend
-                        and (friend.ulfriendid >> 52) & 0xF != Type.Clan
-                    ]
-                )
-                if user is not None
-            ]
-            for friend in self.client.user.friends:
-                try:
-                    self._users[friend.id64] = friend
-                except AttributeError:
-                    pass
-            self.handled_friends.set()
-
+        client_user_friends: list[int] = []
+        is_load = not msg.body.bincremental
         for friend in msg.body.friends:
             relationship = FriendRelationship.try_value(friend.efriendrelationship)
-            if relationship in (
+            steam_id = SteamID(friend.ulfriendid)
+
+            if relationship == FriendRelationship.Friend:
+                try:
+                    invite = self.invites.pop(steam_id.id64)
+                except KeyError:
+                    if is_load:
+                        client_user_friends.append(steam_id.id64)
+                else:
+                    self.dispatch(
+                        "user_invite_accept" if steam_id.type == Type.Individual else "clan_invite_accept", invite
+                    )
+            elif relationship in (
                 FriendRelationship.RequestInitiator,
                 FriendRelationship.RequestRecipient,
             ):
-                steam_id = SteamID(friend.ulfriendid)
                 if steam_id.type == Type.Individual:
                     invitee = await self._maybe_user(steam_id.id64)
                     invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
@@ -777,16 +769,12 @@ class ConnectionState(Registerable):
                     self.invites[clan.id64] = invite
                     self.dispatch("clan_invite", invite)
 
-            if relationship == FriendRelationship.Friend:
-                steam_id = SteamID(friend.ulfriendid)
-                try:
-                    invite = self.invites.pop(steam_id.id64)
-                except KeyError:
-                    pass
-                else:
-                    self.dispatch(
-                        "user_invite_accept" if steam_id.type == Type.Individual else "clan_invite_accept", invite
-                    )
+            elif relationship == FriendRelationship.NONE and steam_id.type == Type.Individual:
+                self.dispatch("friend_remove", self.get_user(steam_id.id64))
+
+        if is_load:
+            self.client.user.friends = await self.fetch_users(client_user_friends)
+            self.handled_friends.set()
 
     async def fetch_comments(
         self, owner: Commentable, limit: int | None
