@@ -693,7 +693,6 @@ class Client:
         limit: int | None = 100,
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,
-        active_only: bool = False,
     ) -> TradesIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.ClientUser`'s
         :class:`steam.TradeOffer` objects.
@@ -729,14 +728,12 @@ class Client:
             A time to search for trades before.
         after
             A time to search for trades after.
-        active_only
-            Whether or not to fetch only active trades defaults to ``True``.
 
         Yields
         ---------
         :class:`~steam.TradeOffer`
         """
-        return TradesIterator(state=self._connection, limit=limit, before=before, after=after, active_only=active_only)
+        return TradesIterator(state=self._connection, limit=limit, before=before, after=after)
 
     async def change_presence(
         self,

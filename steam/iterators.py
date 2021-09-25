@@ -326,10 +326,8 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         limit: int | None,
         before: datetime | None,
         after: datetime | None,
-        active_only: bool,
     ):
         super().__init__(state, limit, before, after)
-        self._active_only = active_only
 
     async def fill(self) -> None:
         from .trade import TradeOffer
@@ -367,10 +365,9 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
 
             trade = TradeOffer._from_api(state=self._state, data=data)
 
-            if not self._active_only and trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed):
-                if not self._append(trade):
-                    raise Stop
-                partner_id64s.add(trade.partner)
+            if not self._append(trade):
+                raise Stop
+            partner_id64s.add(trade.partner)
 
         partner_id64s = set()
 
