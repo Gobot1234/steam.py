@@ -39,7 +39,8 @@ import time
 import traceback
 from collections.abc import Callable
 from dataclasses import dataclass
-from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
+from datetime import timedelta
+from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME  # type: ignore
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from zlib import MAX_WBITS, decompress
 
@@ -308,7 +309,6 @@ class SteamWebSocket(Registerable):
                     chat_mode=2,
                     ui_mode=self._connection._ui_mode,
                     qos_level=2,
-                    client_language="english",
                 )
             )
             self._dispatch("connect")
@@ -442,12 +442,17 @@ class SteamWebSocket(Registerable):
             ui_mode=None,
         )
         await self.send_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
+        await self.send_proto(MsgProto(EMsg.ClientServerTimestampRequest, client_request_timestamp=time.time() * 1000))
 
         log.debug("Logon completed")
 
     @register(EMsg.ClientHeartBeat)
     def ack_heartbeat(self, msg: MsgProto[login.CMsgClientHeartBeat]) -> None:
         self._keep_alive.ack()
+
+    @register(EMsg.ClientServerTimestampResponse)
+    def set_steam_time(self, msg: MsgProto[login.CMsgClientServerTimestampResponse]) -> None:
+        self.server_offset = timedelta(milliseconds=msg.body.server_timestamp_ms - msg.body.client_request_timestamp)
 
     @staticmethod
     def unpack_multi(msg: MsgProto[CMsgMulti]) -> bytes | None:

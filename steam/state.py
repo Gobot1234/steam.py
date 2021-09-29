@@ -135,6 +135,10 @@ class ConnectionState(Registerable):
         return self.client.ws
 
     @property
+    def steam_time(self) -> datetime:
+        return datetime.utcnow() + self.ws.server_offset
+
+    @property
     def users(self) -> list[User]:
         return list(self._users.values())
 
@@ -288,7 +292,7 @@ class ConnectionState(Registerable):
     # confirmations
 
     def _create_confirmation_params(self, tag: str) -> dict[str, Any]:
-        timestamp = int(time())
+        timestamp = int(self.steam_time.timestamp())
         return {
             "p": self._device_id,
             "a": self.client.user.id64,
@@ -304,8 +308,6 @@ class ConnectionState(Registerable):
         resp = await self.http.get(URL.COMMUNITY / "mobileconf/conf", params=params, headers=headers)
 
         if "incorrect Steam Guard codes." in resp:
-            # TODO make this fetch server time before raising and try again or use the timestamp from the server when
-            # logging in steammessages_clientserver_login.CMsgClientLogonResponse.rtime32_server_time
             raise InvalidCredentials("identity_secret is incorrect")
         if "Oh nooooooes!" in resp:
             raise AuthenticatorError
@@ -815,7 +817,7 @@ class ConnectionState(Registerable):
             self,
             id=msg.body.id,
             content=content,
-            created_at=datetime.utcnow(),
+            created_at=self.steam_time,
             author=self.client.user,
             owner=owner,
         )
