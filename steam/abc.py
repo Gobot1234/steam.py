@@ -47,7 +47,17 @@ from .iterators import AsyncIterator, CommentsIterator
 from .models import URL, Ban
 from .profile import *
 from .trade import Inventory
-from .utils import _INVITE_HEX, _INVITE_MAPPING, InstanceType, Intable, TypeType, UniverseType, id64_from_url, make_id64
+from .utils import (
+    _INVITE_HEX,
+    _INVITE_MAPPING,
+    InstanceType,
+    Intable,
+    TypeType,
+    UniverseType,
+    cached_slot_property,
+    id64_from_url,
+    make_id64,
+)
 
 if TYPE_CHECKING:
     from _typeshed import Self
@@ -811,6 +821,9 @@ def _clean_up_content(content: str) -> str:  # steam does weird stuff with conte
     return content.replace(r"\[", "[").replace("\\\\", "\\")
 
 
+STEAM_EPOCH = datetime(2005, 1, 1)
+
+
 class Message:
     """Represents a message from a :class:`~steam.User`. This is a base class from which all messages inherit.
 
@@ -849,9 +862,11 @@ class Message:
         "channel",
         "clean_content",
         "created_at",
+        "ordinal",
         "group",
         "clan",
         "mentions",
+        "_id_cs",
         "_state",
     )
     author: User | ClientUser
@@ -863,11 +878,22 @@ class Message:
         self.group: Group | None = channel.group
         self.clan: Clan | None = channel.clan
         self.content: str = _clean_up_content(proto.message)
+        self.ordinal: int = proto.ordinal
         self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
         self.mentions: Mentions | None = getattr(proto, "mentions", None)
         # self.reactions: list["Emoticon"] = []
 
     def __repr__(self) -> str:
-        attrs = ("author", "channel")
+        attrs = ("author", "id", "channel")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
+
+    @cached_slot_property
+    def id(self) -> int:
+        """A unique identifier for every message sent in a channel."""
+        # a u64 "snowflake-esk" id measuring of the number of seconds passed since Steam's EPOCH and then the
+        # "sequence"/ordinal of the message.
+        return int(
+            f"{int((self.created_at - STEAM_EPOCH).total_seconds()):032b}{self.ordinal:032b}",
+            base=2,
+        )

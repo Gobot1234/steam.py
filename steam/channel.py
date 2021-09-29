@@ -164,6 +164,7 @@ class _GroupChannel(Channel[M_co]):
             last_message.channel = self
             last_message.created_at = datetime.utcfromtimestamp(proto.time_last_message)
             proto.message = proto.last_message
+            proto.ordinal = NotImplemented
             Message.__init__(last_message, self, proto)
         else:
             last_message = self.last_message

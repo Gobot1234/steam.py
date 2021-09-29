@@ -429,6 +429,29 @@ if TYPE_CHECKING:
     from functools import cached_property as cached_property
 
 
+class cached_slot_property(cached_property[_T]):
+    @overload
+    def __get__(self: Self, instance: None, _) -> Self:
+        ...
+
+    @overload
+    def __get__(self, instance: Any, _) -> _T:
+        ...
+
+    def __get__(self: Self, instance: Any | None, _) -> _T | Self:
+        if instance is None:
+            return self
+
+        value = self.function(instance)
+        setattr(instance, f"_{self.function.__name__}_cs", value)
+
+        return value
+
+
+if TYPE_CHECKING:
+    cached_slot_property = property
+
+
 def ainput(prompt: str = "") -> Coroutine[None, None, str]:
     return to_thread(input, prompt)
 
