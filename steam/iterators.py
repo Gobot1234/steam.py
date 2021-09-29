@@ -25,12 +25,11 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-import itertools
 import math
 import re
 from collections import deque
 from collections.abc import Callable, Coroutine
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from bs4 import BeautifulSoup
@@ -111,10 +110,11 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
         id64s: set[Any],  # should be set[int] but # type: ignore stuff forces this
         attributes: tuple[str, ...] = ("author",),
     ) -> None:
-        for user, element in itertools.product(await self._state.fetch_users(list(id64s)), self.queue):
-            for attribute in attributes:
-                if getattr(element, attribute, None) == user:
-                    setattr(element, attribute, user)
+        for user in await self._state.fetch_users(list(id64s)):
+            for element in self.queue:
+                for attribute in attributes:
+                    if getattr(element, attribute, None) == user:
+                        setattr(element, attribute, user)
 
     async def get(self, **attrs: Any) -> T | None:
         """A helper function which is similar to :func:`~steam.utils.get` except it runs over the async iterator.
