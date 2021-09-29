@@ -122,7 +122,14 @@ cls.__bytes__ = __bytes__
 
 
 class MsgHdr(BaseMsgHdr):
-    __slots__ = ("msg", "eresult", "job_name_target", "job_id_target", "job_id_source", "body")
+    __slots__ = (
+        "msg",
+        "eresult",
+        "job_name_target",
+        "job_id_target",
+        "job_id_source",
+        "body",
+    )
 
     STRUCT = struct.Struct("<Iqq")
     PACK = ("msg", "job_id_target", "job_id_source")
@@ -143,19 +150,19 @@ class MsgHdr(BaseMsgHdr):
 class ExtendedMsgHdr(BaseMsgHdr):
     __slots__ = (
         "body",
+        "job_name_target",
         "msg",
-        "steam_id",
-        "session_id",
         "header_size",
         "header_version",
-        "header_canary",
-        "job_name_target",
         "job_id_target",
         "job_id_source",
+        "header_canary",
+        "steam_id",
+        "session_id",
     )
 
     STRUCT = struct.Struct("<IBHqqBqi")
-    PACK = __slots__[1:]
+    PACK = __slots__[2:]
     body: ExtendedMsgHdr
 
     def __init__(self, data: bytes | None = None):
@@ -163,8 +170,8 @@ class ExtendedMsgHdr(BaseMsgHdr):
         self.header_size = 36
         self.header_version = 2
         self.job_name_target = None
-        self.job_id_target = -1
-        self.job_id_source = -1
+        self.job_id_target = 0
+        self.job_id_source = 0
         self.header_canary = 239
         self.steam_id = -1
         self.session_id = -1
