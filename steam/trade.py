@@ -461,6 +461,7 @@ class TradeOffer:
         self.partner = partner
         self.state = TradeOfferState.Active if active else TradeOfferState.ConfirmationNeed
         self.created_at = datetime.utcnow()
+        self._is_our_offer = True
 
     def __repr__(self) -> str:
         attrs = ("id", "state", "partner")

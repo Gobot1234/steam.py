@@ -46,6 +46,7 @@ from .game import GameToDict
 from .group import Group
 from .guard import *
 from .invite import ClanInvite, UserInvite
+from .iterators import AsyncIterator
 from .message import *
 from .message import ClanMessage
 from .models import URL, EventParser, Registerable, register
@@ -115,6 +116,7 @@ class ConnectionState(Registerable):
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
+        self.trades_list = TradesList(self)
 
         self._trades_to_watch: set[int] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
@@ -235,9 +237,9 @@ class ConnectionState(Registerable):
             trade = TradeOffer._from_api(state=self, data=data)
             trade.partner = await self._maybe_user(trade.partner)  # type: ignore
             self._trades[trade.id] = trade
-            if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed,) and (
-                trade.items_to_send or trade.items_to_receive
-            ):  # trade is glitched
+            if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
+                trade.items_to_send or trade.items_to_receive  # trade could be glitched
+            ):
                 self.dispatch("trade_send" if trade.is_our_offer() else "trade_receive", trade)
                 self._trades_to_watch.add(trade.id)
         else:
@@ -268,26 +270,11 @@ class ConnectionState(Registerable):
 
     @utils.call_once
     async def poll_trades(self) -> None:
-        async def poll_trades_inner() -> None:
-            try:
-                trades = await self.http.get_trade_offers()
-                descriptions = trades.get("descriptions", ())
-                trades_received = trades.get("trade_offers_received", ())
-                trades_sent = trades.get("trade_offers_sent", ())
-                new_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
-                new_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
-                await self._process_trades(new_received_trades, descriptions)
-                await self._process_trades(new_sent_trades, descriptions)
-                self._trades_received_cache = trades_received
-                self._trades_sent_cache = trades_sent
-            except Exception as exc:
-                await asyncio.sleep(30)
-                log.info("Error while polling trades", exc_info=exc)
+        await self.trades_list.fill()
 
-        await poll_trades_inner()
         while self._trades_to_watch:  # watch trades for changes
             await asyncio.sleep(5)
-            await poll_trades_inner()
+            await self.trades_list.fill()
 
     # confirmations
 
@@ -327,7 +314,7 @@ class ConnectionState(Registerable):
         return self._confirmations
 
     def _generate_confirmation(self, tag: str, timestamp: int) -> str:
-        return generate_confirmation_code(self.client.identity_secret, tag, timestamp)  # type: ignore[arg-type]
+        return generate_confirmation_code(self.client.identity_secret, tag, timestamp)  # type: ignore
 
     async def fetch_and_confirm_confirmation(self, trade_id: int) -> bool:
         if self.client.identity_secret:
@@ -915,3 +902,35 @@ class ConnectionState(Registerable):
             before = copy(self.client.user)
             self.client.user.name = msg.body.persona_name or self.client.user.name
             self.dispatch("user_update", before, self.client.user)
+
+
+class TradesList(AsyncIterator[TradeOffer]):
+    async def fill(self) -> None:
+        state = self._state
+        try:
+            trades = await state.http.get_trade_offers()
+            descriptions = trades.get("descriptions", ())
+            trades_received = trades.get("trade_offers_received", ())
+            trades_sent = trades.get("trade_offers_sent", ())
+            new_received_trades = [trade for trade in trades_received if trade not in state._trades_received_cache]
+            new_sent_trades = [trade for trade in trades_sent if trade not in state._trades_sent_cache]
+            received_trades = await state._process_trades(new_received_trades, descriptions)
+            sent_trades = await state._process_trades(new_sent_trades, descriptions)
+            self._trades_received_cache = trades_received
+            self._trades_sent_cache = trades_sent
+
+            self.queue += received_trades
+            self.queue += sent_trades
+        except Exception as exc:
+            await asyncio.sleep(30)
+            log.info("Error while polling trades", exc_info=exc)
+
+    async def wait_for(self, id: int) -> TradeOffer:
+        copied = self.queue.copy()
+        async for trade in self:
+            if id == trade.id:
+                return trade
+
+        self.queue = copied
+        await self.fill()  # refresh the queue if it wasn't there in the first iteration
+        return await self.get(id=id)
