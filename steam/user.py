@@ -37,6 +37,7 @@ from .profile import OwnedProfileItems, ProfileItem
 
 if TYPE_CHECKING:
     from .clan import Clan
+    from .game import Game
     from .group import Group
     from .image import Image
     from .message import UserMessage
@@ -220,6 +221,16 @@ class User(BaseUser, Messageable["UserMessage"]):
             The clan to invite the user to.
         """
         await self._state.http.invite_user_to_clan(self.id64, clan.id64)
+
+    async def owns(self, game: Game) -> bool:
+        """Whether or not the game is owned by this user.
+
+        Parameters
+        ----------
+        game
+            The game you want to check the ownership of.
+        """
+        return self.id64 in await self._state.fetch_friends_who_own(game.id)
 
     def is_friend(self) -> bool:
         """Whether or not the user is in the :class:`ClientUser`'s friends."""

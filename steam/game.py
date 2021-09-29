@@ -38,6 +38,7 @@ from .utils import Intable, id64_from_url
 if TYPE_CHECKING:
     from .clan import Clan
     from .state import ConnectionState
+    from .user import User
 
 __all__ = (
     "TF2",
@@ -331,6 +332,11 @@ class StatefulGame(Game):
     async def player_count(self) -> int:
         """The games current player count."""
         return await self._state.fetch_game_player_count(self.id)
+
+    async def owned_by(self) -> list[User]:
+        """Fetch the users in your friend list who own this game."""
+        id64s = await self._state.fetch_friends_who_own(self.id)
+        return [self._state.get_user(id64) for id64 in id64s]  # type: ignore  # friends are always cached
 
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
     #     fetched = await self._state.client.fetch_game(self)

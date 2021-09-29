@@ -47,3 +47,21 @@ class StructMessage(metaclass=StructMessageMeta):
 
     def parse(self: Self, data: bytes) -> Self:
         raise NotImplementedError
+
+
+class ClientGetFriendsWhoPlayGame(StructMessage):
+    app_id: int
+
+
+class ClientGetFriendsWhoPlayGameResponse(StructMessage):
+    eresult: int
+    app_id: int
+    friends: list[int]
+
+    def parse(self: Self, data: bytes) -> Self:
+        with StructIO(data) as io:
+            self.eresult = io.read_u32()
+            self.app_id = io.read_u64()
+            self.friends = [io.read_u64() for _ in range(io.read_u32())]
+
+        return self

@@ -52,6 +52,7 @@ from .message import ClanMessage
 from .models import URL, EventParser, Registerable, register
 from .protobufs import (
     EMsg,
+    Msg,
     MsgProto,
     app_info,
     chat,
@@ -67,6 +68,8 @@ from .protobufs import (
     leaderboards,
     login,
     player,
+    reviews,
+    struct_messages,
 )
 from .trade import DescriptionDict, TradeOffer, TradeOfferDict
 from .user import User
@@ -902,6 +905,14 @@ class ConnectionState(Registerable):
             before = copy(self.client.user)
             self.client.user.name = msg.body.persona_name or self.client.user.name
             self.dispatch("user_update", before, self.client.user)
+
+    async def fetch_friends_who_own(self, game_id: int) -> list[int]:
+        msg: Msg[struct_messages.ClientGetFriendsWhoPlayGameResponse] = await self.ws.send_proto_and_wait(
+            Msg(EMsg.ClientGetFriendsWhoPlayGame, app_id=game_id)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.friends
 
 
 class TradesList(AsyncIterator[TradeOffer]):
