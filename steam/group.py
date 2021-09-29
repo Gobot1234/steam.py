@@ -33,7 +33,7 @@ from .enums import Type
 from .role import Role
 
 if TYPE_CHECKING:
-    from .protobufs.chat import ChatRoomGroupRoomsChangeNotification, GetChatRoomGroupSummaryResponse
+    from .protobufs import chat
     from .state import ConnectionState
     from .user import User
 
@@ -60,8 +60,6 @@ class Group(SteamID):
         The group's default role.
     default_channel
         The group's default channel.
-    channels
-        A list of the group's channels.
     """
 
     __slots__ = (
@@ -92,14 +90,20 @@ class Group(SteamID):
         self._state = state
 
     @classmethod
-    async def _from_proto(cls, state: ConnectionState, proto: GetChatRoomGroupSummaryResponse) -> Group:
+    async def _from_proto(
+        cls, state: ConnectionState, proto: chat.GetChatRoomGroupSummaryResponse | chat.GroupHeaderState
+    ) -> Group:
         self = cls(state, proto.chat_group_id)
         self.owner = await self._state._maybe_user(utils.make_id64(proto.accountid_owner))
         self._top_members_id64s = proto.top_members
         self.name = proto.chat_group_name or None
 
         self.active_member_count = proto.active_member_count
-        self.roles = [Role(self._state, self, role) for role in proto.role_actions]
+        self.roles = []
+        for role in await self._state.fetch_group_roles(self.id):
+            for permissions in proto.role_actions:
+                if permissions.role_id == role.role_id:
+                    self.roles.append(Role(self._state, self, role, permissions))
 
         self.default_role = utils.get(self.roles, id=proto.default_role_id)
         self._channels = {
@@ -116,7 +120,7 @@ class Group(SteamID):
     def __str__(self) -> str:
         return self.name or ""
 
-    def _update(self, proto: ChatRoomGroupRoomsChangeNotification) -> None:
+    def _update(self, proto: chat.ChatRoomGroupRoomsChangeNotification) -> None:
         for channel in proto.chat_rooms:
             try:
                 new_channel = self._channels[channel.chat_id]

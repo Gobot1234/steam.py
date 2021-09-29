@@ -792,6 +792,14 @@ class ConnectionState(Registerable):
 
         self.handled_group_members.set()
 
+    async def fetch_group_roles(self, group_id: int) -> list[chat.Role]:
+        msg: MsgProto[chat.GetRolesResponse] = await self.ws.send_um_and_wait(
+            "ChatRoom.GetRoles", chat_group_id=group_id
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.roles
+
     async def fetch_comments(
         self, owner: Commentable, limit: int | None
     ) -> list[comments.CommentThreadResponse.Comment]:

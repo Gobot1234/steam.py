@@ -38,11 +38,14 @@ __all__ = ("Role",)
 
 
 class Role:
-    __slots__ = ("id", "clan", "group", "permissions", "_state")
+    __slots__ = ("id", "name", "ordinal", "clan", "group", "permissions", "_state")
 
     def __init__(self, state: ConnectionState, group: Clan | Group, role: chat.Role, permissions: chat.RoleActions):
         self._state = state
-        self.id = int(proto.role_id)
+        self.id = int(role.role_id)
+        self.name = role.name
+        self.ordinal = role.ordinal
+
         from .clan import Clan
 
         if isinstance(group, Clan):
@@ -51,7 +54,7 @@ class Role:
         else:
             self.group = group
             self.clan = None
-        self.permissions = Permissions(proto)
+        self.permissions = Permissions(permissions)
 
     async def edit(self, *, name: str) -> None:
         await self._state.edit_role(self.id, (self.clan or self.group).id, name=name)  # type: ignore

@@ -42,7 +42,7 @@ from .errors import HTTPException
 from .event import Announcement, Event
 from .game import Game, StatefulGame
 from .iterators import AnnouncementsIterator, EventIterator
-from .protobufs.chat import ChatRoomGroupRoomsChangeNotification, GetClanChatRoomInfoResponse, SummaryPair
+from .protobufs import chat
 from .role import Role
 
 if TYPE_CHECKING:
@@ -186,7 +186,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                 if a is not None:
                     href = a.get("href", "")
                     match = re.findall(r"store.steampowered.com/app/(\d+)", href)
-                    if match is not None:
+                    if match:
                         self.game = StatefulGame(self._state, id=match[0])
         stats = soup.find("div", class_="grouppage_resp_stats")
         if stats is None:
@@ -242,14 +242,21 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self.admins = [user for user in users if user and user.id in mods]
 
     @classmethod
-    async def _from_proto(cls, state: ConnectionState, clan_proto: SummaryPair | GetClanChatRoomInfoResponse) -> Clan:
-        if isinstance(clan_proto, SummaryPair):
+    async def _from_proto(
+        cls,
+        state: ConnectionState,
+        clan_proto: chat.SummaryPair
+        | chat.GetClanChatRoomInfoResponse
+        | chat.GetChatRoomGroupSummaryResponse
+        | chat.GroupHeaderState,
+    ) -> Clan:
+        if isinstance(clan_proto, chat.SummaryPair):
             id = clan_proto.group_summary.clanid
         else:
             id = clan_proto.chat_group_summary.clanid
         self = await cls(state, id)
 
-        proto = clan_proto.group_summary if isinstance(clan_proto, SummaryPair) else clan_proto.chat_group_summary
+        proto = clan_proto.group_summary if isinstance(clan_proto, chat.SummaryPair) else clan_proto.chat_group_summary
 
         self.chat_id = proto.chat_group_id
         self.tagline = proto.chat_group_tagline or None
@@ -259,11 +266,14 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self.owner = await self._state._maybe_user(utils.make_id64(proto.accountid_owner))
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
 
-        self.roles = [Role(self._state, self, role) for role in proto.role_actions]
+        for role in await self._state.fetch_group_roles(self.chat_id):
+            for permissions in proto.role_actions:
+                if permissions.role_id == role.role_id:
+                    self.roles.append(Role(self._state, self, role, permissions))
         self.default_role = utils.get(self.roles, id=proto.default_role_id)
 
         self.default_channel = None
-        if not isinstance(clan_proto, SummaryPair):
+        if not isinstance(clan_proto, chat.SummaryPair):
             return self
 
         for channel in clan_proto.user_chat_group_state.user_chat_room_state:
@@ -278,7 +288,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self.default_channel = self._channels[int(proto.default_chat_id)]
         return self
 
-    def _update(self, proto: ChatRoomGroupRoomsChangeNotification) -> None:
+    def _update(self, proto: chat.ChatRoomGroupRoomsChangeNotification) -> None:
         for channel in proto.chat_rooms:
             try:
                 new_channel = self._channels[channel.chat_id]
