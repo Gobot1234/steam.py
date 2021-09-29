@@ -33,7 +33,7 @@ from collections.abc import Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from typing_extensions import Final, Literal, ParamSpec, Protocol, TypedDict
+from typing_extensions import Final, Literal, ParamSpec, TypedDict
 from yarl import URL as _URL
 
 from . import utils
@@ -49,14 +49,13 @@ __all__ = (
     "Ban",
 )
 
-E = TypeVar("E", bound="EventParser")
+F = TypeVar("F", bound="Callable[..., Any]")
 R = TypeVar("R", bound="Registerable")
 P = ParamSpec("P")
 TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 
 def api_route(path: str, version: int = 1) -> _URL:
-    """Format an API URL for usage with HTTPClient.request"""
     return URL.API / f"{path}/v{version}"
 
 
@@ -77,13 +76,6 @@ class _ReturnTrue:
 
 
 return_true = _ReturnTrue()
-
-
-class EventParser(Protocol[P]):
-    msg: IntEnum
-
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Coroutine[Any, Any, None] | None:
-        ...
 
 
 class Registerable:
@@ -137,10 +129,13 @@ class Registerable:
             ).add_done_callback(self._run_parser_callback)
 
 
-def register(msg: IntEnum) -> Callable[[Callable[P, Any]], EventParser[P]]:
-    def wrapper(callback: Callable[P, Any]) -> EventParser[P]:
+EventParser = None
+
+
+def register(msg: IntEnum) -> Callable[[F], F]:  # this afaict is not type able currently without HKT
+    def wrapper(callback: F) -> F:
         callback.msg = msg
-        return callback  # type: ignore
+        return callback
 
     return wrapper
 

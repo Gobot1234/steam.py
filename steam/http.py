@@ -103,11 +103,10 @@ class HTTPClient:
         self.connector: aiohttp.BaseConnector | None = options.get("connector")
 
     def clear(self) -> None:
-        if not self._session or self._session.closed:
-            self._session = aiohttp.ClientSession(
-                cookies={"Steam_Language": "english"},  # make sure the language is set to english
-                connector=self.connector,
-            )
+        self._session = aiohttp.ClientSession(
+            cookies={"Steam_Language": "english"},  # make sure the language is set to english
+            connector=self.connector,
+        )
 
     async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Any:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
@@ -586,9 +585,6 @@ class HTTPClient:
 
     def get_game(self, game_id: int) -> RequestType[dict[str, Any]]:
         return self.get(URL.STORE / "api/appdetails", params={"appids": game_id, "cc": "english"})
-
-    def get_game_player_count(self, game_id: int) -> RequestType[dict[str, Any]]:
-        return self.get(api_route("ISteamUserStats/GetNumberOfCurrentPlayers"), params={"appid": game_id})
 
     def get_clan_rss(self, clan_id64: int) -> RequestType[str]:
         return self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")

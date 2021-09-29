@@ -99,7 +99,7 @@ class HTTPException(SteamException):
                         value for value in data.values() if value and isinstance(value, str)
                     ]
                     if truthy_str_values:
-                        message = truthy_str_values[0]
+                        message = str(truthy_str_values[0])
                 self.message = message or ""
                 code = (
                     data.get("result")  # try the data if possible
@@ -153,7 +153,7 @@ class WSException(SteamException):
 
     def __init__(self, msg: Msgs):
         self.msg = msg
-        self.code = msg.result or Result.Invalid
+        self.code = msg.result
         self.message: str | None = getattr(msg.header.body, "error_message", None)
         super().__init__(
             f"The request {msg.header.body.job_name_target or msg.msg} failed. (error code: {self.code!r})"
