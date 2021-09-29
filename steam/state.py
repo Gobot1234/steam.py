@@ -345,12 +345,13 @@ class ConnectionState(Registerable):
         return ChainMap({clan.chat_id: clan for clan in self._clans.values()}, self._groups)  # type: ignore
 
     async def send_user_message(self, user_id64: int, content: str) -> UserMessage:
+        contains_bbcode = utils.contains_bbcode(content)
         msg: MsgProto[friend_messages.SendMessageResponse] = await self.ws.send_um_and_wait(
             "FriendMessages.SendMessage",
             steamid=user_id64,
-            message=content,
+            message=content.replace("[", "\\[") if contains_bbcode else content,
             chat_entry_type=ChatEntryType.Text,
-            contains_bbcode=utils.contains_bbcode(content),
+            contains_bbcode=contains_bbcode,
         )
 
         if msg.result == Result.LimitExceeded:
