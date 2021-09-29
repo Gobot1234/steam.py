@@ -75,12 +75,18 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
     after
         When to find objects after.
     limit
-        The maximum size of the :attr:`AsyncIterator.queue`.
+        The maximum size of the :attr:`queue`.
     queue
         The queue containing the elements of the iterator.
     """
 
-    def __init__(self, state: ConnectionState, limit: int | None, before: datetime | None, after: datetime | None):
+    def __init__(
+        self,
+        state: ConnectionState,
+        limit: int | None = None,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ):
         self._state = state
         self.before = before or datetime.utcnow()
         self.after = after or UNIX_EPOCH

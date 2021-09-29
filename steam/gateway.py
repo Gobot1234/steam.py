@@ -111,7 +111,7 @@ class CMServerList(AsyncIterator[CMServer]):
     __slots__ = ("cms", "cell_id")
 
     def __init__(self, state: ConnectionState, first_cm_to_try: CMServer | None = None):
-        super().__init__(state, None, None, None)
+        super().__init__(state)
         self.cms: list[CMServer] = []
         self.cell_id = 0
         if first_cm_to_try is not None:
