@@ -139,7 +139,7 @@ class NotFound(HTTPException):
 
 
 class WSException(SteamException):
-    """Exception that's thrown for any web API error. Similar to :exc:`HTTPException`.
+    """Exception that's thrown for any websocket error. Similar to :exc:`HTTPException`.
 
     Subclass of :exc:`SteamException`.
 
