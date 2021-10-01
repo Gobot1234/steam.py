@@ -250,6 +250,7 @@ class Cog:
 
         for name, listeners in self.__listeners__.items():
             for listener in listeners:
+                listener = getattr(self, listener.__name__)  # get the bound method version
                 bot.remove_listener(listener, name)
 
         self.cog_unload()
