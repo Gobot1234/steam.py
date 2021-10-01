@@ -114,6 +114,8 @@ class HTTPException(SteamException):
             else:
                 text = BeautifulSoup(data, "html.parser").get_text("\n")
                 self.message = text or ""
+        else:
+            self.message = ""
 
         self.message = self.message.replace("  ", " ").strip()
         super().__init__(
