@@ -927,8 +927,8 @@ class TradesList(AsyncIterator[TradeOffer]):
             new_sent_trades = [trade for trade in trades_sent if trade not in state._trades_sent_cache]
             received_trades = await state._process_trades(new_received_trades, descriptions)
             sent_trades = await state._process_trades(new_sent_trades, descriptions)
-            self._trades_received_cache = trades_received
-            self._trades_sent_cache = trades_sent
+            state._trades_received_cache = trades_received
+            state._trades_sent_cache = trades_sent
 
             self.queue += received_trades
             self.queue += sent_trades
