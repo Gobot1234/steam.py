@@ -441,10 +441,13 @@ class cached_slot_property(cached_property[_T]):
         if instance is None:
             return self
 
-        value = self.function(instance)
-        setattr(instance, f"_{self.function.__name__}_cs", value)
-
-        return value
+        slot_name = f"_{self.function.__name__}_cs"
+        try:
+            return getattr(instance, slot_name)
+        except AttributeError:
+            value = self.function(instance)
+            setattr(instance, slot_name, value)
+            return value
 
 
 if TYPE_CHECKING:
