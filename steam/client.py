@@ -315,7 +315,7 @@ class Client:
         else:
             self._schedule_event(coro, method, *args, **kwargs)
 
-    def _handle_ready(self) -> None:
+    async def _handle_ready(self) -> None:
         self._ready.set()
         self.dispatch("ready")
 
