@@ -240,17 +240,3 @@ class Ban:
     def is_market_banned(self) -> bool:
         """Whether or not the user is market banned."""
         return self._market_banned
-
-
-class Permissions:
-    def __init__(self, proto: chat.RoleActions):
-        self.kick = proto.can_kick
-        self.ban_members = proto.can_ban
-        self.invite = proto.can_invite
-        self.manage_group = proto.can_change_tagline_avatar_name
-        self.send_messages = proto.can_chat
-        self.read_message_history = proto.can_view_history
-        self.change_group_roles = proto.can_change_group_roles
-        self.change_user_roles = proto.can_change_user_roles
-        self.mention_all = proto.can_mention_all
-        self.set_watching_broadcast = proto.can_set_watching_broadcast

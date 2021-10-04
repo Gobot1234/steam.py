@@ -26,15 +26,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .models import Permissions
-
 if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
     from .protobufs import chat
     from .state import ConnectionState
 
-__all__ = ("Role",)
+__all__ = (
+    "Role",
+    "RolePermissions",
+)
 
 
 class Role:
@@ -54,7 +55,21 @@ class Role:
         else:
             self.group = group
             self.clan = None
-        self.permissions = Permissions(permissions)
+        self.permissions = RolePermissions(permissions)
 
     async def edit(self, *, name: str) -> None:
         await self._state.edit_role(self.id, (self.clan or self.group).id, name=name)  # type: ignore
+
+
+class RolePermissions:
+    def __init__(self, proto: chat.RoleActions):
+        self.kick = proto.can_kick
+        self.ban_members = proto.can_ban
+        self.invite = proto.can_invite
+        self.manage_group = proto.can_change_tagline_avatar_name
+        self.send_messages = proto.can_chat
+        self.read_message_history = proto.can_view_history
+        self.change_group_roles = proto.can_change_group_roles
+        self.change_user_roles = proto.can_change_user_roles
+        self.mention_all = proto.can_mention_all
+        self.set_watching_broadcast = proto.can_set_watching_broadcast
