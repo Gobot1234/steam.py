@@ -31,6 +31,7 @@ and https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import logging
 import struct
 import sys
@@ -220,31 +221,37 @@ class KeepAliveHandler(threading.Thread):
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
             # block until sending is complete
             total = 0
-            while True:
-                try:
-                    f.result(timeout=10)
-                except asyncio.TimeoutError:  # alias to concurrent.futures.TimeoutError
-                    total += 10
+            try:
+                while True:
                     try:
-                        frame = sys._current_frames()[self._main_thread_id]  # noqa
-                    except KeyError:
-                        msg = self.block_msg
-                    else:
-                        stack = traceback.format_stack(frame)
-                        msg = f'{self.block_msg}\nLoop thread traceback (most recent call last):\n{"".join(stack)}'
-                    log.warning(msg, total)
-                except Exception:
-                    self.stop()
-                else:
-                    self._last_send = time.perf_counter()
-                    break
+                        f.result(timeout=10)
+                        break
+                    except concurrent.futures.TimeoutError:
+                        total += 10
+                        try:
+                            frame = sys._current_frames()[self._main_thread_id]  # noqa
+                        except KeyError:
+                            msg = self.block_msg
+                        else:
+                            stack = "".join(traceback.format_stack(frame))
+                            msg = f"{self.block_msg}\nLoop thread traceback (most recent call last):\n{stack}"
+                        log.warning(msg, total)
+
+            except Exception:
+                self.stop()
+            else:
+                self._last_send = time.perf_counter()
 
     def stop(self) -> None:
         self._stop_ev.set()
 
+    def tick(self) -> None:
+        self._last_recv = time.perf_counter()
+
     def ack(self) -> None:
-        self._last_ack = time.perf_counter()
-        self.latency = self._last_ack - self._last_send
+        ack_time = time.perf_counter()
+        self._last_ack = ack_time
+        self.latency = ack_time - self._last_send
         if self.latency > 10:
             log.warning(self.behind_msg, self.latency)
 
@@ -258,12 +265,12 @@ class SteamWebSocket(Registerable):
         self.socket = socket
 
         # state stuff
-        self._connection: ConnectionState = state
-        self.cm_list: CMServerList = cm_list
+        self._connection = state
+        self.cm_list = cm_list
+        self.cm = cm
         # the keep alive
         self._keep_alive: KeepAliveHandler
         self._dispatch = state.dispatch
-        self.cm: CMServer = cm
         self.thread_id = threading.get_ident()
 
         # ws related stuff
@@ -340,6 +347,9 @@ class SteamWebSocket(Registerable):
             return log.error(f"Failed to deserialize message: {emsg!r}, {message!r}", exc_info=exc)
 
         log.debug("Socket has received %r from the websocket.", msg)
+
+        if hasattr(self, "_keep_alive"):
+            self._keep_alive.tick()
 
         self._dispatch("socket_receive", msg)
         self.run_parser(emsg, msg)
