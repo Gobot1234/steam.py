@@ -80,7 +80,7 @@ class Comment(Generic[C]):
         """Deletes the comment."""
         await self._state.delete_comment(self.owner, self.id)
 
-    async def upvote(self, subscribe: bool = True) -> None:
+    async def upvote(self, *, subscribe: bool = True) -> None:
         """Upvote the comment.
 
         Parameters
@@ -90,7 +90,7 @@ class Comment(Generic[C]):
         """
         await self._state.rate_comment(self.owner, self.id, True, subscribe)
 
-    async def downvote(self, subscribe: bool = True) -> None:
+    async def downvote(self, *, subscribe: bool = True) -> None:
         """Downvote the comment.
 
         Parameters
