@@ -57,7 +57,6 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)
-_SupportsChunkT = TypeVar("_SupportsChunkT", bound="SupportsChunk")
 _P = ParamSpec("_P")
 _PROTOBUF_MASK = 0x80000000
 
@@ -487,9 +486,16 @@ class SupportsChunk(Protocol[_T_co], Sized):
         ...
 
 
-def chunk(iterable: _SupportsChunkT, size: int) -> Generator[_SupportsChunkT, None, None]:
-    for i in range(0, len(iterable), size):
-        yield iterable[i : i + size]
+def chunk(iterable: Iterable[_T], size: int) -> Generator[list[_T], None, None]:
+    chunk = []
+
+    for element in iterable:
+        if len(chunk) == size:
+            yield chunk
+            chunk = []
+        chunk.append(element)
+
+    yield chunk
 
 
 def update_class(
