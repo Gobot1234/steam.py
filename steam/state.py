@@ -778,7 +778,10 @@ class ConnectionState(Registerable):
         for membership in msg.body.memberships:
             for member in members:
                 if member and member.id64 == membership.ul_steam_id:
-                    self._groups[membership.n_group_id].members.append(member)
+                    try:
+                        self._groups[membership.n_group_id].members.append(member)
+                    except KeyError:
+                        log.debug(f"Somehow got an unknown group {membership.n_group_id} and member {member.id64}")
 
         self.handled_group_members.set()
 
