@@ -65,7 +65,7 @@ _PROTOBUF_MASK = 0x80000000
 
 
 def is_proto(emsg: int) -> bool:
-    return (emsg & _PROTOBUF_MASK) > 0
+    return emsg & _PROTOBUF_MASK  # type: ignore  # this is boolean like for a bit of extra speed
 
 
 def set_proto_bit(emsg: int) -> int:
