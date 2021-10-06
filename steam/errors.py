@@ -102,7 +102,7 @@ class HTTPException(SteamException):
                         message = str(truthy_str_values[0])
                 self.message = message or ""
                 code = (
-                    data.get("result")  # try the data if possible
+                    data.get("eresult")  # try the data if possible
                     or response.headers.get("X-EResult")  # then the headers
                     or CODE_FINDER.findall(message)  # finally the message
                 )
