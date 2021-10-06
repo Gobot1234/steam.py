@@ -31,7 +31,8 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from typing_extensions import Literal, TypedDict
 
-from .enums import IntEnum, ReviewType
+from . import utils
+from .enums import Enum, ReviewType
 from .models import URL
 from .utils import Intable, id64_from_url
 
@@ -55,14 +56,6 @@ __all__ = (
 
 T = TypeVar("T")
 APP_ID_MAX = 2 ** 32
-
-
-class Games(IntEnum):
-    Team_Fortress_2 = 440
-    Left_4_Dead_2 = 550
-    DOTA_2 = 570
-    Counter_Strike_Global__Offensive = 730
-    Steam = 753
 
 
 class GameDict(TypedDict):
@@ -170,7 +163,23 @@ class Game:
         ...
 
     @overload
-    def __init__(self, *, name: str, context_id: int | None = ...):
+    def __init__(self, *, name: Literal["Team Fortress 2"], context_id: int | None = ...):
+        ...
+
+    @overload
+    def __init__(self, *, name: Literal["Left 4 Dead 2"], context_id: int | None = ...):
+        ...
+
+    @overload
+    def __init__(self, *, name: Literal["DOTA 2"], context_id: int | None = ...):
+        ...
+
+    @overload
+    def __init__(self, *, name: Literal["Counter Strike Global-Offensive"], context_id: int | None = ...):
+        ...
+
+    @overload
+    def __init__(self, *, name: Literal["Steam"], context_id: int | None = ...):
         ...
 
     def __init__(
@@ -200,10 +209,9 @@ class Game:
                 if name == "Steam" and context_id is None:
                     context_id = 6
         elif id is None:
-            try:
-                id = Games[name.replace(" ", "_").replace("-", "__")].value
-            except KeyError:
-                raise ValueError(f"Cannot find a matching game for {name}")
+            id = utils.get(Games, name=name)
+            if id is None:
+                raise ValueError(f"Cannot find a matching game for {name!r}")
         else:
             try:
                 id = int(id)
@@ -261,11 +269,35 @@ class Game:
         return f"{URL.COMMUNITY}/app/{self.id}"
 
 
-TF2 = Game(name="Team Fortress 2")
-DOTA2 = Game(name="DOTA 2")
-CSGO = Game(name="Counter Strike Global-Offensive")
-LFD2 = Game(name="Left 4 Dead 2")
-STEAM = Game(name="Steam", context_id=6)
+class Games(Game, Enum):
+    """This is "enum" to trick type checkers into allowing Literal[TF2] to be valid for overloads in extensions."""
+
+    __slots__ = ("_name",)
+
+    def __new__(cls, *, name: str, value: tuple[str, int, int]) -> Games:
+        self = object.__new__(cls)
+        set_attribute = object.__setattr__
+        set_attribute(self, "_name", name)
+        set_attribute(self, "name", value[0])
+        set_attribute(self, "id", value[1])
+        set_attribute(self, "context_id", value[2])
+        return self
+
+    def __repr__(self) -> str:
+        return self._name
+
+    TF2 = "Team Fortress 2", 440, 2
+    LFD2 = "Left 4 Dead 2", 550, 2
+    DOTA2 = "DOTA 2", 570, 2
+    CSGO = "Counter Strike Global-Offensive", 730, 2
+    STEAM = "Steam", 753, 6
+
+
+TF2 = Games.TF2
+DOTA2 = Games.DOTA2
+CSGO = Games.CSGO
+LFD2 = Games.LFD2
+STEAM = Games.STEAM
 
 
 @overload
@@ -303,7 +335,7 @@ class StatefulGame(Game):
         self._state = state
 
     async def clan(self) -> Clan:
-        """Fetch this games clan.
+        """Fetch this game's clan.
 
         This can be useful to get a Game's updates.
 
