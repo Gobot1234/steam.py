@@ -241,9 +241,10 @@ class BaseInventory(Generic[I]):
 
     __slots__ = ("game", "items", "owner", "_state")
 
-    def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser):
+    def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser, game: Game):
         self._state = state
         self.owner = owner
+        self.game = StatefulGame(state, id=game.id, name=game.name)
         self._update(data)
 
     def __repr__(self) -> str:
@@ -266,20 +267,14 @@ class BaseInventory(Generic[I]):
 
     def _update(self, data: InventoryDict) -> None:
         self.items: Sequence[I] = []
-        try:
-            self.game = StatefulGame(self._state, id=int(data["assets"][0]["appid"]))
-        except KeyError:  # they don't have an inventory in this game
-            self.game = None
-            self.items = []
-        else:
-            for asset in data["assets"]:
-                for item in data["descriptions"]:
-                    if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
-                        item.update(asset)
-                        self.items.append(Item(data=item))  # type: ignore
-                        break
-                else:
-                    self.items.append(Asset(data=asset))  # type: ignore
+        for asset in data.get("assets", ()):
+            for item in data["descriptions"]:
+                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
+                    item.update(asset)
+                    self.items.append(Item(data=item))  # type: ignore
+                    break
+            else:
+                self.items.append(Asset(data=asset))  # type: ignore
 
     async def update(self) -> None:
         """Re-fetches the inventory."""

@@ -514,7 +514,7 @@ class BaseUser(SteamID, Commentable):
             The user's inventory is private.
         """
         resp = await self._state.http.get_user_inventory(self.id64, game.id, game.context_id)
-        return Inventory(state=self._state, data=resp, owner=self)
+        return Inventory(state=self._state, data=resp, owner=self, game=game)
 
     async def friends(self) -> list[User]:
         """Fetch the list of the users friends."""
