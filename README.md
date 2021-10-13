@@ -86,5 +86,5 @@ bot.run("username", "password")
 
 ## Links
 
-- [Documentation](https://steampy.github.io/docs)
+- [Documentation](https://steam-py.github.io/docs/latest/)
 - [Official Discord Server](https://discord.gg/MQ68WUS)
