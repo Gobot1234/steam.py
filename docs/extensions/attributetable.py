@@ -21,18 +21,24 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+from __future__ import annotations
+
 import contextlib
 import importlib
 import inspect
 import re
-from collections import OrderedDict, namedtuple
 from contextlib import AbstractAsyncContextManager
+from typing import NamedTuple
 
 import sphinxcontrib_trio
 from docutils import nodes
 from sphinx import addnodes
+from sphinx.application import Sphinx
+from sphinx.environment import BuildEnvironment
 from sphinx.locale import _
 from sphinx.util.docutils import SphinxDirective
+from sphinx.util.typing import OptionSpec
+from sphinx.writers.html import HTMLTranslator
 
 from docs.extensions import is_async_iterable
 
@@ -61,20 +67,20 @@ class attributetable_item(nodes.Part, nodes.Element):
     pass
 
 
-def visit_attributetable_node(self, node):
+def visit_attributetable_node(self: HTMLTranslator, node: attributetable) -> None:
     class_ = node["python-class"]
     self.body.append(f'<div class="py-attribute-table" data-move-to-id="{class_}">')
 
 
-def visit_attributetablecolumn_node(self, node):
+def visit_attributetablecolumn_node(self: HTMLTranslator, node: attributetablecolumn) -> None:
     self.body.append(self.starttag(node, "div", CLASS="py-attribute-table-column"))
 
 
-def visit_attributetabletitle_node(self, node):
+def visit_attributetabletitle_node(self: HTMLTranslator, node: attributetabletitle) -> None:
     self.body.append(self.starttag(node, "span"))
 
 
-def visit_attributetablebadge_node(self, node):
+def visit_attributetablebadge_node(self: HTMLTranslator, node: attributetablebadge) -> None:
     attributes = {
         "class": "py-attribute-table-badge",
         "title": node["badge-type"],
@@ -82,27 +88,27 @@ def visit_attributetablebadge_node(self, node):
     self.body.append(self.starttag(node, "span", **attributes))
 
 
-def visit_attributetable_item_node(self, node):
+def visit_attributetable_item_node(self: HTMLTranslator, node: attributetable_item) -> None:
     self.body.append(self.starttag(node, "li", CLASS="py-attribute-table-entry"))
 
 
-def depart_attributetable_node(self, node):
+def depart_attributetable_node(self: HTMLTranslator, node: attributetable) -> None:
     self.body.append("</div>")
 
 
-def depart_attributetablecolumn_node(self, node):
+def depart_attributetablecolumn_node(self: HTMLTranslator, node: attributetablecolumn) -> None:
     self.body.append("</div>")
 
 
-def depart_attributetabletitle_node(self, node):
+def depart_attributetabletitle_node(self: HTMLTranslator, node: attributetabletitle) -> None:
     self.body.append("</span>")
 
 
-def depart_attributetablebadge_node(self, node):
+def depart_attributetablebadge_node(self: HTMLTranslator, node: attributetablebadge) -> None:
     self.body.append("</span>")
 
 
-def depart_attributetable_item_node(self, node):
+def depart_attributetable_item_node(self: HTMLTranslator, node: attributetable_item) -> None:
     self.body.append("</li>")
 
 
@@ -114,10 +120,13 @@ class PyAttributeTable(SphinxDirective):
     required_arguments = 1
     optional_arguments = 0
     final_argument_whitespace = False
-    option_spec = {}
+    option_spec: OptionSpec = {}
 
-    def parse_name(self, content):
-        path, name = _name_parser_regex.match(content).groups()
+    def parse_name(self, content: str) -> tuple[str, str]:
+        match = _name_parser_regex.match(content)
+        if match is None:
+            raise RuntimeError(f"content {content} somehow doesn't match regex in {self.env.docname}.")
+        path, name = match.groups()
         if path:
             modulename = path.rstrip(".")
         else:
@@ -125,11 +134,11 @@ class PyAttributeTable(SphinxDirective):
             if not modulename:
                 modulename = self.env.ref_context.get("py:module")
         if modulename is None:
-            raise RuntimeError("modulename somehow None for %s in %s." % (content, self.env.docname))
+            raise RuntimeError(f"modulename somehow None for {content} in {self.env.docname}.")
 
         return modulename, name
 
-    def run(self):
+    def run(self) -> list[attributetableplaceholder]:
         """If you're curious on the HTML this is meant to generate:
 
         <div class="py-attribute-table">
@@ -166,7 +175,7 @@ class PyAttributeTable(SphinxDirective):
         return [node]
 
 
-def build_lookup_table(env):
+def build_lookup_table(env: BuildEnvironment) -> dict[str, str]:
     # Given an environment, load up a lookup table of
     # full-class-name: objects
     result = {}
@@ -192,10 +201,13 @@ def build_lookup_table(env):
     return result
 
 
-TableElement = namedtuple("TableElement", "fullname label badge")
+class TableElement(NamedTuple):
+    fullname: str
+    label: str
+    badge: attributetablebadge | None
 
 
-def process_attributetable(app, doctree, fromdocname):
+def process_attributetable(app: Sphinx, doctree: nodes.Node, fromdocname: str) -> None:
     env = app.builder.env
 
     lookup = build_lookup_table(env)
@@ -216,16 +228,16 @@ def process_attributetable(app, doctree, fromdocname):
             node.replace_self([table])
 
 
-def get_class_results(lookup, modulename, name, fullname):
+def get_class_results(
+    lookup: dict[str, list[str]], modulename: str, name: str, fullname: str
+) -> dict[str, list[TableElement]]:
     module = importlib.import_module(modulename)
     cls = getattr(module, name)
 
-    groups = OrderedDict(
-        [
-            (_("Attributes"), []),
-            (_("Methods"), []),
-        ]
-    )
+    groups: dict[str, list[TableElement]] = {
+        _("Attributes"): [],
+        _("Methods"): [],
+    }
 
     try:
         members = lookup[fullname]
@@ -281,12 +293,12 @@ def get_class_results(lookup, modulename, name, fullname):
     return groups
 
 
-def class_results_to_node(key, elements):
+def class_results_to_node(key: str, elements: list[TableElement]) -> attributetablecolumn:
     title = attributetabletitle(key, key)
     ul = nodes.bullet_list("")
     for element in elements:
         ref = nodes.reference(
-            "", "", internal=True, refuri="#" + element.fullname, anchorname="", *[nodes.Text(element.label)]
+            "", "", internal=True, refuri=f"#{element.fullname}", anchorname="", *[nodes.Text(element.label)]
         )
         para = addnodes.compact_paragraph("", "", ref)
         if element.badge is not None:
@@ -297,7 +309,7 @@ def class_results_to_node(key, elements):
     return attributetablecolumn("", title, ul)
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
     app.add_directive("attributetable", PyAttributeTable)
     app.add_node(attributetable, html=(visit_attributetable_node, depart_attributetable_node))
     app.add_node(attributetablecolumn, html=(visit_attributetablecolumn_node, depart_attributetablecolumn_node))
