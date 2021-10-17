@@ -579,8 +579,6 @@ class ConnectionState(Registerable):
             await self.handle_group_channel_update(msg)
         elif name == "FriendMessagesClient.IncomingMessage":
             await self.handle_user_message(msg)
-        elif name == "FriendMessagesClient.MessageReaction":
-            await self.handle_reaction(msg)
         else:
             log.debug("Got an event %r that we don't handle %r", msg.header.body.job_name_target, msg.body)
 
@@ -616,13 +614,17 @@ class ConnectionState(Registerable):
 
     async def handle_group_update(self, msg: MsgProto[chat.ChatRoomHeaderStateNotification]) -> None:
         try:
-            destination = self._combined[msg.body.header_state.chat_group_id]
+            group = self._combined[msg.body.header_state.chat_group_id]
         except KeyError:
             return log.debug(f"Updating a group that isn't cached {msg.body.header_state.chat_group_id}")
 
-        before = deepcopy(destination)
-        destination._update(msg.body.header_state)
-        self.dispatch(f"{'group' if isinstance(destination, Group) else 'clan'}_update", before, destination)
+        before = copy(group)
+        before._channels = {c_id: copy(c) for c_id, c in before._channels.items()}
+        before.roles = deepcopy(before.roles)
+        if isinstance(before, Group):
+            before.members = before.members.copy()
+        group._update(msg.body.header_state)
+        self.dispatch(f"{'group' if isinstance(destination, Group) else 'clan'}_update", before, group)
 
     async def handle_group_user_action(self, msg: MsgProto[chat.NotifyChatGroupUserStateChangedNotification]) -> None:
         if msg.body.user_action == "Joined":  # join group
@@ -651,9 +653,13 @@ class ConnectionState(Registerable):
         except KeyError:
             return log.debug(f"Got an update for a clan we aren't in {msg.body.chat_group_id}")
 
-        before = deepcopy(group)
+        before = copy(group)
+        before._channels = {c_id: copy(c) for c_id, c in before._channels.items()}
+        before.roles = deepcopy(before.roles)
+        if isinstance(before, Group):
+            before.members = before.members.copy()
         group._update(msg.body)
-        self.dispatch(f"{'clan' if isinstance(group, Clan) else 'group'}_update", group)
+        self.dispatch(f"{'clan' if isinstance(group, Clan) else 'group'}_update", before, group)
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto[Any]) -> None:
@@ -972,7 +978,7 @@ class ConnectionState(Registerable):
         user_counts = msg.body.user_counts
         name_info = msg.body.name_info
         if user_counts or name_info:
-            before = deepcopy(clan)
+            before = copy(clan)
         if user_counts:
             clan.member_count = user_counts.members
             clan.in_game_count = user_counts.in_game

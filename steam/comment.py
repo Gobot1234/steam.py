@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 __all__ = ("Comment",)
 
-C = TypeVar("C", bound=Commentable)
+C = TypeVar("C", bound="Commentable")
 
 
 @dataclass(repr=False)

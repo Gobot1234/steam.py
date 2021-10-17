@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .event import Announcement, Event
     from .game import StatefulGame
+    from .group import Group
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
 

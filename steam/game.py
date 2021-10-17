@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 from typing_extensions import Literal, TypedDict
 
 from . import utils
-from .enums import Enum, ReviewType
+from .enums import Enum_, ReviewType
 from .models import URL
 from .utils import Intable, id64_from_url
 
@@ -269,7 +269,7 @@ class Game:
         return f"{URL.COMMUNITY}/app/{self.id}"
 
 
-class Games(Game, Enum):
+class Games(Game, Enum_):
     """This is "enum" to trick type checkers into allowing Literal[TF2] to be valid for overloads in extensions."""
 
     __slots__ = ("_name",)

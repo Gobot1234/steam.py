@@ -694,36 +694,3 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                 return announcement
 
         raise ValueError
-
-    async def fetch_forum(self, id: int) -> Forum | None:
-        """A shortcut method to fetch a forum by ID.
-
-        Equivalent to:
-
-        .. code-block:: python3
-
-            steam.utils.get(await clan.forums(), id=id)
-
-        Parameters
-        ----------
-        id
-            The ID of the forum.
-        """
-        return utils.get(await self.forums(), id=id)
-
-    async def forums(self) -> list[Forum]:
-        """Fetch a list of this clan's forums."""
-        resp = await self._state.http.get_forums(self.id)
-        return [Forum(self._state, forum, self) for forum in resp["rgForums"]]
-
-    async def create_forum(self, name: str, permissions: ForumPermissions) -> Forum:
-        """create_forum() ->
-
-        https://steamcommunity.com/groups/Testering12/forumManage
-        action: create
-        sessionid: e2252b2eecac8eaad3aaee41
-        rgForum[gidfeature]: 1
-        rgForum[permission_post]: 15
-        rgForum[permission_view]: 143
-        rgForum[name]: This is a forum"""
-        ...

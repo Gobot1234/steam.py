@@ -57,6 +57,8 @@ __all__ = (
     "UserBadge",
     "ReviewType",
     "GameServerRegion",
+    "ClanEvent",
+    "ProfileItemType",
 )
 
 T = TypeVar("T")
@@ -139,8 +141,6 @@ class Enum(metaclass=EnumMeta["Self"]):
 
     name: str
     value: Any
-    _value_map_: dict[Any, Self]
-    _member_map_: dict[str, Self]
 
     def __new__(cls: type[Self], *, name: str, value: Any) -> Self:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
@@ -182,6 +182,7 @@ class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
 
+Enum_ = Enum  # needed for game.Games
 if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
     from enum import Enum as _Enum, IntEnum as _IntEnum
 
