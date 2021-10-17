@@ -9,7 +9,7 @@ class EMsg(IntEnum):
     Multi                                                    = 1
     ProtobufWrapped                                          = 2
 
-    BaseGeneral                                              = 100
+    # General
     GenericReply                                             = 100
     DestJobFailed                                            = 113
     Alert                                                    = 115
@@ -42,7 +42,7 @@ class EMsg(IntEnum):
     ServiceMethodCallFromClient                              = 151
     ServiceMethodSendToClient                                = 152
 
-    BaseShell                                                = 200
+    # Shell
     AssignSysID                                              = 200
     Exit                                                     = 201
     DirRequest                                               = 202
@@ -68,7 +68,7 @@ class EMsg(IntEnum):
     ContentDescriptionDeltaUpdate                            = 246
     GMShellAndServerAddressUpdates                           = 247
 
-    BaseGM                                                   = 300
+    # GM
     Heartbeat                                                = 300
     ShellFailed                                              = 301
     ExitShells                                               = 307
@@ -96,7 +96,7 @@ class EMsg(IntEnum):
     HotFixProgress                                           = 337
     GMStatsForwardToAdminConnections                         = 338
 
-    BaseAIS                                                  = 400
+    # AIS
     AISRequestContentDescription                             = 402
     AISUpdateAppInfo                                         = 403
     AISGetPackageChangeNumber                                = 405
@@ -111,7 +111,7 @@ class EMsg(IntEnum):
     AISUpdateSlaveContentDescriptionResponse                 = 432
     AISTestEnableGC                                          = 433
 
-    BaseAM                                                   = 500
+    # AM
     AMUpdateUserBanRequest                                   = 504
     AMAddLicense                                             = 505
     AMSendSystemIMToUser                                     = 508
@@ -187,7 +187,7 @@ class EMsg(IntEnum):
     ClientChatAction                                         = 597
     AMClientChatActionRelay                                  = 598
 
-    BaseVS                                                   = 600
+    # VS
     ReqChallenge                                             = 600
     VACResponse                                              = 601
     ReqChallengeTest                                         = 602
@@ -200,7 +200,7 @@ class EMsg(IntEnum):
     VSRequestManagedChallenge                                = 610
     VSLoadDBFinished                                         = 611
 
-    BaseDRMS                                                 = 625
+    # DRMS
     DRMBuildBlobRequest                                      = 628
     DRMBuildBlobResponse                                     = 629
     DRMResolveGuidRequest                                    = 630
@@ -220,9 +220,9 @@ class EMsg(IntEnum):
     DRMEmptyGuidCache                                        = 645
     DRMEmptyGuidCacheResponse                                = 646
 
-    BaseCS                                                   = 650
+    # CS
 
-    BaseClient                                               = 700
+    # Client
     ClientHeartBeat                                          = 703
     ClientVACResponse                                        = 704
     ClientLogOff                                             = 706
@@ -312,7 +312,7 @@ class EMsg(IntEnum):
     ClientDRMBlobRequest                                     = 896
     ClientDRMBlobResponse                                    = 897
 
-    BaseGameServer                                           = 900
+    # GameServer
     GSDisconnectNotice                                       = 901
     GSStatus                                                 = 903
     GSUserPlaying                                            = 905
@@ -334,7 +334,7 @@ class EMsg(IntEnum):
     GSComputeNewPlayerCompatibility                          = 940
     GSComputeNewPlayerCompatibilityResponse                  = 941
 
-    BaseAdmin                                                = 1000
+    # Admin
     AdminCmd                                                 = 1000
     AdminCmdResponse                                         = 1004
     AdminLogListenRequest                                    = 1005
@@ -349,7 +349,7 @@ class EMsg(IntEnum):
     FBSConnectionData                                        = 1027
     AdminMsgSpew                                             = 1028
 
-    BaseFBS                                                  = 1100
+    # FBS
     FBSReqVersion                                            = 1100
     FBSVersionInfo                                           = 1101
     FBSForceRefresh                                          = 1102
@@ -385,14 +385,14 @@ class EMsg(IntEnum):
     FBSRestartBootstrapper                                   = 1133
     FBSPauseFrozenDumps                                      = 1134
 
-    BaseFileXfer                                             = 1200
+    # FileXfer
     FileXferRequest                                          = 1200
     FileXferResponse                                         = 1201
     FileXferData                                             = 1202
     FileXferEnd                                              = 1203
     FileXferDataAck                                          = 1204
 
-    BaseChannelAuth                                          = 1300
+    # ChannelAuth
     ChannelAuthChallenge                                     = 1300
     ChannelAuthResponse                                      = 1301
     ChannelAuthResult                                        = 1302
@@ -400,7 +400,7 @@ class EMsg(IntEnum):
     ChannelEncryptResponse                                   = 1304
     ChannelEncryptResult                                     = 1305
 
-    BaseBS                                                   = 1400
+    # BS
     BSPurchaseStart                                          = 1401
     BSPurchaseResponse                                       = 1402
     BSAuthenticateCCTrans                                    = 1403
@@ -473,7 +473,7 @@ class EMsg(IntEnum):
     BSCommitWPTxn                                            = 1498
     BSCommitAdyenTxn                                         = 1499
 
-    BaseATS                                                  = 1500
+    # ATS
     ATSStartStressTest                                       = 1501
     ATSStopStressTest                                        = 1502
     ATSRunFailServerTest                                     = 1503
@@ -494,7 +494,7 @@ class EMsg(IntEnum):
     ATSCSPerfTestTask                                        = 1518
     ATSCSPerfTestResponse                                    = 1519
 
-    BaseDP                                                   = 1600
+    # DP
     DPSetPublishingState                                     = 1601
     DPUniquePlayersStat                                      = 1603
     DPStreamingUniquePlayersStat                             = 1604
@@ -516,14 +516,14 @@ class EMsg(IntEnum):
     ClientDPContentStatsReport                               = 1630
     DPVRUniquePlayersStat                                    = 1631
 
-    BaseCM                                                   = 1700
+    # CM
     CMSetAllowState                                          = 1701
     CMSpewAllowState                                         = 1702
     CMSessionRejected                                        = 1703
     CMSetSecrets                                             = 1704
     CMGetSecrets                                             = 1705
 
-    BaseGC                                                   = 2200
+    # GC
     GCCmdRevive                                              = 2203
     GCCmdDown                                                = 2206
     GCCmdDeploy                                              = 2207
@@ -557,10 +557,10 @@ class EMsg(IntEnum):
     GCHMarkAppSessionsAuthoritative                          = 2240
     GCHRecurringSubscriptionStatusChange                     = 2241
 
-    BaseP2P                                                  = 2500
+    # P2P
     P2PIntroducerMessage                                     = 2502
 
-    BaseSM                                                   = 2900
+    # SM
     SMExpensiveReport                                        = 2902
     SMHourlyReport                                           = 2903
     SMPartitionRenames                                       = 2905
@@ -568,18 +568,18 @@ class EMsg(IntEnum):
     SMTestNextBuildSchemaConversion                          = 2907
     SMTestNextBuildSchemaConversionResponse                  = 2908
 
-    BaseTest                                                 = 3000
+    # Test
     FailServer                                               = 3000
     JobHeartbeatTest                                         = 3001
     JobHeartbeatTestResponse                                 = 3002
 
-    BaseFTSRange                                             = 3100
+    # FTSRange
 
-    BaseCCSRange                                             = 3150
+    # CCSRange
     CCSDeleteAllCommentsByAuthor                             = 3161
     CCSDeleteAllCommentsByAuthorResponse                     = 3162
 
-    BaseLBSRange                                             = 3200
+    # LBSRange
     LBSSetScore                                              = 3201
     LBSSetScoreResponse                                      = 3202
     LBSFindOrCreateLB                                        = 3203
@@ -595,18 +595,18 @@ class EMsg(IntEnum):
     LBSResetLBResponse                                       = 3213
     LBSDeleteLBResponse                                      = 3214
 
-    BaseOGS                                                  = 3400
+    # OGS
     OGSBeginSession                                          = 3401
     OGSBeginSessionResponse                                  = 3402
     OGSEndSession                                            = 3403
     OGSEndSessionResponse                                    = 3404
     OGSWriteAppSessionRow                                    = 3406
 
-    BaseBRP                                                  = 3600
+    # BRP
     BRPPostTransactionTax                                    = 3629
     BRPPostTransactionTaxResponse                            = 3630
 
-    BaseAMRange2                                             = 4000
+    # AMRange2
     AMCreateChat                                             = 4001
     AMCreateChatResponse                                     = 4002
     AMSetProfileURL                                          = 4005
@@ -902,7 +902,7 @@ class EMsg(IntEnum):
     AMPerfectWorldPayment                                    = 4421
     AMPerfectWorldPaymentResponse                            = 4422
 
-    BasePSRange                                              = 5000
+    # PSRange
     PSCreateShoppingCart                                     = 5001
     PSCreateShoppingCartResponse                             = 5002
     PSIsValidShoppingCart                                    = 5003
@@ -914,7 +914,7 @@ class EMsg(IntEnum):
     PSAddWalletCreditToShoppingCart                          = 5011
     PSAddWalletCreditToShoppingCartResponse                  = 5012
 
-    BaseUFSRange                                             = 5200
+    # UFSRange
     ClientUFSUploadFileRequest                               = 5202
     ClientUFSUploadFileResponse                              = 5203
     ClientUFSUploadFileChunk                                 = 5204
@@ -962,7 +962,7 @@ class EMsg(IntEnum):
     UFSMigrateFileAppID                                      = 5253
     UFSMigrateFileAppIDResponse                              = 5254
 
-    BaseClient2                                              = 5400
+    # Client2
     ClientRequestForgottenPasswordEmail                      = 5401
     ClientRequestForgottenPasswordEmailResponse              = 5402
     ClientCreateAccountResponse                              = 5403
@@ -1122,7 +1122,7 @@ class EMsg(IntEnum):
     ClientVanityURLChangedNotification                       = 5598
     ClientUserNotifications                                  = 5599
 
-    BaseDFS                                                  = 5600
+    # DFS
     DFSGetFile                                               = 5601
     DFSInstallLocalFile                                      = 5602
     DFSConnection                                            = 5603
@@ -1151,7 +1151,7 @@ class EMsg(IntEnum):
     ClientNetworkingMobileCertRequest                        = 5626
     ClientNetworkingMobileCertRequestResponse                = 5627
 
-    BaseMDS                                                  = 5800
+    # MDS
     AMToMDSGetDepotDecryptionKey                             = 5812
     MDSToAMGetDepotDecryptionKeyResponse                     = 5813
     MDSContentServerConfigRequest                            = 5827
@@ -1167,11 +1167,11 @@ class EMsg(IntEnum):
     MDSMigrateChunkResponse                                  = 5848
     MDSToCSFlushManifest                                     = 5849
 
-    CSBase                                                   = 6200
+    # CS
     CSPing                                                   = 6201
     CSPingResponse                                           = 6202
 
-    GMSBase                                                  = 6400
+    # GMS
     GMSGameServerReplicate                                   = 6401
     ClientGMSServerQuery                                     = 6403
     GMSClientServerQueryResponse                             = 6404
@@ -1179,7 +1179,7 @@ class EMsg(IntEnum):
     AMGMSGameServerRemove                                    = 6406
     GameServerOutOfDate                                      = 6407
 
-    DeviceAuthorizationBase                                  = 6500
+    # DeviceAuthorization
     ClientAuthorizeLocalDeviceRequest                        = 6501
     ClientAuthorizeLocalDeviceResponse                       = 6502
     ClientDeauthorizeDeviceRequest                           = 6503
@@ -1190,7 +1190,7 @@ class EMsg(IntEnum):
     AMNotifySessionDeviceAuthorized                          = 6508
     ClientAuthorizeLocalDeviceNotification                   = 6509
 
-    MMSBase                                                  = 6600
+    # MMS
     ClientMMSCreateLobby                                     = 6601
     ClientMMSCreateLobbyResponse                             = 6602
     ClientMMSJoinLobby                                       = 6603
@@ -1221,7 +1221,7 @@ class EMsg(IntEnum):
     MMSGetLobbyList                                          = 6628
     MMSGetLobbyListResponse                                  = 6629
 
-    NonStdMsgBase                                            = 6800
+    # NonStdMsg
     NonStdMsgMemcached                                       = 6801
     NonStdMsgHTTPServer                                      = 6802
     NonStdMsgHTTPClient                                      = 6803
@@ -1238,7 +1238,7 @@ class EMsg(IntEnum):
     NonStdMsgWebSocket                                       = 6814
     NonStdMsgRedis                                           = 6815
 
-    UDSBase                                                  = 7000
+    # UDS
     ClientUDSP2PSessionStarted                               = 7001
     ClientUDSP2PSessionEnded                                 = 7002
     UDSRenderUserAuth                                        = 7003
@@ -1247,12 +1247,12 @@ class EMsg(IntEnum):
     UDSHasSession                                            = 7006
     UDSHasSessionResponse                                    = 7007
 
-    MPASBase                                                 = 7100
+    # MPAS
     MPASVacBanReset                                          = 7101
 
-    KGSBase                                                  = 7200
+    # KGS
 
-    UCMBase                                                  = 7300
+    # UCM
     ClientUCMAddScreenshot                                   = 7301
     ClientUCMAddScreenshotResponse                           = 7302
     UCMResetCommunityContent                                 = 7307
@@ -1300,7 +1300,7 @@ class EMsg(IntEnum):
     ClientWorkshopItemChangesRequest                         = 7382
     ClientWorkshopItemChangesResponse                        = 7383
 
-    FSBase                                                   = 7500
+    # FS
     ClientRichPresenceUpload                                 = 7501
     ClientRichPresenceRequest                                = 7502
     ClientRichPresenceInfo                                   = 7503
@@ -1330,7 +1330,7 @@ class EMsg(IntEnum):
     ClientFSGetFriendsSteamLevels                            = 7528
     ClientFSGetFriendsSteamLevelsResponse                    = 7529
     AMRequestFriendData                                      = 7530
-    DRMRange2                                                = 7600
+
     CEGVersionSetEnableDisableRequest                        = 7600
     CEGVersionSetEnableDisableResponse                       = 7601
     CEGPropStatusDRMSRequest                                 = 7602
@@ -1340,7 +1340,7 @@ class EMsg(IntEnum):
     DRMSFetchVersionSet                                      = 7606
     DRMSFetchVersionSetResponse                              = 7607
 
-    EconBase                                                 = 7700
+    # Econ
     EconInitiateTradeRequest                                 = 7701
     EconInitiateTradeProposed                                = 7702
     EconInitiateTradeResponse                                = 7703
@@ -1353,7 +1353,8 @@ class EMsg(IntEnum):
     EconCDKeyProcessTransactionResponse                      = 7712
     EconGetErrorLogs                                         = 7713
     EconGetErrorLogsResponse                                 = 7714
-    RMRange                                                  = 7800
+
+    # RMRange
     RMTestVerisignOTP                                        = 7800
     RMTestVerisignOTPResponse                                = 7801
     RMDeleteMemcachedKeys                                    = 7803
@@ -1363,14 +1364,12 @@ class EMsg(IntEnum):
     RMMsgTraceRemoveTrigger                                  = 7807
     RMMsgTraceEvent                                          = 7808
 
-    UGSBase                                                  = 7900
+    # UGS
     UGSUpdateGlobalStats                                     = 7900
     ClientUGSGetGlobalStats                                  = 7901
     ClientUGSGetGlobalStatsResponse                          = 7902
 
-    StoreBase                                                = 8000
-
-    UMQBase                                                  = 8100
+    # UMQ
     UMQLogonRequest                                          = 8100
     UMQLogonResponse                                         = 8101
     UMQLogoffRequest                                         = 8102
@@ -1381,9 +1380,7 @@ class EMsg(IntEnum):
     UMQPollResults                                           = 8107
     UMQ2AMClientMsgBatch                                     = 8108
 
-    WorkshopBase                                             = 8200
-
-    WebAPIBase                                               = 8300
+    # WebAPI
     WebAPIValidateOAuth2Token                                = 8300
     WebAPIValidateOAuth2TokenResponse                        = 8301
     WebAPIRegisterGCInterfaces                               = 8303
@@ -1391,11 +1388,11 @@ class EMsg(IntEnum):
     WebAPIInvalidateOAuthTokenCache                          = 8305
     WebAPISetSecrets                                         = 8306
 
-    BackpackBase                                             = 8400
+    # Backpack
     BackpackAddToCurrency                                    = 8401
     BackpackAddToCurrencyResponse                            = 8402
 
-    CREBase                                                  = 8500
+    # CRE
     CREItemVoteSummary                                       = 8503
     CREItemVoteSummaryResponse                               = 8504
     CREUpdateUserPublishedItemVote                           = 8507
@@ -1403,29 +1400,31 @@ class EMsg(IntEnum):
     CREGetUserPublishedItemVoteDetails                       = 8509
     CREGetUserPublishedItemVoteDetailsResponse               = 8510
 
-    SecretsBase                                              = 8600
+    # Secrets
     SecretsRequestCredentialPair                             = 8600
     SecretsCredentialPairResponse                            = 8601
 
-    BoxMonitorBase                                           = 8700
+    # BoxMonitor
     BoxMonitorReportRequest                                  = 8700
     BoxMonitorReportResponse                                 = 8701
 
-    LogsinkBase                                              = 8800
+    # Logsink
     LogsinkWriteReport                                       = 8800
 
-    PICSBase                                                 = 8900
+    # PICS
     ClientPICSChangesSinceRequest                            = 8901
     ClientPICSChangesSinceResponse                           = 8902
     ClientPICSProductInfoRequest                             = 8903
     ClientPICSProductInfoResponse                            = 8904
     ClientPICSAccessTokenRequest                             = 8905
     ClientPICSAccessTokenResponse                            = 8906
-    WorkerProcess                                            = 9000
+
+    # WorkerProcess
     WorkerProcessPingRequest                                 = 9000
     WorkerProcessPingResponse                                = 9001
     WorkerProcessShutdown                                    = 9002
-    DRMWorkerProcess                                         = 9100
+
+    # DRMWorkerProcess
     DRMWorkerProcessDRMAndSign                               = 9100
     DRMWorkerProcessDRMAndSignResponse                       = 9101
     DRMWorkerProcessSteamworksInfoRequest                    = 9102
@@ -1458,17 +1457,18 @@ class EMsg(IntEnum):
     DRMWorkerProcessUnpackBlobResponse                       = 9131
     DRMWorkerProcessInstallAllRequest                        = 9132
     DRMWorkerProcessInstallAllResponse                       = 9133
-    TestWorkerProcess                                        = 9200
+
+    # TestWorkerProcess
     TestWorkerProcessLoadUnloadModuleRequest                 = 9200
     TestWorkerProcessLoadUnloadModuleResponse                = 9201
     TestWorkerProcessServiceModuleCallRequest                = 9202
     TestWorkerProcessServiceModuleCallResponse               = 9203
 
-    QuestServerBase                                          = 9300
+    # QuestServer
     ClientGetEmoticonList                                    = 9330
     ClientEmoticonList                                       = 9331
 
-    SLCBase                                                  = 9400
+    # SLC
     SLCUserSessionStatus                                     = 9400
     SLCRequestUserSessionStatus                              = 9401
     SLCSharedLicensesLockStatus                              = 9402
@@ -1477,7 +1477,7 @@ class EMsg(IntEnum):
     SLCOwnerLibraryChanged                                   = 9407
     SLCSharedLibraryChanged                                  = 9408
 
-    RemoteClientBase                                         = 9500
+    # RemoteClient
     RemoteClientAppStatus                                    = 9502
     RemoteClientStartStream                                  = 9503
     RemoteClientStartStreamResponse                          = 9504
@@ -1494,32 +1494,32 @@ class EMsg(IntEnum):
     RemoteClientStatusRequest                                = 9515
     RemoteClientStatusResponse                               = 9516
 
-    ClientConcurrentSessionsBase                             = 9600
+    # ClientConcurrentSessions
     ClientPlayingSessionState                                = 9600
     ClientKickPlayingSession                                 = 9601
 
-    ClientBroadcastBase                                      = 9700
+    # ClientBroadcast
     ClientBroadcastInit                                      = 9700
     ClientBroadcastFrames                                    = 9701
     ClientBroadcastDisconnect                                = 9702
     ClientBroadcastScreenshot                                = 9703
     ClientBroadcastUploadConfig                              = 9704
 
-    BaseClient3                                              = 9800
+    # Client3
     ClientVoiceCallPreAuthorize                              = 9800
     ClientVoiceCallPreAuthorizeResponse                      = 9801
     ClientServerTimestampRequest                             = 9802
     ClientServerTimestampResponse                            = 9803
 
-    ClientLANP2PBase                                         = 9900
+    # ClientLANP2P
     ClientLANP2PRequestChunk                                 = 9900
     ClientLANP2PRequestChunkResponse                         = 9901
     ClientLANP2PMax                                          = 9999
 
-    BaseWatchdogServer                                       = 10000
+    # WatchdogServer
     NotifyWatchdog                                           = 10000
 
-    ClientSiteLicenseBase                                    = 10100
+    # ClientSiteLicense
     ClientSiteLicenseSiteInfoNotification                    = 10100
     ClientSiteLicenseCheckout                                = 10101
     ClientSiteLicenseCheckoutResponse                        = 10102
@@ -1528,9 +1528,9 @@ class EMsg(IntEnum):
     ClientSiteLicenseGetContentCacheInfo                     = 10105
     ClientSiteLicenseGetContentCacheInfoResponse             = 10106
 
-    BaseChatServer                                           = 12000
+    # ChatServer
     ChatServerGetPendingNotificationCount                    = 12000
     ChatServerGetPendingNotificationCountResponse            = 12001
 
-    BaseSecretServer                                         = 12100
+    # SecretServer
     ServerSecretChanged                                      = 12100

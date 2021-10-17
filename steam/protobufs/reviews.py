@@ -19,7 +19,7 @@ class UpdateResponse(betterproto.Message):
 
 
 class GetIndividualRecommendationsRequest(betterproto.Message):
-    requests: "GetIndividualRecommendationsRequestRecommendationRequest" = betterproto.message_field(1)
+    requests: List["GetIndividualRecommendationsRequestRecommendationRequest"] = betterproto.message_field(1)
 
 
 class GetIndividualRecommendationsRequestRecommendationRequest(betterproto.Message):

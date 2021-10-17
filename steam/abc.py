@@ -679,7 +679,7 @@ class BaseUser(SteamID, Commentable):
             self.avatar_url = data.get("avatar_url") or self.avatar_url
 
             self.real_name = NotImplemented
-            self.trade_url = NotImplemented
+            self.trade_url = URL.COMMUNITY / f"tradeoffer/new?partner={self.id}"
             self.primary_clan = NotImplemented
             self.country = NotImplemented
             self.created_at = NotImplemented

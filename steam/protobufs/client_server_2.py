@@ -133,7 +133,7 @@ class CMsgClientRegisterKey(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientPurchaseResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    purchase_result_details: int = betterproto.int32_field(2)
+    purchaseresult_details: int = betterproto.int32_field(2)
     purchase_receipt_info: bytes = betterproto.bytes_field(3)
 
 
@@ -434,7 +434,7 @@ class CMsgDrmDownloadResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgDrmFinalResult(betterproto.Message):
-    e_result: int = betterproto.uint32_field(1)
+    eresult: int = betterproto.uint32_field(1)
     app_id: int = betterproto.uint32_field(2)
     blob_download_type: int = betterproto.uint32_field(3)
     error_detail: int = betterproto.uint32_field(4)
@@ -451,7 +451,7 @@ class CMsgClientDpCheckSpecialSurvey(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientDpCheckSpecialSurveyResponse(betterproto.Message):
-    e_result: int = betterproto.uint32_field(1)
+    eresult: int = betterproto.uint32_field(1)
     state: int = betterproto.uint32_field(2)
     name: str = betterproto.string_field(3)
     custom_url: str = betterproto.string_field(4)
@@ -467,7 +467,7 @@ class CMsgClientDpSendSpecialSurveyResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientDpSendSpecialSurveyResponseReply(betterproto.Message):
-    e_result: int = betterproto.uint32_field(1)
+    eresult: int = betterproto.uint32_field(1)
     token: bytes = betterproto.bytes_field(2)
 
 
@@ -479,7 +479,7 @@ class CMsgClientRequestForgottenPasswordEmail(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientRequestForgottenPasswordEmailResponse(betterproto.Message):
-    e_result: int = betterproto.uint32_field(1)
+    eresult: int = betterproto.uint32_field(1)
     use_secret_question: bool = betterproto.bool_field(2)
 
 

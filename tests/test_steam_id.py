@@ -36,7 +36,7 @@ from steam import InvalidSteamID, SteamID, Type, Universe
 
 def test_hash() -> None:
     assert hash(SteamID(1)) == hash(SteamID(1))
-    assert SteamID(12345) != hash(SteamID(8888))
+    assert hash(SteamID(12345)) != hash(SteamID(8888))
 
 
 @pytest.mark.parametrize(
