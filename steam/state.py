@@ -56,21 +56,17 @@ from .protobufs import (
     EMsg,
     Msg,
     MsgProto,
-    app_info,
     chat,
     client_server,
     client_server_2,
     comments,
-    content_server,
     do_nothing_case,
     econ,
     friend_messages,
     friends,
     game_servers,
-    leaderboards,
     login,
     player,
-    reviews,
     struct_messages,
 )
 from .trade import DescriptionDict, TradeOffer, TradeOfferDict
@@ -572,21 +568,24 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ServiceMethod)
     async def parse_service_method(self, msg: MsgProto[Any]) -> None:
-        try:
-            await {
-                "FriendMessagesClient.IncomingMessage": self.handle_user_message,
-                "ChatRoomClient.NotifyIncomingChatMessage": self.handle_group_message,
-                "ChatRoomClient.NotifyChatRoomHeaderStateChange": self.handle_group_update,
-                "ChatRoomClient.NotifyChatGroupUserStateChanged": self.handle_group_user_action,
-                "ChatRoomClient.NotifyChatRoomGroupRoomsChange": self.handle_group_channel_update,
-            }[msg.header.body.job_name_target](msg)
-        except KeyError:
-            pass
+        name = msg.header.body.job_name_target
+        if name == "ChatRoomClient.NotifyIncomingChatMessage":
+            await self.handle_group_message(msg)
+        elif name == "ChatRoomClient.NotifyChatRoomHeaderStateChange":
+            await self.handle_group_update(msg)
+        elif name == "ChatRoomClient.NotifyChatGroupUserStateChanged":
+            await self.handle_group_user_action(msg)
+        elif name == "ChatRoomClient.NotifyChatRoomGroupRoomsChange":
+            await self.handle_group_channel_update(msg)
+        elif name == "FriendMessagesClient.IncomingMessage":
+            await self.handle_user_message(msg)
+        elif name == "FriendMessagesClient.MessageReaction":
+            await self.handle_reaction(msg)
+        else:
+            log.debug("Got an event %r that we don't handle %r", msg.header.body.job_name_target, msg.body)
 
     async def handle_user_message(self, msg: MsgProto[friend_messages.IncomingMessageNotification]) -> None:
         partner = await self._maybe_user(msg.body.steamid_friend)  # FIXME shouldn't ever be out of cache
-        if partner is None:
-            return
         author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
 
         if msg.body.chat_entry_type == ChatEntryType.Text:
@@ -856,19 +855,6 @@ class ConnectionState(Registerable):
             **owner._commentable_kwargs,
             is_report=True,
             parent_id=comment_id,
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def rate_comment(self, owner: Commentable, comment_id: int, upvote: bool, subscribe: bool) -> None:
-        kwargs = owner._commentable_kwargs
-        kwargs["thread_type"] = str(kwargs["thread_type"])  # this is dumb
-        msg: MsgProto[comments.RateCommentThreadResponse] = await self.ws.send_um_and_wait(
-            "Community.RateCommentThread",
-            **kwargs,
-            id=comment_id,
-            rate_up=upvote,
-            suppress_notifications=not subscribe,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
