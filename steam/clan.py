@@ -379,22 +379,22 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
     def description(self) -> str:
         """An alias to :attr:`content`.
 
-        .. depreciated:: 0.8.0
+        .. deprecated:: 0.8.0
 
             Use :attr:`content` instead.
         """
-        warnings.warn("Clan.description is depreciated, use Clan.content instead", DeprecationWarning, stacklevel=2)
+        warnings.warn("Clan.description is deprecated, use Clan.content instead", DeprecationWarning, stacklevel=2)
         return self.content
 
     @property
     def icon_url(self) -> str:
         """An alias to :attr:`avatar_url`.
 
-        .. depreciated:: 0.8.0
+        .. deprecated:: 0.8.0
 
             Use :attr:`avatar_url` instead.
         """
-        warnings.warn("Clan.icon_url is depreciated, use Clan.avatar_url instead", DeprecationWarning, stacklevel=2)
+        warnings.warn("Clan.icon_url is deprecated, use Clan.avatar_url instead", DeprecationWarning, stacklevel=2)
         return self.avatar_url
 
     async def join(self) -> None:
