@@ -1009,10 +1009,12 @@ class TradesList(AsyncIterator[TradeOffer]):
 
     async def wait_for(self, id: int) -> TradeOffer:
         copied = self.queue.copy()
-        async for trade in self:
-            if id == trade.id:
-                return trade
+        trade = await self.get(id=id)
+        if trade is not None:
+            copied.remove(trade)
+            self.queue = copied
+            return trade
 
         self.queue = copied
         await self.fill()  # refresh the queue if it wasn't there in the first iteration
-        return await self.get(id=id)
+        return await self.wait_for(id=id)
