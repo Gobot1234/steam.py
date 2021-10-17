@@ -81,7 +81,6 @@ class Group(SteamID):
     active_member_count: int
     roles: list[Role]
     default_role: Role | None
-    default_channel: GroupChannel | None
     _channels: dict[int, GroupChannel]
     _top_members_id64s: list[int]
 

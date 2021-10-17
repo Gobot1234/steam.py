@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections import ChainMap, deque
 from collections.abc import Sequence
 from copy import copy, deepcopy
@@ -34,6 +35,7 @@ from time import time
 from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
+from yarl import URL as URL_
 
 from . import utils
 from .abc import BaseUser, Commentable, SteamID, UserDict
@@ -872,35 +874,59 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     @register(EMsg.ClientCommentNotifications)
-    async def handle_comments(self, _: MsgProto[client_server_2.CMsgClientCommentNotifications]) -> None:
-        # TODO this needs rewriting
+    async def handle_comments(self, msg: MsgProto[client_server_2.CMsgClientCommentNotifications]) -> None:
         resp = await self.http.get(URL.COMMUNITY / "my/commentnotifications")
         soup = BeautifulSoup(resp, "html.parser")
 
-        previous: Commentable | None = None
-        url: str | None = None
-        for attr in soup.find_all("div", class_="commentnotification_click_overlay"):
-            new_url = attr.contents[1]["href"]
-            if new_url != url:
+        cached: dict[URL_, list[Commentable | int]] = {}
+        for attr in soup.find_all("div", class_="commentnotification_click_overlay", limit=msg.body.count_new_comments):
+            url = URL_(attr.contents[1]["href"])
+            url_with_no_query = url.with_query(None)
+            if url_with_no_query in cached:
+                cached[url_with_no_query][1] += 1  # type: ignore
+                commentable, index = cached[url_with_no_query]
+            else:
                 steam_id = await SteamID.from_url(url, self.http._session)
                 if steam_id is None:
                     continue
-                obj = await (self.fetch_clan if steam_id.type == Type.Clan else self.fetch_user)(steam_id.id64)
-                if obj is None:
+                if steam_id.type == Type.Individual:
+                    commentable = self.get_user(steam_id.id64) or await self.fetch_user(steam_id.id64)
+                else:
+                    clan = self.get_clan(steam_id.id64) or await self.fetch_clan(steam_id.id64)
+                    if clan is None:
+                        continue
+                    # now that we have the clan that the comment was posted in, if the url has a hash in the path we can
+                    # extract the type of the comment section the comment is in.
+                    if "#" not in url.path:
+                        commentable = clan
+                    else:
+                        path, _, end = url.path.partition("#")[-1].partition("/")
+                        if path == "events":
+                            commentable = await clan.fetch_event(re.findall(r"([0-9]*)", end)[0])
+                        elif path == "announcements":
+                            commentable = await clan.fetch_announcement(re.findall(r"detail/([0-9]*)", end)[0])
+                        else:
+                            log.debug(f"Got a comment for a type we cannot handle {path}")
+                            continue
+                if commentable is None:
                     continue
                 index = 0
-            else:
-                obj = previous
-                index += 1
+                cached[url_with_no_query] = [commentable, index]
 
-            url = new_url
-            comments = await obj.comments(limit=index + 1).flatten()
+            try:
+                timestamp = int(url.query["tscn"])
+            except KeyError:
+                log.debug(f"Got a comment without a timestamp")
+                continue
+
+            after = datetime.utcfromtimestamp(timestamp) - timedelta(minutes=1)
+
+            comments = [comment async for comment in commentable.comments(limit=index + 1, after=after)]
+
             try:
                 self.dispatch("comment", comments[index])
             except IndexError:
                 pass
-
-        await self.http.clear_notifications()
 
     @register(EMsg.ClientUserNotifications)
     async def parse_notification(self, msg: MsgProto[client_server_2.CMsgClientUserNotifications]) -> None:

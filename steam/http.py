@@ -569,9 +569,6 @@ class HTTPClient:
         payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
 
-    def clear_notifications(self) -> RequestType[None]:
-        return self.get(URL.COMMUNITY / "my/inventory")  # TODO maybe a HEAD request works?
-
     def get_price(self, app_id: int, item_name: str, currency: int) -> RequestType[PriceOverviewDict]:
         payload = {
             "appid": app_id,
