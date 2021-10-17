@@ -11,7 +11,7 @@ from .base import CMsgIpAddress
 
 
 @dataclass(eq=False, repr=False)
-class CommentThreadRequest(betterproto.Message):
+class GetCommentThreadRequest(betterproto.Message):
     id64: int = betterproto.fixed64_field(1)
     thread_type: int = betterproto.uint32_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
@@ -27,7 +27,7 @@ class CommentThreadRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CommentThreadResponse(betterproto.Message):
+class GetCommentThreadResponse(betterproto.Message):
     @dataclass(eq=False, repr=False)
     class Comment(betterproto.Message):
         id: int = betterproto.fixed64_field(1)
@@ -123,3 +123,34 @@ class RateCommentThreadResponse(betterproto.Message):
     count: int = betterproto.uint32_field(3)
     upvotes: int = betterproto.uint32_field(4)
     has_upvoted: bool = betterproto.bool_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class GetCommentThreadRatingsRequest(betterproto.Message):
+    thread_type: str = betterproto.string_field(1)
+    id64: int = betterproto.uint64_field(2)
+    gidfeature: int = betterproto.uint64_field(3)
+    gidfeature2: int = betterproto.uint64_field(4)
+    comment_id: int = betterproto.uint64_field(5)
+    max_results: int = betterproto.uint32_field(6)
+
+
+@dataclass(eq=False, repr=False)
+class GetCommentThreadRatingsResponse(betterproto.Message):
+    thread_id: int = betterproto.uint64_field(1)
+    comment_id: int = betterproto.uint64_field(2)
+    upvotes: int = betterproto.uint32_field(3)
+    has_upvoted: bool = betterproto.bool_field(4)
+    upvoter_ids: List[int] = betterproto.uint32_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class RateClanAnnouncementRequest(betterproto.Message):
+    announcementid: int = betterproto.uint64_field(1)
+    vote_up: bool = betterproto.bool_field(2)
+    clan_accountid: int = betterproto.uint32_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class RateClanAnnouncementResponse(betterproto.Message):
+    pass

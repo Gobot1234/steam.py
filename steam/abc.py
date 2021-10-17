@@ -305,11 +305,11 @@ class Commentable(Protocol):
     def _commentable_kwargs(self) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def comment(self: Self, content: str, subscribe: bool = True) -> Comment[Self]:
-        """Post a comment to a profile.
+    async def comment(self: Self, content: str, *, subscribe: bool = True) -> Comment[Self]:
+        """Post a comment to a comments section.
 
         Parameters
-        -----------
+        ----------
         content
             The message to add to the comment section.
         subscribe
@@ -322,7 +322,11 @@ class Commentable(Protocol):
         return await self._state.post_comment(self, content, subscribe)
 
     def comments(
-        self: Self, limit: int | None = None, before: datetime | None = None, after: datetime | None = None
+        self: Self,
+        oldest_first: bool = False,
+        limit: int | None = None,
+        before: datetime | None = None,
+        after: datetime | None = None,
     ) -> CommentsIterator[Self]:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a comment section's :class:`~steam.Comment` objects.
 
@@ -347,6 +351,8 @@ class Commentable(Protocol):
 
         Parameters
         ----------
+        oldest_first
+            Whether or not to request comments with the oldest comments first or last. Defaults to ``False``.
         limit
             The maximum number of comments to search through.
             Default is ``None`` which will fetch the clan's entire comments section.
@@ -359,7 +365,9 @@ class Commentable(Protocol):
         ---------
         :class:`~steam.Comment`
         """
-        return CommentsIterator(state=self._state, owner=self, limit=limit, before=before, after=after)
+        return CommentsIterator(
+            oldest_first=oldest_first, owner=self, state=self._state, limit=limit, before=before, after=after
+        )
 
 
 class BaseUser(SteamID, Commentable):

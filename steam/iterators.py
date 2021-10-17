@@ -295,17 +295,19 @@ class MappedIterator(AsyncIterator[TT], Generic[T, TT]):
 class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
     def __init__(
         self,
+        owner: CommentableT,
+        oldest_first: bool,
         state: ConnectionState,
         limit: int | None,
         before: datetime | None,
         after: datetime | None,
-        owner: CommentableT,
     ):
-        super().__init__(state, limit, before, after)
         self.owner = owner
+        self.oldest_first = oldest_first
+        super().__init__(state, limit, before, after)
 
     async def fill(self) -> None:
-        comments = await self._state.fetch_comments(self.owner, self.limit)
+        comments = await self._state.fetch_comments(self.owner, self.limit, self.after, self.oldest_first)
         author_id64s = set()
         for comment in comments:
             comment = Comment(
@@ -316,7 +318,7 @@ class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
                 author=comment.author_id64,  # type: ignore
                 owner=self.owner,
             )
-            if not self.after < comment.created_at < self.before:  # needs rewriting when we add oldest_first support
+            if not self.after < comment.created_at < self.before:
                 continue
             if not self._append(comment):
                 break
