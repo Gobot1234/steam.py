@@ -28,8 +28,8 @@ import asyncio
 import logging
 from collections import ChainMap, deque
 from collections.abc import Sequence
-from copy import copy
-from datetime import datetime
+from copy import copy, deepcopy
+from datetime import datetime, timedelta
 from time import time
 from typing import TYPE_CHECKING, Any
 
@@ -599,9 +599,10 @@ class ConnectionState(Registerable):
             self.dispatch("typing", author, when)
 
     async def handle_group_message(self, msg: MsgProto[chat.IncomingChatMessageNotification]) -> None:
-        destination = self._combined.get(msg.body.chat_group_id)
-        if destination is None:
-            return
+        try:
+            destination = self._combined[msg.body.chat_group_id]
+        except KeyError:
+            return log.debug(f"Got a message for a chat we aren't in {msg.body.chat_group_id}")
 
         channel = destination._channels[msg.body.chat_id]
         channel._update(msg.body)
@@ -613,18 +614,21 @@ class ConnectionState(Registerable):
         self.dispatch("message", message)
 
     async def handle_group_update(self, msg: MsgProto[chat.ChatRoomHeaderStateNotification]) -> None:
-        destination = self._combined.get(msg.body.header_state.chat_group_id)
-        if destination is None:
-            return
+        try:
+            destination = self._combined[msg.body.header_state.chat_group_id]
+        except KeyError:
+            return log.debug(f"Updating a group that isn't cached {msg.body.header_state.chat_group_id}")
 
-        await destination._from_proto(self, msg.body.header_state)
+        before = deepcopy(destination)
+        destination._update(msg.body.header_state)
+        self.dispatch(f"{'group' if isinstance(destination, Group) else 'clan'}_update", before, destination)
 
     async def handle_group_user_action(self, msg: MsgProto[chat.NotifyChatGroupUserStateChangedNotification]) -> None:
         if msg.body.user_action == "Joined":  # join group
             if msg.body.group_summary.clanid:
                 clan = await Clan._from_proto(self, msg.body.group_summary)
                 self._clans[clan.id] = clan
-                self.dispatch("clan_join", clan)  # TODO test/doc
+                self.dispatch("clan_join", clan)
             else:
                 group = await Group._from_proto(self, msg.body.group_summary)
                 self._groups[group.id] = group
@@ -636,17 +640,19 @@ class ConnectionState(Registerable):
                 return
 
             if isinstance(left, Clan):
-                self.dispatch("clan_leave", left)  # TODO test/doc
+                self.dispatch("clan_leave", left)
             else:
                 self.dispatch("group_leave", left)
 
     async def handle_group_channel_update(self, msg: MsgProto[chat.ChatRoomGroupRoomsChangeNotification]):
-        group = self._combined.get(msg.body.chat_group_id)
-        if group is None:
-            return
+        try:
+            group = self._combined[msg.body.chat_group_id]
+        except KeyError:
+            return log.debug(f"Got an update for a clan we aren't in {msg.body.chat_group_id}")
 
+        before = deepcopy(group)
         group._update(msg.body)
-        # self.dispatch(f"{group.__class__.__name__.lower()}_update", group)  TODO this needs an event
+        self.dispatch(f"{'clan' if isinstance(group, Clan) else 'group'}_update", group)
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto[Any]) -> None:
@@ -733,9 +739,7 @@ class ConnectionState(Registerable):
                     if is_load:
                         client_user_friends.append(steam_id.id64)
                 else:
-                    self.dispatch(
-                        "user_invite_accept" if steam_id.type == Type.Individual else "clan_invite_accept", invite
-                    )
+                    self.dispatch(f"{'user'if steam_id.type == Type.Individual else 'clan'}_invite_accept", invite)
             elif relationship in (
                 FriendRelationship.RequestInitiator,
                 FriendRelationship.RequestRecipient,
@@ -750,12 +754,12 @@ class ConnectionState(Registerable):
                         resp = await self.http.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
                         soup = BeautifulSoup(resp, "html.parser")
                         elements = soup.find_all("a", class_="linkStandard")
-                    invitee_id = 0
+                    invitee_id64 = 0
                     for idx, element in enumerate(elements):
                         if str(steam_id.id64) in str(element):
-                            invitee_id = elements[idx + 1]["data-miniprofile"]
+                            invitee_id64 = utils.make_id64(elements[idx + 1]["data-miniprofile"])
                             break
-                    invitee = await self._maybe_user(invitee_id)
+                    invitee = await self._maybe_user(invitee_id64)
                     try:
                         clan = await self.fetch_clan(steam_id.id64) or steam_id
                     except WSException:
@@ -765,8 +769,17 @@ class ConnectionState(Registerable):
                     self.dispatch("clan_invite", invite)
 
             elif relationship == FriendRelationship.NONE and steam_id.type == Type.Individual:
-                self.dispatch("friend_remove", self.get_user(steam_id.id64))
-
+                try:
+                    invite = self.invites.pop(steam_id.id64)
+                except KeyError:
+                    friend = self.get_user(steam_id.id64)
+                    try:
+                        self.client.user.friends.remove(friend)
+                    except ValueError:
+                        pass
+                    self.dispatch("user_remove", friend)
+                else:
+                    self.dispatch(f"{'user'if steam_id.type == Type.Individual else 'clan'}_invite_decline", invite)
         if is_load:
             self.client.user.friends = await self.fetch_users(client_user_friends)
             self.handled_friends.set()
@@ -916,6 +929,49 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.body.friends
+
+    async def rate_clan_announcement(self, clan_id: int, announcement_id: int, upvoted: bool) -> None:
+        msg = await self.ws.send_um_and_wait(
+            "Community.RateClanAnnouncement",
+            announcementid=announcement_id,
+            clan_accountid=clan_id,
+            vote_up=upvoted,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    @register(EMsg.ClientClanState)
+    async def update_clan(self, msg: MsgProto[client_server.CMsgClientClanState]) -> None:
+        await self.handled_groups.wait()
+        clan = self.get_clan(msg.body.steamid_clan) or await self.fetch_clan(msg.body.steamid_clan)
+        for event in msg.body.events:
+            if event.just_posted:
+                event = await clan.fetch_event(event.gid)
+                self.dispatch("event_create", event)
+        for announcement in msg.body.announcements:
+            if announcement.just_posted:
+                announcement = await clan.fetch_announcement(announcement.gid)
+                self.dispatch("announcement_create", announcement)
+
+        user_counts = msg.body.user_counts
+        name_info = msg.body.name_info
+        if user_counts or name_info:
+            before = deepcopy(clan)
+        if user_counts:
+            clan.member_count = user_counts.members
+            clan.in_game_count = user_counts.in_game
+            clan.online_count = user_counts.online
+            clan.active_member_count = user_counts.chatting
+        if name_info:
+            clan.name = name_info.clan_name
+            hexed = name_info.sha_avatar.hex()
+            hash = hexed if hexed != "\x00" * 20 else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
+            clan.avatar_url = (
+                f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
+            )
+
+        if user_counts or name_info:
+            self.dispatch("clan_update", before, clan)
 
 
 class TradesList(AsyncIterator[TradeOffer]):

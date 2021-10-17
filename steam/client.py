@@ -61,6 +61,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .comment import Comment
     from .enums import PersonaState, PersonaStateFlag, UIMode
+    from .event import Announcement, Event
     from .group import Group
     from .invite import ClanInvite, UserInvite
     from .protobufs import Msg, MsgProto
@@ -977,6 +978,44 @@ class Client:
                 The invite that was accepted.
             """
 
+        async def on_user_invite_decline(self, invite: "steam.UserInvite") -> None:
+            """Called when the client/invitee declines an invite from/to a :class:`~steam.User` to become a friend.
+
+            Parameters
+            ----------
+            invite
+                The invite that was declined.
+            """
+
+        async def on_user_update(self, before: "steam.User", after: "steam.User") -> None:
+            """Called when a user is updated, due to one or more of the following attributes changing:
+
+                - :attr:`~steam.User.name`
+                - :attr:`~steam.User.state`
+                - :attr:`~steam.User.flags`
+                - :attr:`~steam.User.avatar_url`
+                - :attr:`~steam.User.last_logon`
+                - :attr:`~steam.User.last_logoff`
+                - :attr:`~steam.User.last_seen_online`
+                - :attr:`~steam.User.game`
+
+            Parameters
+            ----------
+            before
+                The user's state before it was updated.
+            after
+                The user's state now.
+            """
+
+        async def on_user_remove(self, user: "steam.User") -> None:
+            """Called when you or the ``user`` remove each other from your friends lists.
+
+            Parameters
+            ----------
+            user
+                The user who was removed.
+            """
+
         async def on_clan_invite(self, invite: "steam.ClanInvite") -> None:
             """Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a
             :class:`~steam.Clan`.
@@ -996,35 +1035,100 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_user_update(self, before: "steam.User", after: "steam.User") -> None:
-            """Called when a user's their state, due to one or more of the following attributes changing:
+        async def on_clan_invite_decline(self, invite: "steam.ClanInvite") -> None:
+            """Called when the client/invitee declines an invite to join a :class:`~steam.Clan`.
 
-                - :attr:`~steam.User.name`
-                - :attr:`~steam.User.state`
-                - :attr:`~steam.User.flags`
-                - :attr:`~steam.User.avatar_url`
-                - :attr:`~steam.User.last_logon`
-                - :attr:`~steam.User.last_logoff`
-                - :attr:`~steam.User.last_seen_online`
-                - :attr:`~steam.User.game`
+            Parameters
+            ----------
+            invite
+                The invite that was declined.
+            """
 
+        async def on_clan_join(self, clan: "steam.Clan") -> None:
+            """Called when the client joins a new clan.
+
+            Parameters
+            ----------
+            clan
+                The joined clan.
+            """
+
+        async def on_clan_update(self, before: "steam.Clan", after: "steam.Clan") -> None:
+            """Called when a clan is updated, due to one or more of the following attributes changing:
+
+                - :attr:`~steam.Clan.name`
+                - :attr:`~steam.Clan.avatar_url`
+                - :attr:`~steam.Clan.member_count`
+                - :attr:`~steam.Clan.in_game_count`
+                - :attr:`~steam.Clan.online_count`
+                - :attr:`~steam.Clan.active_member_count`
 
             Parameters
             ----------
             before
-                The user's state before it was updated.
+                The clan's state before it was updated.
             after
-                The user's state now.
+                The clan's state now.
             """
 
-        async def on_emoticon_add(self, emoticon: "steam.Emoticon") -> None:
-            ...
+        async def on_clan_leave(self, clan: "steam.Clan") -> None:
+            """Called when the client leaves a clan.
 
-        async def on_emoticon_remove(self, emoticon: "steam.Emoticon") -> None:
-            ...
+            Parameters
+            ----------
+            clan
+                The left clan.
+            """
+
+        async def on_group_join(self, group: "steam.Group") -> None:
+            """Called when the client joins a new group.
+
+            Parameters
+            ----------
+            group
+                The joined group.
+            """
+
+        async def on_group_update(self, before: "steam.Group", after: "steam.Group") -> None:
+            """Called when a group is updated.
+
+            Parameters
+            ----------
+            before
+                The group's state before it was updated.
+            after
+                The group's state now.
+            """
+
+        async def on_group_leave(self, group: "steam.Group") -> None:
+            """Called when the client leaves a group.
+
+            Parameters
+            ----------
+            group
+                The left group.
+            """
+
+        async def on_event_create(self, event: "steam.Event") -> None:
+            """Called when an event in a clan is created.
+
+            Parameters
+            ----------
+            event
+                The event that was created.
+            """
+
+        async def on_announcement_create(self, announcement: "steam.Announcement") -> None:
+            """Called when an announcement in a clan is created.
+
+            Parameters
+            ----------
+            announcement
+                The announcement that was created.
+            """
 
         async def on_socket_receive(self, msg: "Msg | MsgProto") -> None:
-            """Called when the connected web-socket parses a received ``Msg``/``MsgProto``
+            """Called when the connected CM parses a received ``Msg``/``MsgProto``
 
             Parameters
             ----------
@@ -1033,7 +1137,7 @@ class Client:
             """
 
         async def on_socket_send(self, msg: "Msg | MsgProto") -> None:
-            """Called when the client sends a parsed ``Msg``/``MsgProto`` to the connected web-socket.
+            """Called when the client sends a ``Msg``/``MsgProto`` to the connected CM.
 
             Parameters
             ----------
@@ -1064,7 +1168,7 @@ class Client:
         *,
         check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[str, Exception, tuple, dict]:
+    ) -> tuple[str, Exception, tuple[Any], dict[str, Any]]:
         ...
 
     @overload
@@ -1095,6 +1199,26 @@ class Client:
         check: Callable[[User, User], bool] = ...,
         timeout: float | None = ...,
     ) -> tuple[User, User]:
+        ...
+
+    @overload
+    async def wait_for(
+        self,
+        event: Literal["clan_update"],
+        *,
+        check: Callable[[Clan, Clan], bool] = ...,
+        timeout: float | None = ...,
+    ) -> tuple[Clan, Clan]:
+        ...
+
+    @overload
+    async def wait_for(
+        self,
+        event: Literal["group_update"],
+        *,
+        check: Callable[[Group, Group], bool] = ...,
+        timeout: float | None = ...,
+    ) -> tuple[Group, Group]:
         ...
 
     @overload
@@ -1131,6 +1255,7 @@ class Client:
         event: Literal[
             "user_invite",
             "user_invite_accept",
+            "user_invite_decline",
         ],
         *,
         check: Callable[[UserInvite], bool] = ...,
@@ -1141,14 +1266,71 @@ class Client:
     @overload
     async def wait_for(
         self,
+        event: Literal["user_remove"],
+        *,
+        check: Callable[[User], bool] = ...,
+        timeout: float | None = ...,
+    ) -> User:
+        ...
+
+    @overload
+    async def wait_for(
+        self,
         event: Literal[
             "clan_invite",
             "clan_invite_accept",
+            "clan_invite_decline",
         ],
         *,
         check: Callable[[ClanInvite], bool] = ...,
         timeout: float | None = ...,
     ) -> ClanInvite:
+        ...
+
+    @overload
+    async def wait_for(
+        self,
+        event: Literal[
+            "clan_join",
+            "clan_leave",
+        ],
+        *,
+        check: Callable[[Clan], bool] = ...,
+        timeout: float | None = ...,
+    ) -> Clan:
+        ...
+
+    @overload
+    async def wait_for(
+        self,
+        event: Literal[
+            "group_join",
+            "group_leave",
+        ],
+        *,
+        check: Callable[[Group], bool] = ...,
+        timeout: float | None = ...,
+    ) -> Group:
+        ...
+
+    @overload
+    async def wait_for(
+        self,
+        event: Literal["event_create"],
+        *,
+        check: Callable[[Event], bool] = ...,
+        timeout: float | None = ...,
+    ) -> Event:
+        ...
+
+    @overload
+    async def wait_for(
+        self,
+        event: Literal["announcement_create"],
+        *,
+        check: Callable[[Announcement], bool] = ...,
+        timeout: float | None = ...,
+    ) -> Announcement:
         ...
 
     @overload
