@@ -216,6 +216,18 @@ class KeepAliveHandler(threading.Thread):
 
     def run(self) -> None:
         while not self._stop_ev.wait(self.interval):
+            if self._last_recv + 60 < time.perf_counter():
+                log.warning("CM %r has stopped responding to the gateway. Closing and restarting.", self.ws.cm)
+                coro = self.ws.close(4000)
+                f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
+
+                try:
+                    f.result()
+                except Exception:
+                    log.exception("An error occurred while stopping the gateway. Ignoring.")
+                finally:
+                    return self.stop()
+
             log.debug(self.msg, self.heartbeat)
             coro = self.ws.send_proto(self.heartbeat)
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
