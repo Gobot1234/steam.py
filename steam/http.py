@@ -702,21 +702,12 @@ class HTTPClient:
         self,
         clan_id: int,
         announcement_id: int,
-        game_id: int | None = None,
     ) -> RequestType[dict[str, Any]]:
         params = {
             "clan_accountid": clan_id,
-            "gidannouncement": announcement_id,
+            "announcement_gid": announcement_id,
         }
-        if game_id is not None:  # game clans need these for some odd reason
-            params.update(
-                {
-                    "appid": game_id,
-                    "count_before": 1,
-                    "count_after": 0,
-                }
-            )
-        return self.get(URL.STORE / "events/ajaxgetadjacentpartnerevents", params=params)
+        return self.get(URL.STORE / f"events/ajaxgetpartnerevent", params=params)
 
     async def edit_profile(
         self,

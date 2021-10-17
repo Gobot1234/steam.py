@@ -26,9 +26,8 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, overload
 
 from typing_extensions import Literal
 
@@ -49,19 +48,15 @@ __all__ = (
 )
 
 
-def utc_from_timestamp(time: int) -> datetime:
-    return datetime.fromtimestamp(time, tz=timezone.utc)
-
-
 class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
     __slots__ = (
         "clan",
         "id",
         "author",
         "name",
-        "description",
+        "content",
         "game",
-        "start",
+        "starts_at",
         "becomes_visible",
         "stops_being_visible",
         "end",
@@ -86,18 +81,20 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self.id: int = int(data["gid"])
         self.author: User | SteamID | None = int(data["creator_steamid"])  # type: ignore
         self.name: str = data["event_name"]
-        self.description: str = data["event_notes"]
+        self.content: str = data["event_notes"]
         self.game = StatefulGame(state, id=data["appid"]) if data["appid"] else None
-        self.start = utc_from_timestamp(data["rtime32_start_time"])
+        self.starts_at = datetime.utcfromtimestamp(data["rtime32_start_time"])
         self.becomes_visible = (
-            utc_from_timestamp(data["rtime32_visibility_start"]) if data.get("rtime32_visibility_start") else None
+            datetime.utcfromtimestamp(data["rtime32_visibility_start"])
+            if data.get("rtime32_visibility_start")
+            else None
         )
         self.stops_being_visible = (
-            utc_from_timestamp(data["rtime32_visibility_end"]) if data.get("rtime32_visibility_end") else None
+            datetime.utcfromtimestamp(data["rtime32_visibility_end"]) if data.get("rtime32_visibility_end") else None
         )
-        self.end = utc_from_timestamp(data["rtime32_end_time"]) if data["rtime32_end_time"] else None
+        self.end = datetime.utcfromtimestamp(data["rtime32_end_time"]) if data["rtime32_end_time"] else None
         self.type = ClanEvent.try_value(data["event_type"])
-        self.last_edited_at = utc_from_timestamp(data["rtime32_last_modified"])
+        self.last_edited_at = datetime.utcfromtimestamp(data["rtime32_last_modified"])
         self.last_edited_by: User | SteamID | None = (  # type: ignore
             int(data["last_update_steamid"]) if (data["last_update_steamid"] or "0") != "0" else None
         )
@@ -109,13 +106,18 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self.server_address: str | None = data["server_address"]
         self.server_password: str | None = data["server_password"]
 
+        self._feature = int(data["gidfeature"])
+        self._feature2 = int(data.get("gidfeature2", 0) or 0)
+
     async def __ainit__(self) -> None:
         self.author = await self._state._maybe_user(self.author)  # type: ignore
         if self.last_edited_by:
             self.last_edited_by = await self._state._maybe_user(self.last_edited_by)  # type: ignore
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} id={self.id} name={self.name!r} author={self.author!r} clan={self.clan!r}>"
+        attrs = ("id", "name", "type", "author", "clan")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
 class Event(BaseEvent):
@@ -129,8 +131,8 @@ class Event(BaseEvent):
         The event's author.
     name
         The event's name.
-    description
-        The event's description.
+    content
+        The event's content.
     game
         The game the event is going to play in.
     clan
@@ -173,7 +175,7 @@ class Event(BaseEvent):
         return {
             "thread_type": 14,
             "id64": self.clan.id64,
-            "gidfeature": self.id,
+            "gidfeature": self._feature,
         }
 
     async def server(self) -> GameServer | None:
@@ -192,24 +194,58 @@ class Event(BaseEvent):
             return
         return await self._state.client.fetch_server(ip=self.server_address)
 
+    @overload
     async def edit(
         self,
-        name: str | None = None,
-        description: str | None = None,
+        name: str,
+        content: str,
+        *,
         type: Literal[
-            ClanEvent.Chat,
-            ClanEvent.Game,
-            ClanEvent.Broadcast,
             ClanEvent.Other,
+            ClanEvent.Chat,
             ClanEvent.Party,
             ClanEvent.Meeting,
             ClanEvent.SpecialCause,
             ClanEvent.MusicAndArts,
             ClanEvent.Sports,
             ClanEvent.Trip,
-        ]
-        | None = None,
-        game: Game | int | None = None,
+        ] = ClanEvent.Other,
+        start: datetime | None = None,
+    ) -> None:
+        ...
+
+    @overload
+    async def edit(
+        self,
+        name: str,
+        content: str,
+        *,
+        game: Game,
+        type: Literal[ClanEvent.Game] = ...,
+        start: datetime | None = ...,
+        server_address: str | None = ...,
+        server_password: str | None = ...,
+    ) -> Event:
+        ...
+
+    async def edit(
+        self,
+        name: str,
+        content: str,
+        *,
+        type: Literal[
+            ClanEvent.Other,
+            ClanEvent.Chat,
+            ClanEvent.Game,
+            # ClanEvent.Broadcast,  # TODO need to wait until implementing stream support for this
+            ClanEvent.Party,
+            ClanEvent.Meeting,
+            ClanEvent.SpecialCause,
+            ClanEvent.MusicAndArts,
+            ClanEvent.Sports,
+            ClanEvent.Trip,
+        ] = ClanEvent.Other,
+        game: Game | None = None,
         start: datetime | None = None,
         server_address: str | None = None,
         server_password: str | None = None,
@@ -224,8 +260,8 @@ class Event(BaseEvent):
         ----------
         name
             The event's name.
-        description
-            The event's description.
+        content
+            The event's content.
         type
             The event's type.
         game
@@ -238,11 +274,12 @@ class Event(BaseEvent):
             The event's server's password.
         """
         type = type or self.type
-        game_id = str(getattr(game or self.game, "id", game))
+        new_game = game or self.game
+        game_id = str(new_game) if new_game is not None else None
         await self._state.http.edit_clan_event(
             self.clan.id64,
             name or self.name,
-            description or self.description,
+            content or self.content,
             f"{type.name}Event",
             game_id or "",
             server_address or self.server_address if self.server_address else "",
@@ -251,34 +288,16 @@ class Event(BaseEvent):
             event_id=self.id,
         )
         self.name = name or self.name
-        self.description = description or self.description
+        self.content = content or self.content
         self.type = type or self.type
         self.server_address = server_address or self.server_address
         self.server_password = server_password or self.server_password
-        self.game = StatefulGame(self._state, id=game_id)
+        self.game = StatefulGame(self._state, id=game_id) if game_id is not None else None
         self.last_edited_at = datetime.utcnow()
         self.last_edited_by = self._state.client.user
 
     async def delete(self) -> None:
         await self._state.http.delete_clan_event(self.clan.id64, self.id)
-
-
-@dataclass
-class Forum(Commentable):
-    announcement: Announcement
-    clan: Clan
-    id: int
-    gidfeature2: int
-
-    @property
-    def _commentable_kwargs(self) -> dict[str, Any]:
-        return {
-            "thread_type": 7,
-            "id64": self.clan.id64 if self.clan is not None else 0,
-            "thread_id": self.id,
-            "gidfeature": self.announcement.id,
-            "gidfeature2": self.gidfeature2,
-        }
 
 
 class Announcement(BaseEvent):
@@ -292,8 +311,8 @@ class Announcement(BaseEvent):
         The announcement's author.
     name
         The announcement's name.
-    description
-        The announcement's description.
+    content
+        The announcement's content.
     game
         The game the announcement is for.
     clan
@@ -322,7 +341,7 @@ class Announcement(BaseEvent):
         The number of down votes on the announcement.
     comment_count
         The number of comments on the announcement.
-    forum_id
+    topic_id
         The id of the forum post comments are sent to.
     created_at
         The time at which the announcement was created at.
@@ -335,7 +354,7 @@ class Announcement(BaseEvent):
     """
 
     __slots__ = (
-        "forum_id",
+        "topic_id",
         "created_at",
         "updated_at",
         "approved_at",
@@ -348,24 +367,25 @@ class Announcement(BaseEvent):
     def __init__(self, state: ConnectionState, clan: Clan, data: dict[str, Any]):
         super().__init__(state, clan, data)
         body: dict[str, Any] = data["announcement_body"]
-        self.forum_id = int(data["forum_topic_id"]) or None
-        self.created_at = utc_from_timestamp(body["posttime"])
-        self.updated_at = utc_from_timestamp(body["updatetime"])  # this is different to self.edited_at?
-        self.approved_at = utc_from_timestamp(data["rtime_mod_reviewed"]) if data["rtime_mod_reviewed"] else None
-        self.description: str = body["body"]
+        self.id: int = int(body["gid"])
+        self.topic_id = int(data["forum_topic_id"]) if data["forum_topic_id"] else None
+        self.created_at = datetime.utcfromtimestamp(body["posttime"])
+        self.updated_at = datetime.utcfromtimestamp(body["updatetime"])  # this is different to self.edited_at?
+        self.approved_at = datetime.utcfromtimestamp(data["rtime_mod_reviewed"]) if data["rtime_mod_reviewed"] else None
+        self.content: str = body["body"]
         self.tags: Sequence[str] = body["tags"]
 
     @property
     def _commentable_kwargs(self) -> dict[str, Any]:
         if self.clan.is_game_clan:
-            raise NotImplementedError("you need to use Announcement.forum to get an announcement's comments")
+            raise NotImplementedError("Fetching a game announcement's comments is not currently supported")
         return {
             "thread_type": 13,
             "id64": self.clan.id64,
-            "gidfeature": self.id,
+            "gidfeature": self._feature,
         }
 
-    async def edit(self, name: str | None = None, description: str | None = None) -> None:
+    async def edit(self, name: str | None = None, content: str | None = None) -> None:
         """Edit the announcement's details.
 
         Note
@@ -376,36 +396,29 @@ class Announcement(BaseEvent):
         ----------
         name
             The announcement's name.
-        description
-            The announcement's description.
+        content
+            The announcement's content.
         """
-        await self._state.http.edit_clan_announcement(self.clan.id64, self.id, name, description)
+        name = name or self.name
+        content = content or self.content
+        await self._state.http.edit_clan_announcement(self.clan.id64, self.id, name, content)
         self.name = name
-        self.description = description
+        self.content = content
         self.last_edited_at = datetime.utcnow()
         self.last_edited_by = self._state.client.user
 
-    # TODO
-    """
-    async def forum(self) -> Forum:
-        # permissions = await self._state.http.get()
-        # text = await self._state.http.get(f"{self.clan.game.url}/eventcomments/{self.forum_id}")
-        # soup = BeautifulSoup(text, "html.parser")
-        ...
-        
-    async def permissions(self) -> ...:
-        ...
-        
     async def hide(self) -> None:
-        ...
-        
-    async def unhide(self) -> None:
-        ...
+        """Hide this announcement."""
+        await self._state.http.hide_clan_announcement(self.clan.id, self.id, True)
 
-    # use protos for these
+    async def unhide(self) -> None:
+        """Un-hide this announcement."""
+        await self._state.http.hide_clan_announcement(self.clan.id, self.id, False)
+
     async def upvote(self) -> None:
-        ...
+        """Upvote this announcement."""
+        return await self._state.rate_clan_announcement(self.clan.id, self.id, True)
 
     async def downvote(self) -> None:
-        ...
-    """
+        """Downvote this announcement."""
+        return await self._state.rate_clan_announcement(self.clan.id, self.id, False)

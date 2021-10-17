@@ -557,41 +557,41 @@ class GameServerRegion(IntEnum):
 
 
 class ClanEvent(IntEnum):
-    Other                  = 1
-    Game                   = 2
-    Party                  = 3
-    Meeting                = 4
-    SpecialCause           = 5
-    MusicAndArts           = 6
-    Sports                 = 7
-    Trip                   = 8
-    Chat                   = 9
-    GameRelease            = 10
-    Broadcast              = 11
-    SmallUpdate            = 12
-    PreAnnounceMajorUpdate = 13
-    MajorUpdate            = 14
-    DLCRelease             = 15
-    FutureRelease          = 16
-    ESportTournamentStream = 17
-    DevStream              = 18
-    FamousStream           = 19
-    GameSales              = 20
-    GameItemSales          = 21
-    InGameBonusXP          = 22
-    InGameLoot             = 23
-    InGamePerks            = 24
-    InGameChallenge        = 25
-    InGameContest          = 26
-    IRL                    = 27
-    News                   = 28
-    BetaRelease            = 29
-    InGameContentRelease   = 30
-    FreeTrial              = 31
-    SeasonRelease          = 32
-    SeasonUpdate           = 33
-    Crosspost              = 34
-    InGameGeneral          = 35
+    Other                  = 1  #: An unspecified event.
+    Game                   = 2  #: A game event.
+    Party                  = 3  #: A party event.
+    Meeting                = 4  #: An important meeting.
+    SpecialCause           = 5  #: An event for a special cause.
+    MusicAndArts           = 6  #: A music or art event.
+    Sports                 = 7  #: A sporting event.
+    Trip                   = 8  #: A clan trip.
+    Chat                   = 9  #: A chat event.
+    GameRelease            = 10  #: A game release event.
+    Broadcast              = 11  #: A broadcast event.
+    SmallUpdate            = 12  #: A small update event.
+    PreAnnounceMajorUpdate = 13  #: A pre-announcement for a major update event.
+    MajorUpdate            = 14  #: A major update event.
+    DLCRelease             = 15  #: A dlc release event.
+    FutureRelease          = 16  #: A future release event.
+    ESportTournamentStream = 17  #: An e-sport tournament stream event.
+    DevStream              = 18  #: A developer stream event.
+    FamousStream           = 19  #: A famous stream event.
+    GameSales              = 20  #: A game sales event.
+    GameItemSales          = 21  #: A game item sales event.
+    InGameBonusXP          = 22  #: An in game bonus xp event.
+    InGameLoot             = 23  #: An in game loot event.
+    InGamePerks            = 24  #: An in game perks event.
+    InGameChallenge        = 25  #: An in game challenge event.
+    InGameContest          = 26  #: An in game contest event.
+    IRL                    = 27  #: An in real life event.
+    News                   = 28  #: A news event.
+    BetaRelease            = 29  #: A beta release event.
+    InGameContentRelease   = 30  #: An in game content release event.
+    FreeTrial              = 31  #: A free trial event.
+    SeasonRelease          = 32  #: A season release event.
+    SeasonUpdate           = 33  #: A season update event.
+    Crosspost              = 34  #: A cross post event.
+    InGameGeneral          = 35  #: An in game general event.
 
 
 class ProfileItemType(IntEnum):

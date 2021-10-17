@@ -803,6 +803,8 @@ class ConnectionState(Registerable):
         msg: MsgProto[chat.GetRolesResponse] = await self.ws.send_um_and_wait(
             "ChatRoom.GetRoles", chat_group_id=group_id
         )
+        if msg.result == Result.AccessDenied:
+            raise WSForbidden(msg)
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.body.roles

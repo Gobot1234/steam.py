@@ -29,7 +29,7 @@ import re
 import time
 import warnings
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 from bs4 import BeautifulSoup
 from typing_extensions import Literal
@@ -38,7 +38,7 @@ from . import utils
 from .abc import Commentable, SteamID
 from .channel import ClanChannel
 from .enums import ClanEvent, Type
-from .errors import HTTPException
+from .errors import HTTPException, WSForbidden
 from .event import Announcement, Event
 from .game import Game, StatefulGame
 from .iterators import AnnouncementsIterator, EventIterator
@@ -128,17 +128,18 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         "tagline",
         "top_members",
         "roles",
-        "default_channel",
         "game",
+        "community_url",
         "_channels",
+        "_default_channel_id",
         "_state",
     )
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
 
     name: str
-    description: str
-    icon_url: str
+    content: str
+    avatar_url: str
     created_at: datetime | None
     member_count: int
     online_count: int
@@ -148,6 +149,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
     mods: list[User]
     admins: list[User]
     is_game_clan: bool
+    community_url: str
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Clan)
@@ -395,8 +397,10 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
             The ID of the event.
         """
         data = await self._state.http.get_clan_events(self.id, [id])
-        event = data["events"][0]
-        return await Event(self._state, self, event)
+        events = data["events"]
+        if not events:
+            raise ValueError(f"Event {id} not found")
+        return await Event(self._state, self, events[0])
 
     async def fetch_announcement(self, id: int) -> Announcement:
         """Fetch an announcement from its ID.
@@ -406,9 +410,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         id
             The ID of the announcement.
         """
-        data = await self._state.http.get_clan_announcement(
-            self.id, id, game_id=self.game.id if self.is_game_clan else None
-        )
+        data = await self._state.http.get_clan_announcement(self.id, id)
         announcement = data["events"][0]
         return await Announcement(self._state, self, announcement)
 
@@ -418,7 +420,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> EventIterator:
-        """An :class:`~steam.iterators.AsyncIterator` a clan's :class:`steam.Event`\s.
+        """An :class:`~steam.iterators.AsyncIterator` over a clan's :class:`steam.Event`\\s.
 
         Examples
         --------
@@ -428,7 +430,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         .. code-block:: python3
 
             async for event in client.events(limit=10):
-                print(event.author, "made an event", event.name, "starting at", event.start)
+                print(event.author, "made an event", event.name, "starting at", event.starts_at)
 
         All parameters are optional.
 
@@ -446,7 +448,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         ---------
         :class:`~steam.Event`
         """
-        return EventIterator(self, self._state, limit=limit, before=before, after=after)
+        return EventIterator(self, self._state, limit, before, after)
 
     def announcements(
         self,
@@ -454,7 +456,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> AnnouncementsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` a clan's :class:`steam.Announcement`\s.
+        """An :class:`~steam.iterators.AsyncIterator` over a clan's :class:`steam.Announcement`\\s.
 
         Examples
         --------
@@ -482,17 +484,52 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         ---------
         :class:`~steam.Announcement`
         """
-        return AnnouncementsIterator(self, self._state, limit=limit, before=before, after=after)
+        return AnnouncementsIterator(self, self._state, limit, before, after)
+
+    @overload
+    async def create_event(
+        self,
+        name: str,
+        content: str,
+        *,
+        type: Literal[
+            ClanEvent.Other,
+            ClanEvent.Chat,
+            ClanEvent.Party,
+            ClanEvent.Meeting,
+            ClanEvent.SpecialCause,
+            ClanEvent.MusicAndArts,
+            ClanEvent.Sports,
+            ClanEvent.Trip,
+        ] = ClanEvent.Other,
+        starts_at: datetime | None = None,
+    ) -> Event:
+        ...
+
+    @overload
+    async def create_event(
+        self,
+        name: str,
+        content: str,
+        *,
+        game: Game,
+        type: Literal[ClanEvent.Game] = ...,
+        starts_at: datetime | None = ...,
+        server_address: str | None = ...,
+        server_password: str | None = ...,
+    ) -> Event:
+        ...
 
     async def create_event(
         self,
         name: str,
-        description: str,
+        content: str,
+        *,
         type: Literal[
+            ClanEvent.Other,
             ClanEvent.Chat,
             ClanEvent.Game,
-            ClanEvent.Broadcast,
-            ClanEvent.Other,
+            # ClanEvent.Broadcast,  # TODO need to wait until implementing stream support for this
             ClanEvent.Party,
             ClanEvent.Meeting,
             ClanEvent.SpecialCause,
@@ -501,7 +538,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
             ClanEvent.Trip,
         ] = ClanEvent.Other,
         game: Game | None = None,
-        start: datetime | None = None,
+        starts_at: datetime | None = None,
         server_address: str | None = None,
         server_password: str | None = None,
     ) -> Event:
@@ -511,18 +548,20 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         ----------
         name
             The name of the event
-        description
-            The description for the event.
+        content
+            The content for the event.
         type
-            The type of the event, defaults to :attr:`steam.ClanEvent.Other`.
+            The type of the event, defaults to :attr:`ClanEvent.Other`.
         game
-            The game that will be played in the event.
-        start
+            The game that will be played in the event. Required if type is :attr:`ClanEvent.Game`.
+        starts_at
             The time the event will start at.
         server_address
-            The address of the server that the event will be played on.
+            The address of the server that the event will be played on. This is only allowed if ``type`` is
+            :attr:`ClanEvent.Game`.
         server_password
-            The password for the server that the event will be played on.
+            The password for the server that the event will be played on. This is only allowed if ``type`` is
+            :attr:`ClanEvent.Game`.
 
         Note
         ----
@@ -536,30 +575,30 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         resp = await self._state.http.create_clan_event(
             self.id64,
             name,
-            description,
+            content,
             f"{type.name}Event",
             str(game.id) if game is not None else "",
             server_address or "",
             server_password or "",
-            start,
+            starts_at,
         )
         soup = BeautifulSoup(resp, "html.parser")
         for element in soup.find_all("div", class_="eventBlockTitle"):
             a = element.a
             if a is not None and a.text == name:  # this is bad?
                 _, __, id = a["href"].rpartition("/")
-                if start is not None:
+                if starts_at is not None:
                     timestamp = (
-                        start.timestamp()
-                        if start.tzinfo is not None
-                        else (start + (datetime.utcnow() - datetime.now())).timestamp()
+                        starts_at.timestamp()
+                        if starts_at.tzinfo is not None
+                        else (starts_at + (datetime.utcnow() - datetime.now())).timestamp()
                     )
                 else:
                     timestamp = 0
                 data = {
                     "gid": id,
                     "event_name": name,
-                    "event_notes": description,
+                    "event_notes": content,
                     "event_type": type.value,
                     "appid": str(game.id) if game is not None else "",
                     "rtime32_start_time": timestamp,
@@ -569,13 +608,14 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                 }
                 event = Event(self._state, self, data)
                 event.author = self._state.client.user
+                self._state.dispatch("event_create", event)
                 return event
         raise ValueError
 
     async def create_announcement(
         self,
         name: str,
-        description: str,
+        content: str,
         hidden: bool = False,
     ) -> Announcement:
         """Create an announcement.
@@ -584,16 +624,16 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         ----------
         name
             The name of the announcement.
-        description
-            The description of the announcement.
+        content
+            The content of the announcement.
         hidden
-            Whether or not the announcement should be hidden
+            Whether or not the announcement should initially be hidden.
 
         Returns
         -------
         The created announcement.
         """
-        await self._state.http.create_clan_announcement(self.id64, name, description, hidden)
+        await self._state.http.create_clan_announcement(self.id64, name, content, hidden)
         resp = await self._state.http.get(f"{self.community_url}/announcements", params={"content_only": "true"})
         soup = BeautifulSoup(resp, "html.parser")
         for element in soup.find_all("div", class_="announcement"):
@@ -611,7 +651,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                     "rtime32_start_time": timestamp,
                     "rtime32_last_modified": timestamp,
                     "announcement_body": {
-                        "body": description,
+                        "body": content,
                         "posttime": timestamp,
                         "updatetime": timestamp,
                     },
@@ -620,6 +660,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                 }
                 announcement = Announcement(self._state, self, data)
                 announcement.author = self._state.client.user
+                self._state.dispatch("announcement_create", announcement)
                 return announcement
 
         raise ValueError
