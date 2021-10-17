@@ -71,10 +71,10 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         The name of the clan.
     chat_id
         The clan's chat id, this is different to :attr:`id`.
-    icon_url
+    avatar_url
         The icon url of the clan. Uses the large (184x184 px) image url.
-    description
-        The description of the clan.
+    content
+        The content of the clan.
     tagline
         The clan's tagline.
     member_count
@@ -105,14 +105,12 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         A list of the clan's roles.
     default_role
         The clan's default role.
-    default_channel
-        The clan's default channel.
     """
 
     __slots__ = (
         "name",
-        "description",
-        "icon_url",
+        "content",
+        "avatar_url",
         "created_at",
         "language",
         "location",
@@ -164,10 +162,10 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self.roles: list[Role] = []
         self.default_role: Role | None = None
         self._channels: dict[int, ClanChannel] = {}
-        self.default_channel: ClanChannel | None = None
+        self._default_channel_id: int | None = None
 
     async def __ainit__(self) -> None:
-        resp = await self._state.http._session.get(self.community_url)
+        resp = await self._state.http._session.get(super().community_url)
         text = await resp.text()  # technically we loose proper request handling here
         if not self.id64:
             search = utils.CLAN_ID64_FROM_URL_REGEX.search(text)
@@ -176,12 +174,14 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
             super().__init__(search["steamid"], type=Type.Clan)
 
         soup = BeautifulSoup(text, "html.parser")
-        self.name = soup.title.text[28:]
-        description = soup.find("meta", property="og:description")
-        self.description = description["content"] if description is not None else None
+        _, __, name = soup.title.text.rpartition(" :: ")
+        self.name = name
+        content = soup.find("meta", property="og:description")
+        self.content = content["content"] if content is not None else None
         icon_url = soup.find("link", rel="image_src")
-        self.icon_url = icon_url["href"] if icon_url else None
+        self.avatar_url = icon_url["href"] if icon_url else None
         self.is_game_clan = "games" in resp.url.parts
+        self.community_url = str(resp.url)
         if self.is_game_clan:
             for entry in soup.find_all("div", class_="actionItem"):
                 a = entry.a
@@ -230,7 +230,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                     mods.append(officer)
                     is_admins = False
                 try:
-                    account_id = fields.find_all("div", _class="playerAvatar")[idx]["data-miniprofile"]
+                    account_id = fields.find_all("div", class_="playerAvatar")[idx]["data-miniprofile"]
                 except IndexError:
                     break
                 else:
@@ -268,13 +268,19 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self.owner = await self._state._maybe_user(utils.make_id64(proto.accountid_owner))
         self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
 
-        for role in await self._state.fetch_group_roles(self.chat_id):
+        if hasattr(clan_proto, "roles"):
+            roles = clan_proto.roles
+        else:
+            try:
+                roles = await self._state.fetch_group_roles(self.chat_id)
+            except WSForbidden:
+                roles = []
+
+        for role in roles:
             for permissions in proto.role_actions:
                 if permissions.role_id == role.role_id:
                     self.roles.append(Role(self._state, self, role, permissions))
         self.default_role = utils.get(self.roles, id=proto.default_role_id)
-
-        self.default_channel = None
         if not isinstance(clan_proto, chat.SummaryPair):
             return self
 
@@ -286,8 +292,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                 self._channels[new_channel.id] = new_channel
             else:
                 new_channel._update(channel)
-
-        self.default_channel = self._channels[int(proto.default_chat_id)]
+        self._default_channel_id = proto.default_chat_id
         return self
 
     def _update(self, proto: chat.ChatRoomGroupRoomsChangeNotification) -> None:
@@ -299,7 +304,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                 self._channels[new_channel.id] = new_channel
             else:
                 new_channel._update(channel)
-        self.default_channel = self._channels[int(proto.default_chat_id)]
+        self._default_channel_id = proto.default_chat_id
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "chat_id", "type", "universe", "instance")
@@ -321,6 +326,11 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         """A list of the clan's channels."""
         return list(self._channels.values())
 
+    @property
+    def default_channel(self) -> ClanChannel | None:
+        """The clan's default channel."""
+        return self.get_channel(self._default_channel_id)  # type: ignore
+
     def get_channel(self, id: int) -> ClanChannel | None:
         """Get a channel from cache.
 
@@ -331,7 +341,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         """
         return self._channels.get(id)
 
-    async def members(self) -> list[SteamID]:
+    async def fetch_members(self) -> list[SteamID]:
         """Fetches a clan's member list.
 
         Note
@@ -349,7 +359,9 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
         async def getter(i: int) -> None:
             try:
-                resp = await self._state.http.get(f"{self.community_url}/members?p={i + 1}&content_only=true")
+                resp = await self._state.http.get(
+                    f"{self.community_url}/members", params={"p": i + 1, "content_only": "true"}
+                )
             except HTTPException:
                 await asyncio.sleep(20)
                 await getter(i)
@@ -357,15 +369,33 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                 process(resp)
 
         ret = []
-        resp = await self._state.http.get(f"{self.community_url}/members?p=1&content_only=true")
+        resp = await self._state.http.get(f"{self.community_url}/members", params={"p": 1, "content_only": "true"})
         soup = process(resp)
         number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
         await asyncio.gather(*(getter(i) for i in range(1, number_of_pages)))
         return ret
 
-    async def fetch_members(self) -> list[SteamID]:
-        warnings.warn("fetch_members is depreciated, use Clan.members instead", DeprecationWarning)
-        return await self.members()
+    @property
+    def description(self) -> str:
+        """An alias to :attr:`content`.
+
+        .. depreciated:: 0.8.0
+
+            Use :attr:`content` instead.
+        """
+        warnings.warn("Clan.description is depreciated, use Clan.content instead", DeprecationWarning, stacklevel=2)
+        return self.content
+
+    @property
+    def icon_url(self) -> str:
+        """An alias to :attr:`avatar_url`.
+
+        .. depreciated:: 0.8.0
+
+            Use :attr:`avatar_url` instead.
+        """
+        warnings.warn("Clan.icon_url is depreciated, use Clan.avatar_url instead", DeprecationWarning, stacklevel=2)
+        return self.avatar_url
 
     async def join(self) -> None:
         """Joins the clan. This will also join the clan's chat."""
@@ -664,3 +694,36 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
                 return announcement
 
         raise ValueError
+
+    async def fetch_forum(self, id: int) -> Forum | None:
+        """A shortcut method to fetch a forum by ID.
+
+        Equivalent to:
+
+        .. code-block:: python3
+
+            steam.utils.get(await clan.forums(), id=id)
+
+        Parameters
+        ----------
+        id
+            The ID of the forum.
+        """
+        return utils.get(await self.forums(), id=id)
+
+    async def forums(self) -> list[Forum]:
+        """Fetch a list of this clan's forums."""
+        resp = await self._state.http.get_forums(self.id)
+        return [Forum(self._state, forum, self) for forum in resp["rgForums"]]
+
+    async def create_forum(self, name: str, permissions: ForumPermissions) -> Forum:
+        """create_forum() ->
+
+        https://steamcommunity.com/groups/Testering12/forumManage
+        action: create
+        sessionid: e2252b2eecac8eaad3aaee41
+        rgForum[gidfeature]: 1
+        rgForum[permission_post]: 15
+        rgForum[permission_view]: 143
+        rgForum[name]: This is a forum"""
+        ...
