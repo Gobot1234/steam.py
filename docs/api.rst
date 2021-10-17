@@ -105,7 +105,7 @@ traceback and ignoring the exception.
 
 .. automethod:: Client.on_user_invite_accept
 
-.. automethod:: Client.on_user_update_decline
+.. automethod:: Client.on_user_invite_decline
 
 .. automethod:: Client.on_user_remove
 
@@ -113,7 +113,7 @@ traceback and ignoring the exception.
 
 .. automethod:: Client.on_clan_invite_accept
 
-.. automethod:: Client.on_clan_update_decline
+.. automethod:: Client.on_clan_invite_decline
 
 .. automethod:: Client.on_clan_join
 
