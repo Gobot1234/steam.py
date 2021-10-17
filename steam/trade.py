@@ -86,6 +86,7 @@ class DescriptionDict(TypedDict, total=False):
     tradable: bool  # 1 vs 0
     marketable: bool  # same as above
     commodity: int  # might be a bool
+    fraudwarnings: list[str]
 
 
 class ItemDict(AssetDict, DescriptionDict):
@@ -203,6 +204,7 @@ class Item(Asset):
         "icon_url",
         "display_name",
         "descriptions",
+        "fraud_warnings",
         "_is_tradable",
         "_is_marketable",
     )
@@ -224,6 +226,7 @@ class Item(Asset):
             if "icon_url_large" in data
             else None
         )
+        self.fraud_warnings = data.get("fraudwarnings", [])
         self._is_tradable = bool(data.get("tradable", False))
         self._is_marketable = bool(data.get("marketable", False))
 
