@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING
 __all__ = ("Image",)
 
 if TYPE_CHECKING:
-    from _typeshed import AnyPath
+    from _typeshed import StrOrBytesPath
 
 
 class Image:
@@ -62,15 +62,17 @@ class Image:
     __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash", "_tell")
     fp: io.BufferedIOBase
 
-    def __init__(self, fp: io.BufferedIOBase | AnyPath | int, *, spoiler: bool = False):  # TODO use a protocol here
+    def __init__(
+        self, fp: io.BufferedIOBase | StrOrBytesPath | int, *, spoiler: bool = False
+    ):  # TODO use a protocol here
         self.fp = fp if isinstance(fp, io.BufferedIOBase) else open(fp, "rb")
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
 
-        if len(self) > 10485760:
-            raise ValueError("file is too large to upload")
-
         self._tell = fp.tell()
+        contents = self.read()
+        if len(contents) > 10_485_760:
+            raise ValueError("file is too large to upload")
 
         # from https://stackoverflow.com/questions/8032642
         headers = self.fp.read(24)
@@ -106,11 +108,8 @@ class Image:
         self.spoiler = spoiler
         self.width = width
         self.height = height
-        self.hash = hashlib.sha1(self.read()).hexdigest()
+        self.hash = hashlib.sha1(contents).hexdigest()
         self.name = f'{int(time())}_{getattr(self.fp, "name", f"image.{self.type}")}'
-
-    def __len__(self) -> int:
-        return len(self.read())
 
     def read(self) -> bytes:
         self.fp.seek(self._tell)
