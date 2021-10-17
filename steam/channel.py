@@ -25,7 +25,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator, Coroutine
+from collections.abc import Coroutine, Generator
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -37,6 +37,8 @@ from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
 from .protobufs.chat import ChatRoomState, IncomingChatMessageNotification, State
 
 if TYPE_CHECKING:
+    from _typeshed import Self
+
     from .clan import Clan
     from .group import Group
     from .image import Image
@@ -64,7 +66,7 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
     clan: None
     group: None
 
-    def __init__(self, state: ConnectionState, participant: User | SteamID):
+    def __init__(self, state: ConnectionState, participant: User):
         super().__init__(state)
         self.participant = participant
         self.clan = None
@@ -80,7 +82,7 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
         return self.participant._image_func(image)
 
     @asynccontextmanager
-    async def typing(self) -> AsyncGenerator[None, None]:
+    async def typing(self) -> Generator[None, None, None]:
         """Send a typing indicator continuously to the channel while in the context manager.
 
         Note
@@ -154,21 +156,21 @@ class _GroupChannel(Channel[M_co]):
         if isinstance(proto, IncomingChatMessageNotification):
             steam_id = SteamID(proto.steamid_sender)
             last_message = (ClanMessage if isinstance(self, ClanChannel) else GroupMessage)(
-                proto, self, self._state.get_user(steam_id.id64) or steam_id
+                proto, self, self._state.get_user(steam_id.id64) or steam_id  # type: ignore
             )
         elif isinstance(proto, State):
             steam_id = SteamID(proto.accountid_last_message)
             cls = ClanMessage if isinstance(self, ClanChannel) else GroupMessage
             last_message = cls.__new__(cls)
             last_message.author = self._state.get_user(steam_id.id64) or steam_id
-            last_message.channel = self
+            last_message.channel = self  # type: ignore
             last_message.created_at = datetime.utcfromtimestamp(proto.time_last_message)
             proto.message = proto.last_message
             proto.ordinal = NotImplemented
             Message.__init__(last_message, self, proto)
         else:
             last_message = self.last_message
-        self.last_message = last_message
+        self.last_message = last_message  # type: ignore
 
     def __repr__(self) -> str:
         cls = self.__class__
@@ -177,11 +179,11 @@ class _GroupChannel(Channel[M_co]):
         return f"<{cls.__name__} {' '.join(resolved)}>"
 
     def history(
-        self,
+        self: Self,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> GroupChannelHistoryIterator[M_co, GroupChannel | ClanChannel]:
+    ) -> GroupChannelHistoryIterator[M_co, Self]:
         return GroupChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
@@ -211,7 +213,7 @@ class GroupChannel(_GroupChannel["GroupMessage"]):
         self.group: Group = group
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, GroupMessage]:
-        return self._state.send_group_message(self.id, self.group.id, content)
+        return self._state.send_group_message(self.id, self.group.id, content)  # type: ignore
 
     def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
         return self._state.http.send_group_image(self.id, self.group.id, image)

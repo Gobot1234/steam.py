@@ -163,23 +163,25 @@ class Game:
         ...
 
     @overload
-    def __init__(self, *, name: Literal["Team Fortress 2"], context_id: int | None = ...):
+    def __init__(self, *, name: Literal["Team Fortress 2"], id: Intable = ..., context_id: int | None = ...):
         ...
 
     @overload
-    def __init__(self, *, name: Literal["Left 4 Dead 2"], context_id: int | None = ...):
+    def __init__(self, *, name: Literal["Left 4 Dead 2"], id: Intable = ..., context_id: int | None = ...):
         ...
 
     @overload
-    def __init__(self, *, name: Literal["DOTA 2"], context_id: int | None = ...):
+    def __init__(self, *, name: Literal["DOTA 2"], id: Intable = ..., context_id: int | None = ...):
         ...
 
     @overload
-    def __init__(self, *, name: Literal["Counter Strike Global-Offensive"], context_id: int | None = ...):
+    def __init__(
+        self, *, name: Literal["Counter Strike Global-Offensive"], id: Intable = ..., context_id: int | None = ...
+    ):
         ...
 
     @overload
-    def __init__(self, *, name: Literal["Steam"], context_id: int | None = ...):
+    def __init__(self, *, name: Literal["Steam"], id: Intable = ..., context_id: int | None = ...):
         ...
 
     def __init__(
@@ -202,7 +204,7 @@ class Game:
             except (ValueError, TypeError):
                 raise ValueError("id expected to support int()")
             try:
-                name = Games(id).name.replace("__", "-").replace("_", " ")
+                name = Games(id).name
             except ValueError:
                 name = None
             else:
@@ -218,8 +220,6 @@ class Game:
             except (ValueError, TypeError):
                 raise ValueError("id must be an int") from None
 
-        if id is None:
-            raise ValueError("id cannot be None")
         if id < 0:
             raise ValueError("id cannot be negative")
 

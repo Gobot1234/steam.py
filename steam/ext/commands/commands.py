@@ -99,7 +99,7 @@ class CallbackType(Protocol[P]):
     __commands_cooldown__: list[Cooldown[Any]]
     __special_converters__: list[type[converters.Converter]]
 
-    async def __call__(self, *args: P.args, **kwds: P.kwargs) -> Any:
+    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Any:
         ...
 
 

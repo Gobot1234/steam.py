@@ -37,7 +37,6 @@ from typing_extensions import ClassVar, TypeAlias
 
 from . import utils
 from .comment import Comment
-from .enums import TradeOfferState
 
 if TYPE_CHECKING:
     from .abc import Channel, Commentable, Message
@@ -50,9 +49,9 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 TT = TypeVar("TT")
-ChannelT = TypeVar("ChannelT", bound="Channel[Any]")
+ChannelT = TypeVar("ChannelT", bound="Channel[Any]", covariant=True)
 CommentableT = TypeVar("CommentableT", bound="Commentable")
-M = TypeVar("M", bound="Message")
+M = TypeVar("M", bound="Message", covariant=True)
 
 MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
 UNIX_EPOCH = datetime.utcfromtimestamp(0)
@@ -119,12 +118,12 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
     async def get(self, **attrs: Any) -> T | None:
         """A helper function which is similar to :func:`~steam.utils.get` except it runs over the async iterator.
 
-        This is roughly equipment to:
+        This is roughly equivalent to:
 
         .. code-block:: python3
 
 
-            elements = await AsyncIterator.flatten()
+            elements = await async_iterator.flatten()
             element = steam.utils.get(elements, name="Item")
 
         Example
@@ -133,7 +132,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
 
         .. code-block:: python3
 
-            msg = await User.comments().get(author__name="Dave")
+            comment = await user.comments().get(author__name="Dave")
 
         Parameters
         ----------
@@ -167,7 +166,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
 
         .. code-block:: python3
 
-            elements = await AsyncIterator.flatten()
+            elements = await async_iterator.flatten()
             element = steam.utils.find(elements, lambda e: e.name == "Item")
 
         Example
@@ -180,7 +179,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
                 return trade.message is not None
 
 
-            trade = await Client.trade_history().find(predicate)
+            trade = await client.trade_history().find(predicate)
 
         Parameters
         ----------
@@ -205,7 +204,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
 
         .. code-block:: python3
 
-            elements = [element async for element in AsyncIterator]
+            elements = [element async for element in async_iterator]
         """
         return [element async for element in self]
 
@@ -216,7 +215,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
         --------
         .. code-block:: python3
 
-            for dave in AsyncIterator.map(lambda x: x.name == "Dave"):
+            for dave in async_iterator.filter(lambda x: x.name == "Dave"):
                 ...  # the element now has to have a name of Dave.
 
         Parameters
@@ -233,7 +232,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
         --------
         .. code-block:: python3
 
-            for name in AsyncIterator.map(lambda x: x.name):
+            for name in async_iterator.map(lambda x: x.name):
                 ...  # name is now the iterators element's name.
 
         Parameters
@@ -473,7 +472,7 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
         after: datetime | None,
     ):
         super().__init__(channel, state, limit, before, after)
-        self.group = channel.group or channel.clan
+        self.group: Group | Clan = channel.group or channel.clan  # type: ignore
 
     async def fill(self) -> None:
         from .message import ClanMessage, GroupMessage, Message
@@ -568,16 +567,7 @@ class AnnouncementsIterator(_EventIterator["Announcement"]):
     ID_PARSE_REGEX = re.compile(r"announcements/detail/(\d+)")
 
     async def get_events(self, ids: list[int]) -> dict[str, Any]:
-        announcements = await asyncio.gather(
-            *(
-                self._state.http.get_clan_announcement(
-                    self.clan.id,
-                    id,
-                    self.clan.game.id if self.clan.is_game_clan else None,  # type: ignore
-                )
-                for id in ids
-            )
-        )
+        announcements = await asyncio.gather(*(self._state.http.get_clan_announcement(self.clan.id, id) for id in ids))
         events = []
         for announcement in announcements:
             events += announcement["events"]

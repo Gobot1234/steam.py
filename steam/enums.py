@@ -544,15 +544,15 @@ class ReviewType(IntEnum):
 
 
 class GameServerRegion(IntEnum):
-    NONE         = -1  #: No set game region.
-    USEastCoast  = 0  #: A server on the USA's East Coast.
-    USWestCoast  = 1  #: A server on the USA's West Coast.
-    SouthAmerica = 2  #: A server in South America.
-    Europe       = 3  #: A server in Europe.
-    Asia         = 4  #: A server in Asia.
-    Australia    = 5  #: A server in Australia.
-    MiddleEast   = 6  #: A server in the Middle East.
-    Africa       = 7  #: A server in Africa.
+    NONE         = -1   #: No set game region.
+    USEastCoast  = 0    #: A server on the USA's East Coast.
+    USWestCoast  = 1    #: A server on the USA's West Coast.
+    SouthAmerica = 2    #: A server in South America.
+    Europe       = 3    #: A server in Europe.
+    Asia         = 4    #: A server in Asia.
+    Australia    = 5    #: A server in Australia.
+    MiddleEast   = 6    #: A server in the Middle East.
+    Africa       = 7    #: A server in Africa.
     World        = 255  #: A server somewhere in the world.
 
 
@@ -595,30 +595,30 @@ class ClanEvent(IntEnum):
 
 
 class ProfileItemType(IntEnum):
-    Invalid                   = 0
-    RareAchievementShowcase   = 1
-    GameCollector             = 2
-    ItemShowcase              = 3
-    TradeShowcase             = 4
-    Badges                    = 5
-    FavoriteGame              = 6
-    ScreenshotShowcase        = 7
-    CustomText                = 8
-    FavoriteGroup             = 9
-    Recommendation            = 10
-    WorkshopItem              = 11
-    MyWorkshop                = 12
-    ArtworkShowcase           = 13
-    VideoShowcase             = 14
-    Guides                    = 15
-    MyGuides                  = 16
-    Achievements              = 17
-    Greenlight                = 18
-    MyGreenlight              = 19
-    Salien                    = 20
-    LoyaltyRewardReactions    = 21
-    SingleArtworkShowcase     = 22
-    AchievementsCompletionist = 23
+    Invalid                   = 0   #: An invalid item type.
+    RareAchievementShowcase   = 1   #: A rare achievements showcase.
+    GameCollector             = 2   #: A game collector section.
+    ItemShowcase              = 3   #: An item showcase.
+    TradeShowcase             = 4   #: A trade info showcase.
+    Badges                    = 5   #: A badges showcase.
+    FavoriteGame              = 6   #: A favourite game section.
+    ScreenshotShowcase        = 7   #: A screenshot showcase.
+    CustomText                = 8   #: A custom text section.
+    FavoriteGroup             = 9   #: A favourite game showcase.
+    Recommendation            = 10  #: A review showcase.
+    WorkshopItem              = 11  #: A workshop item showcase.
+    MyWorkshop                = 12  #: A showcase of a workshop item made by profile's owner.
+    ArtworkShowcase           = 13  #: An artwork showcase.
+    VideoShowcase             = 14  #: A video showcase.
+    Guides                    = 15  #: A guide showcase.
+    MyGuides                  = 16  #: A showcase of the profile's owner's guides.
+    Achievements              = 17  #: The owner's profile's achievements.
+    Greenlight                = 18  #: A greenlight showcase.
+    MyGreenlight              = 19  #: A showcase of a greenlighted game the profiles' owner has made.
+    Salien                    = 20  #: A salien showcase.
+    LoyaltyRewardReactions    = 21  #: A loyalty reward showcase.
+    SingleArtworkShowcase     = 22  #: A single artwork showcase.
+    AchievementsCompletionist = 23  #: An achievements completeionist showcase.
 # fmt: on
 
 

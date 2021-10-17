@@ -27,12 +27,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from .abc import Message
+from typing_extensions import TypeAlias
+
+from .abc import Message, SteamID
 
 if TYPE_CHECKING:
     from .channel import ClanChannel, DMChannel, GroupChannel
     from .protobufs import chat, friend_messages
-    from .user import User
+    from .user import ClientUser, User
 
 
 __all__ = (
@@ -40,6 +42,8 @@ __all__ = (
     "GroupMessage",
     "ClanMessage",
 )
+
+Authors: TypeAlias = "User | ClientUser | SteamID"
 
 
 class UserMessage(Message):
@@ -54,7 +58,7 @@ class UserMessage(Message):
 
 
 class _GroupMessage(Message):
-    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: User):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: Authors):
         super().__init__(channel, proto)
         self.author = author
         self.created_at = datetime.utcfromtimestamp(proto.timestamp)
@@ -65,7 +69,7 @@ class GroupMessage(_GroupMessage):
 
     channel: GroupChannel
 
-    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: GroupChannel, author: User):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: GroupChannel, author: Authors):
         super().__init__(proto, channel, author)
 
 
@@ -74,5 +78,5 @@ class ClanMessage(_GroupMessage):
 
     channel: ClanChannel
 
-    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: ClanChannel, author: User):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: ClanChannel, author: Authors):
         super().__init__(proto, channel, author)

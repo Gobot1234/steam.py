@@ -78,7 +78,7 @@ class ConverterDict(Dict[type, "tuple[Converters, ...]"]):
 class BasicConverter(Protocol[T]):
     converter_for: T
 
-    def __call__(self, arg: str) -> T:
+    def __call__(self, __arg: str) -> T:
         ...
 
 

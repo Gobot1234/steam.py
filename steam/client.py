@@ -775,7 +775,7 @@ class Client:
         await self.ws.change_presence(games=games_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
 
     async def trade_url(self, generate_new: bool = False) -> str:
-        """Fetches this accounts trade url.
+        """Fetches this account's trade url.
 
         Parameters
         ----------

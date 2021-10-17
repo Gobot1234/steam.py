@@ -67,9 +67,10 @@ if TYPE_CHECKING:
     from .group import Group
     from .http import StrOrURL
     from .image import Image
+    from .message import Authors
     from .protobufs.chat import Mentions
     from .state import ConnectionState
-    from .user import ClientUser, User
+    from .user import User
 
 __all__ = (
     "SteamID",
@@ -877,7 +878,7 @@ class Message:
         "_id_cs",
         "_state",
     )
-    author: User | ClientUser
+    author: Authors
     created_at: datetime
 
     def __init__(self, channel: Channel[Message], proto: Any):
