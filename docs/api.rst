@@ -271,6 +271,16 @@ Steam Models
 steam.py provides wrappers around common Steam API objects.
 These are not meant to be constructed by the user instead you receive them from methods/events.
 
+Announcements
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Announcement
+
+.. autoclass:: Announcement
+    :members:
+    :inherited-members:
+
+
 Badge
 ~~~~~~~~~~~~~~~
 
@@ -336,6 +346,17 @@ Comment
 
 .. autoclass:: Comment()
     :members:
+
+
+Events
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Event
+
+.. autoclass:: Event
+    :members:
+    :inherited-members:
+
 
 Game Servers
 ~~~~~~~~~~~~~~~
@@ -459,6 +480,14 @@ Trading
 
 .. autoclass:: Asset()
     :members:
+
+
+Roles
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Role
+
+.. autoclass:: Role
 
 
 Users
