@@ -31,12 +31,32 @@ import imghdr
 import io
 import struct
 from time import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 __all__ = ("Image",)
 
 if TYPE_CHECKING:
     from _typeshed import StrOrBytesPath
+
+
+class ImageIO(Protocol):
+    def seekable(self) -> bool:
+        ...
+
+    def seek(self, offset: int, whence: int = ...) -> Any:
+        ...
+
+    def tell(self) -> int:
+        ...
+
+    def readable(self) -> bool:
+        ...
+
+    def read(self, size: int = ...) -> bytes:
+        ...
+
+    def close(self) -> Any:
+        ...
 
 
 class Image:
@@ -59,20 +79,19 @@ class Image:
 
     # TODO add support for "webm", "mpg", "mp4", "mpeg", "ogv"
 
-    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash", "_tell")
-    fp: io.BufferedIOBase
+    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash", "size", "_tell")
+    fp: ImageIO
 
-    def __init__(
-        self, fp: io.BufferedIOBase | StrOrBytesPath | int, *, spoiler: bool = False
-    ):  # TODO use a protocol here
+    def __init__(self, fp: ImageIO | StrOrBytesPath | int, *, spoiler: bool = False):
         self.fp = fp if isinstance(fp, io.BufferedIOBase) else open(fp, "rb")
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
 
-        self._tell = fp.tell()
+        self._tell = self.fp.tell()
         contents = self.read()
-        if len(contents) > 10_485_760:
-            raise ValueError("file is too large to upload")
+        self.size = len(contents)
+        if self.size > 1024 * 1024 * 10:  # 10MiB
+            raise ValueError("File is too large to upload")
 
         # from https://stackoverflow.com/questions/8032642
         headers = self.fp.read(24)
@@ -116,6 +135,12 @@ class Image:
         read = self.fp.read()
         self.fp.seek(self._tell)
         return read
+
+    def __enter__(self) -> Image:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.fp.close()
 
 
 def test_jpeg(h: bytes, _) -> str | None:  # adds support for more header types
