@@ -46,6 +46,7 @@ from yarl import URL as _URL
 from . import errors, utils
 from .__metadata__ import __version__
 from .abc import SteamID
+from .guard import generate_one_time_code
 from .models import URL, PriceOverviewDict, api_route
 from .trade import AssetToDict, InventoryDict
 from .user import BaseUser, ClientUser
@@ -289,7 +290,11 @@ class HTTPClient:
             "password": password.decode(),
             "emailauth": self._email_code,
             "emailsteamid": self._steam_id,
-            "twofactorcode": self._one_time_code,
+            "twofactorcode": (
+                generate_one_time_code(self.shared_secret) if self.shared_secret is not None else self._one_time_code
+            ),
+            # attempting this straight away makes login a bit faster for everyone with a shared_secret and doesn't
+            # hurt performance for others
             "captchagid": self._captcha_id,
             "captcha_text": self._captcha_text,
             "loginfriendlyname": self.user_agent,
