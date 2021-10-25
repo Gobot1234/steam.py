@@ -510,25 +510,25 @@ class HTTPClient:
         params = {"cellid": cell_id}
         return self.get(api_route("ISteamDirectory/GetCMList"), params=params)
 
-    def join_clan(self, clan_id: int) -> RequestType[None]:
+    def join_clan(self, clan_id64: int) -> RequestType[None]:
         payload = {
             "sessionID": self.session_id,
             "action": "join",
         }
-        return self.post(URL.COMMUNITY / f"gid/{clan_id}", data=payload)
+        return self.post(URL.COMMUNITY / f"gid/{clan_id64}", data=payload)
 
-    def leave_clan(self, clan_id: int) -> RequestType[None]:
+    def leave_clan(self, clan_id64: int) -> RequestType[None]:
         payload = {
             "sessionID": self.session_id,
             "action": "leaveGroup",
-            "groupId": clan_id,
+            "groupId": clan_id64,
         }
         return self.post(URL.COMMUNITY / "my/home_process", data=payload)
 
-    def invite_user_to_clan(self, user_id64: int, clan_id: int) -> RequestType[None]:
+    def invite_user_to_clan(self, user_id64: int, clan_id64: int) -> RequestType[None]:
         payload = {
             "sessionID": self.session_id,
-            "group": clan_id,
+            "group": clan_id64,
             "invitee": user_id64,
             "type": "groupInvite",
         }

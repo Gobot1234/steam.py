@@ -420,7 +420,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         user
             The user to invite to the clan.
         """
-        await self._state.http.invite_user_to_clan(user_id64=user.id64, clan_id=self.id64)
+        await self._state.http.invite_user_to_clan(user.id64, self.id64)
 
     # event/announcement stuff
 
