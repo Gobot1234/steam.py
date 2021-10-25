@@ -1,8 +1,10 @@
+from dataclasses import dataclass
 from typing import List
 
 import betterproto
 
 
+@dataclass(eq=False, repr=False)
 class UpdateRequest(betterproto.Message):
     recommendationid: int = betterproto.uint64_field(1)
     review_text: str = betterproto.string_field(2)
@@ -14,23 +16,28 @@ class UpdateRequest(betterproto.Message):
     comments_disabled: bool = betterproto.bool_field(8)
 
 
+@dataclass(eq=False, repr=False)
 class UpdateResponse(betterproto.Message):
     pass
 
 
+@dataclass(eq=False, repr=False)
 class GetIndividualRecommendationsRequest(betterproto.Message):
     requests: List["GetIndividualRecommendationsRequestRecommendationRequest"] = betterproto.message_field(1)
 
 
+@dataclass(eq=False, repr=False)
 class GetIndividualRecommendationsRequestRecommendationRequest(betterproto.Message):
     steamid: int = betterproto.uint64_field(1)
     appid: int = betterproto.uint32_field(2)
 
 
+@dataclass(eq=False, repr=False)
 class GetIndividualRecommendationsResponse(betterproto.Message):
     recommendations: List["RecommendationDetails"] = betterproto.message_field(1)
 
 
+@dataclass(eq=False, repr=False)
 class RecommendationDetails(betterproto.Message):
     recommendationid: int = betterproto.uint64_field(1)
     steamid: int = betterproto.uint64_field(2)
@@ -75,6 +82,7 @@ class RecommendationDetails(betterproto.Message):
     ipaddress: str = betterproto.string_field(41)
 
 
+@dataclass(eq=False, repr=False)
 class RecommendationLoyaltyReaction(betterproto.Message):
     reaction_type: int = betterproto.uint32_field(1)
     count: int = betterproto.uint32_field(2)

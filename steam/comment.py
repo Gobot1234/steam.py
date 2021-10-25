@@ -30,8 +30,8 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
     from .abc import Commentable
+    from .message import Authors
     from .state import ConnectionState
-    from .user import ClientUser, User
 
 
 __all__ = ("Comment",)
@@ -63,7 +63,7 @@ class Comment(Generic[C]):
     id: int
     content: str
     created_at: datetime
-    author: User | ClientUser
+    author: Authors
     owner: C
 
     def __repr__(self) -> str:

@@ -563,9 +563,8 @@ class Command(Generic[P]):
                 try:
                     ret = await self._convert(ctx, converter, param, argument)
                 except BadArgument:
-                    if origin is Union:
-                        continue
-                    raise
+                    if origin is not Union:
+                        raise
                 else:
                     if origin is not Literal:
                         return ret
@@ -749,7 +748,7 @@ class GroupMixin:
         callback: CallT | None = None,
         *,
         name: str | None = None,
-        cls: type[C] | None = None,
+        cls: type[G] | None = None,
         **attrs: Any,
     ) -> Callable[[CallT], C] | C:
         """|maybecallabledeco|
@@ -771,7 +770,7 @@ class GroupMixin:
 
         def decorator(callback: CallT) -> C:
             attrs.setdefault("parent", self)
-            result = command(callback, name=name, cls=cls or Command, **attrs)
+            result = command(callback, name=name, cls=cls or Command, **attrs)  # type: ignore
             self.add_command(result)
             return result
 
@@ -840,7 +839,7 @@ class GroupMixin:
 
         def decorator(callback: CallbackType[P]) -> G:
             attrs.setdefault("parent", self)
-            result = group(callback, name=name, cls=cls or Group, **attrs)
+            result = group(callback, name=name, cls=cls or Group, **attrs)  # type: ignore
             self.add_command(result)
             return result
 

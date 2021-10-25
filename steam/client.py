@@ -1170,7 +1170,7 @@ class Client:
         *,
         check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[str, Exception, tuple[Any], dict[str, Any]]:
+    ) -> tuple[str, Exception, tuple[Any, ...], dict[str, Any]]:
         ...
 
     @overload

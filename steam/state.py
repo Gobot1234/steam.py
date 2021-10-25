@@ -888,7 +888,9 @@ class ConnectionState(Registerable):
             url_with_no_query = url.with_query(None)
             if url_with_no_query in cached:
                 cached[url_with_no_query][1] += 1  # type: ignore
-                commentable, index = cached[url_with_no_query]
+                commentable, index = cached[url_with_no_query]  # type: ignore
+                commentable: Commentable
+                index: int
             else:
                 steam_id = await SteamID.from_url(url, self.http._session)
                 if steam_id is None:
@@ -979,6 +981,9 @@ class ConnectionState(Registerable):
     async def update_clan(self, msg: MsgProto[client_server.CMsgClientClanState]) -> None:
         await self.handled_groups.wait()
         clan = self.get_clan(msg.body.steamid_clan) or await self.fetch_clan(msg.body.steamid_clan)
+        if clan is None:
+            return
+
         for event in msg.body.events:
             if event.just_posted:
                 event = await clan.fetch_event(event.gid)

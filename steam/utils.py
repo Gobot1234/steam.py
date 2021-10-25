@@ -37,7 +37,7 @@ import re
 import struct
 import sys
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
-from inspect import getmembers, isawaitable, iscoroutinefunction
+from inspect import getmembers, isawaitable
 from io import BytesIO
 from operator import attrgetter
 from types import MemberDescriptorType
@@ -521,19 +521,19 @@ def update_class(
     return new_instance
 
 
-def call_once(func: Callable[_P, Awaitable[_T]]) -> Callable[_P, Coroutine[Any, Any, _T]]:
+def call_once(func: Callable[_P, Awaitable[None]]) -> Callable[_P, Coroutine[Any, Any, None]]:
     called = False
 
     @functools.wraps(func)
-    async def inner(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+    async def inner(*args: _P.args, **kwargs: _P.kwargs) -> None:
         nonlocal called
 
         if called:  # call becomes a noop
-            return await asyncio.sleep(0)  # type: ignore
+            await asyncio.sleep(0)
 
         called = True
         try:
-            return await func(*args, **kwargs)
+            await func(*args, **kwargs)
         finally:
             called = False
 
