@@ -134,6 +134,12 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
     )
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
+    # Clan.kick
+    # Clan.ban
+    # Group.create_channel
+    # Clan.requesting_membership
+    # Clan.respond_to_requesting_membership(*users, approve)
+    # Clan.respond_to_all_requesting_membership(approve)
 
     name: str
     content: str

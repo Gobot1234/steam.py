@@ -331,7 +331,7 @@ class Command(Generic[P]):
 
     def before_invoke(self, coro: InvokeT | None = None) -> Callable[[InvokeT], InvokeT] | InvokeT:
         """|maybecallabledeco|
-        Register a :term:`coroutine function` to be ran before any arguments are parsed.
+        Register a :term:`coroutine function` to be run before any arguments are parsed.
         """
 
         def decorator(coro: InvokeT) -> InvokeT:
@@ -352,7 +352,7 @@ class Command(Generic[P]):
 
     def after_invoke(self, coro: InvokeT | None = None) -> Callable[[InvokeT], InvokeT] | InvokeT:
         """|maybecallabledeco|
-        Register a :term:`coroutine function` to be ran after the command has been invoked.
+        Register a :term:`coroutine function` to be run after the command has been invoked.
         """
 
         def decorator(coro: InvokeT) -> InvokeT:
@@ -372,7 +372,7 @@ class Command(Generic[P]):
             The invocation context.
         """
         try:
-            try:  # we mess with mentions in UserConverter.convert so we need to copy them for later
+            try:  # we mess with mentions in UserConverter.convert, so we need to copy them for later
                 mentions = ctx.message.mentions.ids.copy()
             except AttributeError:
                 pass
@@ -402,7 +402,7 @@ class Command(Generic[P]):
             await self._call_after_invoke(ctx)
 
     async def can_run(self, ctx: Context) -> bool:
-        """Whether or not the command can be ran.
+        """Whether the command can be run.
 
         Parameters
         ----------
@@ -613,7 +613,7 @@ class GroupMixin:
     Attributes
     ----------
     case_insensitive
-        Whether or not commands should be invoke-able case insensitively.
+        Whether commands should be invoke-able case insensitively.
     """
 
     def __init__(self, *args: Any, **kwargs: Any):

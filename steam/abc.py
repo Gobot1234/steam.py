@@ -314,7 +314,7 @@ class Commentable(Protocol):
         content
             The message to add to the comment section.
         subscribe
-            WWhether or not to subscribe to notifications on any future activity in this comment's thread.
+            Whether to subscribe to notifications on any future activity in this comment's thread.
 
         Returns
         -------

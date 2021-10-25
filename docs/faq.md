@@ -62,7 +62,7 @@ documentation and when debugging any issues in your code.
     - Implicit/explicit string concatenation
 - [Logging](https://realpython.com/courses/logging-python)
 - [Decorators](https://realpython.com/primer-on-python-decorators)
-- [Basic type hints](https://realpython.com/primer-on-python-decorators)
+- [Basic type hints](https://realpython.com/python-type-checking)
 
 **Places to learn more python**
 

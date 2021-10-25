@@ -84,6 +84,11 @@ class Group(SteamID):
     _channels: dict[int, GroupChannel]
     _top_members_id64s: list[int]
 
+    # TODO
+    # Group.ban
+    # Group.kick
+    # Group.create_channel
+
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Chat)
         self._state = state

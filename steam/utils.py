@@ -644,6 +644,7 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
         # fmt: on
 
 
+# TODO consider in V1 making these allow async iterables after async iterator rework?
 # everything below here is directly from discord.py's utils
 # https://github.com/Rapptz/discord.py/blob/master/discord/utils.py
 def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> _T | None:
@@ -735,4 +736,5 @@ async def maybe_coroutine(
     return value
 
 
+# TODO need a consts file
 DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)

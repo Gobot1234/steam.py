@@ -101,15 +101,17 @@ class Client:
         ----
         Setting your status to :attr:`~steam.PersonaState.Offline`, will stop you receiving persona state updates
         and by extension :meth:`on_user_update` will stop being dispatched.
-
     ui_mode
         The UI mode to set your status to on connect.
     flags
         Flags to set your persona state to.
-
     force_kick
         Whether or not to forcefully kick any other playing sessions on connect. Defaults to ``False``.
     """
+
+    # TODO
+    # Client.create_clan
+    # Client.create_group
 
     @overload
     def __init__(  # type: ignore
