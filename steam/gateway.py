@@ -433,7 +433,7 @@ class SteamWebSocket(Registerable):
         if hasattr(self, "_keep_alive"):
             self._keep_alive.stop()
             del self._keep_alive
-        log.info(f"Websocket closed, cannot reconnect.")
+        log.info("Websocket closed, cannot reconnect.")
         raise ConnectionClosed(self.cm, self.cm_list)
 
     @register(EMsg.ClientLogOnResponse)
@@ -461,7 +461,6 @@ class SteamWebSocket(Registerable):
             state=self._connection._state,
             flags=self._connection._flags,
             force_kick=self._connection._force_kick,
-            ui_mode=None,
         )
         await self.send_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
         await self.send_proto(MsgProto(EMsg.ClientServerTimestampRequest, client_request_timestamp=time.time() * 1000))
@@ -478,31 +477,32 @@ class SteamWebSocket(Registerable):
 
     @staticmethod
     def unpack_multi(msg: MsgProto[CMsgMulti]) -> bytes | None:
-        log.debug(f"Decompressing payload ({len(msg.body.message_body)} -> {msg.body.size_unzipped})")
         data = msg.body.message_body
+        log.debug(f"Decompressing payload ({len(data)} -> {msg.body.size_unzipped})")
         if data[:2] != b"\037\213":
-            return log.info(f"Received a file that's not GZipped")
+            return log.info("Received a file that's not GZipped")
 
         (flag,) = struct.unpack("<B", data[3:4])
         position = 10
 
-        if flag & FEXTRA:
-            (extra_len,) = struct.unpack("<H", data[position:2])
-            position += 2 + extra_len
-        if flag & FNAME:
-            while True:
-                terminator = data[position:1]
-                position += 1
-                if not terminator or terminator == b"\000":
-                    return None
-        if flag & FCOMMENT:
-            while True:
-                terminator = data[position:1]
-                position += 1
-                if not terminator or terminator == b"\000":
-                    break
-        if flag & FHCRC:
-            position += 2
+        if flag:  # this isn't ever hit, might as well save a few nanos
+            if flag & FEXTRA:
+                (extra_len,) = struct.unpack("<H", data[position:2])
+                position += 2 + extra_len
+            if flag & FNAME:
+                while True:
+                    terminator = data[position:1]
+                    position += 1
+                    if not terminator or terminator == b"\000":
+                        break
+            if flag & FCOMMENT:
+                while True:
+                    terminator = data[position:1]
+                    position += 1
+                    if not terminator or terminator == b"\000":
+                        break
+            if flag & FHCRC:
+                position += 2
 
         decompressed = decompress(data[position:], wbits=-MAX_WBITS)
 
@@ -569,13 +569,13 @@ class SteamWebSocket(Registerable):
             await self.send_proto(kick_msg)
         if games:
             games_msg = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
-            log.debug(f"Sending %r to change activity", games_msg)
+            log.debug("Sending %r to change activity", games_msg)
             await self.send_proto(games_msg)
         if state is not None or flags:
             state_msg = MsgProto(EMsg.ClientChangeStatus, persona_state=state, persona_state_flags=flags)
-            log.debug(f"Sending %r to change state", state_msg)
+            log.debug("Sending %r to change state", state_msg)
             await self.send_proto(state_msg)
         if ui_mode is not None:
             ui_mode_msg = MsgProto(EMsg.ClientCurrentUIMode, uimode=ui_mode)
-            log.debug(f"Sending %r to change UI mode", ui_mode_msg)
+            log.debug("Sending %r to change UI mode", ui_mode_msg)
             await self.send_proto(ui_mode_msg)

@@ -922,7 +922,7 @@ class ConnectionState(Registerable):
             try:
                 timestamp = int(url.query["tscn"])
             except KeyError:
-                log.debug(f"Got a comment without a timestamp")
+                log.debug("Got a comment without a timestamp")
                 continue
 
             after = datetime.utcfromtimestamp(timestamp) - timedelta(minutes=1)

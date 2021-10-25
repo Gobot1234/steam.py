@@ -692,7 +692,7 @@ class HTTPClient:
             "clan_accountid": clan_id,
             "announcement_gid": announcement_id,
         }
-        return self.get(URL.STORE / f"events/ajaxgetpartnerevent", params=params)
+        return self.get(URL.STORE / "events/ajaxgetpartnerevent", params=params)
 
     async def edit_profile(
         self,
