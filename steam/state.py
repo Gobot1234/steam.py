@@ -815,6 +815,14 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.body.roles
 
+    async def fetch_comment(self, owner: Commentable, id: int) -> comments.GetCommentThreadRatingsResponse.Comment:
+        msg: MsgProto[comments.GetCommentThreadRatingsResponse] = await self.ws.send_um_and_wait(
+            "Community.GetCommentThread", **owner._commentable_kwargs, id=id
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.comments[0]
+
     async def fetch_comments(
         self, owner: Commentable, limit: int | None, after: datetime, oldest_first: bool
     ) -> list[comments.GetCommentThreadResponse.Comment]:

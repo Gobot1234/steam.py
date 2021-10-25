@@ -306,6 +306,24 @@ class Commentable(Protocol):
     def _commentable_kwargs(self) -> dict[str, Any]:
         raise NotImplementedError
 
+    async def fetch_comment(self: Self, id: int) -> Comment[Self]:
+        """Fetch a comment by its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the comment to fetch.
+        """
+        comment = await self._state.fetch_comment(self, id)
+        return Comment(
+            self._state,
+            id=comment.id,
+            content=comment.content,
+            created_at=datetime.utcfromtimestamp(comment.timestamp),
+            author=await self._state._maybe_user(comment.author_id64),
+            owner=self,
+        )
+
     async def comment(self: Self, content: str, *, subscribe: bool = True) -> Comment[Self]:
         """Post a comment to a comments section.
 
