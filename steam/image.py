@@ -31,7 +31,9 @@ import imghdr
 import io
 import struct
 from time import time
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
+
+from typing_extensions import Protocol
 
 __all__ = ("Image",)
 
