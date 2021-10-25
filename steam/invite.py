@@ -91,9 +91,6 @@ class ClanInvite(Invite):
         The relationship you have with the clan.
     """
 
-    # <a class="linkTitle" href="https://steamcommunity.com/games/581660">Super Meat Boy Forever</a>
-    # if game invite url is https://steamcommunity.com/games/581660
-
     __slots__ = ("clan",)
 
     def __init__(
@@ -113,8 +110,8 @@ class ClanInvite(Invite):
 
     async def accept(self) -> None:
         """Accept the invite request."""
-        await self._state.http.accept_clan_invite(self.clan.id64)
+        await self._state.respond_to_clan_invite(self.clan.id64, True)
 
     async def decline(self) -> None:
         """Decline the invite request."""
-        await self._state.http.decline_clan_invite(self.clan.id64)
+        await self._state.respond_to_clan_invite(self.clan.id64, False)

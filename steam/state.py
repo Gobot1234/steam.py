@@ -962,6 +962,11 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
+    async def respond_to_clan_invite(self, clan_id64: int, accept: bool) -> None:
+        msg = await self.ws.send_um_and_wait("Clan.RespondToClanInvite", steamid=clan_id64, accept=accept)
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
     @register(EMsg.ClientClanState)
     async def update_clan(self, msg: MsgProto[client_server.CMsgClientClanState]) -> None:
         await self.handled_groups.wait()

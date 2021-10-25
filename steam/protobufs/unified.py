@@ -6,6 +6,7 @@ import betterproto
 
 from . import (
     chat,
+    clan,
     comments,
     content_server,
     econ,
@@ -126,6 +127,14 @@ UMS: Mapping[str, type[betterproto.Message]] = {
     "ChatRoom.UpdateMessageReaction#1_Response": chat.UpdateMessageReactionResponse,
     "ChatRoom.GetMessageReactionReactors#1_Request": chat.GetMessageReactionReactorsRequest,
     "ChatRoom.GetMessageReactionReactors#1_Response": chat.GetMessageReactionReactorsResponse,
+    "Clan.RespondToClanInvite#1_Request": clan.RespondToClanInviteRequest,
+    "Clan.RespondToClanInvite#1_Response": clan.RespondToClanInviteResponse,
+    "Clan.GetAdjacentPartnerEvents#1_Request": clan.GetAdjacentPartnerEventsRequest,
+    "Clan.GetAdjacentPartnerEvents#1_Response": clan.GetAdjacentPartnerEventsResponse,
+    "Clan.GetEventDetails#1_Request": clan.GetEventDetailsRequest,
+    "Clan.GetEventDetails#1_Response": clan.GetEventDetailsResponse,
+    "Clan.GetSinglePartnerEvent#1_Request": clan.GetSinglePartnerEventRequest,
+    "Clan.GetSinglePartnerEvent#1_Response": clan.GetSinglePartnerEventResponse,
     "ClanChatRooms.GetClanChatRoomInfo#1_Request": chat.GetClanChatRoomInfoRequest,
     "ClanChatRooms.GetClanChatRoomInfo#1_Response": chat.GetClanChatRoomInfoResponse,
     "ClanChatRooms.SetClanChatRoomPrivate#1_Request": chat.SetClanChatRoomPrivateRequest,

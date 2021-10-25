@@ -510,26 +510,6 @@ class HTTPClient:
         params = {"cellid": cell_id}
         return self.get(api_route("ISteamDirectory/GetCMList"), params=params)
 
-    def accept_clan_invite(self, clan_id: int) -> RequestType[None]:
-        payload = {
-            "sessionid": self.session_id,
-            "steamid": self.user.id64,
-            "ajax": "1",
-            "action": "group_accept",
-            "steamids[]": clan_id,
-        }
-        return self.post(URL.COMMUNITY / "my/friends/action", data=payload)
-
-    def decline_clan_invite(self, clan_id: int) -> RequestType[None]:
-        payload = {
-            "sessionid": self.session_id,
-            "steamid": self.user.id64,
-            "ajax": "1",
-            "action": "group_ignore",
-            "steamids[]": clan_id,
-        }
-        return self.post(URL.COMMUNITY / "my/friends/action", data=payload)
-
     def join_clan(self, clan_id: int) -> RequestType[None]:
         payload = {
             "sessionID": self.session_id,
