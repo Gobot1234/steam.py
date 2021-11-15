@@ -41,7 +41,7 @@ aiohttp = "~3.7"
 beautifulsoup4 = "^4.10.0"
 cryptography = "^35.0"
 betterproto = "2.0.0b3"
-typing-extensions = "3.10.0.2"
+typing-extensions = "4.0.0"
 tomli = "~1"
 
 # docs option

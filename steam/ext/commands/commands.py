@@ -35,7 +35,7 @@ from collections.abc import Coroutine, Iterable
 from time import time
 from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, TypeVar, Union, get_type_hints, overload
 
-from typing_extensions import Literal, ParamSpec, Protocol, TypeAlias, get_args, get_origin
+from typing_extensions import Literal, ParamSpec, Protocol, Self, TypeAlias, get_args, get_origin
 
 from ...channel import DMChannel
 from ...errors import ClientException
@@ -55,8 +55,6 @@ from .errors import (
 from .utils import CaseInsensitiveDict
 
 if TYPE_CHECKING:
-    from _typeshed import Self
-
     from .bot import Bot
     from .cog import Cog
     from .context import Context
@@ -255,7 +253,7 @@ class Command(Generic[P]):
         return " ".join(c.name for c in reversed(self.parents))
 
     @property
-    def parents(self: Self) -> list[Self]:
+    def parents(self) -> list[Self]:
         """The command's parents.
 
         Returns
@@ -846,7 +844,7 @@ class GroupMixin:
         return decorator(callback) if callback is not None else decorator
 
     @property
-    def children(self: Self) -> list[Self]:
+    def children(self) -> list[Self]:
         """The commands children.
 
         Returns

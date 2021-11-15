@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+from typing_extensions import Self
 
 from ..utils import StructIO
 from .emsg import EMsg
 from .protobufs import PROTOBUFS
 
-if TYPE_CHECKING:
-    from _typeshed import Self
-
 
 class StructMessageMeta(type):
-    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> StructMessageMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> Self:
         attrs["__slots__"] = slots = tuple(attrs.get("__annotations__", ()))
         exec(
             f"def __init__(self, {', '.join(f'{slot}=None' for slot in slots)}): "
@@ -28,7 +27,7 @@ class StructMessageMeta(type):
 
 
 class StructMessage(metaclass=StructMessageMeta):
-    def from_dict(self: Self, dict: dict[str, Any]) -> Self:
+    def from_dict(self, dict: dict[str, Any]) -> Self:
         self.__init__(**dict)
         return self
 
@@ -45,7 +44,7 @@ class StructMessage(metaclass=StructMessageMeta):
 
             return io.buffer
 
-    def parse(self: Self, data: bytes) -> Self:
+    def parse(self, data: bytes) -> Self:
         raise NotImplementedError
 
 
@@ -58,7 +57,7 @@ class ClientGetFriendsWhoPlayGameResponse(StructMessage):
     app_id: int
     friends: list[int]
 
-    def parse(self: Self, data: bytes) -> Self:
+    def parse(self, data: bytes) -> Self:
         with StructIO(data) as io:
             self.eresult = io.read_u32()
             self.app_id = io.read_u64()

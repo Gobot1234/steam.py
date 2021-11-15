@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, overload
 
 import aiohttp
 from aiohttp.typedefs import StrOrURL
-from typing_extensions import Final, Literal, ParamSpec, Protocol, TypeAlias
+from typing_extensions import Final, Literal, ParamSpec, Protocol, Self, TypeAlias
 
 from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor
 from .errors import InvalidSteamID
@@ -53,7 +53,6 @@ from .errors import InvalidSteamID
 if TYPE_CHECKING:
     from typing import SupportsIndex  # doesn't exist in 3.7
 
-    from _typeshed import Self
 
 _T = TypeVar("_T")
 _T_co = TypeVar("_T_co", covariant=True)
@@ -406,14 +405,14 @@ class cached_property(Generic[_T]):
         self.__doc__: str | None = getattr(function, "__doc__", None)
 
     @overload
-    def __get__(self: Self, instance: None, _) -> Self:
+    def __get__(self, instance: None, _) -> Self:
         ...
 
     @overload
     def __get__(self, instance: Any, _) -> _T:
         ...
 
-    def __get__(self: Self, instance: Any | None, _) -> _T | Self:
+    def __get__(self, instance: Any | None, _) -> _T | Self:
         if instance is None:
             return self
 
@@ -429,14 +428,14 @@ if TYPE_CHECKING:
 
 class cached_slot_property(cached_property[_T]):
     @overload
-    def __get__(self: Self, instance: None, _) -> Self:
+    def __get__(self, instance: None, _) -> Self:
         ...
 
     @overload
     def __get__(self, instance: Any, _) -> _T:
         ...
 
-    def __get__(self: Self, instance: Any | None, _) -> _T | Self:
+    def __get__(self, instance: Any | None, _) -> _T | Self:
         if instance is None:
             return self
 
@@ -545,11 +544,11 @@ class AsyncInit(metaclass=abc.ABCMeta):
     async def __ainit__(self) -> None:
         ...
 
-    async def __await_inner__(self: Self) -> Self:
+    async def __await_inner__(self) -> Self:
         await self.__ainit__()
         return self
 
-    def __await__(self: Self) -> Generator[Any, None, Self]:
+    def __await__(self) -> Generator[Any, None, Self]:
         return self.__await_inner__().__await__()
 
 

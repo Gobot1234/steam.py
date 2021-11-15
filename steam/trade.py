@@ -29,15 +29,13 @@ from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from typing_extensions import TypeAlias, TypedDict
+from typing_extensions import Required, TypeAlias, TypedDict
 
 from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game, StatefulGame
 
 if TYPE_CHECKING:
-    from typing_extensions import Required
-
     from .abc import BaseUser, SteamID
     from .state import ConnectionState
     from .user import User

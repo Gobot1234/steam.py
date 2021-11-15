@@ -30,15 +30,13 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from .abc import Channel, M_co, Message, SteamID
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
 from .protobufs.chat import ChatRoomState, IncomingChatMessageNotification, State
 
 if TYPE_CHECKING:
-    from _typeshed import Self
-
     from .clan import Clan
     from .group import Group
     from .image import Image
@@ -179,7 +177,7 @@ class _GroupChannel(Channel[M_co]):
         return f"<{cls.__name__} {' '.join(resolved)}>"
 
     def history(
-        self: Self,
+        self,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,

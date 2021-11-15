@@ -36,7 +36,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import attr
-from typing_extensions import Final, Protocol, TypedDict, runtime_checkable
+from typing_extensions import Final, Protocol, Self, TypedDict, runtime_checkable
 
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
@@ -60,7 +60,6 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from _typeshed import Self
     from aiohttp import ClientSession
 
     from .clan import Clan
@@ -306,7 +305,7 @@ class Commentable(Protocol):
     def _commentable_kwargs(self) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def fetch_comment(self: Self, id: int) -> Comment[Self]:
+    async def fetch_comment(self, id: int) -> Comment[Self]:
         """Fetch a comment by its ID.
 
         Parameters
@@ -324,7 +323,7 @@ class Commentable(Protocol):
             owner=self,
         )
 
-    async def comment(self: Self, content: str, *, subscribe: bool = True) -> Comment[Self]:
+    async def comment(self, content: str, *, subscribe: bool = True) -> Comment[Self]:
         """Post a comment to a comments section.
 
         Parameters
@@ -341,7 +340,7 @@ class Commentable(Protocol):
         return await self._state.post_comment(self, content, subscribe)
 
     def comments(
-        self: Self,
+        self,
         oldest_first: bool = False,
         limit: int | None = None,
         before: datetime | None = None,

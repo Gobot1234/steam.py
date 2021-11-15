@@ -30,13 +30,9 @@ from __future__ import annotations
 import builtins
 from collections.abc import Generator
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypeVar
 
-from typing_extensions import Literal
-
-if TYPE_CHECKING:
-    from _typeshed import Self
-
+from typing_extensions import Literal, Self
 
 __all__ = (
     "Enum",
@@ -142,7 +138,7 @@ class Enum(metaclass=EnumMeta["Self"]):
     name: str
     value: Any
 
-    def __new__(cls: type[Self], *, name: str, value: Any) -> Self:
+    def __new__(cls, *, name: str, value: Any) -> Self:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
         # for creating Enum members
         super_ = super()
@@ -188,7 +184,7 @@ if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
 
     class Enum(_Enum):
         @classmethod
-        def try_value(cls: type[Self], value: Any) -> Self:
+        def try_value(cls, value: Any) -> Self:
             ...
 
     class IntEnum(_IntEnum, Enum):
@@ -200,7 +196,7 @@ if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
 
 class Flags(IntEnum):
     @classmethod
-    def try_value(cls: type[E], value: int) -> E:
+    def try_value(cls, value: int) -> Self:
         flags = [enum for enum in cls if enum.value & value]
         if flags:
             returning_flag = flags[0]
@@ -210,13 +206,13 @@ class Flags(IntEnum):
                 return returning_flag
         return cls.__new__(cls, name=f"{cls.__name__}UnknownValue", value=value)
 
-    def __or__(self: Self, other: Self | int) -> Self:
+    def __or__(self, other: Self | int) -> Self:
         cls = self.__class__
-        return cls.__new__(cls, name=f"{self.name} | {other.name}", value=self.value | int(other))
+        return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=self.value | int(other))
 
-    def __and__(self: Self, other: Self | int) -> Self:
+    def __and__(self, other: Self | int) -> Self:
         cls = self.__class__
-        return cls.__new__(cls, name=f"{self.name} & {other.name}", value=self.value & int(other))
+        return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=self.value & int(other))
 
 
 # fmt: off
