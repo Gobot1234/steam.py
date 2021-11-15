@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from typing_extensions import Required, TypeAlias, TypedDict
 
+from . import utils
 from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game, StatefulGame
@@ -446,7 +447,7 @@ class TradeOffer:
         trade._has_been_sent = True
         trade._state = state
         trade._update(data)
-        trade.partner = int(data["accountid_other"])  # type: ignore
+        trade.partner = utils.make_id64(data["accountid_other"])  # type: ignore
         return trade
 
     def _update_from_send(
