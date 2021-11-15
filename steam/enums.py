@@ -28,7 +28,7 @@ EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discor
 from __future__ import annotations
 
 import builtins
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypeVar
 
@@ -58,23 +58,21 @@ __all__ = (
 )
 
 T = TypeVar("T")
-E = TypeVar("E", bound="Enum")
+E = TypeVar("E", bound="Enum", covariant=True)
 IE = TypeVar("IE", bound="IntEnum")
 
 
-def _is_descriptor(obj: Any) -> bool:
+def _is_descriptor(obj: object) -> bool:
     """Returns True if obj is a descriptor, False otherwise."""
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
 class EnumMeta(type, Generic[E]):
-    _value_map_: dict[Any, E]
-    _member_map_: dict[str, E]
+    _value_map_: Mapping[Any, E]
+    _member_map_: Mapping[str, E]
 
-    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> type[E]:
-        set_attribute = super().__setattr__
-        enum_class: type[E] = super().__new__(mcs, name, bases, attrs)  # type: ignore
-        enum_class_new: Callable[[type[E], str, Any], E] = enum_class.__new__  #: type: ignore
+    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> Self:
+        enum_class = super().__new__(mcs, name, bases, attrs)
 
         value_mapping: dict[Any, E] = {}
         member_mapping: dict[str, E] = {}
@@ -85,14 +83,14 @@ class EnumMeta(type, Generic[E]):
 
             member = value_mapping.get(value)
             if member is None:
-                member = enum_class_new(enum_class, name=key, value=value)
+                member = enum_class.__new__(enum_class, name=key, value=value)
                 value_mapping[value] = member
 
             member_mapping[key] = member
-            set_attribute(enum_class, key, member)
+            super().__setattr__(enum_class, key, member)
 
-        set_attribute(enum_class, "_value_map_", value_mapping)
-        set_attribute(enum_class, "_member_map_", member_mapping)
+        super().__setattr__(enum_class, "_value_map_", value_mapping)
+        super().__setattr__(enum_class, "_member_map_", member_mapping)
         return enum_class
 
     def __call__(cls: type[E], value: Any) -> E:
