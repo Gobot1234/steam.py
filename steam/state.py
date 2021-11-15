@@ -139,6 +139,8 @@ class ConnectionState(Registerable):
 
     @property
     def steam_time(self) -> datetime:
+        if self.ws is None:  # can't be more precise
+            return datetime.utcnow()
         return datetime.utcnow() + self.ws.server_offset
 
     @property
