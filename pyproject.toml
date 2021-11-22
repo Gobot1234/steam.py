@@ -39,7 +39,7 @@ generate-setup-file = false
 python = "^3.7"
 aiohttp = ">=3.7,<3.9"
 beautifulsoup4 = "^4.10.0"
-cryptography = ">=35,<37"
+cryptography = "^36"
 betterproto = "2.0.0b3"
 typing-extensions = "4.0.0"
 tomli = "~1"
