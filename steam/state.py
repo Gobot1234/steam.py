@@ -1017,6 +1017,7 @@ class ConnectionState(Registerable):
 
 
 class TradesList(AsyncIterator[TradeOffer]):
+    @utils.call_once
     async def fill(self) -> None:
         state = self._state
         try:
@@ -1038,13 +1039,12 @@ class TradesList(AsyncIterator[TradeOffer]):
             log.info("Error while polling trades", exc_info=exc)
 
     async def wait_for(self, id: int) -> TradeOffer:
-        copied = self.queue.copy()
-        trade = await self.get(id=id)
+        if not self.queue:
+            await self.fill()  # if this is a no-op it doesn't matter
+        trade = utils.get(self.queue, id=id)
         if trade is not None:
-            copied.remove(trade)
-            self.queue = copied
+            self.queue.remove(trade)
             return trade
 
-        self.queue = copied
-        await self.fill()  # refresh the queue if it wasn't there in the first iteration
+        await self.fill()  # refresh the queue
         return await self.wait_for(id=id)
