@@ -206,6 +206,7 @@ class Item(Asset):
         "fraud_warnings",
         "_is_tradable",
         "_is_marketable",
+        "actions"
     )
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
@@ -228,6 +229,7 @@ class Item(Asset):
         self.fraud_warnings = data.get("fraudwarnings", [])
         self._is_tradable = bool(data.get("tradable", False))
         self._is_marketable = bool(data.get("marketable", False))
+        self.actions = data.get('actions', [])
 
     def is_tradable(self) -> bool:
         """Whether the item is tradable."""
