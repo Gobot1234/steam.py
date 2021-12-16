@@ -1347,6 +1347,20 @@ class Client:
         timeout: float | None = ...,
     ) -> Msgs:
         ...
+        
+    @overload
+    async def wait_for(
+        self,
+        event: Literal[
+            "gc_connect",
+            "gc_disconnect",
+            "gc_ready",
+        ],
+        *,
+        check: Callable[[Msgs], bool] = ...,
+        timeout: float | None = ...,
+    ) -> Msgs:
+        ...
 
     async def wait_for(
         self,
