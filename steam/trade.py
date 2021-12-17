@@ -78,6 +78,7 @@ class DescriptionDict(TypedDict, total=False):
     type: str
     descriptions: dict[str, str]
     market_actions: list[dict[str, str]]
+    actions: list[dict[str, str]]
     tags: list[dict[str, str]]
     actions: list[dict[str, str]]
     icon_url: str
