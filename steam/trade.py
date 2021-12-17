@@ -78,6 +78,7 @@ class DescriptionDict(TypedDict, total=False):
     type: str
     descriptions: dict[str, str]
     market_actions: list[dict[str, str]]
+    actions: list[dict[str, str]]
     tags: list[dict[str, str]]
     actions: list[dict[str, str]]
     icon_url: str
@@ -205,6 +206,7 @@ class Item(Asset):
         "descriptions",
         "fraud_warnings",
         "_is_tradable",
+        "actions",
         "_is_marketable",
     )
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
@@ -228,6 +230,7 @@ class Item(Asset):
         self.fraud_warnings = data.get("fraudwarnings", [])
         self._is_tradable = bool(data.get("tradable", False))
         self._is_marketable = bool(data.get("marketable", False))
+        self.actions = data.get("actions", [])
 
     def is_tradable(self) -> bool:
         """Whether the item is tradable."""
