@@ -230,7 +230,7 @@ class Item(Asset):
         self.fraud_warnings = data.get("fraudwarnings", [])
         self._is_tradable = bool(data.get("tradable", False))
         self._is_marketable = bool(data.get("marketable", False))
-        self.actions = data.get('actions', [])
+        self.actions = data.get("actions", [])
 
     def is_tradable(self) -> bool:
         """Whether the item is tradable."""
