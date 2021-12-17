@@ -206,8 +206,8 @@ class Item(Asset):
         "descriptions",
         "fraud_warnings",
         "_is_tradable",
+        "actions",
         "_is_marketable",
-        "actions"
     )
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
