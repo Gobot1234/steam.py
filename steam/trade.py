@@ -134,8 +134,6 @@ class Asset:
 
     Attributes
     -------------
-    game
-        The game the item is from.
     asset_id
         The assetid of the item.
     amount
@@ -144,17 +142,20 @@ class Asset:
         The instanceid of the item.
     class_id
         The classid of the item.
+    owner
+        The owner of the asset
     """
 
-    __slots__ = ("game", "amount", "class_id", "asset_id", "instance_id")
-    REPR_ATTRS = __slots__
+    __slots__ = ("amount", "class_id", "asset_id", "instance_id", "owner", "_game_cs", "_app_id")
+    REPR_ATTRS = ("amount", "class_id", "asset_id", "instance_id", "owner", "game")
 
-    def __init__(self, data: AssetDict):
+    def __init__(self, data: AssetDict, owner: BaseUser):
         self.asset_id = int(data["assetid"])
-        self.game = Game(id=data["appid"])
         self.amount = int(data["amount"])
         self.instance_id = int(data["instanceid"])
         self.class_id = int(data["classid"])
+        self.owner = owner
+        self._app_id = int(data["appid"])
 
     def __repr__(self) -> str:
         cls = self.__class__
@@ -171,6 +172,11 @@ class Asset:
             "appid": str(self.game.id),
             "contextid": str(self.game.context_id),
         }
+
+    @utils.cached_slot_property
+    def game(self) -> StatefulGame:
+        """The game the item is from."""
+        return StatefulGame(self.owner._state, id=self._app_id)
 
 
 class Item(Asset):
@@ -219,8 +225,8 @@ class Item(Asset):
     )
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
-    def __init__(self, data: ItemDict):
-        super().__init__(data)
+    def __init__(self, data: ItemDict, owner: BaseUser):
+        super().__init__(data, owner)
         self._from_data(data)
 
     def _from_data(self, data: ItemDict) -> None:
@@ -341,15 +347,17 @@ class BaseInventory(Generic[I]):
             for item in data["descriptions"]:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    self.items.append(Item(data=item))  # type: ignore
+                    self.items.append(  # type: ignore
+                        ItemClass(data=item, owner=self.owner),
+                    )
                     break
             else:
-                self.items.append(Asset(data=asset))  # type: ignore
+                self.items.append(  # type: ignore
+                    Asset(data=asset, owner=self.owner),
+                )
 
     async def update(self) -> None:
         """Re-fetches the inventory."""
-        if not self.game:
-            return
         data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
