@@ -237,8 +237,9 @@ class ConnectionState(Registerable):
             trade = self._trades[int(data["tradeofferid"])]
         except KeyError:
             log.info(f'Received trade #{data["tradeofferid"]}')
-            trade = TradeOffer._from_api(state=self, data=data)
-            trade.partner = await self._maybe_user(trade.partner)  # type: ignore
+            trade = TradeOffer._from_api(
+                state=self, data=data, partner=await self._maybe_user(utils.make_id64(data["accountid_other"]))
+            )
             self._trades[trade.id] = trade
             if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
                 trade.items_to_send or trade.items_to_receive  # trade could be glitched

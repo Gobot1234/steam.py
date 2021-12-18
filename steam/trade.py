@@ -30,9 +30,9 @@ import sys
 import types
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
-from typing_extensions import Required, TypeAlias, TypedDict
+from typing_extensions import NotRequired, Required, TypeAlias, TypedDict
 
 from . import utils
 from .enums import TradeOfferState
@@ -50,6 +50,8 @@ __all__ = (
     "Asset",
     "Inventory",
     "TradeOffer",
+    "TradeOfferReceiptItem",
+    "TradeOfferReceipt",
 )
 
 Items: TypeAlias = "Item | Asset"
@@ -107,7 +109,7 @@ class InventoryDict(TypedDict):
 
 class TradeOfferDict(TypedDict):
     tradeofferid: str
-    tradeid: str  # no clue what this is (its not the useful one)
+    tradeid: str  # only used for receipts (its not the useful one)
     accountid_other: int
     message: str
     trade_offer_state: int  # TradeOfferState
@@ -120,6 +122,24 @@ class TradeOfferDict(TypedDict):
     is_our_offer: bool
     from_real_time_trade: bool
     confirmation_method: int  # 2 is mobile 1 might be email? not a clue what other values are
+
+
+class TradeOfferReceiptAssetDict(AssetDict):
+    new_assetid: str
+    new_contextid: str
+
+
+class TradeOfferReceiptItemDict(TradeOfferReceiptAssetDict, ItemDict):
+    ...
+
+
+class TradeOfferReceiptDict(TypedDict):
+    status: int
+    tradeid: str
+    time_init: int
+    assets_received: NotRequired[list[TradeOfferReceiptAssetDict]]
+    assets_given: NotRequired[list[TradeOfferReceiptAssetDict]]
+    descriptions: list[DescriptionDict]
 
 
 class Asset:
@@ -425,7 +445,34 @@ game
     The game the inventory the game belongs to.
 """
 
-    __slots__ = ()
+
+class TradeOfferReceipt(NamedTuple):
+    sent: list[TradeOfferReceiptItem]
+    received: list[TradeOfferReceiptItem]
+
+
+class TradeOfferReceiptItem(Item):
+    """An item in a trade receipt.
+
+    Attributes
+    ----------
+    new_asset_id
+        The new_assetid field, this is the asset id of the item in the partners inventory.
+    new_context_id
+        The new_contextid field.
+    """
+
+    __slots__ = (
+        "new_asset_id",
+        "new_context_id",
+    )
+    new_asset_id: int
+    new_context_id: int
+
+    def _from_data(self, data: TradeOfferReceiptItemDict):
+        super()._from_data(data)
+        self.new_context_id = int(data["new_contextid"])
+        self.new_asset_id = int(data["new_assetid"])
 
 
 class TradeOffer:
@@ -477,6 +524,7 @@ class TradeOffer:
 
     __slots__ = (
         "id",
+        "_id",
         "state",
         "escrow",
         "partner",
@@ -510,20 +558,23 @@ class TradeOffer:
             self.items_to_send.append(item_to_send)
         self.message: str | None = message or None
         self.token: str | None = token
-        self._has_been_sent = False
         self.partner: User | SteamID | None = None
         self.updated_at: datetime | None = None
         self.created_at: datetime | None = None
         self.escrow: timedelta | None = None
         self.state = TradeOfferState.Invalid
+        self._id: int | None = None
+        self._has_been_sent = False
 
     @classmethod
-    def _from_api(cls, state: ConnectionState, data: TradeOfferDict) -> TradeOffer:
+    def _from_api(
+        cls, state: ConnectionState, data: TradeOfferDict, partner: User | SteamID | None = None
+    ) -> TradeOffer:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
+        trade.partner = partner or utils.make_id64(data["accountid_other"])  # type: ignore
         trade._update(data)
-        trade.partner = utils.make_id64(data["accountid_other"])  # type: ignore
         return trade
 
     def _update_from_send(
@@ -544,6 +595,7 @@ class TradeOffer:
     def _update(self, data: TradeOfferDict) -> None:
         self.message = data.get("message") or None
         self.id = int(data["tradeofferid"])
+        self._id = int(data["tradeid"])
         expires = data.get("expiration_time")
         escrow = data.get("escrow_end_date")
         updated_at = data.get("time_updated")
@@ -553,8 +605,8 @@ class TradeOffer:
         self.updated_at = datetime.utcfromtimestamp(updated_at) if updated_at else None
         self.created_at = datetime.utcfromtimestamp(created_at) if created_at else None
         self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
-        self.items_to_send = [Item(data=item) for item in data.get("items_to_give", [])]
-        self.items_to_receive = [Item(data=item) for item in data.get("items_to_receive", [])]
+        self.items_to_send = [Item(data=item, owner=self.partner) for item in data.get("items_to_give", [])]
+        self.items_to_receive = [Item(data=item, owner=self.partner) for item in data.get("items_to_receive", [])]
         self._is_our_offer = data.get("is_our_offer", False)
 
     def __eq__(self, other: Any) -> bool:
@@ -634,6 +686,35 @@ class TradeOffer:
             raise ClientException("This trade has already been cancelled")
         self._check_active()
         await self._state.http.cancel_user_trade(self.id)
+
+    async def receipt(self) -> TradeOfferReceipt:
+        """Get the receipt for a trade offer and the updated asset ids for the trade.
+
+        Returns
+        -------
+        A trade receipt.
+
+        .. source:: steam.TradeOfferReceipt
+        """
+        if self._id is None:
+            raise ValueError("cannot fetch the receipt for a trade not accepted")
+        resp = await self._state.http.get_trade_receipt(self._id)
+        info: TradeOfferReceiptDict = resp["response"]["trades"]
+        received: list[TradeOfferReceiptItem] = []
+        sent: list[TradeOfferReceiptItem] = []
+        for asset in info.get("assets_received", ()):
+            for item in info["descriptions"]:
+                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
+                    item.update(asset)
+                    received.append(TradeOfferReceiptItem(data=item))  # type: ignore
+
+        for asset in info.get("assets_given", ()):
+            for item in info["descriptions"]:
+                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
+                    item.update(asset)
+                    sent.append(TradeOfferReceiptItem(data=item))  # type: ignore
+
+        return TradeOfferReceipt(sent=sent, received=sent)
 
     async def counter(self, trade: TradeOffer) -> None:
         """Counter a trade offer from an :class:`User`.

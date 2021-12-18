@@ -506,6 +506,13 @@ class HTTPClient:
         headers = {"Referer": str(URL.COMMUNITY / f"tradeoffer/new/?partner={user.id}")}
         return self.post(URL.COMMUNITY / "tradeoffer/new/send", data=payload, headers=headers)
 
+    def get_trade_receipt(self, trade_id: int) -> RequestType[dict[str, Any]]:
+        params = {
+            "tradeid": trade_id,
+            "get_descriptions": 1,
+        }
+        return self.get(api_route("IEconServer/GetTradeStatus"), params=params)
+
     def get_cm_list(self, cell_id: int) -> RequestType[dict[str, Any]]:
         params = {"cellid": cell_id}
         return self.get(api_route("ISteamDirectory/GetCMList"), params=params)

@@ -395,7 +395,14 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         except Stop:
             pass
 
-        await self._fill_queue_users(partner_id64s, ("partner",))
+        for user in await self._state.fetch_users(list(partner_id64s)):
+            for element in self.queue:
+                if element.partner == user:
+                    element.partner = user
+                    for item in element.items_to_receive:
+                        item.owner = user
+                for item in element.items_to_send:
+                    item.owner = self._state.http.user
 
 
 class ChannelHistoryIterator(AsyncIterator[M], Generic[M, ChannelT]):
