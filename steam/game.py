@@ -435,7 +435,7 @@ class WishlistGame(StatefulGame):
     priority
         The priority of the game in the wishlist.
     added_at
-        The time the the game was added to their wishlist.
+        The time that the game was added to their wishlist.
     created_at
         The time the game was uploaded at.
     background_url
@@ -503,19 +503,19 @@ class WishlistGame(StatefulGame):
         self._on_linux = bool(data.get("linux", False))
 
     def is_free(self) -> bool:
-        """Whether or not the game is free to download."""
+        """Whether the game is free to download."""
         return self._free
 
     def is_on_windows(self) -> bool:
-        """Whether or not the game is able to be played on Windows."""
+        """Whether the game is playable on Windows."""
         return self._on_windows
 
     def is_on_mac_os(self) -> bool:
-        """Whether or not the game is able to be played on MacOS."""
+        """Whether the game is playable on macOS."""
         return self._on_mac_os
 
     def is_on_linux(self) -> bool:
-        """Whether or not the game is able to be played on Linux."""
+        """Whether the game is playable on Linux."""
         return self._on_linux
 
 
@@ -609,17 +609,17 @@ class FetchedGame(StatefulGame):
         self._on_linux = bool(data["platforms"].get("linux", False))
 
     def is_free(self) -> bool:
-        """Whether or not the game is free to download."""
+        """Whether the game is free to download."""
         return self._free
 
     def is_on_windows(self) -> bool:
-        """Whether or not the game is able to be played on Windows."""
+        """Whether the game is playable on Windows."""
         return self._on_windows
 
     def is_on_mac_os(self) -> bool:
-        """Whether or not the game is able to be played on MacOS."""
+        """Whether the game is playable on macOS."""
         return self._on_mac_os
 
     def is_on_linux(self) -> bool:
-        """Whether or not the game is able to be played on Linux."""
+        """Whether the game is playable on Linux."""
         return self._on_linux
