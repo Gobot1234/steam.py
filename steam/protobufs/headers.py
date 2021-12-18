@@ -47,15 +47,8 @@ __all__ = (
     "GCMsgHdrProto",
 )
 
-try:
-    from _typing import _idfunc as do_nothing_case  # a fair bit faster than the python noop version
-except ImportError:
 
-    def do_nothing_case(value: str) -> str:
-        return value
-
-
-do_nothing_case = cast(betterproto.Casing, do_nothing_case)
+do_nothing_case = cast(betterproto.Casing, lambda value: value)
 
 
 class BaseMsgHdr:
