@@ -25,6 +25,9 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+import dis
+import sys
+import types
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
@@ -51,6 +54,7 @@ __all__ = (
 
 Items: TypeAlias = "Item | Asset"
 I = TypeVar("I", bound="Item")
+T = TypeVar("T")
 
 
 class AssetToDict(TypedDict):
@@ -241,10 +245,42 @@ class Item(Asset):
         return self._is_marketable
 
 
+if hasattr(types, "GenericAlias"):
+    GenericAlias = types.GenericAlias
+else:
+    GenericAlias = type(
+        types.new_class(
+            "",
+            (Generic[T],),
+        )[int]
+    )
+
+
+class InventoryGenericAlias(GenericAlias):
+    def __repr__(self) -> str:
+        return f"{self.__origin__.__module__}.{object.__getattribute__(self, '__alias_name__')}"
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        # this is done cause we need __orig_class__ in __init__
+        result = self.__origin__.__new__(self.__origin__, *args, **kwargs)
+        try:
+            result.__orig_class__ = self
+        except AttributeError:
+            pass
+        result.__init__(*args, **kwargs)
+        return result
+
+
 class BaseInventory(Generic[I]):
     """Base for all inventories."""
 
-    __slots__ = ("game", "items", "owner", "_state")
+    __slots__ = (
+        "game",
+        "items",
+        "owner",
+        "_state",
+        "__orig_class__",  # undocumented typing internals more shim to make setting __class__ work
+    )
 
     def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser, game: Game):
         self._state = state
@@ -255,7 +291,7 @@ class BaseInventory(Generic[I]):
     def __repr__(self) -> str:
         attrs = ("owner", "game")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
+        return f"<{object.__getattribute__(self.__orig_class__, '__alias_name__')} {' '.join(resolved)}>"
 
     def __len__(self) -> int:
         return len(self.items)
@@ -270,8 +306,33 @@ class BaseInventory(Generic[I]):
             )
         return item in self.items
 
+    if not TYPE_CHECKING:
+
+        def __class_getitem__(cls, params: tuple[type[I]]) -> InventoryGenericAlias:
+            # this is more stuff that's needed to make the TypeAliases for extension modules work as we need the
+            # assigned name
+
+            frame = sys._getframe(1)
+            generic_alias = InventoryGenericAlias(cls, params)
+
+            on_line = False
+            return_next = False
+            for instruction in dis.get_instructions(frame.f_code):
+                if return_next and instruction.opname == "STORE_NAME":
+                    break
+                elif instruction.starts_line == frame.f_lineno:
+                    on_line = True
+                elif on_line and instruction.opname == "BINARY_SUBSCR":
+                    return_next = True
+            else:
+                return generic_alias
+
+            object.__setattr__(generic_alias, "__alias_name__", instruction.argval)
+            return generic_alias
+
     def _update(self, data: InventoryDict) -> None:
         self.items: Sequence[I] = []
+        ItemClass: type[Item] = self.__orig_class__.__args__[0]
         for asset in data.get("assets", ()):
             for item in data["descriptions"]:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
@@ -324,33 +385,33 @@ class BaseInventory(Generic[I]):
         return item[0] if item else None
 
 
-class Inventory(BaseInventory[Item]):
-    """Represents a User's inventory.
+Inventory: TypeAlias = BaseInventory[Item]  # necessitated by TypeVar not currently supporting defaults
+"""Represents a User's inventory.
 
-    .. container:: operations
+.. container:: operations
 
-        .. describe:: len(x)
+    .. describe:: len(x)
 
-            Returns how many items are in the inventory.
+        Returns how many items are in the inventory.
 
-        .. describe:: iter(x)
+    .. describe:: iter(x)
 
-            Iterates over the inventory's items.
+        Iterates over the inventory's items.
 
-        .. describe:: y in x
+    .. describe:: y in x
 
-            Determines if an item is in the inventory based off of its :attr:`class_id` and :attr:`instance_id`.
+        Determines if an item is in the inventory based off of its :attr:`class_id` and :attr:`instance_id`.
 
 
-    Attributes
-    -------------
-    items
-        A list of the inventory's items.
-    owner
-        The owner of the inventory.
-    game
-        The game the inventory the game belongs to.
-    """
+Attributes
+----------
+items
+    A list of the inventory's items.
+owner
+    The owner of the inventory.
+game
+    The game the inventory the game belongs to.
+"""
 
     __slots__ = ()
 
