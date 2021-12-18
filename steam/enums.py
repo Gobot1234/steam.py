@@ -130,7 +130,7 @@ class EnumMeta(type, Generic[E]):
         return MappingProxyType(cls._member_map_)
 
 
-class Enum(metaclass=EnumMeta["Self"]):
+class Enum(metaclass=EnumMeta):
     """A general enumeration, emulates `enum.Enum`."""
 
     name: str
