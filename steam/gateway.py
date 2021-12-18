@@ -526,19 +526,19 @@ class SteamWebSocket(Registerable):
         self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         return self._current_job_id
 
-    async def send_um(self, name: str, **kwargs: Any) -> int:
-        msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=name, **kwargs)
+    async def send_um(self, __name: str, **kwargs: Any) -> int:
+        msg = MsgProto(EMsg.ServiceMethodCallFromClient, um_name=__name, **kwargs)
         msg.header.body.job_id_source = self.next_job_id
         await self.send_proto(msg)
         return msg.header.body.job_id_source
 
     async def send_um_and_wait(
         self,
-        name: str,
+        __name: str,
         check: Callable[[M], bool] | None = None,
         **kwargs: Any,
     ) -> M:
-        job_id = await self.send_um(name, **kwargs)
+        job_id = await self.send_um(__name, **kwargs)
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)
         return await self.wait_for(EMsg.ServiceMethodResponse, check=check)
 
