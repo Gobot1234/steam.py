@@ -708,13 +708,13 @@ class TradeOffer:
             for item in info["descriptions"]:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    received.append(TradeOfferReceiptItem(data=item))  # type: ignore
+                    received.append(TradeOfferReceiptItem(data=item, owner=self.partner))  # type: ignore
 
         for asset in info.get("assets_given", ()):
             for item in info["descriptions"]:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    sent.append(TradeOfferReceiptItem(data=item))  # type: ignore
+                    sent.append(TradeOfferReceiptItem(data=item, owner=self._state.http.user))  # type: ignore
 
         return TradeOfferReceipt(sent=sent, received=sent)
 
