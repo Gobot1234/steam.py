@@ -277,6 +277,7 @@ class Item(Asset):
 
 if hasattr(types, "GenericAlias"):
     GenericAlias = types.GenericAlias
+    kwargs = {}
 else:
     GenericAlias = type(
         types.new_class(
@@ -284,9 +285,10 @@ else:
             (Generic[T],),
         )[int]
     )
+    kwargs = {"_root": True}
 
 
-class InventoryGenericAlias(GenericAlias):
+class InventoryGenericAlias(GenericAlias, **kwargs):
     def __repr__(self) -> str:
         return f"{self.__origin__.__module__}.{object.__getattribute__(self, '__alias_name__')}"
 
