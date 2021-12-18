@@ -42,8 +42,7 @@ if TYPE_CHECKING:
     from .image import Image
     from .message import UserMessage
     from .state import ConnectionState
-    from .trade import TradeOffer
-
+    from .trade import Inventory, TradeOffer
 
 __all__ = (
     "User",
@@ -284,11 +283,15 @@ class ClientUser(BaseUser):
 
     # TODO more stuff to add https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/profile.js
 
-    __slots__ = ("friends",)
+    __slots__ = ("friends", "_inventory_func")
 
     def __init__(self, state: ConnectionState, data: UserDict):
         super().__init__(state, data)
         self.friends: list[User] = []
+        self._inventory_func = BaseUser.inventory
+
+    async def inventory(self, game: Game) -> Inventory:
+        return await self._inventory_func(self, game)
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""
