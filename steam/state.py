@@ -118,6 +118,7 @@ class ConnectionState(Registerable):
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
         self.trades_list = TradesList(self)
+        self.previous_notification = None
 
         self._trades_to_watch: set[int] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
@@ -939,9 +940,12 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientUserNotifications)
     async def parse_notification(self, msg: MsgProto[client_server_2.CMsgClientUserNotifications]) -> None:
-        if msg.body.notifications and any(b.user_notification_type == 1 for b in msg.body.notifications):
+        if msg.body != self.previous_notification and any(
+            b.user_notification_type == 1 for b in msg.body.notifications
+        ):
             # 1 is a trade offer
             await self.poll_trades()
+        self.previous_notification = msg.body
 
     @register(EMsg.ClientItemAnnouncements)
     async def parse_new_items(self, msg: MsgProto[client_server_2.CMsgClientItemAnnouncements]) -> None:

@@ -426,17 +426,15 @@ class HTTPClient:
         }
         resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
         first_page = resp["response"]
-        next_cursor = first_page["next_cursor"]
+        next_cursor = first_page.get("next_cursor", 0)
         current_cursor = 0
         while current_cursor != next_cursor:
             params["cursor"] = next_cursor
             resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
             page = resp["response"]
-            for key, value in page:
+            for key, value in page.items():
                 value_in_first_page = first_page[key]
-                if isinstance(value_in_first_page, dict):
-                    value_in_first_page.update(value)
-                elif isinstance(value_in_first_page, list):
+                if isinstance(value_in_first_page, list):
                     value_in_first_page += value
 
             current_cursor = next_cursor

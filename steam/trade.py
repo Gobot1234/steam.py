@@ -597,7 +597,7 @@ class TradeOffer:
     def _update(self, data: TradeOfferDict) -> None:
         self.message = data.get("message") or None
         self.id = int(data["tradeofferid"])
-        self._id = int(data["tradeid"])
+        self._id = int(data["tradeid"]) if "tradeid" in data else None
         expires = data.get("expiration_time")
         escrow = data.get("escrow_end_date")
         updated_at = data.get("time_updated")

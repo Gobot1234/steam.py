@@ -528,7 +528,7 @@ def call_once(func: Callable[_P, Awaitable[None]]) -> Callable[_P, Coroutine[Any
         nonlocal called
 
         if called:  # call becomes a noop
-            await asyncio.sleep(0)
+            return await asyncio.sleep(0)  # type: ignore
 
         called = True
         try:
