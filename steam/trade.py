@@ -699,24 +699,28 @@ class TradeOffer:
         .. source:: steam.TradeOfferReceipt
         """
         if self._id is None:
-            raise ValueError("cannot fetch the receipt for a trade not accepted")
+            raise ValueError("Cannot fetch the receipt for a trade not accepted")
+
         resp = await self._state.http.get_trade_receipt(self._id)
-        info: TradeOfferReceiptDict = resp["response"]["trades"]
+        data = resp["response"]
+        trade = data["trades"][0]
+        descriptions = data["descriptions"]
+
         received: list[TradeOfferReceiptItem] = []
-        sent: list[TradeOfferReceiptItem] = []
-        for asset in info.get("assets_received", ()):
-            for item in info["descriptions"]:
+        for asset in trade.get("assets_received", ()):
+            for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
                     received.append(TradeOfferReceiptItem(data=item, owner=self.partner))  # type: ignore
 
-        for asset in info.get("assets_given", ()):
-            for item in info["descriptions"]:
+        sent: list[TradeOfferReceiptItem] = []
+        for asset in trade.get("assets_given", ()):
+            for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
                     sent.append(TradeOfferReceiptItem(data=item, owner=self._state.http.user))  # type: ignore
 
-        return TradeOfferReceipt(sent=sent, received=sent)
+        return TradeOfferReceipt(sent=sent, received=received)
 
     async def counter(self, trade: TradeOffer) -> None:
         """Counter a trade offer from an :class:`User`.

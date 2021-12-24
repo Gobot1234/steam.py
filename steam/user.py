@@ -197,7 +197,7 @@ class User(BaseUser, Messageable["UserMessage"]):
             # make sure the trade is updated before this function returns
             self._state._trades[trade.id] = trade
             self._state._trades_to_watch.add(trade.id)
-            await self._state.trades_list.wait_for(trade.id)
+            await self._state.wait_for_trade(trade.id)
 
         return message
 

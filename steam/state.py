@@ -117,7 +117,7 @@ class ConnectionState(Registerable):
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
-        self.trades_list = TradesList(self)
+        self.trade_queue: deque[TradeOffer] = deque()
         self.previous_notification = None
 
         self._trades_to_watch: set[int] = set()
@@ -275,11 +275,42 @@ class ConnectionState(Registerable):
 
     @utils.call_once
     async def poll_trades(self) -> None:
-        await self.trades_list.fill()
+        await self.fill_trades()
 
         while self._trades_to_watch:  # watch trades for changes
             await asyncio.sleep(5)
-            await self.trades_list.fill()
+            await self.fill_trades()
+
+    @utils.call_once
+    async def fill_trades(self) -> None:
+        try:
+            trades = await self.http.get_trade_offers()
+            descriptions = trades.get("descriptions", ())
+            trades_received = trades.get("trade_offers_received", ())
+            trades_sent = trades.get("trade_offers_sent", ())
+            updated_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
+            updated_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
+            received_trades = await self._process_trades(updated_received_trades, descriptions)
+            sent_trades = await self._process_trades(updated_sent_trades, descriptions)
+            self._trades_received_cache = trades_received
+            self._trades_sent_cache = trades_sent
+
+            self.trade_queue += received_trades
+            self.trade_queue += sent_trades
+        except Exception as exc:
+            await asyncio.sleep(30)
+            log.info("Error while polling trades", exc_info=exc)
+
+    async def wait_for_trade(self, id: int) -> TradeOffer:
+        if not self.trade_queue:
+            await self.fill_trades()  # if this is a no-op it doesn't matter
+        trade = utils.get(self.trade_queue, id=id)
+        if trade is not None:
+            self.trade_queue.remove(trade)
+            return trade
+
+        await self.fill_trades()  # refresh the queue
+        return await self.wait_for_trade(id=id)
 
     # confirmations
 
@@ -301,8 +332,6 @@ class ConnectionState(Registerable):
 
         if "incorrect Steam Guard codes." in resp:
             raise InvalidCredentials("identity_secret is incorrect")
-        if "Oh nooooooes!" in resp:
-            raise AuthenticatorError
 
         soup = BeautifulSoup(resp, "html.parser")
         if soup.select("#mobileconf_empty"):

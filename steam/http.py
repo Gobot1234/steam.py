@@ -506,10 +506,11 @@ class HTTPClient:
 
     def get_trade_receipt(self, trade_id: int) -> RequestType[dict[str, Any]]:
         params = {
+            "key": self.api_key,
             "tradeid": trade_id,
             "get_descriptions": 1,
         }
-        return self.get(api_route("IEconServer/GetTradeStatus"), params=params)
+        return self.get(api_route("IEconService/GetTradeStatus"), params=params)
 
     def get_cm_list(self, cell_id: int) -> RequestType[dict[str, Any]]:
         params = {"cellid": cell_id}
