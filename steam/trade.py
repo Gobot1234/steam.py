@@ -196,7 +196,11 @@ class Asset:
     @utils.cached_slot_property
     def game(self) -> StatefulGame:
         """The game the item is from."""
-        return StatefulGame(self.owner._state, id=self._app_id)
+        return StatefulGame(self._state, id=self._app_id)
+
+    @property
+    def _state(self) -> ConnectionState:
+        return self.owner._state
 
 
 class Item(Asset):
