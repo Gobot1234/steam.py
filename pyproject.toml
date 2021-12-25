@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "steamio"
-version = "0.8.3"
+version = "0.8.4"
 description = "A Python wrapper for the Steam API"
 authors = ["Gobot1234"]
 license = "MIT"
@@ -31,7 +31,7 @@ script = "build.py"
 generate-setup-file = false
 
 [tool.poetry.urls]
-"Documentation" = "https://steampy.readthedocs.io/en/latest"
+"Documentation" = "https://steam-py.github.io/docs/latest"
 "Code" = "https://github.com/Gobot1234/steam.py"
 "Bug Tracker" = "https://github.com/Gobot1234/steam.py/issues"
 
