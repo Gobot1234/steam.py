@@ -198,6 +198,7 @@ class User(BaseUser, Messageable["UserMessage"]):
             self._state._trades[trade.id] = trade
             self._state._trades_to_watch.add(trade.id)
             await self._state.wait_for_trade(trade.id)
+            self._state.dispatch("trade_send", trade)
 
         return message
 

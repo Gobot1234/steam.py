@@ -35,6 +35,8 @@ from time import time
 from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
+from multidict import MultiDict
+from typing_extensions import Self, TypeAlias
 from yarl import URL as URL_
 
 from . import utils
@@ -80,6 +82,39 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+class TradeQueue:
+    def __init__(self):
+        self.queue: deque[TradeOffer] = deque()
+        self._waiting_for: dict[int, asyncio.Future[TradeOffer]] = {}
+
+    async def wait_for(self, id: int) -> TradeOffer:
+        for trade in reversed(self.queue):  # check if it's already here
+            if trade.id == id:
+                self.queue.remove(trade)
+                return trade
+
+        self._waiting_for[id] = future = asyncio.get_running_loop().create_future()
+        trade = await future
+        self.queue.remove(trade)
+        return trade
+
+    def __len__(self) -> int:
+        return len(self.queue)
+
+    def __iadd__(self, other: list[TradeOffer]) -> Self:
+        for trade in other:
+            try:
+                future = self._waiting_for[trade.id]
+            except KeyError:
+                pass
+            else:
+                future.set_result(trade)
+                del self._waiting_for[trade.id]
+
+        self.queue += other
+        return self
+
+
 class ConnectionState(Registerable):
     parsers: dict[EMsg, EventParser[Any]]
 
@@ -117,7 +152,7 @@ class ConnectionState(Registerable):
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
-        self.trade_queue: deque[TradeOffer] = deque()
+        self.trade_queue = TradeQueue()
         self.previous_notification = None
 
         self._trades_to_watch: set[int] = set()
@@ -281,7 +316,6 @@ class ConnectionState(Registerable):
             await asyncio.sleep(5)
             await self.fill_trades()
 
-    @utils.call_once
     async def fill_trades(self) -> None:
         try:
             trades = await self.http.get_trade_offers()
@@ -302,15 +336,8 @@ class ConnectionState(Registerable):
             log.info("Error while polling trades", exc_info=exc)
 
     async def wait_for_trade(self, id: int) -> TradeOffer:
-        if not self.trade_queue:
-            await self.fill_trades()  # if this is a no-op it doesn't matter
-        trade = utils.get(self.trade_queue, id=id)
-        if trade is not None:
-            self.trade_queue.remove(trade)
-            return trade
-
-        await self.fill_trades()  # refresh the queue
-        return await self.wait_for_trade(id=id)
+        self.loop.create_task(self.poll_trades())  # start re-polling trades
+        return await self.trade_queue.wait_for(id=id)
 
     # confirmations
 
