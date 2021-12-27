@@ -405,13 +405,20 @@ class SteamWebSocket(Registerable):
         await self.send(bytes(message))
 
     async def send_gc_message(self, msg: GCMsgProto[Any] | GCMsg[Any]) -> int:  # for ext's to send GC messages
+        client = self._connection.client
+        if __debug__:
+            from .ext._gc import Client as GCClient
+
+            assert isinstance(client, GCClient), "Attempting to send a GC message without a GC client"
+
+        app_id = client._GAME.id
         message = MsgProto[CMsgGcClient](
             EMsg.ClientToGC,
-            appid=self._connection.client.GAME.id,  # type: ignore
+            appid=app_id,
             msgtype=utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg,
         )
         message.body.payload = bytes(msg)
-        message.header.body.routing_appid = self._connection.client.GAME.id  # type: ignore
+        message.header.body.routing_appid = client.app_id
         message.header.body.job_id_source = self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
 
         log.debug("Sending GC message %r", msg)

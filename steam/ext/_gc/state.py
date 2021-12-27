@@ -31,7 +31,7 @@ class GCState(ConnectionState):
         super().__init__(client, **kwargs)
         self._gc_connected = asyncio.Event()
         self._gc_ready = asyncio.Event()
-        self.backpack: Inventory = Any
+        self.backpack: Inventory = None  # type: ignore
         self._unpatched_inventory: Callable[[BaseUser, Game], Coroutine[Any, Any, Inventory]]
 
     @register(EMsg.ClientFromGC)

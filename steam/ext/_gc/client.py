@@ -17,7 +17,7 @@ __all__ = ("Client",)
 
 class Client(Client_):
     _connection: GCState
-    _GAME: Final[Game] = Any
+    _GAME: ClassVar[Game]
     _GC_HEART_BEAT: ClassVar = 30.0
 
     def __init__(self, **options: Any):
@@ -57,8 +57,8 @@ class Client(Client_):
     async def _handle_ready(self_) -> None:
         async def inventory(self: Any, game: Game) -> Inventory:
             return (
-                self._connection.backpack
-                if game == self.__class__._GAME and self_._connection._gc_ready.is_set()
+                self_._connection.backpack
+                if game == self_.__class__._GAME and self_._connection._gc_ready.is_set()
                 else await BaseUser.inventory(self, game)
             )
 

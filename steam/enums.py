@@ -191,6 +191,9 @@ if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
     # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour
     # I can't seem to replicate
 
+if TYPE_CHECKING:
+    Enum_ = Enum
+
 
 class Flags(IntEnum):
     @classmethod
