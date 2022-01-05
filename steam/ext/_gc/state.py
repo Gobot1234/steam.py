@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable, Coroutine
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from ... import utils
 from ...abc import BaseUser
@@ -11,7 +11,7 @@ from ...enums import IntEnum
 from ...models import register
 from ...protobufs import EMsg, GCMsg, GCMsgProto, MsgProto
 from ...state import ConnectionState
-from ...trade import Inventory
+from ...trade import BaseInventory, Inventory
 
 if TYPE_CHECKING:
     from steam.protobufs.client_server_2 import CMsgGcClient
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from .client import Client
 
 log = logging.getLogger(__name__)
+Inv = TypeVar("Inv", bound=BaseInventory[Any])
 
 
 class GCState(ConnectionState):
@@ -59,3 +60,9 @@ class GCState(ConnectionState):
 
         self.dispatch("gc_message_receive", gc_msg)
         self.run_parser(language, gc_msg)
+
+    async def fetch_backpack(self, backpack_cls: type[Inv]) -> Inv:
+        resp = await self.http.get_user_inventory(
+            self.client.user.id64, self.client._GAME.id, self.client._GAME.context_id
+        )
+        return backpack_cls(state=self, data=resp, owner=self.client.user, game=self.client._GAME)
