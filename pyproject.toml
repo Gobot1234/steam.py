@@ -40,7 +40,7 @@ python = "^3.7"
 aiohttp = ">=3.7,<3.9"
 beautifulsoup4 = "^4.10.0"
 cryptography = "^36"
-betterproto = "2.0.0b3"
+betterproto = "2.0.0b4"
 typing-extensions = "4.0.1"
 tomli = "~1"
 
