@@ -201,6 +201,10 @@ class Asset:
     @property
     def _state(self) -> ConnectionState:
         return self.owner._state
+    
+    @_state.setter
+    def _state(self, new_state):
+        self.owner._state = new_state
 
 
 class Item(Asset):
@@ -385,7 +389,7 @@ class BaseInventory(Generic[I]):
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
                     self.items.append(  # type: ignore
-                        ItemClass(data=item, owner=self.owner),
+                        ItemClass(item=Item(data=item, owner=self.owner)),
                     )
                     break
             else:
