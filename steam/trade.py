@@ -279,7 +279,7 @@ class Item(Asset):
         return self._is_marketable
 
 
-if hasattr(types, "GenericAlias"):
+if sys.version_info >= (3, 9, 2):  # GenericAlias wasn't subclassable in 3.9.0
     GenericAlias = types.GenericAlias
     kwargs = {}
 else:
@@ -296,7 +296,7 @@ class InventoryGenericAlias(GenericAlias, **kwargs):
     def __repr__(self) -> str:
         return f"{self.__origin__.__module__}.{object.__getattribute__(self, '__alias_name__')}"
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> object:
         # this is done cause we need __orig_class__ in __init__
         result = self.__origin__.__new__(self.__origin__, *args, **kwargs)
         try:
@@ -305,6 +305,17 @@ class InventoryGenericAlias(GenericAlias, **kwargs):
             pass
         result.__init__(*args, **kwargs)
         return result
+
+    def __mro_entries__(self, bases) -> tuple[object]:
+        # if we are subclassing we should return a new class that injects __new__ to set __orig_class__
+
+        class BaseInventory(*super().__mro_entries__(bases)):
+            def __new__(cls, *args, **kwargs):
+                self_ = super().__new__(cls)
+                self_.__orig_class__ = self
+                return self_
+
+        return (BaseInventory,)
 
 
 class BaseInventory(Generic[I]):
