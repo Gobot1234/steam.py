@@ -201,7 +201,7 @@ class Asset:
     @property
     def _state(self) -> ConnectionState:
         return self.owner._state
-    
+
     @_state.setter
     def _state(self, new_state):
         self.owner._state = new_state
