@@ -307,13 +307,11 @@ class InventoryGenericAlias(GenericAlias, **kwargs):
         return result
 
     def __mro_entries__(self, bases) -> tuple[object]:
-        # if we are subclassing we should return a new class that injects __new__ to set __orig_class__
+        # if we are subclassing we should return a new class that already has __orig_class__
 
         class BaseInventory(*super().__mro_entries__(bases)):
-            def __new__(cls, *args, **kwargs):
-                self_ = super().__new__(cls)
-                self_.__orig_class__ = self
-                return self_
+            __slots__ = ()
+            __orig_class__ = self
 
         return (BaseInventory,)
 
@@ -326,7 +324,7 @@ class BaseInventory(Generic[I]):
         "items",
         "owner",
         "_state",
-        "__orig_class__",  # undocumented typing internals more shim to make setting __class__ work
+        "__orig_class__",  # undocumented typing internals more shim to make extensions work
     )
 
     def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser, game: Game):
