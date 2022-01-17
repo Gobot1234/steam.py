@@ -85,7 +85,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
         return Any
 
     def visit_overloaded(self, t: types.Overloaded) -> GenericAlias:
-        return Union[self.collect_types(t.items())]
+        return Union[self.collect_types(t.items)]
 
     def visit_callable_type(self, t: types.CallableType) -> GenericAlias:
         return Callable[[*self.collect_types(t.arg_types)], self.collect_types([t.ret_type])]
@@ -187,7 +187,7 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
                         names = method.type.arg_names[1 if not is_static else 0 :]
                         arg_types = method.type.arg_types[1 if not is_static else 0 :]
                     elif isinstance(method.type, types.Overloaded):
-                        items = method.type.items()
+                        items = method.type.items
                         union = types.UnionType([t.ret_type.args[-1] if is_coroutine else t.ret_type for t in items])
                         return_type = union if len(union.items) < 5 else types.AnyType(types.TypeOfAny.explicit)
                         names = []
