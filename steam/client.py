@@ -39,7 +39,7 @@ from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import aiohttp
-from typing_extensions import Literal, ParamSpec, TypeAlias, final
+from typing_extensions import Literal, TypeAlias, final
 
 from . import errors, utils
 from .abc import SteamID
@@ -74,7 +74,6 @@ log = logging.getLogger(__name__)
 EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
 EventDeco: TypeAlias = "Callable[[E], E] | E"
 E = TypeVar("E", bound=EventType)
-S = ParamSpec("S", bound="Client.start")  # 90% sure this is the way to use ParamSpec
 
 
 class Client:
@@ -322,8 +321,20 @@ class Client:
         self._ready.set()
         self.dispatch("ready")
 
+    @overload
     @final
-    def run(self, *args: S.args, **kwargs: S.kwargs) -> None:
+    def run(  # type: ignore
+        self,
+        username: str,
+        password: str,
+        *,
+        shared_secret: str | None = None,
+        identity_secret: str | None = None,
+    ) -> object:
+        ...
+
+    @final
+    def run(self, *args: Any, **kwargs: Any) -> object:
         """A blocking call that abstracts away the event loop initialisation from you.
 
         It is not recommended to subclass this method, it is normally favourable to subclass :meth:`start` as it is a
