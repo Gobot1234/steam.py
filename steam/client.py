@@ -39,7 +39,7 @@ from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import aiohttp
-from typing_extensions import Literal, ParamSpec, TypeAlias, final
+from typing_extensions import Literal, TypeAlias, final
 
 from . import errors, utils
 from .abc import SteamID
@@ -74,7 +74,6 @@ log = logging.getLogger(__name__)
 EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
 EventDeco: TypeAlias = "Callable[[E], E] | E"
 E = TypeVar("E", bound=EventType)
-S = ParamSpec("S")
 
 
 class Client:
@@ -323,7 +322,14 @@ class Client:
         self.dispatch("ready")
 
     @final
-    def run(self, *args: S.args, **kwargs: S.kwargs) -> None:
+    def run(
+        self,
+        username: str,
+        password: str,
+        *,
+        shared_secret: str | None = None,
+        identity_secret: str | None = None,
+    ) -> None:
         """A blocking call that abstracts away the event loop initialisation from you.
 
         It is not recommended to subclass this method, it is normally favourable to subclass :meth:`start` as it is a
