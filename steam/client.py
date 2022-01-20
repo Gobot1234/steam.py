@@ -74,7 +74,7 @@ log = logging.getLogger(__name__)
 EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
 EventDeco: TypeAlias = "Callable[[E], E] | E"
 E = TypeVar("E", bound=EventType)
-S = ParamSpec("S", bound="Client.start")  # 90% sure this is the way to use ParamSpec
+S = ParamSpec("S")
 
 
 class Client:
