@@ -144,18 +144,18 @@ def make_id64(
     else:
         # numeric input
         # 32 bit account id
-        if 0 <= id < 2 ** 32:
+        if 0 <= id < 2**32:
             type = type or Type.Individual
             universe = universe or Universe.Public
         # 64 bit
-        elif 2 ** 32 < id < 2 ** 64:
+        elif 2**32 < id < 2**64:
             value = id
             id = id & 0xFFFFFFFF
             instance = (value >> 32) & 0xFFFFF
             type = (value >> 52) & 0xF
             universe = (value >> 56) & 0xFF
         else:
-            raise InvalidSteamID(id, "it is too large" if id > 2 ** 64 else "it is too small")
+            raise InvalidSteamID(id, "it is too large" if id > 2**64 else "it is too small")
 
         try:
             type = Type(type) if isinstance(type, int) else Type[type]
@@ -291,7 +291,7 @@ def invite_code_to_tuple(
 
     id = int(re.sub(f"[{_INVITE_CUSTOM}]", lambda m: _INVITE_INVERSE_MAPPING[m.group()], code), 16)
 
-    if 0 < id < 2 ** 32:
+    if 0 < id < 2**32:
         return id, Type.Individual, Universe.Public, 1
 
 
