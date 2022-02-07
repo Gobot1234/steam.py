@@ -42,7 +42,7 @@ beautifulsoup4 = "^4.10.0"
 cryptography = "^36"
 betterproto = "2.0.0b4"
 typing-extensions = "4.0.1"
-tomli = "~1"
+tomli = "~2"
 
 # docs option
 sphinx = { version = "^4.2.0", optional = true }
