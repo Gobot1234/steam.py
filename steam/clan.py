@@ -224,22 +224,25 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
         admins = []
         mods = []
-        is_admins = True
+        is_admins = None
         for fields in soup.find_all("div", class_="membergrid"):
-            for idx, field in enumerate(fields.find_all("div")):
-                if "Members" in field.text:
-                    if mods:
-                        del mods[-1]
-                    break
+            for field in fields.find_all("div"):
+                if "Administrators" in field.text:
+                    is_admins = True
+                    continue
                 if "Moderators" in field.text:
-                    officer = admins.pop()
-                    mods.append(officer)
                     is_admins = False
-                try:
-                    account_id = fields.find_all("div", class_="playerAvatar")[idx]["data-miniprofile"]
-                except IndexError:
+                    continue
+                if "Members" in field.text:
                     break
+
+                try:
+                    account_id = int(field["data-miniprofile"])
+                except KeyError:
+                    continue
                 else:
+                    if is_admins is None:
+                        continue
                     if is_admins:
                         admins.append(account_id)
                     else:
