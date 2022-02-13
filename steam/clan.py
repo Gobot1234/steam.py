@@ -247,7 +247,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
         users = await self._state.client.fetch_users(*admins, *mods)
         self.admins = [user for user in users if user and user.id in admins]
-        self.admins = [user for user in users if user and user.id in mods]
+        self.mods = [user for user in users if user and user.id in mods]
 
     @classmethod
     async def _from_proto(
