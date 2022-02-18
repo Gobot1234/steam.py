@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "steamio"
-version = "0.8.6"
+version = "0.9.0a"
 description = "A Python wrapper for the Steam API"
 authors = ["Gobot1234"]
 license = "MIT"
