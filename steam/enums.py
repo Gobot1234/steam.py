@@ -67,15 +67,15 @@ def _is_descriptor(obj: object) -> bool:
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
-class EnumMeta(type, Generic[E]):
-    _value_map_: Mapping[Any, E]
-    _member_map_: Mapping[str, E]
+class EnumMeta(type):
+    _value_map_: Mapping[Any, Enum]
+    _member_map_: Mapping[str, Enum]
 
     def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> Self:
         enum_class = super().__new__(mcs, name, bases, attrs)
 
-        value_mapping: dict[Any, E] = {}
-        member_mapping: dict[str, E] = {}
+        value_mapping: dict[Any, Enum] = {}
+        member_mapping: dict[str, Enum] = {}
 
         for key, value in attrs.items():
             if key[0] == "_" or _is_descriptor(value):

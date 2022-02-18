@@ -50,7 +50,7 @@ import attr
 from typing_extensions import TypeAlias
 
 from . import utils
-from .enums import PersonaState, PersonaStateFlag, Result
+from .enums import IntEnum, PersonaState, PersonaStateFlag, Result
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .models import Registerable, register, return_true
@@ -70,22 +70,26 @@ __all__ = (
     "ConnectionClosed",
     "CMServerList",
     "SteamWebSocket",
-    "Msgs",
 )
 
 log = logging.getLogger(__name__)
-Msgs: TypeAlias = "MsgProto[Any] | Msg[Any] | GCMsgProto[Any] | GCMsg[Any]"
+ProtoMsgs: TypeAlias = "MsgProto[Any] | Msg[Any]"
+GCMsgs: TypeAlias = "GCMsgProto[Any] | GCMsg[Any]"
+GCMsgsT = TypeVar("GCMsgsT", GCMsgProto[Any], GCMsg[Any])
+ProtoMsgsT = TypeVar("ProtoMsgsT", MsgProto[Any], Msg[Any])
+Msgs: TypeAlias = "ProtoMsgs | GCMsgs"
+MsgsT = TypeVar("MsgsT", MsgProto[Any], Msg[Any], GCMsgProto[Any], GCMsg[Any])
 M = TypeVar("M", bound=MsgProto[Any])
 READ_U32 = struct.Struct("<I").unpack_from
 
 
 @dataclass
-class EventListener(Generic[M]):
+class EventListener(Generic[MsgsT]):
     __slots__ = ("emsg", "check", "future")
 
-    emsg: EMsg | None
-    check: Callable[[M], bool]
-    future: asyncio.Future[M]
+    emsg: IntEnum | None
+    check: Callable[[MsgsT], bool]
+    future: asyncio.Future[MsgsT]
 
 
 if not TYPE_CHECKING:
@@ -299,9 +303,11 @@ class SteamWebSocket(Registerable):
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
 
-    def wait_for(self, emsg: EMsg | None, check: Callable[[M], bool] = return_true) -> asyncio.Future[M]:
-        future = self.loop.create_future()
-        entry = EventListener[M](emsg=emsg, check=check, future=future)
+    def wait_for(
+        self, emsg: EMsg | None, check: Callable[[ProtoMsgsT], bool] = return_true
+    ) -> asyncio.Future[ProtoMsgsT]:
+        future: asyncio.Future[ProtoMsgsT] = self.loop.create_future()
+        entry = EventListener(emsg=emsg, check=check, future=future)
         self.listeners.append(entry)
         return future
 
@@ -397,16 +403,16 @@ class SteamWebSocket(Registerable):
             log.info("Connection closed")
             await self.handle_close()
 
-    async def send_proto(self, message: Msgs) -> None:
+    async def send_proto(self, message: ProtoMsgs) -> None:
         message.steam_id = self.steam_id
         message.session_id = self.session_id
 
         self._dispatch("socket_send", message)
         await self.send(bytes(message))
 
-    async def send_gc_message(self, msg: GCMsgProto[Any] | GCMsg[Any]) -> int:  # for ext's to send GC messages
+    async def send_gc_message(self, msg: GCMsgs) -> int:  # for ext's to send GC messages
         client = self._connection.client
-        if __debug__:
+        if __debug__ or TYPE_CHECKING:
             from .ext._gc import Client as GCClient
 
             assert isinstance(client, GCClient), "Attempting to send a GC message without a GC client"
@@ -418,7 +424,7 @@ class SteamWebSocket(Registerable):
             msgtype=utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg,
         )
         message.body.payload = bytes(msg)
-        message.header.body.routing_appid = app_id
+        message.header.body.routing_app_id = app_id
         message.header.body.job_id_source = self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
 
         log.debug("Sending GC message %r", msg)
@@ -549,7 +555,9 @@ class SteamWebSocket(Registerable):
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)
         return await self.wait_for(EMsg.ServiceMethodResponse, check=check)
 
-    async def send_proto_and_wait(self, msg: Msgs, check: Callable[[M], bool] | None = None) -> M:
+    async def send_proto_and_wait(
+        self, msg: ProtoMsgs, check: Callable[[ProtoMsgsT], bool] | None = None
+    ) -> ProtoMsgsT:
         msg.header.body.job_id_source = job_id = self.next_job_id
         await self.send_proto(msg)
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)

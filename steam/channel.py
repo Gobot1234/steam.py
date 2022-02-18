@@ -25,7 +25,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine, Generator
+from collections.abc import AsyncGenerator, Coroutine
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -80,7 +80,7 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
         return self.participant._image_func(image)
 
     @asynccontextmanager
-    async def typing(self) -> Generator[None, None, None]:
+    async def typing(self) -> AsyncGenerator[None, None]:
         """Send a typing indicator continuously to the channel while in the context manager.
 
         Note
@@ -91,7 +91,7 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
 
         .. code-block:: python3
 
-            async with ctx.channel.typing():
+            async with channel.typing():
                 ...  # do your expensive operations
         """
 

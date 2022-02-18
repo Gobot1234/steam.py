@@ -171,7 +171,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self._default_channel_id: int | None = None
 
     async def __ainit__(self) -> None:
-        resp = await self._state.http._session.get(super().community_url)
+        resp = await self._state.http._session.get(super().community_url)  # type: ignore
         text = await resp.text()  # technically we loose proper request handling here
         if not self.id64:
             search = utils.CLAN_ID64_FROM_URL_REGEX.search(text)

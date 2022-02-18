@@ -496,8 +496,7 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
             resp = await self._state.fetch_group_history(
                 group_id, self.channel.id, start=after_timestamp, last=last_message_timestamp
             )
-            if not resp.messages:
-                return
+            message = None
 
             for message in resp.messages:
                 new_message = (
@@ -510,6 +509,8 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
                 if not self._append(new_message):
                     break
 
+            if message is None:
+                return
             last_message_timestamp = int(message.server_timestamp)
 
             if not resp.more_available:

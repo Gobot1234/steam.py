@@ -653,7 +653,7 @@ class FetchedGame(StatefulGame):
         "_on_linux",
     )
 
-    title: str
+    name: str
 
     def __init__(self, state: ConnectionState, data: FetchedGameDict):
         super().__init__(state, id=data["steam_appid"], name=data["name"])

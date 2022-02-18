@@ -70,14 +70,15 @@ __all__ = (
 )
 
 CheckType: TypeAlias = "Callable[[Context], Union[bool, Coroutine[Any, Any, bool]]]"
-MaybeCommand: TypeAlias = "Callable[..., Command[Any]] | CallbackType"
+MaybeCommand: TypeAlias = "Callable[..., Command[Any]] | CallbackType[Any]"
+BaseCallback: TypeAlias = "Callable[P, Coroutine[Any, Any, Any]]"
 C = TypeVar("C", bound="Command[Any]")
 G = TypeVar("G", bound="Group[Any]")
 Err = TypeVar("Err", bound="Callable[[Context, Exception], Coroutine[Any, Any, None]]")
 InvokeT = TypeVar("InvokeT", bound="Callable[[Context], Coroutine[Any, Any, None]]")
 MC = TypeVar("MC", bound=MaybeCommand)
-MCD = TypeVar("MCD", bound="CommandDeco[MaybeCommand] | MaybeCommand")
-CallT = TypeVar("CallT", bound="CallbackType")
+MCD = TypeVar("MCD", bound="CommandDeco | MaybeCommand")
+CallT = TypeVar("CallT", bound="Callable[..., Coroutine[Any, Any, Any]]")
 CHR = TypeVar("CHR", bound="CheckReturnType")
 
 P = ParamSpec("P")
@@ -270,7 +271,7 @@ class Command(Generic[P]):
 
         return commands
 
-    async def __call__(self, ctx: Context, *args: P.args, **kwargs: P.kwargs) -> None:
+    async def __call__(self, ctx: Context, *args: P.args, **kwargs: P.kwargs) -> object:
         """Calls the internal callback that the command holds.
 
         Note
@@ -711,12 +712,12 @@ class GroupMixin:
     @overload
     def command(
         self,
-        callback: CallbackType[P],
+        callback: BaseCallback[P],
     ) -> Command[P]:
         ...
 
     @overload
-    def command(self, callback: None) -> Callable[[CallbackType[P]], Command[P]]:
+    def command(self, callback: None) -> Callable[[BaseCallback[P]], Command[P]]:
         ...
 
     @overload  # this also needs higher kinded types as cls should be type[C[P]] | None
@@ -738,7 +739,7 @@ class GroupMixin:
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
-    ) -> Callable[[CallT], C]:
+    ) -> Callable[[Callable[P, Any]], C]:
         ...
 
     def command(
@@ -777,7 +778,7 @@ class GroupMixin:
     @overload
     def group(
         self,
-        callback: CallbackType[P],
+        callback: BaseCallback[P],
     ) -> Group[P]:
         ...
 
@@ -785,7 +786,7 @@ class GroupMixin:
     def group(
         self,
         callback: None,
-    ) -> Callable[[CallbackType[P]], Group[P]]:
+    ) -> Callable[[BaseCallback[P]], Group[P]]:
         ...
 
     @overload
@@ -807,7 +808,7 @@ class GroupMixin:
         enabled: bool = ...,
         hidden: bool = ...,
         case_insensitive: bool = ...,
-    ) -> Callable[[CallT], G]:
+    ) -> Callable[[BaseCallback[P]], G]:
         ...
 
     def group(
@@ -884,13 +885,13 @@ class Group(GroupMixin, Command[P]):
 
 @overload
 def command(
-    callback: CallbackType[P],
+    callback: BaseCallback[P],
 ) -> Command[P]:
     ...
 
 
 @overload
-def command(callback: None) -> Callable[[CallbackType[P]], Command[P]]:
+def command(callback: None) -> Callable[[BaseCallback[P]], Command[P]]:
     ...
 
 
@@ -912,12 +913,12 @@ def command(
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
-) -> Callable[[CallbackType], Command]:
+) -> Callable[[BaseCallback[P]], Command[P]]:
     ...
 
 
 def command(
-    callback: CallbackType | None = None,
+    callback: CallT | None = None,
     *,
     name: str | None = None,
     cls: type[C] | None = None,
@@ -951,13 +952,13 @@ def command(
 
 @overload
 def group(
-    callback: CallbackType[P],
+    callback: BaseCallback[P],
 ) -> Group[P]:
     ...
 
 
 @overload
-def group(callback: None) -> Callable[[CallbackType[P]], Group[P]]:
+def group(callback: None) -> Callable[[BaseCallback[P]], Group[P]]:
     ...
 
 
@@ -979,7 +980,7 @@ def group(
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
-) -> Callable[[CallT], G]:
+) -> Callable[[BaseCallback[P]], G]:
     ...
 
 

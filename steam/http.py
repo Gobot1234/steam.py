@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 log = logging.getLogger(__name__)
 StrOrURL = aiohttp.client.StrOrURL
-RequestType: TypeAlias = "Coroutine[Any, None, T]"
+RequestType: TypeAlias = "Coroutine[Any, Any, T]"
 INVENTORY_LOCKS: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
 
 
@@ -261,7 +261,7 @@ class HTTPClient:
         payload = {"sessionid": self.session_id}
         await self.post(URL.COMMUNITY / "login/logout", data=payload)
         self.logged_in = False
-        self.user = None
+        self.user = None  # type: ignore
         self._client.dispatch("logout")
 
     async def _get_rsa_params(self) -> tuple[bytes, int]:
@@ -684,7 +684,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements", data=data)
 
-    def delete_clan_announcement(self, clan_id64, announcement_id: int) -> RequestType[None]:
+    def delete_clan_announcement(self, clan_id64: int, announcement_id: int) -> RequestType[None]:
         params = {
             "sessionID": self.session_id,
         }

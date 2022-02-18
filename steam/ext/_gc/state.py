@@ -24,7 +24,7 @@ Inv = TypeVar("Inv", bound=BaseInventory[Any])
 
 
 class GCState(ConnectionState):
-    Language: ClassVar[IntEnum]
+    Language: ClassVar[type[IntEnum]]
     gc_parsers: dict[IntEnum, Callable[..., Any]]
     client: Client
 

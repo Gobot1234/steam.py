@@ -76,7 +76,7 @@ class ConverterDict(Dict[type, "tuple[Converters, ...]"]):
 
 
 class BasicConverter(Protocol[T]):
-    converter_for: T
+    converter_for: type[T]
 
     def __call__(self, __arg: str) -> T:
         ...
@@ -85,7 +85,7 @@ class BasicConverter(Protocol[T]):
 CONVERTERS = ConverterDict()
 
 
-def converter_for(converter_for: T) -> Callable[[BasicConverter[T]], BasicConverter[T]]:
+def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], BasicConverter[T]]:
     """The recommended way to mark a function converter as such.
 
     Note
@@ -133,7 +133,7 @@ def converter_for(converter_for: T) -> Callable[[BasicConverter[T]], BasicConver
 class ConverterBase(Protocol[T_co]):
     # this is the base class we use for isinstance checks, don't actually this
     @abstractmethod
-    async def convert(self, ctx: "commands.Context", argument: str) -> "T":
+    async def convert(self, ctx: "commands.Context", argument: str) -> "T_co":
         """An abstract method all converters must derive.
 
         Parameters
@@ -528,7 +528,7 @@ if TYPE_CHECKING:
 
 ConverterTypes: TypeAlias = "T | str | tuple[T] | tuple[str]"
 GreedyTypes: TypeAlias = "T | str | tuple[T, ...] | tuple[str, ...] | Converters"
-# in order of appearence:
+# in order of appearance:
 # a class/type
 # should be a string with a ForwardRef to a class to be evaluated later
 # for Greedy[int,] / Greedy[(int,)] to be valid or Greedy[User, int] to be expanded to Union

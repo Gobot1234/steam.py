@@ -53,7 +53,7 @@ from .invite import ClanInvite, UserInvite
 from .iterators import AsyncIterator
 from .message import *
 from .message import ClanMessage
-from .models import URL, EventParser, Registerable, register
+from .models import URL, Registerable, register
 from .protobufs import (
     EMsg,
     Msg,
@@ -117,7 +117,7 @@ class TradeQueue:
 
 
 class ConnectionState(Registerable):
-    parsers: dict[EMsg, EventParser[Any]]
+    parsers: dict[EMsg, Callable]
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
@@ -455,7 +455,9 @@ class ConnectionState(Registerable):
         channel._update(proto)
 
         message = (ClanMessage if isinstance(group, Clan) else GroupMessage)(
-            proto=proto, channel=channel, author=self.client.user
+            proto=proto,
+            channel=channel,  # type: ignore  # type checkers can't figure out this is ok
+            author=self.client.user,
         )
         self._messages.append(message)
         self.dispatch("message", message)
@@ -648,7 +650,7 @@ class ConnectionState(Registerable):
         author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
 
         if msg.body.chat_entry_type == ChatEntryType.Text:
-            channel = DMChannel(state=self, participant=partner)
+            channel = DMChannel(state=self, participant=partner)  # type: ignore  # remove when above fixme removed
             message = UserMessage(proto=msg.body, channel=channel)
             message.author = author
             self._messages.append(message)
@@ -668,7 +670,9 @@ class ConnectionState(Registerable):
         channel._update(msg.body)
         author = await self._maybe_user(msg.body.steamid_sender)
         message = (ClanMessage if isinstance(destination, Clan) else GroupMessage)(
-            proto=msg.body, channel=channel, author=author
+            proto=msg.body,
+            channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
+            author=author,
         )
         self._messages.append(message)
         self.dispatch("message", message)
@@ -750,7 +754,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientPersonaState)
     async def parse_persona_state_update(self, msg: MsgProto[friends.CMsgClientPersonaState]) -> None:
         for friend in msg.body.friends:
-            data: UserDict = friend.to_dict(do_nothing_case)
+            data = friend.to_dict(do_nothing_case)
             if not data:
                 continue
             user_id64 = friend.friendid
@@ -765,7 +769,7 @@ class ConnectionState(Registerable):
             except (KeyError, TypeError):
                 invitee = await self._maybe_user(user_id64)
                 invite = UserInvite(self, invitee, FriendRelationship.RequestRecipient)
-                self.dispatch("user_invite", invite)
+                return self.dispatch("user_invite", invite)
 
             after._update(data)
             old = [getattr(before, attr, None) for attr in BaseUser.__slots__]
@@ -773,7 +777,7 @@ class ConnectionState(Registerable):
             if old != new:
                 self.dispatch("user_update", before, after)
 
-    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> dict:
+    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> UserDict:
         data["personaname"] = friend.player_name
         hash = (
             friend.avatar_hash.hex()
@@ -789,7 +793,7 @@ class ConnectionState(Registerable):
         data["gameextrainfo"] = friend.game_name or None
         data["personastate"] = friend.persona_state
         data["personastateflags"] = friend.persona_state_flags
-        return data
+        return data  # type: ignore  # casting is for losers
 
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: MsgProto[friends.CMsgClientFriendsList]) -> None:
@@ -876,8 +880,8 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.body.roles
 
-    async def fetch_comment(self, owner: Commentable, id: int) -> comments.GetCommentThreadRatingsResponse.Comment:
-        msg: MsgProto[comments.GetCommentThreadRatingsResponse] = await self.ws.send_um_and_wait(
+    async def fetch_comment(self, owner: Commentable, id: int) -> comments.GetCommentThreadResponse.Comment:
+        msg: MsgProto[comments.GetCommentThreadResponse] = await self.ws.send_um_and_wait(
             "Community.GetCommentThread", **owner._commentable_kwargs, id=id
         )
         if msg.result != Result.OK:
