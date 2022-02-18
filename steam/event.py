@@ -59,7 +59,7 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         "starts_at",
         "becomes_visible",
         "stops_being_visible",
-        "end",
+        "ends_at",
         "type",
         "last_edited_at",
         "last_edited_by",
@@ -79,7 +79,8 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self._state = state
         self.clan = clan
         self.id: int = int(data["gid"])
-        self.author: User | SteamID | None = int(data["creator_steamid"])  # type: ignore
+        author = data.get("creator_steamid")
+        self.author: User | SteamID | None = int(author) if author is not None else None  # type: ignore
         self.name: str = data["event_name"]
         self.content: str = data["event_notes"]
         self.game = StatefulGame(state, id=data["appid"]) if data["appid"] else None
@@ -92,11 +93,12 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self.stops_being_visible = (
             datetime.utcfromtimestamp(data["rtime32_visibility_end"]) if data.get("rtime32_visibility_end") else None
         )
-        self.end = datetime.utcfromtimestamp(data["rtime32_end_time"]) if data["rtime32_end_time"] else None
+        self.ends_at = datetime.utcfromtimestamp(data["rtime32_end_time"]) if data["rtime32_end_time"] else None
         self.type = ClanEvent.try_value(data["event_type"])
         self.last_edited_at = datetime.utcfromtimestamp(data["rtime32_last_modified"])
+        edited_by = data.get("last_update_steamid")
         self.last_edited_by: User | SteamID | None = (  # type: ignore
-            int(data["last_update_steamid"]) if (data["last_update_steamid"] or "0") != "0" else None
+            int(edited_by) if edited_by is not None else None
         )
         self.hidden = bool(data.get("hidden", 0))
         self.published = bool(data.get("published", 1))
@@ -134,27 +136,27 @@ class Event(BaseEvent):
     content
         The event's content.
     game
-        The game the event is going to play in.
+        The game that the event is going to play in.
     clan
         The event's clan.
-    start
+    starts_at
         The event's start time.
     becomes_visible
         The time at which the event becomes visible.
     stops_being_visible
         The time at which the event stops being visible.
-    end
+    ends_at
         The time at which the event ends.
     type
         The event's type.
     last_edited_at
         The time the event was last edited at.
     last_edited_by
-        The the user who made the event last edited.
+        The user who made the event last edited.
     hidden
-        Whether or not the event is currently hidden.
+        Whether the event is currently hidden.
     published
-        Whether or not the event is currently published.
+        Whether the event is currently published.
     upvotes
         The number of up votes on the event.
     downvotes
@@ -179,7 +181,7 @@ class Event(BaseEvent):
         }
 
     async def server(self) -> GameServer | None:
-        """The server that the game will be ran on, ``None`` if not found.
+        """The server that the game will be run on, ``None`` if not found.
 
         Note
         ----
@@ -210,7 +212,7 @@ class Event(BaseEvent):
             ClanEvent.Sports,
             ClanEvent.Trip,
         ] = ClanEvent.Other,
-        start: datetime | None = None,
+        starts_at: datetime | None = None,
     ) -> None:
         ...
 
@@ -222,10 +224,10 @@ class Event(BaseEvent):
         *,
         game: Game,
         type: Literal[ClanEvent.Game] = ...,
-        start: datetime | None = ...,
+        starts_at: datetime | None = ...,
         server_address: str | None = ...,
         server_password: str | None = ...,
-    ) -> Event:
+    ) -> None:
         ...
 
     async def edit(
@@ -246,7 +248,7 @@ class Event(BaseEvent):
             ClanEvent.Trip,
         ] = ClanEvent.Other,
         game: Game | None = None,
-        start: datetime | None = None,
+        starts_at: datetime | None = None,
         server_address: str | None = None,
         server_password: str | None = None,
     ) -> None:
@@ -266,7 +268,7 @@ class Event(BaseEvent):
             The event's type.
         game
             The event's game.
-        start
+        starts_at
             The event's start time.
         server_address
             The event's server's address.
@@ -284,7 +286,7 @@ class Event(BaseEvent):
             game_id or "",
             server_address or self.server_address if self.server_address else "",
             server_password or self.server_password if self.server_password else "",
-            start or self.start,
+            starts_at or self.starts_at,
             event_id=self.id,
         )
         self.name = name or self.name
@@ -314,7 +316,7 @@ class Announcement(BaseEvent):
     content
         The announcement's content.
     game
-        The game the announcement is for.
+        The game that the announcement is for.
     clan
         The announcement's clan.
     start
@@ -323,18 +325,18 @@ class Announcement(BaseEvent):
         The time at which the announcement becomes visible.
     stops_being_visible
         The time at which the announcement stops being visible.
-    end
+    ends_at
         The time at which the announcement ends.
     type
         The announcement's type.
     last_edited_at
         The time the announcement was last edited at.
     last_edited_by
-        The the user who made the announcement last edited.
+        The user who made the announcement last edited.
     hidden
-        Whether or not the announcement is currently hidden.
+        Whether the announcement is currently hidden.
     published
-        Whether or not the announcement is currently published.
+        Whether the announcement is currently published.
     upvotes
         The number of up votes on the announcement.
     downvotes
@@ -407,13 +409,13 @@ class Announcement(BaseEvent):
         self.last_edited_at = datetime.utcnow()
         self.last_edited_by = self._state.client.user
 
-    async def hide(self) -> None:
-        """Hide this announcement."""
-        await self._state.http.hide_clan_announcement(self.clan.id, self.id, True)
+    # async def hide(self) -> None:
+    #     """Hide this announcement."""
+    #     await self._state.http.hide_clan_announcement(self.clan.id, self.id, True)
 
-    async def unhide(self) -> None:
-        """Un-hide this announcement."""
-        await self._state.http.hide_clan_announcement(self.clan.id, self.id, False)
+    # async def unhide(self) -> None:
+    #     """Un-hide this announcement."""
+    #     await self._state.http.hide_clan_announcement(self.clan.id, self.id, False)
 
     async def upvote(self) -> None:
         """Upvote this announcement."""
