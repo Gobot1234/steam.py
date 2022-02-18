@@ -189,6 +189,11 @@ class QueryMeta(type):
         return Query("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
+    def region(cls) -> Query[GameServerRegion]:
+        """Fetches servers in a given region."""
+        return Query("\\region\\", type=GameServerRegion, callback=lambda region: region.value)
+
+    @property
     def all(cls) -> QueryAll:
         """Fetches any servers. Any operations on this will fail."""
         return QueryAll()
