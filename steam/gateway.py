@@ -495,12 +495,12 @@ class SteamWebSocket(Registerable):
         if data[:2] != b"\037\213":
             return log.info("Received a file that's not GZipped")
 
-        (flag,) = struct.unpack("<B", data[3:4])
+        flag = int.from_bytes(data[3:4], byteorder="little")
         position = 10
 
         if flag:  # this isn't ever hit, might as well save a few nanos
             if flag & FEXTRA:
-                (extra_len,) = struct.unpack("<H", data[position:2])
+                extra_len = int.from_bytes(data[position:2], byteorder="little")
                 position += 2 + extra_len
             if flag & FNAME:
                 while True:
