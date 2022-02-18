@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from .event import Announcement, Event
     from .game import StatefulGame
     from .group import Group
+    from .review import Review
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
 
@@ -515,6 +516,40 @@ class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupCha
                 break
 
         await self._fill_queue_users(author_id64s)
+
+
+class ReviewIterator(AsyncIterator["Review"]):
+    def __init__(
+        self,
+        state: ConnectionState,
+        game: StatefulGame,
+        limit: int | None = None,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ):  # TODO add support for the other params and make this more efficient
+        super().__init__(state, limit, before, after)
+        self.game = game
+
+    async def fill(self) -> None:
+        from .review import BaseReviewUser
+
+        cursor = "*"
+        while True:
+            reviews = await self._state.http.get_reviews(self.game.id, "all", "all", "all", cursor)
+            cursor = reviews["cursor"]
+            reviews = reviews["reviews"]
+
+            for review, user in zip(
+                reviews,
+                await self._state.client.fetch_users(*(int(review["author"]["steamid"]) for review in reviews)),
+            ):
+                if user is None:
+                    continue
+                if not self._append(BaseReviewUser._from_data(self._state, review, self.game, user)):
+                    break
+            else:
+                continue
+            break
 
 
 class _EventIterator(AsyncIterator[T]):

@@ -46,7 +46,7 @@ from .clan import Clan
 from .comment import Comment
 from .enums import *
 from .errors import *
-from .game import GameToDict
+from .game import Game, GameToDict
 from .group import Group
 from .guard import *
 from .invite import ClanInvite, UserInvite
@@ -69,6 +69,7 @@ from .protobufs import (
     game_servers,
     login,
     player,
+    reviews,
     struct_messages,
 )
 from .trade import DescriptionDict, TradeOffer, TradeOfferDict
@@ -1007,6 +1008,40 @@ class ConnectionState(Registerable):
     async def parse_new_items(self, msg: MsgProto[client_server_2.CMsgClientItemAnnouncements]) -> None:
         if msg.body.count_new_items:
             await self.poll_trades()
+
+    async def fetch_user_review(self, user_id64: int, game_id: int) -> reviews.RecommendationDetails:
+        # This not accepting multiple users and apps is a steam limitation not sure why.
+        # The request is technically able to support it
+        msg: MsgProto[reviews.GetIndividualRecommendationsResponse] = await self.ws.send_um_and_wait(
+            "UserReviews.GetIndividualRecommendations",
+            requests=[{"steamid": user_id64, "appid": game_id}],
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.recommendations[0]
+
+    async def edit_review(
+        self,
+        review_id: int,
+        content: str,
+        public: bool,
+        commentable: bool,
+        language: str,
+        is_in_early_access: bool,
+        received_compensation: bool,
+    ) -> None:
+        msg = await self.ws.send_um_and_wait(
+            "UserReviews.Update",
+            recommendationid=review_id,
+            review_text=content,
+            is_public=public,
+            language=language,
+            is_in_early_access=is_in_early_access,
+            received_compensation=received_compensation,
+            comments_disabled=not commentable,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
 
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[login.CMsgClientAccountInfo]) -> None:

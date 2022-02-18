@@ -33,11 +33,13 @@ from typing_extensions import Literal, TypedDict
 
 from . import utils
 from .enums import Enum_, ReviewType
+from .iterators import ReviewIterator
 from .models import URL
 from .utils import Intable, id64_from_url
 
 if TYPE_CHECKING:
     from .clan import Clan
+    from .review import Review
     from .state import ConnectionState
     from .user import User
 
@@ -369,6 +371,74 @@ class StatefulGame(Game):
         """Fetch the users in your friend list who own this game."""
         id64s = await self._state.fetch_friends_who_own(self.id)
         return [self._state.get_user(id64) for id64 in id64s]  # type: ignore  # friends are always cached
+
+    async def review(
+        self,
+        content: str,
+        public: bool = True,
+        commentable: bool = True,
+        received_compensation: bool = False,
+    ) -> Review:
+        """Review a game.
+
+        Parameters
+        ----------
+        content
+            The content of the review.
+        public
+            Whether the review should be public.
+        commentable
+            Whether the review should allow comments.
+        received_compensation
+            Whether you received compensation for this review.
+        """
+        await self._state.http.post_review(self.id, content, public, commentable, received_compensation)
+        return await self._state.client.user.fetch_review(self)  # TODO this sucks can we actually get the id ourselves?
+
+    def reviews(
+        self,
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ) -> ReviewIterator:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Game`'s
+        :class:`steam.Review`\\s.
+
+        Examples
+        --------
+
+        Usage:
+
+        .. code-block:: python3
+
+            async for review in game.reviews(limit=10):
+                print("Reviewer:", review.author)
+                print("Said:", review.content)
+
+        Flattening into a list:
+
+        .. code-block:: python3
+
+            reviews = await game.reviews(limit=50).flatten()
+            # reviews is now a list of Review
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit
+            The maximum number of reviews to search through. Default is ``100``. Setting this to ``None`` will fetch all
+            the game's reviews, but this will be a very slow operation.
+        before
+            A time to search for reviews before.
+        after
+            A time to search for reviews after.
+
+        Yields
+        ------
+        :class:`~steam.Review`
+        """
+        return ReviewIterator(self._state, self, limit, before, after)
 
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
     #     fetched = await self._state.client.fetch_game(self)

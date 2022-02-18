@@ -481,13 +481,19 @@ Trading
 .. autoclass:: Asset()
     :members:
 
+Reviews
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Review
+
+.. autoclass:: Review()
 
 Roles
 ~~~~~~~~~~~~~~~
 
 .. attributetable:: Role
 
-.. autoclass:: Role
+.. autoclass:: Role()
 
 
 Users
