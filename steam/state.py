@@ -153,6 +153,7 @@ class ConnectionState(Registerable):
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
+        self.polling_trades = False
         self.trade_queue = TradeQueue()
         self.previous_notification = None
 
@@ -309,13 +310,19 @@ class ConnectionState(Registerable):
             ret.append(await self._store_trade(trade))
         return ret
 
-    @utils.call_once
     async def poll_trades(self) -> None:
-        await self.fill_trades()
+        if self.polling_trades:
+            return
 
-        while self._trades_to_watch:  # watch trades for changes
-            await asyncio.sleep(5)
+        self.polling_trades = True
+        try:
             await self.fill_trades()
+
+            while self._trades_to_watch:  # watch trades for changes
+                await asyncio.sleep(5)
+                await self.fill_trades()
+        finally:
+            self.polling_trades = False
 
     async def fill_trades(self) -> None:
         try:
