@@ -200,19 +200,7 @@ class Game:
         if name is None and id is None:
             raise TypeError("__init__() missing a required keyword argument: 'id' or 'name'")
 
-        if name is None:
-            try:
-                id = int(id)
-            except (ValueError, TypeError):
-                raise ValueError("id expected to support int()")
-            try:
-                name = Games(id).name
-            except ValueError:
-                name = None
-            else:
-                if name == "Steam" and context_id is None:
-                    context_id = 6
-        elif id is None:
+        if id is None:
             id = utils.get(Games, name=name)
             if id is None:
                 raise ValueError(f"Cannot find a matching game for {name!r}")
@@ -220,10 +208,17 @@ class Game:
             try:
                 id = int(id)
             except (ValueError, TypeError):
-                raise ValueError("id must be an int") from None
+                raise ValueError("id expected to support int()") from None
+            try:
+                name = Games(id).name
+            except ValueError:
+                name = None
 
         if id < 0:
             raise ValueError("id cannot be negative")
+
+        if name == "Steam" and context_id is None:
+            context_id = 6
 
         self.id: int = id
         self.name: str | None = name
@@ -287,6 +282,10 @@ class Games(Game, Enum_):
 
     def __repr__(self) -> str:
         return self._name
+
+    @property
+    def value(self) -> int:
+        return self.id
 
     TF2 = "Team Fortress 2", 440, 2
     LFD2 = "Left 4 Dead 2", 550, 2

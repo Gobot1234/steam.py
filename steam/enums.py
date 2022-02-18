@@ -84,7 +84,7 @@ class EnumMeta(type):
             member = value_mapping.get(value)
             if member is None:
                 member = enum_class.__new__(enum_class, name=key, value=value)
-                value_mapping[value] = member
+                value_mapping[member.value] = member
 
             member_mapping[key] = member
             super().__setattr__(enum_class, key, member)
