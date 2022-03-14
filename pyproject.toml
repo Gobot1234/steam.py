@@ -47,7 +47,7 @@ tomli = "~2"
 # docs option
 sphinx = { version = "^4.2.0", optional = true }
 "myst-parser" = { version = ">=0.16", optional = true }
-mypy = { version = ">=0.931,<0.941", optional = true }
+mypy = { version = "^0.940", optional = true }
 sphinxcontrib_trio = { version = "1.1.2", optional = true }
 csscompressor = { version = "*", optional = true }
 htmlmin = { version = "*", optional = true }
@@ -62,7 +62,7 @@ isort = "*"
 flake8 = "*"
 pytest = "*"
 pytest-asyncio = "*"
-mypy = ">=0.931,<0.941"
+mypy = "^0.940"
 
 [tool.black]
 line-length = 120
