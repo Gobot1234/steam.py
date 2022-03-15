@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import weakref
 from collections import ChainMap, deque
 from collections.abc import Sequence
 from copy import copy, deepcopy
@@ -143,7 +144,7 @@ class ConnectionState(Registerable):
         self.clear()
 
     def clear(self) -> None:
-        self._users: dict[int, User] = {}
+        self._users: weakref.WeakValueDict[int, User] = weakref.WeakValueDict()
         self._trades: dict[int, TradeOffer] = {}
         self._groups: dict[int, Group] = {}
         self._clans: dict[int, Clan] = {}
