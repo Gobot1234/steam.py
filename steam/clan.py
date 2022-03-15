@@ -171,7 +171,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         self._default_channel_id: int | None = None
 
     async def __ainit__(self) -> None:
-        resp = await self._state.http._session.get(super().community_url)
+        resp = await self._state.http._session.get(super().community_url)  # type: ignore
         text = await resp.text()  # technically we loose proper request handling here
         if not self.id64:
             search = utils.CLAN_ID64_FROM_URL_REGEX.search(text)
@@ -224,22 +224,25 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
         admins = []
         mods = []
-        is_admins = True
+        is_admins = None
         for fields in soup.find_all("div", class_="membergrid"):
-            for idx, field in enumerate(fields.find_all("div")):
-                if "Members" in field.text:
-                    if mods:
-                        del mods[-1]
-                    break
+            for field in fields.find_all("div"):
+                if "Administrators" in field.text:
+                    is_admins = True
+                    continue
                 if "Moderators" in field.text:
-                    officer = admins.pop()
-                    mods.append(officer)
                     is_admins = False
-                try:
-                    account_id = fields.find_all("div", class_="playerAvatar")[idx]["data-miniprofile"]
-                except IndexError:
+                    continue
+                if "Members" in field.text:
                     break
+
+                try:
+                    account_id = int(field["data-miniprofile"])
+                except KeyError:
+                    continue
                 else:
+                    if is_admins is None:
+                        continue
                     if is_admins:
                         admins.append(account_id)
                     else:
@@ -247,7 +250,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
         users = await self._state.client.fetch_users(*admins, *mods)
         self.admins = [user for user in users if user and user.id in admins]
-        self.admins = [user for user in users if user and user.id in mods]
+        self.mods = [user for user in users if user and user.id in mods]
 
     @classmethod
     async def _from_proto(

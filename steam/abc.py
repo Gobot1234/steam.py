@@ -36,8 +36,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import attr
+from bs4 import BeautifulSoup
 from typing_extensions import Final, Protocol, Self, TypedDict, runtime_checkable
+from yarl import URL as URL_
 
+from . import utils
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
 from .enums import *
@@ -68,6 +71,7 @@ if TYPE_CHECKING:
     from .image import Image
     from .message import Authors
     from .protobufs.chat import Mentions
+    from .review import Review
     from .state import ConnectionState
     from .user import User
 
@@ -682,6 +686,60 @@ class BaseUser(SteamID, Commentable):
         """
         bans = await self.bans()
         return bans.is_banned()
+
+    async def reviews(self) -> list[Review]:
+        """Fetch this user's reviews."""
+        from .review import Review
+
+        # ideally I'd like to find an actual api for these
+        base_url = URL.COMMUNITY / f"profiles/{self.id64}/recommended"
+        first_page = await self._state.http.get(base_url)
+        soup = BeautifulSoup(first_page, "html.parser")
+        pages = max(
+            [int(a["href"][len("?p=") :]) for a in soup.find_all("a", class_="pagelink")],  # str.removeprefix
+            default=1,
+        )
+
+        get_games = lambda soup: [
+            int(URL_(review.find("div", class_="leftcol").a["href"]).parts[-1])
+            for review in soup.find_all("div", class_="review_box_content")
+        ]
+        queue: asyncio.Queue[int | None] = asyncio.Queue()
+        tasks = []
+
+        async def putter(page_number: int) -> None:
+            first_page = await self._state.http.get(base_url, params={"p": page_number})
+            soup = BeautifulSoup(first_page, "html.parser")
+            for game_id in await utils.to_thread(get_games(soup)):
+                queue.put_nowait(game_id)
+
+        async def getter() -> None:
+            while True:
+                game_id = await queue.get()
+                if game_id is None:
+                    break
+                tasks.append(asyncio.create_task(self._state.fetch_user_review(self.id64, game_id)))
+
+        for game_id in await utils.to_thread(get_games(soup)):  # this blocks the event loop otherwise
+            queue.put_nowait(game_id)
+
+        asyncio.create_task(getter())
+        await asyncio.gather(*(putter(i) for i in range(2, pages + 1)))
+        queue.put_nowait(None)
+        return [Review._from_proto(self._state, review, self) for review in await asyncio.gather(*tasks)]
+
+    async def fetch_review(self, game: Game) -> Review:
+        """Fetch this user's review for a game.
+
+        Parameters
+        ----------
+        game
+            The game to fetch the review for.
+        """
+        from .review import Review
+
+        review = await self._state.fetch_user_review(self.id64, game.id)
+        return Review._from_proto(self._state, review, self)
 
     @classmethod
     def _patch_without_api(cls) -> None:

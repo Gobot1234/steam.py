@@ -28,18 +28,19 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 import betterproto
 from typing_extensions import TypeAlias
 
 from ..enums import IntEnum, Result
+from . import struct_messages
 from .emsg import *
 from .headers import *
 from .protobufs import *
 from .unified import *
 
-M = TypeVar("M", bound=betterproto.Message, covariant=True)
+M = TypeVar("M", betterproto.Message, struct_messages.StructMessage, covariant=True)
 GetProtoType: TypeAlias = "type[betterproto.Message] | None"
 ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProto, GCMsgHdrProto)
 betterproto.safe_snake_case = do_nothing_case

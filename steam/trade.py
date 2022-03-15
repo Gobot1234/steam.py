@@ -306,7 +306,7 @@ class InventoryGenericAlias(GenericAlias, **kwargs):
         result.__init__(*args, **kwargs)
         return result
 
-    def __mro_entries__(self, bases) -> tuple[object]:
+    def __mro_entries__(self, bases) -> tuple[type]:
         # if we are subclassing we should return a new class that already has __orig_class__
 
         class BaseInventory(*super().__mro_entries__(bases)):
@@ -376,20 +376,21 @@ class BaseInventory(Generic[I]):
             return generic_alias
 
     def _update(self, data: InventoryDict) -> None:
-        self.items: Sequence[I] = []
+        items = []
         ItemClass: type[Item] = self.__orig_class__.__args__[0]
         for asset in data.get("assets", ()):
             for item in data["descriptions"]:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    self.items.append(  # type: ignore
+                    items.append(
                         ItemClass(data=item, owner=self.owner),
                     )
                     break
             else:
-                self.items.append(  # type: ignore
+                items.append(
                     Asset(data=asset, owner=self.owner),
                 )
+        self.items: Sequence[I] = items
 
     async def update(self) -> None:
         """Re-fetches the inventory."""

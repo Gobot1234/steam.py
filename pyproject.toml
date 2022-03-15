@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "steamio"
-version = "0.8.7"
+version = "0.9.0a"
 description = "A Python wrapper for the Steam API"
 authors = ["Gobot1234"]
 license = "MIT"
@@ -41,13 +41,13 @@ aiohttp = ">=3.7,<3.9"
 beautifulsoup4 = "^4.10.0"
 cryptography = "^36"
 betterproto = "2.0.0b4"
-typing-extensions = "4.0.1"
-tomli = "~1"
+typing-extensions = "4.1.1"
+tomli = "~2"
 
 # docs option
 sphinx = { version = "^4.2.0", optional = true }
 "myst-parser" = { version = ">=0.16", optional = true }
-mypy = { version = "^0.931", optional = true }
+mypy = { version = "^0.940", optional = true }
 sphinxcontrib_trio = { version = "1.1.2", optional = true }
 csscompressor = { version = "*", optional = true }
 htmlmin = { version = "*", optional = true }
@@ -57,12 +57,12 @@ rjsmin = { version = "*", optional = true }
 docs = ["sphinx", "myst-parser", "mypy", "sphinxcontrib_trio", "csscompressor", "htmlmin", "rjsmin"]
 
 [tool.poetry.dev-dependencies]
-black = "^21.8b0"
+black = "^22.1"
 isort = "*"
 flake8 = "*"
 pytest = "*"
 pytest-asyncio = "*"
-mypy = "^0.931"
+mypy = "^0.940"
 
 [tool.black]
 line-length = 120

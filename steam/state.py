@@ -47,14 +47,14 @@ from .clan import Clan
 from .comment import Comment
 from .enums import *
 from .errors import *
-from .game import GameToDict
+from .game import Game, GameToDict
 from .group import Group
 from .guard import *
 from .invite import ClanInvite, UserInvite
 from .iterators import AsyncIterator
 from .message import *
 from .message import ClanMessage
-from .models import URL, EventParser, Registerable, register
+from .models import URL, Registerable, register
 from .protobufs import (
     EMsg,
     Msg,
@@ -70,6 +70,7 @@ from .protobufs import (
     game_servers,
     login,
     player,
+    reviews,
     struct_messages,
 )
 from .trade import DescriptionDict, TradeOffer, TradeOfferDict
@@ -117,7 +118,7 @@ class TradeQueue:
 
 
 class ConnectionState(Registerable):
-    parsers: dict[EMsg, EventParser[Any]]
+    parsers: dict[EMsg, Callable]
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
@@ -153,6 +154,7 @@ class ConnectionState(Registerable):
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
+        self.polling_trades = False
         self.trade_queue = TradeQueue()
 
         self._trades_to_watch: set[int] = set()
@@ -308,13 +310,19 @@ class ConnectionState(Registerable):
             ret.append(await self._store_trade(trade))
         return ret
 
-    @utils.call_once
     async def poll_trades(self) -> None:
-        await self.fill_trades()
+        if self.polling_trades:
+            return
 
-        while self._trades_to_watch:  # watch trades for changes
-            await asyncio.sleep(5)
+        self.polling_trades = True
+        try:
             await self.fill_trades()
+
+            while self._trades_to_watch:  # watch trades for changes
+                await asyncio.sleep(5)
+                await self.fill_trades()
+        finally:
+            self.polling_trades = False
 
     async def fill_trades(self) -> None:
         try:
@@ -454,7 +462,9 @@ class ConnectionState(Registerable):
         channel._update(proto)
 
         message = (ClanMessage if isinstance(group, Clan) else GroupMessage)(
-            proto=proto, channel=channel, author=self.client.user
+            proto=proto,
+            channel=channel,  # type: ignore  # type checkers can't figure out this is ok
+            author=self.client.user,
         )
         self._messages.append(message)
         self.dispatch("message", message)
@@ -647,7 +657,7 @@ class ConnectionState(Registerable):
         author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
 
         if msg.body.chat_entry_type == ChatEntryType.Text:
-            channel = DMChannel(state=self, participant=partner)
+            channel = DMChannel(state=self, participant=partner)  # type: ignore  # remove when above fixme removed
             message = UserMessage(proto=msg.body, channel=channel)
             message.author = author
             self._messages.append(message)
@@ -667,7 +677,9 @@ class ConnectionState(Registerable):
         channel._update(msg.body)
         author = await self._maybe_user(msg.body.steamid_sender)
         message = (ClanMessage if isinstance(destination, Clan) else GroupMessage)(
-            proto=msg.body, channel=channel, author=author
+            proto=msg.body,
+            channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
+            author=author,
         )
         self._messages.append(message)
         self.dispatch("message", message)
@@ -749,7 +761,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientPersonaState)
     async def parse_persona_state_update(self, msg: MsgProto[friends.CMsgClientPersonaState]) -> None:
         for friend in msg.body.friends:
-            data: UserDict = friend.to_dict(do_nothing_case)
+            data = friend.to_dict(do_nothing_case)
             if not data:
                 continue
             user_id64 = friend.friendid
@@ -764,7 +776,7 @@ class ConnectionState(Registerable):
             except (KeyError, TypeError):
                 invitee = await self._maybe_user(user_id64)
                 invite = UserInvite(self, invitee, FriendRelationship.RequestRecipient)
-                self.dispatch("user_invite", invite)
+                return self.dispatch("user_invite", invite)
 
             after._update(data)
             old = [getattr(before, attr, None) for attr in BaseUser.__slots__]
@@ -772,7 +784,7 @@ class ConnectionState(Registerable):
             if old != new:
                 self.dispatch("user_update", before, after)
 
-    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> dict:
+    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> UserDict:
         data["personaname"] = friend.player_name
         hash = (
             friend.avatar_hash.hex()
@@ -788,7 +800,7 @@ class ConnectionState(Registerable):
         data["gameextrainfo"] = friend.game_name or None
         data["personastate"] = friend.persona_state
         data["personastateflags"] = friend.persona_state_flags
-        return data
+        return data  # type: ignore  # casting is for losers
 
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: MsgProto[friends.CMsgClientFriendsList]) -> None:
@@ -875,8 +887,8 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.body.roles
 
-    async def fetch_comment(self, owner: Commentable, id: int) -> comments.GetCommentThreadRatingsResponse.Comment:
-        msg: MsgProto[comments.GetCommentThreadRatingsResponse] = await self.ws.send_um_and_wait(
+    async def fetch_comment(self, owner: Commentable, id: int) -> comments.GetCommentThreadResponse.Comment:
+        msg: MsgProto[comments.GetCommentThreadResponse] = await self.ws.send_um_and_wait(
             "Community.GetCommentThread", **owner._commentable_kwargs, id=id
         )
         if msg.result != Result.OK:
@@ -1005,6 +1017,40 @@ class ConnectionState(Registerable):
         if msg.body.count_new_items:
             await self.poll_trades()
 
+    async def fetch_user_review(self, user_id64: int, game_id: int) -> reviews.RecommendationDetails:
+        # This not accepting multiple users and apps is a steam limitation not sure why.
+        # The request is technically able to support it
+        msg: MsgProto[reviews.GetIndividualRecommendationsResponse] = await self.ws.send_um_and_wait(
+            "UserReviews.GetIndividualRecommendations",
+            requests=[{"steamid": user_id64, "appid": game_id}],
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.recommendations[0]
+
+    async def edit_review(
+        self,
+        review_id: int,
+        content: str,
+        public: bool,
+        commentable: bool,
+        language: str,
+        is_in_early_access: bool,
+        received_compensation: bool,
+    ) -> None:
+        msg = await self.ws.send_um_and_wait(
+            "UserReviews.Update",
+            recommendationid=review_id,
+            review_text=content,
+            is_public=public,
+            language=language,
+            is_in_early_access=is_in_early_access,
+            received_compensation=received_compensation,
+            comments_disabled=not commentable,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[login.CMsgClientAccountInfo]) -> None:
         if self.client.user is None:
@@ -1016,7 +1062,7 @@ class ConnectionState(Registerable):
 
     async def fetch_friends_who_own(self, game_id: int) -> list[int]:
         msg: Msg[struct_messages.ClientGetFriendsWhoPlayGameResponse] = await self.ws.send_proto_and_wait(
-            Msg(EMsg.ClientGetFriendsWhoPlayGame, app_id=game_id)
+            Msg(EMsg.ClientGetFriendsWhoPlayGame, extended=True, app_id=game_id)
         )
         if msg.result != Result.OK:
             raise WSException(msg)

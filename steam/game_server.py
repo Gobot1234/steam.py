@@ -46,10 +46,12 @@ from .game import Game, StatefulGame
 from .utils import StructIO
 
 if TYPE_CHECKING:
+    from types import NotImplementedType
+
     from .protobufs.game_servers import GetServerListResponseServer
     from .state import ConnectionState
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
 Q: TypeAlias = "Query[Q]"
 
 __all__ = (
@@ -187,6 +189,11 @@ class QueryMeta(type):
         return Query("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
+    def region(cls) -> Query[GameServerRegion]:
+        """Fetches servers in a given region."""
+        return Query("\\region\\", type=GameServerRegion, callback=lambda region: region.value)
+
+    @property
     def all(cls) -> QueryAll:
         """Fetches any servers. Any operations on this will fail."""
         return QueryAll()
@@ -252,7 +259,7 @@ class Query(Generic[T], metaclass=QueryMeta):
     def __repr__(self) -> str:
         return f"<Query query={self.query!r}>"
 
-    def _process_op(self, other: T, op: Operator) -> Q:
+    def _process_op(self, other: T, op: Operator) -> Q | NotImplementedType:
         cls = self.__class__
 
         if self._type and isinstance(other, self._type):

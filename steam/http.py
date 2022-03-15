@@ -29,6 +29,7 @@ import copy
 import json
 import logging
 import re
+import urllib.parse
 import warnings
 from base64 import b64encode
 from collections.abc import Coroutine
@@ -60,7 +61,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 log = logging.getLogger(__name__)
 StrOrURL = aiohttp.client.StrOrURL
-RequestType: TypeAlias = "Coroutine[Any, None, T]"
+RequestType: TypeAlias = "Coroutine[Any, Any, T]"
 INVENTORY_LOCKS: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
 
 
@@ -260,7 +261,7 @@ class HTTPClient:
         payload = {"sessionid": self.session_id}
         await self.post(URL.COMMUNITY / "login/logout", data=payload)
         self.logged_in = False
-        self.user = None
+        self.user = None  # type: ignore
         self._client.dispatch("logout")
 
     async def _get_rsa_params(self) -> tuple[bytes, int]:
@@ -683,7 +684,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements", data=data)
 
-    def delete_clan_announcement(self, clan_id64, announcement_id: int) -> RequestType[None]:
+    def delete_clan_announcement(self, clan_id64: int, announcement_id: int) -> RequestType[None]:
         params = {
             "sessionID": self.session_id,
         }
@@ -699,6 +700,60 @@ class HTTPClient:
             "announcement_gid": announcement_id,
         }
         return self.get(URL.STORE / "events/ajaxgetpartnerevent", params=params)
+
+    def post_review(
+        self, game_id: int, content: str, public: bool, commentable: bool, received_compensation: bool
+    ) -> RequestType[None]:
+        data = {
+            "appid": game_id,
+            "steamworksappid": game_id,
+            "comment": content,
+            "rated_up": "true",
+            "is_public": str(public).lower(),
+            "language": "english",
+            "received_compensation": int(received_compensation),
+            "disable_comments": int(not commentable),
+            "sessionid": self.session_id,
+        }
+
+        return self.post(URL.STORE / "friends/recommendgame", data=data)
+
+    def get_reviews(
+        self, game_id: int, filter: str, review_type: str, purchase_type: str, cursor: str = "*"
+    ) -> RequestType[dict[str, Any]]:
+        params = {
+            "json": 1,
+            "num_per_page": 100,
+            "cursor": urllib.parse.quote(cursor),
+            "filter": filter,
+            "review_type": review_type,
+            "purchase_type": purchase_type,
+        }
+
+        return self.get(URL.STORE / f"appreviews/{game_id}", params=params)
+
+    def mark_review_as_helpful(self, review_id: int, rated_up: bool) -> RequestType[None]:
+        data = {
+            "rateup": str(rated_up).lower(),
+            "sessionid": self.session_id,
+        }
+        return self.post(URL.COMMUNITY / f"userreviews/rate/{review_id}", data=data)
+
+    def mark_review_as_funny(self, review_id: int) -> RequestType[None]:
+        data = {
+            "tagid": 1,
+            "rateup": "true",
+            "sessionid": self.session_id,
+        }
+        return self.post(URL.COMMUNITY / f"userreviews/votetag/{review_id}", data=data)
+
+    def delete_review(self, game_id: int) -> RequestType[None]:
+        data = {
+            "action": "delete",
+            "appid": game_id,
+            "sessionid": self.session_id,
+        }
+        return self.post(URL.COMMUNITY / "my/recommended", data=data)
 
     async def edit_profile(
         self,

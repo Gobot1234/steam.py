@@ -24,6 +24,7 @@ from .invite import *
 from .message import *
 from .models import *
 from .profile import *
+from .review import *
 from .role import *
 from .trade import *
 from .user import *

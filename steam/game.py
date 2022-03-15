@@ -33,11 +33,13 @@ from typing_extensions import Literal, TypedDict
 
 from . import utils
 from .enums import Enum_, ReviewType
+from .iterators import ReviewIterator
 from .models import URL
 from .utils import Intable, id64_from_url
 
 if TYPE_CHECKING:
     from .clan import Clan
+    from .review import Review
     from .state import ConnectionState
     from .user import User
 
@@ -55,7 +57,7 @@ __all__ = (
 )
 
 T = TypeVar("T")
-APP_ID_MAX = 2**32
+APP_ID_MAX = 2**32 - 1
 
 
 class GameDict(TypedDict):
@@ -198,19 +200,7 @@ class Game:
         if name is None and id is None:
             raise TypeError("__init__() missing a required keyword argument: 'id' or 'name'")
 
-        if name is None:
-            try:
-                id = int(id)
-            except (ValueError, TypeError):
-                raise ValueError("id expected to support int()")
-            try:
-                name = Games(id).name
-            except ValueError:
-                name = None
-            else:
-                if name == "Steam" and context_id is None:
-                    context_id = 6
-        elif id is None:
+        if id is None:
             id = utils.get(Games, name=name)
             if id is None:
                 raise ValueError(f"Cannot find a matching game for {name!r}")
@@ -218,10 +208,17 @@ class Game:
             try:
                 id = int(id)
             except (ValueError, TypeError):
-                raise ValueError("id must be an int") from None
+                raise ValueError("id expected to support int()") from None
+            try:
+                name = Games(id).name
+            except ValueError:
+                name = None
 
         if id < 0:
             raise ValueError("id cannot be negative")
+
+        if name == "Steam" and context_id is None:
+            context_id = 6
 
         self.id: int = id
         self.name: str | None = name
@@ -285,6 +282,10 @@ class Games(Game, Enum_):
 
     def __repr__(self) -> str:
         return self._name
+
+    @property
+    def value(self) -> int:
+        return self.id
 
     TF2 = "Team Fortress 2", 440, 2
     LFD2 = "Left 4 Dead 2", 550, 2
@@ -369,6 +370,74 @@ class StatefulGame(Game):
         """Fetch the users in your friend list who own this game."""
         id64s = await self._state.fetch_friends_who_own(self.id)
         return [self._state.get_user(id64) for id64 in id64s]  # type: ignore  # friends are always cached
+
+    async def review(
+        self,
+        content: str,
+        public: bool = True,
+        commentable: bool = True,
+        received_compensation: bool = False,
+    ) -> Review:
+        """Review a game.
+
+        Parameters
+        ----------
+        content
+            The content of the review.
+        public
+            Whether the review should be public.
+        commentable
+            Whether the review should allow comments.
+        received_compensation
+            Whether you received compensation for this review.
+        """
+        await self._state.http.post_review(self.id, content, public, commentable, received_compensation)
+        return await self._state.client.user.fetch_review(self)  # TODO this sucks can we actually get the id ourselves?
+
+    def reviews(
+        self,
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ) -> ReviewIterator:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Game`'s
+        :class:`steam.Review`\\s.
+
+        Examples
+        --------
+
+        Usage:
+
+        .. code-block:: python3
+
+            async for review in game.reviews(limit=10):
+                print("Reviewer:", review.author)
+                print("Said:", review.content)
+
+        Flattening into a list:
+
+        .. code-block:: python3
+
+            reviews = await game.reviews(limit=50).flatten()
+            # reviews is now a list of Review
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit
+            The maximum number of reviews to search through. Default is ``100``. Setting this to ``None`` will fetch all
+            the game's reviews, but this will be a very slow operation.
+        before
+            A time to search for reviews before.
+        after
+            A time to search for reviews after.
+
+        Yields
+        ------
+        :class:`~steam.Review`
+        """
+        return ReviewIterator(self._state, self, limit, before, after)
 
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
     #     fetched = await self._state.client.fetch_game(self)
@@ -583,7 +652,7 @@ class FetchedGame(StatefulGame):
         "_on_linux",
     )
 
-    title: str
+    name: str
 
     def __init__(self, state: ConnectionState, data: FetchedGameDict):
         super().__init__(state, id=data["steam_appid"], name=data["name"])

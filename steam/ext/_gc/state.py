@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 from ... import utils
 from ...abc import BaseUser
 from ...enums import IntEnum
-from ...models import register
+from ...gateway import EventListener, GCMsgsT
+from ...models import register, return_true
 from ...protobufs import EMsg, GCMsg, GCMsgProto, MsgProto
 from ...state import ConnectionState
 from ...trade import BaseInventory, Inventory
@@ -24,7 +25,7 @@ Inv = TypeVar("Inv", bound=BaseInventory[Any])
 
 
 class GCState(ConnectionState):
-    Language: ClassVar[IntEnum]
+    Language: ClassVar[type[IntEnum]]
     gc_parsers: dict[IntEnum, Callable[..., Any]]
     client: Client
 
@@ -33,7 +34,7 @@ class GCState(ConnectionState):
         self._gc_connected = asyncio.Event()
         self._gc_ready = asyncio.Event()
         self.backpack: Inventory = None  # type: ignore
-        self._unpatched_inventory: Callable[[BaseUser, Game], Coroutine[Any, Any, Inventory]]
+        self.gc_listeners: list[EventListener[Any]] = []
 
     @register(EMsg.ClientFromGC)
     async def parse_gc_message(self, msg: MsgProto[CMsgGcClient]) -> None:
@@ -60,6 +61,38 @@ class GCState(ConnectionState):
 
         self.dispatch("gc_message_receive", gc_msg)
         self.run_parser(language, gc_msg)
+
+        # remove the dispatched listener
+        removed = []
+        for idx, entry in enumerate(self.gc_listeners):
+            if entry.emsg != language:
+                continue
+
+            future = entry.future
+            if future.cancelled():
+                removed.append(idx)
+                continue
+
+            try:
+                valid = entry.check(gc_msg)
+            except Exception as exc:
+                future.set_exception(exc)
+                removed.append(idx)
+            else:
+                if valid:
+                    future.set_result(gc_msg)
+                    removed.append(idx)
+
+        for idx in reversed(removed):
+            del self.gc_listeners[idx]
+
+    def gc_wait_for(
+        self, emsg: Language | None, check: Callable[[GCMsgsT], bool] = return_true
+    ) -> asyncio.Future[GCMsgsT]:
+        future: asyncio.Future[GCMsgsT] = self.loop.create_future()
+        entry = EventListener(emsg=emsg, check=check, future=future)
+        self.gc_listeners.append(entry)
+        return future
 
     async def fetch_backpack(self, backpack_cls: type[Inv]) -> Inv:
         resp = await self.http.get_user_inventory(
