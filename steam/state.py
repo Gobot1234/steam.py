@@ -1016,7 +1016,7 @@ class ConnectionState(Registerable):
 
     async def fetch_friends_who_own(self, game_id: int) -> list[int]:
         msg: Msg[struct_messages.ClientGetFriendsWhoPlayGameResponse] = await self.ws.send_proto_and_wait(
-            Msg(EMsg.ClientGetFriendsWhoPlayGame, app_id=game_id)
+            Msg(EMsg.ClientGetFriendsWhoPlayGame, extended=True, app_id=game_id)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
