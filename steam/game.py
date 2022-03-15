@@ -55,7 +55,7 @@ __all__ = (
 )
 
 T = TypeVar("T")
-APP_ID_MAX = 2 ** 32
+APP_ID_MAX = 2**32
 
 
 class GameDict(TypedDict):

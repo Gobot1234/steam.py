@@ -139,7 +139,7 @@ class HTTPClient:
                     try:
                         await asyncio.sleep(float(r.headers["X-Retry-After"]))
                     except KeyError:  # steam being un-helpful as usual
-                        await asyncio.sleep(2 ** tries)
+                        await asyncio.sleep(2**tries)
                     continue
 
                 # we've received a 500 or 502, an unconditional retry

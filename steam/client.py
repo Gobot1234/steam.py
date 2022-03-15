@@ -466,7 +466,7 @@ class Client:
         async def throttle() -> None:
             now = time.monotonic()
             between = now - last_connect
-            sleep = random.random() * 4 if between > 600 else 100 / between ** 0.5
+            sleep = random.random() * 4 if between > 600 else 100 / between**0.5
             log.info(f"Attempting to connect to another CM in {sleep}")
             await asyncio.sleep(sleep)
 
