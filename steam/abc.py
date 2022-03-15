@@ -459,6 +459,7 @@ class BaseUser(SteamID, Commentable):
         "_setup_profile",
         "_level",
         "_state",
+        "__weakref__",
     )
 
     def __init__(self, state: ConnectionState, data: UserDict):
@@ -514,9 +515,6 @@ class BaseUser(SteamID, Commentable):
 
     def __str__(self) -> str:
         return self.name
-
-    def __del__(self):
-        self._state._users.pop(self.id64, None)
 
     @property
     def _commentable_kwargs(self) -> dict[str, Any]:

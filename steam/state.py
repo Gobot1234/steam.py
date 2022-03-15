@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import weakref
 from collections import ChainMap, deque
 from collections.abc import Sequence
 from copy import copy, deepcopy
@@ -144,7 +145,7 @@ class ConnectionState(Registerable):
         self.clear()
 
     def clear(self) -> None:
-        self._users: dict[int, User] = {}
+        self._users: weakref.WeakValueDict[int, User] = weakref.WeakValueDict()
         self._trades: dict[int, TradeOffer] = {}
         self._groups: dict[int, Group] = {}
         self._clans: dict[int, Clan] = {}
@@ -155,7 +156,6 @@ class ConnectionState(Registerable):
         self.emoticons: list[ClientEmoticon] = []
         self.polling_trades = False
         self.trade_queue = TradeQueue()
-        self.previous_notification = None
 
         self._trades_to_watch: set[int] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
@@ -1008,12 +1008,9 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientUserNotifications)
     async def parse_notification(self, msg: MsgProto[client_server_2.CMsgClientUserNotifications]) -> None:
-        if msg.body != self.previous_notification and any(
-            b.user_notification_type == 1 for b in msg.body.notifications
-        ):
+        if any(b.user_notification_type == 1 for b in msg.body.notifications):
             # 1 is a trade offer
             await self.poll_trades()
-        self.previous_notification = msg.body
 
     @register(EMsg.ClientItemAnnouncements)
     async def parse_new_items(self, msg: MsgProto[client_server_2.CMsgClientItemAnnouncements]) -> None:
