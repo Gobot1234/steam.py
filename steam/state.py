@@ -145,7 +145,7 @@ class ConnectionState(Registerable):
         self.clear()
 
     def clear(self) -> None:
-        self._users: weakref.WeakValueDict[int, User] = weakref.WeakValueDict()
+        self._users: weakref.WeakValueDictionary[int, User] = weakref.WeakValueDictionary()
         self._trades: dict[int, TradeOffer] = {}
         self._groups: dict[int, Group] = {}
         self._clans: dict[int, Clan] = {}
