@@ -710,7 +710,7 @@ class BaseUser(SteamID, Commentable):
         async def putter(page_number: int) -> None:
             first_page = await self._state.http.get(base_url, params={"p": page_number})
             soup = BeautifulSoup(first_page, "html.parser")
-            for game_id in await utils.to_thread(get_games(soup)):
+            for game_id in await utils.to_thread(get_games, soup):
                 queue.put_nowait(game_id)
 
         async def getter() -> None:
@@ -720,7 +720,7 @@ class BaseUser(SteamID, Commentable):
                     break
                 tasks.append(asyncio.create_task(self._state.fetch_user_review(self.id64, game_id)))
 
-        for game_id in await utils.to_thread(get_games(soup)):  # this blocks the event loop otherwise
+        for game_id in await utils.to_thread(get_games, soup):  # this blocks the event loop otherwise
             queue.put_nowait(game_id)
 
         asyncio.create_task(getter())
