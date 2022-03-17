@@ -155,9 +155,9 @@ class SteamID(metaclass=abc.ABCMeta):
         return f"SteamID(id={self.id}, type={self.type}, universe={self.universe}, instance={self.instance})"
 
     @property
-    def instance(self) -> int:
+    def instance(self) -> InstanceFlag:
         """The instance of the SteamID."""
-        return (self.__BASE >> 32) & 0xFFFFF
+        return InstanceFlag.try_value((self.__BASE >> 32) & 0xFFFFF)
 
     @property
     def type(self) -> Type:
@@ -212,20 +212,20 @@ class SteamID(metaclass=abc.ABCMeta):
         if self.type in (Type.AnonGameServer, Type.Multiseat):
             instance = self.instance
         elif self.type == Type.Individual:
-            if self.instance != 1:
+            if self.instance != InstanceFlag.Desktop:
                 instance = self.instance
         elif self.type == Type.Chat:
-            if self.instance & InstanceFlag.Clan:
+            if self.instance & InstanceFlag.ChatClan > 0:
                 type_char = "c"
-            elif self.instance & InstanceFlag.Lobby:
+            elif self.instance & InstanceFlag.ChatLobby > 0:
                 type_char = "L"
             else:
                 type_char = "T"
 
-        parts = [type_char, str(self.universe.value), str(self.id)]
+        parts = [type_char, f"{self.universe.value}", f"{self.id}"]
 
         if instance is not None:
-            parts.append(str(instance))
+            parts.append(f"{instance.value}")
 
         return f"[{':'.join(parts)}]"
 

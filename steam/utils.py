@@ -84,7 +84,7 @@ Type | Literal[
 UniverseType: TypeAlias = """
     Universe | Literal['Invalid', 'Public', 'Beta', 'Internal', 'Dev', 'Max', 0, 1, 2, 3, 4, 5, 6]
 """
-InstanceType: TypeAlias = "Literal[0, 1, 2, 4]"
+InstanceType: TypeAlias = "InstanceFlag | str | int"
 
 
 def make_id64(
@@ -148,7 +148,7 @@ def make_id64(
             type = type or Type.Individual
             universe = universe or Universe.Public
         # 64 bit
-        elif 2**32 < id < 2**64:
+        elif id < 2**64:
             value = id
             id = id & 0xFFFFFFFF
             instance = (value >> 32) & 0xFFFFF
@@ -175,7 +175,7 @@ def make_id64(
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>[0-9]+):(?P<remainder>[0-1]):(?P<id>[0-9]{1,10})")
 
 
-def id2_to_tuple(value: str) -> tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]] | None:
+def id2_to_tuple(value: str) -> tuple[int, Literal[Type.Individual], Universe, Literal[InstanceFlag.Desktop]] | None:
     """Convert an ID2 into its component parts.
 
     Parameters
@@ -191,7 +191,7 @@ def id2_to_tuple(value: str) -> tuple[int, Literal[Type.Individual], Literal[Uni
     -------
     A tuple of 32 bit ID, type, universe and instance or ``None``
 
-    e.g. (100000, Type.Individual, Universe.Public, 1).
+    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop).
     """
     search = ID2_REGEX.search(value)
 
@@ -205,7 +205,7 @@ def id2_to_tuple(value: str) -> tuple[int, Literal[Type.Individual], Literal[Uni
     if universe == 0:
         universe = 1
 
-    return id, Type.Individual, Universe(universe), 1
+    return id, Type.Individual, Universe(universe), InstanceFlag.Desktop
 
 
 ID3_REGEX = re.compile(
@@ -216,7 +216,7 @@ ID3_REGEX = re.compile(
 )
 
 
-def id3_to_tuple(value: str) -> tuple[int, Type, Universe, int] | None:
+def id3_to_tuple(value: str) -> tuple[int, Type, Universe, InstanceFlag] | None:
     """Convert a Steam ID3 into its component parts.
 
     Parameters
@@ -228,7 +228,7 @@ def id3_to_tuple(value: str) -> tuple[int, Type, Universe, int] | None:
     -------
     A tuple of 32 bit ID, type, universe and instance or ``None``
 
-    e.g. (100000, Type.Individual, Universe.Public, 1)
+    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop)
     """
     search = ID3_REGEX.search(value)
     if search is None:
@@ -238,22 +238,18 @@ def id3_to_tuple(value: str) -> tuple[int, Type, Universe, int] | None:
     universe = Universe(int(search["universe"]))
     type_char = search["type"].replace("i", "I")
     type = Type(TypeChar[type_char])
-    instance = search["instance"]
+    instance_ = search["instance"]
 
-    if type_char in "gT":
-        instance = 0
-    elif instance is not None:
-        instance = int(instance)
-    elif type_char == "L":
-        instance = InstanceFlag.Lobby
-    elif type_char == "c":
-        instance = InstanceFlag.Clan
-    elif type_char in (Type.Individual, Type.GameServer):
-        instance = 1
+    if type_char in "gT" or instance_ is None:
+        instance = InstanceFlag.All
     else:
-        instance = 0
-
-    instance = int(instance)
+        instance = InstanceFlag.try_value(int(instance_))
+    if type_char == "L":
+        instance |= InstanceFlag.ChatLobby
+    if type_char == "c":
+        instance |= InstanceFlag.ChatClan
+    if type_char in (Type.Individual, Type.GameServer):
+        instance = InstanceFlag.Desktop
 
     return id, type, universe, instance
 

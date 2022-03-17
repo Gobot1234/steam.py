@@ -215,6 +215,9 @@ class Flags(IntEnum):
         cls = self.__class__
         return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=self.value & int(other))
 
+    __ror__ = __or__
+    __rand__ = __and__
+
 
 # fmt: off
 class Result(IntEnum):
@@ -376,9 +379,14 @@ class TypeChar(IntEnum):
 
 
 class InstanceFlag(Flags):
-    MMSLobby = 0x20000  #: The Steam ID is for a MMS Lobby.
-    Lobby    = 0x40000  #: The Steam ID is for a Lobby.
-    Clan     = 0x80000  #: The Steam ID is for a Clan.
+    All          = 0         #: The Instance for all Steam IDs
+    Desktop      = 1         #: The Instance for desktop Steam IDs
+    Console      = 2         #: The Instance for console  Steam IDs
+    Web          = 4         #: The Instance for web Steam IDs
+    # Type.Chat exclusive flags
+    ChatMMSLobby = 0x20000  #: The Steam ID is for a MMS Lobby.
+    ChatLobby    = 0x40000  #: The Steam ID is for a Lobby.
+    ChatClan     = 0x80000  #: The Steam ID is for a Clan.
 
 
 class FriendRelationship(IntEnum):
