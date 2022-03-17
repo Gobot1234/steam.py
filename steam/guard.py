@@ -39,8 +39,8 @@ from hashlib import sha1
 from time import time
 from typing import TYPE_CHECKING, Any
 
+from ._const import URL
 from .errors import ConfirmationError
-from .models import URL
 from .utils import Intable
 
 if TYPE_CHECKING:

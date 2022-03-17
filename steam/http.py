@@ -46,9 +46,10 @@ from yarl import URL as _URL
 
 from . import errors, utils
 from .__metadata__ import __version__
+from ._const import URL
 from .abc import SteamID
 from .guard import generate_one_time_code
-from .models import URL, PriceOverviewDict, api_route
+from .models import PriceOverviewDict, api_route
 from .trade import AssetToDict, InventoryDict
 from .user import BaseUser, ClientUser
 from .utils import cached_property

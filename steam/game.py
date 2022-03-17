@@ -32,9 +32,9 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 from typing_extensions import Literal, TypedDict
 
 from . import utils
+from ._const import URL
 from .enums import Enum_, ReviewType
 from .iterators import ReviewIterator
-from .models import URL
 from .utils import Intable, id64_from_url
 
 if TYPE_CHECKING:

@@ -37,6 +37,7 @@ from typing_extensions import Final, Literal, ParamSpec, TypedDict
 from yarl import URL as _URL
 
 from . import utils
+from ._const import TASK_HAS_NAME, URL
 from .enums import IntEnum
 from .protobufs import EMsg, chat
 
@@ -52,17 +53,10 @@ __all__ = (
 F = TypeVar("F", bound="Callable[..., Any]")
 R = TypeVar("R", bound="Registerable")
 P = ParamSpec("P")
-TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 
 def api_route(path: str, version: int = 1) -> _URL:
     return URL.API / f"{path}/v{version}"
-
-
-class URL:
-    API: Final = _URL("https://api.steampowered.com")
-    COMMUNITY: Final = _URL("https://steamcommunity.com")
-    STORE: Final = _URL("https://store.steampowered.com")
 
 
 class _ReturnTrue:

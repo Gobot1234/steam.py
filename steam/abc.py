@@ -41,13 +41,14 @@ from typing_extensions import Final, Protocol, Self, TypedDict, runtime_checkabl
 from yarl import URL as URL_
 
 from . import utils
+from ._const import URL
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
 from .enums import *
 from .errors import WSException
 from .game import Game, StatefulGame, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
-from .models import URL, Ban
+from .models import Ban
 from .profile import *
 from .trade import Inventory
 from .utils import (

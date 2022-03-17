@@ -42,15 +42,20 @@ import aiohttp
 from typing_extensions import Literal, TypeAlias, final
 
 from . import errors, utils
+from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
 from .abc import SteamID
-from .enums import Type
+from .content_server import GameInfo, Package, PackageInfo
+from .emoticon import ClientEmoticon, Emoticon
+from .enums import PersonaState, PersonaStateFlag, Type, UIMode
 from .game import FetchedGame, Game, StatefulGame
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .models import TASK_HAS_NAME, URL, PriceOverview, return_true
+from .models import PriceOverview, return_true
+from .package import License, Transaction
+from .published_file import PublishedFile
 from .state import ConnectionState
 from .utils import make_id64
 
@@ -843,7 +848,7 @@ class Client:
         print(f"Ignoring exception in {event}", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    if TYPE_CHECKING or utils.DOCS_BUILDING:
+    if TYPE_CHECKING or DOCS_BUILDING:
         # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs
 
         async def on_connect(self) -> None:

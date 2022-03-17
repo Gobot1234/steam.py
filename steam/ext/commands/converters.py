@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Generic, NoReturn, Sequ
 
 from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable
 
-from ... import utils
+from ... import _const, utils
 from ...channel import Channel
 from ...clan import Clan
 from ...errors import HTTPException, InvalidSteamID
@@ -271,7 +271,7 @@ class Converter(ConverterBase[T_co], ABC):
             setattr(cls, "converter_for", converter_for)
             CONVERTERS[converter_for] = cls
 
-    if TYPE_CHECKING or utils.DOCS_BUILDING:
+    if TYPE_CHECKING or _const.DOCS_BUILDING:
 
         @classmethod  # TODO: for 3.9 make this a cached_property and classmethod
         @property

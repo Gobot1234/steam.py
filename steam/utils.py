@@ -729,7 +729,3 @@ async def maybe_coroutine(
     if isawaitable(value):
         return await value
     return value
-
-
-# TODO need a consts file
-DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)

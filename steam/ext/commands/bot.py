@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from typing_extensions import Literal, TypeAlias, overload
 
-from ... import utils
+from ... import _const, utils
 from ...client import Client, E, EventType, log
 from .cog import Cog
 from .commands import CHR, CheckReturnType, CheckType, Command, GroupMixin, InvokeT, check
@@ -646,7 +646,7 @@ class Bot(GroupMixin, Client):
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    if TYPE_CHECKING or utils.DOCS_BUILDING:
+    if TYPE_CHECKING or _const.DOCS_BUILDING:
         # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs or we are building the
         # docs
 

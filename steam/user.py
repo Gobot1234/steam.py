@@ -29,10 +29,10 @@ from collections.abc import Coroutine
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from ._const import URL
 from .abc import BaseUser, Messageable, UserDict
 from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
-from .models import URL
 from .profile import OwnedProfileItems, ProfileItem
 
 if TYPE_CHECKING:

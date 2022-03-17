@@ -27,12 +27,13 @@ EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discor
 
 from __future__ import annotations
 
-import builtins
 from collections.abc import Generator, Mapping
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypeVar
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 from typing_extensions import Literal, Self
+
+from ._const import DOCS_BUILDING
 
 __all__ = (
     "Enum",
@@ -176,8 +177,7 @@ class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
 
-Enum_ = Enum  # needed for game.Games
-if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
+if TYPE_CHECKING or DOCS_BUILDING:
     from enum import Enum as _Enum, IntEnum as _IntEnum
 
     class Enum(_Enum):
@@ -191,8 +191,9 @@ if TYPE_CHECKING or getattr(builtins, "__sphinx__", False):
     # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour
     # I can't seem to replicate
 
-if TYPE_CHECKING:
-    Enum_ = Enum
+
+Enum_ = Enum  # needed for game.Games
+IntEnum_ = IntEnum  # needed for protobuf.headers.NO_MSG
 
 
 class Flags(IntEnum):
