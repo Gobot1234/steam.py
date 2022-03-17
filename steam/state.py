@@ -41,7 +41,7 @@ from typing_extensions import Self, TypeAlias
 from yarl import URL as URL_
 
 from . import utils
-from ._const import URL, VDF_BINARY_LOADS, VDF_LOADS
+from ._const import URL
 from .abc import BaseUser, Commentable, SteamID, UserDict
 from .channel import DMChannel
 from .clan import Clan

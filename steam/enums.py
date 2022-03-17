@@ -177,6 +177,9 @@ class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
 
+Enum_ = Enum  # needed for game.Games
+IntEnum_ = IntEnum  # needed for protobuf.headers.NO_MSG
+
 if TYPE_CHECKING or DOCS_BUILDING:
     from enum import Enum as _Enum, IntEnum as _IntEnum
 
@@ -190,10 +193,6 @@ if TYPE_CHECKING or DOCS_BUILDING:
 
     # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour
     # I can't seem to replicate
-
-
-Enum_ = Enum  # needed for game.Games
-IntEnum_ = IntEnum  # needed for protobuf.headers.NO_MSG
 
 
 class Flags(IntEnum):

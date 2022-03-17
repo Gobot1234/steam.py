@@ -39,7 +39,11 @@ if TYPE_CHECKING:
     from .protobufs.reviews import RecommendationDetails as ReviewProto
     from .state import ConnectionState
 
-__all__ = ("Review", "ReviewUser", "ClientReviewUser",)
+__all__ = (
+    "Review",
+    "ReviewUser",
+    "ClientReviewUser",
+)
 
 
 class BaseReviewUser(BaseUser):

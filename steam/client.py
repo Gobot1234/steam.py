@@ -44,8 +44,6 @@ from typing_extensions import Literal, TypeAlias, final
 from . import errors, utils
 from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
 from .abc import SteamID
-from .content_server import GameInfo, Package, PackageInfo
-from .emoticon import ClientEmoticon, Emoticon
 from .enums import PersonaState, PersonaStateFlag, Type, UIMode
 from .game import FetchedGame, Game, StatefulGame
 from .game_server import GameServer, Query
@@ -54,8 +52,6 @@ from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
 from .models import PriceOverview, return_true
-from .package import License, Transaction
-from .published_file import PublishedFile
 from .state import ConnectionState
 from .utils import make_id64
 

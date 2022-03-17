@@ -97,9 +97,7 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self.type = ClanEvent.try_value(data["event_type"])
         self.last_edited_at = datetime.utcfromtimestamp(data["rtime32_last_modified"])
         edited_by = data.get("last_update_steamid")
-        self.last_edited_by: User | SteamID | None = (  # type: ignore
-            int(edited_by) if edited_by is not None else None
-        )
+        self.last_edited_by: User | SteamID | None = int(edited_by) if edited_by is not None else None  # type: ignore
         self.hidden = bool(data.get("hidden", 0))
         self.published = bool(data.get("published", 1))
         self.upvotes: int = data.get("votes_up", 0)
