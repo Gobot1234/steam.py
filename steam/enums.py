@@ -56,6 +56,14 @@ __all__ = (
     "GameServerRegion",
     "ClanEvent",
     "ProfileItemType",
+    "DepotFileFlag",
+    "AppFlag",
+    "LicenseFlag",
+    "LicenseType",
+    "BillingType",
+    "PaymentMethod",
+    "PackageStatus",
+    "PublishedFileRevision",
 )
 
 T = TypeVar("T")
@@ -193,15 +201,21 @@ if TYPE_CHECKING or DOCS_BUILDING:
 
     # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour
     # I can't seem to replicate
+if TYPE_CHECKING:
+    Enum_ = Enum
+    IntEnum_ = IntEnum
 
 
 class Flags(IntEnum):
     @classmethod
     def try_value(cls, value: int) -> Self:
-        flags = [enum for enum in cls if enum.value & value]
-        if flags:
-            returning_flag = flags[0]
-            for flag in flags[1:]:
+        if value == 0:
+            # causes flags to be iter(cls) does |= on every value (which is not 0) it always returns UnknownValue
+            return super().try_value(value)
+        flags = (enum for enum in cls if enum.value & value == value)
+        returning_flag = next(flags, None)
+        if returning_flag is not None:
+            for flag in flags:
                 returning_flag |= flag
             if returning_flag == value:
                 return returning_flag
@@ -625,6 +639,198 @@ class ProfileItemType(IntEnum):
     LoyaltyRewardReactions    = 21  #: A loyalty reward showcase.
     SingleArtworkShowcase     = 22  #: A single artwork showcase.
     AchievementsCompletionist = 23  #: An achievements completeionist showcase.
+
+
+class DepotFileFlag(Flags):
+    File                = 0
+    UserConfig          = 1 << 0
+    VersionedUserConfig = 1 << 1
+    Encrypted           = 1 << 2
+    ReadOnly            = 1 << 3
+    Hidden              = 1 << 4
+    Executable          = 1 << 5
+    Directory           = 1 << 6
+    CustomExecutable    = 1 << 7
+    InstallScript       = 1 << 8
+    Symlink             = 1 << 9
+
+
+class AppFlag(Flags):
+    Game        = 1 << 0
+    Application = 1 << 1
+    Tool        = 1 << 2
+    Demo        = 1 << 3
+    Deprecated  = 1 << 4
+    DLC         = 1 << 5
+    Guide       = 1 << 6
+    Driver      = 1 << 7
+    Config      = 1 << 8
+    Hardware    = 1 << 9
+    Franchise   = 1 << 10
+    Video       = 1 << 11
+    Plugin      = 1 << 12
+    Music       = 1 << 13
+    Series      = 1 << 14
+    Comic       = 1 << 15
+    Beta        = 1 << 16
+
+    Shortcut    = 1 << 30
+    DepotOnly   = -1 << 31
+
+
+class LicenseFlag(Flags):
+    NONE                         = 0
+    Renew                        = 1 << 0
+    RenewalFailed                = 1 << 1
+    Pending                      = 1 << 2
+    Expired                      = 1 << 3
+    CancelledByUser              = 1 << 4
+    CancelledByAdmin             = 1 << 5
+    LowViolenceContent           = 1 << 6
+    ImportedFromSteam2           = 1 << 7
+    ForceRunRestriction          = 1 << 8
+    RegionRestrictionExpired     = 1 << 9
+    CancelledByFriendlyFraudLock = 1 << 10
+    NotActivated                 = 1 << 11
+
+
+class LicenseType(IntEnum):
+    NoLicense                             = 0
+    SinglePurchase                        = 1
+    SinglePurchaseLimitedUse              = 2
+    RecurringCharge                       = 3
+    RecurringChargeLimitedUse             = 4
+    RecurringChargeLimitedUseWithOverages = 5
+    RecurringOption                       = 6
+    LimitedUseDelayedActivation           = 7
+
+
+class BillingType(IntEnum):
+    NoCost                 = 0
+    BillOnceOnly           = 1
+    BillMonthly            = 2
+    ProofOfPrepurchaseOnly = 3
+    GuestPass              = 4
+    HardwarePromo          = 5
+    Gift                   = 6
+    AutoGrant              = 7
+    OEMTicket              = 8
+    RecurringOption        = 9
+    BillOnceOrCDKey        = 10
+    Repurchaseable         = 11
+    FreeOnDemand           = 12
+    Rental                 = 13
+    CommercialLicense      = 14
+    FreeCommercialLicense  = 15
+    NumBillingTypes        = 16
+
+
+class PaymentMethod(IntEnum):
+    NONE                   = 0
+    ActivationCode         = 1
+    CreditCard             = 2
+    Giropay                = 3
+    PayPal                 = 4
+    Ideal                  = 5
+    PaySafeCard            = 6
+    Sofort                 = 7
+    GuestPass              = 8
+    WebMoney               = 9
+    MoneyBookers           = 10
+    AliPay                 = 11
+    Yandex                 = 12
+    Kiosk                  = 13
+    Qiwi                   = 14
+    GameStop               = 15
+    HardwarePromo          = 16
+    MoPay                  = 17
+    BoletoBancario         = 18
+    BoaCompraGold          = 19
+    BancoDoBrasilOnline    = 20
+    ItauOnline             = 21
+    BradescoOnline         = 22
+    Pagseguro              = 23
+    VisaBrazil             = 24
+    AmexBrazil             = 25
+    Aura                   = 26
+    Hipercard              = 27
+    MastercardBrazil       = 28
+    DinersCardBrazil       = 29
+    AuthorizedDevice       = 30
+    MOLPoints              = 31
+    ClickAndBuy            = 32
+    Beeline                = 33
+    Konbini                = 34
+    EClubPoints            = 35
+    CreditCardJapan        = 36
+    BankTransferJapan      = 37
+    PayEasy                = 38
+    Zong                   = 39
+    CultureVoucher         = 40
+    BookVoucher            = 41
+    HappymoneyVoucher      = 42
+    ConvenientStoreVoucher = 43
+    GameVoucher            = 44
+    Multibanco             = 45
+    Payshop                = 46
+    MaestroBoaCompra       = 47
+    OXXO                   = 48
+    ToditoCash             = 49
+    Carnet                 = 50
+    SPEI                   = 51
+    ThreePay               = 52
+    IsBank                 = 53
+    Garanti                = 54
+    Akbank                 = 55
+    YapiKredi              = 56
+    Halkbank               = 57
+    BankAsya               = 58
+    Finansbank             = 59
+    DenizBank              = 60
+    PTT                    = 61
+    CashU                  = 62
+    AutoGrant              = 64
+    WebMoneyJapan          = 65
+    OneCard                = 66
+    PSE                    = 67
+    Exito                  = 68
+    Efecty                 = 69
+    Paloto                 = 70
+    PinValidda             = 71
+    MangirKart             = 72
+    BancoCreditoDePeru     = 73
+    BBVAContinental        = 74
+    SafetyPay              = 75
+    PagoEfectivo           = 76
+    Trustly                = 77
+    UnionPay               = 78
+    BitCoin                = 79
+    Wallet                 = 128
+    Valve                  = 129
+    MasterComp             = 130
+    Promotional            = 131
+    MasterSubscription     = 134
+    Payco                  = 135
+    MobileWalletJapan      = 136
+    OEMTicket              = 256
+    Split                  = 512
+    Complimentary          = 1024
+
+
+class PackageStatus(IntEnum):
+    Available   = 0
+    Preorder    = 1
+    Unavailable = 2
+    Invalid     = 3
+
+
+class PublishedFileRevision(IntEnum):
+    Default               = 0
+    Latest                = 1
+    ApprovedSnapshot      = 2
+    ApprovedSnapshotChina = 3
+    RejectedSnapshot      = 4
+    RejectedSnapshotChina = 5
 # fmt: on
 
 

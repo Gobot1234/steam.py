@@ -35,7 +35,7 @@ import random
 import sys
 import time
 import traceback
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Collection, Coroutine, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import aiohttp
@@ -51,7 +51,9 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
+from .manifest import GameInfo, Package, PackageInfo
 from .models import PriceOverview, return_true
+from .package import License
 from .state import ConnectionState
 from .utils import make_id64
 
@@ -183,6 +185,10 @@ class Client:
     def clans(self) -> list[Clan]:
         """A list of all the clans the connected client is in."""
         return self._connection.clans
+
+    @property
+    def licenses(self) -> Sequence[License]:
+        return list(self._connection.licenses.values())
 
     @property
     def latency(self) -> float:
@@ -637,6 +643,16 @@ class Client:
             return None
         return FetchedGame(self._connection, data["data"])
 
+    def get_package(self, id: int) -> Package:
+        """Creates a package from its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the package.
+        """
+        return Package(self._connection, id)
+
     @overload
     async def fetch_server(self, *, id: utils.Intable) -> GameServer | None:
         ...
@@ -700,6 +716,44 @@ class Client:
         """
         servers = await self._connection.fetch_servers(query.query, limit)
         return [GameServer(self._connection, server) for server in servers]
+
+    # content server related stuff
+
+    @overload
+    async def fetch_product_info(self, *, games: Collection[Game]) -> list[GameInfo]:
+        ...
+
+    @overload
+    async def fetch_product_info(self, *, packages: Collection[Package]) -> list[PackageInfo]:
+        ...
+
+    @overload
+    async def fetch_product_info(
+        self, *, games: Collection[Game], packages: Collection[Package]
+    ) -> tuple[list[GameInfo], list[PackageInfo]]:
+        ...
+
+    async def fetch_product_info(
+        self, *, games: Collection[Game] = (), packages: Collection[Package] = ()
+    ) -> list[GameInfo] | list[PackageInfo] | tuple[list[GameInfo], list[PackageInfo]]:
+        """Fetch product info.
+
+        Parameters
+        ----------
+        games
+            The games to fetch info on.
+        packages
+            The packages to fetch info on.
+        """
+
+        game_infos, package_infos = await self._connection.fetch_product_info(
+            (game.id for game in games), (package.id for package in packages)
+        )
+
+        if games and packages:
+            return game_infos, package_infos
+
+        return game_infos if games else package_infos
 
     # miscellaneous stuff
 

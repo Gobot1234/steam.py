@@ -24,24 +24,30 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import abc
 import asyncio
 import logging
 import re
 import sys
 import traceback
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
+from contextlib import asynccontextmanager
 from datetime import timedelta
+from io import BytesIO
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from typing_extensions import Final, Literal, ParamSpec, TypedDict
+from typing_extensions import Literal, ParamSpec, TypedDict
 from yarl import URL as _URL
 
 from . import utils
 from ._const import TASK_HAS_NAME, URL
 from .enums import IntEnum
-from .protobufs import EMsg, chat
+from .image import Image
+from .protobufs import EMsg
 
 if TYPE_CHECKING:
+    from _typeshed import StrOrBytesPath
+
     from .gateway import Msgs
 
 
@@ -234,3 +240,40 @@ class Ban:
     def is_market_banned(self) -> bool:
         """Whether or not the user is market banned."""
         return self._market_banned
+
+
+class _IOMixin(metaclass=abc.ABCMeta):
+    __slots__ = ()
+
+    @asynccontextmanager
+    @abc.abstractmethod
+    async def open(self) -> AsyncGenerator[BytesIO, None]:
+        """Open this file as and returns its contents as an in memory buffer."""
+        raise NotImplementedError()
+        yield
+
+    async def read(self) -> bytes:
+        """Read the whole contents of this file."""
+        async with self.open() as io:
+            return io.getvalue()
+
+    async def save(self, filename: StrOrBytesPath) -> int:
+        """Save the file to a path.
+
+        Parameters
+        ----------
+        filename
+            The filename of the file to be created and have this saved to.
+
+        Returns
+        -------
+        The number of bytes written.
+        """
+        async with self.open() as file:
+            with file, open(filename, "wb") as actual_fp:
+                return actual_fp.write(file.getvalue())
+
+    async def image(self, *, spoiler: bool = False) -> Image:
+        """Return this file as an image for uploading."""
+        async with self.open() as file:
+            return Image(file, spoiler=spoiler)

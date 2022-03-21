@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from .event import Announcement, Event
     from .game import StatefulGame
     from .group import Group
+    from .manifest import Manifest
     from .review import Review
     from .state import ConnectionState
     from .trade import DescriptionDict, TradeOffer
@@ -616,3 +617,25 @@ class AnnouncementsIterator(_EventIterator["Announcement"]):
         for announcement in announcements:
             events += announcement["events"]
         return {"events": events}
+
+
+class ManifestIterator(AsyncIterator["Manifest[str]"]):
+    def __init__(
+        self,
+        state: ConnectionState,
+        limit: int | None,
+        before: datetime | None,
+        after: datetime | None,
+        game: StatefulGame,
+        branch: str,
+        password: str | None,
+    ):
+        super().__init__(state, limit, before, after)
+        self.game = game
+        self.branch = branch
+        self.password = password
+
+    async def fill(self) -> None:
+        for manifest in await self._state.fetch_manifests(self.game.id, self.branch, self.password, self.limit):
+            if self.after < manifest.created_at < self.before:
+                self._append(manifest)

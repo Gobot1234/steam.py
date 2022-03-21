@@ -45,7 +45,7 @@ class ImageIO(Protocol):
     def seekable(self) -> bool:
         ...
 
-    def seek(self, offset: int, whence: int = ...) -> Any:
+    def seek(self, __offset: int, __whence: int = ...) -> Any:
         ...
 
     def tell(self) -> int:
@@ -54,7 +54,7 @@ class ImageIO(Protocol):
     def readable(self) -> bool:
         ...
 
-    def read(self, size: int = ...) -> bytes:
+    def read(self, __size: int = ...) -> bytes:
         ...
 
     def close(self) -> Any:

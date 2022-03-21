@@ -43,6 +43,7 @@ cryptography = "^36"
 betterproto = "2.0.0b4"
 typing-extensions = "4.1.1"
 tomli = "~2"
+vdf = "^3.4"
 
 # docs option
 sphinx = { version = "^4.2.0", optional = true }

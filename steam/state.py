@@ -29,19 +29,19 @@ import logging
 import re
 import weakref
 from collections import ChainMap, deque
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from copy import copy, deepcopy
 from datetime import datetime, timedelta
+from operator import attrgetter
 from time import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 from bs4 import BeautifulSoup
-from multidict import MultiDict
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self
 from yarl import URL as URL_
 
 from . import utils
-from ._const import URL
+from ._const import URL, VDF_BINARY_LOADS, VDF_LOADS
 from .abc import BaseUser, Commentable, SteamID, UserDict
 from .channel import DMChannel
 from .clan import Clan
@@ -53,17 +53,21 @@ from .group import Group
 from .guard import *
 from .invite import ClanInvite, UserInvite
 from .iterators import AsyncIterator
+from .manifest import ContentServer, GameInfo, Manifest, PackageInfo
 from .message import *
 from .message import ClanMessage
 from .models import Registerable, register
+from .package import License
 from .protobufs import (
     EMsg,
     Msg,
     MsgProto,
+    app_info,
     chat,
     client_server,
     client_server_2,
     comments,
+    content_server,
     do_nothing_case,
     econ,
     friend_messages,
@@ -157,6 +161,9 @@ class ConnectionState(Registerable):
         self.emoticons: list[ClientEmoticon] = []
         self.polling_trades = False
         self.trade_queue = TradeQueue()
+        self.licenses: dict[int, License] = {}
+        self._manifest_passwords: dict[int, dict[str, str]] = {}
+        self.cs_servers: list[ContentServer] = []
 
         self._trades_to_watch: set[int] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
@@ -210,7 +217,7 @@ class ConnectionState(Registerable):
         return self._store_user(data) if data else None
         # return (await self.fetch_users([user_id64]))[0]
 
-    async def fetch_users(self, user_id64s: list[int]) -> list[User | None]:
+    async def fetch_users(self, user_id64s: Iterable[int]) -> list[User | None]:
         resp = await self.http.get_users(user_id64s)
         """
         msg: MsgProto[CMsgClientRequestFriendData] = MsgProto(
@@ -225,6 +232,30 @@ class ConnectionState(Registerable):
 
     async def _maybe_user(self, id64: int) -> User | SteamID:
         return self.get_user(id64) or await self.fetch_user(id64) or SteamID(id64)
+
+    async def _maybe_users(self, id64s: Iterable[int]) -> list[User | SteamID]:
+        ret: list[User | SteamID] = []
+        to_fetch: dict[int, list[int]] = {}
+        for idx, id64 in enumerate(id64s):
+            user = self.get_user(id64)
+            if user is not None:
+                ret.append(user)
+            else:
+                idxs = to_fetch.get(id64)
+                if idxs is None:
+                    idxs = to_fetch[id64] = []
+
+                idxs.append(idx)
+                ret.append(id64)  # type: ignore
+
+        if to_fetch:
+            for (user_id64, idxs), user in zip(to_fetch.items(), await self.fetch_users(to_fetch)):
+                if user is None:
+                    user = SteamID(user_id64)
+                for idx in idxs:
+                    ret[idx] = user
+
+        return ret
 
     def _store_user(self, data: UserDict) -> User:
         try:
@@ -1120,36 +1151,215 @@ class ConnectionState(Registerable):
         if user_counts or name_info:
             self.dispatch("clan_update", before, clan)
 
+    @register(EMsg.ClientLicenseList)
+    async def _handle_licenses(self, msg: MsgProto[client_server.CMsgClientLicenseList]) -> None:
+        users = {
+            user.id: user
+            for user in await self._maybe_users(utils.make_id64(license.owner_id) for license in msg.body.licenses)
+        }
+        for license in msg.body.licenses:
+            self.licenses[license.package_id] = License(self, license, users[license.owner_id])
 
-class TradesList(AsyncIterator[TradeOffer]):
-    @utils.call_once
-    async def fill(self) -> None:
-        state = self._state
+    async def fetch_cs_list(self, limit: int = 20) -> list[content_server.ServerInfo]:
+        msg: MsgProto[content_server.GetServersForSteamPipeResponse] = await self.ws.send_um_and_wait(
+            "ContentServerDirectory.GetServersForSteamPipe",
+            cell_id=self.ws.cm_list.cell_id,
+            max_servers=limit,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.servers
+
+    @overload
+    async def fetch_manifest(self, game_id: int, id: int, depot_id: int, name: None = ...) -> Manifest[None]:
+        ...
+
+    @overload
+    async def fetch_manifest(self, game_id: int, id: int, depot_id: int, name: str = ...) -> Manifest[str]:
+        ...
+
+    async def fetch_manifest(
+        self, game_id: int, id: int, depot_id: int, name: str | None = None
+    ) -> Manifest[str | None]:
+        if not self.cs_servers:
+            self.cs_servers = sorted(
+                (
+                    ContentServer(
+                        self,
+                        URL_.build(scheme=f"http{'s' if server.https_support != 'none' else ''}", host=server.vhost),
+                        server.weighted_load,
+                    )
+                    for server in await self.fetch_cs_list(limit=20)
+                    if server.type in ("CDN", "SteamCache")
+                ),
+                key=attrgetter("weighted_load"),
+            )
+
+        for server in tuple(self.cs_servers):
+            try:
+                manifest = await server.fetch_manifest(game_id, id, depot_id)
+            except HTTPException as exc:
+                if exc.status == 404:
+                    raise
+                self.cs_servers.pop(0)
+            else:
+                manifest.name = name
+                return manifest
+
+        return await self.fetch_manifest(game_id, id, depot_id, name)
+
+    async def fetch_manifests(
+        self, game_id: int, branch_name: str, password: str | None, limit: int | None
+    ) -> list[Manifest[str]]:
+        (product_info,), _ = await self.fetch_product_info((game_id,))
+
         try:
-            trades = await state.http.get_trade_offers()
-            descriptions = trades.get("descriptions", ())
-            trades_received = trades.get("trade_offers_received", ())
-            trades_sent = trades.get("trade_offers_sent", ())
-            new_received_trades = [trade for trade in trades_received if trade not in state._trades_received_cache]
-            new_sent_trades = [trade for trade in trades_sent if trade not in state._trades_sent_cache]
-            received_trades = await state._process_trades(new_received_trades, descriptions)
-            sent_trades = await state._process_trades(new_sent_trades, descriptions)
-            state._trades_received_cache = trades_received
-            state._trades_sent_cache = trades_sent
+            branch = product_info._branches[branch_name]
+        except KeyError:
+            raise ValueError(f"No branch named {branch_name!r} for app {game_id}") from None
 
-            self.queue += received_trades
-            self.queue += sent_trades
-        except Exception as exc:
-            await asyncio.sleep(30)
-            log.info("Error while polling trades", exc_info=exc)
+        branch.password = self._manifest_passwords[game_id].get(branch_name)
+        if branch.password_required and branch.password is None:
+            if not password:
+                raise ValueError(f"Branch {branch!r} requires a password")
 
-    async def wait_for(self, id: int) -> TradeOffer:
-        if not self.queue:
-            await self.fill()  # if this is a no-op it doesn't matter
-        trade = utils.get(self.queue, id=id)
-        if trade is not None:
-            self.queue.remove(trade)
-            return trade
+            password_msg: MsgProto[
+                client_server_2.CMsgClientCheckAppBetaPasswordResponse
+            ] = await self.ws.send_proto_and_wait(
+                MsgProto(EMsg.ClientCheckAppBetaPassword, app_id=game_id, betapassword=password)
+            )
+            if password_msg.result != Result.OK:
+                raise WSException(password_msg)
 
-        await self.fill()  # refresh the queue
-        return await self.wait_for(id=id)
+            branch_password = utils.get(password_msg.body.betapasswords, betaname=branch.name)
+
+            if branch_password is None:
+                raise ValueError(f"Supplied password is not for the branch {branch!r}")
+            branch.password = branch_password.betapassword
+            self._manifest_passwords[game_id][branch.name] = branch.password
+
+        return await asyncio.gather(
+            *(
+                self.fetch_manifest(
+                    game_id,
+                    depot.id,
+                    depot.manifest.id,
+                    depot.name,
+                )
+                for depot in branch.depots[:limit]
+            )
+        )  # type: ignore  # typeshed lies
+
+    async def fetch_product_info(
+        self, game_ids: Iterable[int] = (), package_ids: Iterable[int] = ()
+    ) -> tuple[list[GameInfo], list[PackageInfo]]:
+        games_to_fetch: list[dict[str, int]] = []
+        packages_to_fetch: list[dict[str, int]] = []
+        to_collect: list[int] = []
+
+        for game_id in game_ids:
+            try:
+                games_to_fetch.append({"appid": game_id, "access_token": self.licenses[game_id].access_token})
+            except KeyError:
+                to_collect.append(game_id)
+
+        for package_id in package_ids:
+            try:
+                packages_to_fetch.append(
+                    {"packageid": package_id, "access_token": self.licenses[package_id].access_token}
+                )
+            except KeyError:
+                to_collect.append(package_id)
+
+        if to_collect:
+            fetched_tokens = await self.fetch_manifest_access_tokens(to_collect)
+            games_to_fetch.extend(token.to_dict(do_nothing_case) for token in fetched_tokens.app_access_tokens)
+            packages_to_fetch.extend(token.to_dict(do_nothing_case) for token in fetched_tokens.package_access_tokens)
+
+        to_send = MsgProto[app_info.CMsgClientPicsProductInfoRequest](
+            EMsg.ClientPICSProductInfoRequest,
+            apps=games_to_fetch,
+            packages=packages_to_fetch,
+            supports_package_tokens=True,
+        )
+        to_send.header.body.job_id_source = job_id = self.ws.next_job_id
+
+        await self.ws.send_proto(to_send)
+
+        response_pending = True
+        games: list[GameInfo] = []
+        packages: list[PackageInfo] = []
+
+        check: Callable[[MsgProto[app_info.CMsgClientPicsProductInfoResponse]], bool] = (
+            lambda msg: msg.header.body.job_id_target == job_id
+        )
+        while response_pending:
+            msg = await self.ws.wait_for(EMsg.ClientPICSProductInfoResponse, check)
+
+            games.extend(
+                GameInfo(
+                    self,
+                    VDF_LOADS(  # type: ignore  # can be removed if AnyOf ever happens
+                        app.buffer[:-1].decode("UTF-8", "replace")
+                    )["appinfo"],
+                    app,
+                )
+                for app in msg.body.apps
+            )
+
+            packages.extend(
+                PackageInfo(
+                    self,
+                    VDF_BINARY_LOADS(package.buffer[4:])[  # type: ignore  # can be removed if AnyOf ever happens
+                        str(package.packageid)
+                    ],
+                    package,
+                )
+                for package in msg.body.packages
+            )
+
+            response_pending = msg.body.response_pending
+
+        return games, packages
+
+    async def fetch_depot_key(self, game_id: int, depot_id: int) -> bytes:
+        msg: MsgProto[client_server_2.CMsgClientGetDepotDecryptionKeyResponse] = await self.ws.send_proto_and_wait(
+            MsgProto(EMsg.ClientGetDepotDecryptionKey, app_id=game_id, depot_id=depot_id)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body.depot_encryption_key
+
+    async def fetch_manifest_access_tokens(
+        self,
+        game_ids: list[int] | None = None,
+        package_ids: list[int] | None = None,
+    ) -> app_info.CMsgClientPicsAccessTokenResponse:
+
+        game_ids = [] if game_ids is None else game_ids
+        package_ids = [] if package_ids is None else package_ids
+
+        msg: MsgProto[app_info.CMsgClientPicsAccessTokenResponse] = await self.ws.send_proto_and_wait(
+            MsgProto(EMsg.ClientPICSAccessTokenRequest, appids=game_ids, packageids=package_ids),
+        )
+        if msg.result not in (
+            Result.OK,
+            Result.Invalid,
+        ):  # invalid is for the case where access tokens are not required
+            raise WSException(msg)
+        return msg.body
+
+    async def fetch_changes_since(
+        self, change_number: int, app: bool, package: bool
+    ) -> app_info.CMsgClientPicsChangesSinceResponse:
+        msg: MsgProto[app_info.CMsgClientPicsChangesSinceResponse] = await self.ws.send_proto_and_wait(
+            MsgProto(
+                EMsg.ClientPICSChangesSinceRequest,
+                since_change_number=change_number,
+                send_app_info_changes=app,
+                send_package_info_changes=package,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body

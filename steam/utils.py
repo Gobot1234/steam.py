@@ -45,6 +45,10 @@ from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, overload
 
 import aiohttp
 from aiohttp.typedefs import StrOrURL
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Final, Literal, ParamSpec, Protocol, Self, TypeAlias
 
 from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor
@@ -359,6 +363,40 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = N
     finally:
         if not gave_session:
             await session.close()
+
+
+def unpad(s: bytes) -> bytes:
+    return s[: -s[-1]]
+
+
+def symmetric_decrypt(text: bytes, key: bytes) -> bytes:
+    cipher = Cipher(algorithms.AES(key), modes.ECB())
+    decryptor = cipher.decryptor()
+    iv = decryptor.update(text[:16])
+    decryptor.finalize()
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    decryptor = cipher.decryptor()
+    return unpad(decryptor.update(text[16:]))
+
+
+STEAM_PUBLIC_KEY: Final = rsa.RSAPublicNumbers(
+    17,
+    int(
+        "15724357561634927674730175476830986717783112215602592374684467606040658835210722421733390195991917498645577395"
+        "74256147305317512289779541339341903863064825489430677366085855489114673844247739326425760672921370562630031218"
+        "36768211312089498275802694267916711103128551999842076575732754013467986241640244933837449"
+    ),
+)
+
+
+def verify_signature(data: bytes, signature: bytes) -> bool:
+    try:
+        STEAM_PUBLIC_KEY.public_key().verify(signature, data, padding.PKCS1v15(), hashes.SHA1())
+    except InvalidSignature:
+        return False
+    else:
+        return True
 
 
 def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:

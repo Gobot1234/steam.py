@@ -34,11 +34,12 @@ from typing_extensions import Literal, TypedDict
 from . import utils
 from ._const import URL
 from .enums import Enum_, ReviewType
-from .iterators import ReviewIterator
+from .iterators import ManifestIterator, ReviewIterator
 from .utils import Intable, id64_from_url
 
 if TYPE_CHECKING:
     from .clan import Clan
+    from .manifest import GameInfo, Manifest
     from .review import Review
     from .state import ConnectionState
     from .user import User
@@ -454,6 +455,51 @@ class StatefulGame(Game):
         if game is None:
             raise ValueError("Fetched game was not valid.")
         return game
+
+    async def fetch_manifest(self, *, id: int, depot_id: int) -> Manifest[None]:
+        """Fetch a CDN manifest for a game."""
+        return await self._state.fetch_manifest(self.id, id, depot_id)
+
+    def manifests(
+        self,
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
+        branch: str = "public",
+        password: str | None = None,
+    ) -> ManifestIterator:
+        """An iterator over the game's CDN manifests.
+
+        Parameters
+        ----------
+        limit
+            The maximum number of :class:`.Manifests` to return.
+        before
+            The time to get manifests before.
+        after
+            The time to get manifests after.
+        branch
+            The name of the branch to fetch manifests from.
+        password
+            The password for the branch, if any.
+
+        Yields
+        ------
+        :class:`Manifest`
+        """
+        return ManifestIterator(
+            state=self._state, limit=limit, before=before, after=after, game=self, branch=branch, password=password
+        )
+
+    async def info(self) -> GameInfo:
+        """Shorthand for:
+
+        .. code-block:: python3
+
+            (info,) = await client.fetch_product_info(games=[game])
+        """
+        (info,), _ = await self._state.fetch_product_info((self.id,))
+        return info
 
 
 class UserGame(StatefulGame):

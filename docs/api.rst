@@ -215,6 +215,46 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: ClanEvent()
+   :members:
+   :undoc-members:
+
+.. autoclass:: ProfileItemType()
+   :members:
+   :undoc-members:
+
+.. autoclass:: DepotFileFlag()
+   :members:
+   :undoc-members:
+
+.. autoclass:: AppFlag()
+   :members:
+   :undoc-members:
+
+.. autoclass:: LicenseFlag()
+   :members:
+   :undoc-members:
+
+.. autoclass:: LicenseType()
+   :members:
+   :undoc-members:
+
+.. autoclass:: BillingType()
+   :members:
+   :undoc-members:
+
+.. autoclass:: PaymentMethod()
+   :members:
+   :undoc-members:
+
+.. autoclass:: PackageStatus()
+   :members:
+   :undoc-members:
+
+.. autoclass:: PublishedFileRevision()
+   :members:
+   :undoc-members:
+
 
 Guard
 ---------------
@@ -397,6 +437,53 @@ Invite
     :members:
     :inherited-members:
 
+Manifests
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Manifest
+
+.. autoclass:: Manifest()
+   :members:
+
+.. attributetable:: ManifestPath
+
+.. autoclass:: ManifestPath()
+   :members:
+   :inherited-members:
+
+.. attributetable:: Branch
+
+.. autoclass:: Branch()
+   :members:
+
+.. attributetable:: ManifestInfo
+
+.. autoclass:: ManifestInfo()
+   :members:
+
+.. attributetable:: HeadlessDepot
+
+.. autoclass:: HeadlessDepot()
+   :members:
+
+.. attributetable:: Depot
+
+.. autoclass:: Depot()
+   :members:
+   :inherited-members:
+
+.. attributetable:: GameInfo
+
+.. autoclass:: GameInfo()
+   :members:
+   :inherited-members:
+
+.. attributetable:: PackageInfo
+
+.. autoclass:: PackageInfo()
+   :members:
+   :inherited-members:
+
 Message
 ~~~~~~~~~~~~~~~
 
@@ -422,6 +509,20 @@ Message
 .. autoclass:: ClanMessage()
     :members:
     :inherited-members:
+
+Package
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Package
+
+.. autoclass:: Package()
+   :members:
+
+.. attributetable:: License
+
+.. autoclass:: License()
+   :members:
+   :inherited-members:
 
 PriceOverview
 ~~~~~~~~~~~~~~~

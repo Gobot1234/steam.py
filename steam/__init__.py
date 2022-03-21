@@ -21,8 +21,10 @@ from .game_server import *
 from .group import *
 from .image import *
 from .invite import *
+from .manifest import *
 from .message import *
 from .models import *
+from .package import *
 from .profile import *
 from .review import *
 from .role import *
