@@ -5,13 +5,16 @@ import re
 import subprocess
 from typing import TYPE_CHECKING
 
-import tomli
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
 
 ROOT = pathlib.Path(".").resolve()
-PYPROJECT = tomli.load(open(ROOT / "pyproject.toml", "rb"))
+PYPROJECT = tomllib.load(open(ROOT / "pyproject.toml", "rb"))
 try:
     VERSION: str = PYPROJECT["tool"]["poetry"]["version"]
 except KeyError:
