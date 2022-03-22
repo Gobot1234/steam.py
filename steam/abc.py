@@ -463,10 +463,11 @@ class BaseUser(SteamID, Commentable):
         "__weakref__",
     )
 
+    name: str
+
     def __init__(self, state: ConnectionState, data: UserDict):
         super().__init__(data["steamid"])
         self._state = state
-        self.name: str
         self.real_name: str | None = None
         self.community_url: str | None = None
         self.avatar_url: str | None = None  # TODO make this a property and add avatar hash

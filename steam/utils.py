@@ -32,13 +32,16 @@ import builtins
 import contextvars
 import functools
 import html
+import io
 import json
 import re
 import struct
 import sys
-from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Sized
+from collections import deque
+from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Mapping, Sized
 from inspect import getmembers, isawaitable
 from io import BytesIO
+from itertools import islice
 from operator import attrgetter
 from types import MemberDescriptorType
 from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, overload
@@ -49,7 +52,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from typing_extensions import Final, Literal, ParamSpec, Protocol, Self, TypeAlias
+from typing_extensions import Final, Literal, ParamSpec, Self, TypeAlias
 
 from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor
 from .errors import InvalidSteamID
@@ -59,7 +62,6 @@ if TYPE_CHECKING:
 
 
 _T = TypeVar("_T")
-_T_co = TypeVar("_T_co", covariant=True)
 _P = ParamSpec("_P")
 _PROTOBUF_MASK = 0x80000000
 
@@ -268,7 +270,7 @@ INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+
 
 def invite_code_to_tuple(
     code: str,
-) -> tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[1]] | None:
+) -> tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[InstanceFlag.Desktop]] | None:
     """Convert an invite code into its component parts.
 
     Parameters
@@ -280,7 +282,7 @@ def invite_code_to_tuple(
     -------
     A tuple of 32 bit ID, type, universe and instance or ``None``
 
-    e.g. (100000, Type.Individual, Universe.Public, 1).
+    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop).
     """
     search = INVITE_REGEX.search(code)
 
@@ -292,7 +294,7 @@ def invite_code_to_tuple(
     id = int(re.sub(f"[{_INVITE_CUSTOM}]", lambda m: _INVITE_INVERSE_MAPPING[m.group()], code), 16)
 
     if 0 < id < 2**32:
-        return id, Type.Individual, Universe.Public, 1
+        return id, Type.Individual, Universe.Public, InstanceFlag.Desktop
 
 
 URL_REGEX = re.compile(
@@ -514,13 +516,8 @@ def contains_bbcode(string: str) -> bool:
     return any(string.startswith(f"/{bbcode}") for bbcode in bbcodes)
 
 
-class SupportsChunk(Protocol[_T_co], Sized):
-    def __getitem__(self: Self, item: slice) -> Self:
-        ...
-
-
 def chunk(iterable: Iterable[_T], size: int) -> Generator[list[_T], None, None]:
-    chunk = []
+    chunk: list[_T] = []
 
     for element in iterable:
         if len(chunk) == size:
@@ -532,9 +529,9 @@ def chunk(iterable: Iterable[_T], size: int) -> Generator[list[_T], None, None]:
 
 
 def update_class(
-    instance: _T,
-    new_instance: _T,
-) -> _T:
+    instance: Any,
+    new_instance: Any,
+) -> Any:  # technically _T1 & _T2
     cls = instance.__class__
     is_descriptor = _is_descriptor
 
@@ -554,7 +551,7 @@ def update_class(
     return new_instance
 
 
-def call_once(func: Callable[_P, Awaitable[None]]) -> Callable[_P, Coroutine[Any, Any, None]]:
+def call_once(func: Callable[_P, Awaitable[None]]) -> Callable[_P, Awaitable[None]]:
     called = False
 
     @functools.wraps(func)
@@ -586,7 +583,7 @@ class AsyncInit(metaclass=abc.ABCMeta):
         return self.__await_inner__().__await__()
 
 
-PACK_FORMATS: Final[dict[str, str]] = {
+PACK_FORMATS: Final[Mapping[str, str]] = {
     "i8": "b",
     "u8": "B",
     "i16": "h",

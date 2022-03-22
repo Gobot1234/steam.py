@@ -58,7 +58,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
     def visit_simple_type(self, type: type, types: list[types.Type]) -> GenericAlias:
         return type[self.collect_types(types)]
 
-    def collect_types(self, types: list[types.Type]) -> list[Any]:
+    def collect_types(self, types: list[types.Type]) -> tuple[Any, ...]:
         args = []
         for type in types:
             accepted = type.accept(self)
@@ -73,10 +73,6 @@ class TypeEvalVisitor(TypeVisitor[Any]):
             return getattr(importlib.import_module(module), name)
         except AttributeError:
             return MISSING
-        except ModuleNotFoundError:
-            if name == "Self":
-                return TypeVar("Self")
-            raise
 
     def visit_none_type(self, type: types.NoneType) -> None:
         return None
@@ -88,7 +84,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
         return Union[self.collect_types(t.items)]
 
     def visit_callable_type(self, t: types.CallableType) -> GenericAlias:
-        return Callable[[*self.collect_types(t.arg_types)], self.collect_types([t.ret_type])]
+        return Callable[list(self.collect_types(t.arg_types)), self.collect_types([t.ret_type])[0]]
 
     def visit_literal_type(self, t: types.LiteralType) -> GenericAlias:
         value = t.value_repr()
@@ -128,9 +124,9 @@ class TypeEvalVisitor(TypeVisitor[Any]):
 
 
 @contextlib.contextmanager
-def load_module(module: str) -> Generator[dict[nodes.Expression, types.Type], None, None]:
+def load_module(module: str) -> Generator[ChainMap[nodes.Expression, types.Type], None, None]:
     if not module.startswith("steam"):  # typing_extensions.TypeAlias
-        yield {}
+        yield ChainMap()
         return
 
     try:
@@ -188,7 +184,10 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
                         arg_types = method.type.arg_types[1 if not is_static else 0 :]
                     elif isinstance(method.type, types.Overloaded):
                         items = method.type.items
-                        union = types.UnionType([t.ret_type.args[-1] if is_coroutine else t.ret_type for t in items])
+                        union = types.UnionType(
+                            [t.ret_type.args[-1] if is_coroutine else t.ret_type for t in items],
+                            uses_pep604_syntax=True,
+                        )
                         return_type = union if len(union.items) < 5 else types.AnyType(types.TypeOfAny.explicit)
                         names = []
                         arg_types = []

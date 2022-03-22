@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import betterproto
 
-from ..enums import Result
+from ..enums import IntEnum, IntEnum_, Result
 from ..utils import clear_proto_bit, set_proto_bit  # noqa
 from .base import CMsgProtoBufHeader
 from .emsg import EMsg  # noqa
@@ -114,6 +114,9 @@ cls.__bytes__ = __bytes__
             ...
 
 
+NO_MSG: IntEnum = IntEnum_.__new__(IntEnum_, name="NoMsg", value=-1)  # type: ignore
+
+
 class MsgHdr(BaseMsgHdr):
     __slots__ = (
         "msg",
@@ -127,9 +130,11 @@ class MsgHdr(BaseMsgHdr):
     STRUCT = struct.Struct("<Iqq")
     PACK = ("msg", "job_id_target", "job_id_source")
     body: MsgHdr
+    steam_id = -1
+    session_id = -1
 
     def __init__(self, data: bytes | None = None):
-        self.msg = None
+        self.msg = NO_MSG
         self.eresult = Result.Invalid
         self.job_name_target = None
         self.job_id_target = -1
@@ -157,9 +162,10 @@ class ExtendedMsgHdr(BaseMsgHdr):
     STRUCT = struct.Struct("<IBHqqBqi")
     PACK = __slots__[2:]
     body: ExtendedMsgHdr
+    eresult = Result.Invalid
 
     def __init__(self, data: bytes | None = None):
-        self.msg = None
+        self.msg = NO_MSG
         self.header_size = 36
         self.header_version = 2
         self.job_name_target = None
@@ -183,9 +189,10 @@ class MsgHdrProto(BaseMsgHdr, proto=True):
     STRUCT = struct.Struct("<II")
     PACK = ("msg", "length")
     body: CMsgProtoBufHeader
+    steam_id = -1
 
     def __init__(self, data: bytes | None = None):
-        self.msg = None
+        self.msg = NO_MSG
         self.body = CMsgProtoBufHeader()
         self.length = 0
 
@@ -199,9 +206,12 @@ class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
     STRUCT = struct.Struct("<Hqq")
     PACK = ()
     body: GCMsgHdr
+    steam_id = -1
+    session_id = -1
+    eresult = Result.Invalid
 
     def __init__(self, data: bytes | None = None):
-        self.msg = None
+        self.msg = NO_MSG
 
         self.header_version = 1
         self.job_id_target = -1
@@ -229,9 +239,10 @@ class GCMsgHdrProto(BaseMsgHdr, proto=True, cast_msg_to_emsg=False):
     STRUCT = struct.Struct("<Ii")
     PACK = ("msg", "length")
     body: CMsgProtoBufHeader
+    steam_id = -1
 
     def __init__(self, data: bytes | None = None):
-        self.msg = None
+        self.msg = NO_MSG
         self.body = CMsgProtoBufHeader()
         self.length = 0
 

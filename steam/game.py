@@ -307,7 +307,7 @@ def CUSTOM_GAME(name: str) -> Game:  # type: ignore
     ...
 
 
-def CUSTOM_GAME(name: str = None, title: str = None) -> Game:
+def CUSTOM_GAME(name: str | None = None, title: str | None = None) -> Game:
     """Create a custom game instance for :meth:`~steam.Client.change_presence`.
     The :attr:`Game.id` will be set to ``15190414816125648896`` and the :attr:`Game.context_id` to ``None``.
 

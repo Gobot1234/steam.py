@@ -32,7 +32,7 @@ import re
 import urllib.parse
 import warnings
 from base64 import b64encode
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Iterable
 from datetime import datetime
 from sys import version_info
 from time import time
@@ -328,7 +328,7 @@ class HTTPClient:
         resp = await self.get(api_route("ISteamUser/GetPlayerSummaries", version=2), params=params)
         return resp["response"]["players"][0] if resp["response"]["players"] else None
 
-    async def get_users(self, user_id64s: list[int]) -> list[UserDict]:
+    async def get_users(self, user_id64s: Iterable[int]) -> list[UserDict]:
         ret = []
 
         for resp in await asyncio.gather(  # gather all the requests concurrently

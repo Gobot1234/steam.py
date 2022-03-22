@@ -40,7 +40,7 @@ from .headers import *
 from .protobufs import *
 from .unified import *
 
-M = TypeVar("M", betterproto.Message, struct_messages.StructMessage, covariant=True)
+M = TypeVar("M", bound=betterproto.Message)
 GetProtoType: TypeAlias = "type[betterproto.Message] | None"
 ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProto, GCMsgHdrProto)
 betterproto.safe_snake_case = do_nothing_case
@@ -64,6 +64,7 @@ def get_um(name: str, request: bool = True) -> GetProtoType:
 
 class MsgBase(Generic[M]):
     __slots__ = ("header", "body", "payload", "skip")
+    header: ExtendedMsgHdr | MsgHdr | MsgHdrProto | GCMsgHdr | GCMsgHdrProto
 
     if sys.version_info < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
 
@@ -89,7 +90,7 @@ class MsgBase(Generic[M]):
     def __bytes__(self) -> bytes:
         return bytes(self.header) + bytes(self.body)
 
-    def _parse(self, proto: type[M] | None) -> None:
+    def _parse(self, proto: GetProtoType) -> None:
         if proto:
             self.body = proto()
             if self.payload:
@@ -146,7 +147,7 @@ class Msg(MsgBase[M]):
         extended: bool = False,
         **kwargs: Any,
     ):
-        self.header = ExtendedMsgHdr(data) if extended else MsgHdr(data)
+        self.header: ExtendedMsgHdr | MsgHdr = ExtendedMsgHdr(data) if extended else MsgHdr(data)
         self.skip = self.header.STRUCT.size
         super().__init__(msg, data, **kwargs)
 
@@ -163,7 +164,7 @@ class MsgProto(MsgBase[M]):
         um_name: str | None = None,
         **kwargs: Any,
     ):
-        self.header = MsgHdrProto(data)
+        self.header: MsgHdrProto = MsgHdrProto(data)
         if um_name:
             self.header.body.job_name_target = um_name
         self.skip = self.header.length
@@ -178,7 +179,7 @@ class MsgProto(MsgBase[M]):
         ):
             name = self.header.body.job_name_target
             if name:
-                name, _, __ = name.partition("#")
+                name, _, _ = name.partition("#")
                 self.header.body.job_name_target = name
                 proto = get_um(name, self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodCallFromClient))
             else:
@@ -201,7 +202,7 @@ class GCMsg(MsgBase[M]):
         data: bytes | None = None,
         **kwargs: Any,
     ):
-        self.header = GCMsgHdr(data)
+        self.header: GCMsgHdr = GCMsgHdr(data)
         self.skip = self.header.STRUCT.size
         super().__init__(msg, data, **kwargs)
 
@@ -217,6 +218,6 @@ class GCMsgProto(MsgBase[M]):
         data: bytes | None = None,
         **kwargs: Any,
     ):
-        self.header = GCMsgHdrProto(data)
+        self.header: GCMsgHdrProto = GCMsgHdrProto(data)
         self.skip = self.header.length
         super().__init__(msg, data, **kwargs)

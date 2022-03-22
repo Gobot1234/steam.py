@@ -42,7 +42,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME  # type: ignore
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 from zlib import MAX_WBITS, decompress
 
 import aiohttp
@@ -80,6 +80,9 @@ ProtoMsgsT = TypeVar("ProtoMsgsT", MsgProto[Any], Msg[Any])
 Msgs: TypeAlias = "ProtoMsgs | GCMsgs"
 MsgsT = TypeVar("MsgsT", MsgProto[Any], Msg[Any], GCMsgProto[Any], GCMsg[Any])
 M = TypeVar("M", bound=MsgProto[Any])
+MsgProtoT = TypeVar("MsgProtoT", bound=MsgProto[Any])
+MsgT = TypeVar("MsgT", bound=Msg[Any])
+
 READ_U32 = struct.Struct("<I").unpack_from
 
 
@@ -302,6 +305,14 @@ class SteamWebSocket(Registerable):
     def latency(self) -> float:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
+
+    @overload
+    def wait_for(self, emsg: EMsg | None, check: Callable[[MsgT], bool] = ...) -> asyncio.Future[MsgT]:
+        ...
+
+    @overload
+    def wait_for(self, emsg: EMsg | None, check: Callable[[MsgProtoT], bool] = ...) -> asyncio.Future[MsgProtoT]:
+        ...
 
     def wait_for(
         self, emsg: EMsg | None, check: Callable[[ProtoMsgsT], bool] = return_true
@@ -555,6 +566,14 @@ class SteamWebSocket(Registerable):
         check = check or (lambda msg: msg.header.body.job_id_target == job_id)
         return await self.wait_for(EMsg.ServiceMethodResponse, check=check)
 
+    @overload
+    async def send_proto_and_wait(self, msg: MsgT, check: Callable[[MsgT], bool] | None = ...) -> MsgT:
+        ...
+
+    @overload
+    async def send_proto_and_wait(self, msg: MsgProtoT, check: Callable[[MsgProtoT], bool] | None = ...) -> MsgProtoT:
+        ...
+
     async def send_proto_and_wait(
         self, msg: ProtoMsgs, check: Callable[[ProtoMsgsT], bool] | None = None
     ) -> ProtoMsgsT:
@@ -568,7 +587,7 @@ class SteamWebSocket(Registerable):
         *,
         games: list[GameToDict] | None = None,
         state: PersonaState | None = None,
-        flags: PersonaStateFlag = None,
+        flags: PersonaStateFlag | None = None,
         ui_mode: UIMode | None = None,
         force_kick: bool = False,
     ) -> None:
@@ -586,7 +605,7 @@ class SteamWebSocket(Registerable):
             games_msg = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
             log.debug("Sending %r to change activity", games_msg)
             await self.send_proto(games_msg)
-        if state is not None or flags:
+        if state is not None or flags is not None:
             state_msg = MsgProto(EMsg.ClientChangeStatus, persona_state=state, persona_state_flags=flags)
             log.debug("Sending %r to change state", state_msg)
             await self.send_proto(state_msg)
