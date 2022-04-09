@@ -420,10 +420,10 @@ class HTTPClient:
     ) -> dict[str, Any]:
         params = {
             "key": self.api_key,
-            "active_only": int(active_only),
-            "get_sent_offers": int(sent),
-            "get_received_offers": int(received),
-            "get_descriptions": 1,
+            "active_only": str(active_only).lower(),
+            "get_sent_offers": str(sent).lower(),
+            "get_received_offers": str(received).lower(),
+            "get_descriptions": "true",
             "cursor": 0,
         }
         resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
