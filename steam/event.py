@@ -317,7 +317,7 @@ class Announcement(BaseEvent):
         The game that the announcement is for.
     clan
         The announcement's clan.
-    start
+    starts_at
         The announcement's start time.
     becomes_visible
         The time at which the announcement becomes visible.
