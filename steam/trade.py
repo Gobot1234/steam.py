@@ -257,7 +257,7 @@ class Item(Asset):
         self.name = data.get("market_name")
         self.display_name = data.get("name")
         self.colour = int(data["name_color"], 16) if "name_color" in data else None
-        self.descriptions = data.get("descriptions")
+        self.descriptions = [*data.get("descriptions"), *data.get("owner_descriptions", [])]
         self.type = data.get("type")
         self.tags = data.get("tags")
         self.icon_url = (
