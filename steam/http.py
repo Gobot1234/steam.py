@@ -416,7 +416,7 @@ class HTTPClient:
         return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])
 
     async def get_trade_offers(
-        self, active_only: bool = True, sent: bool = True, received: bool = True
+        self, active_only: bool = True, sent: bool = True, received: bool = True, updated_only: bool = True
     ) -> dict[str, Any]:
         params = {
             "key": self.api_key,
@@ -426,6 +426,12 @@ class HTTPClient:
             "get_descriptions": "true",
             "cursor": 0,
         }
+        if updated_only:
+            try:
+                params["time_historical_cutoff"] = self.trades_last_fetched
+            except AttributeError:
+                pass
+            self.trades_last_fetched = int(time())
         resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
         first_page = resp["response"]
         next_cursor = first_page.get("next_cursor", 0)
