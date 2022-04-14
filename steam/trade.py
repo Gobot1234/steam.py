@@ -221,7 +221,7 @@ class Item(Asset):
     colour
         The colour of the item.
     descriptions
-        The descriptions of the item.
+        The descriptions of the item. Also extended with owner descriptions if they exist.
     type
         The type of the item.
     tags
