@@ -82,7 +82,8 @@ class DescriptionDict(TypedDict, total=False):
     name_color: str
     background_color: str  # hex code
     type: str
-    descriptions: dict[str, str]
+    descriptions: list[dict[str, str]]
+    owner_descriptions: list[dict[str, str]]
     market_actions: list[dict[str, str]]
     actions: list[dict[str, str]]
     tags: list[dict[str, str]]
@@ -222,6 +223,8 @@ class Item(Asset):
         The colour of the item.
     descriptions
         The descriptions of the item.
+    owner_descriptions
+        The descriptions of the item which are visible only to the owner of the item.
     type
         The type of the item.
     tags
@@ -242,6 +245,7 @@ class Item(Asset):
         "icon_url",
         "display_name",
         "descriptions",
+        "owner_descriptions",
         "fraud_warnings",
         "actions",
         "_is_tradable",
@@ -258,6 +262,7 @@ class Item(Asset):
         self.display_name = data.get("name")
         self.colour = int(data["name_color"], 16) if "name_color" in data else None
         self.descriptions = data.get("descriptions")
+        self.owner_descriptions = data.get("owner_descriptions", [])
         self.type = data.get("type")
         self.tags = data.get("tags")
         self.icon_url = (
