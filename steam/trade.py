@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 from typing_extensions import NotRequired, Required, TypeAlias, TypedDict
 
 from . import utils
+from ._const import URL
 from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .game import Game, StatefulGame
@@ -167,7 +168,7 @@ class Asset:
         The owner of the asset
     """
 
-    __slots__ = ("amount", "class_id", "asset_id", "instance_id", "owner", "_game_cs", "_app_id")
+    __slots__ = ("amount", "class_id", "asset_id", "instance_id", "owner", "_game_cs", "_app_id", "_context_id")
     REPR_ATTRS = ("amount", "class_id", "asset_id", "instance_id", "owner", "game")
 
     def __init__(self, data: AssetDict, owner: BaseUser):
@@ -177,6 +178,7 @@ class Asset:
         self.class_id = int(data["classid"])
         self.owner = owner
         self._app_id = int(data["appid"])
+        self._context_id = int(data["contextid"])
 
     def __repr__(self) -> str:
         cls = self.__class__
@@ -190,18 +192,26 @@ class Asset:
         return {
             "assetid": str(self.asset_id),
             "amount": self.amount,
-            "appid": str(self.game.id),
-            "contextid": str(self.game.context_id),
+            "appid": str(self._app_id),
+            "contextid": str(self._context_id),
         }
-
-    @utils.cached_slot_property
-    def game(self) -> StatefulGame:
-        """The game the item is from."""
-        return StatefulGame(self._state, id=self._app_id)
 
     @property
     def _state(self) -> ConnectionState:
         return self.owner._state
+
+    @utils.cached_slot_property
+    def game(self) -> StatefulGame:
+        """The game the item is from."""
+        return StatefulGame(self._state, id=self._app_id, context_id=self._context_id)
+
+    @property
+    def url(self) -> str:
+        """The URL for the asset in the owner's inventory.
+
+        e.g. https://steamcommunity.com/profiles/76561198248053954/inventory/#440_2_8526584188
+        """
+        return f"{URL.COMMUNITY}/profiles/{self.owner.id64}/inventory#{self._app_id}_{self._context_id}_{self.asset_id}"
 
 
 class Item(Asset):
