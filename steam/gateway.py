@@ -42,6 +42,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME  # type: ignore
+from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 from zlib import MAX_WBITS, decompress
 
@@ -102,7 +103,7 @@ if not TYPE_CHECKING:
 @attr.dataclass(slots=True)
 class CMServer:
     url: str
-    score: float = 0.0
+    weighted_load: float
 
 
 class ConnectionClosed(Exception):
@@ -117,93 +118,33 @@ class WebSocketClosure(Exception):
 
 
 class CMServerList(AsyncIterator[CMServer]):
-    __slots__ = ("cms", "cell_id")
+    __slots__ = ("cell_id",)
 
     def __init__(self, state: ConnectionState, first_cm_to_try: CMServer | None = None):
         super().__init__(state)
-        self.cms: list[CMServer] = []
         self.cell_id = 0
         if first_cm_to_try is not None:
             self._append(first_cm_to_try)
 
-    async def fill(self) -> None:
-        if not await self.fetch_servers_from_api():
-            raise NoCMsFound("No Community Managers could be found to connect to")
-
-        if not self.cms:
-            log.debug("No good servers left. Resetting...")
-            self.reset_all()
-            return await self.fill()
-
-        for cm in await self.ping():
-            self._append(cm)
-
-    def clear(self) -> None:
-        if self.cms:
-            log.debug("List cleared.")
-        self.cms = []
-
-    async def fetch_servers_from_api(self, cell_id: int = 0) -> bool:
+    async def fill(self, cell_id: int = 0) -> None:
         log.debug("Attempting to fetch servers from the WebAPI")
         self.cell_id = cell_id
         try:
             resp = await self._state.http.get_cm_list(cell_id)
         except Exception as e:
-            log.error(f"WebAPI fetch request failed with result: {e!r}")
-            return False
+            raise NoCMsFound("No Community Managers could be found to connect to") from e
 
         resp = resp["response"]
-        if resp["result"] != Result.OK:
-            log.error(
-                f"Fetching the CMList failed with: Result: {Result(resp['result'])!r}. Message: {resp['message']!r}"
-            )
-            return False
+        if not resp["success"]:
+            raise NoCMsFound(f"No Community Managers could be found to connect to:\n{resp['message']!r}")
 
-        hosts = resp["serverlist_websockets"]
+        hosts: list[dict[str, Any]] = resp["serverlist"]
         log.debug(f"Received {len(hosts)} servers from WebAPI")
-
-        self.cell_id = cell_id
-        self.extend(hosts)
-
-        return True
-
-    def reset_all(self) -> None:
-        log.debug("Marking all CM servers as good.")
-        for cm in self.cms:
-            cm.score = 0.0
-
-    def extend(self, hosts: list[str]) -> None:
-        total = len(self.cms)
-        urls = [cm.url for cm in self.cms]
-        for url in hosts:
-            if url not in urls:
-                self.cms.append(CMServer(url))
-        if len(self.cms) > total:
-            log.debug(f"Added {len(self.cms) - total} new CM server addresses.")
-
-    async def ping(self) -> list[CMServer]:
-        async def ping_cm(cm: CMServer) -> None:
-            try:
-                start = time.perf_counter()
-                resp = await asyncio.wait_for(self._state.http._session.get(f"https://{cm.url}/cmping/"), timeout=5)
-                latency = time.perf_counter() - start
-                if resp.status != 200:
-                    raise aiohttp.ClientError
-                load = resp.headers["X-Steam-CMLoad"]
-            except (KeyError, asyncio.TimeoutError, aiohttp.ClientError):
-                try:
-                    self.cms.remove(cm)
-                except ValueError:
-                    pass
-            else:
-                cm.score = (int(load) * 2) + latency
-                best_cms.append(cm)
-
-        best_cms = []
-        await asyncio.gather(*(ping_cm(cm) for cm in self.cms))
-        # TODO dynamically make sure we get good ones by doing maths or just check how the client does it
-        log.debug("Finished pinging CMs")
-        return sorted(best_cms, key=lambda cm: cm.score)
+        servers = [CMServer(url=server["endpoint"], weighted_load=server["wtd_load"]) for server in hosts]
+        for server in sorted(
+            servers, key=attrgetter("weighted_load"), reverse=True
+        ):  # they should already be sorted but oh well
+            self._append(server)
 
 
 class KeepAliveHandler(threading.Thread):
@@ -349,7 +290,7 @@ class SteamWebSocket(Registerable):
             )
             self._dispatch("connect")
             return self
-        raise NoCMsFound("No CMs found could be connected to")
+        raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
 
     async def poll_event(self) -> None:
         try:

@@ -782,14 +782,6 @@ class ConnectionState(Registerable):
             # await self.handled_emoticons.wait()  # ensure emoticon cache is ready
             await self.client._handle_ready()
 
-    @register(EMsg.ClientCMList)
-    async def parse_cm_list_update(self, msg: MsgProto[client_server.CMsgClientCmList]) -> None:
-        log.debug("Updating CM list")
-        cms = msg.body.cm_websocket_addresses
-        cm_list = self.ws.cm_list
-        cm_list.extend(cms)
-        await cm_list.ping()  # ping all the cms, we have time.
-
     @register(EMsg.ClientPersonaState)
     async def parse_persona_state_update(self, msg: MsgProto[friends.CMsgClientPersonaState]) -> None:
         for friend in msg.body.friends:

@@ -521,8 +521,11 @@ class HTTPClient:
         return self.get(api_route("IEconService/GetTradeStatus"), params=params)
 
     def get_cm_list(self, cell_id: int) -> RequestType[dict[str, Any]]:
-        params = {"cellid": cell_id}
-        return self.get(api_route("ISteamDirectory/GetCMList"), params=params)
+        params = {
+            "cellid": cell_id,
+            "cmtype": "websockets",
+        }
+        return self.get(api_route("ISteamDirectory/GetCMListForConnect"), params=params)
 
     def join_clan(self, clan_id64: int) -> RequestType[None]:
         payload = {
