@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, overload
 from typing_extensions import Literal
 
 from . import utils
-from .abc import Commentable, SteamID
+from .abc import Commentable, SteamID, _CommentableKwargs
 from .enums import ClanEvent
 from .game import Game, StatefulGame
 
@@ -171,7 +171,7 @@ class Event(BaseEvent):
     server_password: str
 
     @property
-    def _commentable_kwargs(self) -> dict[str, Any]:
+    def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
             "thread_type": 14,
             "id64": self.clan.id64,
@@ -376,7 +376,7 @@ class Announcement(BaseEvent):
         self.tags: Sequence[str] = body["tags"]
 
     @property
-    def _commentable_kwargs(self) -> dict[str, Any]:
+    def _commentable_kwargs(self) -> _CommentableKwargs:
         if self.clan.is_game_clan:
             raise NotImplementedError("Fetching a game announcement's comments is not currently supported")
         return {

@@ -78,7 +78,7 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
-NameT = TypeVar("NameT", str, None)
+NameT = TypeVar("NameT", bound=str | None, covariant=True)
 
 
 def unzip(data: bytes) -> bytes:
@@ -104,16 +104,6 @@ def unzip(data: bytes) -> bytes:
             pass
 
     return data
-
-
-class SupportsWrite(Protocol):
-    def write(self, __x: bytes) -> int:
-        ...
-
-
-class SupportsWriteAndSeek(SupportsWrite, Protocol):
-    def seek(self, __offset: int) -> Any:
-        ...
 
 
 @dataclass
@@ -675,16 +665,16 @@ class ExtendedDict(TypedVDFDict, total=False):
     homepage: str
 
 
-class DepotDict(TypedVDFDict):
-    name: str
-    config: MultiDict[str]
-    manifests: NotRequired[MultiDict[VDFInt]]  # {branch name: id}
-    encryptedmanifests: NotRequired[MultiDict[MultiDict[VDFInt]]]  # {branch name: {encrypted_gid2: VDFInt}}
+class DepotDict(TypedVDFDict, total=False):
+    name: Required[str]
+    config: Required[MultiDict[str]]
+    manifests: MultiDict[VDFInt]  # {branch name: id}
+    encryptedmanifests: MultiDict[MultiDict[VDFInt]]  # {branch name: {encrypted_gid2: VDFInt}}
     branches: MultiDict[BranchDict]
-    maxsize: NotRequired[VDFInt]
-    depotfromapp: NotRequired[VDFInt]
-    sharedinstall: NotRequired[VDFInt]  # bool
-    system_defined: NotRequired[VDFInt]  # bool
+    maxsize: VDFInt
+    depotfromapp: VDFInt
+    sharedinstall: VDFInt  # bool
+    system_defined: VDFInt  # bool
 
 
 class BranchDict(TypedVDFDict):
@@ -831,12 +821,12 @@ class GameInfo(ProductInfo, StatefulGame):
 
         self.controller_support = common.get("controller_support", "none")
 
-        self.publishers = [
+        self.publishers: list[str] = [
             publisher["name"]
             for publisher in common.get("associations", {}).values()
             if publisher["type"] == "publisher"
         ]
-        self.developers = [
+        self.developers: list[str] = [
             developer["name"]
             for developer in common.get("associations", {}).values()
             if developer["type"] == "developer"
@@ -876,7 +866,6 @@ class GameInfo(ProductInfo, StatefulGame):
         for name, value in depots.get("branches", {}).items():
             try:
                 build_id = int(value["buildid"])
-
             except KeyError:
                 log.debug("Got a branch %s with no build id, disgaurding", name)
             else:

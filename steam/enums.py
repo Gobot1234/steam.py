@@ -130,9 +130,9 @@ class EnumMeta(type):
         raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
 
     def __contains__(cls, member: object) -> bool:
-        if not isinstance(member, Enum):
-            return NotImplemented
-        return isinstance(member, cls) and member.name in cls._member_map_
+        return (
+            isinstance(member, cls) and member.name in cls._member_map_ if isinstance(member, Enum) else NotImplemented
+        )
 
     @property
     def __members__(cls: type[E]) -> MappingProxyType[str, E]:

@@ -33,6 +33,8 @@ from .abc import Message, SteamID
 
 if TYPE_CHECKING:
     from .channel import ClanChannel, DMChannel, GroupChannel
+    from .clan import Clan
+    from .group import Group
     from .protobufs import chat, friend_messages
     from .user import ClientUser, User
 
@@ -50,6 +52,7 @@ class UserMessage(Message):
     """Represents a message from a user."""
 
     channel: DMChannel
+    mentions: None
 
     def __init__(self, proto: friend_messages.IncomingMessageNotification, channel: DMChannel):
         super().__init__(channel, proto)
@@ -58,6 +61,9 @@ class UserMessage(Message):
 
 
 class _GroupMessage(Message):
+    channel: GroupChannel | ClanChannel
+    mentions: chat.Mentions
+
     def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: Authors):
         super().__init__(channel, proto)
         self.author = author
@@ -68,6 +74,8 @@ class GroupMessage(_GroupMessage):
     """Represents a message in a group."""
 
     channel: GroupChannel
+    group: Group
+    clan: None
 
     def __init__(self, proto: chat.IncomingChatMessageNotification, channel: GroupChannel, author: Authors):
         super().__init__(proto, channel, author)
@@ -77,6 +85,8 @@ class ClanMessage(_GroupMessage):
     """Represents a message in a clan."""
 
     channel: ClanChannel
+    clan: Clan
+    group: None
 
     def __init__(self, proto: chat.IncomingChatMessageNotification, channel: ClanChannel, author: Authors):
         super().__init__(proto, channel, author)

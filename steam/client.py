@@ -164,30 +164,36 @@ class Client:
     @property
     def user(self) -> ClientUser:
         """Represents the connected client. ``None`` if not logged in."""
-        return self.http.user  # type: ignore
+        return self.http.user
 
     @property
-    def users(self) -> list[User]:
-        """A list of all the users the connected client can see."""
+    def users(self) -> Sequence[User]:
+        """A read-only list of all the users the connected client can see."""
         return self._connection.users
 
     @property
-    def trades(self) -> list[TradeOffer]:
-        """A list of all the trades the connected client can see."""
+    def trades(self) -> Sequence[TradeOffer]:
+        """A read-only list of all the trades the connected client can see."""
         return self._connection.trades
 
     @property
-    def groups(self) -> list[Group]:
-        """A list of all the groups the connected client is in."""
+    def groups(self) -> Sequence[Group]:
+        """A read-only list of all the groups the connected client is in."""
         return self._connection.groups
 
     @property
-    def clans(self) -> list[Clan]:
-        """A list of all the clans the connected client is in."""
+    def messages(self) -> Sequence[Message]:
+        """A read-only list of all the messages the client has."""
+        return self._connection._messages
+
+    @property
+    def clans(self) -> Sequence[Clan]:
+        """A read-only list of all the clans the connected client is in."""
         return self._connection.clans
 
     @property
     def licenses(self) -> Sequence[License]:
+        """A read-only list of licenses the client has access to."""
         return list(self._connection.licenses.values())
 
     @property

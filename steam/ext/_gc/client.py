@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from typing_extensions import ClassVar, Final
+from typing_extensions import ClassVar
 
 from ...abc import BaseUser
 from ...client import Client as Client_
@@ -62,7 +62,6 @@ class Client(Client_):
                 else await BaseUser.inventory(self, game)
             )
 
-        self_._connection._unpatched_inventory = self_.user._inventory_func
         self_.user._inventory_func = inventory
 
         await super()._handle_ready()

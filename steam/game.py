@@ -234,9 +234,7 @@ class Game:
         return f"{self.__class__.__name__}({', '.join(resolved)})"
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Game):
-            return NotImplemented
-        return self.id == other.id
+        return self.id == other.id if isinstance(other, Game) else NotImplemented
 
     @property
     def title(self) -> str | None:
@@ -254,12 +252,12 @@ class Game:
             return {"game_id": str(self.id)}
 
         if self.name is None or self.id is None:
-            raise TypeError("unserializable game with no title and or id")
+            raise TypeError("un-serializable game with no title and or id")
         return {"game_id": str(self.id), "game_extra_info": self.name}
 
     def is_steam_game(self) -> bool:
         """Whether the game could be a Steam game."""
-        return bool(self.id is not None and self.id <= APP_ID_MAX)
+        return self.id <= APP_ID_MAX
 
     @property
     def url(self) -> str:

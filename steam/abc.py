@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import attr
 from bs4 import BeautifulSoup
-from typing_extensions import Final, Protocol, Self, TypedDict, runtime_checkable
+from typing_extensions import Final, Protocol, Required, Self, TypedDict, runtime_checkable
 from yarl import URL as URL_
 
 from . import utils
@@ -86,7 +86,7 @@ C = TypeVar("C", bound="Commentable")
 M_co = TypeVar("M_co", bound="Message", covariant=True)
 
 
-class UserDict(TypedDict):
+class _UserDict(TypedDict):
     steamid: str
     personaname: str
     primaryclanid: str
@@ -299,6 +299,16 @@ class SteamID(metaclass=abc.ABCMeta):
         return SteamID(id64) if id64 else None
 
 
+class _CommentableKwargs(TypedDict, total=False):
+    id64: Required[int]
+    thread_type: Required[int]
+    gidfeature: int
+    gidfeature2: int
+    thread_id: int
+    upvotes: int
+    include_deleted: bool
+
+
 class Commentable(Protocol):
     """A mixin that implements commenting functionality"""
 
@@ -307,7 +317,7 @@ class Commentable(Protocol):
 
     @property
     @abc.abstractmethod
-    def _commentable_kwargs(self) -> dict[str, Any]:
+    def _commentable_kwargs(self) -> _CommentableKwargs:
         raise NotImplementedError
 
     async def fetch_comment(self, id: int) -> Comment[Self]:
@@ -465,7 +475,7 @@ class BaseUser(SteamID, Commentable):
 
     name: str
 
-    def __init__(self, state: ConnectionState, data: UserDict):
+    def __init__(self, state: ConnectionState, data: _UserDict):
         super().__init__(data["steamid"])
         self._state = state
         self.real_name: str | None = None
@@ -483,7 +493,7 @@ class BaseUser(SteamID, Commentable):
         self.privacy_state: CommunityVisibilityState | None = None
         self._update(data)
 
-    def _update(self, data: UserDict) -> None:
+    def _update(self, data: _UserDict) -> None:
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
         self.community_url = data.get("profileurl") or super().community_url
@@ -519,7 +529,7 @@ class BaseUser(SteamID, Commentable):
         return self.name
 
     @property
-    def _commentable_kwargs(self) -> dict[str, Any]:
+    def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
             "id64": self.id64,
             "thread_type": 10,
@@ -916,28 +926,6 @@ class Message:
         - :class:`~steam.UserMessage`
         - :class:`~steam.GroupMessage`
         - :class:`~steam.ClanMessage`
-
-    Attributes
-    ----------
-    channel
-        The channel the message was sent in.
-    content
-        The message's content.
-
-        Note
-        ----
-        This is **not** what you will see in the steam client see :attr:`clean_content` for that.
-
-    clean_content
-        The message's clean content without bbcode.
-    author
-        The message's author.
-    created_at
-        The time the message was sent at.
-    group
-        The group the message was sent in. Will be ``None`` if the message wasn't sent in a :class:`~steam.Group`.
-    clan
-        The clan the message was sent in. Will be ``None`` if the message wasn't sent in a :class:`~steam.Clan`.
     """
 
     __slots__ = (
@@ -953,10 +941,36 @@ class Message:
         "_id_cs",
         "_state",
     )
-    author: Authors
-    created_at: datetime
 
-    def __init__(self, channel: Channel[Message], proto: Any):
+    author: Authors
+    """The message's author."""
+    channel: Channel[Self]
+    """The channel the message was sent in."""
+    content: str
+    """The message's content.
+
+    Note
+    ----
+    This is **not** what you will see in the steam client see :attr:`clean_content` for that.
+    """
+    clean_content: str
+    """The message's clean content without bbcode."""
+    created_at: datetime
+    """The time this message was sent at."""
+    clan: Clan | None
+    """The clan the message was sent in. Will be ``None`` if the message wasn't sent in a :class:`~steam.Clan`."""
+    group: Group | None
+    """The group the message was sent in. Will be ``None`` if the message wasn't sent in a :class:`~steam.Group`."""
+    reactions: list[MessageReaction]
+    """The message's reactions."""
+    ordinal: int
+    """A per-channel incremented integer up to ``1000`` for every message sent in a second window."""
+    mentions: Mentions | None
+    """An object representing mentions in this message."""
+    # reactions: list[MessageReaction]
+    # """The reactions this message has received."""
+
+    def __init__(self, channel: Channel[Self], proto: Any):
         self._state: ConnectionState = channel._state
         self.channel = channel
         self.group: Group | None = channel.group

@@ -156,12 +156,10 @@ class Review(Commentable):
         return f"<{self.__class__.__name__} id={self.id} game={self.game!r} author={self.author!r}>"
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-        return self.id == other.id
+        return self.id == other.id if isinstance(other, self.__class__) else NotImplemented
 
     @property
-    def _commentable_kwargs(self) -> dict[str, Any]:
+    def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
             "thread_type": 8,
             "id64": self.author.id64,

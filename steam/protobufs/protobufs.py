@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from typing_extensions import Final
 
 from . import app_info, base, client_server, client_server_2, friends, leaderboards, login, ucm, user_stats
 from .emsg import *
@@ -13,9 +15,7 @@ if TYPE_CHECKING:
     from ..enums import IntEnum
 
 __all__ = ("PROTOBUFS",)
-
-
-PROTOBUFS: Mapping[IntEnum, type[betterproto.Message]] = {
+PROTOBUFS: Final = cast("Mapping[IntEnum, type[betterproto.Message]]", {
     EMsg.Multi: base.CMsgMulti,
     EMsg.ClientToGC: client_server_2.CMsgGcClient,
     EMsg.ClientFromGC: client_server_2.CMsgGcClient,
@@ -162,4 +162,4 @@ PROTOBUFS: Mapping[IntEnum, type[betterproto.Message]] = {
     EMsg.ClientLBSFindOrCreateLBResponse: leaderboards.CMsgClientLbsFindOrCreateLbResponse,
     EMsg.ClientLBSGetLBEntries: leaderboards.CMsgClientLbsGetLbEntries,
     EMsg.ClientLBSGetLBEntriesResponse: leaderboards.CMsgClientLbsGetLbEntriesResponse,
-}
+})  # fmt: skip

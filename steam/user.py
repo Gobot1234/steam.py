@@ -30,7 +30,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from ._const import URL
-from .abc import BaseUser, Messageable, UserDict
+from .abc import BaseUser, Messageable, _UserDict
 from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .profile import OwnedProfileItems, ProfileItem
@@ -286,7 +286,7 @@ class ClientUser(BaseUser):
 
     __slots__ = ("friends", "_inventory_func")
 
-    def __init__(self, state: ConnectionState, data: UserDict):
+    def __init__(self, state: ConnectionState, data: _UserDict):
         super().__init__(state, data)
         self.friends: list[User] = []
         self._inventory_func = BaseUser.inventory

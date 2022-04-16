@@ -38,7 +38,7 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import Literal, Self, TypeAlias
 
 from .abc import SteamID
 from .enums import Enum, GameServerRegion, Type
@@ -46,12 +46,11 @@ from .game import Game, StatefulGame
 from .utils import StructIO
 
 if TYPE_CHECKING:
-    from types import NotImplementedType
-
     from .protobufs.game_servers import GetServerListResponseServer
     from .state import ConnectionState
 
-T = TypeVar("T", covariant=True)
+T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
 Q: TypeAlias = "Query[Q]"
 
 __all__ = (
@@ -166,32 +165,32 @@ class QueryMeta(type):
     @property
     def running(cls) -> Query[Game | int]:
         """Fetches servers running a :class:`.Game` or an :class:`int` app id."""
-        return Query("\\appid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
+        return Query[Game | int]("\\appid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
 
     @property
     def not_running(cls) -> Query[Game | int]:
         """Fetches servers not running a :class:`.Game` or an :class:`int` app id."""
-        return Query("\\nappid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
+        return Query[Game | int]("\\nappid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
 
     @property
     def match_tags(cls) -> Query[list[str]]:
-        """Fetches servers with all of the given tag(s) in :attr:`GameServer.tags`."""
-        return Query("\\gametype\\", type=list, callback=lambda items: f"[{','.join(items)}]")
+        """Fetches servers with all the given tag(s) in :attr:`GameServer.tags`."""
+        return Query[list[str]]("\\gametype\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
     def match_hidden_tags(cls) -> Query[list[str]]:
-        """Fetches servers with all of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
-        return Query("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
+        """Fetches servers with all the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
+        return Query[list[str]]("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
     def match_any_hidden_tags(cls) -> Query[list[str]]:
         """Fetches servers with any of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
-        return Query("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
+        return Query[list[str]]("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
     def region(cls) -> Query[GameServerRegion]:
         """Fetches servers in a given region."""
-        return Query("\\region\\", type=GameServerRegion, callback=lambda region: region.value)
+        return Query[GameServerRegion]("\\region\\", type=GameServerRegion, callback=lambda region: region.value)
 
     @property
     def all(cls) -> QueryAll:
@@ -199,7 +198,7 @@ class QueryMeta(type):
         return QueryAll()
 
 
-class Query(Generic[T], metaclass=QueryMeta):
+class Query(Generic[T_co], metaclass=QueryMeta):
     r"""A :class:`pathlib.Path` like class for constructing Global Master Server queries.
 
     .. container:: operations
@@ -222,20 +221,33 @@ class Query(Generic[T], metaclass=QueryMeta):
 
     Examples
     --------
+
+    Match games running TF2, that are not empty and are using VAC
+
     .. code-block:: pycon
 
         >>> Query.running / TF2 / Query.not_empty / Query.secure
         <Query query='\\appid\\440\\empty\\1\\secure\\1'>
-        # matches games running TF2, that are not empty and are using VAC
+
+
+    Matches games that are not empty, not full and are using VAC
+
+    .. code-block:: pycon
+
         >>> Query.not_empty / Query.not_full | Query.secure
         <Query query='\\empty\\1\\nor\\[\\full\\1\\secure\\1]'>
-        # matches games that are not empty, not full and are using VAC
+
+    Match games where the server name is not "A cool Server" or the server doesn't support alltalk or increased max players
+
+    .. code-block:: pycon
+
         >>> Query.name_match / "A not cool server" | Query.match_tags / ["alltalk", "increased_maxplayers"]
         <Query query='\\nor\\[\\name_match\\A not cool server\\gametype\\[alltalk,increased_maxplayers]]'>
-        # matches games where the server name is not "A cool Server" or the server doesn't support alltalk or increased
-        # max players
+
+    Match games where the server is not on linux and the server doesn't have no password (has a password)
+
+    .. code-block:: pycon
         >>> Query.linux & Query.no_password
-        # matches games where the server is not on linux and the server doesn't have no password (has a password)
     """
 
     # simple specification:
@@ -246,10 +258,10 @@ class Query(Generic[T], metaclass=QueryMeta):
 
     def __new__(
         cls,
-        *raw: Query[Any] | Operator | str,
-        type: type[T] | tuple[type[T], ...] | None = None,
-        callback: Callable[[T], Any] = lambda x: x,
-    ) -> Query[T]:
+        *raw: Query[Any] | Operator | str | T_co,
+        type: type[T_co] | tuple[type[T_co], ...] | None = None,
+        callback: Callable[[T_co], Any] = lambda x: x,
+    ) -> Query[T_co]:
         self = super().__new__(cls)
         self._raw = raw
         self._type = type
@@ -259,30 +271,29 @@ class Query(Generic[T], metaclass=QueryMeta):
     def __repr__(self) -> str:
         return f"<Query query={self.query!r}>"
 
-    def _process_op(self, other: T, op: Operator) -> Q | NotImplementedType:
+    # it's safe to use a covariant TypeVar here as everything is read-only
+    def _process_op(self, other: T_co, op: Operator) -> Q:  # type: ignore
         cls = self.__class__
 
-        if self._type and isinstance(other, self._type):
+        if self._type is not None and isinstance(other, self._type):
             return cls(self, op, other)
 
         if not isinstance(other, Query):
-            return NotImplemented
+            return NotImplemented  # type: ignore
 
         return cls(self, op, other, type=other._type, callback=other._callback)
 
-    def __truediv__(self, other: T) -> Q:
+    def __truediv__(self, other: T_co) -> Self:  # type: ignore
         return self._process_op(other, Operator.div)
 
-    def __and__(self, other: T) -> Q:
+    def __and__(self, other: T_co) -> Self:  # type: ignore
         return self._process_op(other, Operator.nand)
 
-    def __or__(self, other: T) -> Q:
+    def __or__(self, other: T_co) -> Self:  # type: ignore
         return self._process_op(other, Operator.nor)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Query):
-            return NotImplemented
-        return self._raw == other._raw
+        return self._raw == other._raw if isinstance(other, Query) else NotImplemented
 
     @property
     def query(self) -> str:
@@ -343,9 +354,11 @@ async def _handle_a2s_response(loop: asyncio.AbstractEventLoop, sock: socket.soc
         for _ in range(number_of_packets - 1):
             packets.append(await loop.sock_recv(sock, 2048))
 
-        packets = sorted({struct.unpack_from("<B", packet, 9)[0]: packet for packet in packets}.items())
         # reconstruct full response
-        data = b"".join(packet[1][payload_offset:] for packet in packets)
+        data = b"".join(
+            packet[payload_offset:]
+            for packet in sorted(packets, key=lambda packet: struct.unpack_from("<B", packet, 9))
+        )
 
         # decompress response if needed
         if compressed:
@@ -425,7 +438,6 @@ class GameServer(SteamID):
 
         self._secure = server.secure
         self._dedicated = server.dedicated
-        self._loop = state.loop
         self._state = state
 
     def __repr__(self) -> str:
@@ -449,10 +461,11 @@ class GameServer(SteamID):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             # steam uses TCP over UDP. I would use asyncio streams otherwise
             sock.setblocking(False)
-            await self._loop.sock_connect(sock, (self.ip, self.port))
+            loop = asyncio.get_running_loop()
+            await loop.sock_connect(sock, (self.ip, self.port))
 
             sock.send(struct.pack("<lci", -1, char, challenge))
-            data = await self._loop.sock_recv(sock, 512)
+            data = await loop.sock_recv(sock, 512)
             _, header, challenge = struct.unpack_from("<lcl", data)
 
             if header != b"A":
@@ -460,7 +473,7 @@ class GameServer(SteamID):
 
             sock.send(struct.pack("<lci", -1, char, challenge))
             try:
-                data = await _handle_a2s_response(self._loop, sock)
+                data = await _handle_a2s_response(loop, sock)
             except ValueError:
                 return
 

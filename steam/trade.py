@@ -294,6 +294,7 @@ class Item(Asset):
         return self._is_marketable
 
 
+kwargs: dict[str, Any]
 if sys.version_info >= (3, 9, 2):  # GenericAlias wasn't subclassable in 3.9.0
     GenericAlias = types.GenericAlias
     kwargs = {}
@@ -321,7 +322,7 @@ class InventoryGenericAlias(GenericAlias, **kwargs):
         result.__init__(*args, **kwargs)
         return result
 
-    def __mro_entries__(self, bases) -> tuple[type]:
+    def __mro_entries__(self, bases: tuple[type, ...]) -> tuple[type]:
         # if we are subclassing we should return a new class that already has __orig_class__
 
         class BaseInventory(*super().__mro_entries__(bases)):
