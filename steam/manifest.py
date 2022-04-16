@@ -25,6 +25,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+import errno
 import logging
 import lzma
 import struct
@@ -42,7 +43,7 @@ from zlib import crc32
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
-from typing_extensions import Final, Literal, Never, NotRequired, Protocol, Required, Self
+from typing_extensions import Final, Literal, Never, NotRequired, Required, Self
 from yarl import URL
 
 from . import utils
@@ -246,7 +247,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             this path isn't a symlink.
         """
         if not self.is_symlink():
-            raise OSError(22, f"Invalid argument: {str(self)!r}")
+            raise OSError(errno.EINVAL, f"Invalid argument: {str(self)!r}")
 
         link_parts = tuple(self._mapping.linktarget.rstrip("\x00 \n\t").split("\\"))
         return next(path for path in self._manifest.paths if path.parts == link_parts)
