@@ -41,7 +41,7 @@ aiohttp = ">=3.7,<3.9"
 beautifulsoup4 = "^4.10.0"
 cryptography = "^36"
 betterproto = "2.0.0b4"
-typing-extensions = "4.1.1"
+typing-extensions = "4.2.0"
 tomli = { version = "~2", optional = true, python = "<3.11" }
 vdf = "^3.4"
 
