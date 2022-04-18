@@ -32,11 +32,19 @@ class StructMessage(metaclass=StructMessageMeta):
         return self
 
     def to_dict(self, *_) -> dict[str, Any]:
-        return {key: getattr(self, key) for key in self.__annotations__}
+        try:
+            annotations = self.__annotations__
+        except AttributeError:
+            annotations = ()
+        return {key: getattr(self, key) for key in annotations}
 
     def __bytes__(self) -> bytes:
+        try:
+            annotations = self.__annotations__
+        except AttributeError:
+            annotations = {}
         with StructIO() as io:
-            for key, annotation in self.__annotations__.items():
+            for key, annotation in annotations.items():
                 if annotation == "int":
                     io.write_u64(getattr(self, key))
                 elif annotation == "bool":
