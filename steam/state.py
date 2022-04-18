@@ -42,7 +42,7 @@ from yarl import URL as URL_
 
 from . import utils
 from ._const import URL, VDF_BINARY_LOADS, VDF_LOADS
-from .abc import BaseUser, Commentable, SteamID, UserDict
+from .abc import BaseUser, Commentable, SteamID, _UserDict
 from .channel import DMChannel
 from .clan import Clan
 from .comment import Comment
@@ -257,7 +257,7 @@ class ConnectionState(Registerable):
 
         return ret
 
-    def _store_user(self, data: UserDict) -> User:
+    def _store_user(self, data: _UserDict) -> User:
         try:
             user = self._users[int(data["steamid"])]
         except KeyError:
@@ -808,7 +808,7 @@ class ConnectionState(Registerable):
             if old != new:
                 self.dispatch("user_update", before, after)
 
-    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> UserDict:
+    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> _UserDict:
         data["personaname"] = friend.player_name
         hash = (
             friend.avatar_hash.hex()

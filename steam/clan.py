@@ -35,7 +35,7 @@ from bs4 import BeautifulSoup
 from typing_extensions import Literal
 
 from . import utils
-from .abc import Commentable, SteamID
+from .abc import Commentable, SteamID, _CommentableKwargs
 from .channel import ClanChannel
 from .enums import ClanEvent, Type
 from .errors import HTTPException, WSForbidden

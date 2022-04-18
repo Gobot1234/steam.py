@@ -79,7 +79,7 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
-NameT = TypeVar("NameT", bound=str | None, covariant=True)
+NameT = TypeVar("NameT", bound="str | None", covariant=True)
 
 
 def unzip(data: bytes) -> bytes:

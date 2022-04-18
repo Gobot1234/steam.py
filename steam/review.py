@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import Self
 
 from . import utils
-from .abc import BaseUser, Commentable
+from .abc import BaseUser, Commentable, _CommentableKwargs
 from .game import StatefulGame
 from .user import ClientUser, User
 
