@@ -80,31 +80,29 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self.clan = clan
         self.id: int = int(data["gid"])
         self.author: User | SteamID | None = int(data["creator_steamid"])  # type: ignore
+        edited_by = data.get("last_update_steamid")
+        self.last_edited_by: User | SteamID | None = int(edited_by) if edited_by is not None else None  # type: ignore
         self.name: str = data["event_name"]
         self.content: str = data["event_notes"]
-        self.game = StatefulGame(state, id=data["appid"]) if data["appid"] else None
+        app_id = data.get("appid", 0)
+        self.game = StatefulGame(state, id=app_id) if app_id else None
         self.starts_at = datetime.utcfromtimestamp(data["rtime32_start_time"])
-        self.becomes_visible = (
-            datetime.utcfromtimestamp(data["rtime32_visibility_start"])
-            if data.get("rtime32_visibility_start")
-            else None
-        )
-        self.stops_being_visible = (
-            datetime.utcfromtimestamp(data["rtime32_visibility_end"]) if data.get("rtime32_visibility_end") else None
-        )
-        self.end = datetime.utcfromtimestamp(data["rtime32_end_time"]) if data["rtime32_end_time"] else None
-        self.type = ClanEvent.try_value(data["event_type"])
-        self.last_edited_at = datetime.utcfromtimestamp(data["rtime32_last_modified"])
-        self.last_edited_by: User | SteamID | None = (  # type: ignore
-            int(data["last_update_steamid"]) if (data["last_update_steamid"] or "0") != "0" else None
-        )
+        becomes_visible = data.get("rtime32_visibility_start")
+        self.becomes_visible = datetime.utcfromtimestamp(becomes_visible) if becomes_visible else None
+        stops_being_visible = data.get("rtime32_visibility_end")
+        self.stops_being_visible = datetime.utcfromtimestamp(stops_being_visible) if stops_being_visible else None
+        ends_at = data.get("rtime32_end_time")
+        self.ends_at = datetime.utcfromtimestamp(ends_at) if ends_at else None
+        last_edited_at = data.get("rtime32_last_modified")
+        self.last_edited_at = datetime.utcfromtimestamp(last_edited_at) if last_edited_at else None
+
         self.hidden = bool(data.get("hidden", 0))
         self.published = bool(data.get("published", 1))
         self.upvotes: int = data.get("votes_up", 0)
         self.downvotes: int = data.get("votes_down", 0)
         self.comment_count: int = data.get("comment_count", 0)
-        self.server_address: str | None = data["server_address"]
-        self.server_password: str | None = data["server_password"]
+        self.server_address: str | None = data.get("server_address")
+        self.server_password: str | None = data.get("server_password")
 
         self._feature = int(data["gidfeature"])
         self._feature2 = int(data.get("gidfeature2", 0) or 0)
