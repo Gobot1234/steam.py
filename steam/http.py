@@ -467,13 +467,14 @@ class HTTPClient:
         headers = {"Referer": str(URL.COMMUNITY / f"tradeoffer/{trade_id}")}
         return self.post(URL.COMMUNITY / f"tradeoffer/{trade_id}/accept", data=payload, headers=headers)
 
+    def _cancel_user_trade(self, trade_id: int, option: str) -> RequestType[None]:
+        return self.post(URL.COMMUNITY / f"tradeoffer/{trade_id}/{option}")
+
     def decline_user_trade(self, trade_id: int) -> RequestType[None]:
-        payload = {"key": self.api_key, "tradeofferid": trade_id}
-        return self.post(api_route("IEconService/DeclineTradeOffer"), data=payload)
+        return self._cancel_user_trade(trade_id, 'decline')
 
     def cancel_user_trade(self, trade_id: int) -> RequestType[None]:
-        payload = {"key": self.api_key, "tradeofferid": trade_id}
-        return self.post(api_route("IEconService/CancelTradeOffer"), data=payload)
+        return self._cancel_user_trade(trade_id, 'cancel')
 
     def send_trade_offer(
         self,
