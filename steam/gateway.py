@@ -83,6 +83,8 @@ MsgsT = TypeVar("MsgsT", MsgProto[Any], Msg[Any], GCMsgProto[Any], GCMsg[Any])
 M = TypeVar("M", bound=MsgProto[Any])
 MsgProtoT = TypeVar("MsgProtoT", bound=MsgProto[Any])
 MsgT = TypeVar("MsgT", bound=Msg[Any])
+GCMsgT = TypeVar("GCMsgT", bound=GCMsg[Any])
+GCMsgProtoT = TypeVar("GCMsgProtoT", bound=GCMsgProto[Any])
 
 READ_U32 = struct.Struct("<I").unpack_from
 

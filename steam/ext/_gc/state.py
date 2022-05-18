@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Coroutine
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, overload
 
 from ... import utils
-from ...abc import BaseUser
 from ...enums import IntEnum
-from ...gateway import EventListener, GCMsgsT
+from ...gateway import EventListener, GCMsgProto, GCMsgProtoT, GCMsgsT, GCMsgT
 from ...models import register, return_true
 from ...protobufs import EMsg, GCMsg, GCMsgProto, MsgProto
 from ...state import ConnectionState
@@ -17,7 +16,6 @@ from ...trade import BaseInventory, Inventory
 if TYPE_CHECKING:
     from steam.protobufs.client_server_2 import CMsgGcClient
 
-    from ...game import Game
     from .client import Client
 
 log = logging.getLogger(__name__)
@@ -85,6 +83,14 @@ class GCState(ConnectionState):
 
         for idx in reversed(removed):
             del self.gc_listeners[idx]
+
+    @overload
+    def gc_wait_for(self, emsg: Language | None, check: Callable[[GCMsgT], bool]) -> asyncio.Future[GCMsgT]:
+        ...
+
+    @overload
+    def gc_wait_for(self, emsg: Language | None, check: Callable[[GCMsgProtoT], bool]) -> asyncio.Future[GCMsgProtoT]:
+        ...
 
     def gc_wait_for(
         self, emsg: Language | None, check: Callable[[GCMsgsT], bool] = return_true
