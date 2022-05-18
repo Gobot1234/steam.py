@@ -626,27 +626,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
             a = element.a
             if a is not None and a.text == name:  # this is bad?
                 _, __, id = a["href"].rpartition("/")
-                if starts_at is not None:
-                    timestamp = (
-                        starts_at.timestamp()
-                        if starts_at.tzinfo is not None
-                        else (starts_at + (datetime.utcnow() - datetime.now())).timestamp()
-                    )
-                else:
-                    timestamp = 0
-                data = {
-                    "gid": id,
-                    "event_name": name,
-                    "event_notes": content,
-                    "event_type": type.value,
-                    "appid": str(game.id) if game is not None else "",
-                    "rtime32_start_time": timestamp,
-                    "rtime32_last_modified": timestamp,
-                    "server_address": server_address,
-                    "server_password": server_password,
-                }
-                event = Event(self._state, self, data)
-                event.author = self._state.client.user
+                event = await self.fetch_event(int(id))
                 self._state.dispatch("event_create", event)
                 return event
         raise ValueError
@@ -679,26 +659,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
             a = element.a
             if a is not None and a.text == name:  # this is bad?
                 _, __, id = a["href"].rpartition("/")
-                timestamp = int(time.time())
-
-                data = {
-                    "gid": id,
-                    "event_name": name,
-                    "event_notes": "",
-                    "event_type": ClanEvent.News,
-                    "appid": 0,
-                    "rtime32_start_time": timestamp,
-                    "rtime32_last_modified": timestamp,
-                    "announcement_body": {
-                        "body": content,
-                        "posttime": timestamp,
-                        "updatetime": timestamp,
-                    },
-                    "comment_type": "ClanAnnouncement",
-                    "hidden": hidden,
-                }
-                announcement = Announcement(self._state, self, data)
-                announcement.author = self._state.client.user
+                announcement = await self.fetch_announcement(int(id))
                 self._state.dispatch("announcement_create", announcement)
                 return announcement
 

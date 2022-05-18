@@ -39,16 +39,16 @@ generate-setup-file = false
 python = "^3.7"
 aiohttp = ">=3.7,<3.9"
 beautifulsoup4 = "^4.10.0"
-cryptography = "^36"
+cryptography = "^37"
 betterproto = "2.0.0b4"
-typing-extensions = "4.1.1"
+typing-extensions = "4.2.0"
 tomli = { version = "~2", optional = true, python = "<3.11" }
 vdf = "^3.4"
 
 # docs option
 sphinx = { version = "^4.2.0", optional = true }
 "myst-parser" = { version = ">=0.16", optional = true }
-mypy = { version = "^0.942", optional = true }
+mypy = { version = "^0.950", optional = true }
 sphinxcontrib_trio = { version = "1.1.2", optional = true }
 csscompressor = { version = "*", optional = true }
 htmlmin = { version = "*", optional = true }
@@ -63,7 +63,7 @@ isort = "*"
 flake8 = "*"
 pytest = "*"
 pytest-asyncio = "*"
-mypy = "^0.942"
+mypy = "^0.950"
 
 [tool.black]
 line-length = 120
