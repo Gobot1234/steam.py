@@ -595,6 +595,20 @@ class ConnectionState(Registerable):
 
         return msg.body.servers
 
+    async def query_server(
+        self, ip: int, port: int, app_id: int, type: game_servers.EQueryType
+    ) -> game_servers.QueryResponse:
+        msg: MsgProto[game_servers.QueryResponse] = await self.ws.send_um_and_wait(
+            "GameServers.QueryByFakeIP",
+            query_type=type,
+            fake_ip=ip,  # why these are "fake" I'm not really sure
+            fake_port=port,
+            app_id=app_id,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body
+
     async def fetch_game_player_count(self, game_id: int) -> int:
         msg: MsgProto[client_server_2.CMsgDpGetNumberOfCurrentPlayersResponse] = await self.ws.send_proto_and_wait(
             MsgProto(EMsg.ClientGetNumberOfCurrentPlayersDP, appid=game_id)

@@ -28,14 +28,10 @@ https://github.com/ValvePython/steam/blob/master/steam/game_servers.py
 
 from __future__ import annotations
 
-import asyncio
-import socket
-import struct
-from binascii import crc32
-from bz2 import decompress
-from collections.abc import AsyncGenerator, Callable
-from contextlib import asynccontextmanager
+import warnings
+from collections.abc import Callable
 from datetime import timedelta
+from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
 from typing_extensions import Literal, TypeAlias
@@ -43,10 +39,9 @@ from typing_extensions import Literal, TypeAlias
 from .abc import SteamID
 from .enums import Enum, GameServerRegion, Type
 from .game import Game, StatefulGame
-from .utils import StructIO
+from .protobufs.game_servers import EQueryType, GetServerListResponseServer, QueryResponse
 
 if TYPE_CHECKING:
-    from .protobufs.game_servers import GetServerListResponseServer
     from .state import ConnectionState
 
 T = TypeVar("T")
@@ -130,7 +125,7 @@ class QueryMeta(type):
     @property
     def unique_addresses(cls) -> Q:
         """Fetches only one server for each unique IP address matched."""
-        return Query["Q"](r"\collapse_addr_hash\1")
+        return Query["Q"]("\\collapse_addr_hash\\1")
 
     @property
     def version_match(cls) -> Query[str]:
@@ -230,7 +225,7 @@ class Query(Generic[T_co], metaclass=QueryMeta):
         <Query query='\\appid\\440\\empty\\1\\secure\\1'>
 
 
-    Matches games that are not empty, not full and are using VAC
+    Matches games that are not empty, not full and are not using VAC
 
     .. code-block:: pycon
 
@@ -254,6 +249,8 @@ class Query(Generic[T_co], metaclass=QueryMeta):
     # - immutable
     # - based on https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
 
+    # TODO use __invert__ to do some cool manipulation where possible and generally change the dunders cause they make little
+    # sense atm
     __slots__ = ("_raw", "_type", "_callback")
 
     def __new__(
@@ -279,7 +276,7 @@ class Query(Generic[T_co], metaclass=QueryMeta):
             return cls(self, op, other)
 
         if not isinstance(other, Query):
-            return NotImplemented  # type: ignore
+            return NotImplemented
 
         return cls(self, op, other, type=other._type, callback=other._callback)
 
@@ -316,63 +313,6 @@ class ServerPlayer(NamedTuple):
     name: str
     score: int
     play_time: timedelta
-
-
-async def _handle_a2s_response(loop: asyncio.AbstractEventLoop, sock: socket.socket) -> bytes:
-    packet = await loop.sock_recv(sock, 2048)
-    header = struct.unpack_from("<l", packet)[0]
-
-    if header == -1:  # single packet response
-        return packet
-    elif header == -2:  # multi packet response
-        packets = [packet]
-        payload_offset = -1
-
-        # locate first packet and handle out of order packets
-        while payload_offset == -1:
-            # locate payload offset in uncompressed packet
-            payload_offset = packet.find(b"\xff\xff\xff\xff", 0, 18)
-
-            # locate payload offset in compressed packet
-            if payload_offset == -1:
-                payload_offset = packet.find(b"BZh", 0, 21)
-
-            # if we still haven't found the offset receive the next packet
-            if payload_offset == -1:
-                packet = await loop.sock_recv(sock, 2048)
-                packets.append(packet)
-
-        # read header
-        if payload_offset not in (10, 12, 18):  # Source
-            raise ValueError(f"Unexpected payload_offset - {payload_offset}")
-        packet_id, number_of_packets, packet_idx = struct.unpack_from("<LBB", packet, 4)
-        compressed = (packet_id & 0x80000000) != 0
-        if packet_idx != 0:
-            raise ValueError("Unexpected first packet index")
-
-        # receive any remaining packets
-        for _ in range(number_of_packets - 1):
-            packets.append(await loop.sock_recv(sock, 2048))
-
-        # reconstruct full response
-        data = b"".join(
-            packet[payload_offset:]
-            for packet in sorted(packets, key=lambda packet: struct.unpack_from("<B", packet, 9))
-        )
-
-        # decompress response if needed
-        if compressed:
-            size, check_sum = struct.unpack_from("<ll", packet, 10)
-            data = decompress(data)
-
-            if len(data) != size:
-                raise ValueError(f"Response size mismatch - {len(data)} {size}")
-            if check_sum != crc32(data):
-                raise ValueError(f"Response check sum mismatch - {check_sum} {crc32(data)}")
-
-        return data
-
-    raise ValueError(f"Invalid response header - {header}")
 
 
 class GameServer(SteamID):
@@ -426,7 +366,7 @@ class GameServer(SteamID):
         super().__init__(server.steamid, type=Type.GameServer)
         self.name = server.name
         self.game = StatefulGame(state, id=server.appid)
-        self.ip = server.addr.split(":")[0]
+        self.ip = server.addr.split(":")[0]  # TODO change to IPv4Address
         self.port = server.gameport
         self.tags = server.gametype.split(",")
         self.map = server.map
@@ -456,32 +396,15 @@ class GameServer(SteamID):
         """Whether the sever is dedicated."""
         return self._dedicated
 
-    @asynccontextmanager
-    async def connect(self, challenge: int, char: bytes) -> AsyncGenerator[StructIO, None]:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            # steam uses TCP over UDP. I would use asyncio streams otherwise
-            sock.setblocking(False)
-            loop = asyncio.get_running_loop()
-            await loop.sock_connect(sock, (self.ip, self.port))
+    async def _query(self, type: EQueryType) -> QueryResponse:
+        return await self._state.query_server(int(IPv4Address(self.ip)), self.port, self.game.id, type)
 
-            sock.send(struct.pack("<lci", -1, char, challenge))
-            data = await loop.sock_recv(sock, 512)
-            _, header, challenge = struct.unpack_from("<lcl", data)
+    # async def ping(self):  # FIXME not sure how to expose this
+    #     proto = await self._query(EQueryType.Ping)
+    #     proto.ping_data
 
-            if header != b"A":
-                return
-
-            sock.send(struct.pack("<lci", -1, char, challenge))
-            try:
-                data = await _handle_a2s_response(loop, sock)
-            except ValueError:
-                return
-
-        with StructIO(data) as io:
-            yield io
-
-    async def players(self, *, challenge: Literal[-1, 0] = 0) -> list[ServerPlayer] | None:
-        """Fetch a server's players  or ``None`` if something went wrong getting the info.
+    async def players(self, *, challenge: Literal[-1, 0] = 0) -> list[ServerPlayer]:
+        """Fetch a server's players.
 
         Parameters
         ----------
@@ -489,55 +412,46 @@ class GameServer(SteamID):
             The challenge for the request default is 0 can also be -1. You may need to change if the server doesn't seem
             to respond.
 
-        Note
-        ----
-        It is recommended to use :func:`asyncio.wait_for` to allow this to return if the server doesn't respond.
+            .. deprecated:: 0.9.0
+
+                This parameter no longer does anything.
 
         Returns
+        -------
         ServerPlayer is a :class:`typing.NamedTuple` defined as:
 
-            .. code-block:: python3
-
-                class ServerPlayer(NamedTuple):
-                    index: int
-                    name: str
-                    score: int
-                    play_time: timedelta
+        .. source:: steam.ServerPlayer
         """
-        async with self.connect(challenge, b"U") as buffer:
-            header, number_of_players = buffer.read_struct("<4xcB")
-            if header != b"D":
-                return None
+        if challenge:
+            warnings.warn("challenge parameter is deprecated and will be removed in V1", stacklevel=1)
 
-            return [
-                ServerPlayer(
-                    index=buffer.read_u8(),
-                    name=buffer.read_cstring().decode("utf-8", "replace"),
-                    score=buffer.read_long(),
-                    play_time=timedelta(seconds=buffer.read_f32()),
-                )
-                for _ in range(number_of_players)
-            ]
+        proto = await self._query(EQueryType.Players)
+        return [
+            ServerPlayer(
+                index=index,
+                name=player.name,
+                score=player.score,
+                play_time=timedelta(seconds=player.time_played),
+            )
+            for index, player in enumerate(proto.players_data.players)
+        ]
 
-    async def rules(self, *, challenge: Literal[-1, 0] = 0) -> dict[str, str] | None:
+    async def rules(self, *, challenge: Literal[-1, 0] = 0) -> dict[str, str]:
         """Fetch a console variables. e.g. ``sv_gravity`` or ``sv_voiceenable``.
 
         Parameters
         ----------
-        challenge
+        challenges
             The challenge for the request default is 0 can also be -1. You may need to change if the server doesn't seem
             to respond.
 
-        Note
-        ----
-        It is recommended to use :func:`asyncio.wait_for` to allow this to return if the server doesn't respond.
-        """
-        async with self.connect(challenge, b"V") as buffer:
-            header, number_of_rules = buffer.read_struct("<4xcH")
-            if header != b"E":
-                return None
+            .. deprecated:: 0.9.0
 
-            return {
-                buffer.read_cstring().decode("utf-8", "replace"): buffer.read_cstring().decode("utf-8", "replace")
-                for _ in range(number_of_rules)
-            }
+                This parameter no longer does anything.
+        """
+
+        if challenge:
+            warnings.warn("challenge parameter is deprecated and will be removed in V1", stacklevel=1)
+
+        proto = await self._query(EQueryType.Rules)
+        return proto.rules_data.rules

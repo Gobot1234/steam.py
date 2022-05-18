@@ -4,9 +4,18 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 import betterproto
+
+from .base import CMsgIpAddress
+
+
+class EQueryType(betterproto.Enum):
+    Invalid = 0
+    Ping = 1
+    Players = 2
+    Rules = 3
 
 
 @dataclass(eq=False, repr=False)
@@ -61,3 +70,60 @@ class IPsWithSteamIDsResponseServer(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetServerIPsBySteamIdRequest(betterproto.Message):
     server_steamids: List[int] = betterproto.fixed64_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class QueryRequest(betterproto.Message):
+    fake_ip: int = betterproto.uint32_field(1)
+    fake_port: int = betterproto.uint32_field(2)
+    app_id: int = betterproto.uint32_field(3)
+    query_type: EQueryType = betterproto.enum_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class PingQueryData(betterproto.Message):
+    server_ip: CMsgIpAddress = betterproto.message_field(1)
+    query_port: int = betterproto.uint32_field(2)
+    game_port: int = betterproto.uint32_field(3)
+    spectator_port: int = betterproto.uint32_field(4)
+    spectator_server_name: str = betterproto.string_field(5)
+    server_name: str = betterproto.string_field(6)
+    steamid: int = betterproto.fixed64_field(7)
+    app_id: int = betterproto.uint32_field(8)
+    gamedir: str = betterproto.string_field(9)
+    map: str = betterproto.string_field(10)
+    game_description: str = betterproto.string_field(11)
+    gametype: str = betterproto.string_field(12)
+    num_players: int = betterproto.uint32_field(13)
+    max_players: int = betterproto.uint32_field(14)
+    num_bots: int = betterproto.uint32_field(15)
+    password: bool = betterproto.bool_field(16)
+    secure: bool = betterproto.bool_field(17)
+    dedicated: bool = betterproto.bool_field(18)
+    version: str = betterproto.string_field(19)
+    sdr_popid: int = betterproto.fixed32_field(20)
+    sdr_location_string: str = betterproto.string_field(21)
+
+
+@dataclass(eq=False, repr=False)
+class PlayersQueryDataPlayer(betterproto.Message):
+    name: str = betterproto.string_field(1)
+    score: int = betterproto.uint32_field(2)
+    time_played: int = betterproto.uint32_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class PlayersQueryData(betterproto.Message):
+    players: List[PlayersQueryDataPlayer] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class RulesQueryData(betterproto.Message):
+    rules: Dict[str, str] = betterproto.map_field(1, betterproto.TYPE_STRING, betterproto.TYPE_STRING)
+
+
+@dataclass(eq=False, repr=False)
+class QueryResponse(betterproto.Message):
+    ping_data: PingQueryData = betterproto.message_field(1)
+    players_data: PlayersQueryData = betterproto.message_field(2)
+    rules_data: RulesQueryData = betterproto.message_field(3)

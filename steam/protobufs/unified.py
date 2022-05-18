@@ -192,6 +192,8 @@ UMS: Mapping[str, type[betterproto.Message]] = {
     "GameServers.GetServerSteamIDsByIP#1_Response": game_servers.IPsWithSteamIDsResponse,
     "GameServers.GetServerIPsBySteamID#1_Request": game_servers.GetServerIPsBySteamIdRequest,
     "GameServers.GetServerIPsBySteamID#1_Response": game_servers.IPsWithSteamIDsResponse,
+    "GameServers.QueryByFakeIP#1_Request": game_servers.QueryRequest,
+    "GameServers.QueryByFakeIP#1_Response": game_servers.QueryResponse,
     "Inventory.GetInventory#1_Request": inventory.GetInventoryRequest,
     "Inventory.GetInventory#1_Response": inventory.Response,
     "Inventory.ExchangeItem#1_Request": inventory.ExchangeItemRequest,
