@@ -136,6 +136,7 @@ class ConnectionState(Registerable):
         self.handled_emoticons = asyncio.Event()
         self.handled_groups = asyncio.Event()
         self.handled_group_members = asyncio.Event()
+        self.handled_licenses = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
         game = kwargs.get("game")
@@ -174,6 +175,7 @@ class ConnectionState(Registerable):
         self.handled_friends.clear()
         self.handled_emoticons.clear()
         self.handled_groups.clear()
+        self.handled_licenses.clear()
 
     async def __ainit__(self) -> None:
         if self.http.api_key is not None:
@@ -1167,6 +1169,8 @@ class ConnectionState(Registerable):
         }
         for license in msg.body.licenses:
             self.licenses[license.package_id] = License(self, license, users[license.owner_id])
+
+        self.handled_licenses.set()
 
     async def fetch_cs_list(self, limit: int = 20) -> list[content_server.ServerInfo]:
         msg: MsgProto[content_server.GetServersForSteamPipeResponse] = await self.ws.send_um_and_wait(
