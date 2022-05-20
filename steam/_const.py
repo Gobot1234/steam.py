@@ -10,58 +10,75 @@ import builtins
 import sys
 from collections.abc import Callable
 from functools import partial
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, cast
 
 from multidict import MultiDict
-from typing_extensions import Final, Never, TypeAlias, TypedDict, final
+from typing_extensions import Final, final
 from yarl import URL as _URL
+
+from .types.vdf import BinaryVDFDict, VDFDict
 
 DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
 TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 
-# VDF related types
+try:
+    import orjson
+
+    JSON_LOADS: Final = orjson.loads
+    from functools import partial
+
+    def dumps(
+        obj: Any,
+        *,
+        __func: Callable[[Any], bytes] = orjson.dumps,
+        __decoder: Callable[[bytes], str] = bytes.decode,
+    ) -> str:
+        return __decoder(__func(obj))
+
+    JSON_DUMPS: Final = dumps
+except ImportError:
+    import json
+
+    JSON_LOADS: Final = json.loads
+
+    def dumps(
+        obj: Any,
+        *,
+        __func: Callable[..., str] = json.dumps,
+    ) -> str:
+        return __func(obj, separators=(",", ":"), ensure_ascii=True)
+
+    JSON_DUMPS: Final = dumps
+
+
 try:
     import orvdf
 except ImportError:
     import vdf
 
-    VDFDict: TypeAlias = "MultiDict[str | VDFDict]"
-    BinaryVDFDict: TypeAlias = "MultiDict[str | int | float | BinaryVDFDict]"
-    VDF_LOADS: Callable[[str], VDFDict] = partial(vdf.loads, mapper=MultiDict)
-    VDF_BINARY_LOADS: Callable[[bytes], BinaryVDFDict] = partial(vdf.binary_loads, mapper=MultiDict)
+    VDF_LOADS: Final[Callable[[str], VDFDict]] = partial(
+        vdf.loads,  # type: ignore
+        mapper=MultiDict,
+    )
+    VDF_BINARY_LOADS: Final = cast(
+        Callable[[bytes], BinaryVDFDict],
+        partial(
+            vdf.binary_loads,  # type: ignore
+            mapper=MultiDict,  # type: ignore
+        ),
+    )
 else:
-    VDFDict: TypeAlias = "MultiDict[str | bool | None | VDFDict]"
-    BinaryVDFDict: TypeAlias = "MultiDict[str | int | float | bool | None | BinaryVDFDict]"
-    VDF_LOADS: Callable[[str], VDFDict] = orvdf.loads
-    VDF_BINARY_LOADS: Callable[[bytes], BinaryVDFDict] = orvdf.binary_loads
-
-T = TypeVar("T")
-VDFInt: TypeAlias = str
+    VDF_LOADS: Final[Callable[[str], VDFDict]] = orvdf.loads
+    VDF_BINARY_LOADS: Final[Callable[[bytes], BinaryVDFDict]] = orvdf.binary_loads
 
 
-class VDFList(MultiDict[T]):
-    # lists don't strictly exist in the VDF "spec" however Valve uses {"0": T, "1": T, ..., "n": T}
-    # to represent them, so prevent people doing daft things like use .keys() and iterating over it
-    # for now using __getitem__ is fine, but I might remove this at some point
-
-    def keys(self) -> Never:
-        ...
-
-    def __iter__(self) -> Never:
-        ...
-
-
-if TYPE_CHECKING:
-
-    class TypedVDFDict(MultiDict[Any], TypedDict):  # type: ignore  # this obviously doesn't work at runtime
-        ...
-
+try:
+    import lxml
+except ImportError:
+    HTML_PARSER: Final = "html.parser"
 else:
-
-    class TypedVDFDict(MultiDict[Any]):
-        def __init_subclass__(cls, **kwargs: Any) -> None:
-            pass
+    HTML_PARSER: Final = "lxml-xml"
 
 
 @final

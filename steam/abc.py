@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from .protobufs.chat import Mentions
     from .review import Review
     from .state import ConnectionState
+    from .types.user import UserDict
     from .user import User
 
 __all__ = (
@@ -84,38 +85,6 @@ __all__ = (
 
 C = TypeVar("C", bound="Commentable")
 M_co = TypeVar("M_co", bound="Message", covariant=True)
-
-
-class _UserDict(TypedDict):
-    steamid: str
-    personaname: str
-    primaryclanid: str
-    profileurl: str
-    realname: str
-    # enums
-    communityvisibilitystate: int
-    profilestate: int
-    commentpermission: int
-    personastate: int
-    personastateflags: int
-    # avatar
-    avatar: str
-    avatarmedium: str
-    avatarfull: str
-    avatarhash: str
-    # country stuff
-    loccountrycode: str
-    locstatecode: int
-    loccityid: int
-    # game stuff
-    gameid: str  # game app id
-    gameextrainfo: str  # game name
-    # unix timestamps
-    timecreated: int
-    lastlogoff: int
-    # we pass these ourselves
-    last_logon: int
-    last_seen_online: int
 
 
 class SteamID(metaclass=abc.ABCMeta):
@@ -475,7 +444,7 @@ class BaseUser(SteamID, Commentable):
 
     name: str
 
-    def __init__(self, state: ConnectionState, data: _UserDict):
+    def __init__(self, state: ConnectionState, data: UserDict):
         super().__init__(data["steamid"])
         self._state = state
         self.real_name: str | None = None
@@ -493,7 +462,7 @@ class BaseUser(SteamID, Commentable):
         self.privacy_state: CommunityVisibilityState | None = None
         self._update(data)
 
-    def _update(self, data: _UserDict) -> None:
+    def _update(self, data: UserDict) -> None:
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
         self.community_url = data.get("profileurl") or super().community_url

@@ -43,11 +43,11 @@ from zlib import crc32
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
-from typing_extensions import Final, Literal, Never, NotRequired, Required, Self
+from typing_extensions import Final, Never, NotRequired, Self
 from yarl import URL
 
 from . import utils
-from ._const import VDF_LOADS, TypedVDFDict, VDFDict, VDFInt, VDFList
+from ._const import VDF_LOADS, VDFDict
 from .abc import SteamID
 from .enums import AppFlag, BillingType, DepotFileFlag, LicenseType, PackageStatus, ReviewType
 from .game import StatefulGame
@@ -64,6 +64,8 @@ else:
 
 if TYPE_CHECKING:
     from .state import ConnectionState
+    from .types.manifest import DepotDict, GameInfoDict, PackageInfoDict
+    from .types.vdf import VDFInt
 
 
 __all__ = (
@@ -616,73 +618,10 @@ class Depot(HeadlessDepot):
     """
 
     __slots__ = ("manifest", "branch")
-    manifest: ManifestInfo  #: The depot's associated manifest.
-    branch: Branch  #: The branch the depot is for.
-
-
-class GameInfoDict(TypedVDFDict):
-    appid: str
-    common: CommonDict
-    extended: NotRequired[ExtendedDict]
-    config: VDFDict
-    depots: DepotDict | VDFDict
-    ufs: MultiDict[VDFInt]
-    sysreqs: MultiDict[MultiDict[Any]]
-    localization: MultiDict[MultiDict[VDFDict]]
-
-
-Bools = Literal["0", "1"]
-
-
-class CommonDict(TypedVDFDict, total=False):
-    name: Required[str]
-    type: Required[str]
-    has_adult_content: Bools
-    has_adult_content_violence: Bools
-    market_presence: Bools
-    workshop_visible: Bools
-    community_hub_visible: Bools
-    community_visible_stats: Bools
-    controller_support: Literal["full", "partial", "none"]
-    associations: VDFList[CommonDictAssociations]
-    languages: MultiDict[Bools]
-    steam_release_date: str
-    review_score: str
-    review_percentage: str
-    oslist: str
-    icon: str
-    logo: str
-    parent: int
-
-
-class CommonDictAssociations(TypedVDFDict):
-    name: str
-    type: str
-
-
-class ExtendedDict(TypedVDFDict, total=False):
-    isfreeapp: Bools
-    listofdlc: str
-    homepage: str
-
-
-class DepotDict(TypedVDFDict, total=False):
-    name: Required[str]
-    config: Required[MultiDict[str]]
-    manifests: MultiDict[VDFInt]  # {branch name: id}
-    encryptedmanifests: MultiDict[MultiDict[VDFInt]]  # {branch name: {encrypted_gid2: VDFInt}}
-    branches: MultiDict[BranchDict]
-    maxsize: VDFInt
-    depotfromapp: VDFInt
-    sharedinstall: VDFInt  # bool
-    system_defined: VDFInt  # bool
-
-
-class BranchDict(TypedVDFDict):
-    buildid: VDFInt
-    timeupdated: VDFInt
-    pwdrequired: NotRequired[bool]
-    description: NotRequired[str]
+    manifest: ManifestInfo
+    """The depot's associated manifest."""
+    branch: Branch
+    """The branch the depot is for."""
 
 
 class ProductInfo:
@@ -961,23 +900,6 @@ class GameInfo(ProductInfo, StatefulGame):
         attrs = ("name", "id", "type", "sha", "change_number")
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
-
-
-class PackageInfoDict(TypedVDFDict):
-    packageid: int
-    billingtype: int
-    licensetype: int
-    status: int
-    extended: ExtendedPackageInfoDict
-    appids: VDFList[int]
-    depotids: VDFList[int]
-    appitems: VDFList[int]
-
-
-class ExtendedPackageInfoDict(TypedVDFDict):
-    excludefromsharing: NotRequired[int]
-    allowpurchasefromrestrictedcountries: NotRequired[bool]
-    purchaserestrictedcountries: NotRequired[str]
 
 
 class PackageInfo(ProductInfo, Package):

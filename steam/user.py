@@ -30,10 +30,10 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from ._const import URL
-from .abc import BaseUser, Messageable, _UserDict
-from .enums import TradeOfferState
-from .errors import ClientException, ConfirmationError
-from .profile import OwnedProfileItems, ProfileItem
+from .abc import BaseUser, Messageable
+from .enums import Result, TradeOfferState
+from .errors import ClientException, ConfirmationError, HTTPException
+from .profile import ClientUserProfile, OwnedProfileItems, ProfileItem
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from .message import UserMessage
     from .state import ConnectionState
     from .trade import Inventory, TradeOffer
+    from .types.user import UserDict
 
 __all__ = (
     "User",
@@ -286,7 +287,7 @@ class ClientUser(BaseUser):
 
     __slots__ = ("friends", "_inventory_func")
 
-    def __init__(self, state: ConnectionState, data: _UserDict):
+    def __init__(self, state: ConnectionState, data: UserDict):
         super().__init__(state, data)
         self.friends: list[User] = []
         self._inventory_func = BaseUser.inventory

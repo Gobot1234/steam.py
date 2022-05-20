@@ -41,14 +41,13 @@ from typing_extensions import Self
 from yarl import URL as URL_
 
 from . import utils
-from ._const import URL, VDF_BINARY_LOADS, VDF_LOADS
-from .abc import BaseUser, Commentable, SteamID, _UserDict
+from ._const import HTML_PARSER, URL, VDF_BINARY_LOADS, VDF_LOADS
+from .abc import BaseUser, Commentable, SteamID
 from .channel import DMChannel
 from .clan import Clan
 from .comment import Comment
 from .enums import *
 from .errors import *
-from .game import Game, GameToDict
 from .group import Group
 from .guard import *
 from .invite import ClanInvite, UserInvite
@@ -78,13 +77,16 @@ from .protobufs import (
     reviews,
     struct_messages,
 )
-from .trade import DescriptionDict, TradeOffer, TradeOfferDict
+from .trade import TradeOffer
 from .user import User
 
 if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
     from .gateway import SteamWebSocket
+    from .types.game import GameToDict
+    from .types.trade import DescriptionDict, TradeOfferDict
+    from .types.user import UserDict
 
 log = logging.getLogger(__name__)
 

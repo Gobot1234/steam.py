@@ -50,20 +50,19 @@ from ._const import URL
 from .abc import SteamID
 from .guard import generate_one_time_code
 from .models import PriceOverviewDict, api_route
-from .trade import AssetToDict, InventoryDict
 from .user import BaseUser, ClientUser
 from .utils import cached_property
 
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
-    from .user import UserDict
+    from .trade import AssetToDict, InventoryDict, ItemDict
+    from .types import game, trade
+    from .types.http import Coro, ResponseType, StrOrURL
+    from .types.user import UserDict
 
 T = TypeVar("T")
 log = logging.getLogger(__name__)
-StrOrURL = aiohttp.client.StrOrURL
-RequestType: TypeAlias = "Coroutine[Any, Any, T]"
-INVENTORY_LOCKS: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
 
 
 async def json_or_text(r: aiohttp.ClientResponse) -> Any:
@@ -177,13 +176,13 @@ class HTTPClient:
         # we've run out of retries, raise
         raise errors.HTTPException(r, data)
 
-    def get(self, url: StrOrURL, **kwargs: Any) -> RequestType[Any]:
+    def get(self, url: StrOrURL, **kwargs: Any) -> Coro[Any]:
         return self.request("GET", url, **kwargs)
 
-    def post(self, url: StrOrURL, **kwargs: Any) -> RequestType[Any]:
+    def post(self, url: StrOrURL, **kwargs: Any) -> Coro[Any]:
         return self.request("POST", url, **kwargs)
 
-    def connect_to_cm(self, cm: str) -> RequestType[aiohttp.ClientWebSocketResponse]:
+    def connect_to_cm(self, cm: str) -> Coro[aiohttp.ClientWebSocketResponse]:
         headers = {"User-Agent": self.user_agent}
         return self._session.ws_connect(
             f"wss://{cm}/cmsocket/", headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
@@ -343,7 +342,7 @@ class HTTPClient:
             ret.extend(resp["response"]["players"])
         return ret
 
-    def add_user(self, user_id64: int) -> RequestType[None]:
+    def add_user(self, user_id64: int) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "steamid": user_id64,
@@ -351,22 +350,22 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "actions/AddFriendAjax", data=payload)
 
-    def remove_user(self, user_id64: int) -> RequestType[None]:
+    def remove_user(self, user_id64: int) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "steamid": user_id64,
         }
         return self.post(URL.COMMUNITY / "actions/RemoveFriendAjax", data=payload)
 
-    def block_user(self, user_id64: int) -> RequestType[None]:
+    def block_user(self, user_id64: int) -> Coro[None]:
         payload = {"sessionID": self.session_id, "steamid": user_id64, "block": 1}
         return self.post(URL.COMMUNITY / "actions/BlockUserAjax", data=payload)
 
-    def unblock_user(self, user_id64: int) -> RequestType[None]:
+    def unblock_user(self, user_id64: int) -> Coro[None]:
         payload = {"sessionID": self.session_id, "steamid": user_id64, "block": 0}
         return self.post(URL.COMMUNITY / "actions/BlockUserAjax", data=payload)
 
-    def accept_user_invite(self, user_id64: int) -> RequestType[None]:
+    def accept_user_invite(self, user_id64: int) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "steamid": user_id64,
@@ -374,7 +373,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "actions/AddFriendAjax", data=payload)
 
-    def decline_user_invite(self, user_id64: int) -> RequestType[None]:
+    def decline_user_invite(self, user_id64: int) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "steamid": user_id64,
@@ -382,7 +381,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "actions/IgnoreFriendInviteAjax", data=payload)
 
-    def get_user_games(self, user_id64: int) -> RequestType[dict[str, Any]]:
+    def get_user_games(self, user_id64: int) -> ResponseType[game.GetOwnedGames]:
         params = {
             "key": self.api_key,
             "steamid": user_id64,
@@ -402,7 +401,28 @@ class HTTPClient:
         async with lock:  # the endpoint requires a global per user lock
             return await self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
 
-    def get_user_escrow(self, user_id64: int, token: str | None) -> RequestType[dict[str, Any]]:
+    async def get_item_info(
+        self, app_id: int, items: Iterable[tuple[int, int]]
+    ) -> dict[tuple[int, int], trade.DescriptionDict]:
+        result: dict[tuple[int, int], trade.DescriptionDict] = {}
+
+        for chunk in utils.chunk(items, 100):
+            params = {
+                "key": self.api_key,
+                "appid": app_id,
+                "class_count": len(chunk),
+            }
+
+            for i, (class_id, instance_id) in enumerate(chunk):
+                params[f"classid{i}"] = class_id
+                params[f"instanceid{i}"] = instance_id
+
+            data = await self.get(api_route("ISteamEconomy/GetAssetClassInfo"), params=params)
+            result.update({tuple(map(int, key.split("_"))): value for key, value in data["result"].items()})
+
+        return result
+
+    def get_user_escrow(self, user_id64: int, token: str | None) -> ResponseType[dict[str, Any]]:
         params = {
             "key": self.api_key,
             "steamid_target": user_id64,
@@ -450,7 +470,7 @@ class HTTPClient:
 
         return first_page
 
-    def get_trade_history(self, limit: int, previous_time: int | None) -> RequestType[dict[str, Any]]:
+    def get_trade_history(self, limit: int, previous_time: int | None) -> Coro[dict[str, Any]]:
         params = {
             "key": self.api_key,
             "max_trades": limit,
@@ -460,11 +480,11 @@ class HTTPClient:
         }
         return self.get(api_route("IEconService/GetTradeHistory"), params=params)
 
-    def get_trade(self, trade_id: int) -> RequestType[dict[str, Any]]:
-        params = {"key": self.api_key, "tradeofferid": trade_id, "get_descriptions": 1}
+    def get_trade(self, trade_id: int) -> Coro[dict[str, Any]]:
+        params = {"key": self.api_key, "tradeofferid": trade_id, "get_descriptions": "true"}
         return self.get(api_route("IEconService/GetTradeOffer"), params=params)
 
-    def accept_user_trade(self, user_id64: int, trade_id: int) -> RequestType[dict[str, Any]]:
+    def accept_user_trade(self, user_id64: int, trade_id: int) -> Coro[dict[str, Any]]:
         payload = {
             "sessionid": self.session_id,
             "tradeofferid": trade_id,
@@ -475,13 +495,13 @@ class HTTPClient:
         headers = {"Referer": str(URL.COMMUNITY / f"tradeoffer/{trade_id}")}
         return self.post(URL.COMMUNITY / f"tradeoffer/{trade_id}/accept", data=payload, headers=headers)
 
-    def _cancel_user_trade(self, trade_id: int, option: str) -> RequestType[None]:
+    def _cancel_user_trade(self, trade_id: int, option: str) -> Coro[None]:
         return self.post(URL.COMMUNITY / f"tradeoffer/{trade_id}/{option}")
 
-    def decline_user_trade(self, trade_id: int) -> RequestType[None]:
+    def decline_user_trade(self, trade_id: int) -> Coro[None]:
         return self._cancel_user_trade(trade_id, "decline")
 
-    def cancel_user_trade(self, trade_id: int) -> RequestType[None]:
+    def cancel_user_trade(self, trade_id: int) -> Coro[None]:
         return self._cancel_user_trade(trade_id, "cancel")
 
     def send_trade_offer(
@@ -492,7 +512,7 @@ class HTTPClient:
         token: str | None,
         offer_message: str,
         **kwargs: Any,
-    ) -> RequestType[dict[str, Any]]:
+    ) -> Coro[dict[str, Any]]:
         payload = {
             "sessionid": self.session_id,
             "serverid": 1,
@@ -513,7 +533,7 @@ class HTTPClient:
         headers = {"Referer": str(URL.COMMUNITY / f"tradeoffer/new/?partner={user.id}")}
         return self.post(URL.COMMUNITY / "tradeoffer/new/send", data=payload, headers=headers)
 
-    def get_trade_receipt(self, trade_id: int) -> RequestType[dict[str, Any]]:
+    def get_trade_receipt(self, trade_id: int) -> Coro[dict[str, Any]]:
         params = {
             "key": self.api_key,
             "tradeid": trade_id,
@@ -521,21 +541,21 @@ class HTTPClient:
         }
         return self.get(api_route("IEconService/GetTradeStatus"), params=params)
 
-    def get_cm_list(self, cell_id: int) -> RequestType[dict[str, Any]]:
+    def get_cm_list(self, cell_id: int) -> Coro[dict[str, Any]]:
         params = {
             "cellid": cell_id,
             "cmtype": "websockets",
         }
         return self.get(api_route("ISteamDirectory/GetCMListForConnect"), params=params)
 
-    def join_clan(self, clan_id64: int) -> RequestType[None]:
+    def join_clan(self, clan_id64: int) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "action": "join",
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}", data=payload)
 
-    def leave_clan(self, clan_id64: int) -> RequestType[None]:
+    def leave_clan(self, clan_id64: int) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "action": "leaveGroup",
@@ -543,7 +563,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "my/home_process", data=payload)
 
-    def invite_user_to_clan(self, user_id64: int, clan_id64: int) -> RequestType[None]:
+    def invite_user_to_clan(self, user_id64: int, clan_id64: int) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "group": clan_id64,
@@ -552,27 +572,27 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "actions/GroupInvite", data=payload)
 
-    def get_user_clans(self, user_id64: int) -> RequestType[dict[str, Any]]:
+    def get_user_clans(self, user_id64: int) -> Coro[dict[str, Any]]:
         params = {"key": self.api_key, "steamid": user_id64}
         return self.get(api_route("ISteamUser/GetUserGroupList"), params=params)
 
-    def get_user_bans(self, user_id64: int) -> RequestType[dict[str, Any]]:
+    def get_user_bans(self, user_id64: int) -> Coro[dict[str, Any]]:
         params = {"key": self.api_key, "steamids": user_id64}
         return self.get(api_route("ISteamUser/GetPlayerBans"), params=params)
 
-    def get_user_level(self, user_id64: int) -> RequestType[dict[str, Any]]:
+    def get_user_level(self, user_id64: int) -> Coro[dict[str, Any]]:
         params = {"key": self.api_key, "steamid": user_id64}
         return self.get(api_route("IPlayerService/GetSteamLevel"), params=params)
 
-    def get_user_badges(self, user_id64: int) -> RequestType[dict[str, Any]]:
+    def get_user_badges(self, user_id64: int) -> Coro[dict[str, Any]]:
         params = {"key": self.api_key, "steamid": user_id64}
         return self.get(api_route("IPlayerService/GetBadges"), params=params)
 
-    def clear_nickname_history(self) -> RequestType[None]:
+    def clear_nickname_history(self) -> Coro[None]:
         payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
 
-    def get_price(self, app_id: int, item_name: str, currency: int) -> RequestType[PriceOverviewDict]:
+    def get_price(self, app_id: int, item_name: str, currency: int) -> Coro[PriceOverviewDict]:
         payload = {
             "appid": app_id,
             "market_hash_name": item_name,
@@ -580,13 +600,16 @@ class HTTPClient:
         payload.update({"currency": currency} if currency is not None else {})
         return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
 
-    def get_wishlist(self, user_id64: int) -> RequestType[dict[str, Any]]:
+    def get_wishlist(self, user_id64: int) -> Coro[dict[str, Any]]:
         return self.get(URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata")
 
-    def get_game(self, game_id: int) -> RequestType[dict[str, Any]]:
-        return self.get(URL.STORE / "api/appdetails", params={"appids": game_id, "cc": "english"})
+    def get_game(self, game_id: int) -> Coro[dict[str, Any]]:
+        return self.get(URL.STORE / "api/appdetails", params={"appids": game_id, "l": "english"})
 
-    def get_clan_rss(self, clan_id64: int) -> RequestType[str]:
+    def get_game_dlc(self, game_id: int) -> Coro[dict[str, Any]]:
+        return self.get(URL.STORE / "api/dlcforapp", params={"appid": game_id, "l": "english"})
+
+    def get_clan_rss(self, clan_id64: int) -> Coro[str]:
         return self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
 
     def _edit_clan_event(
@@ -601,7 +624,7 @@ class HTTPClient:
         server_password: str,
         start: datetime | None,
         event_id: int | None,
-    ) -> RequestType[str]:
+    ) -> Coro[str]:
         if start is None:
             tz_offset = int((datetime.utcnow() - datetime.now()).total_seconds())
             start_date = "MM/DD/YY"
@@ -644,13 +667,13 @@ class HTTPClient:
 
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/eventEdit", data=data)
 
-    def create_clan_event(self, *args: Any, **kwargs: Any) -> RequestType[str]:
+    def create_clan_event(self, *args: Any, **kwargs: Any) -> Coro[str]:
         return self._edit_clan_event("newEvent", *args, event_id=None, **kwargs)
 
-    def edit_clan_event(self, *args: Any, **kwargs: Any) -> RequestType[str]:
+    def edit_clan_event(self, *args: Any, **kwargs: Any) -> Coro[str]:
         return self._edit_clan_event("updateEvent", *args, **kwargs)
 
-    def delete_clan_event(self, clan_id64: int, event_id: int) -> RequestType[None]:
+    def delete_clan_event(self, clan_id64: int, event_id: int) -> Coro[None]:
         data = {
             "sessionid": self.session_id,
             "action": "deleteEvent",
@@ -658,16 +681,14 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/events", data=data)
 
-    def get_clan_events(self, clan_id: int, event_ids: list[int]) -> RequestType[dict[str, Any]]:
+    def get_clan_events(self, clan_id: int, event_ids: list[int]) -> Coro[dict[str, Any]]:
         params = {
             "clanid_list": ",".join([str(clan_id)] * len(event_ids)),
             "uniqueid_list": ",".join(str(id) for id in event_ids),
         }
         return self.get(URL.STORE / "events/ajaxgeteventdetails", params=params)
 
-    def create_clan_announcement(
-        self, clan_id64: int, name: str, description: str, hidden: bool = False
-    ) -> RequestType[None]:
+    def create_clan_announcement(self, clan_id64: int, name: str, description: str, hidden: bool = False) -> Coro[None]:
         data = {
             "sessionID": self.session_id,
             "action": "post",
@@ -680,9 +701,7 @@ class HTTPClient:
             data["is_hidden"] = "is_hidden"
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements", data=data)
 
-    def edit_clan_announcement(
-        self, clan_id64: int, announcement_id: int, name: str, description: str
-    ) -> RequestType[None]:
+    def edit_clan_announcement(self, clan_id64: int, announcement_id: int, name: str, description: str) -> Coro[None]:
         data = {
             "sessionID": self.session_id,
             "gid": announcement_id,
@@ -695,7 +714,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements", data=data)
 
-    def delete_clan_announcement(self, clan_id64: int, announcement_id: int) -> RequestType[None]:
+    def delete_clan_announcement(self, clan_id64: int, announcement_id: int) -> Coro[None]:
         params = {
             "sessionID": self.session_id,
         }
@@ -705,7 +724,7 @@ class HTTPClient:
         self,
         clan_id: int,
         announcement_id: int,
-    ) -> RequestType[dict[str, Any]]:
+    ) -> Coro[dict[str, Any]]:
         params = {
             "clan_accountid": clan_id,
             "announcement_gid": announcement_id,
@@ -714,7 +733,7 @@ class HTTPClient:
 
     def post_review(
         self, game_id: int, content: str, public: bool, commentable: bool, received_compensation: bool
-    ) -> RequestType[None]:
+    ) -> Coro[None]:
         data = {
             "appid": game_id,
             "steamworksappid": game_id,
@@ -731,7 +750,7 @@ class HTTPClient:
 
     def get_reviews(
         self, game_id: int, filter: str, review_type: str, purchase_type: str, cursor: str = "*"
-    ) -> RequestType[dict[str, Any]]:
+    ) -> Coro[dict[str, Any]]:
         params = {
             "json": 1,
             "num_per_page": 100,
@@ -743,14 +762,14 @@ class HTTPClient:
 
         return self.get(URL.STORE / f"appreviews/{game_id}", params=params)
 
-    def mark_review_as_helpful(self, review_id: int, rated_up: bool) -> RequestType[None]:
+    def mark_review_as_helpful(self, review_id: int, rated_up: bool) -> Coro[None]:
         data = {
             "rateup": str(rated_up).lower(),
             "sessionid": self.session_id,
         }
         return self.post(URL.COMMUNITY / f"userreviews/rate/{review_id}", data=data)
 
-    def mark_review_as_funny(self, review_id: int) -> RequestType[None]:
+    def mark_review_as_funny(self, review_id: int) -> Coro[None]:
         data = {
             "tagid": 1,
             "rateup": "true",
@@ -758,7 +777,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"userreviews/votetag/{review_id}", data=data)
 
-    def delete_review(self, game_id: int) -> RequestType[None]:
+    def delete_review(self, game_id: int) -> Coro[None]:
         data = {
             "action": "delete",
             "appid": game_id,

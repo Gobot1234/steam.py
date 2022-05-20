@@ -32,7 +32,7 @@ from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
-from typing_extensions import NotRequired, Required, TypeAlias, TypedDict
+from typing_extensions import TypeAlias
 
 from . import utils
 from ._const import URL
@@ -43,6 +43,7 @@ from .game import Game, StatefulGame
 if TYPE_CHECKING:
     from .abc import BaseUser, SteamID
     from .state import ConnectionState
+    from .types.trade import *
     from .user import User
 
 
@@ -58,90 +59,6 @@ __all__ = (
 Items: TypeAlias = "Item | Asset"
 I = TypeVar("I", bound="Item")
 T = TypeVar("T")
-
-
-class AssetToDict(TypedDict):
-    assetid: str
-    amount: int
-    appid: str
-    contextid: str
-
-
-class AssetDict(AssetToDict):
-    instanceid: str
-    classid: str
-    missing: bool
-
-
-class DescriptionDict(TypedDict, total=False):
-    instanceid: Required[str]
-    classid: Required[str]
-    market_name: str
-    currency: int
-    name: str
-    market_hash_name: str
-    name_color: str
-    background_color: str  # hex code
-    type: str
-    descriptions: list[dict[str, str]]
-    owner_descriptions: list[dict[str, str]]
-    market_actions: list[dict[str, str]]
-    actions: list[dict[str, str]]
-    tags: list[dict[str, str]]
-    actions: list[dict[str, str]]
-    icon_url: str
-    icon_url_large: str
-    tradable: bool  # 1 vs 0
-    marketable: bool  # same as above
-    commodity: int  # might be a bool
-    fraudwarnings: list[str]
-
-
-class ItemDict(AssetDict, DescriptionDict):
-    """We combine Assets with their matching Description to form items."""
-
-
-class InventoryDict(TypedDict):
-    assets: list[AssetDict]
-    descriptions: list[DescriptionDict]
-    total_inventory_count: int
-    success: int  # Result
-    rwgrsn: int  # p. much always -2
-
-
-class TradeOfferDict(TypedDict):
-    tradeofferid: str
-    tradeid: str  # only used for receipts (its not the useful one)
-    accountid_other: int
-    message: str
-    trade_offer_state: int  # TradeOfferState
-    expiration_time: int  # unix timestamps
-    time_created: int
-    time_updated: int
-    escrow_end_date: int
-    items_to_give: list[ItemDict]
-    items_to_receive: list[ItemDict]
-    is_our_offer: bool
-    from_real_time_trade: bool
-    confirmation_method: int  # 2 is mobile 1 might be email? not a clue what other values are
-
-
-class TradeOfferReceiptAssetDict(AssetDict):
-    new_assetid: str
-    new_contextid: str
-
-
-class TradeOfferReceiptItemDict(TradeOfferReceiptAssetDict, ItemDict):
-    ...
-
-
-class TradeOfferReceiptDict(TypedDict):
-    status: int
-    tradeid: str
-    time_init: int
-    assets_received: NotRequired[list[TradeOfferReceiptAssetDict]]
-    assets_given: NotRequired[list[TradeOfferReceiptAssetDict]]
-    descriptions: list[DescriptionDict]
 
 
 class Asset:

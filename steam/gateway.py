@@ -55,16 +55,15 @@ from .enums import IntEnum, PersonaState, PersonaStateFlag, Result
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
 from .models import Registerable, register, return_true
-from .protobufs import EMsg, GCMsg, GCMsgProto, Msg, MsgProto
+from .protobufs import EMsg, GCMsg, GCMsgProto, Msg, MsgProto, login
 from .protobufs.client_server_2 import CMsgGcClient
 
 if TYPE_CHECKING:
     from .client import Client
     from .enums import UIMode
-    from .game import GameToDict
-    from .protobufs import login
     from .protobufs.base import CMsgMulti
     from .state import ConnectionState
+    from .types.game import GameToDict
 
 
 __all__ = (
