@@ -24,6 +24,7 @@ SOFTWARE.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -129,7 +130,13 @@ class Badge(BaseBadge):
         self.game = StatefulGame(state, id=data["appid"]) if "appid" in data else None
 
 
-class UserBadges:
+if TYPE_CHECKING or sys.version_info >= (3, 9):
+    UserBadgeBase = Sequence[Badge]
+else:
+    UserBadgeBase = Sequence
+
+
+class UserBadges(UserBadgeBase):
     """Represents a Steam :class:`~steam.User`'s badges/level.
 
     Attributes
@@ -168,3 +175,8 @@ class UserBadges:
 
     def __len__(self) -> int:
         return len(self.badges)
+
+    if not TYPE_CHECKING:
+
+        def __getitem__(self, idx: Any) -> Any:
+            return self.badges[idx]
