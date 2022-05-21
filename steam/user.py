@@ -290,10 +290,10 @@ class ClientUser(BaseUser):
     def __init__(self, state: ConnectionState, data: UserDict):
         super().__init__(state, data)
         self.friends: list[User] = []
-        self._inventory_func = BaseUser.inventory
 
     async def inventory(self, game: Game) -> Inventory:
-        return await self._inventory_func(self, game)
+        resp = await self._state.http.get_client_user_inventory(game.id, game.context_id)
+        return Inventory(state=self._state, data=resp, owner=self, game=game)
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""

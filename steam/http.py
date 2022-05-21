@@ -103,6 +103,7 @@ class HTTPClient:
         self.proxy: str | None = options.get("proxy")
         self.proxy_auth: aiohttp.BasicAuth | None = options.get("proxy_auth")
         self.connector: aiohttp.BaseConnector | None = options.get("connector")
+        self.personal_inventory_lock = asyncio.Lock()
 
     def clear(self) -> None:
         self._session = aiohttp.ClientSession(
@@ -390,16 +391,18 @@ class HTTPClient:
         }
         return self.get(api_route("IPlayerService/GetOwnedGames"), params=params)
 
-    async def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> InventoryDict:
+    def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> Coro[InventoryDict]:
         params = {
             "count": 5000,
         }
-        lock = INVENTORY_LOCKS.get(user_id64)
-        if lock is None:
-            lock = asyncio.Lock()
-            INVENTORY_LOCKS[user_id64] = lock
-        async with lock:  # the endpoint requires a global per user lock
-            return await self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
+        return self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
+
+    async def get_client_user_inventory(self, app_id: int, context_id: int) -> InventoryDict:
+        params = {
+            "count": 5000,
+        }
+        async with self.personal_inventory_lock:  # requires a lock
+            return await self.get(URL.COMMUNITY / f"inventory/{self.user.id64}/{app_id}/{context_id}", params=params)
 
     async def get_item_info(
         self, app_id: int, items: Iterable[tuple[int, int]]

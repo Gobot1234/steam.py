@@ -5,20 +5,34 @@ from typing import Any
 
 from typing_extensions import ClassVar
 
-from ...abc import BaseUser
 from ...client import Client as Client_
 from ...game import Game
 from ...protobufs import GCMsg, GCMsgProto
 from ...trade import Inventory
+from ...user import ClientUser as ClientUser_
 from .state import GCState
 
 __all__ = ("Client",)
+
+
+class ClientUser(ClientUser_):
+    _state: GCState
+
+    async def inventory(self: Any, game: Game) -> Inventory:
+        return (
+            self._connection.backpack
+            if game == self._state.client.__class__._GAME and self._state._gc_ready.is_set()
+            else await super().inventory(game)
+        )
 
 
 class Client(Client_):
     _connection: GCState
     _GAME: ClassVar[Game]
     _GC_HEART_BEAT: ClassVar = 30.0
+
+    _ClientUserCls = ClientUser
+    user: _ClientUserCls
 
     def __init__(self, **options: Any):
         game = options.pop("game", None)
@@ -54,16 +68,8 @@ class Client(Client_):
         else:
             await super().connect()
 
-    async def _handle_ready(self_) -> None:
-        async def inventory(self: Any, game: Game) -> Inventory:
-            return (
-                self_._connection.backpack
-                if game == self_.__class__._GAME and self_._connection._gc_ready.is_set()
-                else await BaseUser.inventory(self, game)
-            )
-
-        self_.user._inventory_func = inventory
-
+    async def _handle_ready(self) -> None:
+        self.http.user = self.__class__._ClientUserCls(self._connection, await self.http.get_user(self.user.id64))
         await super()._handle_ready()
 
     async def wait_for_gc_ready(self) -> None:

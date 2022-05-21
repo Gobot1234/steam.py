@@ -327,7 +327,10 @@ class BaseInventory(Generic[I]):
 
     async def update(self) -> None:
         """Re-fetches the inventory."""
-        data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
+        if self.owner == self._state.client.user:
+            data = await self._state.http.get_client_user_inventory(self.game.id, self.game.context_id)
+        else:
+            data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
     def filter_items(self, *names: str, limit: int | None = None) -> list[I]:
