@@ -52,7 +52,7 @@ from .abc import SteamID
 from .enums import AppFlag, BillingType, DepotFileFlag, LicenseType, PackageStatus, ReviewType
 from .game import StatefulGame
 from .models import _IOMixin
-from .package import Package
+from .package import StatefulPackage
 from .protobufs import app_info
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
 
@@ -902,7 +902,7 @@ class GameInfo(ProductInfo, StatefulGame):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
-class PackageInfo(ProductInfo, Package):
+class PackageInfo(ProductInfo, StatefulPackage):
     """Represents a collection of information on a package.
 
     Attributes

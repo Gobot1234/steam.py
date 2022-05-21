@@ -51,9 +51,12 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .manifest import GameInfo, Package, PackageInfo
+from .manifest import GameInfo, PackageInfo
 from .models import PriceOverview, return_true
-from .package import License
+from .package import License, Package, StatefulPackage
+
+# from .published_file import PublishedFile
+# from .reaction import ClientEmoticon, ClientSticker, Emoticon
 from .state import ConnectionState
 from .utils import make_id64
 
@@ -649,7 +652,7 @@ class Client:
             return None
         return FetchedGame(self._connection, data["data"])
 
-    def get_package(self, id: int) -> Package:
+    def get_package(self, id: int) -> StatefulPackage:
         """Creates a package from its ID.
 
         Parameters
@@ -657,7 +660,7 @@ class Client:
         id
             The ID of the package.
         """
-        return Package(self._connection, id)
+        return StatefulPackage(self._connection, id=id)
 
     @overload
     async def fetch_server(self, *, id: utils.Intable) -> GameServer | None:
