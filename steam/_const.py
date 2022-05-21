@@ -62,7 +62,7 @@ except ImportError:
         mapper=MultiDict,
     )
     VDF_BINARY_LOADS: Final = cast(
-        Callable[[bytes], BinaryVDFDict],
+        "Callable[[bytes], BinaryVDFDict]",
         partial(
             vdf.binary_loads,  # type: ignore
             mapper=MultiDict,  # type: ignore
