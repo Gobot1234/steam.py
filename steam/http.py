@@ -220,14 +220,14 @@ class HTTPClient:
             if self.api_key is None:
                 log.info("Failed to get API key")
 
-                async def get_user(self, user_id64: int) -> dict[str, Any]:
-                    user_id = int(user_id64) & 0xFFFFFFFF
+                async def get_user(user_id64: int) -> UserDict:  # this is a lie
+                    user_id = user_id64 & 0xFFFFFFFF
                     ret = await self.get(URL.COMMUNITY / f"miniprofile/{user_id}/json")
                     ret["steamid"] = user_id64
                     return ret
 
-                async def get_users(self, user_id64s: list[int]) -> list[dict[str, Any]]:
-                    return await asyncio.gather(*(self.get_user(user_id64) for user_id64 in user_id64s))
+                async def get_users(user_id64s: Iterable[int]) -> list[UserDict]:
+                    return await asyncio.gather(*(self.get_user(user_id64) for user_id64 in user_id64s))  # type: ignore
 
                 BaseUser._patch_without_api()
                 self.__class__.get_user = get_user
@@ -329,7 +329,7 @@ class HTTPClient:
         return resp["response"]["players"][0] if resp["response"]["players"] else None
 
     async def get_users(self, user_id64s: Iterable[int]) -> list[UserDict]:
-        ret = []
+        ret: list[UserDict] = []
 
         for resp in await asyncio.gather(  # gather all the requests concurrently
             *(

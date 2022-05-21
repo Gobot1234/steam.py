@@ -34,9 +34,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 import betterproto
 
 from ..enums import IntEnum, IntEnum_, Result
-from ..utils import clear_proto_bit, set_proto_bit  # noqa
+from ..utils import clear_proto_bit as clear_proto_bit, set_proto_bit as set_proto_bit
 from .base import CMsgProtoBufHeader
-from .emsg import EMsg  # noqa
+from .emsg import EMsg as EMsg
 
 __all__ = (
     "do_nothing_case",

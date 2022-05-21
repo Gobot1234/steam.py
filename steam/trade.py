@@ -37,7 +37,7 @@ from typing_extensions import TypeAlias
 from . import utils
 from ._const import URL
 from .enums import TradeOfferState
-from .errors import ClientException, ConfirmationError
+from .errors import ClientException, ConfirmationError, HTTPException
 from .game import Game, StatefulGame
 
 if TYPE_CHECKING:
@@ -48,15 +48,14 @@ if TYPE_CHECKING:
 
 
 __all__ = (
-    "Item",
     "Asset",
+    "Item",
     "Inventory",
     "TradeOffer",
     "TradeOfferReceiptItem",
     "TradeOfferReceipt",
 )
 
-Items: TypeAlias = "Item | Asset"
 I = TypeVar("I", bound="Item")
 T = TypeVar("T")
 
@@ -227,7 +226,7 @@ else:
 
 class InventoryGenericAlias(GenericAlias, **kwargs):
     def __repr__(self) -> str:
-        return f"{self.__origin__.__module__}.{object.__getattribute__(self, '__alias_name__')}"
+        return f"{self.__origin__.__module__}.{self.__origin__.__alias_name__}"
 
     def __call__(self, *args: Any, **kwargs: Any) -> object:
         # this is done cause we need __orig_class__ in __init__
@@ -269,7 +268,7 @@ class BaseInventory(Generic[I]):
     def __repr__(self) -> str:
         attrs = ("owner", "game")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{object.__getattribute__(self.__orig_class__, '__alias_name__')} {' '.join(resolved)}>"
+        return f"<{self.__alias_name__} {' '.join(resolved)}>"
 
     def __len__(self) -> int:
         return len(self.items)
@@ -283,6 +282,10 @@ class BaseInventory(Generic[I]):
                 f"unsupported operand type(s) for 'in': {item.__class__.__qualname__!r} and {self.__class__.__name__!r}"
             )
         return item in self.items
+
+    @utils.classproperty
+    def __alias_name__(cls: type[BaseInventory]) -> str:  # type: ignore
+        return object.__getattribute__(cls.__orig_class__, "__alias_name__")
 
     if not TYPE_CHECKING:
 
@@ -384,7 +387,7 @@ Inventory: TypeAlias = BaseInventory[Item]  # necessitated by TypeVar not curren
 
     .. describe:: y in x
 
-        Determines if an item is in the inventory based off of its :attr:`class_id` and :attr:`instance_id`.
+        Determines if an item is in the inventory based off of its :attr:`Item.class_id` and :attr:`Item.instance_id`.
 
 
 Attributes
@@ -497,17 +500,13 @@ class TradeOffer:
         *,
         message: str | None = None,
         token: str | None = None,
-        item_to_send: Items | None = None,
-        item_to_receive: Items | None = None,
-        items_to_send: list[Items] | None = None,
-        items_to_receive: list[Items] | None = None,
+        item_to_send: Asset | None = None,
+        item_to_receive: Asset | None = None,
+        items_to_send: Sequence[Asset] | None = None,
+        items_to_receive: Sequence[Asset] | None = None,
     ):
-        self.items_to_receive: list[Items] = items_to_receive or []
-        self.items_to_send: list[Items] = items_to_send or []
-        if item_to_receive:
-            self.items_to_receive.append(item_to_receive)
-        if item_to_send:
-            self.items_to_send.append(item_to_send)
+        self.items_to_receive: Sequence[Asset] = items_to_receive or [item_to_receive] if item_to_receive else []
+        self.items_to_send: Sequence[Asset] = items_to_send or [item_to_send] if item_to_send else []
         self.message: str | None = message or None
         self.token: str | None = token
         self.partner: User | SteamID | None = None
@@ -570,9 +569,9 @@ class TradeOffer:
 
         Raises
         ------
-        :exc:`~steam.ClientException`
+        steam.ClientException
             The trade is not active.
-        :exc:`~steam.ConfirmationError`
+        steam.ConfirmationError
             No matching confirmation could not be found.
         """
         self._check_active()
@@ -591,9 +590,9 @@ class TradeOffer:
 
         Raises
         ------
-        :exc:`~steam.ClientException`
+        steam.ClientException
             The trade is either not active, already accepted or not from the ClientUser.
-        :exc:`~steam.ConfirmationError`
+        steam.ConfirmationError
             No matching confirmation could not be found.
         """
         if self.state == TradeOfferState.Accepted:
@@ -601,14 +600,22 @@ class TradeOffer:
         if self.is_our_offer():
             raise ClientException("You cannot accept an offer the ClientUser has made")
         self._check_active()
-        resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
+        try:
+            resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
+        except HTTPException as e:
+            if e.code == Result.Revoked:
+                # check the items owner
+                pass
+            raise e
         if resp.get("needs_mobile_confirmation", False):
             for tries in range(5):
                 try:
-                    await self.confirm()
+                    return await self.confirm()
                 except ConfirmationError:
                     break
                 except ClientException:
+                    if tries == 4:
+                        raise ClientException("Failed to accept trade offer") from None
                     await asyncio.sleep(tries * 2)
 
     async def decline(self) -> None:

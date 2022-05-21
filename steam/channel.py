@@ -124,9 +124,10 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
 
 
 GroupChannelProtos: TypeAlias = "IncomingChatMessageNotification | State | ChatRoomState"
+GroupM_co = TypeVar("GroupM_co", bound="GroupMessage | ClanMessage")
 
 
-class _GroupChannel(Channel[M_co]):
+class _GroupChannel(Channel[GroupM_co]):
     __slots__ = ("id", "name", "joined_at", "position", "last_message")
 
     def __init__(self, state: ConnectionState, proto: GroupChannelProtos):
@@ -135,7 +136,7 @@ class _GroupChannel(Channel[M_co]):
         self.name: str | None = None
         self.joined_at: datetime | None = None
         self.position: int | None = None
-        self.last_message: M_co | None = None
+        self.last_message: GroupM_co | None = None
         self._update(proto)
 
     def _update(self, proto: GroupChannelProtos):
@@ -181,7 +182,7 @@ class _GroupChannel(Channel[M_co]):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> GroupChannelHistoryIterator[M_co, Self]:
+    ) -> GroupChannelHistoryIterator[GroupM_co, Self]:
         return GroupChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 

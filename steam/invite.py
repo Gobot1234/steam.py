@@ -49,6 +49,12 @@ class Invite:
         self.invitee = invitee
         self.relationship = relationship
 
+    async def accept(self) -> None:
+        raise NotImplementedError()
+
+    async def decline(self) -> None:
+        raise NotImplementedError()
+
 
 class UserInvite(Invite):
     """Represents a invite from a user to become their friend.

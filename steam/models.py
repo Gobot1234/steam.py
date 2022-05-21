@@ -36,7 +36,7 @@ from datetime import timedelta
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from typing_extensions import Literal, ParamSpec, TypedDict
+from typing_extensions import Literal, ParamSpec, Self, TypedDict
 from yarl import URL as _URL
 
 from . import utils
@@ -57,7 +57,6 @@ __all__ = (
 )
 
 F = TypeVar("F", bound="Callable[..., Any]")
-R = TypeVar("R", bound="Registerable")
 P = ParamSpec("P")
 
 
@@ -80,8 +79,9 @@ return_true = _ReturnTrue()
 
 class Registerable:
     __slots__ = ("loop", "parsers_name")
+    loop: asyncio.AbstractEventLoop
 
-    def __new__(cls: type[R], *args: Any, **kwargs: Any) -> R:
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         self = super().__new__(cls)
         self.loop = asyncio.get_event_loop()
         cls.parsers_name = tuple(cls.__annotations__)[0]

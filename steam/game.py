@@ -122,18 +122,19 @@ class Game:
             raise TypeError("__init__() missing a required keyword argument: 'id' or 'name'")
 
         if id is None:
-            id = utils.get(Games, name=name)
-            if id is None:
+            game = utils.get(Games, name=name)
+            if game is None:
                 raise ValueError(f"Cannot find a matching game for {name!r}")
+            id = game.id
         else:
             try:
                 id = int(id)
             except (ValueError, TypeError):
                 raise ValueError("id expected to support int()") from None
-            try:
-                name = Games(id).name
-            except ValueError:
-                name = None
+
+            game = utils.get(Games, id=id)
+            if game is not None:
+                name = game.name
 
         if id < 0:
             raise ValueError("id cannot be negative")

@@ -27,9 +27,9 @@ EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discor
 
 from __future__ import annotations
 
-from collections.abc import Generator, Mapping
+from collections.abc import Callable, Generator, Mapping
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypeVar, cast
 
 from typing_extensions import Literal, Self
 
@@ -71,6 +71,19 @@ __all__ = (
 T = TypeVar("T")
 E = TypeVar("E", bound="Enum", covariant=True)
 IE = TypeVar("IE", bound="IntEnum")
+
+T_co = TypeVar("T_co")
+TT_co = TypeVar("TT_co", bound="type[Any]")
+# if sys.version_info >= (3, 9):
+#     classproperty = lambda func: classmethod(property(func))
+
+
+class classproperty(Generic[TT_co, T_co]):
+    def __init__(self, func: Callable[[TT_co], T_co]):
+        self.__func__ = func
+
+    def __get__(self, instance: Any, type: TT_co) -> T_co:
+        return self.__func__(type)
 
 
 def _is_descriptor(obj: object) -> bool:

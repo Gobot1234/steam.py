@@ -154,7 +154,7 @@ class KeepAliveHandler(threading.Thread):
         self.ws = ws
         self.interval = interval
         self._main_thread_id = self.ws.thread_id
-        self.heartbeat = MsgProto(EMsg.ClientHeartBeat, send_reply=True)
+        self.heartbeat = MsgProto[login.CMsgClientHeartBeat](EMsg.ClientHeartBeat, send_reply=True)
         self.msg = "Keeping websocket alive with heartbeat %s."
         self.block_msg = "Heartbeat blocked for more than %s seconds."
         self.behind_msg = "Can't keep up, websocket is %.1fs behind."
@@ -326,7 +326,7 @@ class SteamWebSocket(Registerable):
         self.run_parser(emsg, msg)
 
         # remove the dispatched listener
-        removed = []
+        removed: list[int] = []
         for idx, entry in enumerate(self.listeners):
             if entry.emsg != emsg and entry.emsg is not None:
                 continue
@@ -392,7 +392,7 @@ class SteamWebSocket(Registerable):
         await self.socket.close(code=code, message=bytes(message))
 
     @register(EMsg.ClientLoggedOff)
-    async def handle_close(self, _=None) -> None:
+    async def handle_close(self, _: Any = None) -> None:
         if not self.socket.closed:
             await self.close()
             self.cm_list.queue.pop()  # pop the disconnected cm

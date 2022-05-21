@@ -28,21 +28,20 @@ This is an updated version of https://github.com/ValvePython/steam/tree/master/s
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import betterproto
 from typing_extensions import TypeAlias
 
 from ..enums import IntEnum, Result
-from . import struct_messages
 from .emsg import *
 from .headers import *
 from .protobufs import *
+from .struct_messages import StructMessage
 from .unified import *
 
-M = TypeVar("M", bound=betterproto.Message)
+M = TypeVar("M", bound="betterproto.Message | StructMessage")
 GetProtoType: TypeAlias = "type[betterproto.Message] | None"
-ALLOWED_HEADERS = (ExtendedMsgHdr, MsgHdrProto, GCMsgHdrProto)
 betterproto.safe_snake_case = do_nothing_case
 
 
@@ -66,9 +65,9 @@ class MsgBase(Generic[M]):
     __slots__ = ("header", "body", "payload", "skip")
     header: ExtendedMsgHdr | MsgHdr | MsgHdrProto | GCMsgHdr | GCMsgHdrProto
 
-    if sys.version_info < (3, 9):  # see https://bugs.python.org/issue39168 for the rational behind this
+    if sys.version_info < (3, 9):  # see https://github.com/python/cpython/issues/83349 for the rationale behind this
 
-        def __new__(cls, *args: Any, **kwargs: Any):  # type: ignore
+        def __new__(cls, *args: Any, **kwargs: Any):
             return object.__new__(cls)
 
     def __init__(self, msg: IntEnum, data: bytes | None, **kwargs: Any):

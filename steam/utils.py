@@ -28,20 +28,16 @@ from __future__ import annotations
 
 import abc
 import asyncio
-import builtins
 import contextvars
 import functools
 import html
-import io
 import json
 import re
 import struct
 import sys
-from collections import deque
-from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Mapping, Sized
+from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Mapping
 from inspect import getmembers, isawaitable
 from io import BytesIO
-from itertools import islice
 from operator import attrgetter
 from types import MemberDescriptorType
 from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, overload
@@ -54,7 +50,7 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Final, Literal, ParamSpec, Self, TypeAlias
 
-from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor
+from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor, classproperty as classproperty
 from .errors import InvalidSteamID
 
 if TYPE_CHECKING:
@@ -353,13 +349,13 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = N
             r = await session.get(search["clean_url"])
             text = await r.text()
             data_match = USER_ID64_FROM_URL_REGEX.search(text)
-            data = json.loads(data_match["json"])
+            data = json.loads(data_match["json"])  # type: ignore  # handled by try+except
         else:
             # clan profile
             r = await session.get(search["clean_url"])
             text = await r.text()
             data = CLAN_ID64_FROM_URL_REGEX.search(text)
-        return int(data["steamid"])
+        return int(data["steamid"])  # type: ignore  # handled by try+except
     except (TypeError, AttributeError):
         return None
     finally:
@@ -414,7 +410,7 @@ def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:
     A :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``.
     """
     return re.search(
-        r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/\?partner=(?P<user_id>[0-9]{,10})"
+        r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/?\?partner=(?P<user_id>[0-9]{,10})"
         r"&token=(?P<token>[\w-]{7,})",
         html.unescape(str(url)),
     )
@@ -433,10 +429,14 @@ else:
         return await loop.run_in_executor(None, partial)
 
 
-class cached_property(Generic[_T]):
+_SelfT = TypeVar("_SelfT")
+_T_co = TypeVar("_T_co", covariant=True)
+
+
+class cached_property(Generic[_SelfT, _T_co]):
     __slots__ = ("function", "__doc__")
 
-    def __init__(self, function: Callable[[Any], _T]):
+    def __init__(self, function: Callable[[_SelfT], _T_co]):
         self.function = function
         self.__doc__: str | None = getattr(function, "__doc__", None)
 
@@ -445,10 +445,10 @@ class cached_property(Generic[_T]):
         ...
 
     @overload
-    def __get__(self, instance: Any, _) -> _T:
+    def __get__(self, instance: _SelfT, _) -> _T_co:
         ...
 
-    def __get__(self, instance: Any | None, _) -> _T | Self:
+    def __get__(self, instance: _SelfT | None, _) -> _T_co | Self:
         if instance is None:
             return self
 
@@ -458,20 +458,16 @@ class cached_property(Generic[_T]):
         return value
 
 
-if TYPE_CHECKING:
-    from functools import cached_property as cached_property
-
-
-class cached_slot_property(cached_property[_T]):
+class cached_slot_property(cached_property[_SelfT, _T_co]):
     @overload
     def __get__(self, instance: None, _) -> Self:
         ...
 
     @overload
-    def __get__(self, instance: Any, _) -> _T:
+    def __get__(self, instance: _SelfT, _) -> _T_co:
         ...
 
-    def __get__(self, instance: Any | None, _) -> _T | Self:
+    def __get__(self, instance: _SelfT | None, _) -> _T_co | Self:
         if instance is None:
             return self
 
@@ -482,10 +478,6 @@ class cached_slot_property(cached_property[_T]):
             value = self.function(instance)
             setattr(instance, slot_name, value)
             return value
-
-
-if TYPE_CHECKING:
-    cached_slot_property = property
 
 
 def ainput(prompt: str = "") -> Coroutine[None, None, str]:
@@ -559,7 +551,7 @@ def call_once(func: Callable[_P, Awaitable[None]]) -> Callable[_P, Awaitable[Non
         nonlocal called
 
         if called:  # call becomes a noop
-            return await asyncio.sleep(0)  # type: ignore
+            return await asyncio.sleep(0)
 
         called = True
         try:
@@ -627,14 +619,18 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
     def position(self) -> int:
         return self.tell()
 
-    def read_struct(self, format: str, position: int | None = None) -> tuple:
+    @position.setter
+    def position(self, value: int) -> None:
+        self.seek(value)
+
+    def read_struct(self, format: str, position: int | None = None) -> tuple[Any, ...]:
         buffer = self.read(position or struct.calcsize(format))
         return struct.unpack(format, buffer)
 
     def write_struct(self, format: str, *to_write: Any) -> None:
         self.write(struct.pack(format, *to_write))
 
-    def read_cstring(self, terminator=b"\x00") -> bytes:
+    def read_cstring(self, terminator: bytes = b"\x00") -> bytes:
         starting_position = self.position
         data = self.read()
         null_index = data.find(terminator)
@@ -763,4 +759,4 @@ async def maybe_coroutine(
     value = func(*args, **kwargs)
     if isawaitable(value):
         return await value
-    return value
+    return value  # type: ignore
