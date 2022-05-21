@@ -20,7 +20,7 @@ class ClientUser(ClientUser_):
 
     async def inventory(self: Any, game: Game) -> Inventory:
         return (
-            self._connection.backpack
+            self._state.backpack
             if game == self._state.client.__class__._GAME and self._state._gc_ready.is_set()
             else await super().inventory(game)
         )
@@ -32,7 +32,7 @@ class Client(Client_):
     _GC_HEART_BEAT: ClassVar = 30.0
 
     _ClientUserCls = ClientUser
-    user: _ClientUserCls
+    user: ClientUser
 
     def __init__(self, **options: Any):
         game = options.pop("game", None)
