@@ -28,11 +28,11 @@ import asyncio
 from collections.abc import AsyncGenerator, Coroutine
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from typing_extensions import Self, TypeAlias
 
-from .abc import Channel, M_co, Message, SteamID
+from .abc import Channel, Message, SteamID
 from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
 from .protobufs.chat import ChatRoomState, IncomingChatMessageNotification, State
 
