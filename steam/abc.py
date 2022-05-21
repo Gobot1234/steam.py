@@ -538,23 +538,20 @@ class BaseUser(SteamID, Commentable):
 
     async def clans(self) -> list[Clan]:
         r"""Fetches a list of :class:`~steam.Clan`\s the user is in."""
-        clans = []
 
-        async def getter(gid: int) -> None:
+        async def getter(gid: int) -> Clan:
             try:
                 clan = await self._state.client.fetch_clan(gid)
+                assert clan is not None
+                return clan
             except WSException as exc:
                 if exc.code == Result.RateLimitExceeded:
                     await asyncio.sleep(20)
                     return await getter(gid)
                 raise
-            else:
-                clans.append(clan)
 
         resp = await self._state.http.get_user_clans(self.id64)
-        for clan in resp["response"]["groups"]:
-            await getter(int(clan["gid"]))
-        return clans
+        return await asyncio.gather(*(getter(int(clan["gid"])) for clan in resp["response"]["groups"]))  # type: ignore
 
     async def bans(self) -> Ban:
         r"""Fetches the user's :class:`.Ban`\s."""
