@@ -600,9 +600,9 @@ class BaseUser(SteamID, Commentable):
         items = await self._state.fetch_user_equipped_profile_items(self.id64)
         return EquippedProfileItems(
             background=ProfileItem(self._state, items.profile_background) if items.profile_background else None,
-            mini_profile_background=ProfileItem(self._state, items.mini_profile_background)
-            if items.mini_profile_background
-            else None,
+            mini_profile_background=(
+                ProfileItem(self._state, items.mini_profile_background) if items.mini_profile_background else None
+            ),
             avatar_frame=ProfileItem(self._state, items.avatar_frame) if items.avatar_frame else None,
             animated_avatar=ProfileItem(self._state, items.animated_avatar) if items.animated_avatar else None,
             modifier=ProfileItem(self._state, items.profile_modifier) if items.profile_modifier else None,
@@ -621,27 +621,26 @@ class BaseUser(SteamID, Commentable):
             summary=info.summary,
         )
 
+    async def profile_customisation_info(self) -> ProfileCustomisation:
+        """Fetch a user's profile customisation information."""
+        info = await self._state.fetch_user_profile_customisation(self.id64)
+        return ProfileCustomisation(self._state, self, info)
+
     async def profile(self) -> Profile:
         """Fetch a user's entire profile information.
 
         Note
         ----
-        This calls all the ``profile_x`` functions to return a Profile object which has all the info set.
+        This calls all the profile related functions to return a Profile object which has all the info set.
         """
 
-        coros = [
-            self.equipped_profile_items(),
-            self.profile_info(),
-        ]
-
-        if hasattr(self, "profile_items"):
-            coros.append(self.profile_items())
-
-        profiles: tuple[EquippedProfileItems, ProfileInfo] | tuple[
-            EquippedProfileItems, ProfileInfo, OwnedProfileItems
-        ] = await asyncio.gather(*coros)
-
-        return Profile(*profiles)
+        return Profile(
+            *await asyncio.gather(
+                self.equipped_profile_items(),
+                self.profile_info(),
+                self.profile_customisation_info(),
+            )
+        )
 
     def is_commentable(self) -> bool:
         """Specifies if the user's account is able to be commented on."""

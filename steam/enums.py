@@ -56,6 +56,8 @@ __all__ = (
     "GameServerRegion",
     "ClanEvent",
     "ProfileItemType",
+    "ProfileCustomisationStyle",
+    "ProfileItemClass",
     "DepotFileFlag",
     "AppFlag",
     "LicenseFlag",
@@ -639,6 +641,35 @@ class ProfileItemType(IntEnum):
     LoyaltyRewardReactions    = 21  #: A loyalty reward showcase.
     SingleArtworkShowcase     = 22  #: A single artwork showcase.
     AchievementsCompletionist = 23  #: An achievements completeionist showcase.
+
+
+class ProfileCustomisationStyle(IntEnum):
+    Default      = 0
+    Selected     = 1
+    Rarest       = 2
+    MostRecent   = 3
+    Random       = 4
+    HighestRated = 5
+
+
+class ProfileItemClass(IntEnum):
+    Invalid               = 0
+    Badge                 = 1
+    GameCard              = 2
+    ProfileBackground     = 3
+    Emoticon              = 4
+    BoosterPack           = 5
+    Consumable            = 6
+    GameGoo               = 7
+    ProfileModifier       = 8
+    Scene                 = 9
+    SalienItem            = 10
+    Sticker               = 11
+    ChatEffect            = 12
+    MiniProfileBackground = 13
+    AvatarFrame           = 14
+    AnimatedAvatar        = 15
+    SteamDeckKeyboardSkin = 16
 
 
 class DepotFileFlag(Flags):

@@ -329,6 +329,16 @@ class ClientUser(BaseUser):
             modifiers=[ProfileItem(self._state, modifier) for modifier in items.profile_modifiers],
         )
 
+    async def profile(self) -> ClientUserProfile:
+        return ClientUserProfile(
+            *await asyncio.gather(
+                self.equipped_profile_items(),
+                self.profile_info(),
+                self.profile_customisation_info(),
+                self.profile_items(),
+            )
+        )
+
     async def edit(
         self,
         *,
