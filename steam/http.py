@@ -499,9 +499,7 @@ class HTTPClient:
         return self.post(URL.COMMUNITY / f"tradeoffer/{trade_id}/accept", data=payload, headers=headers)
 
     def _cancel_user_trade(self, trade_id: int, option: str) -> Coro[None]:
-        payload = {
-            "sessionid": self.session_id
-        }
+        payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / f"tradeoffer/{trade_id}/{option}", data=payload)
 
     def decline_user_trade(self, trade_id: int) -> Coro[None]:
