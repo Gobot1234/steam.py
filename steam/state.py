@@ -1257,8 +1257,8 @@ class ConnectionState(Registerable):
             *(
                 self.fetch_manifest(
                     game_id,
-                    depot.id,
                     depot.manifest.id,
+                    depot.id,
                     depot.name,
                 )
                 for depot in branch.depots[:limit]
