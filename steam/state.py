@@ -1230,7 +1230,10 @@ class ConnectionState(Registerable):
         except KeyError:
             raise ValueError(f"No branch named {branch_name!r} for app {game_id}") from None
 
-        branch.password = self._manifest_passwords[game_id].get(branch_name)
+        try:
+            branch.password = self._manifest_passwords[game_id].get(branch_name)
+        except KeyError:
+            pass
         if branch.password_required and branch.password is None:
             if not password:
                 raise ValueError(f"Branch {branch!r} requires a password")
