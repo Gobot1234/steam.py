@@ -24,8 +24,9 @@ For example, when a trade happens, you will receive an event about it that you c
 
 A quick example to showcase how events work:
 
-```py
+```python
 import steam
+
 
 class MyClient(steam.Client):
     async def on_ready(self) -> None:
@@ -33,6 +34,7 @@ class MyClient(steam.Client):
 
     async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
         print(f"Received trade: #{trade.id} from", trade.partner)
+
 
 client = MyClient()
 client.run("username", "password")
@@ -44,8 +46,9 @@ Let’s make a bot that replies to a specific message and walk you through it.
 
 It looks something like this:
 
-```py
+```python
 import steam
+
 
 class MyClient(steam.Client):
     async def on_ready(self) -> None:
@@ -57,6 +60,7 @@ class MyClient(steam.Client):
 
         if message.content.startswith("$hello"):
             await message.channel.send("Hello!")
+
 
 client = MyClient()
 client.run("username", "password")
@@ -79,7 +83,7 @@ and watch it come online using:
 
 ```sh
 # Linux/macOS
-python3 example_bot.py
+python example_bot.py
 # Windows
 py -3 example_bot.py
 ```
@@ -88,7 +92,7 @@ py -3 example_bot.py
 
 Since code like this is so common steam.py comes with a powerful commands extension to aid with creating commands.
 
-```py
+```python
 from steam.ext import commands
 
 
@@ -99,6 +103,7 @@ class MyBot(commands.Bot):
     @commands.command
     async def hello(self, ctx: commands.Context) -> None:
         await ctx.send("Hello!")
+
 
 bot = MyBot(command_prefix="$")
 bot.run("username", "password")

@@ -24,7 +24,7 @@ documentation and when debugging any issues in your code.
 
 **A list of useful knowledge courtesy of Scragly:**
 
-> % I like https://realpython.com for reading up on things as you can see
+> % I like <https://realpython.com> for reading up on things as you can see
 
 - Installing packages
 - Primitive data types: `str`, `int`, `bool`, `dict`, `float`
@@ -33,64 +33,64 @@ documentation and when debugging any issues in your code.
 - Importing
 - Variables, namespace and scope
 - [Control flow](https://realpython.com/python-conditional-statements):
-    - `while`
-    - `if`
-    - `elif`
-    - `else`
-    - `for`
+  - `while`
+  - `if`
+  - `elif`
+  - `else`
+  - `for`
 - [Exception handling](https://realpython.com/python-exceptions):
-    - `try`
-    - `except`
-    - `else`
-    - `finally`
+  - `try`
+  - `except`
+  - `else`
+  - `finally`
 - [Function definitions](https://realpython.com/defining-your-own-python-function)
 - [Argument definitions](https://realpython.com/python-kwargs-and-args):
-    - Argument ordering
-    - Default arguments
-    - Variable length arguments
+  - Argument ordering
+  - Default arguments
+  - Variable length arguments
 - [Classes, objects, attributes and methods](https://realpython.com/python3-object-oriented-programming)
 - [Console usage, interpreters and environments](https://realpython.com/python-virtual-environments-a-primer)
 - [Asyncio basics](https://realpython.com/async-io-python):
-    - `await`
-    - `async def`
-    - `async with`
-    - `async for`
-    - [What is blocking?](https://discordpy.rtfs.io/en/latest/faq.html#what-does-blocking-mean)
+  - `await`
+  - `async def`
+  - `async with`
+  - `async for`
+  - [What is blocking?](https://discordpy.rtfs.io/en/latest/faq.html#what-does-blocking-mean)
 - String formatting:
-    - [str.format()](https://pyformat.info)
-    - [f-strings](https://realpython.com/python-f-strings) A.K.A. formatted string literals
-    - Implicit/explicit string concatenation
+  - [str.format()](https://pyformat.info)
+  - [f-strings](https://realpython.com/python-f-strings) A.K.A. formatted string literals
+  - Implicit/explicit string concatenation
 - [Logging](https://realpython.com/courses/logging-python)
 - [Decorators](https://realpython.com/primer-on-python-decorators)
 - [Basic type hints](https://realpython.com/python-type-checking)
 
-**Places to learn more python**
+**Places to learn more Python**
 
-- https://docs.python.org/3/tutorial/index.html (official tutorial)
-- https://greenteapress.com/wp/think-python-2e (for beginners to programming or python)
-- https://www.codeabbey.com (exercises for beginners)
-- https://www.real-python.com (good for individual quick topics)
-- https://gto76.github.io/python-cheatsheet (cheat sheet)
+- <https://docs.python.org/3/tutorial/index.html> (official tutorial)
+- <https://greenteapress.com/wp/think-python-2e> (for beginners to programming or python)
+- <https://www.codeabbey.com> (exercises for beginners)
+- <https://www.real-python.com> (good for individual quick topics)
+- <https://gto76.github.io/python-cheatsheet> (cheat sheet)
 
 ### How can I get help with my code?
 
 **Bad practices:**
 
-- Truncate the traceback as you might remove important parts from it. If it isn't sommething that should be kept private
-  like your username, password etc. include it.
+- Truncate the traceback, as you might remove important parts from it. If it isn't something that should be kept
+  private like your username, password etc. include it.
 - Send screenshots/text files of code/errors unless relevant as they can be difficult to read.
 - Uploading a text file. Instead, you could use any of:
-    - https://mystb.in
-    - https://gist.github.com
-    - https://hastebin.com
+  - <https://mystb.in>
+  - <https://gist.github.com>
+  - <https://hastebin.com>
 - Ask if you can ask a question about the library as the answer will always be yes.
 - Saying "This code doesn't work" or "What's wrong with this code?"
-    - This is not helpful for yourself or others. Describe what you expected to happen and/or tried (with your code),
+  - This is not helpful for yourself or others. Describe what you expected to happen and/or tried (with your code),
       and what isn't going right. Along with a traceback (if applicable).
-  
+
 ### How can I wait for an event?
 
-```python3
+```python
 import asyncio
 
 import steam
@@ -98,6 +98,7 @@ from steam.ext import commands
 
 
 bot = commands.Bot(command_prefix="!")
+
 
 @bot.command
 async def trade(ctx: commands.Context):
@@ -133,8 +134,8 @@ Sending a trade should be pretty simple.
 - Construct the TradeOffer from its items.
 - Finally use the {meth}`~steam.User.send` method on the User that you want to send the offer to.
 
-```python3
-# we need to chose a game to fetch the inventory for
+```python
+# we need to choose a game to fetch the inventory for
 game = steam.TF2
 # we need to get the inventories to get items
 my_inventory = await client.user.inventory(game)
@@ -145,7 +146,7 @@ keys = my_inventory.filter_items("Mann Co. Supply Crate Key", limit=3)
 earbuds = their_inventory.get_item("Earbuds")
 
 # finally construct the trade
-trade = TradeOffer(items_to_send=keys, item_to_receive=earbuds, message="This trade was made using steam.py")
+trade = steam.TradeOffer(items_to_send=keys, item_to_receive=earbuds, message="This trade was made using steam.py")
 await user.send(trade=trade)
 # you don't need to confirm the trade manually, the client will handle that for you
 ```

@@ -23,7 +23,7 @@ include = [
     "steam/ext/__init__.pyi",
 ]
 packages = [
-    { include = "steam" },
+    {include = "steam"},
 ]
 
 [tool.poetry.build]
@@ -38,32 +38,49 @@ generate-setup-file = false
 [tool.poetry.dependencies]
 python = "^3.7"
 aiohttp = ">=3.7,<3.9"
-beautifulsoup4 = "^4.10.0"
-cryptography = "^37"
+beautifulsoup4 = "^4.10"
+cryptography = "^37.0"
 betterproto = "2.0.0b4"
 typing-extensions = "4.2.0"
-tomli = { version = "~2", optional = true, python = "<3.11" }
 vdf = "^3.4"
+tomli = {version = "~2", optional = true, python = "<3.11"}
 
-# docs option
-sphinx = { version = "^4.2.0", optional = true }
-"myst-parser" = { version = ">=0.16", optional = true }
-mypy = { version = "^0.950", optional = true }
-sphinxcontrib_trio = { version = "1.1.2", optional = true }
-csscompressor = { version = "*", optional = true }
-htmlmin = { version = "*", optional = true }
-rjsmin = { version = "*", optional = true }
+[tool.poetry.group.speedups.dependencies]
+aiohttp = {version = ">=3.7,<3.9", extras = ["speedups"]}
+lxml = "^4.8.0"
+# orvdf = "^1.0.0"
+orjson = "^3.6.8"
 
-[tool.poetry.extras]
-docs = ["sphinx", "myst-parser", "mypy", "sphinxcontrib_trio", "csscompressor", "htmlmin", "rjsmin"]
-
-[tool.poetry.dev-dependencies]
-black = "^22.1"
-isort = "*"
-flake8 = "*"
-pytest = "*"
-pytest-asyncio = "*"
+[tool.poetry.group.docs.dependencies]
+sphinx = "^4.3"
+myst-parser = "^0.17"
 mypy = "^0.950"
+sphinxcontrib_trio = "^1.1.2"
+sphinx-copybutton = "^0.5.0"
+sphinx-codeautolink = "^0.10.0"
+csscompressor = "^0.9.5"
+htmlmin = "^0.1.12"
+rjsmin = "^1.2.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.1"
+isort = "^5.10"
+flake8 = "^4.0"
+pytest = "^7.1"
+pytest-asyncio = "^0.18"
+mypy = "^0.950"
+pre-commit = "^2.18"
+poethepoet = "^0.13"
+blacken-docs = "^1.12"
+
+[tool.poe.tasks]
+test = "pytest tests"
+_blacken_docs = {script = "scripts.blacken_docs_correctly:main"}
+_black = "black ."
+_isort = "isort ."
+fmt = ["_blacken_docs", "_black", "_isort"]
+doc = "sphinx-build -b html -T -W --keep-going docs/ docs/_build"  # TODO -n
+add_cms = {script = "scripts.get_default_cms:main"}
 
 [tool.black]
 line-length = 120
@@ -74,6 +91,10 @@ line_length = 120
 combine_as_imports = true
 atomic = true
 ensure_newline_before_comments = true
+
+[tool.blacken-docs]
+line-length = 120
+target-version = ["py37"]
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -104,5 +125,5 @@ venv = ".venv"
 testpaths = ["tests"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "tomli"]
+requires = ["poetry-core>=1.0.0", "tomli; python_version < 3.11"]
 build-backend = "poetry.core.masonry.api"

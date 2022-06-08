@@ -6,7 +6,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 try:
-    import tomllib
+    import tomllib  # type: ignore
 except ImportError:
     import tomli as tomllib
 
@@ -28,7 +28,7 @@ RELEASE_LEVELS = {
 }
 
 try:
-    end_char = re.findall(r"\d+.\d+.\d+([^\d]+).*", VERSION)[0]
+    end_char: str = re.findall(r"\d+.\d+.\d+([^\d]+).*", VERSION)[0]
 except IndexError:
     release_level = "final"
     end_char = " "  # if this was empty, it would raise a ValueError
@@ -53,7 +53,7 @@ micro = micro.split(end_char, maxsplit=1)[0]
 file: TypeAlias = f"""\
 from typing import NamedTuple
 
-from typing_extensions import Literal
+from typing_extensions import Final, Literal
 
 __all__ = (
     "__title__",
@@ -71,12 +71,12 @@ class VersionInfo(NamedTuple):
     releaselevel: Literal["alpha", "beta", "candidate", "final"]
 
 
-__title__ = "steam"
-__author__ = "Gobot1234"
-__license__ = "MIT"
-__version__ = "{VERSION}"
-version_info = VersionInfo(major={major}, minor={minor}, micro={micro}, releaselevel="{release_level}")
-"""
+__title__: Final = "steam"
+__author__: Final = "Gobot1234"
+__license__: Final = "MIT"
+__version__: Final = "{VERSION}"
+version_info: Final = VersionInfo(major={major}, minor={minor}, micro={micro}, releaselevel="{release_level}")
+"""  # type: ignore
 
 
 metadata = ROOT / "steam" / "__metadata__.py"

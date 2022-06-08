@@ -13,7 +13,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
 
-      - name: Install dependcies
+      - name: Install dependencies
         run: pip install flake8 isort black
 
       - name: Lint python with flake8

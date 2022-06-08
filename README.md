@@ -12,7 +12,6 @@ A modern, easy to use, and async ready package to interact with the Steam API. H
 [![Discord](https://img.shields.io/discord/678629505094647819?color=7289da&label=Discord&logo=discord)](https://discord.gg/MQ68WUS)
 [![Documentation Status](https://github.com/Gobot1234/steam.py/actions/workflows/docs.yml/badge.svg)](https://github.com/Gobot1234/steam.py/actions/workflows/docs.yml)
 
-
 ## Key Features
 
 - Modern Pythonic API using `async`/`await` syntax
@@ -44,7 +43,7 @@ py -m pip install -U "steamio @ git+https://github.com/Gobot1234/steam.py@main"
 
 ## Quick Example
 
-```py
+```python
 import steam
 
 
@@ -70,7 +69,7 @@ client.run("username", "password")
 
 ## Bot Example
 
-```py
+```python
 from steam.ext import commands
 
 bot = commands.Bot(command_prefix="!")

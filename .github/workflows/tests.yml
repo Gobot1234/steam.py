@@ -21,6 +21,7 @@ jobs:
 
       - uses: snok/install-poetry@v1
         with:
+          version: 1.2.0a2
           virtualenvs-create: true
           virtualenvs-in-project: true
 
@@ -28,7 +29,7 @@ jobs:
         run: poetry check
 
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --with dev
 
       - name: Run tests for CPython ${{ matrix.python-version }}
         env:
