@@ -511,8 +511,8 @@ class HTTPClient:
     def send_trade_offer(
         self,
         user: SteamID,
-        to_send: list[AssetToDict],
-        to_receive: list[AssetToDict],
+        to_send: list[trade.AssetToDict],
+        to_receive: list[trade.AssetToDict],
         token: str | None,
         offer_message: str,
         **kwargs: Any,
@@ -522,19 +522,22 @@ class HTTPClient:
             "serverid": 1,
             "partner": user.id64,
             "tradeoffermessage": offer_message,
-            "json_tradeoffer": json.dumps(
+            "json_tradeoffer": JSON_DUMPS(
                 {
                     "newversion": True,
-                    "version": 4,
+                    "version": len(to_send) + len(to_receive) + 1,
                     "me": {"assets": to_send, "currency": [], "ready": False},
                     "them": {"assets": to_receive, "currency": [], "ready": False},
                 }
             ),
             "captcha": "",
-            "trade_offer_create_params": json.dumps({"trade_offer_access_token": token}) if token is not None else {},
+            "trade_offer_create_params": JSON_DUMPS({"trade_offer_access_token": token}) if token is not None else "{}",
+            **kwargs,
         }
-        payload.update(**kwargs)
-        headers = {"Referer": str(URL.COMMUNITY / f"tradeoffer/new/?partner={user.id}")}
+        referer = URL.COMMUNITY / f"tradeoffer/new/?partner={user.id}"
+        if token is not None:
+            referer %= {"token": token}
+        headers = {"Referer": str(referer)}
         return self.post(URL.COMMUNITY / "tradeoffer/new/send", data=payload, headers=headers)
 
     def get_trade_receipt(self, trade_id: int) -> Coro[dict[str, Any]]:
