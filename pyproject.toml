@@ -52,9 +52,9 @@ lxml = "^4.8.0"
 orjson = "^3.6.8"
 
 [tool.poetry.group.docs.dependencies]
-sphinx = "^4.3"
+sphinx = "^5.0"
 myst-parser = "^0.17"
-mypy = "^0.950"
+mypy = "^0.961"
 sphinxcontrib_trio = "^1.1.2"
 sphinx-copybutton = "^0.5.0"
 sphinx-codeautolink = "^0.10.0"
@@ -68,7 +68,7 @@ isort = "^5.10"
 flake8 = "^4.0"
 pytest = "^7.1"
 pytest-asyncio = "^0.18"
-mypy = "^0.950"
+mypy = "^0.961"
 pre-commit = "^2.18"
 poethepoet = "^0.13"
 blacken-docs = "^1.12"
@@ -125,5 +125,5 @@ venv = ".venv"
 testpaths = ["tests"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "tomli; python_version < 3.11"]
+requires = ["poetry-core>=1.0.0", "tomli; python_version < '3.11'"]
 build-backend = "poetry.core.masonry.api"

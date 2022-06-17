@@ -30,7 +30,7 @@ import sys
 import types
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, overload
 
 from typing_extensions import TypeAlias
 
@@ -437,13 +437,13 @@ class TradeOffer:
     Parameters
     ----------
     item_to_send
-        The item to send with the trade offer.
+        The item to send with the trade offer. Mutually exclusive to ``items_to_send``.
     item_to_receive
-        The item to receive with the trade offer.
+        The item to receive with the trade offer. Mutually exclusive to ``items_to_receive``.
     items_to_send
-        The items you are sending to the other user.
+        The items you are sending to the other user. Mutually exclusive to ``item_to_send``.
     items_to_receive
-        The items you are receiving from the other user.
+        The items you are receiving from the other user. Mutually exclusive to ``item_to_receive``.
     token
         The the trade token used to send trades to users who aren't on the ClientUser's friend's list.
     message
@@ -495,6 +495,28 @@ class TradeOffer:
         "_is_our_offer",
     )
 
+    @overload
+    def __init__(
+        self,
+        *,
+        token: str | None = ...,
+        message: str | None = ...,
+        item_to_send: Asset = ...,
+        item_to_receive: Asset = ...,
+    ):
+        ...
+
+    @overload
+    def __init__(
+        self,
+        *,
+        token: str | None = ...,
+        message: str | None = ...,
+        items_to_send: Sequence[Asset],
+        items_to_receive: Sequence[Asset],
+    ):
+        ...
+
     def __init__(
         self,
         *,
@@ -505,8 +527,8 @@ class TradeOffer:
         items_to_send: Sequence[Asset] | None = None,
         items_to_receive: Sequence[Asset] | None = None,
     ):
-        self.items_to_receive: Sequence[Asset] = items_to_receive or [item_to_receive] if item_to_receive else []
-        self.items_to_send: Sequence[Asset] = items_to_send or [item_to_send] if item_to_send else []
+        self.items_to_receive: Sequence[Asset] = items_to_receive or ([item_to_receive] if item_to_receive else [])
+        self.items_to_send: Sequence[Asset] = items_to_send or ([item_to_send] if item_to_send else [])
         self.message: str | None = message or None
         self.token: str | None = token
         self.partner: User | SteamID | None = None
