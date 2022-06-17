@@ -522,7 +522,7 @@ class HTTPClient:
             "serverid": 1,
             "partner": user.id64,
             "tradeoffermessage": offer_message,
-            "json_tradeoffer": JSON_DUMPS(
+            "json_tradeoffer": json.dumps(
                 {
                     "newversion": True,
                     "version": len(to_send) + len(to_receive) + 1,
@@ -531,7 +531,7 @@ class HTTPClient:
                 }
             ),
             "captcha": "",
-            "trade_offer_create_params": JSON_DUMPS({"trade_offer_access_token": token}) if token is not None else "{}",
+            "trade_offer_create_params": json.dumps({"trade_offer_access_token": token}) if token is not None else "{}",
             **kwargs,
         }
         referer = URL.COMMUNITY / f"tradeoffer/new/?partner={user.id}"
