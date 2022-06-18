@@ -9,42 +9,45 @@ jobs:
   job:
     name: Build docs
     runs-on: ubuntu-latest
+    env:
+      TARGET: steam-py/steam-py.github.io
 
     steps:
-    - name: Checkout ${{ github.repository }}
-      uses: actions/checkout@v3
-      with:
-        path: ${{ github.event.repository.name }}
+      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ env.TARGET }}
+          path: steam-py.github.io
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.x"
+          # TODO cache
 
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: 3.9
+      - name: Install
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.2.0a2
 
-    - name: Install
-      uses: snok/install-poetry@v1
-      with:
-        version: 1.2.0a2
+      - name: Install Dependencies
+        run: |
+          poetry install --with docs
 
-    - name: Install Dependencies
-      run: |
-        poetry install --with docs
+      - name: Build
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          poetry run python scripts/build_docs_for_pages.py
+      - name: Build
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          poetry run python scripts/build_docs_for_pages.py --tag={{ github.event.release.tag_name }}
 
-    - name: Build
-      if: ${{ github.event_name == 'push' }}
-      run: |
-        poetry run python scripts/build_docs_for_publish.py
-    - name: Build
-      if: ${{ github.event_name == 'release' }}
-      run: |
-        poetry run python scripts/build_docs_for_publish.py --tag={{ github.event.release.tag_name }}
-
-    - name: Push
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        deploy_key: ${{ secrets.DOCS_TOKEN }}
-        external_repository: steam-py/steam-py.github.io
-        publish_branch: main
-        publish_dir: docs
-        user_name: 'github-actions[bot]'
-        user_email: 'github-actions[bot]@users.noreply.github.com'
+      - name: Push
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          deploy_key: ${{ secrets.DEPLOY_KEY }}
+          external_repository: ${{ env.TARGET }}
+          publish_branch: main
+          publish_dir: steam-py.github.io
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'

@@ -34,6 +34,7 @@ from .abc import BaseUser, Messageable
 from .enums import Result, TradeOfferState
 from .errors import ClientException, ConfirmationError, HTTPException
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileItem
+from .trade import Inventory, TradeOffer
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -42,7 +43,6 @@ if TYPE_CHECKING:
     from .image import Image
     from .message import UserMessage
     from .state import ConnectionState
-    from .trade import Inventory, TradeOffer
     from .types.user import UserDict
 
 __all__ = (
