@@ -37,5 +37,5 @@ jobs:
           PASSWORD: ${{ secrets.STEAM_PASSWORD }}
           SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
           IDENTITY_SECRET: ${{ secrets.STEAM_IDENTITY_SECRET }}
-        run: poe test
+        run: poetry run pytest .
         timeout-minutes: 30
