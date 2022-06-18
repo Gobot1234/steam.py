@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from functools import partial
 from pathlib import Path
 from typing import Generator
 
@@ -9,11 +10,9 @@ import htmlmin
 import rjsmin
 from sphinx.application import Sphinx
 
-from docs.extensions import ROOT
 
-
-def get_files(suffix: str) -> Generator[Path, None, None]:
-    yield from (ROOT / "docs").rglob(f"*{suffix}")
+def get_files(output_dir, suffix: str) -> Generator[Path, None, None]:
+    yield from Path(output_dir, "docs").rglob(f"*{suffix}")
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
@@ -23,7 +22,7 @@ def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
     return f"{code[:start]}<script>{minimized_js}{code[end:].lstrip()}"
 
 
-def minimize_html() -> None:
+def minimize_html(output_dir: str) -> None:
     html_minimizer = htmlmin.Minifier(
         remove_comments=True,
         remove_empty_space=True,
@@ -31,7 +30,7 @@ def minimize_html() -> None:
         reduce_boolean_attributes=True,
     )
 
-    for file in get_files(".html"):
+    for file in get_files(output_dir, ".html"):
         text = file.read_text()
         minimized = html_minimizer.minify(text)
 
@@ -48,28 +47,28 @@ def minimize_html() -> None:
         file.write_text(minimized)
 
 
-def minimize_js() -> None:
-    for file in get_files(".js"):
+def minimize_js(output_dir: str) -> None:
+    for file in get_files(output_dir, ".js"):
         text = file.read_text()
         minimized = rjsmin.jsmin(text, keep_bang_comments=False)
 
         file.write_text(minimized)
 
 
-def minimize_css() -> None:
-    for file in get_files(".css"):
+def minimize_css(output_dir: str) -> None:
+    for file in get_files(output_dir, ".css"):
         text = file.read_text()
         minimized = csscompressor.compress(text, preserve_exclamation_comments=False)
 
         file.write_text(minimized)
 
 
-def minimize(app: Sphinx, exception: Exception) -> None:
+def minimize(app: Sphinx, exception: Exception, output_dir: str) -> None:
     if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
-        minimize_html()
-        minimize_js()
-        minimize_css()
+        minimize_html(output_dir)
+        minimize_js(output_dir)
+        minimize_css(output_dir)
 
 
 def setup(app: Sphinx) -> None:
-    app.connect("build-finished", minimize)
+    app.connect("build-finished", partial(minimize, output_dir=app.outdir))
