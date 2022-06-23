@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING
 from typing_extensions import TypeAlias
 
 from .abc import Message, SteamID
+from .chat import ChatMessage
+from .reaction import Emoticon, MessageReaction, Sticker
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -59,18 +61,64 @@ class UserMessage(Message):
         self.author = channel.participant
         self.created_at = DateTime.from_timestamp(proto.rtime32_server_timestamp)
 
+    async def add_emoticon(self, emoticon: Emoticon) -> None:
+        await self._state.react_to_user_message(
+            self.author.id64,
+            int(self.created_at.timestamp()),
+            self.ordinal,
+            emoticon.name,
+            reaction_type=1,
+            is_add=True,
+        )
+        self._state.dispatch(
+            "reaction_add",
+            MessageReaction(self._state, self, emoticon, None, self._state.user, DateTime.now(), self.ordinal),
+        )
 
-class _GroupMessage(Message):
-    channel: GroupChannel | ClanChannel
-    mentions: chat.Mentions
+    async def remove_emoticon(self, emoticon: Emoticon):
+        await self._state.react_to_user_message(
+            self.author.id64,
+            int(self.created_at.timestamp()),
+            self.ordinal,
+            emoticon.name,
+            reaction_type=1,
+            is_add=False,
+        )
+        self._state.dispatch(
+            "reaction_remove",
+            MessageReaction(self._state, self, emoticon, None, self._state.user, DateTime.now(), self.ordinal),
+        )
 
-    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: Authors):
-        super().__init__(channel, proto)
-        self.author = author
-        self.created_at = datetime.utcfromtimestamp(proto.timestamp)
+    async def add_sticker(self, sticker: Sticker):
+        await self._state.react_to_user_message(
+            self.author.id64,
+            int(self.created_at.timestamp()),
+            self.ordinal,
+            sticker.name,
+            reaction_type=2,
+            is_add=True,
+        )
+        self._state.dispatch(
+            "reaction_add",
+            MessageReaction(self._state, self, None, sticker, self._state.user, DateTime.now(), self.ordinal),
+        )
+
+    async def remove_sticker(self, sticker: Sticker):
+        await self._state.react_to_user_message(
+            self.author.id64,
+            int(self.created_at.timestamp()),
+            self.ordinal,
+            sticker.name,
+            reaction_type=2,
+            is_add=False,
+        )
+        self._state.dispatch(
+            "reaction_remove",
+            MessageReaction(self._state, self, None, sticker, self._state.user, DateTime.now(), self.ordinal),
+        )
 
 
-class GroupMessage(_GroupMessage):
+class GroupMessage(ChatMessage):
     """Represents a message in a group."""
 
     channel: GroupChannel
@@ -81,7 +129,7 @@ class GroupMessage(_GroupMessage):
         super().__init__(proto, channel, author)
 
 
-class ClanMessage(_GroupMessage):
+class ClanMessage(ChatMessage):
     """Represents a message in a clan."""
 
     channel: ClanChannel

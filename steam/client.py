@@ -200,6 +200,16 @@ class Client:
         return list(self._connection.licenses.values())
 
     @property
+    def emoticons(self) -> Sequence[ClientEmoticon]:
+        """A read-only list of all the emoticons the client has."""
+        return self._connection.emoticons
+
+    @property
+    def stickers(self) -> Sequence[ClientSticker]:
+        """A read-only list of all the stickers the client has."""
+        return self._connection.stickers
+
+    @property
     def latency(self) -> float:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return float("nan") if self.ws is None else self.ws.latency

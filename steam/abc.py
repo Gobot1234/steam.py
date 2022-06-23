@@ -913,6 +913,8 @@ class Message:
         "group",
         "clan",
         "mentions",
+        "reactions",
+        "partial_reactions",
         "_id_cs",
         "_state",
     )
