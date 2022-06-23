@@ -239,7 +239,7 @@ class SteamWebSocket(Registerable):
         self.parsers.update(state.parsers)
 
         self.session_id = 0
-        self.steam_id = state.client.user.id64
+        self.steam_id = state.user.id64
         self._current_job_id = 0
         self._gc_current_job_id = 0
 

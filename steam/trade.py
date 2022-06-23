@@ -330,7 +330,7 @@ class BaseInventory(Generic[I]):
 
     async def update(self) -> None:
         """Re-fetches the inventory."""
-        if self.owner == self._state.client.user:
+        if self.owner == self._state.user:
             data = await self._state.http.get_client_user_inventory(self.game.id, self.game.context_id)
         else:
             data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
@@ -697,7 +697,7 @@ class TradeOffer:
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    sent.append(TradeOfferReceiptItem(data=item, owner=self._state.http.user))  # type: ignore
+                    sent.append(TradeOfferReceiptItem(data=item, owner=self._state.user))
 
         return TradeOfferReceipt(sent=sent, received=received)
 

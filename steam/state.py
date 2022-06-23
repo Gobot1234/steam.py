@@ -181,13 +181,18 @@ class ConnectionState(Registerable):
 
     async def __ainit__(self) -> None:
         if self.http.api_key is not None:
-            self._device_id = generate_device_id(self.client.user)
+            self._device_id = generate_device_id(self.user)
 
             await self.poll_trades()
 
     @property
     def ws(self) -> SteamWebSocket:
         return self.client.ws
+
+    @utils.cached_property
+    def user(self) -> ClientUser:
+        assert self.http.user is not None
+        return self.http.user
 
     @property
     def steam_time(self) -> datetime:
@@ -461,7 +466,7 @@ class ConnectionState(Registerable):
         )
         channel = DMChannel(state=self, participant=self.get_user(user_id64))  # type: ignore
         message = UserMessage(proto=proto, channel=channel)
-        message.author = self.client.user
+        message.author = self.user
         self._messages.append(message)
         self.dispatch("message", message)
 
@@ -473,7 +478,7 @@ class ConnectionState(Registerable):
             steamid=user_id64,
             chat_entry_type=ChatEntryType.Typing,
         )
-        self.dispatch("typing", self.client.user, datetime.utcnow())
+        self.dispatch("typing", self.user, datetime.utcnow())
 
     async def react_to_user_message(
         self, user_id64: int, server_timestamp: int, ordinal: int, reaction_name: str, reaction_type: int, is_add: bool
@@ -518,7 +523,7 @@ class ConnectionState(Registerable):
         message = (ClanMessage if isinstance(group, Clan) else GroupMessage)(
             proto=proto,
             channel=channel,  # type: ignore  # type checkers can't figure out this is ok
-            author=self.client.user,
+            author=self.user,
         )
         self._messages.append(message)
         self.dispatch("message", message)
@@ -612,7 +617,7 @@ class ConnectionState(Registerable):
     ) -> friend_messages.GetRecentMessagesResponse:
         msg: MsgProto[friend_messages.GetRecentMessagesResponse] = await self.ws.send_um_and_wait(
             "FriendMessages.GetRecentMessages",
-            steamid1=self.client.user.id64,
+            steamid1=self.user.id64,
             steamid2=user_id64,
             rtime32_start_time=start,
             time_last=last,
@@ -746,7 +751,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
         return (
-            f"https://steamcommunity.com/tradeoffer/new/?partner={self.client.user.id}"
+            f"https://steamcommunity.com/tradeoffer/new/?partner={self.user.id}"
             f"&token={msg.body.trade_offer_access_token}"
         )
 
@@ -774,7 +779,7 @@ class ConnectionState(Registerable):
 
     async def handle_user_message(self, msg: MsgProto[friend_messages.IncomingMessageNotification]) -> None:
         partner = await self._maybe_user(msg.body.steamid_friend)  # FIXME shouldn't ever be out of cache
-        author = self.client.user if msg.body.local_echo else partner  # local_echo is always us
+        author = self.user if msg.body.local_echo else partner  # local_echo is always us
 
         if msg.body.chat_entry_type == ChatEntryType.Text:
             channel = DMChannel(state=self, participant=partner)  # type: ignore  # remove when above fixme removed
@@ -1037,14 +1042,14 @@ class ConnectionState(Registerable):
                 except KeyError:
                     friend = self.get_user(steam_id.id64)
                     try:
-                        self.client.user.friends.remove(friend)
+                        self.user.friends.remove(friend)
                     except ValueError:
                         pass
                     self.dispatch("user_remove", friend)
                 else:
                     self.dispatch(f"{'user'if steam_id.type == Type.Individual else 'clan'}_invite_decline", invite)
         if is_load:
-            self.client.user.friends = await self.fetch_users(client_user_friends)
+            self.user.friends = await self._maybe_users(client_user_friends)  # type: ignore
             self.handled_friends.set()
 
     @register(EMsg.ClientFriendsGroupsList)
@@ -1108,7 +1113,7 @@ class ConnectionState(Registerable):
             id=msg.body.id,
             content=content,
             created_at=self.steam_time,
-            author=self.client.user,
+            author=self.user,
             owner=owner,
         )
         self.dispatch("comment", comment)
@@ -1237,12 +1242,10 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[login.CMsgClientAccountInfo]) -> None:
-        if self.client.user is None:
-            return
-        if msg.body.persona_name != self.client.user.name:
-            before = copy(self.client.user)
-            self.client.user.name = msg.body.persona_name or self.client.user.name
-            self.dispatch("user_update", before, self.client.user)
+        if msg.body.persona_name != self.user.name:
+            before = copy(self.user)
+            self.user.name = msg.body.persona_name or self.user.name
+            self.dispatch("user_update", before, self.user)
 
     async def fetch_friends_who_own(self, game_id: int) -> list[int]:
         msg: Msg[struct_messages.ClientGetFriendsWhoPlayGameResponse] = await self.ws.send_proto_and_wait(

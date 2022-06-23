@@ -312,7 +312,7 @@ class StatefulGame(Game):
             Whether you received compensation for this review.
         """
         await self._state.http.post_review(self.id, content, public, commentable, received_compensation)
-        return await self._state.client.user.fetch_review(self)  # TODO this sucks can we actually get the id ourselves?
+        return await self._state.user.fetch_review(self)  # TODO this sucks can we actually get the id ourselves?
 
     def reviews(
         self,

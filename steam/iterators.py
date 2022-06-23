@@ -405,7 +405,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                     for item in element.items_to_receive:
                         item.owner = user
                 for item in element.items_to_send:
-                    item.owner = self._state.http.user
+                    item.owner = self._state.user
 
 
 class ChannelHistoryIterator(AsyncIterator[M], Generic[M, ChannelT]):

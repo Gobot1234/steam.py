@@ -157,7 +157,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
         """Remove the user from your friends list."""
         await self._state.http.remove_user(self.id64)
         try:
-            self._state.client.user.friends.remove(self)
+            self._state.user.friends.remove(self)
         except ValueError:
             pass
 
