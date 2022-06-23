@@ -692,13 +692,12 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.body.player_count
 
-    # TODO use this in V.1
-    async def fetch_user_games(self, user_id64: int) -> list[player.GetOwnedGamesResponseGame]:
+    async def fetch_user_games(self, user_id64: int, include_free: bool) -> list[player.GetOwnedGamesResponseGame]:
         msg: MsgProto[player.GetOwnedGamesResponse] = await self.ws.send_um_and_wait(
             "Player.GetOwnedGames",
             steamid=user_id64,
             include_appinfo=True,
-            include_played_free_games=True,
+            include_played_free_games=include_free,
         )
 
         if msg.result != Result.OK:

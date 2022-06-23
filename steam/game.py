@@ -40,6 +40,8 @@ from .utils import Intable, id64_from_url
 if TYPE_CHECKING:
     from .clan import Clan
     from .manifest import GameInfo, Manifest
+    from .package import StatefulPackage
+    from .protobufs import player
     from .review import Review
     from .state import ConnectionState
     from .types.game import *
@@ -426,35 +428,45 @@ class UserGame(StatefulGame):
 
     Attributes
     ----------
-    total_play_time
+    playtime_forever
         The total time the game has been played for.
     icon_url
         The icon url of the game.
-    logo_url
-        The logo url of the game.
+    playtime_two_weeks
+        The amount of time the user has played the game in the last two weeks.
+    playtime_windows
+        The total amount of time the user has played the game on Windows.
+    playtime_mac_os
+        The total amount of time the user has played the game on macOS.
+    playtime_linux
+        The total amount of time the user has played the game on Linux.
     """
 
     __slots__ = (
-        "total_play_time",
+        "playtime_forever",
+        "playtime_two_weeks",
+        "playtime_windows",
+        "playtime_mac_os",
+        "playtime_linux",
         "icon_url",
-        "logo_url",
         "_stats_visible",
     )
 
     name: str
 
-    def __init__(self, state: ConnectionState, data: GameDict):
-        super().__init__(state=state, id=data["appid"], name=data["name"])
-        self.total_play_time: timedelta = timedelta(minutes=data["playtime_forever"])
+    def __init__(self, state: ConnectionState, proto: player.GetOwnedGamesResponseGame):
+        super().__init__(state=state, id=proto.appid, name=proto.name)
+        self.playtime_forever: timedelta = timedelta(minutes=proto.playtime_forever)
+        self.playtime_two_weeks: timedelta = timedelta(minutes=proto.playtime_2_weeks)
+        self.playtime_windows: timedelta = timedelta(minutes=proto.playtime_windows_forever)
+        self.playtime_mac_os: timedelta = timedelta(minutes=proto.playtime_mac_forever)
+        self.playtime_linux: timedelta = timedelta(minutes=proto.playtime_linux_forever)
         self.icon_url = (
             f"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{self.id}/"
-            f"{data['img_icon_url']}.jpg"
+            f"{proto.img_icon_url}.jpg"
         )
-        self.logo_url = (
-            f"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{self.id}/"
-            f"{data['img_logo_url']}.jpg"
-        )
-        self._stats_visible = data.get("has_community_visible_stats", False)
+
+        self._stats_visible = proto.has_community_visible_stats
 
     def has_visible_stats(self) -> bool:
         """Whether the game has publicly visible stats."""

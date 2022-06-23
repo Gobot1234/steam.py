@@ -114,7 +114,6 @@ class GetOwnedGamesResponseGame(betterproto.Message):
     playtime_2_weeks: int = betterproto.int32_field(3)
     playtime_forever: int = betterproto.int32_field(4)
     img_icon_url: str = betterproto.string_field(5)
-    img_logo_url: str = betterproto.string_field(6)
     has_community_visible_stats: bool = betterproto.bool_field(7)
     playtime_windows_forever: int = betterproto.int32_field(8)
     playtime_mac_forever: int = betterproto.int32_field(9)

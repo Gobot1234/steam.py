@@ -502,10 +502,15 @@ class BaseUser(SteamID, Commentable):
         friends = await self._state.http.get_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
-    async def games(self) -> list[UserGame]:
-        r"""Fetches the :class:`~steam.Game`\s the user owns."""
-        data = await self._state.http.get_user_games(self.id64)
-        games = data["response"].get("games", [])
+    async def games(self, *, include_free: bool = True) -> list[UserGame]:
+        r"""Fetches the :class:`~steam.Game`\s the user owns.
+
+        Parameters
+        ----------
+        include_free
+            Whether to include free games in the list. Defaults to ``True``.
+        """
+        games = await self._state.fetch_user_games(self.id64, include_free)
         return [UserGame(self._state, game) for game in games]
 
     async def clans(self) -> list[Clan]:

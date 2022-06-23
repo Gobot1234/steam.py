@@ -16,7 +16,6 @@ class GetOwnedGamesGameDict(TypedDict):
     appid: str
     playtime_forever: int
     img_icon_url: str
-    img_logo_url: str
     has_community_visible_stats: bool
 
 
