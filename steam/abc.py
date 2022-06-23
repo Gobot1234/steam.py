@@ -43,11 +43,10 @@ from yarl import URL as URL_
 from . import utils
 from ._const import HTML_PARSER, URL
 from .badge import FavouriteBadge, UserBadges
-from .comment import Comment
 from .enums import *
 from .errors import WSException
 from .game import Game, StatefulGame, UserGame, WishlistGame
-from .iterators import AsyncIterator, CommentsIterator
+from .iterators import AsyncIterator, CommentsIterator, UserPublishedFilesIterator
 from .models import Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
@@ -69,6 +68,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
 
     from .clan import Clan
+    from .comment import Comment
     from .group import Group
     from .http import StrOrURL
     from .image import Image
@@ -331,6 +331,7 @@ class Commentable(Protocol):
 
     def comments(
         self,
+        *,
         oldest_first: bool = False,
         limit: int | None = None,
         before: datetime | None = None,
@@ -363,7 +364,7 @@ class Commentable(Protocol):
             Whether or not to request comments with the oldest comments first or last. Defaults to ``False``.
         limit
             The maximum number of comments to search through.
-            Default is ``None`` which will fetch the clan's entire comments section.
+            Default is ``None`` which will fetch the all of the comments in the comments section.
         before
             A time to search for comments before.
         after
@@ -729,6 +730,59 @@ class BaseUser(SteamID, Commentable):
         review = await self._state.fetch_user_review(self.id64, game.id)
         return Review._from_proto(self._state, review, self)
 
+    def published_files(
+        self,
+        *,
+        game: Game | None = None,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        type: PublishedFileType = PublishedFileType.Community,
+        limit: int | None = None,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ) -> UserPublishedFilesIterator:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a user's :class:`steam.PublishedFile`\\s.
+
+        Examples
+        --------
+
+        Usage:
+
+        .. code-block:: python3
+
+            async for file in user.published_files(limit=10):
+                print("Author:", file.author, "Published:", file.name)
+
+        Flattening into a list:
+
+        .. code-block:: python3
+
+            files = await user.published_files(limit=50).flatten()
+            # files is now a list of PublishedFile
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        game
+            The game to fetch published files in.
+        revision
+            The desired revision of the published file to fetch.
+        type
+            The type of published file to fetch.
+        limit
+            The maximum number of published files to search through. Setting this to ``None`` will fetch all of the
+            user's published files.
+        before
+            A time to search for published files before.
+        after
+            A time to search for published files after.
+
+        Yields
+        ------
+        :class:`~steam.PublishedFile`
+        """
+        return UserPublishedFilesIterator(self._state, self, game, revision, type, limit, before, after)
+
     @classmethod
     def _patch_without_api(cls) -> None:
         import functools
@@ -845,6 +899,7 @@ class Channel(Messageable[M_co]):
     @abc.abstractmethod
     def history(
         self,
+        *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,

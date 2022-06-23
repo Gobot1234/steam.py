@@ -246,18 +246,23 @@ class _IOMixin(metaclass=abc.ABCMeta):
     __slots__ = ()
 
     @asynccontextmanager
-    @abc.abstractmethod
-    async def open(self) -> AsyncGenerator[BytesIO, None]:
+    async def open(self, **kwargs: Any) -> AsyncGenerator[BytesIO, None]:
         """Open this file as and returns its contents as an in memory buffer."""
-        raise NotImplementedError()
-        yield
+        try:
+            url: str = self.url  # type: ignore
+            state: ConnectionState = self._state  # type: ignore
+        except AttributeError:
+            raise NotImplementedError() from None
 
-    async def read(self) -> bytes:
+        async with state.http._session.get(url) as r:
+            yield BytesIO(await r.read())
+
+    async def read(self, **kwargs: Any) -> bytes:
         """Read the whole contents of this file."""
-        async with self.open() as io:
+        async with self.open(**kwargs) as io:
             return io.getvalue()
 
-    async def save(self, filename: StrOrBytesPath) -> int:
+    async def save(self, filename: StrOrBytesPath, **kwargs: Any) -> int:
         """Save the file to a path.
 
         Parameters
@@ -269,11 +274,11 @@ class _IOMixin(metaclass=abc.ABCMeta):
         -------
         The number of bytes written.
         """
-        async with self.open() as file:
+        async with self.open(**kwargs) as file:
             with file, open(filename, "wb") as actual_fp:
                 return actual_fp.write(file.getvalue())
 
-    async def image(self, *, spoiler: bool = False) -> Image:
+    async def image(self, *, spoiler: bool = False, **kwargs: Any) -> Image:
         """Return this file as an image for uploading."""
-        async with self.open() as file:
+        async with self.open(**kwargs) as file:
             return Image(file, spoiler=spoiler)

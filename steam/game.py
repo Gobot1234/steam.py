@@ -451,6 +451,55 @@ class StatefulGame(Game):
             state=self._state, limit=limit, before=before, after=after, game=self, branch=branch, password=password
         )
 
+    def published_files(
+        self,
+        *,
+        type: PublishedFileQueryFileType = PublishedFileQueryFileType.Items,
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ) -> GamePublishedFilesIterator:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a game's :class:`steam.PublishedFile`\\s.
+
+        Examples
+        --------
+
+        Usage:
+
+        .. code-block:: python3
+
+            async for published_file in game.published_files(limit=10):
+                print("Published file:", published_file.name)
+                print("Published at:", published_file.created_at)
+                print("Published by:", published_file.author)
+
+        Flattening into a list:
+
+        .. code-block:: python3
+
+            published_files = await game.published_files(limit=50).flatten()
+            # published_files is now a list of PublishedFile
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        type
+            The type of published files to fetch.
+        limit
+            The maximum number of published files to search through. Default is ``100``. Setting this to ``None`` will
+            fetch all the game's published files, but this will be a very slow operation.
+        before
+            A time to search for published files before.
+        after
+            A time to search for published files after.
+
+        Yields
+        ------
+        :class:`~steam.PublishedFile`
+        """
+        return GamePublishedFilesIterator(self._state, self, type, limit, before, after)
+
     async def info(self) -> GameInfo:
         """Shorthand for:
 

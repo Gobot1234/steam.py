@@ -712,3 +712,97 @@ class ManifestIterator(AsyncIterator["Manifest"]):
             for manifest in await asyncio.gather(*chunk):
                 if self.after < manifest.created_at < self.before:
                     yield manifest
+
+
+class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
+    def __init__(
+        self,
+        state: ConnectionState,
+        user: BaseUser,
+        game: Game | None,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        type: PublishedFileType = PublishedFileType.Community,
+        limit: int | None = None,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ):
+        super().__init__(state, limit, before, after)
+        self.user = user
+        self.app_id = getattr(game, "id", 0)
+        self.revision = revision
+        self.type = type
+
+    async def fill(self):
+        from .published_file import PublishedFile
+
+        initial = await self._state.fetch_user_published_files(
+            self.user.id64,
+            self.app_id,
+            0,
+            self.revision,
+            self.type,
+        )
+
+        for file in initial.publishedfiledetails:
+            file = PublishedFile(self._state, file, self.user)
+            if not self.after < file.created_at < self.before:
+                return
+            yield file
+
+        for page in range(31, math.ceil(initial.total / 30)):
+            msg = await self._state.fetch_user_published_files(
+                self.user.id64,
+                self.app_id,
+                page,
+                self.revision,
+                self.type,
+            )
+
+            for file in msg.publishedfiledetails:
+                file = PublishedFile(self._state, file, self.user)
+                if not self.after < file.created_at < self.before:
+                    return
+                yield file
+
+
+class GamePublishedFilesIterator(AsyncIterator["PublishedFile"]):
+    def __init__(
+        self,
+        state: ConnectionState,
+        game: Game,
+        type: PublishedFileQueryFileType = PublishedFileQueryFileType.Items,
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ):
+        super().__init__(state, limit, before, after)
+        self.game = game
+        self.type = type
+
+    async def fill(self):
+        from .published_file import PublishedFile
+
+        remaining = None
+        cursor = "*"
+
+        while remaining is None or remaining > 0:
+            protos = await self._state.fetch_game_published_files(
+                self.game.id, self.after, self.before, self.type, self.limit, cursor
+            )
+            if remaining is None:
+                remaining = protos.total
+            remaining -= len(protos.publishedfiledetails)
+            cursor = protos.next_cursor
+
+            files: list[PublishedFile] = []
+            for file in protos.publishedfiledetails:
+                author: Authors = file.creator  # type: ignore
+                file = PublishedFile(self._state, file, author)
+                if not self.after < file.created_at < self.before:
+                    remaining = 0
+                    break
+                files.append(file)
+
+            await self._fill_queue_users(files)
+            for file in files:
+                yield file

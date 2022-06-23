@@ -38,6 +38,7 @@ from .enums import Language, PublishedFileRevision, PublishedFileType, Published
 from .game import StatefulGame
 from .models import URL, _IOMixin
 from .reaction import AwardReaction
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .manifest import Manifest
@@ -192,10 +193,10 @@ class PublishedFile(Commentable, Awardable):
         """The file's game."""
         self.created_with = StatefulGame(state, id=proto.creator_appid)
         """The file's created_with."""
-        self.created_at = datetime.utcfromtimestamp(proto.time_created)
-        """The file's created_at."""
-        self.updated_at = datetime.utcfromtimestamp(proto.time_updated)
-        """The file's updated_at."""
+        self.created_at = DateTime.from_timestamp(proto.time_created)
+        """The time the file was created at."""
+        self.updated_at = DateTime.from_timestamp(proto.time_updated)
+        """The time the file was last updated at."""
         self.url = str(
             URL.COMMUNITY / "sharedfiles/filedetails" % {"id": self.id}
         )  # proto.url is seemingly always empty
@@ -246,8 +247,9 @@ class PublishedFile(Commentable, Awardable):
             DetailsPreview(state, p.previewid, p.sortorder, p.url, p.size, p.filename, p.preview_type)
             for p in proto.previews
         ]
+        """All the file's previews."""
         self.banned = proto.banned
-        """The file's banned."""
+        """Whether the file is banned."""
         self.ban_reason = proto.ban_reason if self.banned else None
         """The file's ban_reason."""
         self.banner = proto.banner if self.banned else None
@@ -344,7 +346,7 @@ class PublishedFile(Commentable, Awardable):
 
     @asynccontextmanager
     async def open(self) -> AsyncGenerator[BytesIO, None]:
-        if self.type not in {PublishedFileType.Art, PublishedFileType.SteamVideo}:
+        if self.type not in (PublishedFileType.Art, PublishedFileType.SteamVideo):
             raise NotImplemented(f"Cannot open {self.type}")
 
         async with self._state.http._session.get(self.cdn_url) as r:
@@ -425,7 +427,7 @@ class PublishedFile(Commentable, Awardable):
         """Fetches this published file's history."""
         changes = await self._state.fetch_published_file_history(self.id)
         return [
-            PublishedFileChange(change.change_description, datetime.utcfromtimestamp(change.timestamp))
+            PublishedFileChange(change.change_description, DateTime.from_timestamp(change.timestamp))
             for change in changes
         ]
 
@@ -456,7 +458,7 @@ class PublishedFile(Commentable, Awardable):
         tags: Sequence[str] = (),
         filename: str | None = None,
         preview_filename: str | None = None,
-    ):
+    ) -> None:
         """Edits this published file.
 
         Parameters

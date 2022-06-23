@@ -24,25 +24,28 @@ SOFTWARE.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from .enums import LicenseFlag, LicenseType, PaymentMethod
+from . import utils
+from .enums import Language, LicenseFlag, LicenseType, PaymentMethod, Type
 from .game import StatefulGame
 from .utils import Intable
 
 if TYPE_CHECKING:
+    from .clan import Clan
     from .manifest import PackageInfo
     from .message import Authors
     from .protobufs.client_server import CMsgClientLicenseListLicense
     from .protobufs.store import PurchaseReceiptInfo
     from .state import ConnectionState
+    from .types import package
 
 
 __all__ = (
     "Package",
     "StatefulPackage",
+    "FetchedPackage",
     "License",
 )
 
@@ -104,12 +107,20 @@ class StatefulPackage(Package):
 
 
 class FetchedPackage(StatefulPackage):
-    games: list[StatefulGame]
     name: str
-    created_at: datetime
 
-    async def clans(self):
-        ...
+    def __init__(self, state: ConnectionState, data: package.FetchedPackage):
+        super().__init__(state, name=data["name"], id=data["packageid"])
+        self.games = [StatefulGame(state, id=app_id) for app_id in data["appids"]]
+        self.created_at = DateTime.from_timestamp(int(data["release_date"]))
+        self.languages = [Language.try_value(language) for language in data["localized_langs"]]
+        self._on_windows = data["available_windows"]
+        self._on_mac_os = data["available_mac"]
+        self._on_linux = data["available_linux"]
+        self._clan_id64s = [utils.make_id64(id, type=Type.Clan) for id in data["creator_clan_ids"]]
+
+    async def clans(self) -> list[Clan]:
+        return [await self._state.fetch_clan(id64) for id64 in self._clan_id64s]  # type: ignore
 
     def is_on_windows(self) -> bool:
         """Whether the game is playable on Windows."""

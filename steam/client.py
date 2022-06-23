@@ -44,7 +44,7 @@ from typing_extensions import Literal, TypeAlias, final
 from . import errors, utils
 from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
 from .abc import SteamID
-from .enums import Language, PersonaState, PersonaStateFlag, Type, UIMode
+from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game import FetchedGame, Game, StatefulGame
 from .game_server import GameServer, Query
 from .gateway import *
@@ -673,6 +673,17 @@ class Client:
         """
         return StatefulPackage(self._connection, id=id)
 
+    async def fetch_package(self, id: int) -> FetchedPackage:
+        """Fetch a package from its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the package.
+        """
+        resp = await self.http.get_package(id)
+        return FetchedPackage(self._connection, resp[0])
+
     @overload
     async def fetch_server(self, *, id: utils.Intable) -> GameServer | None:
         ...
@@ -776,6 +787,17 @@ class Client:
         return game_infos if games else package_infos
 
     # miscellaneous stuff
+
+    async def fetch_published_file(
+        self, id: int, desired_version: PublishedFileRevision = PublishedFileRevision.Default
+    ) -> PublishedFile | None:
+        (file,) = await self._connection.fetch_published_files((id,), desired_version)
+        return file
+
+    async def fetch_published_files(
+        self, *ids: int, desired_version: PublishedFileRevision = PublishedFileRevision.Default
+    ) -> list[PublishedFile | None]:
+        return await self._connection.fetch_published_files(ids, desired_version)
 
     def trade_history(
         self,
