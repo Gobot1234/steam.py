@@ -123,6 +123,7 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "strict"
 
 [build-system]
 requires = ["poetry-core==1.1.0b2", "tomli; python_version < '3.11'"]

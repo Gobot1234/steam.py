@@ -88,3 +88,7 @@ def test_parse_trade_url(url: str, expected: Optional[dict[str, str]]) -> None:
     match = utils.parse_trade_url(url)
 
     assert match.groupdict() == expected if match is not None else expected is None
+
+
+def test_update_class():
+    ...

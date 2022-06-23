@@ -1,6 +1,8 @@
 """A collection of custom mock objects"""
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Optional
 from unittest.mock import MagicMock
 
 import steam
@@ -8,31 +10,40 @@ from steam.protobufs.chat import IncomingChatMessageNotification, State
 
 from .test_bot import bot
 
-USER_DATA = {
-    "steamid": 1234567890,
+if TYPE_CHECKING:
+    from steam.types.user import UserDict
+
+USER_DATA: UserDict = {
+    "steamid": "1234567890",
     "personaname": "a user",
-    "avatarfull": "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/"
-    "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg",
-    "primaryclanid": 103582791443703793,
+    "realname": "a real name",
+    "avatarfull": (
+        "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/"
+        "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg"
+    ),
+    "profileurl": "https://steamcommunity.com/id/1234567890",
+    "primaryclanid": "103582791443703793",
     "timecreated": 0,
     "lastlogoff": 0,
     "gameextrainfo": "Testing steam.py",
-    "gameid": 1337,
+    "gameid": "1337",
     "personastate": 1,
     "communityvisibilitystate": 3,
     "commentpermission": True,
     "profilestate": True,
-}
+}  # type: ignore
 
 
 class DataclassesMock:
-    def __getattribute__(self, item):
-        try:
-            return super().__getattribute__(item)
-        except AttributeError:
-            if item in self.__slots__:
-                return MagicMock(name=item)
-            raise
+    if not TYPE_CHECKING:
+
+        def __getattribute__(self, item: Any):
+            try:
+                return super().__getattribute__(item)
+            except AttributeError:
+                if item in self.__slots__:
+                    return MagicMock(name=item)
+                raise
 
 
 class MockUser(steam.User, DataclassesMock):
@@ -47,7 +58,7 @@ class MockGroup(steam.Group, DataclassesMock):
 
 
 class MockGroupChannel(steam.GroupChannel, DataclassesMock):
-    def __init__(self, group):
+    def __init__(self, group: MockGroup):
         proto = State(
             chat_id=0,
             chat_name="a group channel",
@@ -56,7 +67,7 @@ class MockGroupChannel(steam.GroupChannel, DataclassesMock):
 
 
 class MockMessage(steam.Message, DataclassesMock):
-    def __init__(self, channel, content: Optional[str] = None):
+    def __init__(self, channel: MockGroupChannel, content: Optional[str] = None):
         proto = IncomingChatMessageNotification(message=content or "a message")
         steam.Message.__init__(self, channel, proto)
         self.author = USER

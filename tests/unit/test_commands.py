@@ -9,7 +9,7 @@ from typing_extensions import TypeAlias
 
 import steam
 from steam.ext import commands
-from tests.mocks import GROUP_MESSAGE
+from tests.unit.mocks import GROUP_MESSAGE
 
 CE = TypeVar("CE", bound=commands.CommandError)
 T = TypeVar("T")
@@ -300,11 +300,9 @@ async def test_group_commands() -> None:
 
     @contextlib.contextmanager
     def writes_to_console(msg: str) -> Generator[None, None, None]:
-        stdout = StringIO()
-        with contextlib.redirect_stdout(stdout):
+        with StringIO() as stdout, contextlib.redirect_stdout(stdout):
             yield
-
-        assert msg == stdout.getvalue().strip()
+            assert msg == stdout.getvalue().strip()
 
     @bot.group
     async def parent(_) -> None:
