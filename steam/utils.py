@@ -56,6 +56,8 @@ from .errors import InvalidSteamID
 if TYPE_CHECKING:
     from typing import SupportsIndex  # doesn't exist in 3.7
 
+    from .types.id import ID32, ID64
+
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
@@ -95,7 +97,7 @@ def make_id64(
     universe: UniverseType | None = None,
     instance: InstanceType | None = None,
 ) -> int:
-    """Convert various representations of Steam IDs to its Steam 64 bit ID.
+    """Convert various representations of Steam IDs to its Steam 64-bit ID.
 
     Parameters
     ----------
@@ -126,12 +128,20 @@ def make_id64(
     Raises
     ------
     :exc:`.InvalidSteamID`
-        The created 64 bit Steam ID would be invalid.
+        The created 64-bit Steam ID would be invalid.
 
     Returns
     -------
     The 64 bit Steam ID.
     """
+    # format of a 64-bit steam ID:
+    # 0b0000000100010000000000000000000100010001001001110100110011000010
+    #   └───┰──┘└─┰┘└─────────┰────────┘└──────────────┰───────────────┘
+    #       │     │           │                        │
+    #   universe  └ type      │                        │
+    #   (8 bits)    (4 bits)  └ instance (20 bits)     │
+    #                                                  └  account id
+    #                                                     (32 bits)
     if not any((id, type, universe, instance)):
         return 0
 
@@ -174,10 +184,10 @@ def make_id64(
     return universe << 56 | type << 52 | instance << 32 | id
 
 
-ID2_REGEX = re.compile(r"STEAM_(?P<universe>[0-9]+):(?P<remainder>[0-1]):(?P<id>[0-9]{1,10})")
+ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d{1,10})")
 
 
-def id2_to_tuple(value: str) -> tuple[int, Literal[Type.Individual], Universe, Literal[InstanceFlag.Desktop]] | None:
+def id2_to_tuple(value: str) -> tuple[ID32, Literal[Type.Individual], Universe, Literal[InstanceFlag.Desktop]] | None:
     """Convert an ID2 into its component parts.
 
     Parameters
@@ -218,7 +228,7 @@ ID3_REGEX = re.compile(
 )
 
 
-def id3_to_tuple(value: str) -> tuple[int, Type, Universe, InstanceFlag] | None:
+def id3_to_tuple(value: str) -> tuple[ID32, Type, Universe, InstanceFlag] | None:
     """Convert a Steam ID3 into its component parts.
 
     Parameters
@@ -266,8 +276,8 @@ INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+
 
 def invite_code_to_tuple(
     code: str,
-) -> tuple[int, Literal[Type.Individual], Literal[Universe.Public], Literal[InstanceFlag.Desktop]] | None:
-    """Convert an invite code into its component parts.
+) -> tuple[ID32, Literal[Type.Individual], Literal[Universe.Public], Literal[InstanceFlag.Desktop]] | None:
+    """Convert an invitation code into its component parts.
 
     Parameters
     ----------
@@ -300,8 +310,8 @@ USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s
 CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
 
 
-async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> int | None:
-    """Takes a Steam Community url and returns 64 bit Steam ID or ``None``.
+async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> ID64 | None:
+    """Takes a Steam Community url and returns 64-bit Steam ID or ``None``.
 
     Notes
     -----

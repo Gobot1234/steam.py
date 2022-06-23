@@ -260,9 +260,9 @@ class ConnectionState(Registerable):
     async def _maybe_user(self, id64: int) -> User | SteamID:
         return self.get_user(id64) or await self.fetch_user(id64) or SteamID(id64)
 
-    async def _maybe_users(self, id64s: Iterable[int]) -> list[User | SteamID]:
+    async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User | SteamID]:
         ret: list[User | SteamID] = []
-        to_fetch: dict[int, list[int]] = {}
+        to_fetch: dict[ID64, list[int]] = {}
         for idx, id64 in enumerate(id64s):
             user = self.get_user(id64)
             if user is not None:
@@ -273,7 +273,7 @@ class ConnectionState(Registerable):
                     idxs = to_fetch[id64] = []
 
                 idxs.append(idx)
-                ret.append(id64)  # type: ignore
+                ret.append(id64)
 
         if to_fetch:
             for (user_id64, idxs), user in zip(to_fetch.items(), await self.fetch_users(to_fetch)):
@@ -284,7 +284,7 @@ class ConnectionState(Registerable):
 
         return ret
 
-    def _store_user(self, data: _UserDict) -> User:
+    def _store_user(self, data: UserDict) -> User:
         try:
             user = self._users[int(data["steamid"])]
         except KeyError:
@@ -655,7 +655,11 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     async def fetch_user_history(
-        self, user_id64: int, start: int, last: int
+        self,
+        user_id64: ID64,
+        start: int,
+        last: int,
+        start_ordinal: int = 0,
     ) -> friend_messages.GetRecentMessagesResponse:
         msg: MsgProto[friend_messages.GetRecentMessagesResponse] = await self.ws.send_um_and_wait(
             "FriendMessages.GetRecentMessages",
@@ -811,7 +815,7 @@ class ConnectionState(Registerable):
 
         return msg.body
 
-    async def fetch_user_favourite_badge(self, user_id64) -> player.GetFavoriteBadgeResponse:
+    async def fetch_user_favourite_badge(self, user_id64: ID64) -> player.GetFavoriteBadgeResponse:
         msg: MsgProto[player.GetFavoriteBadgeResponse] = await self.ws.send_um_and_wait(
             "Player.GetFavoriteBadge",
             steamid=user_id64,
@@ -1050,7 +1054,7 @@ class ConnectionState(Registerable):
             if old != new:
                 self.dispatch("user_update", before, after)
 
-    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> _UserDict:
+    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> UserDict:
         data["personaname"] = friend.player_name
         data["avatarfull"] = utils._get_avatar_url(friend.avatar_hash)
 

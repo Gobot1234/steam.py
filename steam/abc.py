@@ -76,6 +76,7 @@ if TYPE_CHECKING:
     from .protobufs.chat import Mentions
     from .review import Review
     from .state import ConnectionState
+    from .types.id import ID32, ID64
     from .types.user import UserDict
     from .user import User
 
@@ -108,7 +109,7 @@ class SteamID(metaclass=abc.ABCMeta):
     ):
         self.__BASE: Final = make_id64(id, type, universe, instance)
 
-    def __int__(self) -> int:
+    def __int__(self) -> ID64:
         return self.__BASE
 
     def __eq__(self, other: Any) -> bool:
@@ -142,12 +143,12 @@ class SteamID(metaclass=abc.ABCMeta):
         return Universe((self.__BASE >> 56) & 0xFF)
 
     @property
-    def id64(self) -> int:
+    def id64(self) -> ID64:
         """The SteamID's 64 bit ID."""
         return self.__BASE
 
     @property
-    def id(self) -> int:
+    def id(self) -> ID32:
         """The SteamID's 32 bit ID."""
         return self.__BASE & 0xFFFFFFFF
 
