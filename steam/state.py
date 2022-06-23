@@ -788,6 +788,18 @@ class ConnectionState(Registerable):
 
         return msg.body
 
+    async def fetch_user_profile_customisation(self, user_id64: int):
+        msg: MsgProto[player.GetProfileCustomizationResponse] = await self.ws.send_um_and_wait(
+            "Player.GetProfileCustomization",
+            steamid=user_id64,
+            include_inactive_customizations=True,
+            include_purchased_customizations=True,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg.body
+
     async def fetch_profile_items(self) -> player.GetProfileItemsOwnedResponse:
         msg: MsgProto[player.GetProfileItemsOwnedResponse] = await self.ws.send_um_and_wait(
             "Player.GetProfileItemsOwned",
