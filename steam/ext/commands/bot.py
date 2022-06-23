@@ -181,9 +181,7 @@ class Bot(GroupMixin, Client):
                 command = getattr(self, member)
             except AttributeError:
                 continue
-            if isinstance(command, Coroutine):
-                command.close()  # prevent RuntimeWarnings
-            elif isinstance(command, Command):
+            if isinstance(command, Command):
                 command.cog = self
 
                 if isinstance(command, GroupMixin):

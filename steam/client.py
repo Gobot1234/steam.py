@@ -215,12 +215,11 @@ class Client:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return float("nan") if self.ws is None else self.ws.latency
 
-    @property
     async def token(self) -> str:
         resp = await self.http.get(URL.COMMUNITY / "chat/clientjstoken")
         if not resp["logged_in"]:  # we got logged out :(
             await self.http.login(self.username, self.password, shared_secret=self.shared_secret)  # type: ignore
-            return await self.token
+            return await self.token()
         return resp["token"]
 
     async def code(self) -> str:

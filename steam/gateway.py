@@ -33,12 +33,13 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import logging
+import random
 import struct
 import sys
 import threading
 import time
 import traceback
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME  # type: ignore
@@ -47,10 +48,12 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 from zlib import MAX_WBITS, decompress
 
 import aiohttp
+import async_timeout
 import attr
 from typing_extensions import TypeAlias
 
 from . import utils
+from ._const import DEFAULT_CMS
 from .enums import IntEnum, PersonaState, PersonaStateFlag, Result
 from .errors import NoCMsFound
 from .iterators import AsyncIterator
@@ -64,6 +67,7 @@ if TYPE_CHECKING:
     from .protobufs.base import CMsgMulti
     from .state import ConnectionState
     from .types.game import GameToDict
+    from .types.http import Coro
 
 
 __all__ = (
@@ -103,8 +107,22 @@ if not TYPE_CHECKING:
 
 @attr.dataclass(slots=True)
 class CMServer:
+    _state: ConnectionState
     url: str
     weighted_load: float
+
+    def connect(self) -> Coro[aiohttp.ClientWebSocketResponse]:
+        return self._state.http.connect_to_cm(self.url)
+
+    async def ping(self) -> float:
+        try:
+            async with async_timeout.timeout(5):
+                async with self._state.http._session.get(f"https://{self.url}/cmping/") as resp:
+                    if resp.status != 200:
+                        raise KeyError
+                    return int(resp.headers["X-Steam-CMLoad"])
+        except (KeyError, asyncio.TimeoutError, aiohttp.ClientError):
+            return float("inf")
 
 
 class ConnectionClosed(Exception):
@@ -124,28 +142,39 @@ class CMServerList(AsyncIterator[CMServer]):
     def __init__(self, state: ConnectionState, first_cm_to_try: CMServer | None = None):
         super().__init__(state)
         self.cell_id = 0
-        if first_cm_to_try is not None:
-            self._append(first_cm_to_try)
+        self._first_cm = first_cm_to_try
 
-    async def fill(self, cell_id: int = 0) -> None:
+    async def fill(self, cell_id: int = 0) -> AsyncGenerator[CMServer, None]:
+        if self._first_cm is not None:
+            yield self._first_cm
         log.debug("Attempting to fetch servers from the WebAPI")
         self.cell_id = cell_id
         try:
-            resp = await self._state.http.get_cm_list(cell_id)
-        except Exception as e:
-            raise NoCMsFound("No Community Managers could be found to connect to") from e
+            data = await self._state.http.get_cm_list(cell_id)
+        except Exception:
+            servers = [CMServer(self._state, url=cm_url, weighted_load=0) for cm_url in DEFAULT_CMS]
+            random.shuffle(servers)
+            log.debug("Error occurred when fetching CM server list, falling back to internal list", exc_info=True)
+            for server in servers:
+                yield server
+            return
 
-        resp = resp["response"]
+        resp = data["response"]
         if not resp["success"]:
-            raise NoCMsFound(f"No Community Managers could be found to connect to:\n{resp['message']!r}")
+            servers = [CMServer(self._state, url=cm_url, weighted_load=0) for cm_url in DEFAULT_CMS]
+            random.shuffle(servers)
+            log.debug("Error occurred when fetching CM server list, falling back to internal list", exc_info=True)
+            for server in servers:
+                yield server
+            return
 
         hosts: list[dict[str, Any]] = resp["serverlist"]
         log.debug(f"Received {len(hosts)} servers from WebAPI")
-        servers = [CMServer(url=server["endpoint"], weighted_load=server["wtd_load"]) for server in hosts]
+        servers = [CMServer(self._state, url=server["endpoint"], weighted_load=server["wtd_load"]) for server in hosts]
         for server in sorted(
             servers, key=attrgetter("weighted_load"), reverse=True
         ):  # they should already be sorted but oh well
-            self._append(server)
+            yield server
 
 
 class KeepAliveHandler(threading.Thread):
@@ -270,10 +299,10 @@ class SteamWebSocket(Registerable):
     ) -> SteamWebSocket:
         state = client._connection
         cm_list = cm_list or CMServerList(state, cm)
-        token = await client.token
+        token = await client.token()
         async for cm in cm_list:
             log.info(f"Attempting to create a websocket connection to: {cm}")
-            socket = await client.http.connect_to_cm(cm.url)
+            socket = await cm.connect()
             log.debug(f"Connected to {cm}")
 
             self = cls(state, socket, cm_list, cm)
@@ -396,7 +425,10 @@ class SteamWebSocket(Registerable):
     async def handle_close(self, _: Any = None) -> None:
         if not self.socket.closed:
             await self.close()
-            self.cm_list.queue.pop()  # pop the disconnected cm
+            try:
+                await self.cm_list.__anext__()  # pop the disconnected cm
+            except StopAsyncIteration:
+                pass
         if hasattr(self, "_keep_alive"):
             self._keep_alive.stop()
             del self._keep_alive
