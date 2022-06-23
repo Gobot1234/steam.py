@@ -215,7 +215,7 @@ Enumerations
     :members:
     :undoc-members:
 
-.. autoclass:: ClanEvent()
+.. autoclass:: EventType()
    :members:
    :undoc-members:
 

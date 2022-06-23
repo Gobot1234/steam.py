@@ -54,6 +54,7 @@ __all__ = (
     "UserBadge",
     "ReviewType",
     "GameServerRegion",
+    "EventType",
     "ClanEvent",
     "ProfileItemType",
     "ProfileCustomisationStyle",
@@ -591,7 +592,7 @@ class GameServerRegion(IntEnum):
     World        = 255  #: A server somewhere in the world.
 
 
-class ClanEvent(IntEnum):
+class EventType(IntEnum):
     Other                  = 1  #: An unspecified event.
     Game                   = 2  #: A game event.
     Party                  = 3  #: A party event.
@@ -627,6 +628,13 @@ class ClanEvent(IntEnum):
     SeasonUpdate           = 33  #: A season update event.
     Crosspost              = 34  #: A cross post event.
     InGameGeneral          = 35  #: An in game general event.
+
+
+if not DOCS_BUILDING:
+    class ClanEvent(IntEnum):
+        for _member in EventType:
+            locals()[_member.name] = _member.value
+        del _member
 
 
 class ProfileItemType(IntEnum):
@@ -880,6 +888,8 @@ class PublishedFileRevision(IntEnum):
 
 # shim for old enum names
 def __getattr__(name: str) -> Any:
+    if name == "ClanEvent":
+        return EventType
     if name[0] == "E" and name[1:] in __all__:
         import warnings
 

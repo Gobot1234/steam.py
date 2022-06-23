@@ -29,7 +29,7 @@ import re
 import time
 import warnings
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, TypeVar, overload
 
 from bs4 import BeautifulSoup
 from typing_extensions import Literal
@@ -37,7 +37,7 @@ from typing_extensions import Literal
 from . import utils
 from .abc import Commentable, SteamID, _CommentableKwargs
 from .channel import ClanChannel
-from .enums import ClanEvent, Type
+from .enums import EventType, Type
 from .errors import HTTPException, WSForbidden
 from .event import Announcement, Event
 from .game import Game, StatefulGame
@@ -50,6 +50,19 @@ if TYPE_CHECKING:
     from .user import User
 
 __all__ = ("Clan",)
+
+BoringEventT = TypeVar(
+    "BoringEventT",
+    Literal[EventType.Other],
+    Literal[EventType.Chat],
+    Literal[EventType.Party],
+    Literal[EventType.Meeting],
+    Literal[EventType.SpecialCause],
+    Literal[EventType.MusicAndArts],
+    Literal[EventType.Sports],
+    Literal[EventType.Trip],
+    covariant=True,
+)
 
 
 class Clan(SteamID, Commentable, utils.AsyncInit):
@@ -427,7 +440,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
     # event/announcement stuff
 
-    async def fetch_event(self, id: int) -> Event:
+    async def fetch_event(self, id: int) -> Event[EventType]:
         """Fetch an event from its ID.
 
         Parameters
@@ -455,6 +468,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
     def events(
         self,
+        *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
@@ -468,7 +482,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
         .. code-block:: python3
 
-            async for event in client.events(limit=10):
+            async for event in clan.events(limit=10):
                 print(event.author, "made an event", event.name, "starting at", event.starts_at)
 
         All parameters are optional.
@@ -491,6 +505,7 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
     def announcements(
         self,
+        *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
@@ -504,8 +519,14 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
 
         .. code-block:: python3
 
-            async for announcement in client.announcements(limit=10):
-                print(announcement.author, "made an announcement", announcement.name, "at", announcement.created_at)
+            async for announcement in clan.announcements(limit=10):
+                print(
+                    announcement.author,
+                    "made an announcement",
+                    announcement.name,
+                    "at",
+                    announcement.created_at,
+                )
 
         All parameters are optional.
 
@@ -531,18 +552,12 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         name: str,
         content: str,
         *,
-        type: Literal[
-            ClanEvent.Other,
-            ClanEvent.Chat,
-            ClanEvent.Party,
-            ClanEvent.Meeting,
-            ClanEvent.SpecialCause,
-            ClanEvent.MusicAndArts,
-            ClanEvent.Sports,
-            ClanEvent.Trip,
-        ] = ClanEvent.Other,
-        starts_at: datetime | None = None,
-    ) -> Event:
+        type: Literal[EventType.Game] = ...,
+        starts_at: datetime | None = ...,
+        game: Game,
+        server_address: str | None = ...,
+        server_password: str | None = ...,
+    ) -> Event[Literal[EventType.Game]]:
         ...
 
     @overload
@@ -551,12 +566,9 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         name: str,
         content: str,
         *,
-        game: Game,
-        type: Literal[ClanEvent.Game] = ...,
-        starts_at: datetime | None = ...,
-        server_address: str | None = ...,
-        server_password: str | None = ...,
-    ) -> Event:
+        type: BoringEventT = EventType.Other,
+        starts_at: datetime | None = None,
+    ) -> Event[BoringEventT]:
         ...
 
     async def create_event(
@@ -565,22 +577,22 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         content: str,
         *,
         type: Literal[
-            ClanEvent.Other,
-            ClanEvent.Chat,
-            ClanEvent.Game,
+            EventType.Other,
+            EventType.Chat,
+            EventType.Game,
             # ClanEvent.Broadcast,  # TODO need to wait until implementing stream support for this
-            ClanEvent.Party,
-            ClanEvent.Meeting,
-            ClanEvent.SpecialCause,
-            ClanEvent.MusicAndArts,
-            ClanEvent.Sports,
-            ClanEvent.Trip,
-        ] = ClanEvent.Other,
+            EventType.Party,
+            EventType.Meeting,
+            EventType.SpecialCause,
+            EventType.MusicAndArts,
+            EventType.Sports,
+            EventType.Trip,
+        ] = EventType.Other,
         game: Game | None = None,
         starts_at: datetime | None = None,
         server_address: str | None = None,
         server_password: str | None = None,
-    ) -> Event:
+    ) -> Event[EventType]:
         """Create an event.
 
         Parameters

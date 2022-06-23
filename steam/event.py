@@ -27,13 +27,13 @@ from __future__ import annotations
 import abc
 from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 from typing_extensions import Literal
 
 from . import utils
 from .abc import Commentable, SteamID, _CommentableKwargs
-from .enums import ClanEvent
+from .enums import EventType
 from .game import Game, StatefulGame
 
 if TYPE_CHECKING:
@@ -48,7 +48,10 @@ __all__ = (
 )
 
 
-class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
+ClanEventT = TypeVar("ClanEventT", bound=EventType, covariant=True)
+
+
+class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc.ABCMeta):
     __slots__ = (
         "clan",
         "id",
@@ -86,7 +89,7 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self.name: str = data["event_name"]
         self.content: str = data["event_notes"]
         self.game = StatefulGame(state, id=data["appid"]) if data["appid"] else None
-        self.type = ClanEvent.try_value(data["event_type"])
+        self.type: ClanEventT = EventType.try_value(data["event_type"])
 
         self.starts_at = datetime.utcfromtimestamp(data["rtime32_start_time"])
         becomes_visible = data.get("rtime32_visibility_start")
@@ -110,17 +113,21 @@ class BaseEvent(Commentable, utils.AsyncInit, metaclass=abc.ABCMeta):
         self._feature2 = int(data.get("gidfeature2", 0) or 0)
 
     async def __ainit__(self) -> None:
-        self.author = await self._state._maybe_user(self.author)  # type: ignore
         if self.last_edited_by:
-            self.last_edited_by = await self._state._maybe_user(self.last_edited_by)  # type: ignore
+            self.author, self.last_edited_by = await self._state._maybe_users((self.author, self.last_edited_by))  # type: ignore
+        else:
+            self.author = await self._state._maybe_user(self.author)  # type: ignore
 
     def __repr__(self) -> str:
         attrs = ("id", "name", "type", "author", "clan")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
+    def __eq__(self, other: object) -> bool:
+        return self.id == other.id and self.clan == other.clan if isinstance(other, self.__class__) else NotImplemented
 
-class Event(BaseEvent):
+
+class Event(BaseEvent[ClanEventT]):
     """Represents an event in a clan.
 
     Attributes
@@ -196,20 +203,34 @@ class Event(BaseEvent):
 
     @overload
     async def edit(
+        self: Event[Literal[EventType.Game]],
+        name: str,
+        content: str,
+        *,
+        game: Game | None = None,
+        starts_at: datetime | None = ...,
+        server_address: str | None = ...,
+        server_password: str | None = ...,
+    ) -> None:
+        ...
+
+    @overload
+    async def edit(
         self,
         name: str,
         content: str,
         *,
         type: Literal[
-            ClanEvent.Other,
-            ClanEvent.Chat,
-            ClanEvent.Party,
-            ClanEvent.Meeting,
-            ClanEvent.SpecialCause,
-            ClanEvent.MusicAndArts,
-            ClanEvent.Sports,
-            ClanEvent.Trip,
-        ] = ClanEvent.Other,
+            EventType.Other,
+            EventType.Chat,
+            EventType.Party,
+            EventType.Meeting,
+            EventType.SpecialCause,
+            EventType.MusicAndArts,
+            EventType.Sports,
+            EventType.Trip,
+        ]
+        | None = None,
         starts_at: datetime | None = None,
     ) -> None:
         ...
@@ -220,9 +241,9 @@ class Event(BaseEvent):
         name: str,
         content: str,
         *,
-        game: Game,
-        type: Literal[ClanEvent.Game] = ...,
+        type: Literal[EventType.Game] = ...,
         starts_at: datetime | None = ...,
+        game: Game,
         server_address: str | None = ...,
         server_password: str | None = ...,
     ) -> None:
@@ -234,17 +255,18 @@ class Event(BaseEvent):
         content: str,
         *,
         type: Literal[
-            ClanEvent.Other,
-            ClanEvent.Chat,
-            ClanEvent.Game,
+            EventType.Other,
+            EventType.Chat,
+            EventType.Game,
             # ClanEvent.Broadcast,  # TODO need to wait until implementing stream support for this
-            ClanEvent.Party,
-            ClanEvent.Meeting,
-            ClanEvent.SpecialCause,
-            ClanEvent.MusicAndArts,
-            ClanEvent.Sports,
-            ClanEvent.Trip,
-        ] = ClanEvent.Other,
+            EventType.Party,
+            EventType.Meeting,
+            EventType.SpecialCause,
+            EventType.MusicAndArts,
+            EventType.Sports,
+            EventType.Trip,
+        ]
+        | None = None,
         game: Game | None = None,
         starts_at: datetime | None = None,
         server_address: str | None = None,
@@ -273,14 +295,14 @@ class Event(BaseEvent):
         server_password
             The event's server's password.
         """
-        type = type or self.type
+        type_ = type or self.type
         new_game = game or self.game
         game_id = str(new_game) if new_game is not None else None
         await self._state.http.edit_clan_event(
             self.clan.id64,
             name or self.name,
             content or self.content,
-            f"{type.name}Event",
+            f"{type_.name}Event",
             game_id or "",
             server_address or self.server_address if self.server_address else "",
             server_password or self.server_password if self.server_password else "",
@@ -289,24 +311,25 @@ class Event(BaseEvent):
         )
         self.name = name or self.name
         self.content = content or self.content
-        self.type = type or self.type
+        self.type = type_
         self.server_address = server_address or self.server_address
         self.server_password = server_password or self.server_password
         self.game = StatefulGame(self._state, id=game_id) if game_id is not None else None
         self.last_edited_at = datetime.utcnow()
-        self.last_edited_by = self._state.client.user
+        self.last_edited_by = self._state.user
 
     async def delete(self) -> None:
+        """Delete this event."""
         await self._state.http.delete_clan_event(self.clan.id64, self.id)
 
 
-class Announcement(BaseEvent):
+class Announcement(BaseEvent[EventType]):
     """Represents an announcement in a clan.
 
     Attributes
     ----------
     id
-        The announcement's id.
+        The announcement's ID.
     author
         The announcement's author.
     name
@@ -405,7 +428,11 @@ class Announcement(BaseEvent):
         self.name = name
         self.content = content
         self.last_edited_at = datetime.utcnow()
-        self.last_edited_by = self._state.client.user
+        self.last_edited_by = self._state.user
+
+    async def delete(self) -> None:
+        """Delete this announcement."""
+        await self._state.http.delete_clan_announcement(self.clan.id64, self.id)
 
     # async def hide(self) -> None:
     #     """Hide this announcement."""
