@@ -172,6 +172,7 @@ class ConnectionState(Registerable):
         self._clans: dict[int, Clan] = {}
         self._clans_by_chat_id: dict[int, Clan] = {}
         self._confirmations: dict[int, Confirmation] = {}
+        self.confirmation_generation_locks: dict[str, tuple[asyncio.Lock, datetime]] = {}
         self._confirmations_to_ignore: list[int] = []
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[int, UserInvite | ClanInvite] = {}
@@ -405,19 +406,19 @@ class ConnectionState(Registerable):
 
     # confirmations
 
-    def _create_confirmation_params(self, tag: str) -> dict[str, Any]:
-        timestamp = int(self.steam_time.timestamp())
+    async def _create_confirmation_params(self, tag: str) -> dict[str, Any]:
+        code, timestamp = await self._generate_confirmation_code(tag)
         return {
             "p": self._device_id,
-            "a": self.client.user.id64,
-            "k": self._generate_confirmation(tag, timestamp),
+            "a": self.user.id64,
+            "k": code,
             "t": timestamp,
             "m": "android",
             "tag": tag,
         }
 
     async def _fetch_confirmations(self) -> dict[int, Confirmation]:
-        params = self._create_confirmation_params("conf")
+        params = await self._create_confirmation_params("conf")
         headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
         resp = await self.http.get(URL.COMMUNITY / "mobileconf/conf", params=params, headers=headers)
 
@@ -438,8 +439,34 @@ class ConnectionState(Registerable):
 
         return self._confirmations
 
-    def _generate_confirmation(self, tag: str, timestamp: int) -> str:
-        return generate_confirmation_code(self.client.identity_secret, tag, timestamp)  # type: ignore
+    async def _generate_confirmation_code(self, tag: str) -> tuple[str, int]:
+        # generate a confirmation code for a given tag at this instant.
+        # this can wait x amount of time (<1s) for the code to be generated if codes would collide as they can only be
+        # used once.
+        secret = self.client.identity_secret
+        if secret is None:
+            raise ValueError("Cannot generate confirmation codes without passing an identity_secret")
+
+        steam_time = self.steam_time
+        timestamp = int(steam_time.timestamp())
+        try:
+            lock, last_confirmation_time = self.confirmation_generation_locks[tag]
+        except KeyError:
+            lock = asyncio.Lock()
+            last_confirmation_time = datetime.min
+            self.confirmation_generation_locks[tag] = lock, last_confirmation_time
+
+        await lock.acquire()
+        try:
+            return generate_confirmation_code(secret, tag, timestamp), timestamp
+        finally:
+            # wait for the next second whole before allowing generation of a new confirmation code
+            next_code_valid_in = (steam_time.replace(microsecond=0) - last_confirmation_time).total_seconds()
+            if next_code_valid_in < 0:
+                lock.release()
+            else:
+                asyncio.get_running_loop().call_later(next_code_valid_in, lock.release)
+            self.confirmation_generation_locks[tag] = lock, steam_time
 
     async def fetch_and_confirm_confirmation(self, trade_id: int) -> bool:
         if self.client.identity_secret:
