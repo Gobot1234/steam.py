@@ -32,7 +32,7 @@ from enum import Enum as _Enum, EnumMeta as _EnumMeta, IntEnum as _IntEnum
 from types import MappingProxyType, new_class
 from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypeVar, cast
 
-from typing_extensions import Literal, Self
+from typing_extensions import Final, Literal, Self
 
 from ._const import DOCS_BUILDING
 
@@ -313,7 +313,7 @@ class Result(IntEnum):
     CannotUseOldPassword            = 64  #: The requested new password is not legal.
     InvalidLoginAuthCode            = 65  #: Account login denied due to auth code invalid.
     AccountLogonDeniedNoMail        = 66  #: Account login denied due to 2nd factor authentication failure.
-    HardwareNotCapableOfIPT         = 67  #: The users hardware does not support Intel's identity protection technology.
+    HardwareNotCapableOfIPT         = 67  #: The user's hardware does not support Intel's identity protection technology.
     IPTInitError                    = 68  #: Intel's Identity Protection Technology has failed to initialize.
     ParentalControlRestricted       = 69  #: Operation failed due to parental control restrictions for current user.
     FacebookQueryError              = 70  #: Facebook query returned an error.
@@ -331,10 +331,10 @@ class Result(IntEnum):
     RestrictedDevice                = 82  #: The device being used is not allowed to perform this action.
     RegionLocked                    = 83  #: The action could not be complete because it is region restricted.
     RateLimitExceeded               = 84  #: Temporary rate limit exceeded. Different from :attr:`LimitExceeded`.
-    LoginDeniedNeedTwoFactor        = 85  #: Need two-factor code to login.
+    LoginDeniedNeedTwoFactor        = 85  #: Need two-factor code to log in.
     ItemDeleted                     = 86  #: The thing we're trying to access has been deleted.
     AccountLoginDeniedThrottle      = 87  #: Login attempt failed, try to throttle response to possible attacker.
-    TwoFactorCodeMismatch           = 88  #: Two factor code mismatch.
+    TwoFactorCodeMismatch           = 88  #: Two-factor code mismatch.
     TwoFactorActivationCodeMismatch = 89  #: Activation code for two-factor didn't match.
     NotModified                     = 91  #: Data not modified.
     TimeNotSynced                   = 93  #: The time presented is out of range or tolerance.
@@ -361,8 +361,13 @@ class Result(IntEnum):
     AccountHasCancelledLicense      = 115  #: The user has a user cancelled license.
     DeniedDueToCommunityCooldown    = 116  #: The request was denied due to community cooldown.
     NoLauncherSpecified             = 117  #: No launcher was specified.
-    MustAgreeToSSA                  = 118  #: User must agree to china SSA or global SSA before login.
-    ClientNoLongerSupported         = 119  #: The specified launcher type is no longer supported.
+    MustAgreeToSSA                  = 118  #: User must agree to China SSA or global SSA before login.
+    LauncherMigrated                = 119  #: The specified launcher type is no longer supported.
+    SteamRealmMismatch              = 120  #: The user's realm does not match the realm of the requested resource.
+    InvalidSignature                = 121  #: Signature check did not match.
+    ParseFailure                    = 122  #: Failed to parse input.
+    NoVerifiedPhone                 = 123  #: Account does not have a verified phone number.
+    InsufficientBatteryCharge       = 124  #: The device battery is too low to complete the action.
 
 
 class Universe(IntEnum):
@@ -406,13 +411,31 @@ class TypeChar(IntEnum):
 
 class InstanceFlag(Flags):
     All          = 0         #: The Instance for all Steam IDs
-    Desktop      = 1         #: The Instance for desktop Steam IDs
-    Console      = 2         #: The Instance for console  Steam IDs
-    Web          = 4         #: The Instance for web Steam IDs
+    Desktop      = 1 << 0    #: The Instance for desktop Steam IDs
+    Console      = 1 << 1    #: The Instance for console  Steam IDs
+    Web          = 1 << 2    #: The Instance for web Steam IDs
+    # I have observed these flags for game servers, but I don't know what they are
+    Unknown1     = 1 << 3
+    Unknown2     = 1 << 4
+    Unknown3     = 1 << 5
+    Unknown4     = 1 << 6
+    Unknown5     = 1 << 7
+    Unknown6     = 1 << 8
+    Unknown7     = 1 << 9
+    Unknown8     = 1 << 10
+    Unknown9     = 1 << 11
+    Unknown10    = 1 << 12
+    Unknown11    = 1 << 13
+    Unknown12    = 1 << 14
+    # Unknown13    = 1 << 15
+    # Unknown14    = 1 << 16
+    # 20474 ->   | 2 |   | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 16384
+    # 20475 -> 1 | 2 |   | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 16384
+    # 20476 ->   |   | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 16384
     # Type.Chat exclusive flags
-    ChatMMSLobby = 0x20000  #: The Steam ID is for a MMS Lobby.
-    ChatLobby    = 0x40000  #: The Steam ID is for a Lobby.
-    ChatClan     = 0x80000  #: The Steam ID is for a Clan.
+    ChatMMSLobby = 1 << 17  #: The Steam ID is for a MMS Lobby.
+    ChatLobby    = 1 << 18  #: The Steam ID is for a Lobby.
+    ChatClan     = 1 << 19  #: The Steam ID is for a Clan.
 
 
 class FriendRelationship(IntEnum):
@@ -440,16 +463,16 @@ class PersonaState(IntEnum):
 
 class PersonaStateFlag(Flags):
     NONE                 = 0
-    HasRichPresence      = 1
-    InJoinableGame       = 2
-    Golden               = 4
-    RemotePlayTogether   = 8
-    ClientTypeWeb        = 256
-    ClientTypeMobile     = 512
-    ClientTypeTenfoot    = 1024
-    ClientTypeVR         = 2048
-    LaunchTypeGamepad    = 4096
-    LaunchTypeCompatTool = 8192
+    HasRichPresence      = 1 << 0
+    InJoinableGame       = 1 << 1
+    Golden               = 1 << 2
+    RemotePlayTogether   = 1 << 3
+    ClientTypeWeb        = 1 << 4
+    ClientTypeMobile     = 1 << 8
+    ClientTypeTenfoot    = 1 << 10
+    ClientTypeVR         = 1 << 11
+    LaunchTypeGamepad    = 1 << 12
+    LaunchTypeCompatTool = 1 << 13
 
 
 class CommunityVisibilityState(IntEnum):
@@ -651,10 +674,10 @@ class ProfileItemType(IntEnum):
     ItemShowcase              = 3   #: An item showcase.
     TradeShowcase             = 4   #: A trade info showcase.
     Badges                    = 5   #: A badges showcase.
-    FavoriteGame              = 6   #: A favourite game section.
+    FavouriteGame             = 6   #: A favourite game section.
     ScreenshotShowcase        = 7   #: A screenshot showcase.
     CustomText                = 8   #: A custom text section.
-    FavoriteGroup             = 9   #: A favourite game showcase.
+    FavouriteGroup            = 9   #: A favourite game showcase.
     Recommendation            = 10  #: A review showcase.
     WorkshopItem              = 11  #: A workshop item showcase.
     MyWorkshop                = 12  #: A showcase of a workshop item made by profile's owner.
@@ -714,6 +737,11 @@ class DepotFileFlag(Flags):
     Symlink             = 1 << 9
 
 
+TYPE_TRANSFORM_MAP: Final = cast(Mapping[str, str], {
+    "Dlc": "DLC",
+})
+
+
 class AppFlag(Flags):
     Game        = 1 << 0
     Application = 1 << 1
@@ -735,6 +763,16 @@ class AppFlag(Flags):
 
     Shortcut    = 1 << 30
     DepotOnly   = -1 << 31
+
+    @classmethod
+    def from_str(cls, name: str) -> Self:
+        types = iter(name.split(","))
+        type = next(types).title()
+        self = cls[TYPE_TRANSFORM_MAP.get(type, type)]
+        for type in types:
+            type = type.title()
+            self |= cls[TYPE_TRANSFORM_MAP.get(type, type)]
+        return self
 
 
 class LicenseFlag(Flags):
