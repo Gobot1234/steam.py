@@ -199,8 +199,9 @@ class ConnectionState(Registerable):
 
             await self.poll_trades()
 
-    @property
+    @utils.cached_property
     def ws(self) -> SteamWebSocket:
+        assert self.client.ws is not None
         return self.client.ws
 
     @utils.cached_property
