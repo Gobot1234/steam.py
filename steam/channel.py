@@ -28,19 +28,17 @@ import asyncio
 from collections.abc import AsyncGenerator, Coroutine
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
-from typing_extensions import Self, TypeAlias
-
-from .abc import Channel, Message, SteamID
-from .iterators import DMChannelHistoryIterator, GroupChannelHistoryIterator
-from .protobufs.chat import ChatRoomState, IncomingChatMessageNotification, State
+from .abc import Channel
+from .chat import Chat, GroupChannelProtos
+from .iterators import DMChannelHistoryIterator
+from .message import ClanMessage, GroupMessage, UserMessage
 
 if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
     from .image import Image
-    from .message import ClanMessage, GroupMessage, UserMessage
     from .state import ConnectionState
     from .user import User
 
@@ -51,7 +49,7 @@ __all__ = (
 )
 
 
-class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message.
+class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
     """Represents the channel a DM is sent in.
 
     Attributes
@@ -72,6 +70,9 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
 
     def __repr__(self) -> str:
         return f"<DMChannel participant={self.participant!r}>"
+
+    def __eq__(self, other: object) -> bool:
+        return self.participant == other.participant if isinstance(other, DMChannel) else NotImplemented
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
         return self.participant._message_func(content)
@@ -116,6 +117,7 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
 
     def history(
         self,
+        *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
@@ -123,70 +125,7 @@ class DMChannel(Channel["UserMessage"]):  # TODO cache these to add last_message
         return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
 
 
-GroupChannelProtos: TypeAlias = "IncomingChatMessageNotification | State | ChatRoomState"
-GroupM_co = TypeVar("GroupM_co", bound="GroupMessage | ClanMessage")
-
-
-class _GroupChannel(Channel[GroupM_co]):
-    __slots__ = ("id", "name", "joined_at", "position", "last_message")
-
-    def __init__(self, state: ConnectionState, proto: GroupChannelProtos):
-        super().__init__(state)
-        self.id = int(proto.chat_id)
-        self.name: str | None = None
-        self.joined_at: datetime | None = None
-        self.position: int | None = None
-        self.last_message: GroupM_co | None = None
-        self._update(proto)
-
-    def _update(self, proto: GroupChannelProtos):
-        if hasattr(proto, "chat_name"):
-            first, _, second = proto.chat_name.partition(" | ")
-            name = second or first
-        else:
-            name = self.name
-        self.name = name
-        self.joined_at = (
-            datetime.utcfromtimestamp(int(proto.time_joined)) if hasattr(proto, "time_joined") else self.joined_at
-        )
-        self.position = getattr(proto, "sort_order", None) or self.position
-        from .message import ClanMessage, GroupMessage
-
-        if isinstance(proto, IncomingChatMessageNotification):
-            steam_id = SteamID(proto.steamid_sender)
-            last_message = (ClanMessage if isinstance(self, ClanChannel) else GroupMessage)(
-                proto, self, self._state.get_user(steam_id.id64) or steam_id  # type: ignore
-            )
-        elif isinstance(proto, State):
-            steam_id = SteamID(proto.accountid_last_message)
-            cls = ClanMessage if isinstance(self, ClanChannel) else GroupMessage
-            last_message = cls.__new__(cls)
-            last_message.author = self._state.get_user(steam_id.id64) or steam_id
-            last_message.channel = self  # type: ignore
-            last_message.created_at = datetime.utcfromtimestamp(proto.time_last_message)
-            proto.message = proto.last_message
-            proto.ordinal = NotImplemented
-            Message.__init__(last_message, self, proto)
-        else:
-            last_message = self.last_message
-        self.last_message = last_message  # type: ignore
-
-    def __repr__(self) -> str:
-        cls = self.__class__
-        attrs = ("name", "id", "group" if self.group is not None else "clan", "position")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{cls.__name__} {' '.join(resolved)}>"
-
-    def history(
-        self,
-        limit: int | None = 100,
-        before: datetime | None = None,
-        after: datetime | None = None,
-    ) -> GroupChannelHistoryIterator[GroupM_co, Self]:
-        return GroupChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
-
-
-class GroupChannel(_GroupChannel["GroupMessage"]):
+class GroupChannel(Chat[GroupMessage]):
     """Represents a group channel.
 
     Attributes
@@ -208,17 +147,17 @@ class GroupChannel(_GroupChannel["GroupMessage"]):
     clan: None
 
     def __init__(self, state: ConnectionState, group: Group, proto: GroupChannelProtos):
-        super().__init__(state, proto)
+        super().__init__(state, group, proto)
         self.group: Group = group
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, GroupMessage]:
-        return self._state.send_group_message(self.id, self.group.id, content)  # type: ignore
+        return self._state.send_chat_message(*self._location, content)  # type: ignore
 
     def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_group_image(self.id, self.group.id, image)
+        return self._state.http.send_chat_image(*self._location, image)
 
 
-class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same thing
+class ClanChannel(Chat[ClanMessage]):
     """Represents a group channel.
 
     Attributes
@@ -240,11 +179,11 @@ class ClanChannel(_GroupChannel["ClanMessage"]):  # they're basically the same t
     group: None
 
     def __init__(self, state: ConnectionState, clan: Clan, proto: GroupChannelProtos):
-        super().__init__(state, proto)
+        super().__init__(state, clan, proto)
         self.clan: Clan = clan
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, ClanMessage]:
-        return self._state.send_group_message(self.id, self.clan.chat_id, content)  # type: ignore
+        return self._state.send_chat_message(*self._location, content)  # type: ignore
 
     def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_group_image(self.id, self.clan.chat_id, image)  # type: ignore
+        return self._state.http.send_chat_image(*self._location, image)

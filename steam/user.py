@@ -31,14 +31,14 @@ from typing import TYPE_CHECKING, Any
 
 from ._const import URL
 from .abc import BaseUser, Messageable
-from .enums import Result, TradeOfferState
+from .enums import CommunityVisibilityState, PersonaState, PersonaStateFlag, Result, TradeOfferState
 from .errors import ClientException, ConfirmationError, HTTPException
+from .game import Game, StatefulGame
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileItem
 from .trade import Inventory, TradeOffer
 
 if TYPE_CHECKING:
     from .clan import Clan
-    from .game import Game
     from .group import Group
     from .image import Image
     from .message import UserMessage
@@ -51,7 +51,60 @@ __all__ = (
 )
 
 
-class User(BaseUser, Messageable["UserMessage"]):
+class _BaseUser(BaseUser):
+    def __init__(self, state: ConnectionState, data: UserDict):
+        super().__init__(data["steamid"])
+        self._state = state
+        self.real_name = None
+        self.community_url = None
+        self.avatar_url = None
+        self.primary_clan = None
+        self.country = None
+        self.created_at = None
+        self.last_logoff = None
+        self.last_logon = None
+        self.last_seen_online = None
+        self.game = None
+        self.state = None
+        self.flags = None
+        self.privacy_state = None
+        self.comment_permissions = None
+        self.profile_state = None
+        self.rich_presence = None
+        self._update(data)
+
+    def _update(self, data: UserDict) -> None:
+        self.name = data["personaname"]
+        self.real_name = data.get("realname") or self.real_name
+        self.community_url = data.get("profileurl") or super().community_url
+        self.avatar_url = data.get("avatarfull") or self.avatar_url
+        self.trade_url = URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}"
+        from .clan import Clan  # circular import
+
+        self.primary_clan = (
+            Clan(self._state, data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan  # type: ignore
+        )
+        self.country = data.get("loccountrycode") or self.country
+        self.created_at = datetime.utcfromtimestamp(data["timecreated"]) if "timecreated" in data else self.created_at
+        self.last_logoff = datetime.utcfromtimestamp(data["lastlogoff"]) if "lastlogoff" in data else self.last_logoff
+        self.last_logon = datetime.utcfromtimestamp(data["last_logon"]) if "last_logon" in data else self.last_logon
+        self.last_seen_online = (
+            datetime.utcfromtimestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
+        )
+        self.rich_presence = data["rich_presence"] if "rich_presence" in data else self.rich_presence
+        self.game = (
+            StatefulGame(self._state, name=data["gameextrainfo"], id=data["gameid"]) if "gameid" in data else self.game
+        )
+        self.state = PersonaState.try_value(data.get("personastate", 0)) or self.state
+        self.flags = PersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
+        self.privacy_state = CommunityVisibilityState.try_value(data.get("communityvisibilitystate", 0))
+        self.comment_permissions = CommunityVisibilityState.try_value(
+            data.get("commentpermission", 0)
+        )  # FIXME CommentPrivacyState
+        self.profile_state = CommunityVisibilityState.try_value(data.get("profilestate", 0))
+
+
+class User(_BaseUser, Messageable["UserMessage"]):
     """Represents a Steam user's account.
 
     .. container:: operations
@@ -211,7 +264,7 @@ class User(BaseUser, Messageable["UserMessage"]):
         group
             The group to invite the user to.
         """
-        await self._state.invite_user_to_group(self.id64, group.id)
+        await self._state.invite_user_to_chat(self.id64, group.id)
 
     async def invite_to_clan(self, clan: Clan) -> None:
         """Invites the user to a :class:`Clan`.
@@ -238,7 +291,7 @@ class User(BaseUser, Messageable["UserMessage"]):
         return self in self._state.client.user.friends
 
 
-class ClientUser(BaseUser):
+class ClientUser(_BaseUser):
     """Represents your account.
 
     .. container:: operations

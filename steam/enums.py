@@ -49,6 +49,7 @@ __all__ = (
     "PersonaStateFlag",
     "CommunityVisibilityState",
     "TradeOfferState",
+    "ChatMemberRank",
     "ChatEntryType",
     "UIMode",
     "UserBadge",
@@ -489,6 +490,17 @@ class TradeOfferState(IntEnum):
             }[self]
         except KeyError:
             return None
+
+
+class ChatMemberRank(IntEnum):
+    Default = 0
+    Viewer = 10
+    Guest = 15
+    Member = 20
+    Moderator = 30
+    Officer = 40
+    Owner = 50
+    TestInvalid = 99
 
 
 class ChatEntryType(IntEnum):

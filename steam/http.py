@@ -50,7 +50,7 @@ from ._const import URL
 from .abc import SteamID
 from .guard import generate_one_time_code
 from .models import PriceOverviewDict, api_route
-from .user import BaseUser, ClientUser
+from .user import BaseUser, ClientUser, _BaseUser
 from .utils import cached_property
 
 if TYPE_CHECKING:
@@ -229,9 +229,9 @@ class HTTPClient:
                 async def get_users(user_id64s: Iterable[int]) -> list[UserDict]:
                     return await asyncio.gather(*(self.get_user(user_id64) for user_id64 in user_id64s))  # type: ignore
 
-                BaseUser._patch_without_api()
-                self.__class__.get_user = get_user
-                self.__class__.get_users = get_users
+                _BaseUser._patch_without_api()
+                self.get_user = get_user
+                self.get_users = get_users
                 warnings.warn(
                     "Some methods of User objects are not available as no API key can be generated", UserWarning
                 )
@@ -868,7 +868,7 @@ class HTTPClient:
             )
             await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
 
-    async def send_group_image(self, chat_id: int, channel_id: int, image: Image) -> None:
+    async def send_chat_image(self, chat_id: int, channel_id: int, image: Image) -> None:
         with image:
             payload = {
                 "sessionid": self.session_id,

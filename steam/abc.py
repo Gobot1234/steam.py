@@ -443,51 +443,23 @@ class BaseUser(SteamID, Commentable):
     )
 
     name: str
-
-    def __init__(self, state: ConnectionState, data: UserDict):
-        super().__init__(data["steamid"])
-        self._state = state
-        self.real_name: str | None = None
-        self.community_url: str | None = None
-        self.avatar_url: str | None = None  # TODO make this a property and add avatar hash
-        self.primary_clan: Clan | None = None
-        self.country: str | None = None
-        self.created_at: datetime | None = None
-        self.last_logoff: datetime | None = None
-        self.last_logon: datetime | None = None
-        self.last_seen_online: datetime | None = None
-        self.game: StatefulGame | None = None
-        self.state: PersonaState | None = None
-        self.flags: PersonaStateFlag | None = None
-        self.privacy_state: CommunityVisibilityState | None = None
-        self._update(data)
-
-    def _update(self, data: UserDict) -> None:
-        self.name = data["personaname"]
-        self.real_name = data.get("realname") or self.real_name
-        self.community_url = data.get("profileurl") or super().community_url
-        self.avatar_url = data.get("avatarfull") or self.avatar_url
-        self.trade_url = URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}"
-        from .clan import Clan  # circular import
-
-        self.primary_clan = (
-            Clan(self._state, data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan  # type: ignore
-        )
-        self.country = data.get("loccountrycode") or self.country
-        self.created_at = datetime.utcfromtimestamp(data["timecreated"]) if "timecreated" in data else self.created_at
-        self.last_logoff = datetime.utcfromtimestamp(data["lastlogoff"]) if "lastlogoff" in data else self.last_logoff
-        self.last_logon = datetime.utcfromtimestamp(data["last_logon"]) if "last_logon" in data else self.last_logon
-        self.last_seen_online = (
-            datetime.utcfromtimestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
-        )
-        self.game = (
-            StatefulGame(self._state, name=data["gameextrainfo"], id=data["gameid"]) if "gameid" in data else self.game
-        )
-        self.state = PersonaState.try_value(data.get("personastate", 0)) or self.state
-        self.flags = PersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
-        self.privacy_state = CommunityVisibilityState.try_value(data.get("communityvisibilitystate", 0))
-        self._is_commentable = bool(data.get("commentpermission"))
-        self._setup_profile = bool(data.get("profilestate"))
+    real_name: str | None
+    community_url: str | None
+    avatar_url: str | None  # TODO make this a property and add avatar hash
+    primary_clan: Clan | None
+    country: str | None
+    created_at: datetime | None
+    last_logoff: datetime | None
+    last_logon: datetime | None
+    last_seen_online: datetime | None
+    game: StatefulGame | None
+    state: PersonaState | None
+    flags: PersonaStateFlag | None
+    privacy_state: CommunityVisibilityState | None
+    comment_permissions: CommentPrivacyState | None
+    profile_state: CommunityVisibilityState | None
+    rich_presence: dict[str, str] | None
+    _state: ConnectionState
 
     def __repr__(self) -> str:
         attrs = ("name", "state", "id", "type", "universe", "instance")

@@ -26,19 +26,19 @@ from __future__ import annotations
 
 import asyncio
 import re
-import time
 import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, TypeVar, overload
 
 from bs4 import BeautifulSoup
-from typing_extensions import Literal
+from typing_extensions import Literal, Self
 
 from . import utils
 from .abc import Commentable, SteamID, _CommentableKwargs
 from .channel import ClanChannel
+from .chat import ChatGroup, Member
 from .enums import EventType, Type
-from .errors import HTTPException, WSForbidden
+from .errors import HTTPException
 from .event import Announcement, Event
 from .game import Game, StatefulGame
 from .iterators import AnnouncementsIterator, EventIterator
@@ -47,9 +47,10 @@ from .role import Role
 
 if TYPE_CHECKING:
     from .state import ConnectionState
+    from .types.id import ChatGroupID
     from .user import User
 
-__all__ = ("Clan",)
+__all__ = ("Clan", "ClanMember")
 
 BoringEventT = TypeVar(
     "BoringEventT",
@@ -65,7 +66,16 @@ BoringEventT = TypeVar(
 )
 
 
-class Clan(SteamID, Commentable, utils.AsyncInit):
+class ClanMember(Member):
+    group: None
+    clan: Clan
+
+    def __init__(self, state: ConnectionState, user: User, clan: Clan, proto: chat.Member):
+        super().__init__(state, user, proto)
+        self.clan = clan
+
+
+class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     """Represents a Steam clan.
 
     .. container:: operations
@@ -82,8 +92,6 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
     ------------
     name
         The name of the clan.
-    chat_id
-        The clan's chat id, this is different to :attr:`id`.
     avatar_url
         The icon url of the clan. Uses the large (184x184 px) image url.
     content
@@ -112,18 +120,10 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         A list of the clan's administrators.
     mods
         A list of the clan's moderators.
-    top_members
-        A list of the clan's top_members.
-    roles
-        A list of the clan's roles.
-    default_role
-        The clan's default role.
     """
 
     __slots__ = (
-        "name",
         "content",
-        "avatar_url",
         "created_at",
         "language",
         "location",
@@ -132,56 +132,44 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         "online_count",
         "admins",
         "mods",
-        "chat_id",
-        "active_member_count",
-        "owner",
-        "default_role",
-        "tagline",
-        "top_members",
-        "roles",
-        "game",
         "community_url",
-        "_channels",
-        "_default_channel_id",
-        "_state",
+        "_id",
     )
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
-    # Clan.kick
-    # Clan.ban
-    # Group.create_channel
     # Clan.requesting_membership
     # Clan.respond_to_requesting_membership(*users, approve)
     # Clan.respond_to_all_requesting_membership(approve)
 
-    name: str
+    # V1
+    # Clan.headline
+    # Clan.summary
+
     content: str
-    avatar_url: str
     created_at: datetime | None
     member_count: int
     online_count: int
     in_game_count: int
     language: str
     location: str
-    mods: list[User]
-    admins: list[User]
+    mods: list[ClanMember]
+    admins: list[ClanMember]
     is_game_clan: bool
-    community_url: str
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Clan)
         self._state = state
 
-        self.chat_id: int | None = None
+        self._id: ChatGroupID | None = None
         self.tagline: str | None = None
         self.game: StatefulGame | None = None
         self.owner: User | None = None
         self.active_member_count: int | None = None
         self.top_members: list[User | None] = []
-        self.roles: list[Role] = []
-        self.default_role: Role | None = None
         self._channels: dict[int, ClanChannel] = {}
         self._default_channel_id: int | None = None
+        self._roles: dict[int, Role] = {}
+        self._default_role_id: int | None = None
 
     async def __ainit__(self) -> None:
         resp = await self._state.http._session.get(super().community_url)  # type: ignore
@@ -269,72 +257,22 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
     async def _from_proto(
         cls,
         state: ConnectionState,
-        clan_proto: chat.SummaryPair
-        | chat.GetClanChatRoomInfoResponse
-        | chat.GetChatRoomGroupSummaryResponse
-        | chat.GroupHeaderState,
-    ) -> Clan:
-        if isinstance(clan_proto, chat.SummaryPair):
-            id = clan_proto.group_summary.clanid
-        else:
-            id = clan_proto.chat_group_summary.clanid
-        self = await cls(state, id)
+        proto: chat.GetChatRoomGroupSummaryResponse,
+    ) -> Self:
+        self = await cls(state, proto.clanid)
 
-        proto = clan_proto.group_summary if isinstance(clan_proto, chat.SummaryPair) else clan_proto.chat_group_summary
-
-        self.chat_id = proto.chat_group_id
+        self._id = proto.chat_group_id
         self.tagline = proto.chat_group_tagline or None
         self.active_member_count = proto.active_member_count
         self.game = StatefulGame(self._state, id=proto.appid) if proto.appid else self.game
 
-        self.owner = await self._state._maybe_user(utils.make_id64(proto.accountid_owner))
-        self.top_members = await self._state.fetch_users([utils.make_id64(u) for u in proto.top_members])
+        self.owner, *self.top_members = await self._state._maybe_users(
+            [utils.make_id64(u) for u in [proto.accountid_owner] + proto.top_members]
+        )
 
-        if hasattr(clan_proto, "roles"):
-            roles = clan_proto.roles
-        else:
-            try:
-                roles = await self._state.fetch_group_roles(self.chat_id)
-            except WSForbidden:
-                roles = []
-
-        for role in roles:
-            for permissions in proto.role_actions:
-                if permissions.role_id == role.role_id:
-                    self.roles.append(Role(self._state, self, role, permissions))
-        self.default_role = utils.get(self.roles, id=proto.default_role_id)
-        if not isinstance(clan_proto, chat.SummaryPair):
-            return self
-
-        for channel in clan_proto.user_chat_group_state.user_chat_room_state:
-            try:
-                new_channel = self._channels[channel.chat_id]
-            except KeyError:
-                new_channel = ClanChannel(state=self._state, clan=self, proto=channel)
-                self._channels[new_channel.id] = new_channel
-            else:
-                new_channel._update(channel)
-        self._default_channel_id = proto.default_chat_id
+        await self._populate_roles(proto.role_actions)
+        self._default_role_id = proto.default_role_id
         return self
-
-    def _update(self, proto: chat.ChatRoomGroupRoomsChangeNotification) -> None:
-        for channel in proto.chat_rooms:
-            try:
-                new_channel = self._channels[channel.chat_id]
-            except KeyError:
-                new_channel = ClanChannel(state=self._state, clan=self, proto=channel)
-                self._channels[new_channel.id] = new_channel
-            else:
-                new_channel._update(channel)
-        self._default_channel_id = proto.default_chat_id
-
-    def __repr__(self) -> str:
-        attrs = ("name", "id", "chat_id", "type", "universe", "instance")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<Clan {' '.join(resolved)}>"
-
-    def __str__(self) -> str:
-        return self.name
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
@@ -342,26 +280,6 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
             "id64": self.id64,
             "thread_type": 12,
         }
-
-    @property
-    def channels(self) -> list[ClanChannel]:
-        """A list of the clan's channels."""
-        return list(self._channels.values())
-
-    @property
-    def default_channel(self) -> ClanChannel | None:
-        """The clan's default channel."""
-        return self.get_channel(self._default_channel_id)  # type: ignore
-
-    def get_channel(self, id: int) -> ClanChannel | None:
-        """Get a channel from cache.
-
-        Parameters
-        ----------
-        id
-            The id of the channel.
-        """
-        return self._channels.get(id)
 
     async def fetch_members(self) -> list[SteamID]:
         """Fetches a clan's member list.
@@ -420,23 +338,13 @@ class Clan(SteamID, Commentable, utils.AsyncInit):
         return self.avatar_url
 
     async def join(self) -> None:
-        """Joins the clan. This will also join the clan's chat."""
+        """Joins the clan."""
         await self._state.http.join_clan(self.id64)
-        await self._state.join_chat(self.chat_id)
+        await super().join()
 
     async def leave(self) -> None:
         """Leaves the clan."""
         await self._state.http.leave_clan(self.id64)
-
-    async def invite(self, user: User) -> None:
-        """Invites a :class:`~steam.User` to the clan.
-
-        Parameters
-        -----------
-        user
-            The user to invite to the clan.
-        """
-        await self._state.http.invite_user_to_clan(user.id64, self.id64)
 
     # event/announcement stuff
 

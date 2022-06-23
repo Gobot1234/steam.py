@@ -85,6 +85,7 @@ if TYPE_CHECKING:
     from .client import Client
     from .gateway import SteamWebSocket
     from .types.game import GameToDict
+    from .types.id import ID64, ChannelID, ChatGroupID
     from .types.trade import DescriptionDict, TradeOfferDict
     from .types.user import UserDict
 
@@ -134,7 +135,7 @@ class ConnectionState(Registerable):
 
         self.handled_friends = asyncio.Event()
         self.handled_emoticons = asyncio.Event()
-        self.handled_groups = asyncio.Event()
+        self.handled_chat_groups = asyncio.Event()
         self.handled_group_members = asyncio.Event()
         self.handled_licenses = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)
@@ -157,6 +158,7 @@ class ConnectionState(Registerable):
         self._trades: dict[int, TradeOffer] = {}
         self._groups: dict[int, Group] = {}
         self._clans: dict[int, Clan] = {}
+        self._clans_by_chat_id: dict[int, Clan] = {}
         self._confirmations: dict[int, Confirmation] = {}
         self._confirmations_to_ignore: list[int] = []
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
@@ -174,7 +176,7 @@ class ConnectionState(Registerable):
 
         self.handled_friends.clear()
         self.handled_emoticons.clear()
-        self.handled_groups.clear()
+        self.handled_chat_groups.clear()
         self.handled_licenses.clear()
 
     async def __ainit__(self) -> None:
@@ -293,7 +295,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-        return await Clan._from_proto(self, msg.body)
+        return await Clan._from_proto(self, msg.body.chat_group_summary)
 
     def get_trade(self, id: int) -> TradeOffer | None:
         return self._trades.get(id)
@@ -433,8 +435,8 @@ class ConnectionState(Registerable):
     # ws stuff
 
     @property
-    def _combined(self) -> ChainMap[int, Group | Clan]:
-        return ChainMap({clan.chat_id: clan for clan in self._clans.values()}, self._groups)  # type: ignore
+    def _chat_groups(self) -> ChainMap[ChatGroupID, Group | Clan]:
+        return ChainMap(self._clans_by_chat_id, self._groups)  # type: ignore
 
     async def send_user_message(self, user_id64: int, content: str) -> UserMessage:
         contains_bbcode = utils.contains_bbcode(content)
@@ -473,9 +475,24 @@ class ConnectionState(Registerable):
         )
         self.dispatch("typing", self.client.user, datetime.utcnow())
 
-    async def send_group_message(self, chat_id: int, group_id: int, content: str) -> ClanMessage | GroupMessage:
+    async def react_to_user_message(
+        self, user_id64: int, server_timestamp: int, ordinal: int, reaction_name: str, reaction_type: int, is_add: bool
+    ) -> None:
+        await self.ws.send_um_and_wait(
+            "FriendMessages.UpdateMessageReaction",
+            steamid=user_id64,
+            server_timestamp=server_timestamp,
+            ordinal=ordinal,
+            reaction=reaction_name,
+            reaction_type=reaction_type,
+            is_add=is_add,
+        )
+
+    async def send_chat_message(
+        self, chat_group_id: ChatGroupID, chat_id: ChannelID, content: str
+    ) -> ClanMessage | GroupMessage:
         msg: MsgProto[chat.SendChatMessageResponse] = await self.ws.send_um_and_wait(
-            "ChatRoom.SendChatMessage", chat_id=chat_id, chat_group_id=group_id, message=content
+            "ChatRoom.SendChatMessage", chat_id=chat_id, chat_group_id=chat_group_id, message=content
         )
 
         if msg.result == Result.LimitExceeded:
@@ -487,13 +504,14 @@ class ConnectionState(Registerable):
 
         proto = chat.IncomingChatMessageNotification(
             chat_id=chat_id,
-            chat_group_id=group_id,
+            chat_group_id=chat_group_id,
             steamid_sender=0,
             message=content,
+            ordinal=msg.body.ordinal,
             message_no_bbcode=msg.body.message_without_bb_code,
             timestamp=int(time()),
         )
-        group = self._combined[group_id]
+        group = self._chat_groups[chat_group_id]
         channel = group._channels[chat_id]
         channel._update(proto)
 
@@ -507,9 +525,33 @@ class ConnectionState(Registerable):
 
         return message
 
-    async def join_chat(self, chat_id: int, invite_code: str | None = None) -> None:
+    async def react_to_chat_message(
+        self,
+        chat_group_id: ChatGroupID,
+        chat_id: ChannelID,
+        server_timestamp: int,
+        ordinal: int,
+        reaction_name: str,
+        reaction_type: int,
+        is_add: bool,
+    ) -> None:
         msg = await self.ws.send_um_and_wait(
-            "ChatRoom.JoinChatRoomGroup", chat_group_id=chat_id, invite_code=invite_code or ""
+            "ChatRoom.UpdateMessageReaction",
+            chat_group_id=chat_group_id,
+            chat_id=chat_id,
+            server_timestamp=server_timestamp,
+            ordinal=ordinal,
+            reaction=reaction_name,
+            reaction_type=reaction_type,
+            is_add=is_add,
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def join_chat_group(self, chat_group_id: ChatGroupID, invite_code: str | None = None) -> None:
+        msg = await self.ws.send_um_and_wait(
+            "ChatRoom.JoinChatRoomGroup", chat_group_id=chat_group_id, invite_code=invite_code or ""
         )
 
         if msg.result == Result.InvalidParameter:
@@ -517,17 +559,17 @@ class ConnectionState(Registerable):
         elif msg.result != Result.OK:
             raise WSException(msg)
 
-    async def leave_chat(self, chat_id: int) -> None:
-        msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup", chat_group_id=chat_id)
+    async def leave_chat_group(self, chat_group_id: ChatGroupID) -> None:
+        msg = await self.ws.send_um_and_wait("ChatRoom.LeaveChatRoomGroup", chat_group_id=chat_group_id)
 
         if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.result != Result.OK:
             raise WSException(msg)
 
-    async def invite_user_to_group(self, user_id64: int, group_id: int) -> None:
+    async def invite_user_to_chat(self, user_id64: int, chat_group_id: ChatGroupID) -> None:
         msg = await self.ws.send_um_and_wait(
-            "ChatRoom.InviteFriendToChatRoomGroup", chat_group_id=group_id, steamid=user_id64
+            "ChatRoom.InviteFriendToChatRoomGroup", chat_group_id=chat_group_id, steamid=user_id64
         )
 
         if msg.result == Result.InvalidParameter:
@@ -535,8 +577,31 @@ class ConnectionState(Registerable):
         elif msg.result != Result.OK:
             raise WSException(msg)
 
-    async def edit_role(self, group_id: int, role_id: int, *, name: str) -> None:
-        msg = await self.ws.send_um_and_wait("ChatRoom.RenameRole", chat_group_id=group_id, role_id=role_id, name=name)
+    async def edit_role_name(self, chat_group_id: ChatGroupID, role_id: int, name: str) -> None:
+        msg = await self.ws.send_um_and_wait(
+            "ChatRoom.RenameRole", chat_group_id=chat_group_id, role_id=role_id, name=name
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def edit_role_permissions(
+        self, chat_group_id: ChatGroupID, role_id: int, permissions: RolePermissions
+    ) -> None:
+        msg = await self.ws.send_um_and_wait(
+            "ChatRoom.ReplaceRoleActions",
+            chat_group_id=chat_group_id,
+            role_id=role_id,
+            actions=chat.RoleActions(**permissions.to_dict()),
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def delete_role(self, chat_group_id: ChatGroupID, role_id: int) -> None:
+        msg = await self.ws.send_um_and_wait("ChatRoom.DeleteRole", chat_group_id=chat_group_id, role_id=role_id)
         if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.result != Result.OK:
@@ -560,14 +625,15 @@ class ConnectionState(Registerable):
         return msg.body
 
     async def fetch_group_history(
-        self, group_id: int, chat_id: int, start: int, last: int
+        self, chat_group_id: ChatGroupID, chat_id: ChannelID, start: int, last: int, last_ordinal: int
     ) -> chat.GetMessageHistoryResponse:
         msg: MsgProto[chat.GetMessageHistoryResponse] = await self.ws.send_um_and_wait(
             "ChatRoom.GetMessageHistory",
-            chat_group_id=group_id,
+            chat_group_id=chat_group_id,
             chat_id=chat_id,
             last_time=last,
             start_time=start,
+            last_ordinal=last_ordinal,
             max_count=100,
         )
 
@@ -690,15 +756,19 @@ class ConnectionState(Registerable):
     async def parse_service_method(self, msg: MsgProto[Any]) -> None:
         name = msg.header.body.job_name_target
         if name == "ChatRoomClient.NotifyIncomingChatMessage":
-            await self.handle_group_message(msg)
+            await self.handle_chat_message(msg)
+        elif name == "ChatRoomClient.NotifyMessageReaction":
+            await self.handle_chat_message_reaction(msg)
         elif name == "ChatRoomClient.NotifyChatRoomHeaderStateChange":
-            await self.handle_group_update(msg)
+            await self.handle_chat_group_update(msg)
         elif name == "ChatRoomClient.NotifyChatGroupUserStateChanged":
-            await self.handle_group_user_action(msg)
+            await self.handle_chat_group_user_action(msg)
         elif name == "ChatRoomClient.NotifyChatRoomGroupRoomsChange":
-            await self.handle_group_channel_update(msg)
+            await self.handle_chat_update(msg)
         elif name == "FriendMessagesClient.IncomingMessage":
             await self.handle_user_message(msg)
+        elif name == "FriendMessagesClient.MessageReaction":
+            await self.handle_user_message_reaction(msg)
         else:
             log.debug("Got an event %r that we don't handle %r", msg.header.body.job_name_target, msg.body)
 
@@ -717,9 +787,39 @@ class ConnectionState(Registerable):
             when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
             self.dispatch("typing", author, when)
 
-    async def handle_group_message(self, msg: MsgProto[chat.IncomingChatMessageNotification]) -> None:
+    async def handle_user_message_reaction(self, msg: MsgProto[friend_messages.MessageReactionNotification]) -> None:
+        user = await self._maybe_user(msg.body.steamid_friend)
+        ordinal = msg.body.ordinal
+        created_at = DateTime.from_timestamp(msg.body.server_timestamp)
+        message = utils.find(
+            lambda message: (
+                message.author in (user, self.user)
+                and message.created_at == created_at
+                and message.ordinal == ordinal
+                and message.group is None
+                and message.clan is None
+            ),
+            reversed(self._messages),
+        )
+        if message is None:
+            return log.debug("Got a reaction to an unknown message %s %s", created_at, ordinal)
+        if msg.body.reaction_type == 1:
+            emoticon = Emoticon(self, msg.body.reaction)
+            sticker = None
+        elif msg.body.reaction_type == 2:
+            sticker = Sticker(self, msg.body.reaction)
+            emoticon = None
+        else:
+            return log.debug(
+                "Got an unknown reaction_type %s on message %s %s", msg.body.reaction_type, created_at, ordinal
+            )
+
+        reaction = MessageReaction(self, message, emoticon, sticker, user, created_at, ordinal)
+        self.dispatch(f"reaction_{'add' if msg.body.is_add else 'remove'}", reaction)
+
+    async def handle_chat_message(self, msg: MsgProto[chat.IncomingChatMessageNotification]) -> None:
         try:
-            destination = self._combined[msg.body.chat_group_id]
+            destination = self._chat_groups[msg.body.chat_group_id]
         except KeyError:
             return log.debug(f"Got a message for a chat we aren't in {msg.body.chat_group_id}")
 
@@ -734,25 +834,59 @@ class ConnectionState(Registerable):
         self._messages.append(message)
         self.dispatch("message", message)
 
-    async def handle_group_update(self, msg: MsgProto[chat.ChatRoomHeaderStateNotification]) -> None:
+    async def handle_chat_message_reaction(self, msg: MsgProto[chat.MessageReactionNotification]) -> None:
+        user = await self._maybe_user(msg.body.reactor)
+        ordinal = msg.body.ordinal
+        created_at = DateTime.from_timestamp(msg.body.server_timestamp)
+        location = (msg.body.chat_group_id, msg.body.chat_id)
+        message = utils.find(
+            lambda message: (
+                isinstance(message, (ClanMessage, GroupMessage))
+                and message.channel._location == location
+                and message.created_at == created_at
+                and message.ordinal == ordinal
+            ),
+            reversed(self._messages),
+        )
+        if message is None:
+            return log.debug(
+                "Got a reaction to an unknown message %s %s (location %s)",
+                created_at,
+                ordinal,
+                location,
+            )
+        if msg.body.reaction_type == 1:
+            emoticon = Emoticon(self, msg.body.reaction)
+            sticker = None
+        elif msg.body.reaction_type == 2:
+            sticker = Sticker(self, msg.body.reaction)
+            emoticon = None
+        else:
+            return log.debug("Got an unknown reaction_type %s", msg.body.reaction_type)
+
+        reaction = MessageReaction(self, message, emoticon, sticker, user, created_at, ordinal)
+        self.dispatch(f"reaction_{'add' if msg.body.is_add else 'remove'}", reaction)
+
+    async def handle_chat_group_update(self, msg: MsgProto[chat.ChatRoomHeaderStateNotification]) -> None:
         try:
-            group = self._combined[msg.body.header_state.chat_group_id]
+            chat_group = self._chat_groups[msg.body.header_state.chat_group_id]
         except KeyError:
             return log.debug(f"Updating a group that isn't cached {msg.body.header_state.chat_group_id}")
 
-        before = copy(group)
-        before._channels = {c_id: copy(c) for c_id, c in before._channels.items()}
-        before.roles = deepcopy(before.roles)
-        if isinstance(before, Group):
-            before.members = before.members.copy()
-        group._update(msg.body.header_state)
-        self.dispatch(f"{'group' if isinstance(destination, Group) else 'clan'}_update", before, group)
+        before = copy(chat_group)
+        before._roles = {r_id: copy(r) for r_id, r in before._roles.items()}
+        chat_group._update_header_state(msg.body.header_state)
+        self.dispatch(f"{'group' if isinstance(chat_group, Group) else 'clan'}_update", before, chat_group)
 
-    async def handle_group_user_action(self, msg: MsgProto[chat.NotifyChatGroupUserStateChangedNotification]) -> None:
+    async def handle_chat_group_user_action(
+        self, msg: MsgProto[chat.NotifyChatGroupUserStateChangedNotification]
+    ) -> None:
         if msg.body.user_action == "Joined":  # join group
             if msg.body.group_summary.clanid:
                 clan = await Clan._from_proto(self, msg.body.group_summary)
                 self._clans[clan.id] = clan
+                assert clan._id is not None
+                self._clans_by_chat_id[clan._id] = clan
                 self.dispatch("clan_join", clan)
             else:
                 group = await Group._from_proto(self, msg.body.group_summary)
@@ -760,7 +894,7 @@ class ConnectionState(Registerable):
                 self.dispatch("group_join", group)
 
         elif msg.body.user_action == "Parted":  # leave group
-            left = self._combined.pop(msg.body.chat_group_id, None)
+            left = self._chat_groups.pop(msg.body.chat_group_id, None)
             if left is None:
                 return
 
@@ -769,36 +903,44 @@ class ConnectionState(Registerable):
             else:
                 self.dispatch("group_leave", left)
 
-    async def handle_group_channel_update(self, msg: MsgProto[chat.ChatRoomGroupRoomsChangeNotification]):
+    async def handle_chat_update(self, msg: MsgProto[chat.ChatRoomGroupRoomsChangeNotification]):
         try:
-            group = self._combined[msg.body.chat_group_id]
+            chat_group = self._chat_groups[msg.body.chat_group_id]
         except KeyError:
-            return log.debug(f"Got an update for a clan we aren't in {msg.body.chat_group_id}")
+            return log.debug("Got an update for a chat group we aren't in %d", msg.body.chat_group_id)
 
-        before = copy(group)
+        before = copy(chat_group)
         before._channels = {c_id: copy(c) for c_id, c in before._channels.items()}
-        before.roles = deepcopy(before.roles)
-        if isinstance(before, Group):
-            before.members = before.members.copy()
-        group._update(msg.body)
-        self.dispatch(f"{'clan' if isinstance(group, Clan) else 'group'}_update", before, group)
+        chat_group._update_channels(msg.body.chat_rooms)
+        self.dispatch(f"{chat_group.__class__.__name__}_update", before, chat_group)
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto[Any]) -> None:
-        if msg.header.body.job_name_target == "ChatRoom.GetMyChatRoomGroups":
-            msg: MsgProto[chat.GetMyChatRoomGroupsResponse]
+        name = msg.header.body.job_name_target
+        if name == "ChatRoom.GetMyChatRoomGroups":
+            msg: MsgProto[chat.GetMyChatRoomGroupsResponse] = msg
             for group in msg.body.chat_room_groups:
                 if group.group_summary.clanid:  # received a clan
-                    clan = await Clan._from_proto(self, group)
+                    clan = await Clan._from_proto(self, group.group_summary)
+                    clan._update_channels(
+                        group.user_chat_group_state.user_chat_room_state,
+                        default_channel_id=group.group_summary.default_chat_id,
+                    )
                     self._clans[clan.id] = clan
+                    assert clan._id is not None
+                    self._clans_by_chat_id[clan._id] = clan
                 else:  # else it's a group
                     group = await Group._from_proto(self, group.group_summary)
                     self._groups[group.id] = group
-            self.handled_groups.set()  # signal to process_group_members that we are ready
+
+            self.handled_chat_groups.set()  # signal to process_group_members that we are ready
             await self.handled_group_members.wait()  # ensure the members are ready
             await self.handled_friends.wait()  # ensure friend cache is ready
-            # await self.handled_emoticons.wait()  # ensure emoticon cache is ready
+            await self.handled_emoticons.wait()  # ensure emoticon cache is ready
+            await self.handled_licenses.wait()  # ensure licenses are ready
             await self.client._handle_ready()
+        else:
+            log.debug("Got a service method response for %r we don't handle", msg.header.body.job_name_target)
 
     @register(EMsg.ClientPersonaState)
     async def parse_persona_state_update(self, msg: MsgProto[friends.CMsgClientPersonaState]) -> None:
@@ -907,21 +1049,21 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientFriendsGroupsList)
     async def process_group_members(self, msg: MsgProto[friends.CMsgClientFriendsGroupsList]):
-        await self.handled_groups.wait()
-        members = await self.fetch_users([m.ul_steam_id for m in msg.body.memberships])
+        await self.handled_chat_groups.wait()
+        members = await self._maybe_users(m.ul_steam_id for m in msg.body.memberships)
         for membership in msg.body.memberships:
             for member in members:
                 if member and member.id64 == membership.ul_steam_id:
                     try:
-                        self._groups[membership.n_group_id].members.append(member)
+                        self._groups[membership.n_group_id]._members[member.id64] = member
                     except KeyError:
                         log.debug(f"Somehow got an unknown group {membership.n_group_id} and member {member.id64}")
 
         self.handled_group_members.set()
 
-    async def fetch_group_roles(self, group_id: int) -> list[chat.Role]:
+    async def fetch_chat_group_roles(self, chat_group_id: ChatGroupID) -> list[chat.Role]:
         msg: MsgProto[chat.GetRolesResponse] = await self.ws.send_um_and_wait(
-            "ChatRoom.GetRoles", chat_group_id=group_id
+            "ChatRoom.GetRoles", chat_group_id=chat_group_id
         )
         if msg.result == Result.AccessDenied:
             raise WSForbidden(msg)
@@ -1127,7 +1269,7 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientClanState)
     async def update_clan(self, msg: MsgProto[client_server.CMsgClientClanState]) -> None:
-        await self.handled_groups.wait()
+        await self.handled_chat_groups.wait()
         clan = self.get_clan(msg.body.steamid_clan) or await self.fetch_clan(msg.body.steamid_clan)
         if clan is None:
             return
