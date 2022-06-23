@@ -45,6 +45,7 @@ from .game import Game, StatefulGame
 from .iterators import AnnouncementsIterator, EventIterator
 from .protobufs import chat
 from .role import Role
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .state import ConnectionState
@@ -206,7 +207,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             if "Founded" in stat.text:
                 text = stat.text.split("Founded")[1].strip()
                 if ", " not in stat.text:
-                    text = f"{text}, {datetime.utcnow().year}"
+                    text = f"{text}, {DateTime.now().year}"
                 try:
                     self.created_at = datetime.strptime(text, "%d %B, %Y" if text.split()[0].isdigit() else "%B %d, %Y")
                 except ValueError:  # why do other countries have to exist

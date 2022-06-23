@@ -39,6 +39,7 @@ from ._const import URL
 from .enums import TradeOfferState
 from .errors import ClientException, ConfirmationError, HTTPException
 from .game import Game, StatefulGame
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .abc import BaseUser, SteamID
@@ -557,7 +558,7 @@ class TradeOffer:
         self._state = state
         self.partner = partner
         self.state = TradeOfferState.Active if active else TradeOfferState.ConfirmationNeed
-        self.created_at = datetime.utcnow()
+        self.created_at = DateTime.now()
         self._is_our_offer = True
 
     def __repr__(self) -> str:
@@ -573,10 +574,10 @@ class TradeOffer:
         escrow = data.get("escrow_end_date")
         updated_at = data.get("time_updated")
         created_at = data.get("time_created")
-        self.expires = datetime.utcfromtimestamp(expires) if expires else None
-        self.escrow = datetime.utcfromtimestamp(escrow) - datetime.utcnow() if escrow else None
-        self.updated_at = datetime.utcfromtimestamp(updated_at) if updated_at else None
-        self.created_at = datetime.utcfromtimestamp(created_at) if created_at else None
+        self.expires = DateTime.from_timestamp(expires) if expires else None
+        self.escrow = DateTime.from_timestamp(escrow) - DateTime.now() if escrow else None
+        self.updated_at = DateTime.from_timestamp(updated_at) if updated_at else None
+        self.created_at = DateTime.from_timestamp(created_at) if created_at else None
         self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
         self.items_to_send = [Item(data=item, owner=self.partner) for item in data.get("items_to_give", [])]
         self.items_to_receive = [Item(data=item, owner=self.partner) for item in data.get("items_to_receive", [])]

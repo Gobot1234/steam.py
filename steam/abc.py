@@ -32,7 +32,7 @@ import abc
 import asyncio
 import re
 from collections.abc import Coroutine
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import attr
@@ -307,7 +307,7 @@ class Commentable(Protocol):
             self._state,
             id=comment.id,
             content=comment.content,
-            created_at=datetime.utcfromtimestamp(comment.timestamp),
+            created_at=DateTime.from_timestamp(comment.timestamp),
             author=await self._state._maybe_user(comment.author_id64),
             owner=self,
             reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
@@ -621,7 +621,7 @@ class BaseUser(SteamID, Commentable):
         """The user's profile info."""
         info = await self._state.fetch_user_profile_info(self.id64)
         return ProfileInfo(
-            created_at=datetime.utcfromtimestamp(info.time_created),
+            created_at=DateTime.from_timestamp(info.time_created),
             real_name=info.real_name or None,
             city_name=info.city_name or None,
             state_name=info.state_name or None,

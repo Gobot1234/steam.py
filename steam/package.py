@@ -24,13 +24,13 @@ SOFTWARE.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from . import utils
 from .enums import Language, LicenseFlag, LicenseType, PaymentMethod, Type
 from .game import StatefulGame
-from .utils import Intable
+from .utils import DateTime, Intable
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -139,8 +139,8 @@ class License(StatefulPackage):
     def __init__(self, state: ConnectionState, proto: CMsgClientLicenseListLicense, owner: Authors):
         super().__init__(state, id=proto.package_id)
         self.owner: Authors = owner
-        self.created_at = datetime.utcfromtimestamp(proto.time_created) if proto.time_created else None
-        self.next_process_at = datetime.utcfromtimestamp(proto.time_next_process)
+        self.created_at = DateTime.from_timestamp(proto.time_created) if proto.time_created else None
+        self.next_process_at = DateTime.from_timestamp(proto.time_next_process)
         self.limit = timedelta(minutes=proto.minute_limit) if proto.minute_limit else None  # the time limit in minutes
         self.used = timedelta(minutes=proto.minutes_used)  # minute precision
         self.payment_method = PaymentMethod.try_value(proto.payment_method)
@@ -181,7 +181,7 @@ class License(StatefulPackage):
 #
 #         self.package = Package(state, proto.packageid)
 #         self.purchase_status = proto.purchase_status
-#         self.created_at = datetime.utcfromtimestamp(proto.transaction_time)
+#         self.created_at = DateTime.from_timestamp(proto.transaction_time)
 #         self.payment_method = PaymentMethod.try_value(proto.payment_method)
 #         self.base_price = proto.base_price
 #         self.total_discount = proto.total_discount

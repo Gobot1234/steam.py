@@ -778,7 +778,7 @@ class GameInfo(ProductInfo, StatefulGame):
 
         # TODO categories/genres
         self.created_at = (
-            datetime.utcfromtimestamp(int(common["steam_release_date"])) if "steam_release_date" in common else None
+            DateTime.from_timestamp(int(common["steam_release_date"])) if "steam_release_date" in common else None
         )
         self.review_score = ReviewType.try_value(int(common.get("review_score", 0)))
         self.review_percentage = int(common.get("review_percentage", 0))
@@ -815,7 +815,7 @@ class GameInfo(ProductInfo, StatefulGame):
                 self._branches[name] = Branch(
                     name=name,
                     build_id=build_id,
-                    updated_at=datetime.utcfromtimestamp(int(value["timeupdated"])) if "timeupdated" in value else None,
+                    updated_at=DateTime.from_timestamp(int(value["timeupdated"])) if "timeupdated" in value else None,
                     password_required=bool(int(value.get("pwdrequired", False))),
                     description=value.get("description") or None,
                 )

@@ -36,6 +36,7 @@ from yarl import URL
 
 from .game import StatefulGame
 from .models import _IOMixin
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .message import Authors, Message

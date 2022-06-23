@@ -83,7 +83,7 @@ class Member(WrapsUser, Messageable["UserMessage"]):
     def _update(self, proto: chat.Member) -> None:
         self.rank = ChatMemberRank.try_value(proto.rank)
         self._role_ids = tuple(proto.role_ids)
-        self.kick_expires_at = datetime.utcfromtimestamp(proto.time_kick_expire)
+        self.kick_expires_at = DateTime.from_timestamp(proto.time_kick_expire)
 
     @property
     def roles(self) -> list[Role]:
@@ -236,9 +236,7 @@ class Chat(Channel[ChatMessageT]):
             self.name = second or first
 
         self.joined_at = (
-            datetime.utcfromtimestamp(int(proto.time_joined))
-            if isinstance(proto, chat.ChatRoomState)
-            else self.joined_at
+            DateTime.from_timestamp(proto.time_joined) if isinstance(proto, chat.ChatRoomState) else self.joined_at
         )
         self.position = proto.sort_order if isinstance(proto, chat.State) else self.position
         message_cls: type[ChatMessageT] = self.__class__.__orig_bases__[0].__args__[0]  # type: ignore

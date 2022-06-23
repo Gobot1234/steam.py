@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any
 
 from .enums import UserBadge
 from .game import StatefulGame
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .state import ConnectionState
@@ -125,7 +126,7 @@ class Badge(BaseBadge):
         self.id = UserBadge.try_value(data["badgeid"])
         self.level: int = data["level"]
         self.xp: int = data["xp"]
-        self.completion_time = datetime.utcfromtimestamp(data["completion_time"])
+        self.completion_time = DateTime.from_timestamp(data["completion_time"])
         self.scarcity: int = data["scarcity"]
         self.game = StatefulGame(state, id=data["appid"]) if "appid" in data else None
 

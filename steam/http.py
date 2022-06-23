@@ -635,7 +635,7 @@ class HTTPClient:
         event_id: int | None,
     ) -> Coro[str]:
         if start is None:
-            tz_offset = int((datetime.utcnow() - datetime.now()).total_seconds())
+            tz_offset = int((datetime.now().astimezone().tzinfo.utcoffset()).total_seconds())
             start_date = "MM/DD/YY"
             start_hour = "12"
             start_minute = "00"
@@ -643,9 +643,10 @@ class HTTPClient:
             time_choice = "quick"
         else:
             if start.tzinfo is None:
-                tz_offset = int((datetime.utcnow() - start).total_seconds())
-            else:
-                tz_offset = int(start.tzinfo.utcoffset(start).total_seconds())
+                start = start.astimezone()
+
+            offset = start.tzinfo.utcoffset(start)
+            tz_offset = int(offset.total_seconds())
 
             start_date = f"{start:%m/%d/%y}"
             start_hour = f"{start:%I}"

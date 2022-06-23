@@ -35,6 +35,7 @@ from . import utils
 from .abc import Commentable, SteamID, _CommentableKwargs
 from .enums import EventType
 from .game import Game, StatefulGame
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -91,15 +92,15 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         self.game = StatefulGame(state, id=data["appid"]) if data["appid"] else None
         self.type: ClanEventT = EventType.try_value(data["event_type"])
 
-        self.starts_at = datetime.utcfromtimestamp(data["rtime32_start_time"])
+        self.starts_at = DateTime.from_timestamp(data["rtime32_start_time"])
         becomes_visible = data.get("rtime32_visibility_start")
-        self.becomes_visible = datetime.utcfromtimestamp(becomes_visible) if becomes_visible else None
+        self.becomes_visible = DateTime.from_timestamp(becomes_visible) if becomes_visible else None
         stops_being_visible = data.get("rtime32_visibility_end")
-        self.stops_being_visible = datetime.utcfromtimestamp(stops_being_visible) if stops_being_visible else None
+        self.stops_being_visible = DateTime.from_timestamp(stops_being_visible) if stops_being_visible else None
         ends_at = data.get("rtime32_end_time")
-        self.ends_at = datetime.utcfromtimestamp(ends_at) if ends_at else None
+        self.ends_at = DateTime.from_timestamp(ends_at) if ends_at else None
         last_edited_at = data.get("rtime32_last_modified")
-        self.last_edited_at = datetime.utcfromtimestamp(last_edited_at) if last_edited_at else None
+        self.last_edited_at = DateTime.from_timestamp(last_edited_at) if last_edited_at else None
 
         self.hidden = bool(data.get("hidden", 0))
         self.published = bool(data.get("published", 1))
@@ -315,7 +316,7 @@ class Event(BaseEvent[ClanEventT]):
         self.server_address = server_address or self.server_address
         self.server_password = server_password or self.server_password
         self.game = StatefulGame(self._state, id=game_id) if game_id is not None else None
-        self.last_edited_at = datetime.utcnow()
+        self.last_edited_at = DateTime.now()
         self.last_edited_by = self._state.user
 
     async def delete(self) -> None:
@@ -392,9 +393,9 @@ class Announcement(BaseEvent[EventType]):
         body: dict[str, Any] = data["announcement_body"]
         self.id: int = int(body["gid"])
         self.topic_id = int(data["forum_topic_id"]) if data["forum_topic_id"] else None
-        self.created_at = datetime.utcfromtimestamp(body["posttime"])
-        self.updated_at = datetime.utcfromtimestamp(body["updatetime"])  # this is different to self.edited_at?
-        self.approved_at = datetime.utcfromtimestamp(data["rtime_mod_reviewed"]) if data["rtime_mod_reviewed"] else None
+        self.created_at = DateTime.from_timestamp(body["posttime"])
+        self.updated_at = DateTime.from_timestamp(body["updatetime"])  # this is different to self.edited_at?
+        self.approved_at = DateTime.from_timestamp(data["rtime_mod_reviewed"]) if data["rtime_mod_reviewed"] else None
         self.content: str = body["body"]
         self.tags: Sequence[str] = body["tags"]
 
@@ -427,7 +428,7 @@ class Announcement(BaseEvent[EventType]):
         await self._state.http.edit_clan_announcement(self.clan.id64, self.id, name, content)
         self.name = name
         self.content = content
-        self.last_edited_at = datetime.utcnow()
+        self.last_edited_at = DateTime.now()
         self.last_edited_by = self._state.user
 
     async def delete(self) -> None:

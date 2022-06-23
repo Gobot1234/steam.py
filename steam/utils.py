@@ -36,6 +36,7 @@ import re
 import struct
 import sys
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Mapping
+from datetime import datetime, timezone
 from inspect import getmembers, isawaitable
 from io import BytesIO
 from operator import attrgetter
@@ -579,13 +580,15 @@ def call_once(func: Callable[_P, Awaitable[None]]) -> Callable[_P, Awaitable[Non
 
 
 class DateTime:
+    """UTC aware datetime factory functions."""
+
     @staticmethod
     def now() -> datetime:
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(timezone.utc)
 
     @staticmethod
     def from_timestamp(timestamp: float) -> datetime:
-        return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        return datetime.fromtimestamp(timestamp, timezone.utc)
 
 
 class AsyncInit(metaclass=abc.ABCMeta):

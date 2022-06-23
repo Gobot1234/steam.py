@@ -35,7 +35,7 @@ from . import utils
 from ._const import DOCS_BUILDING, URL
 from .enums import AppFlag, Enum, PublishedFileQueryFileType, ReviewType
 from .iterators import GamePublishedFilesIterator, ManifestIterator, ReviewsIterator
-from .utils import Intable, id64_from_url
+from .utils import DateTime, Intable, id64_from_url
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -619,13 +619,13 @@ class WishlistGame(StatefulGame):
         self.score = data["review_score"]
         self.total_reviews = int(data["reviews_total"].replace(",", ""))
         self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
-        self.created_at = datetime.utcfromtimestamp(int(data["release_date"]))
+        self.created_at = DateTime.from_timestamp(int(data["release_date"]))
         self.type: str = data["type"]
         self.screenshots = [
             f"https://cdn.cloudflare.steamstatic.com/steam/apps/{self.id}/{screenshot_url}"
             for screenshot_url in data["screenshots"]
         ]
-        self.added_at = datetime.utcfromtimestamp(data["added"])
+        self.added_at = DateTime.from_timestamp(data["added"])
         self.background_url = data["background"]
         self.tags = data["tags"]
         self.rank = data["rank"]
@@ -661,7 +661,7 @@ class Movie:
         self.id: int = movie["id"]
         self.url: str = movie["mp4"]["max"]
         match = re.search(r"t=(\d+)", self.url)
-        self.created_at = datetime.utcfromtimestamp(int(match.group(1))) if match else None
+        self.created_at = DateTime.from_timestamp(int(match[1])) if match else None
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "url", "created_at")

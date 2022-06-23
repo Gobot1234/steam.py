@@ -522,7 +522,7 @@ class ConnectionState(Registerable):
             steamid=user_id64,
             chat_entry_type=ChatEntryType.Typing,
         )
-        self.dispatch("typing", self.user, datetime.utcnow())
+        self.dispatch("typing", self.user, DateTime.now())
 
     async def react_to_user_message(
         self, user_id64: int, server_timestamp: int, ordinal: int, reaction_name: str, reaction_type: int, is_add: bool
@@ -1265,7 +1265,7 @@ class ConnectionState(Registerable):
                 log.debug("Got a comment without a timestamp")
                 continue
 
-            after = datetime.utcfromtimestamp(timestamp) - timedelta(minutes=1)
+            after = DateTime.from_timestamp(timestamp) - timedelta(minutes=1)
 
             comments = [comment async for comment in commentable.comments(limit=index + 1, after=after)]
 

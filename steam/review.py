@@ -36,6 +36,7 @@ from .enums import Language
 from .game import StatefulGame
 from .reaction import AwardReaction
 from .user import ClientUser, User
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .protobufs.reviews import RecommendationDetails as ReviewProto
@@ -78,7 +79,7 @@ class BaseReviewUser(BaseUser):
         review_user.playtime_forever = timedelta(seconds=review.playtime_forever)
         review_user.playtime_last_two_weeks = timedelta(seconds=review.playtime_2weeks)
         review_user.playtime_at_review = timedelta(seconds=review.playtime_at_review)
-        review_user.last_played = datetime.utcfromtimestamp(review.last_playtime)
+        review_user.last_played = DateTime.from_timestamp(review.last_playtime)
         return review_user
 
     @classmethod
@@ -89,7 +90,7 @@ class BaseReviewUser(BaseUser):
         review_user.playtime_forever = timedelta(seconds=data["playtime_forever"])
         review_user.playtime_last_two_weeks = timedelta(seconds=data["playtime_last_two_weeks"])
         review_user.playtime_at_review = timedelta(seconds=data["playtime_at_review"])
-        review_user.last_played = datetime.utcfromtimestamp(data["last_played"])
+        review_user.last_played = DateTime.from_timestamp(data["last_played"])
         return review_user
 
 
@@ -203,8 +204,8 @@ class Review(Commentable, Awardable):
             game=StatefulGame(state, id=review.appid),
             language=Language.from_str(review.language),
             content=review.review,
-            created_at=datetime.utcfromtimestamp(review.time_created),
-            updated_at=datetime.utcfromtimestamp(review.time_updated),
+            created_at=DateTime.from_timestamp(review.time_created),
+            updated_at=DateTime.from_timestamp(review.time_updated),
             upvoted=review.voted_up,
             votes_funny=review.votes_funny,
             upvotes=review.votes_up,
@@ -216,7 +217,7 @@ class Review(Commentable, Awardable):
             written_during_early_access=review.written_during_early_access,
             developer_response=review.developer_response or None,
             developer_responded_at=(
-                datetime.utcfromtimestamp(review.time_developer_responded)
+                DateTime.from_timestamp(review.time_developer_responded)
                 if review.time_developer_responded
                 else None  # TODO add the rest of the developer attrs
             ),
@@ -232,8 +233,8 @@ class Review(Commentable, Awardable):
             game=game,
             language=Language.from_str(data["language"]),
             content=data["review"],
-            created_at=datetime.utcfromtimestamp(data["timestamp_created"]),
-            updated_at=datetime.utcfromtimestamp(data["timestamp_updated"]),
+            created_at=DateTime.from_timestamp(data["timestamp_created"]),
+            updated_at=DateTime.from_timestamp(data["timestamp_updated"]),
             upvoted=data["voted_up"],
             votes_funny=data["votes_funny"],
             upvotes=data["votes_up"],
@@ -245,9 +246,7 @@ class Review(Commentable, Awardable):
             written_during_early_access=data["written_during_early_access"],
             developer_response=data.get("developer_response"),
             developer_responded_at=(
-                datetime.utcfromtimestamp(data["timestamp_dev_responded"])
-                if "timestamp_dev_responded" in data
-                else None
+                DateTime.from_timestamp(data["timestamp_dev_responded"]) if "timestamp_dev_responded" in data else None
             ),
             reactions=None,
         )

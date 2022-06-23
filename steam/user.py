@@ -36,6 +36,7 @@ from .errors import ClientException, ConfirmationError, HTTPException
 from .game import Game, StatefulGame
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileItem
 from .trade import Inventory, TradeOffer
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -85,11 +86,11 @@ class _BaseUser(BaseUser):
             Clan(self._state, data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan  # type: ignore
         )
         self.country = data.get("loccountrycode") or self.country
-        self.created_at = datetime.utcfromtimestamp(data["timecreated"]) if "timecreated" in data else self.created_at
-        self.last_logoff = datetime.utcfromtimestamp(data["lastlogoff"]) if "lastlogoff" in data else self.last_logoff
-        self.last_logon = datetime.utcfromtimestamp(data["last_logon"]) if "last_logon" in data else self.last_logon
+        self.created_at = DateTime.from_timestamp(data["timecreated"]) if "timecreated" in data else self.created_at
+        self.last_logoff = DateTime.from_timestamp(data["lastlogoff"]) if "lastlogoff" in data else self.last_logoff
+        self.last_logon = DateTime.from_timestamp(data["last_logon"]) if "last_logon" in data else self.last_logon
         self.last_seen_online = (
-            datetime.utcfromtimestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
+            DateTime.from_timestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
         )
         self.rich_presence = data["rich_presence"] if "rich_presence" in data else self.rich_presence
         self.game = (
