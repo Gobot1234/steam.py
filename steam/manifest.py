@@ -55,6 +55,7 @@ from .models import _IOMixin
 from .package import StatefulPackage
 from .protobufs import app_info
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
+from .utils import DateTime
 
 if sys.platform == "win32":
     from pathlib import PureWindowsPath as PurePathBase
@@ -391,7 +392,7 @@ class Manifest(Generic[NameT]):
             if io.read_u32() != END_OF_MANIFEST_MAGIC:
                 raise RuntimeError("Expecting end of manifest")
 
-        self.created_at = datetime.utcfromtimestamp(self._metadata.creation_time)
+        self.created_at = DateTime.from_timestamp(self._metadata.creation_time)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id} depot_id={self.depot_id}>"

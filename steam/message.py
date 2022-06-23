@@ -24,12 +24,12 @@ SOFTWARE.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from typing_extensions import TypeAlias
 
 from .abc import Message, SteamID
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .channel import ClanChannel, DMChannel, GroupChannel
@@ -57,7 +57,7 @@ class UserMessage(Message):
     def __init__(self, proto: friend_messages.IncomingMessageNotification, channel: DMChannel):
         super().__init__(channel, proto)
         self.author = channel.participant
-        self.created_at = datetime.utcfromtimestamp(proto.rtime32_server_timestamp)
+        self.created_at = DateTime.from_timestamp(proto.rtime32_server_timestamp)
 
 
 class _GroupMessage(Message):

@@ -90,7 +90,8 @@ from .reaction import (
 )
 from .role import RolePermissions
 from .trade import TradeOffer
-from .user import User
+from .user import ClientUser, User
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .abc import Message
@@ -212,8 +213,8 @@ class ConnectionState(Registerable):
     @property
     def steam_time(self) -> datetime:
         if self.ws is None:  # can't be more precise
-            return datetime.utcnow()
-        return datetime.utcnow() + self.ws.server_offset
+            return DateTime.now()
+        return DateTime.now() + self.ws.server_offset
 
     @property
     def users(self) -> list[User]:
@@ -454,7 +455,7 @@ class ConnectionState(Registerable):
             lock, last_confirmation_time = self.confirmation_generation_locks[tag]
         except KeyError:
             lock = asyncio.Lock()
-            last_confirmation_time = datetime.min
+            last_confirmation_time = DateTime.now() - timedelta(seconds=2)
             self.confirmation_generation_locks[tag] = lock, last_confirmation_time
 
         await lock.acquire()
@@ -865,7 +866,7 @@ class ConnectionState(Registerable):
             self.dispatch("message", message)
 
         if msg.body.chat_entry_type == ChatEntryType.Typing:
-            when = datetime.utcfromtimestamp(msg.body.rtime32_server_timestamp)
+            when = DateTime.from_timestamp(msg.body.rtime32_server_timestamp)
             self.dispatch("typing", author, when)
 
     async def handle_user_message_reaction(self, msg: MsgProto[friend_messages.MessageReactionNotification]) -> None:

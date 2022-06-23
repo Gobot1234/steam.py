@@ -96,7 +96,7 @@ def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int | 
 
 
 def generate_device_id(user_id64: Intable) -> str:
-    """Generate the device id for a user's 64 bit ID.
+    """Generate the device id for a user's 64-bit ID.
 
     Parameters
     -----------
@@ -142,12 +142,12 @@ class Confirmation:
     def tag(self) -> str:
         return f"details{self.data_conf_id}"
 
-    def _confirm_params(self, tag: str) -> dict[str, str | int]:
-        timestamp = int(time())
+    async def _confirm_params(self, tag: str) -> dict[str, str | int]:
+        code, timestamp = await self._state._generate_confirmation_code(tag)
         return {
             "p": self._state._device_id,
-            "a": self._state.client.user.id64,
-            "k": self._state._generate_confirmation(tag, timestamp),
+            "a": self._state.user.id64,
+            "k": code,
             "t": timestamp,
             "m": "android",
             "tag": tag,
@@ -158,24 +158,22 @@ class Confirmation:
             self._state._confirmations_to_ignore.append(self.trade_id)
             raise ConfirmationError
 
-    async def confirm(self) -> None:
-        params = self._confirm_params("allow")
-        params["op"] = "allow"
+    async def _perform_op(self, op: str) -> None:
+        params = await self._confirm_params(op)
+        params["op"] = op
         params["cid"] = self.data_conf_id
         params["ck"] = self.data_key
         resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
         self._assert_valid(resp)
+
+    async def confirm(self) -> None:
+        await self._perform_op("allow")
 
     async def cancel(self) -> None:
-        params = self._confirm_params("cancel")
-        params["op"] = "cancel"
-        params["cid"] = self.data_conf_id
-        params["ck"] = self.data_key
-        resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
-        self._assert_valid(resp)
+        await self._perform_op("cancel")
 
     async def details(self) -> str:
-        params = self._confirm_params(self.tag)
+        params = await self._confirm_params(self.tag)
         resp = await self._state.http.get(URL.COMMUNITY / f"mobileconf/details/{self.id}", params=params)
         self._assert_valid(resp)
         return resp["html"]

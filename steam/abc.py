@@ -55,6 +55,7 @@ from .trade import Inventory
 from .utils import (
     _INVITE_HEX,
     _INVITE_MAPPING,
+    DateTime,
     InstanceType,
     Intable,
     TypeType,
@@ -889,7 +890,7 @@ def _clean_up_content(content: str) -> str:  # steam does weird stuff with conte
     return content.replace(r"\[", "[").replace("\\\\", "\\")
 
 
-STEAM_EPOCH = datetime(2005, 1, 1)
+STEAM_EPOCH = datetime(2005, 1, 1, tzinfo=timezone.utc)
 
 
 class Message:

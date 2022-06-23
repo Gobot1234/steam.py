@@ -568,6 +568,16 @@ def call_once(func: Callable[_P, Awaitable[None]]) -> Callable[_P, Awaitable[Non
     return inner
 
 
+class DateTime:
+    @staticmethod
+    def now() -> datetime:
+        return datetime.now(tz=timezone.utc)
+
+    @staticmethod
+    def from_timestamp(timestamp: float) -> datetime:
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+
+
 class AsyncInit(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def __ainit__(self) -> None:
