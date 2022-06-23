@@ -68,6 +68,10 @@ __all__ = (
     "PaymentMethod",
     "PackageStatus",
     "PublishedFileRevision",
+    "PublishedFileType",
+    "PublishedFileVisibility",
+    "PublishedFileQueryType",
+    "PublishedFileQueryFileType",
 )
 
 T = TypeVar("T")
@@ -895,6 +899,82 @@ class PublishedFileRevision(IntEnum):
     ApprovedSnapshotChina = 3
     RejectedSnapshot      = 4
     RejectedSnapshotChina = 5
+
+
+class PublishedFileQueryType:
+    RankedByVote                                  = 0
+    RankedByPublicationDate                       = 1
+    AcceptedForGameRankedByAcceptanceDate         = 2
+    RankedByTrend                                 = 3
+    FavouritedByFriendsRankedByPublicationDate    = 4
+    CreatedByFriendsRankedByPublicationDate       = 5
+    RankedByNumTimesReported                      = 6
+    CreatedByFollowedUsersRankedByPublicationDate = 7
+    NotYetRated                                   = 8
+    RankedByTotalUniqueSubscriptions              = 9
+    RankedByTotalVotesAsc                         = 10
+    RankedByVotesUp                               = 11
+    RankedByTextSearch                            = 12
+    RankedByPlaytimeTrend                         = 13
+    RankedByTotalPlaytime                         = 14
+    RankedByAveragePlaytimeTrend                  = 15
+    RankedByLifetimeAveragePlaytime               = 16
+    RankedByPlaytimeSessionsTrend                 = 17
+    RankedByLifetimePlaytimeSessions              = 18
+    RankedByInappropriateContentRating            = 19
+    RankedByBanContentCheck                       = 20
+    RankedByLastUpdatedDate                       = 21
+
+
+class PublishedFileType(IntEnum):
+    Community              = 0   #: Normal Workshop item that can be subscribed to
+    Microtransaction       = 1   #: Workshop item that is meant to be voted on for the purpose of selling in-game
+    Collection             = 2   #: A collection of Workshop or Greenlight items
+    Art                    = 3   #: Artwork
+    Video                  = 4   #: External video
+    Screenshot             = 5   #: Screenshot
+    Game                   = 6   #: Greenlight game entry
+    Software               = 7   #: Greenlight software entry
+    Concept                = 8   #: Greenlight concept
+    WebGuide               = 9   #: Steam web guide
+    IntegratedGuide        = 10  #: Application integrated guide
+    Merch                  = 11  #: Workshop merchandise meant to be voted on for the purpose of being sold
+    ControllerBinding      = 12  #: Steam Controller bindings
+    SteamworksAccessInvite = 13  #: Internal
+    SteamVideo             = 14  #: Steam video
+    GameManagedItem        = 15  #: Managed completely by the game, not the user, and not shown on the web
+    Max                    = 16
+
+
+class PublishedFileVisibility(IntEnum):
+    Public      = 0
+    FriendsOnly = 1
+    Private     = 2
+    Unlisted    = 3
+
+
+class PublishedFileQueryFileType(IntEnum):
+    Items                   = 0   #: Items.
+    Collections             = 1   #: A collection of Workshop items.
+    Art                     = 2   #: Artwork.
+    Videos                  = 3   #: Videos.
+    Screenshots             = 4   #: Screenshots.
+    CollectionEligible      = 5   #: Items that can be put inside a collection.
+    Games                   = 6   #: Unused.
+    Software                = 7   #: Unused.
+    Concepts                = 8   #: Unused.
+    GreenlightItems         = 9   #: Unused.
+    AllGuides               = 10  #: Guides.
+    WebGuides               = 11  #: Steam web guide.
+    IntegratedGuides        = 12  #: Application integrated guide.
+    UsableInGame            = 13  #:
+    Merch                   = 14  #: Workshop merchandise meant to be voted on for the purpose of being sold.
+    ControllerBindings      = 15  #: Steam Controller bindings.
+    SteamworksAccessInvites = 16  #: Used internally.
+    ForSaleInGame           = 17  #: Workshop items that can be sold in-game.
+    ReadyToUseItems         = 18  #: Workshop items that can be used right away by the user.
+    WorkshopShowcases       = 19  #:
+    GameManagedItems        = 20  #: Managed completely by the game, not the user, and not shown on the web.
 # fmt: on
 
 

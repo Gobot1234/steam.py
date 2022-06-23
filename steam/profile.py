@@ -30,18 +30,15 @@ from typing import TYPE_CHECKING
 
 from . import utils
 from .badge import Badge
-from .enums import ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, Result
+from .enums import ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, PublishedFileRevision, Result
 from .errors import WSException
 from .game import StatefulGame
-
-# from .protobufs.player import EBanContentCheckResult
 from .trade import Asset, Item
 
 if TYPE_CHECKING:
     from .abc import BaseUser
     from .protobufs import player
-
-    # from .published_file import PublishedFile
+    from .published_file import PublishedFile
     from .state import ConnectionState
     from .types.trade import ItemDict
 
@@ -217,15 +214,13 @@ class ProfileShowcaseSlot:
         }  # type: ignore  # I don't wanna type out this in full to make this type-safe
         return Item(data, self.owner)
 
-    # async def published_file(
-    #     self, desired_revision: PublishedFileRevision = PublishedFileRevision.Default
-    # ) -> PublishedFile:
-    #     """Fetches the associated :class:`.PublishedFile` from :attr:`published_file_id`."""
-    #     if self.published_file_id is None:
-    #         raise ValueError
-    #     (file,) = await self._state.fetch_published_files((self.published_file_id,), desired_revision)
-    #     assert file
-    #     return file
+    async def published_file(self, *, revision: PublishedFileRevision = PublishedFileRevision.Default) -> PublishedFile:
+        """Fetches the associated :class:`.PublishedFile` from :attr:`published_file_id`."""
+        if self.published_file_id is None:
+            raise ValueError
+        (file,) = await self._state.fetch_published_files((self.published_file_id,), revision)
+        assert file
+        return file
 
     async def badge(self) -> Badge:
         """Fetches the associated :class:`.Badge` from :attr:`badge_id`."""
@@ -288,8 +283,8 @@ class ProfileShowcase:
                 items.append(Item(data, self.owner))
         return items
 
-    # async def published_file(self, revision: PublishedFileRevision = PublishedFileRevision.Default) -> PublishedFile:
-    #     return await self.slots[0].published_file(revision)
+    async def published_file(self, revision: PublishedFileRevision = PublishedFileRevision.Default) -> PublishedFile:
+        return await self.slots[0].published_file(revision=revision)
 
     async def badges(self) -> list[Badge]:
         all_badges = await self.owner.badges()
