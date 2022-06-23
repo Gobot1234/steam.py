@@ -32,8 +32,8 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 from typing_extensions import Literal, TypedDict
 
 from . import utils
-from ._const import URL
-from .enums import Enum_, ReviewType
+from ._const import DOCS_BUILDING, URL
+from .enums import Enum, ReviewType
 from .iterators import ManifestIterator, ReviewIterator
 from .utils import Intable, id64_from_url
 
@@ -188,19 +188,30 @@ class Game:
         return f"{URL.COMMUNITY}/app/{self.id}"
 
 
-class Games(Game, Enum_):
+class Games(Game, Enum):
     """This is "enum" to trick type checkers into allowing Literal[TF2] to be valid for overloads in extensions."""
 
     __slots__ = ("_name",)
 
-    def __new__(cls, *, name: str, value: tuple[str, int, int]) -> Games:
+    def __new__(cls, name: str, *args: Any, value: tuple[str, int, int] | tuple[()] = ()) -> Games:
         self = object.__new__(cls)
         set_attribute = object.__setattr__
+
+        if args:  # being called when docs are building
+            name = ""
+            value = (name, args[0], args[1])
+
+        assert value
         set_attribute(self, "_name", name)
         set_attribute(self, "name", value[0])
         set_attribute(self, "id", value[1])
         set_attribute(self, "context_id", value[2])
         return self
+
+    if DOCS_BUILDING:
+
+        def __init__(self, *args: Any) -> None:
+            ...
 
     def __repr__(self) -> str:
         return self._name

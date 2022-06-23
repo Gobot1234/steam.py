@@ -28,7 +28,8 @@ EnumMeta originally from https://github.com/Rapptz/discord.py/blob/master/discor
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Mapping
-from types import MappingProxyType
+from enum import Enum as _Enum, EnumMeta as _EnumMeta, IntEnum as _IntEnum
+from types import MappingProxyType, new_class
 from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypeVar, cast
 
 from typing_extensions import Literal, Self
@@ -75,8 +76,6 @@ __all__ = (
 )
 
 T = TypeVar("T")
-E = TypeVar("E", bound="Enum", covariant=True)
-IE = TypeVar("IE", bound="IntEnum")
 
 T_co = TypeVar("T_co")
 TT_co = TypeVar("TT_co", bound="type[Any]")
@@ -97,12 +96,12 @@ def _is_descriptor(obj: object) -> bool:
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
-class EnumMeta(type):
+class EnumMeta(_EnumMeta if TYPE_CHECKING else type):
     _value_map_: Mapping[Any, Enum]
     _member_map_: Mapping[str, Enum]
 
     def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> Self:
-        enum_class = super().__new__(mcs, name, bases, attrs)
+        enum_class: type[Enum] = super().__new__(mcs, name, bases, attrs)  # type: ignore
 
         value_mapping: dict[Any, Enum] = {}
         member_mapping: dict[str, Enum] = {}
@@ -117,32 +116,38 @@ class EnumMeta(type):
                 value_mapping[member.value] = member
 
             member_mapping[key] = member
-            super().__setattr__(enum_class, key, member)
+            type.__setattr__(enum_class, key, member)
 
-        super().__setattr__(enum_class, "_value_map_", value_mapping)
-        super().__setattr__(enum_class, "_member_map_", member_mapping)
+        type.__setattr__(enum_class, "_value_map_", value_mapping)
+        type.__setattr__(enum_class, "_member_map_", member_mapping)
         return enum_class
 
-    def __call__(cls: type[E], value: Any) -> E:
-        try:
-            return cls._value_map_[value]
-        except (KeyError, TypeError):
-            raise ValueError(f"{value!r} is not a valid {cls.__name__}")
+    if not TYPE_CHECKING:
+
+        def __call__(cls, value: Any) -> Enum:
+            try:
+                return cls._value_map_[value]
+            except (KeyError, TypeError):
+                raise ValueError(f"{value!r} is not a valid {cls.__name__}")
+
+        def __iter__(cls) -> Generator[Enum, None, None]:
+            yield from cls._member_map_.values()
+
+        def __reversed__(cls) -> Generator[Enum, None, None]:
+            yield from reversed(tuple(cls._member_map_.values()))  # can remove tuple cast after 3.7
+
+        def __getitem__(cls, key: str) -> Enum:
+            return cls._member_map_[key]
+
+        @property
+        def __members__(cls) -> MappingProxyType[str, Enum]:
+            return MappingProxyType(cls._member_map_)
 
     def __repr__(cls) -> str:
         return f"<enum {cls.__name__!r}>"
 
-    def __iter__(cls: type[E]) -> Generator[E, None, None]:
-        yield from cls._member_map_.values()
-
-    def __reversed__(cls: type[E]) -> Generator[E, None, None]:
-        yield from reversed(tuple(cls._member_map_.values()))  # can remove tuple cast after 3.7
-
     def __len__(cls) -> int:
         return len(cls._member_map_)
-
-    def __getitem__(cls: type[E], key: str) -> E:
-        return cls._member_map_[key]
 
     def __setattr__(cls, name: str, value: Any) -> NoReturn:
         raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
@@ -155,12 +160,10 @@ class EnumMeta(type):
             isinstance(member, cls) and member.name in cls._member_map_ if isinstance(member, Enum) else NotImplemented
         )
 
-    @property
-    def __members__(cls: type[E]) -> MappingProxyType[str, E]:
-        return MappingProxyType(cls._member_map_)
 
-
-class Enum(metaclass=EnumMeta):
+# pretending these are enum subclasses makes things much nicer for linters as enums have custom behaviour you can't
+# replicate in the current type system
+class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumMeta):
     """A general enumeration, emulates `enum.Enum`."""
 
     name: str
@@ -173,7 +176,7 @@ class Enum(metaclass=EnumMeta):
         self = (
             super_.__new__(cls, value)
             if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
-            else super_.__new__(cls)
+            else super_.__new__(cls)  # type: ignore
         )
         super_.__setattr__(self, "name", name)
         super_.__setattr__(self, "value", value)
@@ -206,25 +209,13 @@ class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
 
-Enum_ = Enum  # needed for game.Games
-IntEnum_ = IntEnum  # needed for protobuf.headers.NO_MSG
+if cast(Literal[False], DOCS_BUILDING):
+    enum_dict = Enum.__dict__.copy()
+    for key in ("__new__", "__setattr__"):
+        del enum_dict[key]
 
-if TYPE_CHECKING or DOCS_BUILDING:
-    from enum import Enum as _Enum, IntEnum as _IntEnum
-
-    class Enum(_Enum):
-        @classmethod
-        def try_value(cls, value: Any) -> Self:
-            ...
-
-    class IntEnum(_IntEnum, Enum):
-        pass
-
-    # pretending these are enum.IntEnum subclasses makes things much nicer for linters as IntEnums have custom behaviour
-    # I can't seem to replicate
-if TYPE_CHECKING:
-    Enum_ = Enum
-    IntEnum_ = IntEnum
+    Enum = new_class("Enum", (_Enum,), {}, lambda ns: ns.update(enum_dict))  # type: ignore
+    IntEnum = new_class("IntEnum", (Enum, _IntEnum))  # type: ignore
 
 
 class Flags(IntEnum):

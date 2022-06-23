@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import betterproto
 
-from ..enums import IntEnum, IntEnum_, Result
+from ..enums import IntEnum, Result
 from ..utils import clear_proto_bit as clear_proto_bit, set_proto_bit as set_proto_bit
 from .base import CMsgProtoBufHeader
 from .emsg import EMsg as EMsg
@@ -114,7 +114,11 @@ cls.__bytes__ = __bytes__
             ...
 
 
-NO_MSG: IntEnum = IntEnum_.__new__(IntEnum_, name="NoMsg", value=-1)  # type: ignore
+class NoMsg(IntEnum):
+    NONE = -1
+
+
+NO_MSG = NoMsg.NONE
 
 
 class MsgHdr(BaseMsgHdr):
