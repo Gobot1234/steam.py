@@ -446,6 +446,8 @@ class BaseUser(SteamID, Commentable):
         The country code of the account. Could be ``None``.
     flags
         The persona state flags of the account.
+    rich_presence
+        The user's rich presence.
     """
 
     __slots__ = (
@@ -462,6 +464,7 @@ class BaseUser(SteamID, Commentable):
         "created_at",
         "last_logoff",
         "last_logon",
+        "rich_presence",
         "privacy_state",
         "community_url",
         "_is_commentable",

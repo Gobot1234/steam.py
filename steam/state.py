@@ -1052,6 +1052,7 @@ class ConnectionState(Registerable):
         data["gameextrainfo"] = friend.game_name or None
         data["personastate"] = friend.persona_state
         data["personastateflags"] = friend.persona_state_flags
+        data["rich_presence"] = {m.key: m.value for m in friend.rich_presence}
         return data  # type: ignore  # casting is for losers
 
     @register(EMsg.ClientFriendsList)
