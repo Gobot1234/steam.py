@@ -508,6 +508,12 @@ def contains_bbcode(string: str) -> bool:
     return any(string.startswith(f"/{bbcode}") for bbcode in bbcodes)
 
 
+def _get_avatar_url(sha: bytes) -> str:
+    hexed = sha.hex()
+    hash = hexed if hexed != "\x00" * 20 else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
+    return f"https://avatars.cloudflare.steamstatic.com/{hash}_full.jpg"
+
+
 def chunk(iterable: Iterable[_T], size: int) -> Generator[list[_T], None, None]:
     chunk: list[_T] = []
 

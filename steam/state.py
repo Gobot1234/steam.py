@@ -1038,14 +1038,7 @@ class ConnectionState(Registerable):
 
     def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> _UserDict:
         data["personaname"] = friend.player_name
-        hash = (
-            friend.avatar_hash.hex()
-            if data["avatar_hash"] != "\x00" * 20
-            else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
-        )
-        data[
-            "avatarfull"
-        ] = f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
+        data["avatarfull"] = utils._get_avatar_url(friend.avatar_hash)
 
         if friend.last_logoff:
             data["lastlogoff"] = friend.last_logoff
@@ -1396,11 +1389,7 @@ class ConnectionState(Registerable):
             clan.active_member_count = user_counts.chatting
         if name_info:
             clan.name = name_info.clan_name
-            hexed = name_info.sha_avatar.hex()
-            hash = hexed if hexed != "\x00" * 20 else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
-            clan.avatar_url = (
-                f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/{hash[:2]}/{hash}_full.jpg"
-            )
+            clan.avatar_url = utils._get_avatar_url(name_info.sha_avatar)
 
         if user_counts or name_info:
             self.dispatch("clan_update", before, clan)
