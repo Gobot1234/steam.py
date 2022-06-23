@@ -779,6 +779,7 @@ class Client:
 
     def trade_history(
         self,
+        *,
         limit: int | None = 100,
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,

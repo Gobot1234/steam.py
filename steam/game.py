@@ -33,8 +33,8 @@ from typing_extensions import Literal, TypedDict
 
 from . import utils
 from ._const import DOCS_BUILDING, URL
-from .enums import Enum, ReviewType
-from .iterators import ManifestIterator, ReviewIterator
+from .enums import AppFlag, Enum, PublishedFileQueryFileType, ReviewType
+from .iterators import GamePublishedFilesIterator, ManifestIterator, ReviewsIterator
 from .utils import Intable, id64_from_url
 
 if TYPE_CHECKING:
@@ -268,6 +268,11 @@ class StatefulGame(Game):
         super().__init__(**kwargs)
         self._state = state
 
+    def __repr__(self) -> str:
+        attrs = ("name", "id", "context_id")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
+
     async def clan(self) -> Clan:
         """Fetch this game's clan.
 
@@ -329,10 +334,11 @@ class StatefulGame(Game):
 
     def reviews(
         self,
+        *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> ReviewIterator:
+    ) -> ReviewsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Game`'s
         :class:`steam.Review`\\s.
 
@@ -370,7 +376,7 @@ class StatefulGame(Game):
         ------
         :class:`~steam.Review`
         """
-        return ReviewIterator(self._state, self, limit, before, after)
+        return ReviewsIterator(self._state, self, limit, before, after)
 
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
     #     fetched = await self._state.client.fetch_game(self)
@@ -394,13 +400,35 @@ class StatefulGame(Game):
 
     def manifests(
         self,
+        *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
         branch: str = "public",
         password: str | None = None,
     ) -> ManifestIterator:
-        """An iterator over the game's CDN manifests.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Game`'s
+        :class:`steam.Manifest`\\s.
+
+        Examples
+        --------
+
+        Usage:
+
+        .. code-block:: python3
+
+            async for manifest in game.manifests(limit=10):
+                print("Manifest:", manifest.name)
+                print(f"Contains {len(manifest.paths)} manifests")
+
+        Flattening into a list:
+
+        .. code-block:: python3
+
+            manifests = await game.manifests(limit=50).flatten()
+            # manifests is now a list of Manifest
+
+        All parameters are optional.
 
         Parameters
         ----------

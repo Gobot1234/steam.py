@@ -25,43 +25,49 @@ SOFTWARE.
 from __future__ import annotations
 
 import asyncio
+import itertools
 import math
 import re
-from collections import deque
-from collections.abc import Callable, Coroutine
+from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from bs4 import BeautifulSoup
-from typing_extensions import ClassVar, TypeAlias
+from typing_extensions import ClassVar, Self, TypeAlias
 
 from . import utils
 from ._const import HTML_PARSER
 from .comment import Comment
+from .enums import EventType, PublishedFileQueryFileType, PublishedFileRevision, PublishedFileType
+from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .abc import Channel, Commentable, Message
-    from .channel import ClanChannel, ClanMessage, DMChannel, GroupChannel, GroupMessage, UserMessage
+    from .abc import Authors, BaseUser, Commentable, Message
+    from .channel import DMChannel, UserMessage
+    from .chat import Chat, ChatMessage
     from .clan import Clan
+    from .comment import Comment
     from .event import Announcement, Event
-    from .game import StatefulGame
+    from .game import Game, StatefulGame
     from .group import Group
     from .manifest import Manifest
+    from .protobufs import friend_messages
+    from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
-    from .trade import DescriptionDict, TradeOffer
+    from .trade import TradeOffer
+    from .types import trade
 
 T = TypeVar("T")
 TT = TypeVar("TT")
-ChannelT = TypeVar("ChannelT", bound="Channel[Any]", covariant=True)
 CommentableT = TypeVar("CommentableT", bound="Commentable")
 M = TypeVar("M", bound="Message", covariant=True)
 
 MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
-UNIX_EPOCH = datetime.utcfromtimestamp(0)
+UNIX_EPOCH = DateTime.from_timestamp(0)
 
 
-class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
+class AsyncIterator(Generic[T]):
     """A class from which async iterators (see :pep:`525`) can ben easily derived.
 
     .. container:: operations
@@ -77,9 +83,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
     after
         When to find objects after.
     limit
-        The maximum size of the :attr:`queue`.
-    queue
-        The queue containing the elements of the iterator.
+        The maximum number of elements to be yielded.
     """
 
     def __init__(
@@ -90,34 +94,29 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
         after: datetime | None = None,
     ):
         self._state = state
-        self.before = before or datetime.utcnow()
+        self.before = before or DateTime.now()
         self.after = after or UNIX_EPOCH
         self._is_filled = False
-        self.queue: deque[T] = deque()
         self.limit = limit
-
-    def _append(self, element: T) -> bool:
-        if self.limit is None:
-            self.queue.append(element)
-            return True
-        if len(self.queue) < self.limit:
-            self.queue.append(element)
-            return True
-        if len(self.queue) == self.limit:
-            self.queue.append(element)
-
-        return False
+        self._fill = self.fill()
+        self._seen = 0
 
     async def _fill_queue_users(
         self,
-        id64s: set[Any],  # should be set[int] but # type: ignore stuff forces this
+        iterable: Iterable[T],
         attributes: tuple[str, ...] = ("author",),
+        *,
+        user_attribute_name: str | None = None,
     ) -> None:
-        for user in await self._state.fetch_users(list(id64s)):
-            for element in self.queue:
-                for attribute in attributes:
-                    if getattr(element, attribute, None) == user:
-                        setattr(element, attribute, user)
+        user_attribute_name = user_attribute_name or attributes[0]
+        users = await self._state._maybe_users(getattr(element, user_attribute_name) for element in iterable)
+        for user, element in itertools.product(
+            users,
+            iterable,
+        ):
+            for attribute in attributes:
+                if getattr(element, attribute, None) == user:
+                    setattr(element, attribute, user)
 
     async def get(self, **attrs: Any) -> T | None:
         """A helper function which is similar to :func:`~steam.utils.get` except it runs over the async iterator.
@@ -164,7 +163,7 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
 
     async def find(self, predicate: MaybeCoro[T]) -> T | None:
         """A helper function which is similar to :func:`~steam.utils.find` except it runs over the async iterator.
-        However unlike :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
+        However, unlike :func:`~steam.utils.find`, the predicate provided can be a |coroutine_link|_.
 
         This is roughly equivalent to:
 
@@ -246,11 +245,14 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
         """
         return MappedIterator(func, self)
 
-    def __aiter__(self) -> AsyncIterator[T]:
+    def __aiter__(self) -> Self:
         return self
 
     def __anext__(self) -> Coroutine[None, None, T]:
-        return self.next()
+        self._seen += 1
+        if self.limit and self._seen > self.limit:
+            raise StopAsyncIteration
+        return self._fill.__anext__()  # type: ignore  # this is typed wrong
 
     async def next(self) -> T:
         """Advances the iterator by one, if possible.
@@ -260,17 +262,11 @@ class AsyncIterator(Generic[T]):  # TODO re-work to be fetch in chunks in V1
         :exc:`StopAsyncIteration`
             There are no more elements in the iterator.
         """
-        if not self.queue:
-            if self._is_filled:
-                raise StopAsyncIteration
-            await self.fill()
-            self._is_filled = True
-        if not self.queue:  # yikes
-            raise StopAsyncIteration
-        return self.queue.pop()
+        return await self.__anext__()
 
-    async def fill(self) -> None:
+    async def fill(self) -> AsyncGenerator[T, None]:
         raise NotImplementedError
+        yield
 
 
 class FilteredIterator(AsyncIterator[T]):
@@ -295,7 +291,7 @@ class MappedIterator(AsyncIterator[TT], Generic[T, TT]):
         return await utils.maybe_coroutine(self.map_func, item)
 
 
-class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
+class CommentsIterator(AsyncIterator["Comment[CommentableT]"]):
     def __init__(
         self,
         owner: CommentableT,
@@ -309,25 +305,52 @@ class CommentsIterator(AsyncIterator[Comment[CommentableT]]):
         self.oldest_first = oldest_first
         super().__init__(state, limit, before, after)
 
-    async def fill(self) -> None:
-        comments = await self._state.fetch_comments(self.owner, self.limit, self.after, self.oldest_first)
-        author_id64s = set()
-        for comment in comments:
-            comment = Comment(
-                self._state,
-                id=comment.id,
-                content=comment.content,
-                created_at=datetime.utcfromtimestamp(comment.timestamp),
-                author=comment.author_id64,  # type: ignore
-                owner=self.owner,
-            )
-            if not self.after < comment.created_at < self.before:
-                continue
-            if not self._append(comment):
-                break
-            author_id64s.add(comment.author)
+    async def fill(self) -> AsyncGenerator["Comment[CommentableT]", None]:
+        from .comment import Comment
+        from .reaction import AwardReaction
 
-        await self._fill_queue_users(author_id64s)
+        after = self.after
+        before = self.before
+        count: int | None = None
+        total_count = 0
+
+        async def get_comments(chunk: int) -> list[Comment[CommentableT]]:
+            nonlocal after, before, count, total_count
+
+            starting_from = total_count - count if total_count and count else 0
+            proto = await self._state.fetch_comments(self.owner, chunk, starting_from, self.oldest_first)
+
+            if count is None:
+                total_count = count = proto.total_count
+
+            comments: list[Comment[CommentableT]] = []
+            comment = None
+            for comment in proto.comments:
+                comment = Comment(
+                    self._state,
+                    id=comment.id,
+                    content=comment.content,
+                    created_at=DateTime.from_timestamp(comment.timestamp),
+                    reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
+                    author=comment.author_id64,  # type: ignore
+                    owner=self.owner,
+                )
+                if self.after < comment.created_at < self.before:
+                    comments.append(comment)
+                else:
+                    break
+
+            await self._fill_queue_users(comments)
+            count -= len(comments)
+            return comments
+
+        for comment in await get_comments(min(self.limit or 100, 100)):
+            yield comment
+
+        assert count is not None
+        while count > 0:
+            for comment in await get_comments(min(count, 100)):
+                yield comment
 
 
 class TradesIterator(AsyncIterator["TradeOffer"]):
@@ -340,25 +363,22 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
     ):
         super().__init__(state, limit, before, after)
 
-    async def fill(self) -> None:
+    async def fill(self) -> AsyncGenerator[TradeOffer, None]:
         from .trade import TradeOffer
 
-        resp = await self._state.http.get_trade_history(100, None)
-        resp = resp["response"]
-        total = resp.get("total_trades", 0)
+        resp = await self._state.http.get_trade_history(100)
+        data = resp["response"]
+        total = data.get("total_trades", 0)
         if not total:
             return
 
-        descriptions = resp.get("descriptions", [])
         after_timestamp = self.after.timestamp()
         before_timestamp = self.before.timestamp()
+        done = False
 
-        class Stop(Exception):
-            ...
-
-        async def process_trade(data: dict[str, Any], descriptions: list[DescriptionDict]) -> None:
+        def process_trade(data: trade.TradeOfferHistoryTradeDict, descriptions: list[trade.DescriptionDict]) -> bool:
             if not after_timestamp < data["time_init"] < before_timestamp:
-                return
+                return True
             for item in descriptions:
                 for asset in data.get("assets_received", []):
                     if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
@@ -367,62 +387,49 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
                     if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
                         asset.update(item)
 
-            # patch in the attributes cause steam is cool
-            data["tradeofferid"] = data["tradeid"]
-            data["accountid_other"] = data["steamid_other"]
-            data["trade_offer_state"] = data["status"]
-            data["items_to_give"] = data.get("assets_given", [])
-            data["items_to_receive"] = data.get("assets_received", [])
-
-            trade = TradeOffer._from_api(state=self._state, data=data)
-
-            if not self._append(trade):
-                raise Stop
+            trade = TradeOffer._from_history(state=self._state, data=data)
             partner_id64s.add(trade.partner)
+            trades.append(trade)
+            return False
 
         partner_id64s = set()
+        trades: list[TradeOffer] = []
+        descriptions = data.get("descriptions", [])
+        for trade in data.get("trades", []):
+            done = process_trade(trade, descriptions)
+            if done:
+                break
 
-        try:
-            for trade in resp.get("trades", []):
-                await process_trade(trade, descriptions)
+        await self._fill_queue_users(trades, ("partner",))
+        for trade in trades:
+            for item in trade.items_to_receive:
+                item.owner = trade.partner
+            yield trade
+        if done:
+            return
+        if total < 100:
+            for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
+                partner_id64s = set()
+                trades: list[TradeOffer] = []
 
-            previous_time = trade["time_init"]
-            if total < 100:
-                for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
-                    resp = await self._state.http.get_trade_history(page, previous_time)
-                    resp = resp["response"]
+                resp = await self._state.http.get_trade_history(page, trade["time_init"])
+                data = resp["response"]
+                descriptions = data.get("descriptions", [])
+                for trade in data.get("trades", []):
+                    done = process_trade(trade, descriptions)
+                    if done:
+                        break
 
-                    for trade in resp.get("trades", []):
-                        previous_time = trade["time_init"]
-                        await process_trade(trade, descriptions)
-        except Stop:
-            pass
-
-        for user in await self._state.fetch_users(list(partner_id64s)):
-            for element in self.queue:
-                if element.partner == user:
-                    element.partner = user
-                    for item in element.items_to_receive:
-                        item.owner = user
-                for item in element.items_to_send:
-                    item.owner = self._state.user
-
-
-class ChannelHistoryIterator(AsyncIterator[M], Generic[M, ChannelT]):
-    def __init__(
-        self,
-        channel: ChannelT,
-        state: ConnectionState,
-        limit: int | None,
-        before: datetime | None,
-        after: datetime | None,
-    ):
-        super().__init__(state, limit, before, after)
-        self.before = before or UNIX_EPOCH
-        self.channel = channel
+                await self._fill_queue_users(trades, ("partner",))
+                for trade in trades:
+                    for item in trade.items_to_receive:
+                        item.owner = trade.partner
+                    yield trade
+                if done:
+                    return
 
 
-class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"]):
+class DMChannelHistoryIterator(AsyncIterator["UserMessage"]):
     __slots__ = ("participant",)
 
     def __init__(
@@ -433,95 +440,157 @@ class DMChannelHistoryIterator(ChannelHistoryIterator["UserMessage", "DMChannel"
         before: datetime | None,
         after: datetime | None,
     ):
-        super().__init__(channel, state, limit, before, after)
+        super().__init__(state, limit, before, after)
+        self.channel = channel
         self.participant = channel.participant
 
-    async def fill(self) -> None:
+    async def fill(self) -> AsyncGenerator[UserMessage, None]:
         from .message import Message, UserMessage
+        from .reaction import Emoticon, MessageReaction, Sticker
 
         after_timestamp = int(self.after.timestamp())
         before_timestamp = int(self.before.timestamp())
 
         last_message_timestamp = before_timestamp
+        ordinal = 0
 
         while True:
             resp = await self._state.fetch_user_history(
-                self.participant.id64, start=after_timestamp, last=last_message_timestamp
+                self.participant.id64, start=after_timestamp, last=last_message_timestamp, start_ordinal=ordinal
             )
-            if not resp.messages:
-                return
+
+            message: friend_messages.GetRecentMessagesResponseFriendMessage | None = None
 
             for message in resp.messages:
                 new_message = UserMessage.__new__(UserMessage)
-                Message.__init__(new_message, channel=self.channel, proto=message)
-                new_message.author = (  # type: ignore
-                    self.participant if message.accountid == self.participant.id else self._state.client.user
-                )
-                new_message.created_at = datetime.utcfromtimestamp(message.timestamp)
-                if not self._append(new_message):
+                new_message.created_at = DateTime.from_timestamp(message.timestamp)
+                if not self.after < new_message.created_at < self.before:
                     return
 
-            last_message_timestamp = int(message.timestamp)
+                Message.__init__(new_message, channel=self.channel, proto=message)
+                new_message.author = self.participant if message.accountid == self.participant.id else self._state.user
+                emoticon_reactions = [
+                    MessageReaction(
+                        self._state,
+                        new_message,
+                        Emoticon(self._state, r.reaction),
+                        None,
+                        self.participant if reactor == self.participant.id else self._state.user,
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == 1
+                    for reactor in r.reactors
+                ]
+                sticker_reactions = [
+                    MessageReaction(
+                        self._state,
+                        new_message,
+                        None,
+                        Sticker(self._state, r.reaction),
+                        self.participant if reactor == self.participant.id else self._state.user,
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == 2
+                    for reactor in r.reactors
+                ]
+                new_message.reactions = emoticon_reactions + sticker_reactions
+
+                yield new_message
+
+            if message is None:
+                return
+
+            last_message_timestamp = message.timestamp
+            ordinal = message.ordinal
 
             if not resp.more_available:
                 return
 
 
-GroupMessages = TypeVar("GroupMessages", bound="ClanMessage | GroupMessage")
-GroupChannels = TypeVar("GroupChannels", bound="ClanChannel | GroupChannel")
+ChatMessageT = TypeVar("ChatMessageT", bound="ChatMessage", covariant=True)
+ChatT = TypeVar("ChatT", bound="Chat[Any]", covariant=True)
 
 
-class GroupChannelHistoryIterator(ChannelHistoryIterator[GroupMessages, GroupChannels]):
+class ChatHistoryIterator(AsyncIterator[ChatMessageT], Generic[ChatMessageT, ChatT]):
     __slots__ = ("group",)
 
     def __init__(
         self,
-        channel: ClanChannel | GroupChannel,
+        channel: ChatT,
         state: ConnectionState,
         limit: int | None,
         before: datetime | None,
         after: datetime | None,
     ):
-        super().__init__(channel, state, limit, before, after)
+        super().__init__(state, limit, before, after)
+        self.channel = channel
         self.group: Group | Clan = channel.group or channel.clan  # type: ignore
 
-    async def fill(self) -> None:
-        from .message import ClanMessage, GroupMessage, Message
+    async def fill(self) -> AsyncGenerator[ChatMessageT, None]:
+        from .abc import SteamID
+        from .message import Message
+        from .reaction import Emoticon, PartialMessageReaction, Sticker
 
         after_timestamp = int(self.after.timestamp())
         before_timestamp = int(self.before.timestamp())
         last_message_timestamp = before_timestamp
-        group_id = getattr(self.group, "chat_id", None) or self.group.id
-        author_id64s = set()
+        last_ordinal: int = getattr(self.channel.last_message, "ordinal", 0)
+        message_cls: type[ChatMessageT] = self.channel.__class__.__orig_bases__[0].__args__[0]  # type: ignore
 
         while True:
             resp = await self._state.fetch_group_history(
-                group_id, self.channel.id, start=after_timestamp, last=last_message_timestamp
+                *self.channel._location, start=after_timestamp, last=last_message_timestamp, last_ordinal=last_ordinal
             )
             message = None
+            messages: list[ChatMessageT] = []
 
             for message in resp.messages:
-                new_message = (
-                    GroupMessage.__new__(GroupMessage) if self.channel.group else ClanMessage.__new__(ClanMessage)
-                )
+                new_message = message_cls.__new__(message_cls)
                 Message.__init__(new_message, channel=self.channel, proto=message)
-                new_message.author = utils.make_id64(message.sender)  # type: ignore
-                author_id64s.add(new_message.author)
-                new_message.created_at = datetime.utcfromtimestamp(message.server_timestamp)
-                if not self._append(new_message):
-                    break
+                new_message.created_at = DateTime.from_timestamp(message.server_timestamp)
+                if not self.after < new_message.created_at < self.before:
+                    return
+
+                new_message.author = SteamID(message.sender)
+                emoticon_reactions = [
+                    PartialMessageReaction(
+                        self._state,
+                        new_message,
+                        Emoticon(self._state, r.reaction),
+                        None,
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == 1
+                ]
+                sticker_reactions = [
+                    PartialMessageReaction(
+                        self._state,
+                        new_message,
+                        None,
+                        Sticker(self._state, r.reaction),
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == 2
+                ]
+                new_message.partial_reactions = emoticon_reactions + sticker_reactions
+
+                messages.append(new_message)
 
             if message is None:
                 return
-            last_message_timestamp = int(message.server_timestamp)
+
+            await self._fill_queue_users(messages)
+            for message in messages:
+                yield message
+
+            last_message_timestamp = message.server_timestamp
+            last_ordinal = message.ordinal
 
             if not resp.more_available:
-                break
-
-        await self._fill_queue_users(author_id64s)
+                return
 
 
-class ReviewIterator(AsyncIterator["Review"]):
+class ReviewsIterator(AsyncIterator["Review"]):
     def __init__(
         self,
         state: ConnectionState,
@@ -533,8 +602,8 @@ class ReviewIterator(AsyncIterator["Review"]):
         super().__init__(state, limit, before, after)
         self.game = game
 
-    async def fill(self) -> None:
-        from .review import BaseReviewUser
+    async def fill(self) -> AsyncGenerator[Review, None]:
+        from .review import Review
 
         cursor = "*"
         while True:
@@ -544,15 +613,15 @@ class ReviewIterator(AsyncIterator["Review"]):
 
             for review, user in zip(
                 reviews,
-                await self._state.client.fetch_users(*(int(review["author"]["steamid"]) for review in reviews)),
+                await self._state.fetch_users(int(review["author"]["steamid"]) for review in reviews),
             ):
                 if user is None:
                     continue
-                if not self._append(BaseReviewUser._from_data(self._state, review, self.game, user)):
-                    break
-            else:
-                continue
-            break
+                review = Review._from_data(self._state, review, self.game, user)
+                if not self.after < review.created_at < self.before:
+                    return
+
+                yield review
 
 
 class _EventIterator(AsyncIterator[T]):
@@ -564,7 +633,7 @@ class _EventIterator(AsyncIterator[T]):
         super().__init__(state, limit, before, after)
         self.clan = clan
 
-    async def fill(self) -> None:
+    async def fill(self) -> AsyncGenerator[T, None]:
         cls = self.__class__
         rss = await self._state.http.get_clan_rss(
             self.clan.id64
@@ -581,46 +650,47 @@ class _EventIterator(AsyncIterator[T]):
         if not ids:
             return
 
-        events = await self.get_events(ids)
-        to_fetch_id64s = set()
         from . import event
 
-        event_cls: type[Announcement | Event] = getattr(
+        event_cls: type[Announcement | Event[EventType]] = getattr(
             event, cls.__orig_bases__[0].__args__[0].__forward_arg__  # type: ignore
         )
-
-        for event_ in events["events"]:
+        events = []
+        for event_ in await self.get_events(ids):
             event = event_cls(self._state, self.clan, event_)
-            to_fetch_id64s.add(event.author)
-            to_fetch_id64s.add(event.last_edited_by)
-            if not self._append(event):
-                break
+            if not self.after < event.starts_at < self.before:
+                return
+            events.append(event)
 
-        await self._fill_queue_users(to_fetch_id64s, ("author", "last_edited_by", "approved_by"))
+        await self._fill_queue_users(events, ("author", "last_edited_by", "approved_by"))
 
-    async def get_events(self, ids: list[int]) -> dict[str, Any]:
+        for event in events:
+            yield event
+
+    async def get_events(self, ids: list[int]) -> list[dict[str, Any]]:
         raise NotImplementedError
 
 
-class EventIterator(_EventIterator["Event"]):
+class EventIterator(_EventIterator["Event[EventType]"]):
     ID_PARSE_REGEX = re.compile(r"events/+(\d+)")
 
-    async def get_events(self, ids: list[int]) -> dict[str, Any]:
-        return await self._state.http.get_clan_events(self.clan.id, ids)
+    async def get_events(self, ids: list[int]) -> list[dict[str, Any]]:
+        data = await self._state.http.get_clan_events(self.clan.id, ids)
+        return data["events"]
 
 
 class AnnouncementsIterator(_EventIterator["Announcement"]):
     ID_PARSE_REGEX = re.compile(r"announcements/detail/(\d+)")
 
-    async def get_events(self, ids: list[int]) -> dict[str, Any]:
+    async def get_events(self, ids: list[int]) -> list[dict[str, Any]]:
         announcements = await asyncio.gather(*(self._state.http.get_clan_announcement(self.clan.id, id) for id in ids))
         events = []
         for announcement in announcements:
             events += announcement["events"]
-        return {"events": events}
+        return events
 
 
-class ManifestIterator(AsyncIterator["Manifest[str]"]):
+class ManifestIterator(AsyncIterator["Manifest"]):
     def __init__(
         self,
         state: ConnectionState,
@@ -636,7 +706,9 @@ class ManifestIterator(AsyncIterator["Manifest[str]"]):
         self.branch = branch
         self.password = password
 
-    async def fill(self) -> None:
-        for manifest in await self._state.fetch_manifests(self.game.id, self.branch, self.password, self.limit):
-            if self.after < manifest.created_at < self.before:
-                self._append(manifest)
+    async def fill(self) -> AsyncGenerator[Manifest, None]:
+        manifest_coros = await self._state.fetch_manifests(self.game.id, self.branch, self.password, self.limit)
+        for chunk in utils.chunk(manifest_coros, 100):
+            for manifest in await asyncio.gather(*chunk):
+                if self.after < manifest.created_at < self.before:
+                    yield manifest

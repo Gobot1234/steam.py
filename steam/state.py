@@ -51,7 +51,6 @@ from .errors import *
 from .group import Group
 from .guard import *
 from .invite import ClanInvite, UserInvite
-from .iterators import AsyncIterator
 from .manifest import ContentServer, GameInfo, Manifest, PackageInfo
 from .message import *
 from .message import ClanMessage
@@ -90,6 +89,7 @@ from .reaction import (
 )
 from .role import RolePermissions
 from .trade import TradeOffer
+from .types.http import Coro
 from .user import ClientUser, User
 from .utils import DateTime
 
@@ -1160,18 +1160,19 @@ class ConnectionState(Registerable):
         return msg.body.comments[0]
 
     async def fetch_comments(
-        self, owner: Commentable, limit: int | None, after: datetime, oldest_first: bool
-    ) -> list[comments.GetCommentThreadResponse.Comment]:
+        self, owner: Commentable, count: int, starting_from: int, oldest_first: bool
+    ) -> comments.GetCommentThreadResponse:
         msg: MsgProto[comments.GetCommentThreadResponse] = await self.ws.send_um_and_wait(
             "Community.GetCommentThread",
             **owner._commentable_kwargs,
-            count=2147483647 if limit is None else limit,
+            count=count,
+            start=starting_from,
             oldest_first=oldest_first,
-            time_oldest=int(after.timestamp()),
-        )  # int(i32::MAX / 2) not entirely sure why this is the max and not i32 which is the max for the field
+        )
         if msg.result != Result.OK:
             raise WSException(msg)
-        return msg.body.comments
+
+        return msg.body
 
     async def post_comment(self, owner: Commentable, content: str, subscribe: bool) -> Comment[Commentable]:
         msg: MsgProto[comments.PostCommentToThreadResponse] = await self.ws.send_um_and_wait(
@@ -1316,16 +1317,14 @@ class ConnectionState(Registerable):
         if msg.body.count_new_items:
             await self.poll_trades()
 
-    async def fetch_user_review(self, user_id64: int, game_id: int) -> reviews.RecommendationDetails:
-        # This not accepting multiple users and apps is a steam limitation not sure why.
-        # The request is technically able to support it
+    async def fetch_user_review(self, user_id64: int, app_ids: Iterable[int]) -> list[reviews.RecommendationDetails]:
         msg: MsgProto[reviews.GetIndividualRecommendationsResponse] = await self.ws.send_um_and_wait(
             "UserReviews.GetIndividualRecommendations",
-            requests=[{"steamid": user_id64, "appid": game_id}],
+            requests=[{"steamid": user_id64, "appid": app_id} for app_id in app_ids],
         )
         if msg.result != Result.OK:
             raise WSException(msg)
-        return msg.body.recommendations[0]
+        return msg.body.recommendations
 
     async def edit_review(
         self,
