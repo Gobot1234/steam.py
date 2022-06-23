@@ -49,7 +49,7 @@ from yarl import URL
 from . import utils
 from ._const import VDF_LOADS, VDFDict
 from .abc import SteamID
-from .enums import AppFlag, BillingType, DepotFileFlag, LicenseType, PackageStatus, ReviewType
+from .enums import AppFlag, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
 from .game import StatefulGame
 from .models import _IOMixin
 from .package import StatefulPackage
@@ -772,7 +772,9 @@ class GameInfo(ProductInfo, StatefulGame):
             for developer in common.get("associations", {}).values()
             if developer["type"] == "developer"
         ]
-        self.supported_languages = [language for language, value in common.get("languages", {}).items() if value == "1"]
+        self.supported_languages: list[Language] = [
+            Language.from_str(language) for language, value in common.get("languages", {}).items() if value == "1"
+        ]
 
         # TODO categories/genres
         self.created_at = (

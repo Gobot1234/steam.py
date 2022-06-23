@@ -41,6 +41,7 @@ __all__ = (
     "IntEnum",
     "Flags",
     "Result",
+    "Language",
     "Universe",
     "Type",
     "TypeChar",
@@ -368,6 +369,172 @@ class Result(IntEnum):
     ParseFailure                    = 122  #: Failed to parse input.
     NoVerifiedPhone                 = 123  #: Account does not have a verified phone number.
     InsufficientBatteryCharge       = 124  #: The device battery is too low to complete the action.
+
+
+class Language(IntEnum):
+    NONE                        = -1
+    English                     = 0
+    German                      = 1
+    French                      = 2
+    Italian                     = 3
+    Korean                      = 4
+    Spanish                     = 5
+    SimplifiedChinese           = 6
+    TraditionalChinese          = 7
+    Russian                     = 8
+    Thai                        = 9
+    Japanese                    = 10
+    Portuguese                  = 11
+    Polish                      = 12
+    Danish                      = 13
+    Dutch                       = 14
+    Finnish                     = 15
+    Norwegian                   = 16
+    Swedish                     = 17
+    Romanian                    = 18
+    Turkish                     = 19
+    Hungarian                   = 20
+    Czech                       = 21
+    PortugueseBrazil            = 22
+    Bulgarian                   = 23
+    Greek                       = 24
+    Arabic                      = 25
+    Ukrainian                   = 26
+    SpanishLatinAmerican        = 27
+    Vietnamese                  = 28
+    # SteamChinaSimplifiedChinese = 29  # not including until this appears on Steamworks
+
+    @classproperty
+    def NATIVE_NAME_MAP(cls: type[Language]) -> Mapping[Language, str]:  # type: ignore
+        """A mapping of every language's native name."""
+        return {
+            cls.Arabic:               "العربية",
+            cls.Bulgarian:            "езбългарски езикик",
+            cls.SimplifiedChinese:    "简体中文",
+            cls.TraditionalChinese:   "繁體中文",
+            cls.Czech:                "čeština",
+            cls.Danish:               "Dansk",
+            cls.Dutch:                "Nederlands",
+            cls.English:              "English",
+            cls.Finnish:              "Suomi",
+            cls.French:               "Français",
+            cls.German:               "Deutsch",
+            cls.Greek:                "Ελληνικά",
+            cls.Hungarian:            "Magyar",
+            cls.Italian:              "Italiano",
+            cls.Japanese:             "日本語",
+            cls.Korean:               "한국어",
+            cls.Norwegian:            "Norsk",
+            cls.Polish:               "Polski",
+            cls.Portuguese:           "Português",
+            cls.PortugueseBrazil:     "Português-Brasil",
+            cls.Romanian:             "Română",
+            cls.Russian:              "Русский",
+            cls.Spanish:              "Español-España",
+            cls.SpanishLatinAmerican: "Español-Latinoamérica",
+            cls.Swedish:              "Svenska",
+            cls.Thai:                 "ไทย",
+            cls.Turkish:              "Türkçe",
+            cls.Ukrainian:            "Українська",
+            cls.Vietnamese:           "Tiếng Việt",
+        }
+
+    @classproperty
+    def API_LANGUAGE_MAP(cls: type[Language]) -> Mapping[Language, str]:  # type: ignore
+        """A mapping of every language's name from the Steamworks API."""
+        return {
+            cls.Arabic:               "arabic",
+            cls.Bulgarian:            "bulgarian",
+            cls.SimplifiedChinese:    "schinese",
+            cls.TraditionalChinese:   "tchinese",
+            cls.Czech:                "czech",
+            cls.Danish:               "danish",
+            cls.Dutch:                "dutch",
+            cls.English:              "english",
+            cls.Finnish:              "finnish",
+            cls.French:               "french",
+            cls.German:               "german",
+            cls.Greek:                "greek",
+            cls.Hungarian:            "hungarian",
+            cls.Italian:              "italian",
+            cls.Japanese:             "japanese",
+            cls.Korean:               "koreana",
+            cls.Norwegian:            "norwegian",
+            cls.Polish:               "polish",
+            cls.Portuguese:           "portuguese",
+            cls.PortugueseBrazil:     "brazilian",
+            cls.Romanian:             "romanian",
+            cls.Russian:              "russian",
+            cls.Spanish:              "spanish",
+            cls.SpanishLatinAmerican: "latam",
+            cls.Swedish:              "swedish",
+            cls.Thai:                 "thai",
+            cls.Turkish:              "turkish",
+            cls.Ukrainian:            "ukrainian",
+            cls.Vietnamese:           "vietnamese",
+        }
+
+    @classproperty
+    def WEB_API_MAP(cls: type[Language]) -> Mapping[Language, str]:  # type: ignore
+        """A mapping of every language's name from the Web API."""
+        return {
+            cls.Arabic:               "ar",
+            cls.Bulgarian:            "bg",
+            cls.SimplifiedChinese:    "zh-CN",
+            cls.TraditionalChinese:   "zh-TW",
+            cls.Czech:                "cs",
+            cls.Danish:               "da",
+            cls.Dutch:                "nl",
+            cls.English:              "en",
+            cls.Finnish:              "fi",
+            cls.French:               "fr",
+            cls.German:               "de",
+            cls.Greek:                "el",
+            cls.Hungarian:            "hu",
+            cls.Italian:              "it",
+            cls.Japanese:             "ja",
+            cls.Korean:               "ko",
+            cls.Norwegian:            "no",
+            cls.Polish:               "pl",
+            cls.Portuguese:           "pt",
+            cls.PortugueseBrazil:     "pt-BR",
+            cls.Romanian:             "ro",
+            cls.Russian:              "ru",
+            cls.Spanish:              "es",
+            cls.SpanishLatinAmerican: "es-419",
+            cls.Swedish:              "sv",
+            cls.Thai:                 "th",
+            cls.Turkish:              "tr",
+            cls.Ukrainian:            "uk",
+            cls.Vietnamese:           "vn",
+        }
+
+    @property
+    def native_name(self) -> str:
+        """This language's native name."""
+        return self.NATIVE_NAME_MAP[self]
+
+    @property
+    def api_name(self) -> str:
+        """This language's Steamworks name."""
+        return self.API_LANGUAGE_MAP[self]
+
+    @property
+    def web_api_name(self) -> str:
+        """This language's Web API name."""
+        return self.WEB_API_MAP[self]
+
+    @classmethod
+    def from_str(cls, string: str) -> Self:
+        try:
+            return _REVERSE_API_LANGUAGE_MAP[string.lower()]
+        except KeyError:
+            return cls.__new__(cls, name=string.title(), value=-1)
+
+
+_REVERSE_API_LANGUAGE_MAP: Final = cast(
+    Mapping[str, Language], {value: key for key, value in Language.API_LANGUAGE_MAP.items()}
+)
 
 
 class Universe(IntEnum):

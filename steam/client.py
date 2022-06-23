@@ -44,7 +44,7 @@ from typing_extensions import Literal, TypeAlias, final
 from . import errors, utils
 from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
 from .abc import SteamID
-from .enums import PersonaState, PersonaStateFlag, Type, UIMode
+from .enums import Language, PersonaState, PersonaStateFlag, Type, UIMode
 from .game import FetchedGame, Game, StatefulGame
 from .game_server import GameServer, Query
 from .gateway import *
@@ -132,6 +132,7 @@ class Client:
         ui_mode: UIMode | None = ...,
         flags: PersonaStateFlag | None = ...,
         force_kick: bool = ...,
+        language: Language = ...,
     ):
         ...
 

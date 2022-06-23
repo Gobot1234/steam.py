@@ -32,6 +32,7 @@ from typing_extensions import Self
 
 from . import utils
 from .abc import Awardable, BaseUser, Commentable, _CommentableKwargs
+from .enums import Language
 from .game import StatefulGame
 from .reaction import AwardReaction
 from .user import ClientUser, User
@@ -146,7 +147,7 @@ class Review(Commentable, Awardable):
     """The author of the review."""
     game: StatefulGame
     """The game being reviewed."""
-    language: str
+    language: Language
     """The language the review is written in."""
     content: str
     """The contents of the review."""
@@ -200,7 +201,7 @@ class Review(Commentable, Awardable):
             id=review.recommendationid,
             author=BaseReviewUser._from_proto(user, review),
             game=StatefulGame(state, id=review.appid),
-            language=review.language,
+            language=Language.from_str(review.language),
             content=review.review,
             created_at=datetime.utcfromtimestamp(review.time_created),
             updated_at=datetime.utcfromtimestamp(review.time_updated),
@@ -229,7 +230,7 @@ class Review(Commentable, Awardable):
             id=data["recommendationid"],
             author=BaseReviewUser._from_data(user, data["author"]),
             game=game,
-            language=data["language"],
+            language=Language.from_str(data["language"]),
             content=data["review"],
             created_at=datetime.utcfromtimestamp(data["timestamp_created"]),
             updated_at=datetime.utcfromtimestamp(data["timestamp_updated"]),
@@ -269,7 +270,7 @@ class Review(Commentable, Awardable):
         *,
         public: bool = True,
         commentable: bool | None = None,
-        language: str | None = None,
+        language: Language | None = None,
         written_during_early_access: bool | None = None,
         received_compensation: bool | None = None,
     ) -> None:
@@ -299,7 +300,7 @@ class Review(Commentable, Awardable):
             content,
             public,
             self.commentable if commentable is None else commentable,  # type: ignore
-            self.language if language is None else language,
+            (self.language if language is None else language).api_name,  # TODO check
             self.written_during_early_access if written_during_early_access is None else written_during_early_access,
             self.received_compensation if received_compensation is None else received_compensation,
         )

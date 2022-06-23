@@ -47,6 +47,7 @@ from . import errors, utils
 from .__metadata__ import __version__
 from ._const import JSON_DUMPS, JSON_LOADS, URL
 from .abc import SteamID
+from .enums import Language
 from .guard import generate_one_time_code
 from .models import PriceOverviewDict, api_route
 from .user import BaseUser, ClientUser, _BaseUser
@@ -86,6 +87,7 @@ class HTTPClient:
         self.password: str
         self.api_key: str | None = None
         self.shared_secret: str | None
+        self.language = options.get("language", Language.English)
 
         self._one_time_code = ""
         self._email_code = ""
@@ -106,7 +108,7 @@ class HTTPClient:
 
     def clear(self) -> None:
         self._session = aiohttp.ClientSession(
-            cookies={"Steam_Language": "english"},  # make sure the language is set to english
+            cookies={"Steam_Language": self.language.api_name},
             connector=self.connector,
             json_serialize=JSON_DUMPS,
         )

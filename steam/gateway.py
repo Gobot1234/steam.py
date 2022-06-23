@@ -283,6 +283,7 @@ class SteamWebSocket(Registerable):
                     account_name=client.username,
                     web_logon_nonce=token,
                     client_os_type=4294966596,
+                    client_language=self._connection.http.language.api_name,
                     protocol_version=65580,
                     chat_mode=2,
                     ui_mode=self._connection._ui_mode,

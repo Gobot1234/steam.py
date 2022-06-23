@@ -38,7 +38,7 @@ from ._const import HTML_PARSER
 from .abc import Commentable, SteamID, _CommentableKwargs
 from .channel import ClanChannel
 from .chat import ChatGroup, Member
-from .enums import EventType, Type
+from .enums import EventType, Language, Type
 from .errors import HTTPException
 from .event import Announcement, Event
 from .game import Game, StatefulGame
@@ -151,7 +151,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     member_count: int
     online_count: int
     in_game_count: int
-    language: str
+    language: Language
     location: str
     mods: list[ClanMember]
     admins: list[ClanMember]
