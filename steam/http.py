@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import json
 import logging
 import re
 import urllib.parse
@@ -46,7 +45,7 @@ from yarl import URL as _URL
 
 from . import errors, utils
 from .__metadata__ import __version__
-from ._const import URL
+from ._const import JSON_DUMPS, JSON_LOADS, URL
 from .abc import SteamID
 from .guard import generate_one_time_code
 from .models import PriceOverviewDict, api_route
@@ -65,11 +64,11 @@ T = TypeVar("T")
 log = logging.getLogger(__name__)
 
 
-async def json_or_text(r: aiohttp.ClientResponse) -> Any:
+async def json_or_text(r: aiohttp.ClientResponse, *, loads: Callable[[str], Any] = JSON_LOADS) -> Any:
     text = await r.text()
     try:
         if "application/json" in r.headers["Content-Type"]:
-            return json.loads(text)
+            return loads(text)
     except KeyError:
         pass
     return text
@@ -109,6 +108,7 @@ class HTTPClient:
         self._session = aiohttp.ClientSession(
             cookies={"Steam_Language": "english"},  # make sure the language is set to english
             connector=self.connector,
+            json_serialize=JSON_DUMPS,
         )
 
     async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Any:  # adapted from d.py
@@ -522,7 +522,7 @@ class HTTPClient:
             "serverid": 1,
             "partner": user.id64,
             "tradeoffermessage": offer_message,
-            "json_tradeoffer": json.dumps(
+            "json_tradeoffer": JSON_DUMPS(
                 {
                     "newversion": True,
                     "version": len(to_send) + len(to_receive) + 1,
@@ -531,7 +531,7 @@ class HTTPClient:
                 }
             ),
             "captcha": "",
-            "trade_offer_create_params": json.dumps({"trade_offer_access_token": token}) if token is not None else "{}",
+            "trade_offer_create_params": JSON_DUMPS({"trade_offer_access_token": token}) if token is not None else "{}",
             **kwargs,
         }
         referer = URL.COMMUNITY / f"tradeoffer/new/?partner={user.id}"

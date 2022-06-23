@@ -26,7 +26,6 @@ try:
     import orjson
 
     JSON_LOADS: Final = orjson.loads
-    from functools import partial
 
     def dumps(
         obj: Any,
@@ -37,7 +36,7 @@ try:
         return __decoder(__func(obj))
 
     JSON_DUMPS: Final = dumps
-except ImportError:
+except ModuleNotFoundError:
     import json
 
     JSON_LOADS: Final = json.loads
@@ -54,7 +53,7 @@ except ImportError:
 
 try:
     import orvdf
-except ImportError:
+except ModuleNotFoundError:
     import vdf
 
     VDF_LOADS: Final[Callable[[str], VDFDict]] = partial(
@@ -75,7 +74,7 @@ else:
 
 try:
     import lxml
-except ImportError:
+except ModuleNotFoundError:
     HTML_PARSER: Final = "html.parser"
 else:
     HTML_PARSER: Final = "lxml-xml"

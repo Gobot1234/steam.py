@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
 
+from ._const import HTML_PARSER
 from .enums import Result
 
 if TYPE_CHECKING:
@@ -112,7 +113,7 @@ class HTTPException(SteamException):
                         code = code[0]
                     self.code = Result.try_value(int(code))
             else:
-                text = BeautifulSoup(data, "html.parser").get_text("\n")
+                text = BeautifulSoup(data, HTML_PARSER).get_text("\n")
                 self.message = text or ""
         else:
             self.message = ""

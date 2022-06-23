@@ -10,9 +10,7 @@ from typing_extensions import Never, TypeAlias, TypedDict
 # VDF related types
 try:
     import orvdf
-except ImportError:
-    import vdf
-
+except ModuleNotFoundError:
     VDFDict: TypeAlias = "MultiDict[str | VDFDict]"
     BinaryVDFDict: TypeAlias = "MultiDict[str | int | float | BinaryVDFDict]"
 else:
@@ -39,7 +37,7 @@ class VDFList(MultiDict[T]):
 if TYPE_CHECKING:
 
     class TypedVDFDict(MultiDict[Any], TypedDict):  # type: ignore  # this obviously doesn't work at runtime
-        ...
+        pass
 
 else:
 

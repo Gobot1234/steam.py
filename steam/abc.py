@@ -41,7 +41,7 @@ from typing_extensions import Final, Protocol, Required, Self, TypedDict, runtim
 from yarl import URL as URL_
 
 from . import utils
-from ._const import URL
+from ._const import HTML_PARSER, URL
 from .badge import FavouriteBadge, UserBadges
 from .comment import Comment
 from .enums import *
@@ -643,7 +643,7 @@ class BaseUser(SteamID, Commentable):
         # ideally I'd like to find an actual api for these
         base_url = URL.COMMUNITY / f"profiles/{self.id64}/recommended"
         first_page = await self._state.http.get(base_url)
-        soup = BeautifulSoup(first_page, "html.parser")
+        soup = BeautifulSoup(first_page, HTML_PARSER)
         pages = max(
             [int(a["href"][len("?p=") :]) for a in soup.find_all("a", class_="pagelink")],  # str.removeprefix
             default=1,
@@ -658,8 +658,8 @@ class BaseUser(SteamID, Commentable):
 
         async def putter(page_number: int) -> None:
             first_page = await self._state.http.get(base_url, params={"p": page_number})
-            soup = BeautifulSoup(first_page, "html.parser")
-            for game_id in await utils.to_thread(get_games, soup):
+            soup = BeautifulSoup(first_page, HTML_PARSER)
+            for game_id in get_games(soup):
                 queue.put_nowait(game_id)
 
         async def getter() -> None:
@@ -669,7 +669,7 @@ class BaseUser(SteamID, Commentable):
                     break
                 tasks.append(asyncio.create_task(self._state.fetch_user_review(self.id64, game_id)))
 
-        for game_id in await utils.to_thread(get_games, soup):  # this blocks the event loop otherwise
+        for game_id in get_games(soup):
             queue.put_nowait(game_id)
 
         asyncio.create_task(getter())

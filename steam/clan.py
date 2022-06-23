@@ -34,6 +34,7 @@ from bs4 import BeautifulSoup
 from typing_extensions import Literal, Self
 
 from . import utils
+from ._const import HTML_PARSER
 from .abc import Commentable, SteamID, _CommentableKwargs
 from .channel import ClanChannel
 from .chat import ChatGroup, Member
@@ -180,7 +181,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 raise ValueError("unreachable code reached")
             super().__init__(search["steamid"], type=Type.Clan)
 
-        soup = BeautifulSoup(text, "html.parser")
+        soup = BeautifulSoup(text, HTML_PARSER)
         _, __, name = soup.title.text.rpartition(" :: ")
         self.name = name
         content = soup.find("meta", property="og:description")
@@ -290,7 +291,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         """
 
         def process(resp: str) -> BeautifulSoup:
-            soup = BeautifulSoup(resp, "html.parser")
+            soup = BeautifulSoup(resp, HTML_PARSER)
             for s in soup.find_all("div", id="memberList"):
                 for user in s.find_all("div", class_="member_block"):
                     ret.append(SteamID(user["data-miniprofile"]))
@@ -308,7 +309,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             else:
                 process(resp)
 
-        ret = []
+        ret: list[SteamID] = []
         resp = await self._state.http.get(f"{self.community_url}/members", params={"p": 1, "content_only": "true"})
         soup = process(resp)
         number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
@@ -541,7 +542,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             server_password or "",
             starts_at,
         )
-        soup = BeautifulSoup(resp, "html.parser")
+        soup = BeautifulSoup(resp, HTML_PARSER)
         for element in soup.find_all("div", class_="eventBlockTitle"):
             a = element.a
             if a is not None and a.text == name:  # this is bad?
@@ -574,7 +575,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         """
         await self._state.http.create_clan_announcement(self.id64, name, content, hidden)
         resp = await self._state.http.get(f"{self.community_url}/announcements", params={"content_only": "true"})
-        soup = BeautifulSoup(resp, "html.parser")
+        soup = BeautifulSoup(resp, HTML_PARSER)
         for element in soup.find_all("div", class_="announcement"):
             a = element.a
             if a is not None and a.text == name:  # this is bad?

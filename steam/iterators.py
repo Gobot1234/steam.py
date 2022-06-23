@@ -36,6 +36,7 @@ from bs4 import BeautifulSoup
 from typing_extensions import ClassVar, TypeAlias
 
 from . import utils
+from ._const import HTML_PARSER
 from .comment import Comment
 
 if TYPE_CHECKING:
@@ -569,7 +570,7 @@ class _EventIterator(AsyncIterator[T]):
             self.clan.id64
         )  # TODO make this use the calendar? does that work for announcements
 
-        soup = BeautifulSoup(rss, "html.parser")
+        soup = BeautifulSoup(rss, HTML_PARSER)
 
         ids = []
         for url in soup.find_all("guid"):

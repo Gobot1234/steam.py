@@ -406,7 +406,7 @@ class ConnectionState(Registerable):
         if "incorrect Steam Guard codes." in resp:
             raise InvalidCredentials("identity_secret is incorrect")
 
-        soup = BeautifulSoup(resp, "html.parser")
+        soup = BeautifulSoup(resp, HTML_PARSER)
         if soup.select("#mobileconf_empty"):
             return self._confirmations
         for confirmation in soup.select("#mobileconf_list .mobileconf_list_entry"):
@@ -1015,7 +1015,7 @@ class ConnectionState(Registerable):
                 if steam_id.type == Type.Clan:
                     if elements is None:
                         resp = await self.http.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
-                        soup = BeautifulSoup(resp, "html.parser")
+                        soup = BeautifulSoup(resp, HTML_PARSER)
                         elements = soup.find_all("a", class_="linkStandard")
                     invitee_id64 = 0
                     for idx, element in enumerate(elements):
@@ -1136,7 +1136,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, msg: MsgProto[client_server_2.CMsgClientCommentNotifications]) -> None:
         resp = await self.http.get(URL.COMMUNITY / "my/commentnotifications")
-        soup = BeautifulSoup(resp, "html.parser")
+        soup = BeautifulSoup(resp, HTML_PARSER)
 
         cached: dict[URL_, list[Commentable | int]] = {}
         for attr in soup.find_all("div", class_="commentnotification_click_overlay", limit=msg.body.count_new_comments):
