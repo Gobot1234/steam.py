@@ -26,6 +26,7 @@ from .message import *
 from .models import *
 from .package import *
 from .profile import *
+from .reaction import *
 from .review import *
 from .role import *
 from .trade import *

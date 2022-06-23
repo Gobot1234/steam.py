@@ -42,7 +42,7 @@ from yarl import URL as URL_
 
 from . import utils
 from ._const import HTML_PARSER, URL, VDF_BINARY_LOADS, VDF_LOADS
-from .abc import BaseUser, Commentable, SteamID
+from .abc import Awardable, BaseUser, Commentable, SteamID
 from .channel import DMChannel
 from .clan import Clan
 from .comment import Comment
@@ -73,10 +73,22 @@ from .protobufs import (
     friends,
     game_servers,
     login,
+    loyalty_rewards,
     player,
     reviews,
     struct_messages,
 )
+from .reaction import (
+    Award,
+    ClientEmoticon,
+    ClientSticker,
+    Emoticon,
+    MessageReaction,
+    ReactionProtocol,
+    Sticker,
+    _Reaction,
+)
+from .role import RolePermissions
 from .trade import TradeOffer
 from .user import User
 
@@ -164,6 +176,7 @@ class ConnectionState(Registerable):
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[int, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
+        self.stickers: list[ClientSticker] = []
         self.polling_trades = False
         self.trade_queue = TradeQueue()
         self.licenses: dict[int, License] = {}
@@ -647,6 +660,30 @@ class ConnectionState(Registerable):
 
         return msg.body
 
+    async def fetch_message_reactors(
+        self,
+        chat_group_id: ChatGroupID,
+        chat_id: ChannelID,
+        server_timestamp: int,
+        ordinal: int,
+        reaction_name: str,
+        reaction_type: int,
+    ) -> list[int]:
+        msg: MsgProto[chat.GetMessageReactionReactorsResponse] = await self.ws.send_um_and_wait(
+            "ChatRoom.GetMessageReactionReactors",
+            chat_group_id=chat_group_id,
+            chat_id=chat_id,
+            server_timestamp=server_timestamp,
+            ordinal=ordinal,
+            reaction=reaction_name,
+            reaction_type=reaction_type,
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg.body.reactors
+
     async def fetch_servers(self, query: str, limit: int) -> list[game_servers.GetServerListResponseServer]:
         msg: MsgProto[game_servers.GetServerListResponse] = await self.ws.send_um_and_wait(
             "GameServers.GetServerList",
@@ -1114,6 +1151,7 @@ class ConnectionState(Registerable):
             created_at=self.steam_time,
             author=self.user,
             owner=owner,
+            reactions=[],
         )
         self.dispatch("comment", comment)
         return comment
@@ -1193,6 +1231,40 @@ class ConnectionState(Registerable):
                 self.dispatch("comment", comments[index])
             except IndexError:
                 pass
+
+    @register(EMsg.ClientEmoticonList)
+    def handle_emoticon_list(self, msg: MsgProto[friends.CMsgClientEmoticonList]) -> None:
+        self.emoticons = [ClientEmoticon(self, emoticon) for emoticon in msg.body.emoticons]
+        self.stickers = [ClientSticker(self, sticker) for sticker in msg.body.stickers]
+        # self.effects = [ClientEffect(self, effect) for effect in msg.body.effects]  # TODO
+        self.handled_emoticons.set()
+
+    async def add_award(self, awardable: Awardable, award: Award) -> None:
+        msg = await self.ws.send_um_and_wait(
+            "LoyaltyRewards.AddReaction",
+            target_type=awardable.__class__._AWARDABLE_TYPE,
+            targetid=awardable.id,
+            reactionid=award.id,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def fetch_award_reactions(self, awardable: Awardable) -> list[ReactionProtocol]:
+        # this method doesn't work and when steamcommunity tries to use it, It returns an empty response so, I'm
+        # assuming it's just broken for now
+        msg: MsgProto[loyalty_rewards.GetReactionsResponse] = await self.ws.send_um_and_wait(
+            "LoyaltyRewards.GetReactions",
+            target_type=awardable.__class__._AWARDABLE_TYPE,
+            targetid=awardable.id,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        # but also if this doesn't work there's no point including this method
+        return [
+            _Reaction(reactionid=id, count=count)  # type: ignore
+            for id, count in collections.Counter(msg.body.reactionids).items()
+        ]
 
     @register(EMsg.ClientUserNotifications)
     async def parse_notification(self, msg: MsgProto[client_server_2.CMsgClientUserNotifications]) -> None:

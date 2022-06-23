@@ -50,6 +50,7 @@ from .game import Game, StatefulGame, UserGame, WishlistGame
 from .iterators import AsyncIterator, CommentsIterator
 from .models import Ban
 from .profile import *
+from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory
 from .utils import (
     _INVITE_HEX,
@@ -279,7 +280,7 @@ class _CommentableKwargs(TypedDict, total=False):
 
 
 class Commentable(Protocol):
-    """A mixin that implements commenting functionality"""
+    """A mixin that implements commenting functionality."""
 
     __slots__ = ()
     _state: ConnectionState
@@ -297,6 +298,8 @@ class Commentable(Protocol):
         id
             The ID of the comment to fetch.
         """
+        from .comment import Comment
+
         comment = await self._state.fetch_comment(self, id)
         return Comment(
             self._state,
@@ -305,6 +308,7 @@ class Commentable(Protocol):
             created_at=datetime.utcfromtimestamp(comment.timestamp),
             author=await self._state._maybe_user(comment.author_id64),
             owner=self,
+            reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
         )
 
     async def comment(self, content: str, *, subscribe: bool = True) -> Comment[Self]:
@@ -370,6 +374,31 @@ class Commentable(Protocol):
         return CommentsIterator(
             oldest_first=oldest_first, owner=self, state=self._state, limit=limit, before=before, after=after
         )
+
+
+class Awardable(Protocol):
+    """A mixin that implements award functionality."""
+
+    __slots__ = ()
+
+    id: int
+    _state: ConnectionState
+    _AWARDABLE_TYPE: ClassVar[int]
+
+    async def award(self, award: Award) -> None:
+        """Add an :class:`Award` to this piece of user generated content.
+
+        Parameters
+        ----------
+        award
+            The award to add.
+        """
+        await self._state.add_award(self, award)
+
+    # async def fetch_reactions(self) -> list[AwardReaction]:
+    #     """Fetch the reactions on this piece of user generated content."""
+    #     reactions = await self._state.fetch_award_reactions(self)
+    #     return [AwardReaction(self._state, reaction) for reaction in reactions]
 
 
 class BaseUser(SteamID, Commentable):
@@ -909,19 +938,21 @@ class Message:
     """A per-channel incremented integer up to ``1000`` for every message sent in a second window."""
     mentions: Mentions | None
     """An object representing mentions in this message."""
-    # reactions: list[MessageReaction]
-    # """The reactions this message has received."""
+    reactions: list[MessageReaction]
+    """The reactions this message has received."""
+    partial_reactions: list[PartialMessageReaction]
 
     def __init__(self, channel: Channel[Self], proto: Any):
         self._state: ConnectionState = channel._state
         self.channel = channel
-        self.group: Group | None = channel.group
-        self.clan: Clan | None = channel.clan
-        self.content: str = _clean_up_content(proto.message)
-        self.ordinal: int = proto.ordinal
-        self.clean_content: str = getattr(proto, "message_no_bbcode", None) or self.content
-        self.mentions: Mentions | None = getattr(proto, "mentions", None)
-        # self.reactions: list["Emoticon"] = []
+        self.group = channel.group
+        self.clan = channel.clan
+        self.content = _clean_up_content(proto.message)
+        self.ordinal = proto.ordinal
+        self.clean_content = getattr(proto, "message_no_bbcode", "") or self.content
+        self.mentions = getattr(proto, "mentions", None)
+        self.partial_reactions = []
+        self.reactions = []
 
     def __repr__(self) -> str:
         attrs = ("author", "id", "channel")
@@ -937,3 +968,28 @@ class Message:
             f"{int((self.created_at - STEAM_EPOCH).total_seconds()):032b}{self.ordinal:032b}",
             base=2,
         )
+
+    # @abc.abstractmethod
+    # async def delete(self) -> None:
+    #     raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def add_emoticon(self, emoticon: Emoticon) -> None:
+        """Adds an emoticon to this message.
+
+        Parameters
+        ----------
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def remove_emoticon(self, emoticon: Emoticon) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def add_sticker(self, sticker: Sticker) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def remove_sticker(self, sticker: Sticker) -> None:
+        raise NotImplementedError()

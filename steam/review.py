@@ -31,8 +31,9 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import Self
 
 from . import utils
-from .abc import BaseUser, Commentable, _CommentableKwargs
+from .abc import Awardable, BaseUser, Commentable, _CommentableKwargs
 from .game import StatefulGame
+from .reaction import AwardReaction
 from .user import ClientUser, User
 
 if TYPE_CHECKING:
@@ -111,8 +112,32 @@ else:
 
 
 @dataclass(repr=False, eq=False)
-class Review(Commentable):
+class Review(Commentable, Awardable):
     """Represents a review for a game."""
+
+    _AWARDABLE_TYPE = 1
+    __slots__ = (
+        "_state",
+        "id",
+        "author",
+        "game",
+        "language",
+        "content",
+        "created_at",
+        "updated_at",
+        "upvoted",
+        "upvotes",
+        "votes_funny",
+        "weighted_vote_score",
+        "commentable",
+        "comment_count",
+        "steam_purchase",
+        "received_compensation",
+        "written_during_early_access",
+        "developer_response",
+        "developer_responded_at",
+        "reactions",
+    )
 
     _state: ConnectionState
     id: int
@@ -151,6 +176,8 @@ class Review(Commentable):
     """The developer's response to the review."""
     developer_responded_at: datetime | None
     """The time the developer responded to the review."""
+    reactions: list[AwardReaction] | None
+    """The review's reactions."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} game={self.game!r} author={self.author!r}>"
@@ -192,6 +219,7 @@ class Review(Commentable):
                 if review.time_developer_responded
                 else None  # TODO add the rest of the developer attrs
             ),
+            reactions=[AwardReaction(state, reaction) for reaction in review.reactions],
         )
 
     @classmethod
@@ -220,6 +248,7 @@ class Review(Commentable):
                 if "timestamp_dev_responded" in data
                 else None
             ),
+            reactions=None,
         )
 
     async def upvote(self) -> None:
@@ -278,6 +307,3 @@ class Review(Commentable):
     async def delete(self) -> None:
         """Delete this review."""
         await self._state.http.delete_review(self.id)
-
-    # async def award(self, award: Award):
-    #     return self._state.http.award_user_review(self.author.id64, self.id, award.id)

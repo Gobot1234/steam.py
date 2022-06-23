@@ -84,5 +84,5 @@ class RecommendationDetails(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RecommendationLoyaltyReaction(betterproto.Message):
-    reaction_type: int = betterproto.uint32_field(1)
+    reactionid: int = betterproto.uint32_field(1)
     count: int = betterproto.uint32_field(2)

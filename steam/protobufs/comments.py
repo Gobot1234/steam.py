@@ -44,7 +44,7 @@ class GetCommentThreadResponse(betterproto.Message):
 
         @dataclass(eq=False, repr=False)
         class Reaction(betterproto.Message):
-            id: int = betterproto.uint32_field(1)
+            reactionid: int = betterproto.uint32_field(1)
             count: int = betterproto.uint32_field(1)
 
         reactions: List[Reaction] = betterproto.message_field(12)
