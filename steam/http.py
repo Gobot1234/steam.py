@@ -795,6 +795,14 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "my/recommended", data=data)
 
+    def get_package(self, package_id: int) -> Coro[list[FetchedPackage]]:
+        params = {
+            "packageids": package_id,
+            "l": self.language,
+            # TODO cc param
+        }
+        return self.get(URL.STORE / "actions/ajaxresolvepackages", params=params)
+
     async def edit_profile(
         self,
         name: str | None,
