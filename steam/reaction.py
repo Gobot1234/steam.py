@@ -269,8 +269,8 @@ class BaseClientEmoticon(BaseEmoticon):
         super().__init__(state, proto.name)
         self.count = proto.count
         self.use_count = proto.use_count
-        self.last_used = datetime.utcfromtimestamp(proto.time_last_used)
-        self.received_at = datetime.utcfromtimestamp(proto.time_received)
+        self.last_used = DateTime.from_timestamp(proto.time_last_used)
+        self.received_at = DateTime.from_timestamp(proto.time_received)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} count={self.count!r} use_count={self.use_count!r}>"

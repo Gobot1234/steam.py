@@ -582,6 +582,57 @@ Trading
 .. autoclass:: Asset()
     :members:
 
+Reactions
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Award
+
+.. autoclass:: Award()
+    :members:
+    :inherited-members:
+
+.. attributetable:: AwardReaction
+
+.. autoclass:: AwardReaction()
+    :members:
+    :inherited-members:
+
+.. attributetable:: PartialMessageReaction
+
+.. autoclass:: PartialMessageReaction()
+    :members:
+    :inherited-members:
+
+.. attributetable:: MessageReaction
+
+.. autoclass:: MessageReaction()
+    :members:
+    :inherited-members:
+
+.. attributetable:: Emoticon
+
+.. autoclass:: Emoticon()
+    :members:
+    :inherited-members:
+
+.. attributetable:: Sticker
+
+.. autoclass:: Sticker()
+    :members:
+    :inherited-members:
+
+.. attributetable:: ClientEmoticon
+
+.. autoclass:: ClientEmoticon()
+    :members:
+    :inherited-members:
+
+.. attributetable:: ClientSticker
+
+.. autoclass:: ClientSticker()
+    :members:
+    :inherited-members:
+
 Reviews
 ~~~~~~~~~~~~~~~
 

@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import attr
 from bs4 import BeautifulSoup
-from typing_extensions import Final, Protocol, Required, Self, TypedDict, runtime_checkable
+from typing_extensions import ClassVar, Final, Protocol, Required, Self, TypedDict, runtime_checkable
 from yarl import URL as URL_
 
 from . import utils
