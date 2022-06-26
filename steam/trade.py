@@ -194,7 +194,7 @@ class Item(Asset):
         self.icon_url = (
             f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url_large"]}'
             if "icon_url_large" in data
-            else None
+            else f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url"]}'
         )
         self.fraud_warnings = data.get("fraudwarnings", [])
         self.actions = data.get("actions", [])
