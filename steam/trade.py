@@ -55,7 +55,6 @@ if TYPE_CHECKING:
     from .types.trade import *
     from .user import User
 
-
 __all__ = (
     "Asset",
     "Item",
@@ -93,8 +92,10 @@ class Asset:
         The owner of the asset
     """
 
-    __slots__ = ("amount", "class_id", "asset_id", "instance_id", "owner", "_game_cs", "_app_id", "_context_id")
-    REPR_ATTRS = ("amount", "class_id", "asset_id", "instance_id", "owner", "game")
+    __slots__ = ("amount", "class_id", "asset_id", "instance_id", "owner",
+                 "_game_cs", "_app_id", "_context_id")
+    REPR_ATTRS = ("amount", "class_id", "asset_id", "instance_id", "owner",
+                  "game")
 
     def __init__(self, data: AssetDict, owner: BaseUser):
         self.asset_id = int(data["assetid"])
@@ -107,11 +108,15 @@ class Asset:
 
     def __repr__(self) -> str:
         cls = self.__class__
-        resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in cls.REPR_ATTRS]
+        resolved = [
+            f"{attr}={getattr(self, attr, None)!r}" for attr in cls.REPR_ATTRS
+        ]
         return f"<{cls.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
+        return isinstance(
+            other, Asset
+        ) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
     def to_dict(self) -> AssetToDict:
         return {
@@ -128,7 +133,9 @@ class Asset:
     @utils.cached_slot_property
     def game(self) -> StatefulGame:
         """The game the item is from."""
-        return StatefulGame(self._state, id=self._app_id, context_id=self._context_id)
+        return StatefulGame(self._state,
+                            id=self._app_id,
+                            context_id=self._context_id)
 
     @property
     def url(self) -> str:
@@ -195,15 +202,16 @@ class Item(Asset):
     def _from_data(self, data: ItemDict) -> None:
         self.name = data.get("market_name")
         self.display_name = data.get("name")
-        self.colour = int(data["name_color"], 16) if "name_color" in data else None
+        self.colour = int(data["name_color"],
+                          16) if "name_color" in data else None
         self.descriptions = data.get("descriptions")
         self.owner_descriptions = data.get("owner_descriptions", [])
         self.type = data.get("type")
         self.tags = data.get("tags")
         self.icon_url = (
             f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url_large"]}'
-            if "icon_url_large" in data
-            else f"https://steamcommunity-a.akamaihd.net/economy/image/{data['icon_url']}"
+            if "icon_url_large" in data else
+            f"https://steamcommunity-a.akamaihd.net/economy/image/{data['icon_url']}"
         )
         self.fraud_warnings = data.get("fraudwarnings", [])
         self.actions = data.get("actions", [])
@@ -224,16 +232,15 @@ if sys.version_info >= (3, 9, 2):  # GenericAlias wasn't subclassable in 3.9.0
     GenericAlias = types.GenericAlias
     kwargs = {}
 else:
-    GenericAlias = type(
-        types.new_class(
-            "",
-            (Generic[T],),
-        )[int]
-    )
+    GenericAlias = type(types.new_class(
+        "",
+        (Generic[T], ),
+    )[int])
     kwargs = {"_root": True}
 
 
 class InventoryGenericAlias(GenericAlias, **kwargs):
+
     def __repr__(self) -> str:
         return f"{self.__origin__.__module__}.{self.__origin__.__alias_name__}"
 
@@ -254,7 +261,7 @@ class InventoryGenericAlias(GenericAlias, **kwargs):
             __slots__ = ()
             __orig_class__ = self
 
-        return (BaseInventory,)
+        return (BaseInventory, )
 
 
 class BaseInventory(Generic[I]):
@@ -268,7 +275,8 @@ class BaseInventory(Generic[I]):
         "__orig_class__",  # undocumented typing internals more shim to make extensions work
     )
 
-    def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser, game: Game):
+    def __init__(self, state: ConnectionState, data: InventoryDict,
+                 owner: BaseUser, game: Game):
         self._state = state
         self.owner = owner
         self.game = StatefulGame(state, id=game.id, name=game.name)
@@ -298,7 +306,8 @@ class BaseInventory(Generic[I]):
 
     if not TYPE_CHECKING:
 
-        def __class_getitem__(cls, params: tuple[type[I]]) -> InventoryGenericAlias:
+        def __class_getitem__(cls,
+                              params: tuple[type[I]]) -> InventoryGenericAlias:
             # this is more stuff that's needed to make the TypeAliases for extension modules work as we need the
             # assigned name
 
@@ -317,7 +326,8 @@ class BaseInventory(Generic[I]):
             else:
                 return generic_alias
 
-            object.__setattr__(generic_alias, "__alias_name__", instruction.argval)
+            object.__setattr__(generic_alias, "__alias_name__",
+                               instruction.argval)
             return generic_alias
 
     def _update(self, data: InventoryDict) -> None:
@@ -325,24 +335,23 @@ class BaseInventory(Generic[I]):
         ItemClass: type[Item] = self.__orig_class__.__args__[0]
         for asset in data.get("assets", ()):
             for item in data["descriptions"]:
-                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
+                if item["instanceid"] == asset["instanceid"] and item[
+                        "classid"] == asset["classid"]:
                     item.update(asset)
-                    items.append(
-                        ItemClass(data=item, owner=self.owner),
-                    )
+                    items.append(ItemClass(data=item, owner=self.owner), )
                     break
             else:
-                items.append(
-                    Asset(data=asset, owner=self.owner),
-                )
+                items.append(Asset(data=asset, owner=self.owner), )
         self.items: Sequence[I] = items
 
     async def update(self) -> None:
         """Re-fetches the inventory."""
         if self.owner == self._state.client.user:
-            data = await self._state.http.get_client_user_inventory(self.game.id, self.game.context_id)
+            data = await self._state.http.get_client_user_inventory(
+                self.game.id, self.game.context_id)
         else:
-            data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
+            data = await self._state.http.get_user_inventory(
+                self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
     def filter_items(self, *names: str, limit: int | None = None) -> list[I]:
@@ -537,8 +546,10 @@ class TradeOffer:
         items_to_send: Sequence[Asset] | None = None,
         items_to_receive: Sequence[Asset] | None = None,
     ):
-        self.items_to_receive: Sequence[Asset] = items_to_receive or ([item_to_receive] if item_to_receive else [])
-        self.items_to_send: Sequence[Asset] = items_to_send or ([item_to_send] if item_to_send else [])
+        self.items_to_receive: Sequence[Asset] = items_to_receive or (
+            [item_to_receive] if item_to_receive else [])
+        self.items_to_send: Sequence[Asset] = items_to_send or (
+            [item_to_send] if item_to_send else [])
         self.message: str | None = message or None
         self.token: str | None = token
         self.partner: User | SteamID | None = None
@@ -550,19 +561,23 @@ class TradeOffer:
         self._has_been_sent = False
 
     @classmethod
-    def _from_api(
-        cls, state: ConnectionState, data: TradeOfferDict, partner: User | SteamID | None = None
-    ) -> TradeOffer:
+    def _from_api(cls,
+                  state: ConnectionState,
+                  data: TradeOfferDict,
+                  partner: User | SteamID | None = None) -> TradeOffer:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
-        trade.partner = partner or utils.make_id64(data["accountid_other"])  # type: ignore
+        trade.partner = partner or utils.make_id64(
+            data["accountid_other"])  # type: ignore
         trade._update(data)
         return trade
 
-    def _update_from_send(
-        self, state: ConnectionState, data: dict[str, Any], partner: User, active: bool = True
-    ) -> None:
+    def _update_from_send(self,
+                          state: ConnectionState,
+                          data: dict[str, Any],
+                          partner: User,
+                          active: bool = True) -> None:
         self.id = int(data["tradeofferid"])
         self._state = state
         self.partner = partner
@@ -584,16 +599,28 @@ class TradeOffer:
         updated_at = data.get("time_updated")
         created_at = data.get("time_created")
         self.expires = datetime.utcfromtimestamp(expires) if expires else None
-        self.escrow = datetime.utcfromtimestamp(escrow) - datetime.utcnow() if escrow else None
-        self.updated_at = datetime.utcfromtimestamp(updated_at) if updated_at else None
-        self.created_at = datetime.utcfromtimestamp(created_at) if created_at else None
-        self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
-        self.items_to_send = [Item(data=item, owner=self.partner) for item in data.get("items_to_give", [])]
-        self.items_to_receive = [Item(data=item, owner=self.partner) for item in data.get("items_to_receive", [])]
+        self.escrow = datetime.utcfromtimestamp(
+            escrow) - datetime.utcnow() if escrow else None
+        self.updated_at = datetime.utcfromtimestamp(
+            updated_at) if updated_at else None
+        self.created_at = datetime.utcfromtimestamp(
+            created_at) if created_at else None
+        self.state = TradeOfferState.try_value(data.get(
+            "trade_offer_state", 1))
+        self.items_to_send = [
+            Item(data=item, owner=self.partner)
+            for item in data.get("items_to_give", [])
+        ]
+        self.items_to_receive = [
+            Item(data=item, owner=self.partner)
+            for item in data.get("items_to_receive", [])
+        ]
         self._is_our_offer = data.get("is_our_offer", False)
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, TradeOffer) and self._has_been_sent and other._has_been_sent and self.id == other.id
+        return isinstance(
+            other, TradeOffer
+        ) and self._has_been_sent and other._has_been_sent and self.id == other.id
 
     async def confirm(self) -> None:
         """Confirms the trade offer.
@@ -610,7 +637,8 @@ class TradeOffer:
         if self.is_gift():
             return  # no point trying to confirm it
         if not await self._state.fetch_and_confirm_confirmation(self.id):
-            raise ConfirmationError("No matching confirmation could be found for this trade")
+            raise ConfirmationError(
+                "No matching confirmation could be found for this trade")
         del self._state._confirmations[self.id]
 
     async def accept(self) -> None:
@@ -630,10 +658,12 @@ class TradeOffer:
         if self.state == TradeOfferState.Accepted:
             raise ClientException("This trade has already been accepted")
         if self.is_our_offer():
-            raise ClientException("You cannot accept an offer the ClientUser has made")
+            raise ClientException(
+                "You cannot accept an offer the ClientUser has made")
         self._check_active()
         try:
-            resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
+            resp = await self._state.http.accept_user_trade(
+                self.partner.id64, self.id)
         except HTTPException as e:
             if e.code == Result.Revoked:
                 # check the items owner
@@ -647,7 +677,8 @@ class TradeOffer:
                     break
                 except ClientException:
                     if tries == 4:
-                        raise ClientException("Failed to accept trade offer") from None
+                        raise ClientException(
+                            "Failed to accept trade offer") from None
                     await asyncio.sleep(tries * 2)
 
     async def decline(self) -> None:
@@ -661,7 +692,8 @@ class TradeOffer:
         if self.state == TradeOfferState.Declined:
             raise ClientException("This trade has already been declined")
         if self.is_our_offer():
-            raise ClientException("You cannot decline an offer the ClientUser has made")
+            raise ClientException(
+                "You cannot decline an offer the ClientUser has made")
         self._check_active()
         await self._state.http.decline_user_trade(self.id)
 
@@ -688,7 +720,8 @@ class TradeOffer:
         .. source:: steam.TradeOfferReceipt
         """
         if self._id is None:
-            raise ValueError("Cannot fetch the receipt for a trade not accepted")
+            raise ValueError(
+                "Cannot fetch the receipt for a trade not accepted")
 
         resp = await self._state.http.get_trade_receipt(self._id)
         data = resp["response"]
@@ -698,16 +731,23 @@ class TradeOffer:
         received: list[TradeOfferReceiptItem] = []
         for asset in trade.get("assets_received", ()):
             for item in descriptions:
-                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
+                if item["instanceid"] == asset["instanceid"] and item[
+                        "classid"] == asset["classid"]:
                     item.update(asset)
-                    received.append(TradeOfferReceiptItem(data=item, owner=self.partner))  # type: ignore
+                    received.append(
+                        TradeOfferReceiptItem(
+                            data=item, owner=self.partner))  # type: ignore
 
         sent: list[TradeOfferReceiptItem] = []
         for asset in trade.get("assets_given", ()):
             for item in descriptions:
-                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
+                if item["instanceid"] == asset["instanceid"] and item[
+                        "classid"] == asset["classid"]:
                     item.update(asset)
-                    sent.append(TradeOfferReceiptItem(data=item, owner=self._state.http.user))  # type: ignore
+                    sent.append(
+                        TradeOfferReceiptItem(
+                            data=item,
+                            owner=self._state.http.user))  # type: ignore
 
         return TradeOfferReceipt(sent=sent, received=received)
 
@@ -726,15 +766,20 @@ class TradeOffer:
         """
         self._check_active()
         if self.is_our_offer():
-            raise ClientException("You cannot counter an offer the ClientUser has made")
+            raise ClientException(
+                "You cannot counter an offer the ClientUser has made")
 
         to_send = [item.to_dict() for item in trade.items_to_send]
         to_receive = [item.to_dict() for item in trade.items_to_receive]
-        resp = await self._state.http.send_trade_offer(
-            self.partner, to_send, to_receive, trade.token, trade.message or "", trade_id=self.id
-        )
+        resp = await self._state.http.send_trade_offer(self.partner,
+                                                       to_send,
+                                                       to_receive,
+                                                       trade.token,
+                                                       trade.message or "",
+                                                       trade_id=self.id)
         if resp.get("needs_mobile_confirmation", False):
-            await self._state.fetch_and_confirm_confirmation(int(resp["tradeofferid"]))
+            await self._state.fetch_and_confirm_confirmation(
+                int(resp["tradeofferid"]))
 
     def is_gift(self) -> bool:
         """Helper method that checks if an offer is a gift to the :class:`~steam.ClientUser`"""
@@ -745,5 +790,7 @@ class TradeOffer:
         return self._is_our_offer
 
     def _check_active(self) -> None:
-        if self.state not in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) or not self._has_been_sent:
+        if self.state not in (
+                TradeOfferState.Active,
+                TradeOfferState.ConfirmationNeed) or not self._has_been_sent:
             raise ClientException("This trade is not active")
