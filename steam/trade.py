@@ -21,24 +21,33 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 from __future__ import annotations
 
 import asyncio
 import dis
 import sys
 import types
-from collections.abc import Iterator, Sequence
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, overload
+from collections.abc import Iterator
+from collections.abc import Sequence
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
+from typing import Generic
+from typing import NamedTuple
+from typing import overload
+from typing import TYPE_CHECKING
+from typing import TypeVar
 
 from typing_extensions import TypeAlias
 
 from . import utils
 from ._const import URL
 from .enums import TradeOfferState
-from .errors import ClientException, ConfirmationError, HTTPException
-from .game import Game, StatefulGame
+from .errors import ClientException
+from .errors import ConfirmationError
+from .errors import HTTPException
+from .game import Game
+from .game import StatefulGame
 
 if TYPE_CHECKING:
     from .abc import BaseUser, SteamID
