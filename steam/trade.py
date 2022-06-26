@@ -84,10 +84,8 @@ class Asset:
         The owner of the asset
     """
 
-    __slots__ = ("amount", "class_id", "asset_id", "instance_id",
-                 "owner", "_game_cs", "_app_id", "_context_id")
-    REPR_ATTRS = ("amount", "class_id", "asset_id",
-                  "instance_id", "owner", "game")
+    __slots__ = ("amount", "class_id", "asset_id", "instance_id", "owner", "_game_cs", "_app_id", "_context_id")
+    REPR_ATTRS = ("amount", "class_id", "asset_id", "instance_id", "owner", "game")
 
     def __init__(self, data: AssetDict, owner: BaseUser):
         self.asset_id = int(data["assetid"])
@@ -100,8 +98,7 @@ class Asset:
 
     def __repr__(self) -> str:
         cls = self.__class__
-        resolved = [
-            f"{attr}={getattr(self, attr, None)!r}" for attr in cls.REPR_ATTRS]
+        resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in cls.REPR_ATTRS]
         return f"<{cls.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: Any) -> bool:
@@ -189,8 +186,7 @@ class Item(Asset):
     def _from_data(self, data: ItemDict) -> None:
         self.name = data.get("market_name")
         self.display_name = data.get("name")
-        self.colour = int(data["name_color"],
-                          16) if "name_color" in data else None
+        self.colour = int(data["name_color"], 16) if "name_color" in data else None
         self.descriptions = data.get("descriptions")
         self.owner_descriptions = data.get("owner_descriptions", [])
         self.type = data.get("type")
@@ -312,8 +308,7 @@ class BaseInventory(Generic[I]):
             else:
                 return generic_alias
 
-            object.__setattr__(
-                generic_alias, "__alias_name__", instruction.argval)
+            object.__setattr__(generic_alias, "__alias_name__", instruction.argval)
             return generic_alias
 
     def _update(self, data: InventoryDict) -> None:
@@ -533,10 +528,8 @@ class TradeOffer:
         items_to_send: Sequence[Asset] | None = None,
         items_to_receive: Sequence[Asset] | None = None,
     ):
-        self.items_to_receive: Sequence[Asset] = items_to_receive or (
-            [item_to_receive] if item_to_receive else [])
-        self.items_to_send: Sequence[Asset] = items_to_send or (
-            [item_to_send] if item_to_send else [])
+        self.items_to_receive: Sequence[Asset] = items_to_receive or ([item_to_receive] if item_to_receive else [])
+        self.items_to_send: Sequence[Asset] = items_to_send or ([item_to_send] if item_to_send else [])
         self.message: str | None = message or None
         self.token: str | None = token
         self.partner: User | SteamID | None = None
@@ -554,8 +547,7 @@ class TradeOffer:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
-        trade.partner = partner or utils.make_id64(
-            data["accountid_other"])  # type: ignore
+        trade.partner = partner or utils.make_id64(data["accountid_other"])  # type: ignore
         trade._update(data)
         return trade
 
@@ -583,18 +575,12 @@ class TradeOffer:
         updated_at = data.get("time_updated")
         created_at = data.get("time_created")
         self.expires = datetime.utcfromtimestamp(expires) if expires else None
-        self.escrow = datetime.utcfromtimestamp(
-            escrow) - datetime.utcnow() if escrow else None
-        self.updated_at = datetime.utcfromtimestamp(
-            updated_at) if updated_at else None
-        self.created_at = datetime.utcfromtimestamp(
-            created_at) if created_at else None
-        self.state = TradeOfferState.try_value(
-            data.get("trade_offer_state", 1))
-        self.items_to_send = [Item(data=item, owner=self.partner)
-                              for item in data.get("items_to_give", [])]
-        self.items_to_receive = [Item(data=item, owner=self.partner)
-                                 for item in data.get("items_to_receive", [])]
+        self.escrow = datetime.utcfromtimestamp(escrow) - datetime.utcnow() if escrow else None
+        self.updated_at = datetime.utcfromtimestamp(updated_at) if updated_at else None
+        self.created_at = datetime.utcfromtimestamp(created_at) if created_at else None
+        self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
+        self.items_to_send = [Item(data=item, owner=self.partner) for item in data.get("items_to_give", [])]
+        self.items_to_receive = [Item(data=item, owner=self.partner) for item in data.get("items_to_receive", [])]
         self._is_our_offer = data.get("is_our_offer", False)
 
     def __eq__(self, other: Any) -> bool:
@@ -615,8 +601,7 @@ class TradeOffer:
         if self.is_gift():
             return  # no point trying to confirm it
         if not await self._state.fetch_and_confirm_confirmation(self.id):
-            raise ConfirmationError(
-                "No matching confirmation could be found for this trade")
+            raise ConfirmationError("No matching confirmation could be found for this trade")
         del self._state._confirmations[self.id]
 
     async def accept(self) -> None:
@@ -636,8 +621,7 @@ class TradeOffer:
         if self.state == TradeOfferState.Accepted:
             raise ClientException("This trade has already been accepted")
         if self.is_our_offer():
-            raise ClientException(
-                "You cannot accept an offer the ClientUser has made")
+            raise ClientException("You cannot accept an offer the ClientUser has made")
         self._check_active()
         try:
             resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
@@ -654,8 +638,7 @@ class TradeOffer:
                     break
                 except ClientException:
                     if tries == 4:
-                        raise ClientException(
-                            "Failed to accept trade offer") from None
+                        raise ClientException("Failed to accept trade offer") from None
                     await asyncio.sleep(tries * 2)
 
     async def decline(self) -> None:
@@ -669,8 +652,7 @@ class TradeOffer:
         if self.state == TradeOfferState.Declined:
             raise ClientException("This trade has already been declined")
         if self.is_our_offer():
-            raise ClientException(
-                "You cannot decline an offer the ClientUser has made")
+            raise ClientException("You cannot decline an offer the ClientUser has made")
         self._check_active()
         await self._state.http.decline_user_trade(self.id)
 
@@ -697,8 +679,7 @@ class TradeOffer:
         .. source:: steam.TradeOfferReceipt
         """
         if self._id is None:
-            raise ValueError(
-                "Cannot fetch the receipt for a trade not accepted")
+            raise ValueError("Cannot fetch the receipt for a trade not accepted")
 
         resp = await self._state.http.get_trade_receipt(self._id)
         data = resp["response"]
@@ -710,16 +691,14 @@ class TradeOffer:
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    received.append(TradeOfferReceiptItem(
-                        data=item, owner=self.partner))  # type: ignore
+                    received.append(TradeOfferReceiptItem(data=item, owner=self.partner))  # type: ignore
 
         sent: list[TradeOfferReceiptItem] = []
         for asset in trade.get("assets_given", ()):
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    sent.append(TradeOfferReceiptItem(
-                        data=item, owner=self._state.http.user))  # type: ignore
+                    sent.append(TradeOfferReceiptItem(data=item, owner=self._state.http.user))  # type: ignore
 
         return TradeOfferReceipt(sent=sent, received=received)
 
@@ -738,8 +717,7 @@ class TradeOffer:
         """
         self._check_active()
         if self.is_our_offer():
-            raise ClientException(
-                "You cannot counter an offer the ClientUser has made")
+            raise ClientException("You cannot counter an offer the ClientUser has made")
 
         to_send = [item.to_dict() for item in trade.items_to_send]
         to_receive = [item.to_dict() for item in trade.items_to_receive]
