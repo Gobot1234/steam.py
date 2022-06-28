@@ -960,6 +960,7 @@ class Message(metaclass=abc.ABCMeta):
 
         .. describe:: hash(x)
 
+            Returns the hash of a message.
 
     """
 
