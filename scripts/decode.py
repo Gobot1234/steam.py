@@ -8,9 +8,9 @@ import asyncio
 import sys
 from base64 import b64decode
 from collections import defaultdict
-from pprint import pprint
 
 import betterproto
+import black
 
 import steam
 from steam.gateway import SteamWebSocket
@@ -25,13 +25,13 @@ async def amain(input_message: str) -> None:
 
     def parser(msg: MsgBase[betterproto.Message]) -> None:
         print(f"{msg.msg=}")
-        pprint(msg.body)
+        black.format_str(str(msg.body), mode=black.Mode())
         if msg.body._unknown_fields:
             print(f"Unknown fields: {msg.body._unknown_fields}")
 
     async def handle_multi(msg: MsgProto[CMsgMulti]) -> None:
         print("This is a multi message, unpacking...")
-        pprint(msg.body)
+        black.format_str(str(msg.body), mode=black.Mode())
         await fake_ws.handle_multi(msg)
 
     fake_ws.parsers = defaultdict(lambda: parser)
