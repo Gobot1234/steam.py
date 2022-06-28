@@ -51,7 +51,7 @@ class _Reaction:
 
 BASE_REACTION_URL: Final = "https://store.cloudflare.steamstatic.com/public/images/loyalty/reactions/{type}/{id}.png"
 BASE_ECONOMY_URL: Final = URL("https://community.akamai.steamstatic.com/economy")
-AWARD_ID_TO_NAME: Final = cast(Mapping[int, str], {
+AWARD_ID_TO_NAME: Final = cast("Mapping[int, str]", {
     1: "Deep Thoughts",
     2: "Heartwarming",
     3: "Hilarious",

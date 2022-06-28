@@ -587,7 +587,7 @@ class AsyncInit(metaclass=abc.ABCMeta):
         return self.__await_inner__().__await__()
 
 
-PACK_FORMATS: Final = cast(Mapping[str, str], {
+PACK_FORMATS: Final = cast("Mapping[str, str]", {
     "i8": "b",
     "u8": "B",
     "i16": "h",

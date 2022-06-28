@@ -508,7 +508,7 @@ class Language(IntEnum):
 
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
-    Mapping[str, Language], {value: key for key, value in Language.API_LANGUAGE_MAP.items()}
+    "Mapping[str, Language]", {value: key for key, value in Language.API_LANGUAGE_MAP.items()}
 )
 
 
@@ -879,7 +879,7 @@ class DepotFileFlag(Flags):
     Symlink             = 1 << 9
 
 
-TYPE_TRANSFORM_MAP: Final = cast(Mapping[str, str], {
+TYPE_TRANSFORM_MAP: Final = cast("Mapping[str, str]", {
     "Dlc": "DLC",
 })
 
