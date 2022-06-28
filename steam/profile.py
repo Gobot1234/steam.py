@@ -190,7 +190,7 @@ class ProfileShowcaseSlot:
             **self.asset.to_dict(),
             "missing": False,
         }  # type: ignore  # I don't wanna type out this in full to make this type-safe
-        return Item(data, self.owner)
+        return Item(self._state, data, self.owner)
 
     async def published_file(self, *, revision: PublishedFileRevision = PublishedFileRevision.Default) -> PublishedFile:
         """Fetches the associated :class:`.PublishedFile` from :attr:`published_file_id`."""
@@ -258,7 +258,7 @@ class ProfileShowcase:
                     **assets[key].to_dict(),
                     "missing": False,
                 }  # type: ignore  # I don't wanna type out this in full to make this type-safe
-                items.append(Item(data, self.owner))
+                items.append(Item(self._state, data, self.owner))
         return items
 
     async def published_file(self, revision: PublishedFileRevision = PublishedFileRevision.Default) -> PublishedFile:

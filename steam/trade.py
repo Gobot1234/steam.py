@@ -63,10 +63,21 @@ class Asset:
         The owner of the asset
     """
 
-    __slots__ = ("amount", "class_id", "asset_id", "instance_id", "owner", "_game_cs", "_app_id", "_context_id")
-    REPR_ATTRS = ("amount", "class_id", "asset_id", "instance_id", "owner", "game")
+    __slots__ = (
+        "asset_id",  # "id",
+        "amount",
+        "class_id",
+        "instance_id",
+        # "post_rollback_id",
+        "owner",
+        "_game_cs",
+        "_app_id",
+        "_context_id",
+        "_state",
+    )
+    REPR_ATTRS = ("asset_id", "class_id", "instance_id", "amount", "owner", "game")  # "post_rollback_id"
 
-    def __init__(self, data: AssetDict, owner: BaseUser):
+    def __init__(self, state: ConnectionState, data: trade.Asset, owner: BaseUser):
         self.asset_id = int(data["assetid"])
         self.amount = int(data["amount"])
         self.instance_id = int(data["instanceid"])
@@ -74,6 +85,7 @@ class Asset:
         self.owner = owner
         self._app_id = int(data["appid"])
         self._context_id = int(data["contextid"])
+        self._state = state
 
     def __repr__(self) -> str:
         cls = self.__class__
@@ -90,10 +102,6 @@ class Asset:
             "appid": str(self._app_id),
             "contextid": str(self._context_id),
         }
-
-    @property
-    def _state(self) -> ConnectionState:
-        return self.owner._state
 
     @utils.cached_slot_property
     def game(self) -> StatefulGame:
@@ -158,8 +166,8 @@ class Item(Asset):
     )
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
-    def __init__(self, data: trade.Item, owner: BaseUser):
-        super().__init__(data, owner)
+    def __init__(self, state: ConnectionState, data: trade.Item, owner: BaseUser):
+        super().__init__(state, data, owner)
         self._from_data(data)
 
     def _from_data(self, data: trade.Item) -> None:
@@ -296,16 +304,12 @@ class BaseInventory(Generic[I]):
         for asset in data.get("assets", ()):
             for item in data["descriptions"]:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
-                    item.update(asset)
-                    items.append(
-                        ItemClass(data=item, owner=self.owner),
-                    )
+                    item.update(asset)  # type: ignore  # maybe this will work if types.IntersectionType happens
+                    items.append(ItemClass(self._state, data=item, owner=self.owner))  # type: ignore
                     break
             else:
-                items.append(
-                    Asset(data=asset, owner=self.owner),
-                )
-        self.items: Sequence[I] = items
+                items.append(Asset(self._state, data=asset, owner=self.owner))
+        self.items: Sequence[ItemT_co] = items
 
     async def update(self) -> None:
         """Re-fetches the inventory."""
@@ -569,8 +573,12 @@ class TradeOffer:
         self.updated_at = DateTime.from_timestamp(updated_at) if updated_at else None
         self.created_at = DateTime.from_timestamp(created_at) if created_at else None
         self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
-        self.items_to_send = [Item(data=item, owner=self.partner) for item in data.get("items_to_give", [])]
-        self.items_to_receive = [Item(data=item, owner=self.partner) for item in data.get("items_to_receive", [])]
+        self.items_to_send = [
+            Item(self._state, data=item, owner=self.partner) for item in data.get("items_to_give", [])
+        ]
+        self.items_to_receive = [
+            Item(self._state, data=item, owner=self.partner) for item in data.get("items_to_receive", [])
+        ]
         self._is_our_offer = data.get("is_our_offer", False)
 
     def __eq__(self, other: Any) -> bool:
@@ -681,14 +689,14 @@ class TradeOffer:
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    received.append(TradeOfferReceiptItem(data=item, owner=self.partner))  # type: ignore
+                    received.append(TradeOfferReceiptItem(self._state, data=item, owner=self.partner))  # type: ignore
 
         sent: list[TradeOfferReceiptItem] = []
         for asset in trade.get("assets_given", ()):
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    sent.append(TradeOfferReceiptItem(data=item, owner=self._state.user))
+                    sent.append(TradeOfferReceiptItem(self._state, data=item, owner=self._state.user))
 
         return TradeOfferReceipt(sent=sent, received=received)
 
