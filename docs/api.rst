@@ -518,6 +518,16 @@ Package
 .. autoclass:: Package()
    :members:
 
+.. attributetable:: steam.package.StatefulPackage
+
+.. autoclass:: steam.package.StatefulPackage()
+   :members:
+   :inherited-members:
+
+.. attributetable:: steam.FetchedPackage()
+   :members:
+   :inherited-members:
+
 .. attributetable:: License
 
 .. autoclass:: License()

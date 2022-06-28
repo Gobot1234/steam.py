@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
 __all__ = (
     "Package",
-    "StatefulPackage",
     "FetchedPackage",
     "License",
 )
@@ -56,6 +55,8 @@ class Package:
 
 
 class StatefulPackage(Package):
+    """A package with state."""
+
     __slots__ = ("_state",)
 
     def __init__(self, state: ConnectionState, **kwargs: Any):
