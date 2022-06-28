@@ -6,15 +6,16 @@ import asyncio
 import dis
 import sys
 import types
+import warnings
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, overload
 
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from . import utils
 from ._const import URL
-from .enums import TradeOfferState
+from .enums import Result, TradeOfferState
 from .errors import ClientException, ConfirmationError, HTTPException
 from .game import Game, StatefulGame
 from .utils import DateTime
@@ -35,7 +36,7 @@ __all__ = (
     "TradeOfferReceipt",
 )
 
-I = TypeVar("I", bound="Item")
+ItemT_co = TypeVar("ItemT_co", bound="Item", covariant=True)
 T = TypeVar("T")
 
 
@@ -49,9 +50,13 @@ class Asset:
 
             Checks if two assets are equal.
 
+        .. describe:: hash(x)
+
+            Returns the hash of an asset.
+
     Attributes
     -------------
-    asset_id
+    id
         The assetid of the item.
     amount
         The amount of the same asset there are in the inventory.
@@ -59,12 +64,14 @@ class Asset:
         The instanceid of the item.
     class_id
         The classid of the item.
+    post_rollback_id
+        The assetid of the item after a rollback (cancelled, etc.). ``None`` if not rolled back.
     owner
         The owner of the asset
     """
 
     __slots__ = (
-        "asset_id",  # "id",
+        "id",
         "amount",
         "class_id",
         "instance_id",
@@ -78,10 +85,11 @@ class Asset:
     REPR_ATTRS = ("asset_id", "class_id", "instance_id", "amount", "owner", "game")  # "post_rollback_id"
 
     def __init__(self, state: ConnectionState, data: trade.Asset, owner: BaseUser):
-        self.asset_id = int(data["assetid"])
+        self.id = int(data["assetid"])
         self.amount = int(data["amount"])
         self.instance_id = int(data["instanceid"])
         self.class_id = int(data["classid"])
+        self.post_rollback_id = int(data["rollback_new_assetid"]) if "rollback_new_assetid" in data else None
         self.owner = owner
         self._app_id = int(data["appid"])
         self._context_id = int(data["contextid"])
@@ -93,11 +101,18 @@ class Asset:
         return f"<{cls.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
+        return (
+            self.id == other.id and self._app_id == other._app_id and self._context_id == other._context_id
+            if isinstance(other, Asset)
+            else NotImplemented
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.id, self._app_id, self._context_id))
 
     def to_dict(self) -> trade.AssetToDict:
         return {
-            "assetid": str(self.asset_id),
+            "assetid": str(self.id),
             "amount": self.amount,
             "appid": str(self._app_id),
             "contextid": str(self._context_id),
@@ -114,11 +129,20 @@ class Asset:
 
         e.g. https://steamcommunity.com/profiles/76561198248053954/inventory/#440_2_8526584188
         """
-        return f"{URL.COMMUNITY}/profiles/{self.owner.id64}/inventory#{self._app_id}_{self._context_id}_{self.asset_id}"
+        return f"{URL.COMMUNITY}/profiles/{self.owner.id64}/inventory#{self._app_id}_{self._context_id}_{self.id}"
+
+    @property
+    def asset_id(self) -> int:
+        """The assetid of the item.
+
+        .. deprecated:: 0.9.0:: Use :attr:`id` instead.
+        """
+        warnings.warn("asset_id is deprecated, use id instead", DeprecationWarning)
+        return self.id
 
 
 class Item(Asset):
-    """Represents an item in an User's inventory.
+    """Represents an item in a User's inventory.
 
     .. container:: operations
 
@@ -161,6 +185,8 @@ class Item(Asset):
         "owner_descriptions",
         "fraud_warnings",
         "actions",
+        "owner_actions",
+        "market_actions",
         "_is_tradable",
         "_is_marketable",
     )
@@ -185,6 +211,8 @@ class Item(Asset):
         )
         self.fraud_warnings = data.get("fraudwarnings", [])
         self.actions = data.get("actions", [])
+        self.owner_actions = data.get("owner_actions")
+        self.market_actions = data.get("market_actions")
         self._is_tradable = bool(data.get("tradable", False))
         self._is_marketable = bool(data.get("marketable", False))
 
@@ -198,7 +226,7 @@ class Item(Asset):
 
 
 kwargs: dict[str, Any]
-if sys.version_info >= (3, 9, 2):  # GenericAlias wasn't subclassable in 3.9.0
+if sys.version_info >= (3, 9, 2):  # GenericAlias wasn't subclass-able in 3.9.0
     GenericAlias = types.GenericAlias
     kwargs = {}
 else:
@@ -212,8 +240,10 @@ else:
 
 
 class InventoryGenericAlias(GenericAlias, **kwargs):
+    __alias_name__: str
+
     def __repr__(self) -> str:
-        return f"{self.__origin__.__module__}.{self.__origin__.__alias_name__}"
+        return f"{self.__origin__.__module__}.{object.__getattribute__(self, '__alias_name__')}"
 
     def __call__(self, *args: Any, **kwargs: Any) -> object:
         # this is done cause we need __orig_class__ in __init__
@@ -228,14 +258,14 @@ class InventoryGenericAlias(GenericAlias, **kwargs):
     def __mro_entries__(self, bases: tuple[type, ...]) -> tuple[type]:
         # if we are subclassing we should return a new class that already has __orig_class__
 
-        class BaseInventory(*super().__mro_entries__(bases)):
+        class BaseInventory(*super().__mro_entries__(bases)):  # type: ignore
             __slots__ = ()
             __orig_class__ = self
 
         return (BaseInventory,)
 
 
-class BaseInventory(Generic[I]):
+class BaseInventory(Generic[ItemT_co]):
     """Base for all inventories."""
 
     __slots__ = (
@@ -255,28 +285,24 @@ class BaseInventory(Generic[I]):
     def __repr__(self) -> str:
         attrs = ("owner", "game")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{self.__alias_name__} {' '.join(resolved)}>"
+        return f"<{self.__orig_class__} {' '.join(resolved)}>"
 
     def __len__(self) -> int:
         return len(self.items)
 
-    def __iter__(self) -> Iterator[I]:
+    def __iter__(self) -> Iterator[ItemT_co]:
         return iter(self.items)
 
     def __contains__(self, item: Asset) -> bool:
         if not isinstance(item, Asset):
             raise TypeError(
-                f"unsupported operand type(s) for 'in': {item.__class__.__qualname__!r} and {self.__class__.__name__!r}"
+                f"unsupported operand type(s) for 'in': {item.__class__.__qualname__!r} and {self.__orig_class__!r}"
             )
         return item in self.items
 
-    @utils.classproperty
-    def __alias_name__(cls: type[BaseInventory]) -> str:  # type: ignore
-        return object.__getattribute__(cls.__orig_class__, "__alias_name__")
-
     if not TYPE_CHECKING:
 
-        def __class_getitem__(cls, params: tuple[type[I]]) -> InventoryGenericAlias:
+        def __class_getitem__(cls, params: tuple[type[ItemT_co]]) -> InventoryGenericAlias:
             # this is more stuff that's needed to make the TypeAliases for extension modules work as we need the
             # assigned name
 
@@ -319,8 +345,12 @@ class BaseInventory(Generic[I]):
             data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
         self._update(data)
 
-    def filter_items(self, *names: str, limit: int | None = None) -> list[I]:
+    def filter_items(self, *names: str, limit: int | None = None) -> list[ItemT_co]:
         """A helper function that filters items by name from the inventory.
+
+        .. deprecated:: 0.9
+
+            Use a list comprehension instead of this.
 
         Parameters
         ------------
@@ -343,8 +373,12 @@ class BaseInventory(Generic[I]):
         items = [item for item in self if item.name in names]
         return items if limit is None else items[:limit]
 
-    def get_item(self, name: str) -> I | None:
+    def get_item(self, name: str) -> ItemT_co | None:
         """A helper function that gets an item or ``None`` if no matching item is found by name from the inventory.
+
+        .. deprecated:: 0.9
+
+            Use :func:`steam.utils.get` instead of this.
 
         Parameters
         ----------
@@ -394,23 +428,29 @@ class TradeOfferReceiptItem(Item):
 
     Attributes
     ----------
-    new_asset_id
-        The new_assetid field, this is the asset id of the item in the partners inventory.
+    new_id
+        The new_assetid field, this is the asset ID of the item in the partners inventory.
     new_context_id
         The new_contextid field.
     """
 
     __slots__ = (
-        "new_asset_id",
+        "new_id",
         "new_context_id",
     )
-    new_asset_id: int
+    new_id: int
     new_context_id: int
 
     def _from_data(self, data: trade.TradeOfferReceiptItem):
         super()._from_data(data)
+        self.new_id = int(data["new_assetid"])
         self.new_context_id = int(data["new_contextid"])
-        self.new_asset_id = int(data["new_assetid"])
+
+    @property
+    def new_asset_id(self) -> int:
+        """The new asset ID of the item in the partner's inventory."""
+        warnings.warn("new_asset_id is deprecated, use new_id instead", DeprecationWarning)
+        return self.new_id
 
 
 class TradeOffer:
@@ -428,7 +468,7 @@ class TradeOffer:
     items_to_receive
         The items you are receiving from the other user. Mutually exclusive to ``item_to_receive``.
     token
-        The the trade token used to send trades to users who aren't on the ClientUser's friend's list.
+        The trade token used to send trades to users who aren't on the ClientUser's friend's list.
     message
          The offer message to send with the trade.
 
@@ -500,6 +540,9 @@ class TradeOffer:
     ):
         ...
 
+    id: int
+    partner: User | SteamID
+
     def __init__(
         self,
         *,
@@ -514,7 +557,6 @@ class TradeOffer:
         self.items_to_send: Sequence[Asset] = items_to_send or ([item_to_send] if item_to_send else [])
         self.message: str | None = message or None
         self.token: str | None = token
-        self.partner: User | SteamID | None = None
         self.updated_at: datetime | None = None
         self.created_at: datetime | None = None
         self.escrow: timedelta | None = None
@@ -527,7 +569,7 @@ class TradeOffer:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
-        trade.partner = partner or utils.make_id64(data["accountid_other"])  # type: ignore
+        trade.partner = partner or SteamID(data["accountid_other"])
         trade._update(data)
         return trade
 
@@ -582,7 +624,13 @@ class TradeOffer:
         self._is_our_offer = data.get("is_our_offer", False)
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, TradeOffer) and self._has_been_sent and other._has_been_sent and self.id == other.id
+        if not isinstance(other, TradeOffer):
+            return NotImplemented
+        if self._has_been_sent and other._has_been_sent:
+            return self.id == other.id
+        elif not (self._has_been_sent and other._has_been_sent):
+            return self.items_to_send == other.items_to_send and self.items_to_receive == other.items_to_receive
+        return NotImplemented
 
     async def confirm(self) -> None:
         """Confirms the trade offer.
@@ -600,7 +648,7 @@ class TradeOffer:
             return  # no point trying to confirm it
         if not await self._state.fetch_and_confirm_confirmation(self.id):
             raise ConfirmationError("No matching confirmation could be found for this trade")
-        del self._state._confirmations[self.id]
+        self._state._confirmations.pop(self.id, None)
 
     async def accept(self) -> None:
         """Accepts the trade offer.
@@ -621,6 +669,7 @@ class TradeOffer:
         if self.is_our_offer():
             raise ClientException("You cannot accept an offer the ClientUser has made")
         self._check_active()
+        assert self.partner is not None
         try:
             resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
         except HTTPException as e:
@@ -683,6 +732,7 @@ class TradeOffer:
         data = resp["response"]
         trade = data["trades"][0]
         descriptions = data["descriptions"]
+        assert self.partner is not None
 
         received: list[TradeOfferReceiptItem] = []
         for asset in trade.get("assets_received", ()):
@@ -719,6 +769,7 @@ class TradeOffer:
 
         to_send = [item.to_dict() for item in trade.items_to_send]
         to_receive = [item.to_dict() for item in trade.items_to_receive]
+        assert self.partner is not None
         resp = await self._state.http.send_trade_offer(
             self.partner, to_send, to_receive, trade.token, trade.message or "", trade_id=self.id
         )
