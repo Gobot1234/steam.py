@@ -55,15 +55,11 @@ class UserConverter(commands.Converter):
         return user
 
 
-if TYPE_CHECKING:
-    UserConverter = steam.User  # make linters play nicely with d.py's converters
-
-
 bot = DiscordBot()
 
 
 @bot.command()
-async def user(ctx: commands.Context, user: UserConverter):
+async def user(ctx: commands.Context, user: steam.User = commands.param(converter=UserConverter)):
     """Show some basic info on a steam user"""
     embed = discord.Embed(description=user.name, timestamp=user.created_at)
     embed.set_thumbnail(url=user.avatar_url)

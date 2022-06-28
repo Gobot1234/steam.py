@@ -57,7 +57,6 @@ if TYPE_CHECKING:
     from .review import Review
     from .state import ConnectionState
     from .types.id import ID32, ID64
-    from .types.user import UserDict
     from .user import User
 
 __all__ = (
