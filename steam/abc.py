@@ -170,9 +170,9 @@ class SteamID(metaclass=abc.ABCMeta):
             if self.instance != InstanceFlag.Desktop:
                 instance = self.instance
         elif self.type == Type.Chat:
-            if self.instance & InstanceFlag.ChatClan:
+            if self.instance & InstanceFlag.ChatClan > 0:
                 type_char = "c"
-            elif self.instance & InstanceFlag.ChatLobby:
+            elif self.instance & InstanceFlag.ChatLobby > 0:
                 type_char = "L"
             else:
                 type_char = "T"

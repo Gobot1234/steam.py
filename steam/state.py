@@ -70,7 +70,6 @@ from .reaction import (
 )
 from .role import RolePermissions
 from .trade import TradeOffer
-from .types.http import Coro
 from .user import ClientUser, User
 from .utils import DateTime
 
@@ -79,6 +78,7 @@ if TYPE_CHECKING:
     from .client import Client
     from .gateway import SteamWebSocket
     from .types import game, trade, user
+    from .types.http import Coro
     from .types.id import ID64, ChannelID, ChatGroupID
 
 log = logging.getLogger(__name__)

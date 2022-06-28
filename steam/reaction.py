@@ -7,9 +7,9 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, Final, cast
+from typing import TYPE_CHECKING, cast
 
-from typing_extensions import Protocol
+from typing_extensions import Final, Protocol
 from yarl import URL
 
 from .game import StatefulGame

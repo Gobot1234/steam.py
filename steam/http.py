@@ -26,13 +26,12 @@ from .abc import SteamID
 from .enums import Language
 from .guard import generate_one_time_code
 from .models import PriceOverviewDict, api_route
-from .user import BaseUser, ClientUser, _BaseUser
+from .user import ClientUser, _BaseUser
 from .utils import cached_property
 
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
-    from .trade import AssetToDict, InventoryDict, ItemDict
     from .types import game, trade
     from .types.http import Coro, ResponseType, StrOrURL
     from .types.package import FetchedPackage
@@ -366,13 +365,13 @@ class HTTPClient:
         }
         return self.get(api_route("IPlayerService/GetOwnedGames"), params=params)
 
-    def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> Coro[InventoryDict]:
+    def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> Coro[trade.Inventory]:
         params = {
             "count": 5000,
         }
         return self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
 
-    async def get_client_user_inventory(self, app_id: int, context_id: int) -> InventoryDict:
+    async def get_client_user_inventory(self, app_id: int, context_id: int) -> trade.Inventory:
         params = {
             "count": 5000,
         }
