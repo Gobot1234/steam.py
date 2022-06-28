@@ -33,7 +33,7 @@ class Client(Client_):
     _GAME: ClassVar[Game]
     _GC_HEART_BEAT: ClassVar = 30.0
 
-    _ClientUserCls = ClientUser
+    _ClientUserCls: ClassVar[type[ClientUser]] = ClientUser
     user: ClientUser
 
     def __init__(self, **options: Any):
@@ -71,11 +71,13 @@ class Client(Client_):
             await super().connect()
 
     async def _handle_ready(self) -> None:
-        self.http.user = self.__class__._ClientUserCls(self._connection, await self.http.get_user(self.user.id64))
+        data = await self.http.get_user(self.user.id64)
+        assert data is not None
+        self.http.user = self.__class__._ClientUserCls(self._connection, data)
         await super()._handle_ready()
 
     async def wait_for_gc_ready(self) -> None:
         await self._connection._gc_ready.wait()
 
-    async def buy_item(self, def_id: int, price: int, def_ids: list[int], prices: int) -> None:
-        ...
+    # async def buy_item(self, def_id: int, price: int, def_ids: list[int], prices: int) -> None:
+    #     ...

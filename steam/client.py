@@ -46,7 +46,6 @@ if TYPE_CHECKING:
     from .abc import Message
     from .clan import Clan
     from .comment import Comment
-    from .enums import PersonaState, PersonaStateFlag, UIMode
     from .event import Announcement, Event
     from .group import Group
     from .invite import ClanInvite, UserInvite

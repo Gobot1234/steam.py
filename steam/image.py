@@ -123,13 +123,13 @@ class Image:
 
 def test_jpeg(h: bytes, _) -> str | None:  # adds support for more header types
     # SOI APP2 + ICC_PROFILE
-    if h[0:4] == "\xff\xd8\xff\xe2" and h[6:17] == b"ICC_PROFILE":
+    if h[:4] == "\xff\xd8\xff\xe2" and h[6:17] == b"ICC_PROFILE":
         return "jpeg"
     # SOI APP14 + Adobe
-    if h[0:4] == "\xff\xd8\xff\xee" and h[6:11] == b"Adobe":
+    if h[:4] == "\xff\xd8\xff\xee" and h[6:11] == b"Adobe":
         return "jpeg"
     # SOI DQT
-    if h[0:4] == "\xff\xd8\xff\xdb":
+    if h[:4] == "\xff\xd8\xff\xdb":
         return "jpeg"
 
 

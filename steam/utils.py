@@ -24,10 +24,9 @@ from inspect import getmembers, isawaitable
 from io import BytesIO
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, cast, overload
 
 import aiohttp
-from aiohttp.typedefs import StrOrURL
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -40,6 +39,7 @@ from .errors import InvalidSteamID
 if TYPE_CHECKING:
     from typing import SupportsIndex  # doesn't exist in 3.7
 
+    from .types.http import StrOrURL
     from .types.id import ID32, ID64
 
 
@@ -479,7 +479,7 @@ def ainput(prompt: str = "") -> Coroutine[None, None, str]:
 
 
 def contains_bbcode(string: str) -> bool:
-    bbcodes = [
+    bbcodes = {
         "me",
         "code",
         "pre",
@@ -498,7 +498,7 @@ def contains_bbcode(string: str) -> bool:
         "roomeffect",
         "img",
         "url",
-    ]
+    }
     return any(string.startswith(f"/{bbcode}") for bbcode in bbcodes)
 
 
@@ -587,7 +587,7 @@ class AsyncInit(metaclass=abc.ABCMeta):
         return self.__await_inner__().__await__()
 
 
-PACK_FORMATS: Final[Mapping[str, str]] = {
+PACK_FORMATS: Final = cast(Mapping[str, str], {
     "i8": "b",
     "u8": "B",
     "i16": "h",
@@ -600,7 +600,7 @@ PACK_FORMATS: Final[Mapping[str, str]] = {
     "ulong": "L",
     "f32": "f",
     "f64": "d",
-}
+})  # fmt: skip
 
 
 class StructIOMeta(type):

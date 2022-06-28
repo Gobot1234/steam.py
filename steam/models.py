@@ -6,7 +6,6 @@ import abc
 import asyncio
 import logging
 import re
-import sys
 import traceback
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
@@ -82,7 +81,7 @@ class Registerable:
         return self
 
     @staticmethod
-    def _run_parser_callback(task: asyncio.Task[None]) -> None:
+    def _run_parser_callback(task: asyncio.Task[object]) -> None:
         exception = task.exception()
         if exception:
             traceback.print_exception(exception.__class__, exception, exception.__traceback__)
@@ -92,11 +91,10 @@ class Registerable:
             event_parser = getattr(self, self.parsers_name)[emsg]
         except KeyError:
             log = logging.getLogger(self.__class__.__module__)
-            if log.isEnabledFor(logging.DEBUG):
-                try:
-                    log.debug(f"Ignoring event {msg!r}")
-                except Exception:
-                    log.debug(f"Ignoring event {msg.msg}")
+            try:
+                log.debug("Ignoring event %r", msg)
+            except Exception:
+                log.debug("Ignoring event %s", msg.msg)
         else:
             coro = utils.maybe_coroutine(event_parser, msg)
 

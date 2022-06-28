@@ -14,7 +14,7 @@ import os
 import sys
 import traceback
 import warnings
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Iterable
 from pathlib import Path
 from types import MappingProxyType, ModuleType
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -50,9 +50,8 @@ __all__ = (
 )
 
 
-StrOrIterStr: TypeAlias = "str | list[str] | tuple[str, ...] | set[str] | frozenset[str] | dict[str, Any]"
 CommandPrefixType: TypeAlias = (
-    "StrOrIterStr | Callable[[Bot, Message], StrOrIterStr | Coroutine[Any, Any, StrOrIterStr]]"
+    "Iterable[str] | Callable[[Bot, Message], Iterable[str] | Coroutine[Any, Any, Iterable[str]]]"
 )
 C = TypeVar("C", bound="Context")
 Check = TypeVar("Check", bound="Callable[[CheckType], CheckReturnType]")

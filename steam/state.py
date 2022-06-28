@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import collections
 import logging
 import re
 import weakref
 from collections import ChainMap, deque
-from collections.abc import Callable, Iterable, Sequence
-from copy import copy, deepcopy
+from collections.abc import Callable, Collection, Iterable, Sequence
+from copy import copy
 from datetime import datetime, timedelta
 from operator import attrgetter
 from time import time
@@ -251,14 +252,13 @@ class ConnectionState(Registerable):
                     idxs = to_fetch[id64] = []
 
                 idxs.append(idx)
-                ret.append(id64)
+                ret.append(SteamID(id64))
 
         if to_fetch:
-            for (user_id64, idxs), user in zip(to_fetch.items(), await self.fetch_users(to_fetch)):
-                if user is None:
-                    user = SteamID(user_id64)
-                for idx in idxs:
-                    ret[idx] = user
+            for idxs, user in zip(to_fetch.values(), await self.fetch_users(to_fetch)):
+                if user is not None:
+                    for idx in idxs:
+                        ret[idx] = user
 
         return ret
 
@@ -301,10 +301,9 @@ class ConnectionState(Registerable):
 
     async def fetch_trade(self, id: int) -> TradeOffer | None:
         resp = await self.http.get_trade(id)
-        if resp.get("response"):
-            trade = [resp["response"]["offer"]]
-            descriptions = resp["response"].get("descriptions", ())
-            trades = await self._process_trades(trade, descriptions)
+        data = resp.get("response")
+        if data:
+            trades = await self._process_trades((data["offer"],), (data.get("descriptions", ()),))
             return trades[0]
 
     async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer:

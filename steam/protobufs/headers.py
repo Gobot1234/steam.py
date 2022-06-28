@@ -37,6 +37,7 @@ class BaseMsgHdr:
     STRUCT: ClassVar[struct.Struct]
     PACK: ClassVar[tuple[str, ...]]
     body: ClassVar[Any]
+    msg: IntEnum
 
     def __init_subclass__(cls, proto: bool = False, cast_msg_to_emsg: bool = True) -> None:
         if cls.__name__ == "GCMsgHdr":
@@ -98,7 +99,7 @@ class NoMsg(IntEnum):
     NONE = -1
 
 
-NO_MSG = NoMsg.NONE
+NO_MSG: IntEnum = NoMsg.NONE
 
 
 class MsgHdr(BaseMsgHdr):

@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import attr
-from typing_extensions import ClassVar, Final, Protocol, Required, Self, TypedDict
+from typing_extensions import ClassVar, Final, Protocol, Required, Self, TypedDict, runtime_checkable
 
 from ._const import URL
 from .badge import FavouriteBadge, UserBadges
@@ -66,6 +66,12 @@ C = TypeVar("C", bound="Commentable")
 M_co = TypeVar("M_co", bound="Message", covariant=True)
 
 
+# TODO when defaults are implemented, make this Generic over Literal[Type] maybe
+# TypeT = typing.TypeVar("TypeT", bound=Type)
+#
+#
+# class SteamID(typing.Generic[TypeT]):
+#     type TypeT
 class SteamID(metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations.
 
@@ -164,19 +170,14 @@ class SteamID(metaclass=abc.ABCMeta):
             if self.instance != InstanceFlag.Desktop:
                 instance = self.instance
         elif self.type == Type.Chat:
-            if self.instance & InstanceFlag.ChatClan > 0:
+            if self.instance & InstanceFlag.ChatClan:
                 type_char = "c"
-            elif self.instance & InstanceFlag.ChatLobby > 0:
+            elif self.instance & InstanceFlag.ChatLobby:
                 type_char = "L"
             else:
                 type_char = "T"
 
-        parts = [type_char, f"{self.universe.value}", f"{self.id}"]
-
-        if instance is not None:
-            parts.append(f"{instance.value}")
-
-        return f"[{':'.join(parts)}]"
+        return f"[{type_char}:{self.universe.value}:{self.id}{f':{instance.value}' if instance is not None else ''}]"
 
     @property
     def invite_code(self) -> str | None:
@@ -446,8 +447,8 @@ class BaseUser(SteamID, Commentable):
         "rich_presence",
         "privacy_state",
         "community_url",
-        "_is_commentable",
-        "_setup_profile",
+        "comment_permissions",
+        "profile_state",
         "_level",
         "_state",
         "__weakref__",
@@ -629,15 +630,16 @@ class BaseUser(SteamID, Commentable):
 
     def is_commentable(self) -> bool:
         """Specifies if the user's account is able to be commented on."""
-        return self._is_commentable
+        if hasattr(self, "is_friend"):
+            return self.comment_permissions in (
+                CommentPrivacyState.Public,
+                CommentPrivacyState.FriendsOnly if self.is_friend() else CommentPrivacyState.Public,
+            )
+        return True  # our account
 
     def is_private(self) -> bool:
         """Specifies if the user has a private profile."""
         return self.privacy_state == CommunityVisibilityState.Private
-
-    def has_setup_profile(self) -> bool:
-        """Specifies if the user has a setup their profile."""
-        return self._setup_profile
 
     async def is_banned(self) -> bool:
         """Specifies if the user is banned from any part of Steam.
@@ -794,7 +796,7 @@ class BaseUser(SteamID, Commentable):
             self.state = NotImplemented
             self.flags = NotImplemented
             self.privacy_state = NotImplemented
-            self._is_commentable = NotImplemented
+            self._commentable = NotImplemented
             self._setup_profile = NotImplemented
             self._level = data["level"]
 
@@ -819,9 +821,14 @@ class BaseUser(SteamID, Commentable):
         not_implemented("friends")
         not_implemented("badges")
         not_implemented("is_commentable")
-        not_implemented("has_setup_profile")
         not_implemented("is_private")
         not_implemented("is_banned")
+
+    async def fetch_post(self, id: int) -> Post:
+        ...
+
+    def posts(self) -> AsyncIterator[Post]:
+        ...
 
 
 @runtime_checkable
@@ -870,9 +877,7 @@ class Messageable(Protocol[M_co]):
         -------
         The sent message, only applicable if ``content`` is passed.
         """
-        message = None
-        if content is not None:
-            message = await self._message_func(str(content))
+        message = None if content is None else await self._message_func(str(content))
         if image is not None:
             await self._image_func(image)
 
@@ -938,7 +943,7 @@ def _clean_up_content(content: str) -> str:  # steam does weird stuff with conte
 STEAM_EPOCH = datetime(2005, 1, 1, tzinfo=timezone.utc)
 
 
-class Message:
+class Message(metaclass=abc.ABCMeta):
     """Represents a message from a :class:`~steam.User`. This is a base class from which all messages inherit.
 
     The following classes implement this:
@@ -946,6 +951,16 @@ class Message:
         - :class:`~steam.UserMessage`
         - :class:`~steam.GroupMessage`
         - :class:`~steam.ClanMessage`
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two messages are equal
+
+        .. describe:: hash(x)
+
+
     """
 
     __slots__ = (

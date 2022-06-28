@@ -53,6 +53,7 @@ __all__ = (
     "ConnectionClosed",
     "CMServerList",
     "SteamWebSocket",
+    "Msgs",
 )
 
 log = logging.getLogger(__name__)

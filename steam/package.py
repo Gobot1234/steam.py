@@ -70,7 +70,7 @@ class StatefulPackage(Package):
     async def fetch(self) -> FetchedPackage:
         package = await self._state.client.fetch_package(self.id)
         if package is None:
-            raise ValueError()
+            raise ValueError("Fetched package was not valid.")
         return package
 
     async def info(self) -> PackageInfo:
@@ -84,7 +84,7 @@ class StatefulPackage(Package):
         return info
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} id={self.id}>"
+        return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
 
 class FetchedPackage(StatefulPackage):

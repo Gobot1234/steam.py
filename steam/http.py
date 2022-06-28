@@ -9,16 +9,14 @@ import re
 import urllib.parse
 import warnings
 from base64 import b64encode
-from collections.abc import Coroutine, Iterable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from sys import version_info
 from time import time
 from typing import TYPE_CHECKING, Any, TypeVar
-from weakref import WeakValueDictionary
 
 import aiohttp
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
-from typing_extensions import TypeAlias
 from yarl import URL as _URL
 
 from . import errors, utils
@@ -37,7 +35,9 @@ if TYPE_CHECKING:
     from .trade import AssetToDict, InventoryDict, ItemDict
     from .types import game, trade
     from .types.http import Coro, ResponseType, StrOrURL
-    from .types.user import UserDict
+    from .types.package import FetchedPackage
+    from .types.user import User
+
 
 T = TypeVar("T")
 log = logging.getLogger(__name__)
@@ -93,24 +93,18 @@ class HTTPClient:
 
     async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Any:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
-        # proxy support
-        if self.proxy is not None:
-            kwargs["proxy"] = self.proxy
-        if self.proxy_auth is not None:
-            kwargs["proxy_auth"] = self.proxy_auth
-
         payload = kwargs.get("data")
 
         for tries in range(5):
-            async with self._session.request(method, url, **kwargs) as r:
-                log.debug(f"{method} {r.url} with PAYLOAD: {payload} has returned {r.status}")
+            async with self._session.request(method, url, **kwargs, proxy=self.proxy, proxy_auth=self.proxy_auth) as r:
+                log.debug("%s %s with PAYLOAD: %s has returned %d", method, r.url, payload, r.status)
 
                 # even errors have text involved in them so this is safe to call
                 data = await json_or_text(r)
 
                 # the request was successful so just return the text/json
                 if 200 <= r.status < 300:
-                    log.debug(f"{method} {r.url} has received {data}")
+                    log.debug("%s %s has received %s", method, r.url, data)
                     return data
 
                 # we are being rate limited
@@ -219,6 +213,7 @@ class HTTPClient:
 
             data = await self.get_user(resp["transfer_parameters"]["steamid"])
             state = self._client._connection
+            assert data
             self.user = ClientUser(state=state, data=data)
             state._users[self.user.id64] = self.user
             self.logged_in = True
@@ -457,9 +452,9 @@ class HTTPClient:
         params = {
             "key": self.api_key,
             "max_trades": limit,
-            "get_descriptions": 1,
-            "include_total": 1,
-            "start_after_time": previous_time or 0,
+            "get_descriptions": "true",
+            "include_total": "true",
+            "start_after_time": previous_time,
         }
         return self.get(api_route("IEconService/GetTradeHistory"), params=params)
 
@@ -496,7 +491,7 @@ class HTTPClient:
         token: str | None,
         offer_message: str,
         **kwargs: Any,
-    ) -> Coro[dict[str, Any]]:
+    ) -> Coro[trade.TradeOfferCreateResponse]:
         payload = {
             "sessionid": self.session_id,
             "serverid": 1,
@@ -524,7 +519,7 @@ class HTTPClient:
         params = {
             "key": self.api_key,
             "tradeid": trade_id,
-            "get_descriptions": 1,
+            "get_descriptions": "true",
         }
         return self.get(api_route("IEconService/GetTradeStatus"), params=params)
 

@@ -4,24 +4,28 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, overload
 
 from ... import utils
+from ...abc import BaseUser
 from ...enums import IntEnum
-from ...gateway import EventListener, GCMsgProto, GCMsgProtoT, GCMsgsT, GCMsgT
+from ...gateway import EventListener, GCMsgsT
 from ...models import register, return_true
 from ...protobufs import EMsg, GCMsg, GCMsgProto, MsgProto
 from ...state import ConnectionState
 from ...trade import BaseInventory, Inventory
 
 if TYPE_CHECKING:
-    from steam.protobufs.client_server_2 import CMsgGcClient
-
+    from ...game import Game
+    from ...gateway import GCMsgsT
+    from ...protobufs.client_server_2 import CMsgGcClient
     from .client import Client
 
 log = logging.getLogger(__name__)
 Inv = TypeVar("Inv", bound=BaseInventory[Any])
+GCMsgProtoT = TypeVar("GCMsgProtoT", bound=GCMsgProto)
+GCMsgT = TypeVar("GCMsgT", bound=GCMsg)
 
 
 class GCState(ConnectionState):
@@ -34,6 +38,7 @@ class GCState(ConnectionState):
         self._gc_connected = asyncio.Event()
         self._gc_ready = asyncio.Event()
         self.backpack: Inventory = None  # type: ignore
+        self._unpatched_inventory: Callable[[BaseUser, Game], Coroutine[Any, Any, Inventory]]
         self.gc_listeners: list[EventListener[Any]] = []
 
     @register(EMsg.ClientFromGC)
@@ -87,15 +92,15 @@ class GCState(ConnectionState):
             del self.gc_listeners[idx]
 
     @overload
-    def gc_wait_for(self, emsg: Language | None, check: Callable[[GCMsgT], bool]) -> asyncio.Future[GCMsgT]:
+    def gc_wait_for(self, emsg: IntEnum | None, check: Callable[[GCMsgT], bool]) -> asyncio.Future[GCMsgT]:
         ...
 
     @overload
-    def gc_wait_for(self, emsg: Language | None, check: Callable[[GCMsgProtoT], bool]) -> asyncio.Future[GCMsgProtoT]:
+    def gc_wait_for(self, emsg: IntEnum | None, check: Callable[[GCMsgProtoT], bool]) -> asyncio.Future[GCMsgProtoT]:
         ...
 
     def gc_wait_for(
-        self, emsg: Language | None, check: Callable[[GCMsgsT], bool] = return_true
+        self, emsg: IntEnum | None, check: Callable[[GCMsgsT], bool] = return_true
     ) -> asyncio.Future[GCMsgsT]:
         future: asyncio.Future[GCMsgsT] = self.loop.create_future()
         entry = EventListener(emsg=emsg, check=check, future=future)
@@ -103,6 +108,7 @@ class GCState(ConnectionState):
         return future
 
     async def fetch_backpack(self, backpack_cls: type[Inv]) -> Inv:
-        game = self.client.__class__._GAME
-        resp = await self.http.get_client_user_inventory(game.id, game.context_id)
-        return backpack_cls(state=self, data=resp, owner=self.client.user, game=game)
+        resp = await self.http.get_user_inventory(
+            self.client.user.id64, self.client._GAME.id, self.client._GAME.context_id
+        )
+        return backpack_cls(state=self, data=resp, owner=self.client.user, game=self.client._GAME)
