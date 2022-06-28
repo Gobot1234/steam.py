@@ -727,14 +727,18 @@ class ManifestIterator(AsyncIterator["Manifest"]):
         game: StatefulGame,
         branch: str,
         password: str | None,
+        password_hash: str,
     ):
         super().__init__(state, limit, before, after)
         self.game = game
         self.branch = branch
         self.password = password
+        self.password_hash = password_hash
 
     async def fill(self) -> AsyncGenerator[Manifest, None]:
-        manifest_coros = await self._state.fetch_manifests(self.game.id, self.branch, self.password, self.limit)
+        manifest_coros = await self._state.fetch_manifests(
+            self.game.id, self.branch, self.password, self.limit, self.password_hash
+        )
         for chunk in utils.chunk(manifest_coros, 100):
             for manifest in await asyncio.gather(*chunk):
                 if self.after < manifest.created_at < self.before:

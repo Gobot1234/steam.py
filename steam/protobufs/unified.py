@@ -157,6 +157,8 @@ UMS: Mapping[str, type[betterproto.Message]] = {
     "ContentServerDirectory.GetDepotPatchInfo#1_Response": content_server.GetDepotPatchInfoResponse,
     "ContentServerDirectory.GetClientUpdateHosts#1_Request": content_server.GetClientUpdateHostsRequest,
     "ContentServerDirectory.GetClientUpdateHosts#1_Response": content_server.GetClientUpdateHostsResponse,
+    "ContentServerDirectory.GetManifestRequestCode#1_Request": content_server.GetManifestRequestCodeRequest,
+    "ContentServerDirectory.GetManifestRequestCode#1_Response": content_server.GetManifestRequestCodeResponse,
     "Community.GetCommentThread#1_Request": comments.GetCommentThreadRequest,
     "Community.GetCommentThread#1_Response": comments.GetCommentThreadResponse,
     "Community.PostCommentToThread#1_Request": comments.PostCommentToThreadRequest,

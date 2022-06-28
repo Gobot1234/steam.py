@@ -12,7 +12,7 @@ from copy import copy, deepcopy
 from datetime import datetime, timedelta
 from operator import attrgetter
 from time import time
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup
 from typing_extensions import Self
@@ -1410,17 +1410,15 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.body.servers
 
-    @overload
-    async def fetch_manifest(self, game_id: int, id: int, depot_id: int, name: None = ...) -> Manifest[None]:
-        ...
-
-    @overload
-    async def fetch_manifest(self, game_id: int, id: int, depot_id: int, name: str = ...) -> Manifest[str]:
-        ...
-
     async def fetch_manifest(
-        self, game_id: int, id: int, depot_id: int, name: str | None = None
-    ) -> Manifest[str | None]:
+        self,
+        game_id: int,
+        id: int,
+        depot_id: int,
+        name: str | None = None,
+        branch: str = "public",
+        password_hash: str = "",
+    ) -> Manifest:
         if not self.cs_servers:
             self.cs_servers = sorted(
                 (
@@ -1437,26 +1435,23 @@ class ConnectionState(Registerable):
 
         for server in tuple(self.cs_servers):
             try:
-                manifest = await server.fetch_manifest(game_id, id, depot_id)
+                return await server.fetch_manifest(game_id, id, depot_id, name, branch, password_hash)
             except HTTPException as exc:
-                if exc.status == 404:
+                if 500 <= exc.status <= 599:
+                    del self.cs_servers[0]
+                else:
                     raise
-                self.cs_servers.pop(0)
-            else:
-                manifest.name = name
-                return manifest
 
-        return await self.fetch_manifest(game_id, id, depot_id, name)
+        return await self.fetch_manifest(game_id, id, depot_id, name, branch, password_hash)
 
     async def fetch_manifests(
-        self, game_id: int, branch_name: str, password: str | None, limit: int | None
-    ) -> list[Manifest[str]]:
+        self, game_id: int, branch_name: str, password: str | None, limit: int | None, password_hash: str = ""
+    ) -> list[Coro[Manifest]]:
         (product_info,), _ = await self.fetch_product_info((game_id,))
 
-        try:
-            branch = product_info._branches[branch_name]
-        except KeyError:
-            raise ValueError(f"No branch named {branch_name!r} for app {game_id}") from None
+        branch = product_info.get_branch(branch_name)
+        if branch is None:
+            raise ValueError(f"No branch named {branch_name!r} for app {game_id}")
 
         try:
             branch.password = self._manifest_passwords[game_id].get(branch_name)
@@ -1479,19 +1474,44 @@ class ConnectionState(Registerable):
             if branch_password is None:
                 raise ValueError(f"Supplied password is not for the branch {branch!r}")
             branch.password = branch_password.betapassword
-            self._manifest_passwords[game_id][branch.name] = branch.password
+            try:
+                self._manifest_passwords[game_id][branch.name] = branch.password
+            except KeyError:
+                self._manifest_passwords[game_id] = {branch.name: branch.password}
 
-        return await asyncio.gather(
-            *(
-                self.fetch_manifest(
-                    game_id,
-                    depot.manifest.id,
-                    depot.id,
-                    depot.name,
-                )
-                for depot in branch.depots[:limit]
+        return [
+            self.fetch_manifest(
+                game_id,
+                depot.manifest.id,
+                depot.id,
+                depot.name,
+                password_hash,
             )
-        )  # type: ignore  # typeshed lies
+            for depot in branch.depots[:limit]
+        ]
+
+    async def fetch_manifest_request_code(
+        self,
+        manifest_id: int,
+        depot_id: int,
+        app_id: int,
+        branch: str = "",
+        password_hash: str = "",
+    ) -> int:
+        msg: MsgProto[content_server.GetManifestRequestCodeResponse] = await self.ws.send_um_and_wait(
+            "ContentServerDirectory.GetManifestRequestCode",
+            app_id=app_id,
+            depot_id=depot_id,
+            manifest_id=manifest_id,
+            app_branch=branch,
+            branch_password_hash=password_hash,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        code = msg.body.manifest_request_code
+        if not code:
+            raise ValueError
+        return code
 
     async def fetch_product_info(
         self, game_ids: Iterable[int] = (), package_ids: Iterable[int] = ()

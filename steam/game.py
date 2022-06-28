@@ -372,9 +372,21 @@ class StatefulGame(Game):
             raise ValueError("Fetched game was not valid.")
         return game
 
-    async def fetch_manifest(self, *, id: int, depot_id: int) -> Manifest[None]:
-        """Fetch a CDN manifest for a game."""
-        return await self._state.fetch_manifest(self.id, id, depot_id)
+    async def fetch_manifest(
+        self, *, id: int, depot_id: int, branch: str = "public", password_hash: str = ""
+    ) -> Manifest:
+        """Fetch a CDN manifest for a game.
+
+        Parameters
+        ----------
+        id
+            The ID of the manifest to fetch.
+        depot_id
+            The ID of the manifest's associated depot.
+        """
+        return await self._state.fetch_manifest(
+            self.id, id, depot_id, name=None, branch=branch, password_hash=password_hash
+        )
 
     def manifests(
         self,
@@ -384,6 +396,7 @@ class StatefulGame(Game):
         after: datetime | None = None,
         branch: str = "public",
         password: str | None = None,
+        password_hash: str = "",
     ) -> ManifestIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Game`'s
         :class:`steam.Manifest`\\s.
@@ -420,13 +433,22 @@ class StatefulGame(Game):
             The name of the branch to fetch manifests from.
         password
             The password for the branch, if any.
+        password_hash
+            The hashed password for the
 
         Yields
         ------
         :class:`Manifest`
         """
         return ManifestIterator(
-            state=self._state, limit=limit, before=before, after=after, game=self, branch=branch, password=password
+            state=self._state,
+            limit=limit,
+            before=before,
+            after=after,
+            game=self,
+            branch=branch,
+            password=password,
+            password_hash=password_hash,
         )
 
     def published_files(

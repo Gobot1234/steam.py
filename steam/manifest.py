@@ -142,10 +142,10 @@ class ManifestPath(PurePathBase, _IOMixin):
 
     __slots__ = ("_manifest", "_mapping", "_flags_cs")
 
-    _manifest: Manifest[str | None]
+    _manifest: Manifest
     _mapping: PayloadFileMapping
 
-    def __new__(cls, manifest: Manifest[str | None], mapping: PayloadFileMapping) -> Self:
+    def __new__(cls, manifest: Manifest, mapping: PayloadFileMapping) -> Self:
         # super().__new__ breaks
         self: Self = super()._from_parts(mapping.filename.rstrip("\x00 \n\t").split("\\"))  # type: ignore
         self._mapping = mapping
@@ -263,7 +263,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             The depot cannot be decrypted as no key for its manifest was found.
         """
         if self.is_dir():
-            raise IsADirectoryError(21, f"Is a directory: {str(self)!r}")
+            raise IsADirectoryError(errno.EISDIR, f"Is a directory: {str(self)!r}")
 
         key = self._manifest._key
         if key is None:
@@ -282,10 +282,11 @@ class ManifestPath(PurePathBase, _IOMixin):
             buffer.seek(0)
             yield buffer
 
-    async def read_bytes(self) -> bytes:
-        """Read the contents of the file. Similar to :meth:`pathlib.Path.read_bytes`"""
-        async with self.open() as f:
-            return f.getvalue()
+    read_bytes = _IOMixin.read
+    """Read the contents of the file. Similar to :meth:`pathlib.Path.read_bytes`"""
+
+    async def read(self) -> Never:
+        raise NotImplementedError("use read_bytes() instead of read()")
 
     async def read_text(self, encoding: str | None = None) -> str:
         """Read the contents of the file. Similar to :meth:`pathlib.Path.read_text`"""
@@ -303,7 +304,7 @@ SIGNATURE_MAGIC: Final = 0x1B81B817
 END_OF_MANIFEST_MAGIC: Final = 0x32C415AB
 
 
-class Manifest(Generic[NameT]):
+class Manifest:
     """Represents a manifest which is a collection of files included with a depot build on Steam's CDN.
 
     .. container:: operations
@@ -320,11 +321,6 @@ class Manifest(Generic[NameT]):
     ----------
     name
         The name of the manifest.
-
-        Note
-        ----
-        This is not avaliable using `StatefulGame.fetch_manifest`.
-
     game
         The game that this manifest was fetched from.
     created_at
@@ -422,21 +418,32 @@ class ContentServer(SteamID):  # is there any point having this inherit steamid?
         async with self._state.http._session.get(self.url / path) as r:
             return await r.read()
 
-    async def fetch_manifest(self, game_id: int, id: int, depot_id: int) -> Manifest[None]:
-        data = await self.get(f"depot/{depot_id}/manifest/{id}/5")
+    async def fetch_manifest(
+        self,
+        game_id: int,
+        id: int,
+        depot_id: int,
+        name: str | None = None,
+        branch: str = "public",
+        password_hash: str = "",
+    ) -> Manifest:
+        branch = branch if branch != "public" else ""
+        code = await self._state.fetch_manifest_request_code(id, depot_id, game_id, branch, password_hash)
+        data = await self.get(f"depot/{depot_id}/manifest/{id}/5{f'/{code}' if code else ''}")
+
         manifest = Manifest(self._state, self, game_id, data)
         encrypted = manifest._metadata.filenames_encrypted
         if encrypted:
             key = manifest._key = await self._state.fetch_depot_key(game_id, depot_id)
-            for mapping in manifest._payload.mappings:
-                mapping.filename = utils.symmetric_decrypt(b64decode(mapping.filename), key).decode()
+        for mapping in manifest._payload.mappings:
+            if encrypted:
+                mapping.filename = utils.symmetric_decrypt(b64decode(mapping.filename), key).decode()  # type: ignore # key is never unbound
                 if mapping.linktarget:
-                    mapping.linktarget = utils.symmetric_decrypt(b64decode(mapping.linktarget), key).decode()
+                    mapping.linktarget = utils.symmetric_decrypt(b64decode(mapping.linktarget), key).decode()  # type: ignore
 
-                mapping.chunks.sort(key=attrgetter("offset"), reverse=False)
-        else:
-            for mapping in manifest._payload.mappings:
-                mapping.chunks.sort(key=attrgetter("offset"), reverse=False)
+            mapping.chunks.sort(key=attrgetter("offset"), reverse=False)
+
+        manifest.name = name
         return manifest
 
 
@@ -500,7 +507,7 @@ class Branch:
         """This branch's manifests."""
         return [depot.manifest for depot in self.depots]
 
-    async def fetch_manifests(self) -> list[Manifest[str]]:
+    async def fetch_manifests(self) -> list[Manifest]:
         """Fetch this branch's manifests. Similar to :meth:`StatefulGame.manifests`."""
         return await asyncio.gather(*(manifest.fetch() for manifest in self.manifests))  # type: ignore  # typeshed lies
 
@@ -535,11 +542,11 @@ class ManifestInfo:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """The manifest's name."""
         return self.depot.name
 
-    async def fetch(self) -> Manifest[str]:
+    async def fetch(self) -> Manifest:
         """Resolves this manifest info into a full :class:`Manifest`."""
         return await self._state.fetch_manifest(self.depot.game.id, self.id, self.depot.id, self.name)
 
@@ -798,7 +805,7 @@ class GameInfo(ProductInfo, StatefulGame):
                 depot: manifest.Depot
                 kwargs = {
                     "id": id,
-                    "name": depot["name"],
+                    "name": depot.get("name"),
                     "config": depot.get("config", MultiDict()),
                     "max_size": int(depot["maxsize"]) if "maxsize" in depot else None,
                     "game": self,
@@ -808,7 +815,7 @@ class GameInfo(ProductInfo, StatefulGame):
                 try:
                     manifests = depot["manifests"]
                 except KeyError:
-                    self.headless_depots.append(HeadlessDepot(**kwargs))
+                    self.headless_depots.append(HeadlessDepot(**kwargs))  # type: ignore
                 else:
                     for branch_name, manifest_id in manifests.items():
                         branch = self._branches[branch_name]
@@ -824,7 +831,7 @@ class GameInfo(ProductInfo, StatefulGame):
                                     int(manifests["public"]),
                                     branch=self.public_branch,
                                 )
-                        depot_ = Depot(**kwargs, branch=branch, manifest=manifest)
+                        depot_ = Depot(**kwargs, branch=branch, manifest=manifest)  # type: ignore
                         manifest.depot = depot_
                         branch.depots.append(depot_)
 
