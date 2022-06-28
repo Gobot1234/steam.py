@@ -629,11 +629,6 @@ class ProductInfo:
     #     return changes.app_changes[0].change_number
 
 
-TYPE_TRANSFORM: Final[Mapping[str, str]] = {
-    "Dlc": "DLC",
-}
-
-
 class GameInfo(ProductInfo, StatefulGame):
     """Represents a collection of information on a game.
 
@@ -724,12 +719,7 @@ class GameInfo(ProductInfo, StatefulGame):
         common = data["common"]
         extended = data.get("extended", {})
         super().__init__(state, proto, id=proto.appid, name=common["name"])
-        types = iter(common["type"].split(","))
-        type = next(types).title()
-        self.type = AppFlag[TYPE_TRANSFORM.get(type, type)]
-        for type in types:
-            type = type.title()
-            self.type |= AppFlag[TYPE_TRANSFORM.get(type, type)]
+        self.type = AppFlag.from_str(common["type"])
         self.has_adult_content = common.get("has_adult_content", "0") == "1"
         self.has_adult_content_violence = common.get("has_adult_content_violence", "0") == "1"
         self.market_presence = common.get("market_presence", "0") == "1"

@@ -704,7 +704,7 @@ class FetchedGame(StatefulGame):
         self.created_at = (
             datetime.strptime(data["release_date"]["date"], "%d %b, %Y") if data["release_date"]["date"] else None
         )
-        self.type = data["type"]
+        self.type = AppFlag.from_str(data["type"])
 
         self.dlc = [Game(id=dlc_id) for dlc_id in data["dlc"]] if "dlc" in data else None
         self.website_url = data.get("website")
