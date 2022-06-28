@@ -527,6 +527,20 @@ class TradeOffer:
         trade._update(data)
         return trade
 
+    @classmethod
+    def _from_history(cls, state: ConnectionState, data: trade.TradeOfferHistoryTrade) -> Self:
+        trade = cls()
+        trade._state = state
+        trade._id = int(data["tradeid"])
+        trade.partner = partner = SteamID(data["steamid_other"])
+        trade.created_at = DateTime.from_timestamp(data["time_init"])
+        trade.state = TradeOfferState.try_value(data["status"])
+        received: list[trade.TradeOfferReceiptItemDict] = data["assets_received"]  # type: ignore
+        sent: list[trade.TradeOfferReceiptItemDict] = data["assets_given"]  # type: ignore
+        trade.items_to_receive = [Item(state, item, partner) for item in received]
+        trade.items_to_send = [Item(state, item, state.user) for item in sent]
+        return trade
+
     def _update_from_send(
         self, state: ConnectionState, data: trade.TradeOfferCreateResponse, partner: User, active: bool = True
     ) -> None:

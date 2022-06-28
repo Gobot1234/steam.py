@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from .review import Review
     from .state import ConnectionState
     from .trade import TradeOffer
-    from .types import trade
 
 T = TypeVar("T")
 TT = TypeVar("TT")
@@ -344,67 +343,52 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
     async def fill(self) -> AsyncGenerator[TradeOffer, None]:
         from .trade import TradeOffer
 
-        resp = await self._state.http.get_trade_history(100)
-        data = resp["response"]
-        total = data.get("total_trades", 0)
-        if not total:
-            return
-
+        total = 100
+        previous_time = 0
         after_timestamp = self.after.timestamp()
         before_timestamp = self.before.timestamp()
-        done = False
 
-        def process_trade(data: trade.TradeOfferHistoryTradeDict, descriptions: list[trade.DescriptionDict]) -> bool:
-            if not after_timestamp < data["time_init"] < before_timestamp:
-                return True
-            for item in descriptions:
-                for asset in data.get("assets_received", []):
-                    if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                        asset.update(item)
-                for asset in data.get("assets_given", []):
-                    if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                        asset.update(item)
+        async def get_trades(page: int = 100) -> list[TradeOffer]:
+            nonlocal total, previous_time
+            resp = await self._state.http.get_trade_history(page, previous_time)
+            data = resp["response"]
+            if total is None:
+                total = data.get("total_trades", 0)
+            if not total:
+                return []
 
-            trade = TradeOffer._from_history(state=self._state, data=data)
-            partner_id64s.add(trade.partner)
-            trades.append(trade)
-            return False
+            trades: list[TradeOffer] = []
+            descriptions = data.get("descriptions", ())
+            trade = None
+            for trade in data.get("trades", []):
+                if not after_timestamp < trade["time_init"] < before_timestamp:
+                    break
+                for item in descriptions:
+                    for asset in trade.get("assets_received", []):
+                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
+                            asset.update(item)
+                    for asset in trade.get("assets_given", []):
+                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
+                            asset.update(item)
 
-        partner_id64s = set()
-        trades: list[TradeOffer] = []
-        descriptions = data.get("descriptions", [])
-        for trade in data.get("trades", []):
-            done = process_trade(trade, descriptions)
-            if done:
-                break
+                trades.append(TradeOffer._from_history(state=self._state, data=trade))
 
-        await self._fill_queue_users(trades, ("partner",))
-        for trade in trades:
+            assert trade is not None
+            previous_time = trade["time_init"]
+            await self._fill_queue_users(trades, ("partner",))
+            return trades
+
+        for trade in await get_trades():
             for item in trade.items_to_receive:
                 item.owner = trade.partner
             yield trade
-        if done:
-            return
+
         if total < 100:
             for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
-                partner_id64s = set()
-                trades: list[TradeOffer] = []
-
-                resp = await self._state.http.get_trade_history(page, trade["time_init"])
-                data = resp["response"]
-                descriptions = data.get("descriptions", [])
-                for trade in data.get("trades", []):
-                    done = process_trade(trade, descriptions)
-                    if done:
-                        break
-
-                await self._fill_queue_users(trades, ("partner",))
-                for trade in trades:
+                for trade in await get_trades(page):
                     for item in trade.items_to_receive:
                         item.owner = trade.partner
                     yield trade
-                if done:
-                    return
 
 
 class DMChannelHistoryIterator(AsyncIterator["UserMessage"]):
