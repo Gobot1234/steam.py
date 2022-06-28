@@ -234,13 +234,13 @@ class ManifestPath(PurePathBase, _IOMixin):
         return next(path for path in self._manifest.paths if path.parts == link_parts)
 
     def iterdir(self) -> Generator[Self, None, None]:
-        """Iterate over this path. Similiar to :meth:`pathlib.Path.iterdir`."""
+        """Iterate over this path. Similar to :meth:`pathlib.Path.iterdir`."""
         for path in self._manifest.paths:
             if path.parent == self:
                 yield path
 
     def glob(self, pattern: str) -> Generator[Self, None, None]:
-        """Perform a glob operation on this path. Similiar to :meth:`pathlib.Path.glob`."""
+        """Perform a glob operation on this path. Similar to :meth:`pathlib.Path.glob`."""
         if not pattern:
             raise ValueError(f"Unacceptable pattern: {pattern!r}")
 
@@ -248,7 +248,7 @@ class ManifestPath(PurePathBase, _IOMixin):
         yield from filter(methodcaller("match", f"{self.as_posix().rstrip('/')}/{pattern}"), self._manifest.paths)
 
     def rglob(self, pattern: str) -> Generator[Self, None, None]:
-        """Perform a recursive glob operation on this path. Similiar to :meth:`pathlib.Path.rglob`"""
+        """Perform a recursive glob operation on this path. Similar to :meth:`pathlib.Path.rglob`."""
         yield from self.glob(f"**/{pattern}")
 
     @asynccontextmanager
@@ -581,13 +581,20 @@ class HeadlessDepot:
     """Represents a depot without a branch."""
 
     __slots__ = ("id", "name", "game", "max_size", "config", "shared_install", "system_defined")
-    id: int  #: The depot's ID.
-    name: str  #: The depot's name.
-    game: GameInfo  #: The depot's game.
-    max_size: int  #: The depot's maximum size.
-    config: MultiDict[str]  #: The depot's configuration settings.
-    shared_install: bool  #: Whether this depot supports shared installs
-    system_defined: bool  #: Whether this depot is system defined.
+    id: int
+    """The depot's ID."""
+    name: str
+    """The depot's name."""
+    game: GameInfo
+    """The depot's game."""
+    max_size: int
+    """The depot's maximum size."""
+    config: MultiDict[str]
+    """The depot's configuration settings."""
+    shared_install: bool
+    """Whether this depot supports shared installs"""
+    system_defined: bool
+    """Whether this depot is system defined."""
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id} game={self.game!r}>"
@@ -766,12 +773,12 @@ class GameInfo(ProductInfo, StatefulGame):
         self._on_linux = "linux" in os_list
 
         self.icon_url = (
-            f"http://media.steampowered.com/steamcommunity/public/images/apps/{self.id}/{common['icon']}.jpg"
+            f"https://media.steampowered.com/steamcommunity/public/images/apps/{self.id}/{common['icon']}.jpg"
             if "icon" in common
             else None
         )
         self.logo_url = (
-            f"http://media.steampowered.com/steamcommunity/public/images/apps/{self.id}/{common['logo']}.jpg"
+            f"https://media.steampowered.com/steamcommunity/public/images/apps/{self.id}/{common['logo']}.jpg"
             if "logo" in common
             else None
         )

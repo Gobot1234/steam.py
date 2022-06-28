@@ -136,7 +136,7 @@ class PriceOverview:
     currency
         The currency identifier for the item e.g. "$" or "£".
     volume
-        The amount of items are currently on the market.
+        The amount of items that sold in the last 24 hours.
     lowest_price
         The lowest price observed by the market.
     median_price

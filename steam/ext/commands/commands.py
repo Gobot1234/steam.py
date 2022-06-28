@@ -108,7 +108,7 @@ class Command(Generic[P]):
     special_converters
         A list of the command's special converters as registered by :meth:`steam.ext.commands.Converter.register`.
     enabled
-        Whether or not the command is enabled.
+        Whether the command is enabled.
     cog
         The command's cog.
     parent
@@ -116,7 +116,7 @@ class Command(Generic[P]):
     description
         The command's description.
     hidden
-        Whether or not the command is hidden.
+        Whether the command is hidden.
     aliases
         The command's aliases.
     params

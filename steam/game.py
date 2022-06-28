@@ -266,7 +266,7 @@ class StatefulGame(Game):
 
         Raises
         ------
-        :exc:`ValueError`
+        ValueError
             This game has no associated clan.
         """
 
@@ -361,7 +361,7 @@ class StatefulGame(Game):
     #     return utils.update_class(fetched, copy.copy(self))
 
     async def fetch(self) -> FetchedGame:
-        """Short hand for:
+        """Shorthand for:
 
         .. code-block:: python3
 

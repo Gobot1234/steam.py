@@ -216,6 +216,7 @@ class Query(Generic[T_co], metaclass=QueryMeta):
     Match games where the server is not on linux and the server doesn't have no password (has a password)
 
     .. code-block:: pycon
+
         >>> Query.linux & Query.no_password
     """
 

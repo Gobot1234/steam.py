@@ -74,13 +74,21 @@ poethepoet = {version="^0.13"}  #, extras=["poetry_plugin"]}
 blacken-docs = "^1.12"
 
 [tool.poe.tasks]
-test = "pytest tests"
+test = {cmd = "pytest tests", help = "Run the tests"}
 _blacken_docs = {script = "scripts.blacken_docs_correctly:main"}
 _black = "black ."
 _isort = "isort ."
-fmt = ["_blacken_docs", "_black", "_isort"]
-doc = "sphinx-build -b html -T -W --keep-going docs/ docs/_build"  # TODO -n
-add_cms = {script = "scripts.get_default_cms:main"}
+fmt = {sequence = ["_blacken_docs", "_black", "_isort"], help = "Format code"}
+doc = {cmd = "sphinx-build -b html -T -W --keep-going docs/ docs/_build", help = "Build the documentation"}  # TODO -n
+add_cms = {script = "scripts.add_cms:main", help = "Add a default list of CMs for when the API is down"}
+
+[tool.poe.tasks.decode]
+script = "scripts.decode:main"
+help = "Decode a recieved message from the Steam WS"
+[tool.poe.tasks.decode.args.input]
+required = true
+positional = true
+help = "A base64 encoded protobufs message from Steam to decode"
 
 [tool.black]
 line-length = 120

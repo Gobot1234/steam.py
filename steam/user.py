@@ -141,7 +141,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
             pass
 
     async def cancel_invite(self) -> None:
-        """Cancels an invite sent to the user. This effectively does the same thing as :meth:`remove`."""
+        """Cancels an invitation sent to the user. This effectively does the same thing as :meth:`remove`."""
         await self._state.http.remove_user(self.id64)
 
     async def block(self) -> None:
@@ -256,7 +256,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
         await self._state.http.invite_user_to_clan(self.id64, clan.id64)
 
     async def owns(self, game: Game) -> bool:
-        """Whether or not the game is owned by this user.
+        """Whether the game is owned by this user.
 
         Parameters
         ----------
@@ -266,8 +266,8 @@ class User(_BaseUser, Messageable["UserMessage"]):
         return self.id64 in await self._state.fetch_friends_who_own(game.id)
 
     def is_friend(self) -> bool:
-        """Whether or not the user is in the :class:`ClientUser`'s friends."""
-        return self in self._state.client.user.friends
+        """Whether the user is in the :class:`ClientUser`'s friends."""
+        return self in self._state.user.friends
 
 
 class ClientUser(_BaseUser):
@@ -340,7 +340,7 @@ class ClientUser(_BaseUser):
         await self._state.http.clear_nickname_history()
 
     async def profile_items(self) -> OwnedProfileItems:
-        """Fetch all of the client user's profile items."""
+        """Fetch all the client user's profile items."""
         items = await self._state.fetch_profile_items()
         return OwnedProfileItems(
             backgrounds=[

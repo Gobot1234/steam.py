@@ -639,6 +639,8 @@ Reviews
 .. attributetable:: Review
 
 .. autoclass:: Review()
+    :members:
+    :inherited-members:
 
 Roles
 ~~~~~~~~~~~~~~~
@@ -646,6 +648,7 @@ Roles
 .. attributetable:: Role
 
 .. autoclass:: Role()
+    :members:
 
 
 Users

@@ -91,7 +91,7 @@ class Client:
     flags
         Flags to set your persona state to.
     force_kick
-        Whether or not to forcefully kick any other playing sessions on connect. Defaults to ``False``.
+        Whether to forcefully kick any other playing sessions on connect. Defaults to ``False``.
     """
 
     # TODO
@@ -709,7 +709,7 @@ class Client:
                 raise ValueError(f"The master server didn't find a matching server for {id}")
             ip, _, port = servers[0].addr.partition(":")
         elif not ip:
-            raise TypeError(f"fetch_server missing argument ip")
+            raise TypeError("fetch_server missing argument ip")
 
         servers = await self.fetch_servers(Query.ip / f"{ip}{f':{port}' if port is not None else ''}", limit=1)
         return servers[0] if servers else None
@@ -857,7 +857,7 @@ class Client:
         flags
             The flags to update your account with.
         force_kick
-            Whether or not to forcefully kick any other playing sessions.
+            Whether to forcefully kick any other playing sessions.
         """
         games_ = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
@@ -1456,7 +1456,7 @@ class Client:
             ``event`` being waited for and must return a :class:`bool`.
         timeout
             By default, :meth:`wait_for` function does not timeout, however, in the case a ``timeout`` parameter is
-            passed after the amount of seconds pass :exc:`asyncio.TimeoutError` is raised.
+            passed after the amount of seconds passes :exc:`asyncio.TimeoutError` is raised.
 
         Raises
         ------

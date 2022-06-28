@@ -120,12 +120,12 @@ class SteamID(metaclass=abc.ABCMeta):
 
     @property
     def id64(self) -> ID64:
-        """The SteamID's 64 bit ID."""
+        """The SteamID's 64-bit ID."""
         return self.__BASE
 
     @property
     def id(self) -> ID32:
-        """The SteamID's 32 bit ID."""
+        """The SteamID's 32-bit ID."""
         return self.__BASE & 0xFFFFFFFF
 
     @property
@@ -214,7 +214,7 @@ class SteamID(metaclass=abc.ABCMeta):
             return None
 
     def is_valid(self) -> bool:
-        """Whether or not the SteamID is valid."""
+        """Whether the SteamID is valid."""
         if self.type == Type.Invalid or self.type >= Type.Max:
             return False
 
@@ -340,7 +340,7 @@ class Commentable(Protocol):
             Whether or not to request comments with the oldest comments first or last. Defaults to ``False``.
         limit
             The maximum number of comments to search through.
-            Default is ``None`` which will fetch the all of the comments in the comments section.
+            Default is ``None`` which will fetch the all the comments in the comments section.
         before
             A time to search for comments before.
         after
@@ -566,7 +566,7 @@ class BaseUser(SteamID, Commentable):
         return [WishlistGame(self._state, id=id, data=game_info) for id, game_info in data.items()]
 
     async def favourite_badge(self) -> FavouriteBadge | None:
-        """The user's favourite badge"""
+        """The user's favourite badge."""
         badge = await self._state.fetch_user_favourite_badge(self.id64)
         if not badge.has_favorite_badge:
             return
@@ -642,7 +642,7 @@ class BaseUser(SteamID, Commentable):
     async def is_banned(self) -> bool:
         """Specifies if the user is banned from any part of Steam.
 
-        This is equivalent to:
+        Shorthand for:
 
         .. code-block:: python3
 
@@ -729,7 +729,7 @@ class BaseUser(SteamID, Commentable):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> UserPublishedFilesIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a user's :class:`steam.PublishedFile`\\s.
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a user's :class:`~steam.PublishedFile`\\s.
 
         Examples
         --------
@@ -976,7 +976,7 @@ class Message:
     This is **not** what you will see in the steam client see :attr:`clean_content` for that.
     """
     clean_content: str
-    """The message's clean content without bbcode."""
+    """The message's clean content without BBCode."""
     created_at: datetime
     """The time this message was sent at."""
     clan: Clan | None
@@ -1012,7 +1012,12 @@ class Message:
 
     @cached_slot_property
     def id(self) -> int:
-        """A unique identifier for every message sent in a channel."""
+        """A unique identifier for every message sent in a channel.
+
+        Note
+        ----
+        This is **not** something Steam provides, this is meant to be a simple way to compare messages.
+        """
         # a u64 "snowflake-esk" id measuring of the number of seconds passed since Steam's EPOCH and then the
         # "sequence"/ordinal of the message.
         return int(
