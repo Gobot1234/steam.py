@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from multidict import MultiDict
-from typing_extensions import Any, Literal, NotRequired, Required
+from typing_extensions import Literal, NotRequired, Required
 
 from .vdf import TypedVDFDict, VDFDict, VDFInt, VDFList
 
 
-class GameInfoDict(TypedVDFDict):
+class GameInfo(TypedVDFDict):
     appid: str
-    common: CommonDict
-    extended: NotRequired[ExtendedDict]
+    common: Common
+    extended: NotRequired[Extended]
     config: VDFDict
-    depots: DepotDict | VDFDict
+    depots: Depot | VDFDict
     ufs: MultiDict[VDFInt]
     sysreqs: MultiDict[MultiDict[Any]]
     localization: MultiDict[MultiDict[VDFDict]]
@@ -22,7 +24,7 @@ class GameInfoDict(TypedVDFDict):
 Bools = Literal["0", "1"]
 
 
-class CommonDict(TypedVDFDict, total=False):
+class Common(TypedVDFDict, total=False):
     name: Required[str]
     type: Required[str]
     has_adult_content: Bools
@@ -32,7 +34,7 @@ class CommonDict(TypedVDFDict, total=False):
     community_hub_visible: Bools
     community_visible_stats: Bools
     controller_support: Literal["full", "partial", "none"]
-    associations: VDFList[CommonDictAssociations]
+    associations: VDFList[CommonAssociations]
     languages: MultiDict[Bools]
     steam_release_date: str
     review_score: str
@@ -43,48 +45,48 @@ class CommonDict(TypedVDFDict, total=False):
     parent: int
 
 
-class CommonDictAssociations(TypedVDFDict):
+class CommonAssociations(TypedVDFDict):
     name: str
     type: str
 
 
-class ExtendedDict(TypedVDFDict, total=False):
+class Extended(TypedVDFDict, total=False):
     isfreeapp: Bools
     listofdlc: str
     homepage: str
 
 
-class DepotDict(TypedVDFDict, total=False):
+class Depot(TypedVDFDict, total=False):
     name: str
     config: Required[MultiDict[str]]
     manifests: MultiDict[VDFInt]  # {branch name: id}
     encryptedmanifests: MultiDict[MultiDict[VDFInt]]  # {branch name: {encrypted_gid2: VDFInt}}
-    branches: MultiDict[BranchDict]
+    branches: MultiDict[Branch]
     maxsize: VDFInt
     depotfromapp: VDFInt
-    sharedinstall: VDFInt  # bool
-    system_defined: VDFInt  # bool
+    sharedinstall: bool
+    system_defined: bool
 
 
-class BranchDict(TypedVDFDict):
+class Branch(TypedVDFDict):
     buildid: VDFInt
     timeupdated: VDFInt
     pwdrequired: NotRequired[bool]
     description: NotRequired[str]
 
 
-class PackageInfoDict(TypedVDFDict):
+class PackageInfo(TypedVDFDict):
     packageid: int
     billingtype: int
     licensetype: int
     status: int
-    extended: ExtendedPackageInfoDict
+    extended: ExtendedPackageInfo
     appids: VDFList[int]
     depotids: VDFList[int]
     appitems: VDFList[int]
 
 
-class ExtendedPackageInfoDict(TypedVDFDict):
+class ExtendedPackageInfo(TypedVDFDict):
     excludefromsharing: NotRequired[int]
     allowpurchasefromrestrictedcountries: NotRequired[bool]
     purchaserestrictedcountries: NotRequired[str]

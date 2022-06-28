@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from .protobufs import player
     from .published_file import PublishedFile
     from .state import ConnectionState
-    from .types.trade import ItemDict
+    from .types import trade
 
 __all__ = (
     "ProfileInfo",
@@ -185,7 +185,7 @@ class ProfileShowcaseSlot:
             raise ValueError
         key = (self.asset.class_id, self.asset.instance_id)
         resp = await self._state.http.get_item_info(self.game.id, [key])
-        data: ItemDict = {
+        data: trade.Item = {
             **resp[key],
             **self.asset.to_dict(),
             "missing": False,
@@ -253,7 +253,7 @@ class ProfileShowcase:
 
         for app_id, assets in asset_map.items():
             for key, description in (await self._state.http.get_item_info(app_id, assets)).items():
-                data: ItemDict = {
+                data: trade.Item = {
                     **description,
                     **assets[key].to_dict(),
                     "missing": False,

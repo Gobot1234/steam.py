@@ -22,7 +22,7 @@ from .utils import DateTime
 if TYPE_CHECKING:
     from .abc import BaseUser, SteamID
     from .state import ConnectionState
-    from .types.trade import *
+    from .types import trade
     from .user import User
 
 
@@ -83,7 +83,7 @@ class Asset:
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, Asset) and self.instance_id == other.instance_id and self.class_id == other.class_id
 
-    def to_dict(self) -> AssetToDict:
+    def to_dict(self) -> trade.AssetToDict:
         return {
             "assetid": str(self.asset_id),
             "amount": self.amount,
@@ -158,11 +158,11 @@ class Item(Asset):
     )
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
-    def __init__(self, data: ItemDict, owner: BaseUser):
+    def __init__(self, data: trade.Item, owner: BaseUser):
         super().__init__(data, owner)
         self._from_data(data)
 
-    def _from_data(self, data: ItemDict) -> None:
+    def _from_data(self, data: trade.Item) -> None:
         self.name = data.get("market_name")
         self.display_name = data.get("name")
         self.colour = int(data["name_color"], 16) if "name_color" in data else None
@@ -238,7 +238,7 @@ class BaseInventory(Generic[I]):
         "__orig_class__",  # undocumented typing internals more shim to make extensions work
     )
 
-    def __init__(self, state: ConnectionState, data: InventoryDict, owner: BaseUser, game: Game):
+    def __init__(self, state: ConnectionState, data: trade.Inventory, owner: BaseUser, game: Game):
         self._state = state
         self.owner = owner
         self.game = StatefulGame(state, id=game.id, name=game.name)
@@ -290,7 +290,7 @@ class BaseInventory(Generic[I]):
             object.__setattr__(generic_alias, "__alias_name__", instruction.argval)
             return generic_alias
 
-    def _update(self, data: InventoryDict) -> None:
+    def _update(self, data: trade.Inventory) -> None:
         items = []
         ItemClass: type[Item] = self.__orig_class__.__args__[0]
         for asset in data.get("assets", ()):
@@ -403,7 +403,7 @@ class TradeOfferReceiptItem(Item):
     new_asset_id: int
     new_context_id: int
 
-    def _from_data(self, data: TradeOfferReceiptItemDict):
+    def _from_data(self, data: trade.TradeOfferReceiptItem):
         super()._from_data(data)
         self.new_context_id = int(data["new_contextid"])
         self.new_asset_id = int(data["new_assetid"])
@@ -519,9 +519,7 @@ class TradeOffer:
         self._has_been_sent = False
 
     @classmethod
-    def _from_api(
-        cls, state: ConnectionState, data: TradeOfferDict, partner: User | SteamID | None = None
-    ) -> TradeOffer:
+    def _from_api(cls, state: ConnectionState, data: trade.TradeOffer, partner: User | SteamID | None = None) -> Self:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
@@ -530,7 +528,7 @@ class TradeOffer:
         return trade
 
     def _update_from_send(
-        self, state: ConnectionState, data: dict[str, Any], partner: User, active: bool = True
+        self, state: ConnectionState, data: trade.TradeOfferCreateResponse, partner: User, active: bool = True
     ) -> None:
         self.id = int(data["tradeofferid"])
         self._state = state
@@ -544,7 +542,7 @@ class TradeOffer:
         resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
-    def _update(self, data: TradeOfferDict) -> None:
+    def _update(self, data: trade.TradeOffer) -> None:
         self.message = data.get("message") or None
         self.id = int(data["tradeofferid"])
         self._id = int(data["tradeid"]) if "tradeid" in data else None

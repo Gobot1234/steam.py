@@ -7,7 +7,7 @@ import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
-from typing_extensions import Literal, TypedDict
+from typing_extensions import Literal
 
 from . import utils
 from ._const import DOCS_BUILDING, URL
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from .protobufs import player
     from .review import Review
     from .state import ConnectionState
-    from .types.game import *
+    from .types import game
     from .user import User
 
 __all__ = (
@@ -148,7 +148,7 @@ class Game:
         warnings.warn("Game.title is depreciated, use Game.name instead", DeprecationWarning, stacklevel=2)
         return self.name
 
-    def to_dict(self) -> GameToDict:
+    def to_dict(self) -> game.GameToDict:
         if self.is_steam_game():
             return {"game_id": str(self.id)}
 
@@ -591,7 +591,7 @@ class WishlistGame(StatefulGame):
 
     name: str
 
-    def __init__(self, state: ConnectionState, id: int | str, data: WishlistGameDict):
+    def __init__(self, state: ConnectionState, id: int | str, data: game.WishlistGame):
         super().__init__(state, id=id, name=data["name"])
         self.logo_url = data["capsule"]
         self.score = data["review_score"]
@@ -697,7 +697,7 @@ class FetchedGame(StatefulGame):
 
     name: str
 
-    def __init__(self, state: ConnectionState, data: FetchedGameDict):
+    def __init__(self, state: ConnectionState, data: game.FetchedGame):
         super().__init__(state, id=data["steam_appid"], name=data["name"])
         self.logo_url = data["header_image"]
         self.background_url = data["background"]

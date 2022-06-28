@@ -3,7 +3,7 @@
 from typing_extensions import TypedDict
 
 
-class UserDict(TypedDict):
+class User(TypedDict):
     steamid: str
     personaname: str
     primaryclanid: str

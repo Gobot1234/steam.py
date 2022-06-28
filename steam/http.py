@@ -200,13 +200,13 @@ class HTTPClient:
             if self.api_key is None:
                 log.info("Failed to get API key")
 
-                async def get_user(user_id64: int) -> UserDict:  # this is a lie
+                async def get_user(user_id64: int) -> User:  # this is a lie
                     user_id = user_id64 & 0xFFFFFFFF
                     ret = await self.get(URL.COMMUNITY / f"miniprofile/{user_id}/json")
                     ret["steamid"] = user_id64
                     return ret
 
-                async def get_users(user_id64s: Iterable[int]) -> list[UserDict]:
+                async def get_users(user_id64s: Iterable[int]) -> list[User]:
                     return await asyncio.gather(*(self.get_user(user_id64) for user_id64 in user_id64s))  # type: ignore
 
                 _BaseUser._patch_without_api()
@@ -303,13 +303,13 @@ class HTTPClient:
                 msg = None
             raise errors.LoginError(msg) from exc
 
-    async def get_user(self, user_id64: int) -> UserDict | None:
+    async def get_user(self, user_id64: int) -> User | None:
         params = {"key": self.api_key, "steamids": user_id64}
         resp = await self.get(api_route("ISteamUser/GetPlayerSummaries", version=2), params=params)
         return resp["response"]["players"][0] if resp["response"]["players"] else None
 
-    async def get_users(self, user_id64s: Iterable[int]) -> list[UserDict]:
-        ret: list[UserDict] = []
+    async def get_users(self, user_id64s: Iterable[int]) -> list[User]:
+        ret: list[User] = []
 
         for resp in await asyncio.gather(  # gather all the requests concurrently
             *(
@@ -386,8 +386,8 @@ class HTTPClient:
 
     async def get_item_info(
         self, app_id: int, items: Iterable[tuple[int, int]]
-    ) -> dict[tuple[int, int], trade.DescriptionDict]:
-        result: dict[tuple[int, int], trade.DescriptionDict] = {}
+    ) -> dict[tuple[int, int], trade.Description]:
+        result: dict[tuple[int, int], trade.Description] = {}
 
         for chunk in utils.chunk(items, 100):
             params = {
@@ -413,7 +413,7 @@ class HTTPClient:
         }
         return self.get(api_route("IEconService/GetTradeHoldDurations"), params=params)
 
-    async def get_friends(self, user_id64: int) -> list[UserDict]:
+    async def get_friends(self, user_id64: int) -> list[User]:
         params = {"key": self.api_key, "steamid": user_id64, "relationship": "friend"}
         friends = await self.get(api_route("ISteamUser/GetFriendList"), params=params)
         return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])
@@ -453,7 +453,7 @@ class HTTPClient:
 
         return first_page
 
-    def get_trade_history(self, limit: int, previous_time: int | None) -> Coro[dict[str, Any]]:
+    def get_trade_history(self, limit: int, previous_time: int = 0) -> ResponseType[trade.GetTradeOfferHistory]:
         params = {
             "key": self.api_key,
             "max_trades": limit,
@@ -463,7 +463,7 @@ class HTTPClient:
         }
         return self.get(api_route("IEconService/GetTradeHistory"), params=params)
 
-    def get_trade(self, trade_id: int) -> Coro[dict[str, Any]]:
+    def get_trade(self, trade_id: int) -> ResponseType[trade.GetTradeOffer]:
         params = {"key": self.api_key, "tradeofferid": trade_id, "get_descriptions": "true"}
         return self.get(api_route("IEconService/GetTradeOffer"), params=params)
 

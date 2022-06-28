@@ -8,10 +8,10 @@ from typing_extensions import Literal, TypedDict
 
 
 class GetOwnedGames(TypedDict):
-    games: list[GetOwnedGamesGameDict]
+    games: list[GetOwnedGamesGame]
 
 
-class GetOwnedGamesGameDict(TypedDict):
+class GetOwnedGamesGame(TypedDict):
     name: str
     appid: str
     playtime_forever: int
@@ -24,7 +24,7 @@ class GameToDict(TypedDict, total=False):
     game_extra_info: str
 
 
-class WishlistGameDict(TypedDict):
+class WishlistGame(TypedDict):
     name: str
     capsule: str
     review_score: int
@@ -49,7 +49,7 @@ class WishlistGameDict(TypedDict):
     linux: bool
 
 
-class PackageGroupsDict(TypedDict):
+class PackageGroups(TypedDict):
     name: Literal["default", "subscriptions"]
     title: str
     description: str
@@ -59,7 +59,7 @@ class PackageGroupsDict(TypedDict):
     subs: list[dict[str, str]]
 
 
-class FetchedGameDict(TypedDict):
+class FetchedGame(TypedDict):
     # https://wiki.teamfortress.com/wiki/User:RJackson/StorefrontAPI#Result_data_3
     type: Literal["game", "dlc", "demo", "advertising", "mod", "video"]
     name: str
@@ -81,7 +81,7 @@ class FetchedGameDict(TypedDict):
     publishers: list[str]
     demos: list[dict[str, Any]]
     price_overview: list[dict[str, Any]]
-    package_groups: list[PackageGroupsDict]
+    package_groups: list[PackageGroups]
     platforms: dict[str, bool]
     metacritic: list[dict[str, str]]
     categories: list[dict[str, str]]

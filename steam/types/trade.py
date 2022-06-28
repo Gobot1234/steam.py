@@ -10,13 +10,35 @@ class AssetToDict(TypedDict):
     contextid: str
 
 
-class AssetDict(AssetToDict):
+class Asset(AssetToDict):
     instanceid: str
     classid: str
     missing: bool
+    # rollback_new_assetid: NotRequired[str]
 
 
-class DescriptionDict(TypedDict, total=False):
+class ItemDescriptionLine(TypedDict):
+    type: str
+    value: str
+    color: str
+    label: str
+
+
+class ItemAction(TypedDict):
+    link: str
+    name: str
+
+
+class ItemTag(TypedDict):
+    appid: int
+    category: str
+    internal_name: str
+    localized_category_name: str
+    localized_tag_name: str
+    color: str
+
+
+class Description(TypedDict, total=False):
     instanceid: Required[str]
     classid: Required[str]
     market_name: str
@@ -26,12 +48,12 @@ class DescriptionDict(TypedDict, total=False):
     name_color: str
     background_color: str  # hex code
     type: str
-    descriptions: list[dict[str, str]]
-    owner_descriptions: list[dict[str, str]]
-    market_actions: list[dict[str, str]]
-    actions: list[dict[str, str]]
-    tags: list[dict[str, str]]
-    actions: list[dict[str, str]]
+    descriptions: list[ItemDescriptionLine]
+    owner_descriptions: list[ItemDescriptionLine]
+    actions: list[ItemAction]
+    owner_actions: list[ItemAction]
+    market_actions: list[ItemAction]
+    tags: list[ItemTag]
     icon_url: str
     icon_url_large: str
     tradable: bool  # 1 vs 0
@@ -40,19 +62,19 @@ class DescriptionDict(TypedDict, total=False):
     fraudwarnings: list[str]
 
 
-class ItemDict(AssetDict, DescriptionDict):
+class Item(Asset, Description):
     """We combine Assets with their matching Description to form items."""
 
 
-class InventoryDict(TypedDict):
-    assets: list[AssetDict]
-    descriptions: list[DescriptionDict]
+class Inventory(TypedDict):
+    assets: list[Asset]
+    descriptions: list[Description]
     total_inventory_count: int
     success: int  # Result
     rwgrsn: int  # p. much always -2
 
 
-class TradeOfferDict(TypedDict):
+class TradeOffer(TypedDict):
     tradeofferid: str
     tradeid: str  # only used for receipts (it's not the useful one)
     accountid_other: int
@@ -62,26 +84,54 @@ class TradeOfferDict(TypedDict):
     time_created: int
     time_updated: int
     escrow_end_date: int
-    items_to_give: list[ItemDict]
-    items_to_receive: list[ItemDict]
+    items_to_give: list[Item]
+    items_to_receive: list[Item]
     is_our_offer: bool
     from_real_time_trade: bool
     confirmation_method: int  # https://cs.github.com/SteamDatabase/SteamTracking/blob/e86f560898e9f8fbc93fa4f55d5872b03db5f72b/Structs/enums.steamd#L1607
 
 
-class TradeOfferReceiptAssetDict(AssetDict):
+class GetTradeOffer(TypedDict):
+    offer: TradeOffer
+    descriptions: Description
+
+
+class TradeOfferReceiptAsset(Asset):
     new_assetid: str
     new_contextid: str
 
 
-class TradeOfferReceiptItemDict(TradeOfferReceiptAssetDict, ItemDict):
-    ...
+class TradeOfferReceiptItem(TradeOfferReceiptAsset, Item):
+    pass
 
 
-class TradeOfferReceiptDict(TypedDict):
+class TradeOfferReceipt(TypedDict):
     status: int
     tradeid: str
     time_init: int
-    assets_received: NotRequired[list[TradeOfferReceiptAssetDict]]
-    assets_given: NotRequired[list[TradeOfferReceiptAssetDict]]
-    descriptions: list[DescriptionDict]
+    assets_received: NotRequired[list[TradeOfferReceiptAsset]]
+    assets_given: NotRequired[list[TradeOfferReceiptAsset]]
+    descriptions: list[Description]
+
+
+class TradeOfferHistoryTrade(TypedDict):
+    tradeid: str
+    steamid_other: str
+    # message: str
+    time_init: int
+    status: int
+    assets_given: list[TradeOfferReceiptAsset]
+    assets_received: list[TradeOfferReceiptAsset]
+
+
+class GetTradeOfferHistory(TypedDict):
+    more: bool
+    trades: list[TradeOfferHistoryTrade]
+    descriptions: list[Description]
+
+
+class TradeOfferCreateResponse(TypedDict):
+    tradeofferid: str
+    needs_mobile_confirmation: bool
+    needs_email_confirmation: bool
+    email_domain: str

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from .image import Image
     from .message import UserMessage
     from .state import ConnectionState
-    from .types.user import UserDict
+    from .types import user
 
 __all__ = (
     "User",
@@ -31,7 +31,7 @@ __all__ = (
 
 
 class _BaseUser(BaseUser):
-    def __init__(self, state: ConnectionState, data: UserDict):
+    def __init__(self, state: ConnectionState, data: user.User):
         super().__init__(data["steamid"])
         self._state = state
         self.real_name = None
@@ -52,7 +52,7 @@ class _BaseUser(BaseUser):
         self.rich_presence = None
         self._update(data)
 
-    def _update(self, data: UserDict) -> None:
+    def _update(self, data: user.User) -> None:
         self.name = data["personaname"]
         self.real_name = data.get("realname") or self.real_name
         self.community_url = data.get("profileurl") or super().community_url
@@ -319,7 +319,7 @@ class ClientUser(_BaseUser):
 
     __slots__ = ("friends", "_inventory_func")
 
-    def __init__(self, state: ConnectionState, data: UserDict):
+    def __init__(self, state: ConnectionState, data: user.User):
         super().__init__(state, data)
         self.friends: list[User] = []
 

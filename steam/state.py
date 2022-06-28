@@ -77,10 +77,8 @@ if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
     from .gateway import SteamWebSocket
-    from .types.game import GameToDict
+    from .types import game, trade, user
     from .types.id import ID64, ChannelID, ChatGroupID
-    from .types.trade import DescriptionDict, TradeOfferDict
-    from .types.user import UserDict
 
 log = logging.getLogger(__name__)
 
@@ -138,7 +136,7 @@ class ConnectionState(Registerable):
         games = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games.append(game.to_dict())
-        self._games: list[GameToDict] = games
+        self._games: list[game.GameToDict] = games
         self._state: PersonaState = kwargs.get("state", PersonaState.Online)
         self._ui_mode: UIMode = kwargs.get("ui_mode", UIMode.Desktop)
         self._flags: PersonaStateFlag = kwargs.get("flags", PersonaStateFlag.NONE)
@@ -264,7 +262,7 @@ class ConnectionState(Registerable):
 
         return ret
 
-    def _store_user(self, data: UserDict) -> User:
+    def _store_user(self, data: user.User) -> User:
         try:
             user = self._users[int(data["steamid"])]
         except KeyError:
@@ -309,7 +307,7 @@ class ConnectionState(Registerable):
             trades = await self._process_trades(trade, descriptions)
             return trades[0]
 
-    async def _store_trade(self, data: TradeOfferDict) -> TradeOffer:
+    async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer:
         try:
             trade = self._trades[int(data["tradeofferid"])]
         except KeyError:
@@ -335,7 +333,7 @@ class ConnectionState(Registerable):
         return trade
 
     async def _process_trades(
-        self, trades: list[TradeOfferDict], descriptions: list[DescriptionDict]
+        self, trades: Iterable[trade.TradeOffer], descriptions: Collection[trade.Description]
     ) -> list[TradeOffer]:
         ret = []
         for trade in trades:
@@ -1034,7 +1032,7 @@ class ConnectionState(Registerable):
             if old != new:
                 self.dispatch("user_update", before, after)
 
-    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> UserDict:
+    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> user.User:
         data["personaname"] = friend.player_name
         data["avatarfull"] = utils._get_avatar_url(friend.avatar_hash)
 

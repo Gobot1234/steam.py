@@ -9,19 +9,19 @@ import lzma
 import struct
 import sys
 from base64 import b64decode
-from collections.abc import AsyncGenerator, Generator, Mapping
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from operator import attrgetter, methodcaller
-from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Sequence, TypeVar, overload
 from zipfile import BadZipFile, ZipFile
 from zlib import crc32
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
-from typing_extensions import Final, Never, NotRequired, Self
+from typing_extensions import Final, Never, Self
 from yarl import URL
 
 from . import utils
@@ -43,7 +43,7 @@ else:
 
 if TYPE_CHECKING:
     from .state import ConnectionState
-    from .types.manifest import DepotDict, GameInfoDict, PackageInfoDict
+    from .types import manifest
     from .types.vdf import VDFInt
 
 
@@ -562,7 +562,7 @@ class PrivateManifestInfo(ManifestInfo):
         return struct.unpack("<Q", to_unpack)[0]
 
     @staticmethod
-    def _get_id(depots: DepotDict, branch: Branch) -> VDFInt | None:
+    def _get_id(depots: manifest.Depot, branch: Branch) -> VDFInt | None:
         try:
             return depots["encryptedmanifests"][branch.name]["encrypted_gid_2"]
         except KeyError:
@@ -718,7 +718,7 @@ class GameInfo(ProductInfo, StatefulGame):
     def __init__(
         self,
         state: ConnectionState,
-        data: GameInfoDict,
+        data: manifest.GameInfo,
         proto: app_info.CMsgClientPicsProductInfoResponseAppInfo,
     ):
         common = data["common"]
@@ -781,7 +781,7 @@ class GameInfo(ProductInfo, StatefulGame):
         self.website_url = extended.get("homepage")
         self.parent = StatefulGame(state, id=int(common["parent"])) if "parent" in common else None
 
-        depots: DepotDict = data.get("depots", {})  # type: ignore
+        depots: manifest.Depot = data.get("depots", {})  # type: ignore
         self._branches: dict[str, Branch] = {}
 
         for name, value in depots.get("branches", {}).items():
@@ -805,7 +805,7 @@ class GameInfo(ProductInfo, StatefulGame):
             except ValueError:
                 continue
             else:  # only the int keys have VDFDicts
-                depot: DepotDict
+                depot: manifest.Depot
                 kwargs = {
                     "id": id,
                     "name": depot["name"],
@@ -917,7 +917,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
     def __init__(
         self,
         state: ConnectionState,
-        data: PackageInfoDict,
+        data: manifest.PackageInfo,
         proto: app_info.CMsgClientPicsProductInfoResponsePackageInfo,
     ):
         super().__init__(state, proto, id=proto.packageid)
