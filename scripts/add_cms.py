@@ -1,5 +1,8 @@
-"""Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
-# A script to add the default list of CMs to the constants file if Steam is down.
+"""
+A script to add the default list of CMs to the constants file if Steam is down.
+
+Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
+"""
 
 import asyncio
 from pathlib import Path

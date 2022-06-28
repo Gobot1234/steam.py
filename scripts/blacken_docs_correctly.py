@@ -1,7 +1,12 @@
-# Shim for the perfect storm of a combination poe and blacken-docs are:
-# - blacken-docs refuses to support a --check flag so, the error code is always non-zero even if formatting occurred
-# - poe doesn't support "|| exit 0" at the end of a task
-# So we need a custom script for this
+"""
+Shim for the perfect storm of a combination poe and blacken-docs are:
+- blacken-docs refuses to support a --check flag so, the error code is always non-zero even if formatting occurred
+- poe doesn't support "|| exit 0" at the end of a task
+So we need a custom script for this
+
+Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
+"""
+
 
 import re
 from pathlib import Path

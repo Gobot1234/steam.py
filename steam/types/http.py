@@ -1,4 +1,4 @@
-"""Licensed under The MIT License (MIT) - Copyright (c) 2020 James. See LICENSE"""
+"""Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
 
 from collections.abc import Coroutine
 from typing import Any, Generic, TypeAlias, TypedDict, TypeVar

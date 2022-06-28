@@ -3,6 +3,8 @@ steam.py
 ~~~~~~~~~
 
 A basic wrapper for the Steam API and its Community Managers.
+
+Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
 """
 
 from . import abc as abc, guard as guard, utils as utils

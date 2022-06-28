@@ -1,7 +1,7 @@
 """
 Various constants/types for use around the library.
 
-Licensed under The MIT License (MIT) - Copyright (c) 2020 James. See LICENSE
+Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
 """
 
 from __future__ import annotations
