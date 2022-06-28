@@ -937,9 +937,6 @@ class PackageInfo(ProductInfo, StatefulPackage):
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
-    async def fetch_games(self) -> list[StatefulGame]:
-        return self.games
-
     async def games_info(self) -> list[GameInfo]:
         """Shorthand for:
 
@@ -952,7 +949,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
         infos, _ = await self._state.fetch_product_info(game.id for game in self.games)
         return infos
 
-    async def fetch_depots(self) -> list[Depot | HeadlessDepot]:
+    async def depots(self) -> list[Depot | HeadlessDepot]:
         """Fetches this package's depots."""
         depots = []
         for game_info in await self.games_info():
