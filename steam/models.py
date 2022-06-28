@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from _typeshed import StrOrBytesPath
 
     from .gateway import Msgs
+    from .state import ConnectionState
 
 
 __all__ = (

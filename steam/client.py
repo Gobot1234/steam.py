@@ -35,6 +35,7 @@ from .manifest import GameInfo, PackageInfo
 from .models import PriceOverview, return_true
 from .package import FetchedPackage, License, Package, StatefulPackage
 from .published_file import PublishedFile
+from .reaction import ClientEmoticon, ClientSticker, Emoticon
 from .state import ConnectionState
 from .utils import make_id64
 
