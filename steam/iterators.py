@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from bs4 import BeautifulSoup
 from typing_extensions import ClassVar, Self, TypeAlias
+from yarl import URL as URL_
 
 from . import utils
-from ._const import HTML_PARSER
-from .comment import Comment
+from ._const import HTML_PARSER, URL
 from .enums import EventType, PublishedFileQueryFileType, PublishedFileRevision, PublishedFileType
 from .utils import DateTime
 
@@ -568,7 +568,7 @@ class ChatHistoryIterator(AsyncIterator[ChatMessageT], Generic[ChatMessageT, Cha
                 return
 
 
-class ReviewsIterator(AsyncIterator["Review"]):
+class GameReviewsIterator(AsyncIterator["Review"]):
     def __init__(
         self,
         state: ConnectionState,
@@ -596,6 +596,55 @@ class ReviewsIterator(AsyncIterator["Review"]):
                 if user is None:
                     continue
                 review = Review._from_data(self._state, review, self.game, user)
+                if not self.after < review.created_at < self.before:
+                    return
+
+                yield review
+
+
+class UserReviewsIterator(AsyncIterator["Review"]):
+    def __init__(
+        self,
+        state: ConnectionState,
+        user: BaseUser,
+        limit: int | None = None,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ):
+        super().__init__(state, limit, before, after)
+        self.user = user
+
+    async def fill(self) -> AsyncGenerator[Review, None]:
+        from .review import Review
+
+        pages = 1
+
+        # ideally I'd like to find an actual api for these
+        async def get_app_ids(page_number: int = 1) -> list[int]:
+            nonlocal pages
+            page = await self._state.http.get(
+                URL.COMMUNITY / f"profiles/{self.user.id64}/recommended", params={"p": page_number}
+            )
+            soup = BeautifulSoup(page, HTML_PARSER)
+            if pages == 1:
+                *_, pages = [1] + [
+                    int(a["href"][len("?p=") :]) for a in soup.find_all("a", class_="pagelink")
+                ]  # str.removeprefix
+            return [
+                int(URL_(review.find("div", class_="leftcol").a["href"]).parts[-1])
+                for review in soup.find_all("div", class_="review_box_content")
+            ]
+
+        for review_ in await self._state.fetch_user_review(self.user.id64, await get_app_ids()):
+            review = Review._from_proto(self._state, review_, self.user)
+            if not self.after < review.created_at < self.before:
+                return
+
+            yield review
+
+        for page in range(2, pages + 1):
+            for review_ in await self._state.fetch_user_review(self.user.id64, await get_app_ids(page)):
+                review = Review._from_proto(self._state, review_, self.user)
                 if not self.after < review.created_at < self.before:
                     return
 

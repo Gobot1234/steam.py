@@ -12,7 +12,7 @@ from typing_extensions import Literal
 from . import utils
 from ._const import DOCS_BUILDING, URL
 from .enums import AppFlag, Enum, PublishedFileQueryFileType, ReviewType
-from .iterators import GamePublishedFilesIterator, ManifestIterator, ReviewsIterator
+from .iterators import GamePublishedFilesIterator, GameReviewsIterator, ManifestIterator
 from .utils import DateTime, Intable, id64_from_url
 
 if TYPE_CHECKING:
@@ -316,7 +316,7 @@ class StatefulGame(Game):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> ReviewsIterator:
+    ) -> GameReviewsIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Game`'s
         :class:`steam.Review`\\s.
 
@@ -354,7 +354,7 @@ class StatefulGame(Game):
         ------
         :class:`~steam.Review`
         """
-        return ReviewsIterator(self._state, self, limit, before, after)
+        return GameReviewsIterator(self._state, self, limit, before, after)
 
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
     #     fetched = await self._state.client.fetch_game(self)

@@ -16,17 +16,14 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import attr
-from bs4 import BeautifulSoup
-from typing_extensions import ClassVar, Final, Protocol, Required, Self, TypedDict, runtime_checkable
-from yarl import URL as URL_
+from typing_extensions import ClassVar, Final, Protocol, Required, Self, TypedDict
 
-from . import utils
-from ._const import HTML_PARSER, URL
+from ._const import URL
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
 from .game import Game, StatefulGame, UserGame, WishlistGame
-from .iterators import AsyncIterator, CommentsIterator, UserPublishedFilesIterator
+from .iterators import AsyncIterator, CommentsIterator, UserPublishedFilesIterator, UserReviewsIterator
 from .models import Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
@@ -655,46 +652,48 @@ class BaseUser(SteamID, Commentable):
         bans = await self.bans()
         return bans.is_banned()
 
-    async def reviews(self) -> list[Review]:
-        """Fetch this user's reviews."""
-        from .review import Review
+    def reviews(
+        self,
+        *,
+        limit: int | None = None,
+        before: datetime | None = None,
+        after: datetime | None = None,
+    ) -> UserReviewsIterator:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a user's :class:`~steam.Review`\\s.
 
-        # ideally I'd like to find an actual api for these
-        base_url = URL.COMMUNITY / f"profiles/{self.id64}/recommended"
-        first_page = await self._state.http.get(base_url)
-        soup = BeautifulSoup(first_page, HTML_PARSER)
-        pages = max(
-            [int(a["href"][len("?p=") :]) for a in soup.find_all("a", class_="pagelink")],  # str.removeprefix
-            default=1,
-        )
+        Examples
+        --------
+        Usage:
 
-        get_games = lambda soup: [
-            int(URL_(review.find("div", class_="leftcol").a["href"]).parts[-1])
-            for review in soup.find_all("div", class_="review_box_content")
-        ]
-        queue: asyncio.Queue[int | None] = asyncio.Queue()
-        tasks = []
+        .. code-block:: python3
 
-        async def putter(page_number: int) -> None:
-            first_page = await self._state.http.get(base_url, params={"p": page_number})
-            soup = BeautifulSoup(first_page, HTML_PARSER)
-            for game_id in get_games(soup):
-                queue.put_nowait(game_id)
+            async for review in user.reviews(limit=10):
+                print(f"Author: {review.author} {'recommended' if review.upvoted 'doesn't recommend'} {review.game}")
 
-        async def getter() -> None:
-            while True:
-                game_id = await queue.get()
-                if game_id is None:
-                    break
-                tasks.append(asyncio.create_task(self._state.fetch_user_review(self.id64, game_id)))
+        Flattening into a list:
 
-        for game_id in get_games(soup):
-            queue.put_nowait(game_id)
+        .. code-block:: python3
 
-        asyncio.create_task(getter())
-        await asyncio.gather(*(putter(i) for i in range(2, pages + 1)))
-        queue.put_nowait(None)
-        return [Review._from_proto(self._state, review, self) for review in await asyncio.gather(*tasks)]
+            reviews = await user.reviews(limit=50).flatten()
+            # reviews is now a list of Review
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit
+            The maximum number of reviews to search through. Setting this to ``None`` will fetch all the
+            user's reviews.
+        before
+            A time to search for reviews before.
+        after
+            A time to search for reviews after.
+
+        Yields
+        ------
+        :class:`~steam.Review`
+        """
+        return UserReviewsIterator(self._state, self, limit, before, after)
 
     async def fetch_review(self, game: Game) -> Review:
         """Fetch this user's review for a game.
@@ -702,12 +701,23 @@ class BaseUser(SteamID, Commentable):
         Parameters
         ----------
         game
-            The game to fetch the review for.
+            The games to fetch the reviews for.
+        """
+        (review,) = await self.fetch_reviews(game)
+        return review
+
+    async def fetch_reviews(self, *games: Game) -> list[Review]:
+        """Fetch this user's review for games.
+
+        Parameters
+        ----------
+        games
+            The games to fetch the reviews for.
         """
         from .review import Review
 
-        review = await self._state.fetch_user_review(self.id64, game.id)
-        return Review._from_proto(self._state, review, self)
+        reviews = await self._state.fetch_user_review(self.id64, (game.id for game in games))
+        return [Review._from_proto(self._state, review, self) for review in reviews]
 
     def published_files(
         self,
