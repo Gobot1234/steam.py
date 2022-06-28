@@ -1010,6 +1010,16 @@ class Message:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
+    def __eq__(self, other: object) -> bool:
+        return (
+            self.channel == other.channel and self.id == other.id
+            if isinstance(other, self.__class__)
+            else NotImplemented
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.channel, self.id))
+
     @cached_slot_property
     def id(self) -> int:
         """A unique identifier for every message sent in a channel.

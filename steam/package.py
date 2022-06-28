@@ -48,6 +48,9 @@ class Package:
     def __eq__(self, other: object) -> bool:
         return self.id == other.id if isinstance(other, Package) else NotImplemented
 
+    def __hash__(self) -> int:
+        return hash(self.id)
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={self.id}, name={self.name!r})"
 

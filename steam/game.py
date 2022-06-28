@@ -137,6 +137,9 @@ class Game:
     def __eq__(self, other: Any) -> bool:
         return self.id == other.id if isinstance(other, Game) else NotImplemented
 
+    def __hash__(self) -> int:
+        return hash(self.id)
+
     @property
     def title(self) -> str | None:
         """The game's name.
