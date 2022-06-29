@@ -108,7 +108,5 @@ class GCState(ConnectionState):
         return future
 
     async def fetch_backpack(self, backpack_cls: type[Inv]) -> Inv:
-        resp = await self.http.get_user_inventory(
-            self.client.user.id64, self.client._GAME.id, self.client._GAME.context_id
-        )
+        resp = await self.http.get_client_user_inventory(self.client._GAME.id, self.client._GAME.context_id)
         return backpack_cls(state=self, data=resp, owner=self.client.user, game=self.client._GAME)
