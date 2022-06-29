@@ -246,6 +246,7 @@ class SteamWebSocket(Registerable):
         # ws related stuff
         self.listeners: list[EventListener[Any]] = []
         self.parsers.update(state.parsers)
+        self.closed = False
 
         self.session_id = 0
         self.steam_id = state.user.id64
@@ -403,6 +404,8 @@ class SteamWebSocket(Registerable):
 
     @register(EMsg.ClientLoggedOff)
     async def handle_close(self, _: Any = None) -> None:
+        if self.closed:  # don't want ConnectionClosed to be raised multiple times
+            return
         if not self.socket.closed:
             await self.close()
             try:
@@ -413,6 +416,7 @@ class SteamWebSocket(Registerable):
             self._keep_alive.stop()
             del self._keep_alive
         log.info("Websocket closed, cannot reconnect.")
+        self.closed = True
         raise ConnectionClosed(self.cm, self.cm_list)
 
     @register(EMsg.ClientLogOnResponse)
