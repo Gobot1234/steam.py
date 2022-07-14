@@ -78,9 +78,9 @@ test = {cmd = "pytest tests", help = "Run the tests"}
 _blacken_docs = {script = "scripts.blacken_docs_correctly:main"}
 _black = "black ."
 _isort = "isort ."
-fmt = {sequence = ["_blacken_docs", "_black", "_isort"], help = "Format code"}
+fmt = {sequence = ["_blacken_docs", "_black", "_isort"], help = "Format the code"}
 doc = {cmd = "sphinx-build -b html -T -W --keep-going docs/ docs/_build", help = "Build the documentation"}  # TODO -n
-add_cms = {script = "scripts.add_cms:main", help = "Add a default list of CMs for when the API is down"}
+add-cms = {script = "scripts.add_cms:main", help = "Add a default list of CMs for when the API is down"}
 
 [tool.poe.tasks.decode]
 script = "scripts.decode:main"

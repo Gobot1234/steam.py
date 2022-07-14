@@ -25,7 +25,7 @@ async def amain(input_message: str) -> None:
 
     def parser(msg: MsgBase[betterproto.Message]) -> None:
         print(f"{msg.msg=}")
-        black.format_str(str(msg.body), mode=black.Mode())
+        print(black.format_str(str(msg.body), mode=black.Mode()))
         if msg.body._unknown_fields:
             print(f"Unknown fields: {msg.body._unknown_fields}")
 
