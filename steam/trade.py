@@ -205,9 +205,11 @@ class Item(Asset):
         self.type = data.get("type")
         self.tags = data.get("tags")
         self.icon_url = (
-            f'https://steamcommunity-a.akamaihd.net/economy/image/{data["icon_url_large"]}'
+            f"https://steamcommunity-a.akamaihd.net/economy/image/{data['icon_url_large']}"
             if "icon_url_large" in data
             else f"https://steamcommunity-a.akamaihd.net/economy/image/{data['icon_url']}"
+            if "icon_url" in data
+            else None
         )
         self.fraud_warnings = data.get("fraudwarnings", [])
         self.actions = data.get("actions", [])
