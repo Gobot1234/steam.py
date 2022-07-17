@@ -66,6 +66,14 @@ class ReviewUser(WrapsUser):
         return review_user
 
 
+class ReviewGame(StatefulGame):
+    __slots__ = ("review_status",)
+
+    def __init__(self, state: ConnectionState, id: int, review_status: int):
+        super().__init__(state, id=id)
+        self.review_status = ReviewType.try_value(review_status)
+
+
 @dataclass(repr=False, eq=False)
 class Review(Commentable, Awardable):
     """Represents a review for a game."""
@@ -80,8 +88,8 @@ class Review(Commentable, Awardable):
         "content",
         "created_at",
         "updated_at",
-        "upvoted",
-        "upvotes",
+        "recommended",
+        "votes_helpful",
         "votes_funny",
         "weighted_vote_score",
         "commentable",
@@ -99,8 +107,10 @@ class Review(Commentable, Awardable):
     """The ID of the review."""
     author: ReviewUser
     """The author of the review."""
-    game: StatefulGame
+    game: ReviewGame
     """The game being reviewed."""
+    recommended: bool
+    """Whether the reviewer recommends the game."""
     language: Language
     """The language the review is written in."""
     content: str
@@ -109,9 +119,7 @@ class Review(Commentable, Awardable):
     """The time the review was created at."""
     updated_at: datetime
     """The time the review was last updated at."""
-    upvoted: bool
-    """Whether the :class:`.ClientUser` upvoted this review."""
-    upvotes: int
+    votes_helpful: int
     """The amount of people that marked the review as helpful."""
     votes_funny: int
     """The amount of people that marked this review as funny."""
@@ -154,14 +162,14 @@ class Review(Commentable, Awardable):
             state,
             id=review.recommendationid,
             author=ReviewUser._from_proto(state, user, review),
-            game=StatefulGame(state, id=review.appid),
+            game=ReviewGame(state, review.appid, review.review_quality),
             language=Language.from_str(review.language),
             content=review.review,
             created_at=DateTime.from_timestamp(review.time_created),
             updated_at=DateTime.from_timestamp(review.time_updated),
-            upvoted=review.voted_up,
+            recommended=review.voted_up,
             votes_funny=review.votes_funny,
-            upvotes=review.votes_up,
+            votes_helpful=review.votes_up,
             weighted_vote_score=review.weighted_vote_score,
             commentable=not review.comments_disabled,
             comment_count=review.comment_count,
@@ -188,9 +196,9 @@ class Review(Commentable, Awardable):
             content=data["review"],
             created_at=DateTime.from_timestamp(data["timestamp_created"]),
             updated_at=DateTime.from_timestamp(data["timestamp_updated"]),
-            upvoted=data["voted_up"],
+            recommended=data["voted_up"],
             votes_funny=data["votes_funny"],
-            upvotes=data["votes_up"],
+            votes_helpful=data["votes_up"],
             weighted_vote_score=data["weighted_vote_score"],
             commentable=None,
             comment_count=data["comment_count"],
@@ -204,11 +212,11 @@ class Review(Commentable, Awardable):
             reactions=None,
         )
 
-    async def upvote(self) -> None:
+    async def mark_helpful(self) -> None:
         """Mark this review as helpful."""
         await self._state.http.mark_review_as_helpful(self.id, True)
 
-    async def downvote(self) -> None:
+    async def mark_not_helpful(self) -> None:
         """Mark this review as not helpful."""
         await self._state.http.mark_review_as_helpful(self.id, False)
 

@@ -714,15 +714,22 @@ class HTTPClient:
         return self.get(URL.STORE / "events/ajaxgetpartnerevent", params=params)
 
     def post_review(
-        self, game_id: int, content: str, public: bool, commentable: bool, received_compensation: bool
+        self,
+        game_id: int,
+        content: str,
+        upvoted: bool,
+        public: bool,
+        commentable: bool,
+        received_compensation: bool,
+        language: str,
     ) -> Coro[None]:
         data = {
             "appid": game_id,
             "steamworksappid": game_id,
             "comment": content,
-            "rated_up": "true",
+            "rated_up": str(upvoted).lower(),
             "is_public": str(public).lower(),
-            "language": "english",
+            "language": language,
             "received_compensation": int(received_compensation),
             "disable_comments": int(not commentable),
             "sessionid": self.session_id,

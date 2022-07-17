@@ -565,13 +565,16 @@ class GameReviewsIterator(AsyncIterator["Review"]):
         self.game = game
 
     async def fill(self) -> AsyncGenerator[Review, None]:
-        from .review import Review
+        from .review import Review, ReviewGame
 
         cursor = "*"
         while True:
-            reviews = await self._state.http.get_reviews(self.game.id, "all", "all", "all", cursor)
-            cursor = reviews["cursor"]
-            reviews = reviews["reviews"]
+            data = await self._state.http.get_reviews(self.game.id, "all", "all", "all", cursor)
+            if cursor == "*":
+                self.game = ReviewGame(self._state, self.game.id, data["query_summary"]["review_score"])
+            assert isinstance(self.game, ReviewGame)
+            cursor = data["cursor"]
+            reviews = data["reviews"]
 
             for review, user in zip(
                 reviews,

@@ -5,18 +5,19 @@ from __future__ import annotations
 import re
 import warnings
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, overload
 
 from typing_extensions import Literal
 
 from . import utils
 from ._const import DOCS_BUILDING, URL
-from .enums import AppFlag, Enum, PublishedFileQueryFileType, ReviewType
+from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, ReviewType
 from .iterators import GamePublishedFilesIterator, GameReviewsIterator, ManifestIterator
 from .utils import DateTime, Intable, id64_from_url
 
 if TYPE_CHECKING:
     from .clan import Clan
+    from .friend import Friend
     from .manifest import GameInfo, Manifest
     from .package import StatefulPackage
     from .protobufs import player
@@ -240,6 +241,11 @@ def CUSTOM_GAME(name: str | None = None, title: str | None = None) -> Game:
     return Game(name=name or title, id=15190414816125648896, context_id=None)
 
 
+class FriendThoughts(NamedTuple):
+    upvoted: list[Friend]
+    downvoted: list[Friend]
+
+
 class StatefulGame(Game):
     """Games that have state."""
 
@@ -293,9 +299,12 @@ class StatefulGame(Game):
     async def review(
         self,
         content: str,
+        *,
+        recommend: bool,
         public: bool = True,
         commentable: bool = True,
         received_compensation: bool = False,
+        language: Language | None = None,
     ) -> Review:
         """Review a game.
 
@@ -303,14 +312,21 @@ class StatefulGame(Game):
         ----------
         content
             The content of the review.
+        recommend
+            Whether you recommended the game.
         public
             Whether the review should be public.
         commentable
             Whether the review should allow comments.
         received_compensation
             Whether you received compensation for this review.
+        language
+            The language the review is in.
         """
-        await self._state.http.post_review(self.id, content, public, commentable, received_compensation)
+        language = language or self._state.http.language
+        await self._state.http.post_review(
+            self.id, content, recommend, public, commentable, received_compensation, language.api_name
+        )
         return await self._state.user.fetch_review(self)  # TODO this sucks can we actually get the id ourselves?
 
     def reviews(
@@ -358,6 +374,17 @@ class StatefulGame(Game):
         :class:`~steam.Review`
         """
         return GameReviewsIterator(self._state, self, limit, before, after)
+
+    async def friend_thoughts(self) -> FriendThoughts:
+        """Fetch the client user's friends who recommended and didn't recommend this game in a review.
+
+        .. source:: FriendThoughts
+        """
+        proto = await self._state.fetch_friend_thoughts(self.id)
+        return FriendThoughts(
+            [self._state.get_friend(utils.make_id64(id)) for id in proto.accountids_recommended],
+            [self._state.get_friend(utils.make_id64(id)) for id in proto.accountids_not_recommended],
+        )
 
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
     #     fetched = await self._state.client.fetch_game(self)
