@@ -27,6 +27,7 @@ from .clan import Clan
 from .comment import Comment
 from .enums import *
 from .errors import *
+from .friend import Friend
 from .group import Group
 from .guard import *
 from .invite import ClanInvite, UserInvite
@@ -271,6 +272,9 @@ class ConnectionState(Registerable):
         else:
             user._update(data)
         return user
+
+    def get_friend(self, id64: ID64) -> Friend:
+        return self.user._friends[id64]
 
     def get_confirmation(self, id: int) -> Confirmation | None:
         return self._confirmations.get(id)
@@ -1046,7 +1050,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: MsgProto[friends.CMsgClientFriendsList]) -> None:
         elements = None
-        client_user_friends: list[int] = []
+        client_user_friends: list[ID64] = []
         is_load = not msg.body.bincremental
         for friend in msg.body.friends:
             relationship = FriendRelationship.try_value(friend.efriendrelationship)
@@ -1058,6 +1062,10 @@ class ConnectionState(Registerable):
                 except KeyError:
                     if is_load:
                         client_user_friends.append(steam_id.id64)
+                    else:
+                        user = await self.fetch_user(steam_id.id64)
+                        assert user is not None
+                        self.user._friends[steam_id.id64] = Friend(self, user)
                 else:
                     self.dispatch(f"{'user'if steam_id.type == Type.Individual else 'clan'}_invite_accept", invite)
             elif relationship in (
@@ -1074,11 +1082,15 @@ class ConnectionState(Registerable):
                         resp = await self.http.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
                         soup = BeautifulSoup(resp, HTML_PARSER)
                         elements = soup.find_all("a", class_="linkStandard")
-                    invitee_id64 = 0
-                    for idx, element in enumerate(elements):
-                        if str(steam_id.id64) in str(element):
-                            invitee_id64 = utils.make_id64(elements[idx + 1]["data-miniprofile"])
-                            break
+                    invitee_id64 = next(
+                        (
+                            utils.make_id64(elements[idx + 1]["data-miniprofile"])
+                            for idx, element in enumerate(elements)
+                            if str(steam_id.id64) in str(element)
+                        ),
+                        0,
+                    )
+
                     invitee = await self._maybe_user(invitee_id64)
                     try:
                         clan = await self.fetch_clan(steam_id.id64) or steam_id
@@ -1092,16 +1104,15 @@ class ConnectionState(Registerable):
                 try:
                     invite = self.invites.pop(steam_id.id64)
                 except KeyError:
-                    friend = self.get_user(steam_id.id64)
-                    try:
-                        self.user.friends.remove(friend)
-                    except ValueError:
-                        pass
-                    self.dispatch("user_remove", friend)
+                    friend = self.user._friends.pop(steam_id.id64, None)
+                    if friend is None:
+                        return
+                    self.dispatch("user_remove", friend)  # TODO remove
+                    self.dispatch("friend_remove", friend)
                 else:
                     self.dispatch(f"{'user'if steam_id.type == Type.Individual else 'clan'}_invite_decline", invite)
         if is_load:
-            self.user.friends = await self._maybe_users(client_user_friends)  # type: ignore
+            self.user._friends = {user.id64: Friend(self, user) for user in await self._maybe_users(client_user_friends)}  # type: ignore
             self.handled_friends.set()
 
     @register(EMsg.ClientFriendsGroupsList)

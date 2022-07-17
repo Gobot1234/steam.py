@@ -368,10 +368,22 @@ class ProfileCustomisation:
         return f"<{self.__class__.__name__} owner={self.owner!r}>"
 
 
-class Profile(ProfileInfo, EquippedProfileItems, ProfileCustomisation):
+class Profile(EquippedProfileItems, ProfileCustomisation):
     """Represents a user's complete profile."""
 
-    owned_items = None
+    __slots__ = ()
+
+    def __init__(self, equipped_items: EquippedProfileItems, customisation_info: ProfileCustomisation):
+        utils.update_class(equipped_items, self)
+        utils.update_class(customisation_info, self)
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} owner={self.owner!r}>"
+
+
+class FriendProfile(ProfileInfo, EquippedProfileItems, ProfileCustomisation):
+    """Represents a friend's complete profile."""
+
     __slots__ = ()
 
     def __init__(
@@ -381,11 +393,8 @@ class Profile(ProfileInfo, EquippedProfileItems, ProfileCustomisation):
         utils.update_class(info, self)
         utils.update_class(customisation_info, self)
 
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} real_name={self.real_name!r}>"
 
-
-class ClientUserProfile(Profile):
+class ClientUserProfile(FriendProfile):
     """Represents a :class:`ClientUser`'s full profile."""
 
     __slots__ = ("owned_items",)
@@ -398,5 +407,13 @@ class ClientUserProfile(Profile):
         items: OwnedProfileItems,
     ):
         super().__init__(equipped_items, info, customisation_info)
-        self.owned_items = items
-        """The client user's owned profile items."""
+        self.owned_backgrounds = items.backgrounds
+        """The backgrounds the client user owns."""
+        self.owned_mini_profile_backgrounds = items.mini_profile_backgrounds
+        """The mini profile backgrounds the client user owns."""
+        self.owned_avatar_frames = items.avatar_frames
+        """The avatar frames the client user owns."""
+        self.owned_animated_avatars = items.animated_avatars
+        """The animated avatars the client user owns."""
+        self.owned_modifiers = items.modifiers
+        """The modifiers the client user owns."""

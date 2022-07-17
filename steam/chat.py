@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from typing_extensions import Self, TypeAlias
 
 from . import utils
-from .abc import BaseUser, Channel, Message, Messageable, SteamID
+from .abc import Channel, Message, SteamID
 from .enums import ChatMemberRank, Type
 from .errors import WSForbidden
 from .game import StatefulGame
@@ -24,7 +24,7 @@ from .iterators import ChatHistoryIterator
 from .protobufs import MsgProto, chat
 from .reaction import Emoticon, MessageReaction, Sticker
 from .role import Role
-from .user import User
+from .user import User, WrapsUser
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -41,27 +41,7 @@ ChatT = TypeVar("ChatT", bound="Chat[Any]", covariant=True)
 MemberT = TypeVar("MemberT", bound="Member", covariant=True)
 
 
-class WrapsUser(User if TYPE_CHECKING else BaseUser):
-    __slots__ = ("_user",)
-
-    def __init__(self, state: ConnectionState, user: User):
-        super().__init__(user.id64, type=Type.Individual)  # type: ignore
-        self._user = user
-        self._state = state
-
-    def __init_subclass__(cls) -> None:
-        super().__init_subclass__()
-
-        for name, function in set(User.__dict__.items()) - set(object.__dict__.items()):
-            setattr(cls, name, function)
-        for name in (*User.__slots__, *BaseUser.__slots__):
-            setattr(cls, name, property(attrgetter(f"_user.{name}")))  # TODO time this with a compiled property
-            # probably wont be different than the above
-
-        User.register(cls)
-
-
-class Member(WrapsUser, Messageable["UserMessage"]):
+class Member(WrapsUser):
     """Represents a member of a chat group."""
 
     __slots__ = (

@@ -5,24 +5,26 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Coroutine
 from datetime import timedelta
+from operator import attrgetter
 from typing import TYPE_CHECKING, Any
 
+from . import utils
 from ._const import URL
 from .abc import BaseUser, Messageable
-from .enums import CommunityVisibilityState, PersonaState, PersonaStateFlag, Result, TradeOfferState
+from .enums import CommunityVisibilityState, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
 from .game import Game, StatefulGame
-from .profile import ClientUserProfile, OwnedProfileItems, ProfileItem
+from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .trade import Inventory, TradeOffer
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .clan import Clan
-    from .group import Group
+    from .friend import Friend
     from .image import Image
     from .message import UserMessage
     from .state import ConnectionState
     from .types import user
+    from .types.id import ID64
 
 __all__ = (
     "User",
@@ -31,6 +33,8 @@ __all__ = (
 
 
 class _BaseUser(BaseUser):
+    __slots__ = ()
+
     def __init__(self, state: ConnectionState, data: user.User):
         super().__init__(data["steamid"])
         self._state = state
@@ -235,39 +239,9 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
         return message
 
-    async def invite_to_group(self, group: Group) -> None:
-        """Invites the user to a :class:`Group`.
-
-        Parameters
-        -----------
-        group
-            The group to invite the user to.
-        """
-        await self._state.invite_user_to_chat(self.id64, group.id)
-
-    async def invite_to_clan(self, clan: Clan) -> None:
-        """Invites the user to a :class:`Clan`.
-
-        Parameters
-        -----------
-        clan
-            The clan to invite the user to.
-        """
-        await self._state.http.invite_user_to_clan(self.id64, clan.id64)
-
-    async def owns(self, game: Game) -> bool:
-        """Whether the game is owned by this user.
-
-        Parameters
-        ----------
-        game
-            The game you want to check the ownership of.
-        """
-        return self.id64 in await self._state.fetch_friends_who_own(game.id)
-
     def is_friend(self) -> bool:
         """Whether the user is in the :class:`ClientUser`'s friends."""
-        return self in self._state.user.friends
+        return self.id64 in self._state.user._friends
 
 
 class ClientUser(_BaseUser):
@@ -321,7 +295,15 @@ class ClientUser(_BaseUser):
 
     def __init__(self, state: ConnectionState, data: user.User):
         super().__init__(state, data)
-        self.friends: list[User] = []
+        self._friends: dict[ID64, Friend] = {}
+
+    async def friends(self) -> list[Friend]:
+        return list(self._friends.values())
+
+    def get_friend(self, id: utils.Intable) -> Friend | None:
+        """Get a friend from the client user's friends list."""
+        id64 = utils.make_id64(id, type=Type.Individual)
+        return self._friends.get(id64)
 
     async def inventory(self, game: Game) -> Inventory:
         resp = await self._state.http.get_client_user_inventory(game.id, game.context_id)
@@ -372,6 +354,20 @@ class ClientUser(_BaseUser):
             )
         )
 
+    async def profile_info(self) -> ProfileInfo:
+        """The friend's profile info."""
+        info = await self._state.fetch_user_profile_info(self.id64)
+        # why this is friend only I'm not really sure considering it's available through the API
+        return ProfileInfo(
+            created_at=DateTime.from_timestamp(info.time_created),
+            real_name=info.real_name or None,
+            city_name=info.city_name or None,
+            state_name=info.state_name or None,
+            country_name=info.country_name or None,
+            headline=info.headline or None,
+            summary=info.summary,
+        )
+
     async def edit(
         self,
         *,
@@ -415,3 +411,33 @@ class ClientUser(_BaseUser):
             Editing your profile failed.
         """
         await self._state.http.edit_profile(name, real_name, url, summary, country, state, city, avatar)
+
+
+class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"]):
+    """Internal class used for creating a User subclass optimised for memory. Composes the original user and forwards
+    all of its attributes.
+
+    Similar concept to discord.py's Member except more generalised for the larger number situations Steam throws at us.
+    Slightly different however in that isinstance(SubclassOfWrapsUser(), User) should pass.
+
+    Note
+    ----
+    This class does not forward ClientUsers attribute's so things like Clan().me.clear_nicks() will fail.
+    """
+
+    __slots__ = ("_user",)
+
+    def __init__(self, state: ConnectionState, user: User):
+        super().__init__(user.id64, type=Type.Individual)  # type: ignore
+        self._user = user
+
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+
+        for name, function in set(User.__dict__.items()) - set(object.__dict__.items()):
+            setattr(cls, name, function)
+        for name in (*User.__slots__, *BaseUser.__slots__):
+            setattr(cls, name, property(attrgetter(f"_user.{name}")))  # TODO time this with a compiled property
+            # probably wont be different than the above
+
+        User.register(cls)

@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
-from . import utils
-from .abc import Awardable, BaseUser, Commentable, _CommentableKwargs
-from .enums import Language
+from .abc import Awardable, Commentable, _CommentableKwargs
+from .chat import WrapsUser
+from .enums import Language, ReviewType
 from .game import StatefulGame
 from .reaction import AwardReaction
-from .user import ClientUser, User
+from .user import User
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -23,11 +23,10 @@ if TYPE_CHECKING:
 __all__ = (
     "Review",
     "ReviewUser",
-    "ClientReviewUser",
 )
 
 
-class BaseReviewUser(BaseUser):
+class ReviewUser(WrapsUser):
     __slots__ = (
         "number_of_games_owned",
         "number_of_reviews",
@@ -44,14 +43,9 @@ class BaseReviewUser(BaseUser):
     playtime_at_review: timedelta
     last_played: datetime
 
-    @staticmethod
-    def _make(user: BaseUser) -> BaseReviewUser:
-        cls = ReviewUser if isinstance(user, User) else ClientReviewUser
-        return utils.update_class(user, cls.__new__(cls))  # type: ignore
-
     @classmethod
-    def _from_proto(cls, user: BaseUser, review: ReviewProto) -> BaseReviewUser:
-        review_user = cls._make(user)
+    def _from_proto(cls, state: ConnectionState, user: User, review: ReviewProto) -> Self:
+        review_user = cls(state, user)
         review_user.number_of_reviews = None
         review_user.number_of_games_owned = None
         review_user.playtime_forever = timedelta(seconds=review.playtime_forever)
@@ -61,8 +55,8 @@ class BaseReviewUser(BaseUser):
         return review_user
 
     @classmethod
-    def _from_data(cls, user: BaseUser, data: dict[str, Any]) -> BaseReviewUser:
-        review_user = cls._make(user)
+    def _from_data(cls, state: ConnectionState, user: User, data: dict[str, Any]) -> Self:
+        review_user = cls(state, user)
         review_user.number_of_reviews = data["num_games_owned"]
         review_user.number_of_games_owned = data["num_reviews"]
         review_user.playtime_forever = timedelta(seconds=data["playtime_forever"])
@@ -70,25 +64,6 @@ class BaseReviewUser(BaseUser):
         review_user.playtime_at_review = timedelta(seconds=data["playtime_at_review"])
         review_user.last_played = DateTime.from_timestamp(data["last_played"])
         return review_user
-
-
-if TYPE_CHECKING:
-
-    class ReviewUser(BaseReviewUser, User):
-        __slots__ = ()
-
-    class ClientReviewUser(BaseReviewUser, ClientUser):
-        __slots__ = ()
-
-else:
-
-    @BaseReviewUser.register
-    class ReviewUser(User):
-        __slots__ = BaseReviewUser.__slots__
-
-    @BaseReviewUser.register
-    class ClientReviewUser(ClientUser):
-        __slots__ = BaseReviewUser.__slots__
 
 
 @dataclass(repr=False, eq=False)
@@ -122,7 +97,7 @@ class Review(Commentable, Awardable):
     _state: ConnectionState
     id: int
     """The ID of the review."""
-    author: BaseReviewUser  # ideally UserT & BaseReviewUser
+    author: ReviewUser
     """The author of the review."""
     game: StatefulGame
     """The game being reviewed."""
@@ -174,11 +149,11 @@ class Review(Commentable, Awardable):
         }
 
     @classmethod
-    def _from_proto(cls, state: ConnectionState, review: ReviewProto, user: BaseUser) -> Self:
+    def _from_proto(cls, state: ConnectionState, review: ReviewProto, user: User) -> Self:
         return cls(
             state,
             id=review.recommendationid,
-            author=BaseReviewUser._from_proto(user, review),
+            author=ReviewUser._from_proto(state, user, review),
             game=StatefulGame(state, id=review.appid),
             language=Language.from_str(review.language),
             content=review.review,
@@ -203,11 +178,11 @@ class Review(Commentable, Awardable):
         )
 
     @classmethod
-    def _from_data(cls, state: ConnectionState, data: dict[str, Any], game: StatefulGame, user: BaseUser) -> Self:
+    def _from_data(cls, state: ConnectionState, data: dict[str, Any], game: ReviewGame, user: User) -> Self:
         return cls(
             state,
             id=data["recommendationid"],
-            author=BaseReviewUser._from_data(user, data["author"]),
+            author=ReviewUser._from_data(state, user, data["author"]),
             game=game,
             language=Language.from_str(data["language"]),
             content=data["review"],
