@@ -585,26 +585,13 @@ class BaseUser(SteamID, Commentable):
         """The user's equipped profile items."""
         items = await self._state.fetch_user_equipped_profile_items(self.id64)
         return EquippedProfileItems(
-            background=ProfileItem(self._state, items.profile_background) if items.profile_background else None,
+            background=ProfileItem(self._state, self, items.profile_background) if items.profile_background else None,
             mini_profile_background=(
-                ProfileItem(self._state, items.mini_profile_background) if items.mini_profile_background else None
+                ProfileItem(self._state, self, items.mini_profile_background) if items.mini_profile_background else None
             ),
-            avatar_frame=ProfileItem(self._state, items.avatar_frame) if items.avatar_frame else None,
-            animated_avatar=ProfileItem(self._state, items.animated_avatar) if items.animated_avatar else None,
-            modifier=ProfileItem(self._state, items.profile_modifier) if items.profile_modifier else None,
-        )
-
-    async def profile_info(self) -> ProfileInfo:
-        """The user's profile info."""
-        info = await self._state.fetch_user_profile_info(self.id64)
-        return ProfileInfo(
-            created_at=DateTime.from_timestamp(info.time_created),
-            real_name=info.real_name or None,
-            city_name=info.city_name or None,
-            state_name=info.state_name or None,
-            country_name=info.country_name or None,
-            headline=info.headline or None,
-            summary=info.summary,
+            avatar_frame=ProfileItem(self._state, self, items.avatar_frame) if items.avatar_frame else None,
+            animated_avatar=ProfileItem(self._state, self, items.animated_avatar) if items.animated_avatar else None,
+            modifier=ProfileItem(self._state, self, items.profile_modifier) if items.profile_modifier else None,
         )
 
     async def profile_customisation_info(self) -> ProfileCustomisation:
@@ -670,7 +657,7 @@ class BaseUser(SteamID, Commentable):
         .. code-block:: python3
 
             async for review in user.reviews(limit=10):
-                print(f"Author: {review.author} {'recommended' if review.upvoted 'doesn't recommend'} {review.game}")
+                print(f"Author: {review.author} {'recommended' if review.recommend 'doesn\\'t recommend'} {review.game}")
 
         Flattening into a list:
 

@@ -74,11 +74,14 @@ class ProfileItem:
         "class_",
         "movie",
         "equipped_flags",
+        "owner",
         "_state",
         "_um_name",
     )
 
-    def __init__(self, state: ConnectionState, item: player.ProfileItem, *, um_name: str | None = None):
+    def __init__(
+        self, state: ConnectionState, owner: BaseUser, item: player.ProfileItem, *, um_name: str | None = None
+    ):
         self.id = item.communityitemid
         """The item's id."""
         self.url = item.image_large
@@ -100,6 +103,7 @@ class ProfileItem:
         self.equipped_flags = item.equipped_flags  # TODO might be useful for item show case?
         """The item's equipped flags."""
 
+        self.owner = owner
         self._state = state
         self._um_name = um_name
 
@@ -114,6 +118,13 @@ class ProfileItem:
         msg = await self._state.ws.send_um_and_wait(f"Player.Set{self._um_name}", communityitemid=self.id)
         if msg.result != Result.OK:
             raise WSException(msg)
+
+    async def item(self) -> Item:
+        """Resolve this to an actual item in the owner's inventory."""
+        inventory = await self.owner.inventory(self.game)
+        item = utils.get(inventory, id=self.id)
+        assert item
+        return item
 
 
 @dataclass
