@@ -610,7 +610,6 @@ class BaseUser(SteamID, Commentable):
         return Profile(
             *await asyncio.gather(
                 self.equipped_profile_items(),
-                self.profile_info(),
                 self.profile_customisation_info(),
             )
         )

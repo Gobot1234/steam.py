@@ -139,10 +139,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
     async def remove(self) -> None:
         """Remove the user from your friends list."""
         await self._state.http.remove_user(self.id64)
-        try:
-            self._state.user.friends.remove(self)
-        except ValueError:
-            pass
+        self._state.user._friends.pop(self.id64, None)
 
     async def cancel_invite(self) -> None:
         """Cancels an invitation sent to the user. This effectively does the same thing as :meth:`remove`."""
@@ -291,7 +288,7 @@ class ClientUser(_BaseUser):
 
     # TODO more stuff to add https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/profile.js
 
-    __slots__ = ("friends", "_inventory_func")
+    __slots__ = ("_friends",)
 
     def __init__(self, state: ConnectionState, data: user.User):
         super().__init__(state, data)
