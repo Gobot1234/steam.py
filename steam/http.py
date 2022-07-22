@@ -443,7 +443,10 @@ class HTTPClient:
                     value_in_first_page += value
 
             current_cursor = next_cursor
-            next_cursor = page["next_cursor"]
+            try:
+                next_cursor = page["next_cursor"]
+            except KeyError:
+                break
 
         return first_page
 
