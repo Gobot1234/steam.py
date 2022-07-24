@@ -8,7 +8,15 @@ from typing import TYPE_CHECKING
 
 from . import utils
 from .badge import Badge
-from .enums import Language, ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, PublishedFileRevision, Result
+from .enums import (
+    Language,
+    ProfileCustomisationStyle,
+    ProfileItemClass,
+    ProfileItemType,
+    PublishedFileRevision,
+    Result,
+    UserBadge,
+)
 from .errors import WSException
 from .game import StatefulGame
 from .trade import Asset, Item
@@ -188,7 +196,8 @@ class ProfileShowcaseSlot:
     """The :class:`Asset` the slot is associated with."""
     published_file_id: int | None
     """The ID of the :class:`PublishedFile` the slot is associated with."""
-    badge_id: int | None
+    badge_id: UserBadge | None
+    """The ID of the :class:`UserBadge` the slot is associated with."""
     border_colour: int | None
     """The border colour of the slot."""
 
@@ -360,7 +369,7 @@ class ProfileCustomisation:
                         published_file_id=slot.publishedfileid or None,
                         name=slot.title or None,
                         content=slot.notes or None,
-                        badge_id=slot.badgeid or None,
+                        badge_id=UserBadge.try_value(slot.badgeid) if slot.badgeid else None,
                         border_colour=slot.border_color or None,
                         asset=Asset(
                             {
