@@ -573,6 +573,22 @@ class DateTime:
     def from_timestamp(timestamp: float) -> datetime:
         return datetime.fromtimestamp(timestamp, timezone.utc)
 
+    @staticmethod
+    def strptime(input: str, format: str) -> datetime:
+        return datetime.strptime(input, format).replace(tzinfo=timezone.utc)
+
+    @staticmethod
+    def parse_steam_date(input: str, *, full_month: bool = True) -> datetime | None:
+        if ", " not in input:
+            input += f"{input}, {DateTime.now().year}"  # assume current year
+
+        british = input.split()[0].isdigit()  # starts with a number
+        format = f"%d %{'B' if full_month else 'b'}, %Y" if british else f"%{'B' if full_month else 'b'} %d, %Y"
+        try:
+            return DateTime.strptime(input, format)
+        except ValueError:
+            return None
+
 
 class AsyncInit(metaclass=abc.ABCMeta):
     @abc.abstractmethod

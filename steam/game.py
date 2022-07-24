@@ -833,7 +833,9 @@ class FetchedGame(StatefulGame):
         self.logo_url = data["header_image"]
         self.background_url = data["background"]
         self.created_at = (
-            datetime.strptime(data["release_date"]["date"], "%d %b, %Y") if data["release_date"]["date"] else None
+            DateTime.parse_steam_date(data["release_date"]["date"], full_month=False)
+            if data["release_date"]["date"]
+            else None
         )
         self.type = AppFlag.from_str(data["type"])
         self.price_overview = FetchedGamePriceOverview(**data["price_overview"])

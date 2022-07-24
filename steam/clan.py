@@ -186,10 +186,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 text = stat.text.split("Founded")[1].strip()
                 if ", " not in stat.text:
                     text = f"{text}, {DateTime.now().year}"
-                try:
-                    self.created_at = datetime.strptime(text, "%d %B, %Y" if text.split()[0].isdigit() else "%B %d, %Y")
-                except ValueError:  # why do other countries have to exist
-                    self.created_at = None
+                self.created_at = utils.DateTime.parse_steam_date(text)
             if "Language" in stat.text:
                 self.language = stat.text.split("Language")[1].strip()
             if "Location" in stat.text:
