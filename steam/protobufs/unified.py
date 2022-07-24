@@ -438,8 +438,10 @@ UMS: Mapping[str, type[betterproto.Message]] = {
     "TwoFactor.DestroyEmergencyCodes#1_Response": two_factor.DestroyEmergencyCodesResponse,
     "TwoFactor.ValidateToken#1_Request": two_factor.ValidateTokenRequest,
     "TwoFactor.ValidateToken#1_Response": two_factor.ValidateTokenResponse,
-    "UserReviews.Update#1_Request": reviews.UpdateRequest,
-    "UserReviews.Update#1_Response": reviews.UpdateResponse,
     "UserReviews.GetIndividualRecommendations#1_Request": reviews.GetIndividualRecommendationsRequest,
     "UserReviews.GetIndividualRecommendations#1_Response": reviews.GetIndividualRecommendationsResponse,
+    "UserReviews.Update#1_Request": reviews.UpdateRequest,
+    "UserReviews.Update#1_Response": reviews.UpdateResponse,
+    "UserReviews.GetFriendsRecommendedApp#1_Request": reviews.GetFriendsRecommendedAppRequest,
+    "UserReviews.GetFriendsRecommendedApp#1_Response": reviews.GetFriendsRecommendedAppResponse,
 }

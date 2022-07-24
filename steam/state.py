@@ -1355,6 +1355,15 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
+    async def fetch_friend_thoughts(self, app_id: int) -> reviews.GetFriendsRecommendedAppResponse:
+        msg: MsgProto[reviews.GetFriendsRecommendedAppResponse] = await self.ws.send_um_and_wait(
+            "UserReviews.GetFriendsRecommendedApp",
+            appid=app_id,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.body
+
     @register(EMsg.ClientAccountInfo)
     def parse_account_info(self, msg: MsgProto[login.CMsgClientAccountInfo]) -> None:
         if msg.body.persona_name != self.user.name:
