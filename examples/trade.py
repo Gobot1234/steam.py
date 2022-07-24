@@ -7,7 +7,7 @@ class MyClient(steam.Client):
         print("Logged in as")
         print("Username:", self.user)
         print("ID:", self.user.id64)
-        print("Friends:", len(self.user.friends))
+        print("Friends:", len(await self.user.friends()))
         print("------------")
 
     async def on_trade_receive(self, trade: steam.TradeOffer):  # we have received a trade (yay)
