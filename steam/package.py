@@ -7,19 +7,17 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from . import utils
-from .enums import Language, LicenseFlag, LicenseType, PaymentMethod, Type
-from .game import StatefulGame
+from .enums import LicenseFlag, LicenseType, PaymentMethod
+from .game import PartialGamePriceOverview, StatefulGame
 from .utils import DateTime, Intable
 
 if TYPE_CHECKING:
-    from .clan import Clan
     from .manifest import PackageInfo
     from .message import Authors
     from .protobufs.client_server import CMsgClientLicenseListLicense
     from .protobufs.store import PurchaseReceiptInfo
     from .state import ConnectionState
-    from .types import package
+    from .types import game, package
 
 
 __all__ = (
@@ -65,12 +63,21 @@ class StatefulPackage(Package):
         super().__init__(**kwargs)
         self._state = state
 
-    async def fetch_games(self) -> list[StatefulGame]:
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
+
+    async def games(self) -> list[StatefulGame]:
         """Fetches this package's games."""
-        info = await self.fetch()
-        return info.games
+        fetched = await self.fetch()
+        return fetched._games
 
     async def fetch(self) -> FetchedPackage:
+        """Fetches this package's information. Shorthand for:
+
+        .. code-block:: python3
+
+            package = await client.fetch_package(package)
+        """
         package = await self._state.client.fetch_package(self.id)
         if package is None:
             raise ValueError("Fetched package was not valid.")
@@ -86,8 +93,10 @@ class StatefulPackage(Package):
         _, (info,) = await self._state.fetch_product_info(package_ids=(self.id,))
         return info
 
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
+
+@dataclass
+class PackagePriceOverview(PartialGamePriceOverview):
+    individual: int
 
 
 class FetchedPackage(StatefulPackage):
@@ -95,16 +104,20 @@ class FetchedPackage(StatefulPackage):
 
     def __init__(self, state: ConnectionState, data: package.FetchedPackage):
         super().__init__(state, name=data["name"], id=data["packageid"])
-        self.games = [StatefulGame(state, id=app_id) for app_id in data["appids"]]
-        self.created_at = DateTime.from_timestamp(int(data["release_date"]))
-        self.languages = [Language.try_value(language) for language in data["localized_langs"]]
-        self._on_windows = data["available_windows"]
-        self._on_mac_os = data["available_mac"]
-        self._on_linux = data["available_linux"]
-        self._clan_id64s = [utils.make_id64(id, type=Type.Clan) for id in data["creator_clan_ids"]]
+        self._games = [StatefulGame(state, id=app["id"], name=app["name"]) for app in data["apps"]]
+        self.description = data["page_content"]
+        self.created_at = DateTime.parse_steam_date(data["release_date"]["date"], full_month=False)
+        self.logo_url = data["small_logo"]
+        self.logo_url = data["header_image"]
+        platforms = data["platforms"]
+        self._on_windows = platforms["windows"]
+        self._on_mac_os = platforms["mac"]
+        self._on_linux = platforms["linux"]
+        self.price_overview = PackagePriceOverview(**data["price"])
 
-    async def clans(self) -> list[Clan]:
-        return [await self._state.fetch_clan(id64) for id64 in self._clan_id64s]  # type: ignore
+    def is_free(self) -> bool:
+        """Whether the game is free."""
+        return self.price_overview.final == 0
 
     def is_on_windows(self) -> bool:
         """Whether the game is playable on Windows."""
@@ -146,37 +159,76 @@ class FetchedGamePackage(StatefulPackage):
 
 
 class License(StatefulPackage):
+    """Represents a License to a package the client user has access to."""
+
+    __slots__ = (
+        "owner",
+        "type",
+        "flags",
+        "created_at",
+        "master_package",
+        "next_process_at",
+        "time_limit",
+        "time_used",
+        "payment_method",
+        "purchase_country_code",
+        "territory_code",
+        "change_number",
+        "initial_period",
+        "initial_time_unit",
+        "renewal_period",
+        "renewal_time_unit",
+        "access_token",
+    )
+
     def __init__(self, state: ConnectionState, proto: CMsgClientLicenseListLicense, owner: Authors):
         super().__init__(state, id=proto.package_id)
         self.owner: Authors = owner
-        self.created_at = DateTime.from_timestamp(proto.time_created) if proto.time_created else None
-        self.next_process_at = DateTime.from_timestamp(proto.time_next_process)
-        self.limit = timedelta(minutes=proto.minute_limit) if proto.minute_limit else None  # the time limit in minutes
-        self.used = timedelta(minutes=proto.minutes_used)  # minute precision
-        self.payment_method = PaymentMethod.try_value(proto.payment_method)
+        """The license's owner."""
+        self.type = LicenseType.try_value(proto.license_type)
+        """The license's type."""
         self.flags = LicenseFlag.try_value(proto.flags)
-        self.purchase_country_code = proto.purchase_country_code
-        self.license_type = LicenseType.try_value(proto.license_type)
-        self.territory_code = proto.territory_code
-        self.current_change_number = proto.change_number
-        self.initial_period = proto.initial_period
-        self.initial_time_unit = proto.initial_time_unit
-        self.renewal_period = timedelta(minutes=proto.renewal_period)
-        self.renewal_time_unit = proto.renewal_time_unit
-        self.access_token = proto.access_token
+        """The license's flags."""
+        self.created_at = DateTime.from_timestamp(proto.time_created) if proto.time_created else None
+        """The license's creation date."""
         self.master_package = StatefulPackage(state, id=proto.master_package_id) if proto.master_package_id else None
+        """The license's master package."""
+        self.next_process_at = DateTime.from_timestamp(proto.time_next_process)
+        """The date when the license will be processed."""
+        self.time_limit = timedelta(minutes=proto.minute_limit) if proto.minute_limit else None
+        """The time limit for the license."""
+        self.time_used = timedelta(minutes=proto.minutes_used)
+        """The time the license has been used."""
+        self.payment_method = PaymentMethod.try_value(proto.payment_method)
+        """The payment method used for the license."""
+        self.purchase_country_code = proto.purchase_country_code
+        """The country code of the license's purchase."""
+        self.territory_code = proto.territory_code
+        """The license's territory code."""
+        self.change_number = proto.change_number
+        """The license's current change number."""
+        self.initial_period = proto.initial_period
+        """The license's initial period."""
+        self.initial_time_unit = proto.initial_time_unit
+        """The license's initial time unit."""
+        self.renewal_period = timedelta(minutes=proto.renewal_period)
+        """The license's renewal period."""
+        self.renewal_time_unit = proto.renewal_time_unit
+        """The license's renewal time unit."""
+        self.access_token = proto.access_token
+        """The license's access token."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} owner={self.owner!r} flags={self.flags!r}>"
 
     @property
-    def remaining(self) -> timedelta | None:
+    def time_remaining(self) -> timedelta | None:
         """The amount of time that this license can be used for."""
         if self.flags & LicenseFlag.Expired:
             return
-        if self.limit is None:
+        if self.time_limit is None:
             return
-        return self.limit - self.used
+        return self.time_limit - self.time_used
 
 
 # class Transaction:
