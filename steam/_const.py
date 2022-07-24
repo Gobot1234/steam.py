@@ -9,8 +9,7 @@ from __future__ import annotations
 import builtins
 import sys
 from collections.abc import Callable
-from functools import partial
-from typing import Any, cast
+from typing import Any
 
 from multidict import MultiDict
 from typing_extensions import Final, final
@@ -56,17 +55,17 @@ try:
 except ModuleNotFoundError:
     import vdf
 
-    VDF_LOADS: Final[Callable[[str], VDFDict]] = partial(
-        vdf.loads,  # type: ignore
-        mapper=MultiDict,
-    )
-    VDF_BINARY_LOADS: Final = cast(
-        "Callable[[bytes], BinaryVDFDict]",
-        partial(
-            vdf.binary_loads,  # type: ignore
-            mapper=MultiDict,  # type: ignore
-        ),
-    )
+    def loads(s: str, *, __func: Callable[..., Any] = vdf.parse, __mapper: type[MultiDict[Any]] = MultiDict) -> VDFDict:
+        return __func(s, mapper=__mapper)
+
+    def binary_loads(
+        s: bytes, *, __func: Callable[..., Any] = vdf.binary_loads, __mapper: type[MultiDict[Any]] = MultiDict
+    ) -> BinaryVDFDict:
+        return __func(s, mapper=__mapper)
+
+    VDF_LOADS: Final = loads
+    VDF_BINARY_LOADS: Final = binary_loads
+
 else:
     VDF_LOADS: Final[Callable[[str], VDFDict]] = orvdf.loads
     VDF_BINARY_LOADS: Final[Callable[[bytes], BinaryVDFDict]] = orvdf.binary_loads
