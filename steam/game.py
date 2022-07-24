@@ -28,11 +28,11 @@ if TYPE_CHECKING:
     from .user import User
 
 __all__ = (
-    "TF2",
     "Game",
-    "CSGO",
-    "DOTA2",
+    "TF2",
     "LFD2",
+    "DOTA2",
+    "CSGO",
     "STEAM",
     "CUSTOM_GAME",
     "UserGame",
@@ -292,10 +292,10 @@ class StatefulGame(Game):
         """The games current player count."""
         return await self._state.fetch_game_player_count(self.id)
 
-    async def friends_who_own(self) -> list[User]:
+    async def friends_who_own(self) -> list[Friend]:
         """Fetch the users in your friend list who own this game."""
         id64s = await self._state.fetch_friends_who_own(self.id)
-        return [self._state.get_user(id64) for id64 in id64s]  # type: ignore  # friends are always cached
+        return [self._state.get_friend(id64) for id64 in id64s]
 
     async def review(
         self,
