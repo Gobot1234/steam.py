@@ -90,6 +90,8 @@ class Client:
         Flags to set your persona state to.
     force_kick
         Whether to forcefully kick any other playing sessions on connect. Defaults to ``False``.
+    language
+        The language to use when interacting with the API.
     """
 
     # TODO
@@ -103,14 +105,14 @@ class Client:
         proxy: str | None = ...,
         proxy_auth: aiohttp.BasicAuth | None = ...,
         connector: aiohttp.BaseConnector | None = ...,
-        max_messages: int | None = ...,
+        max_messages: int | None = 1000,
         game: Game | None = ...,
         games: list[Game] = ...,
-        state: PersonaState | None = ...,
-        ui_mode: UIMode | None = ...,
-        flags: PersonaStateFlag | None = ...,
-        force_kick: bool = ...,
-        language: Language = ...,
+        state: PersonaState | None = PersonaState.Online,
+        ui_mode: UIMode | None = UIMode.Desktop,
+        flags: PersonaStateFlag | None = PersonaStateFlag.NONE,
+        force_kick: bool = False,
+        language: Language = Language.English,
     ):
         ...
 
@@ -556,15 +558,17 @@ class Client:
         """
         return self._connection.get_trade(id)
 
-    async def fetch_trade(self, id: int) -> TradeOffer | None:
+    async def fetch_trade(self, id: int, *, language: Language | None = None) -> TradeOffer | None:
         """Fetches a trade with a matching ID or ``None`` if the trade was not found.
 
         Parameters
         ----------
         id
             The ID of the trade to search for from the API.
+        language
+            The language to fetch the trade in. ``None`` uses the current language.
         """
-        return await self._connection.fetch_trade(id)
+        return await self._connection.fetch_trade(id, language)
 
     def get_group(self, id: utils.Intable) -> Group | None:
         """Get a group from cache with a matching ID or ``None`` if the group was not found.
@@ -623,22 +627,22 @@ class Client:
         """
         return StatefulGame(self._connection, id=getattr(id, "id", id))
 
-    async def fetch_game(self, id: int | Game) -> FetchedGame | None:
+    async def fetch_game(self, id: int | Game, *, language: Language | None = None) -> FetchedGame | None:
         """Fetch a game from its ID or ``None`` if the game was not found.
 
         Parameters
         ----------
         id
             The app id of the game or a :class:`~steam.Game` instance.
+        language
+            The language to fetch the game in. If ``None`` uses the current language.
         """
         id = id if isinstance(id, int) else id.id
-        resp = await self.http.get_game(id)
+        resp = await self.http.get_game(id, language)
         if resp is None:
             return None
         data = resp[str(id)]
-        if not data["success"]:
-            return None
-        return FetchedGame(self._connection, data["data"])
+        return FetchedGame(self._connection, data["data"]) if data["success"] else None
 
     def get_package(self, id: int) -> StatefulPackage:
         """Creates a package from its ID.
@@ -766,15 +770,44 @@ class Client:
     # miscellaneous stuff
 
     async def fetch_published_file(
-        self, id: int, desired_version: PublishedFileRevision = PublishedFileRevision.Default
+        self,
+        id: int,
+        *,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        language: Language | None = None,
     ) -> PublishedFile | None:
-        (file,) = await self._connection.fetch_published_files((id,), desired_version)
+        """Fetch a published file from its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the published file.
+        revision
+            The revision of the published file to fetch.
+        language
+            The language to fetch the published file in. If ``None``, the current language is used.
+        """
+        (file,) = await self._connection.fetch_published_files((id,), revision, language)
         return file
 
     async def fetch_published_files(
-        self, *ids: int, desired_version: PublishedFileRevision = PublishedFileRevision.Default
+        self,
+        *ids: int,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        language: Language | None = None,
     ) -> list[PublishedFile | None]:
-        return await self._connection.fetch_published_files(ids, desired_version)
+        """Fetch published files from their IDs.
+
+        Parameters
+        ----------
+        ids
+            The IDs of the published files.
+        revision
+            The revision of the published files to fetch.
+        language
+            The language to fetch the published files in. If ``None``, the current language is used.
+        """
+        return await self._connection.fetch_published_files(ids, revision, language)
 
     def trade_history(
         self,
@@ -782,6 +815,7 @@ class Client:
         limit: int | None = 100,
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,
+        language: Language | None = None,
     ) -> TradesIterator:
         """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.ClientUser`'s
         :class:`steam.TradeOffer` objects.
@@ -817,12 +851,14 @@ class Client:
             A time to search for trades before.
         after
             A time to search for trades after.
+        language
+            The language to fetch the trade in. ``None`` uses the current language.
 
         Yields
         ---------
         :class:`~steam.TradeOffer`
         """
-        return TradesIterator(state=self._connection, limit=limit, before=before, after=after)
+        return TradesIterator(state=self._connection, limit=limit, before=before, after=after, language=language)
 
     async def change_presence(
         self,

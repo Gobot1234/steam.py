@@ -63,10 +63,24 @@ class PublishedFileChild:
     id: int
     position: int
     type: int
+    parent: PublishedFile
 
-    async def fetch(self, *, revision: PublishedFileRevision = PublishedFileRevision.Default) -> PublishedFile:
-        """Resolves this child into a full file."""
-        (file,) = await self._state.fetch_published_files((self.id,), revision)
+    async def fetch(
+        self,
+        *,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        language: Language | None = None,
+    ) -> PublishedFile:
+        """Resolves this child into a full file.
+
+        Parameters
+        ----------
+        revision
+            The revision of the file to fetch.
+        language
+            The language to fetch the file in. If ``None``, the current language is used.
+        """
+        (file,) = await self._state.fetch_published_files((self.id,), revision, language)
         assert file
         return file
 
@@ -209,7 +223,10 @@ class PublishedFile(Commentable, Awardable):
         """The file's number of public comments."""
         self.spoiler = proto.spoiler_tag
         """Whether the file is marked as a spoiler."""
-        self.children = [PublishedFileChild(state, p.publishedfileid, p.sortorder, p.file_type) for p in proto.children]
+        self.children = [
+            PublishedFileChild(state, p.publishedfileid, p.sortorder, PublishedFileType.try_value(p.file_type), self)
+            for p in proto.children
+        ]
         """The file's children."""
 
         self.filename = proto.filename
@@ -325,7 +342,7 @@ class PublishedFile(Commentable, Awardable):
     @asynccontextmanager
     async def open(self) -> AsyncGenerator[BytesIO, None]:
         if self.type not in (PublishedFileType.Art, PublishedFileType.SteamVideo):
-            raise NotImplemented(f"Cannot open {self.type}")
+            raise NotImplementedError(f"Cannot open {self.type}")
 
         async with self._state.http._session.get(self.cdn_url) as r:
             io = BytesIO(await r.read())
@@ -333,7 +350,7 @@ class PublishedFile(Commentable, Awardable):
             yield io
 
     async def fetch_children(
-        self, *, revision: PublishedFileRevision = PublishedFileRevision.Default
+        self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None
     ) -> list[PublishedFile]:
         """Fetches this published file's children.
 
@@ -341,20 +358,35 @@ class PublishedFile(Commentable, Awardable):
         ----------
         revision
             The revision to fetch.
+        language
+            The language to fetch children in. If ``None``, the current language is used.
         """
-        results = await self._state.fetch_published_files((c.id for c in self.children), revision)
+        results = await self._state.fetch_published_files((c.id for c in self.children), revision, language)
         # assert all(results)   # this is safe, hopefully this can be added if HKT happens
         return results  # type: ignore
 
-    async def parents(self) -> list[PublishedFile]:
-        """Fetches this published file's parents."""
+    async def parents(
+        self,
+        *,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        language: Language | None = None,
+    ) -> list[PublishedFile]:
+        """Fetches this published file's parents.
+
+        Parameters
+        ----------
+        revision
+            The revision to fetch.
+        language
+            The language to fetch parents in. If ``None``, the current language is used.
+        """
         cursor = "*"
         more = True
         parents: list[PublishedFile] = []
         authors: set[int] = set()
 
         while more:
-            proto = await self._state.fetch_published_file_parents(self.id, cursor)
+            proto = await self._state.fetch_published_file_parents(self.id, revision, language, cursor)
             more = len(parents) < proto.total
 
             for file in proto.publishedfiledetails:
@@ -401,23 +433,31 @@ class PublishedFile(Commentable, Awardable):
         """
         await self._state.remove_published_file_child(self.id, child.id)
 
-    async def history(self) -> list[PublishedFileChange]:
-        """Fetches this published file's history."""
-        changes = await self._state.fetch_published_file_history(self.id)
+    async def history(self, *, language: Language | None = None) -> list[PublishedFileChange]:
+        """Fetches this published file's history.
+
+        Parameters
+        ----------
+        language
+            The language to fetch history in. If ``None``, the current language is used.
+        """
+        changes = await self._state.fetch_published_file_history(self.id, language)
         return [
             PublishedFileChange(change.change_description, DateTime.from_timestamp(change.timestamp))
             for change in changes
         ]
 
-    async def fetch_history_entry(self, at: datetime) -> PublishedFileChange:
+    async def fetch_history_entry(self, at: datetime, *, language: Language | None = None) -> PublishedFileChange:
         """Fetches the history entry at a given time.
 
         Parameters
         ----------
         at
             The time to fetch the history entry at.
+        language
+            The language to fetch history entries in. If ``None``, the current language is used.
         """
-        change = await self._state.fetch_published_file_history_entry(self.id, at)
+        change = await self._state.fetch_published_file_history_entry(self.id, at, language)
         return PublishedFileChange(change.change_description, at)
 
     # async def relationship(self):

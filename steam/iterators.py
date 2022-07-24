@@ -16,7 +16,7 @@ from yarl import URL as URL_
 
 from . import utils
 from ._const import HTML_PARSER, URL
-from .enums import EventType, PublishedFileQueryFileType, PublishedFileRevision, PublishedFileType
+from .enums import EventType, Language, PublishedFileQueryFileType, PublishedFileRevision, PublishedFileType
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -337,8 +337,10 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
         limit: int | None,
         before: datetime | None,
         after: datetime | None,
+        language: Language | None,
     ):
         super().__init__(state, limit, before, after)
+        self.language = language
 
     async def fill(self) -> AsyncGenerator[TradeOffer, None]:
         from .trade import TradeOffer
@@ -350,7 +352,7 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
 
         async def get_trades(page: int = 100) -> list[TradeOffer]:
             nonlocal total, previous_time
-            resp = await self._state.http.get_trade_history(page, previous_time)
+            resp = await self._state.http.get_trade_history(page, previous_time, self.language)
             data = resp["response"]
             if total is None:
                 total = data.get("total_trades", 0)
@@ -738,8 +740,9 @@ class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
         state: ConnectionState,
         user: BaseUser,
         game: Game | None,
-        revision: PublishedFileRevision = PublishedFileRevision.Default,
         type: PublishedFileType = PublishedFileType.Community,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        language: Language | None = None,
         limit: int | None = None,
         before: datetime | None = None,
         after: datetime | None = None,
@@ -749,16 +752,13 @@ class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
         self.app_id = getattr(game, "id", 0)
         self.revision = revision
         self.type = type
+        self.language = language
 
     async def fill(self):
         from .published_file import PublishedFile
 
         initial = await self._state.fetch_user_published_files(
-            self.user.id64,
-            self.app_id,
-            0,
-            self.revision,
-            self.type,
+            self.user.id64, self.app_id, 0, self.type, self.revision, self.language
         )
 
         for file in initial.publishedfiledetails:
@@ -769,11 +769,7 @@ class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
 
         for page in range(31, math.ceil(initial.total / 30)):
             msg = await self._state.fetch_user_published_files(
-                self.user.id64,
-                self.app_id,
-                page,
-                self.revision,
-                self.type,
+                self.user.id64, self.app_id, page, self.type, self.revision, self.language
             )
 
             for file in msg.publishedfiledetails:
@@ -789,6 +785,8 @@ class GamePublishedFilesIterator(AsyncIterator["PublishedFile"]):
         state: ConnectionState,
         game: Game,
         type: PublishedFileQueryFileType = PublishedFileQueryFileType.Items,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        language: Language | None = None,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
@@ -796,6 +794,8 @@ class GamePublishedFilesIterator(AsyncIterator["PublishedFile"]):
         super().__init__(state, limit, before, after)
         self.game = game
         self.type = type
+        self.revision = revision
+        self.language = language
 
     async def fill(self):
         from .published_file import PublishedFile
@@ -805,7 +805,7 @@ class GamePublishedFilesIterator(AsyncIterator["PublishedFile"]):
 
         while remaining is None or remaining > 0:
             protos = await self._state.fetch_game_published_files(
-                self.game.id, self.after, self.before, self.type, self.limit, cursor
+                self.game.id, self.after, self.before, self.type, self.revision, self.language, self.limit, cursor
             )
             if remaining is None:
                 remaining = protos.total

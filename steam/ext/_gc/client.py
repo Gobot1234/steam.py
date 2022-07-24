@@ -12,6 +12,7 @@ from ...game import Game
 from ...protobufs import GCMsg, GCMsgProto
 from ...trade import Inventory
 from ...user import ClientUser as ClientUser_
+from .enums import Language
 from .state import GCState
 
 __all__ = ("Client",)
@@ -20,11 +21,11 @@ __all__ = ("Client",)
 class ClientUser(ClientUser_):
     _state: GCState
 
-    async def inventory(self: Any, game: Game) -> Inventory:
+    async def inventory(self, game: Game, *, language: Language | None = None) -> Inventory:
         return (
             self._state.backpack
             if game == self._state.client.__class__._GAME and self._state._gc_ready.is_set()
-            else await super().inventory(game)
+            else await super().inventory(game, language=language)
         )
 
 

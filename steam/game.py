@@ -11,7 +11,7 @@ from typing_extensions import Literal
 
 from . import utils
 from ._const import DOCS_BUILDING, URL
-from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, ReviewType
+from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
 from .iterators import GamePublishedFilesIterator, GameReviewsIterator, ManifestIterator
 from .utils import DateTime, Intable, id64_from_url
 
@@ -390,14 +390,14 @@ class StatefulGame(Game):
     #     fetched = await self._state.client.fetch_game(self)
     #     return utils.update_class(fetched, copy.copy(self))
 
-    async def fetch(self) -> FetchedGame:
+    async def fetch(self, *, language: Language | None = None) -> FetchedGame:
         """Shorthand for:
 
         .. code-block:: python3
 
             game = await client.fetch_game(game)
         """
-        game = await self._state.client.fetch_game(self)
+        game = await self._state.client.fetch_game(self, language=language)
         if game is None:
             raise ValueError("Fetched game was not valid.")
         return game
@@ -485,6 +485,8 @@ class StatefulGame(Game):
         self,
         *,
         type: PublishedFileQueryFileType = PublishedFileQueryFileType.Items,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        language: Language | None = None,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
@@ -516,6 +518,10 @@ class StatefulGame(Game):
         ----------
         type
             The type of published files to fetch.
+        revision
+            The desired revision of the published files to fetch.
+        language
+            The language to fetch the published files in. If ``None`` the current language is used.
         limit
             The maximum number of published files to search through. Default is ``100``. Setting this to ``None`` will
             fetch all the game's published files, but this will be a very slow operation.
@@ -528,7 +534,7 @@ class StatefulGame(Game):
         ------
         :class:`~steam.PublishedFile`
         """
-        return GamePublishedFilesIterator(self._state, self, type, limit, before, after)
+        return GamePublishedFilesIterator(self._state, self, type, revision, language, limit, before, after)
 
     async def info(self) -> GameInfo:
         """Shorthand for:

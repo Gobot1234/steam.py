@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 from . import utils
 from ._const import URL
 from .abc import BaseUser, Messageable
-from .enums import CommunityVisibilityState, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
+from .enums import CommunityVisibilityState, Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
 from .game import Game, StatefulGame
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
@@ -302,9 +302,9 @@ class ClientUser(_BaseUser):
         id64 = utils.make_id64(id, type=Type.Individual)
         return self._friends.get(id64)
 
-    async def inventory(self, game: Game) -> Inventory:
-        resp = await self._state.http.get_client_user_inventory(game.id, game.context_id)
-        return Inventory(state=self._state, data=resp, owner=self, game=game)
+    async def inventory(self, game: Game, *, language: Language | None = None) -> Inventory:
+        resp = await self._state.http.get_client_user_inventory(game.id, game.context_id, language)
+        return Inventory(state=self._state, data=resp, owner=self, game=game, language=language)
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""
@@ -318,9 +318,15 @@ class ClientUser(_BaseUser):
         """Clears the client user's nickname/alias history."""
         await self._state.http.clear_nickname_history()
 
-    async def profile_items(self) -> OwnedProfileItems:
-        """Fetch all the client user's profile items."""
-        items = await self._state.fetch_profile_items()
+    async def profile_items(self, *, language: Language | None = None) -> OwnedProfileItems:
+        """Fetch all the client user's profile items.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the profile items in. If ``None`` the current language is used
+        """
+        items = await self._state.fetch_profile_items(language)
         return OwnedProfileItems(
             backgrounds=[
                 ProfileItem(self._state, self, background, um_name="ProfileBackground")
@@ -341,13 +347,13 @@ class ClientUser(_BaseUser):
             modifiers=[ProfileItem(self._state, self, modifier) for modifier in items.profile_modifiers],
         )
 
-    async def profile(self) -> ClientUserProfile:
+    async def profile(self, *, language: Language | None = None) -> ClientUserProfile:
         return ClientUserProfile(
             *await asyncio.gather(
-                self.equipped_profile_items(),
+                self.equipped_profile_items(language=language),
                 self.profile_info(),
-                self.profile_customisation_info(),
-                self.profile_items(),
+                self.profile_customisation_info(language=language),
+                self.profile_items(language=language),
             )
         )
 

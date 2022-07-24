@@ -191,6 +191,10 @@ class ConnectionState(Registerable):
         return self.http.user
 
     @property
+    def language(self) -> Language:
+        return self.http.language
+
+    @property
     def steam_time(self) -> datetime:
         if self.ws is None:  # can't be more precise
             return DateTime.now()
@@ -303,8 +307,8 @@ class ConnectionState(Registerable):
     def get_trade(self, id: int) -> TradeOffer | None:
         return self._trades.get(id)
 
-    async def fetch_trade(self, id: int) -> TradeOffer | None:
-        resp = await self.http.get_trade(id)
+    async def fetch_trade(self, id: int, language: Language | None) -> TradeOffer | None:
+        resp = await self.http.get_trade(id, language)
         data = resp.get("response")
         if data:
             trades = await self._process_trades((data["offer"],), (data.get("descriptions", ()),))
@@ -765,31 +769,42 @@ class ConnectionState(Registerable):
 
         return msg.body
 
-    async def fetch_user_equipped_profile_items(self, user_id64: int) -> player.GetProfileItemsEquippedResponse:
+    async def fetch_user_equipped_profile_items(
+        self,
+        user_id64: int,
+        language: Language | None,
+    ) -> player.GetProfileItemsEquippedResponse:
         msg: MsgProto[player.GetProfileItemsEquippedResponse] = await self.ws.send_um_and_wait(
             "Player.GetProfileItemsEquipped",
             steamid=user_id64,
+            language=(language or self.language).api_name,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
 
         return msg.body
 
-    async def fetch_user_profile_customisation(self, user_id64: int):
+    async def fetch_user_profile_customisation(
+        self,
+        user_id64: int,
+        language: Language | None,
+    ):
         msg: MsgProto[player.GetProfileCustomizationResponse] = await self.ws.send_um_and_wait(
             "Player.GetProfileCustomization",
             steamid=user_id64,
             include_inactive_customizations=True,
             include_purchased_customizations=True,
+            language=(language or self.language).api_name,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
 
         return msg.body
 
-    async def fetch_profile_items(self) -> player.GetProfileItemsOwnedResponse:
+    async def fetch_profile_items(self, language: Language | None) -> player.GetProfileItemsOwnedResponse:
         msg: MsgProto[player.GetProfileItemsOwnedResponse] = await self.ws.send_um_and_wait(
             "Player.GetProfileItemsOwned",
+            language=(language or self.language).api_name,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -1641,10 +1656,12 @@ class ConnectionState(Registerable):
         self,
         published_file_ids: Iterable[int],
         revision: PublishedFileRevision,
+        language: Language | None,
     ) -> list[PublishedFile | None]:
         msg: MsgProto[published_file.GetDetailsResponse] = await self.ws.send_um_and_wait(
             "PublishedFile.GetDetails",
             publishedfileids=list(published_file_ids),
+            language=(language or self.language).value,
             includetags=True,
             includeadditionalpreviews=True,
             includechildren=True,
@@ -1673,8 +1690,9 @@ class ConnectionState(Registerable):
         user_id64: int,
         app_id: int,
         page: int,
-        revision: PublishedFileRevision,
         file_type: PublishedFileType,
+        revision: PublishedFileRevision,
+        language: Language | None,
     ) -> published_file.GetUserFilesResponse:
         msg: MsgProto[published_file.GetUserFilesResponse] = await self.ws.send_um_and_wait(
             "PublishedFile.GetUserFiles",
@@ -1682,6 +1700,8 @@ class ConnectionState(Registerable):
             appid=app_id,
             numperpage=30,
             page=page,
+            filetype=file_type.value,
+            language=(language or self.language).value,
             return_vote_data=True,
             return_tags=True,
             return_kv_tags=True,
@@ -1704,6 +1724,8 @@ class ConnectionState(Registerable):
         after: datetime,
         before: datetime,
         file_type: PublishedFileQueryFileType,
+        revision: PublishedFileRevision,
+        language: Language | None,
         limit: int | None,
         cursor: str = "*",
     ) -> published_file.QueryFilesResponse:
@@ -1713,6 +1735,7 @@ class ConnectionState(Registerable):
             appid=game_id,
             filetype=file_type,
             cursor=cursor,
+            language=(language or self.language).value,
             date_range_created={"timestamp_start": after.timestamp(), "timestamp_end": before.timestamp()},
             return_vote_data=True,
             return_tags=True,
@@ -1724,18 +1747,25 @@ class ConnectionState(Registerable):
             return_playtime_stats=True,
             return_details=True,
             return_reactions=True,
+            desired_revision=revision,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.body
 
     async def fetch_published_file_parents(
-        self, published_file_id: int, cursor: str = "*"
+        self,
+        published_file_id: int,
+        revision: PublishedFileRevision,
+        language: Language | None,
+        cursor: str = "*",
     ) -> published_file.QueryFilesResponse:
         msg: MsgProto[published_file.QueryFilesResponse] = await self.ws.send_um_and_wait(
             "PublishedFile.QueryFiles",
             numperpage=100,
+            child_publishedfileid=published_file_id,
             cursor=cursor,
+            language=(language or self.language).value,
             return_vote_data=True,
             return_tags=True,
             return_kv_tags=True,
@@ -1746,28 +1776,32 @@ class ConnectionState(Registerable):
             return_playtime_stats=True,
             return_details=True,
             return_reactions=True,
+            desired_revision=revision,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.body
 
     async def fetch_published_file_history(
-        self, published_file_id: int
+        self, published_file_id: int, language: Language | None
     ) -> list[published_file.GetChangeHistoryResponseChangeLog]:
         msg: MsgProto[published_file.GetChangeHistoryResponse] = await self.ws.send_um_and_wait(
-            "PublishedFile.GetChangeHistory", publishedfileid=published_file_id
+            "PublishedFile.GetChangeHistory",
+            publishedfileid=published_file_id,
+            language=(language or self.language).value,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.body.changes
 
     async def fetch_published_file_history_entry(
-        self, published_file_id: int, dt: datetime
+        self, published_file_id: int, dt: datetime, language: Language | None
     ) -> published_file.GetChangeHistoryEntryResponse:
         msg: MsgProto[published_file.GetChangeHistoryEntryResponse] = await self.ws.send_um_and_wait(
             "PublishedFile.GetChangeHistoryEntry",
             publishedfileid=published_file_id,
             timestamp=dt.timestamp(),
+            language=(language or self.language).value,
         )
         if msg.result != Result.OK:
             raise WSException(msg)

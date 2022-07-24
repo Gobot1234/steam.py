@@ -15,7 +15,7 @@ from typing_extensions import Self, TypeAlias
 
 from . import utils
 from ._const import URL
-from .enums import Result, TradeOfferState
+from .enums import Language, Result, TradeOfferState
 from .errors import ClientException, ConfirmationError, HTTPException
 from .game import Game, StatefulGame
 from .utils import DateTime
@@ -274,14 +274,18 @@ class BaseInventory(Generic[ItemT_co]):
         "game",
         "items",
         "owner",
+        "_language",
         "_state",
         "__orig_class__",  # undocumented typing internals more shim to make extensions work
     )
 
-    def __init__(self, state: ConnectionState, data: trade.Inventory, owner: BaseUser, game: Game):
+    def __init__(
+        self, state: ConnectionState, data: trade.Inventory, owner: BaseUser, game: Game, language: Language | None
+    ):
         self._state = state
         self.owner = owner
         self.game = StatefulGame(state, id=game.id, name=game.name)
+        self._language = language
         self._update(data)
 
     def __repr__(self) -> str:
@@ -340,11 +344,13 @@ class BaseInventory(Generic[ItemT_co]):
         self.items: Sequence[ItemT_co] = items
 
     async def update(self) -> None:
-        """Re-fetches the inventory."""
+        """Re-fetches the inventory and updates it inplace."""
         if self.owner == self._state.user:
-            data = await self._state.http.get_client_user_inventory(self.game.id, self.game.context_id)
+            data = await self._state.http.get_client_user_inventory(self.game.id, self.game.context_id, self._language)
         else:
-            data = await self._state.http.get_user_inventory(self.owner.id64, self.game.id, self.game.context_id)
+            data = await self._state.http.get_user_inventory(
+                self.owner.id64, self.game.id, self.game.context_id, self._language
+            )
         self._update(data)
 
     def filter_items(self, *names: str, limit: int | None = None) -> list[ItemT_co]:

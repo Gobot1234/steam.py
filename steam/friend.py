@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from typing_extensions import Literal
 
+from .enums import Language
 from .profile import FriendProfile
 from .user import ClientUser, WrapsUser
 
@@ -26,12 +27,12 @@ class Friend(WrapsUser):
 
     profile_info = ClientUser.profile_info
 
-    async def profile(self) -> FriendProfile:
+    async def profile(self, *, language: Language | None = None) -> FriendProfile:
         return FriendProfile(
             *await asyncio.gather(
-                self.equipped_profile_items(),
+                self.equipped_profile_items(language=language),
                 self.profile_info(),
-                self.profile_customisation_info(),
+                self.profile_customisation_info(language=language),
             )
         )
 

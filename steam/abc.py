@@ -493,21 +493,23 @@ class BaseUser(SteamID, Commentable):
         """The string used to mention the user in chat."""
         return f"[mention={self.id}]@{self.name}[/mention]"
 
-    async def inventory(self, game: Game) -> Inventory:
+    async def inventory(self, game: Game, *, language: Language | None = None) -> Inventory:
         """Fetch a user's :class:`~steam.Inventory` for trading.
 
         Parameters
         -----------
         game
             The game to fetch the inventory for.
+        language
+            The language to fetch the inventory in. If ``None`` will default to the current language.
 
         Raises
         ------
         :exc:`~steam.Forbidden`
             The user's inventory is private.
         """
-        resp = await self._state.http.get_user_inventory(self.id64, game.id, game.context_id)
-        return Inventory(state=self._state, data=resp, owner=self, game=game)
+        resp = await self._state.http.get_user_inventory(self.id64, game.id, game.context_id, language)
+        return Inventory(state=self._state, data=resp, owner=self, game=game, language=language)
 
     async def friends(self) -> list[User]:
         """Fetch the list of the users friends."""
@@ -581,9 +583,15 @@ class BaseUser(SteamID, Commentable):
             level=badge.level,
         )
 
-    async def equipped_profile_items(self) -> EquippedProfileItems:
-        """The user's equipped profile items."""
-        items = await self._state.fetch_user_equipped_profile_items(self.id64)
+    async def equipped_profile_items(self, *, language: Language | None = None) -> EquippedProfileItems:
+        """The user's equipped profile items.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the profile items in. If ``None`` the current language is used
+        """
+        items = await self._state.fetch_user_equipped_profile_items(self.id64, language)
         return EquippedProfileItems(
             background=ProfileItem(self._state, self, items.profile_background) if items.profile_background else None,
             mini_profile_background=(
@@ -594,13 +602,24 @@ class BaseUser(SteamID, Commentable):
             modifier=ProfileItem(self._state, self, items.profile_modifier) if items.profile_modifier else None,
         )
 
-    async def profile_customisation_info(self) -> ProfileCustomisation:
-        """Fetch a user's profile customisation information."""
-        info = await self._state.fetch_user_profile_customisation(self.id64)
+    async def profile_customisation_info(self, *, language: Language | None = None) -> ProfileCustomisation:
+        """Fetch a user's profile customisation information.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the profile items in. If ``None`` the current language is used
+        """
+        info = await self._state.fetch_user_profile_customisation(self.id64, language)
         return ProfileCustomisation(self._state, self, info)
 
-    async def profile(self) -> Profile:
+    async def profile(self, *, language: Language | None = None) -> Profile:
         """Fetch a user's entire profile information.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the profile items in. If ``None`` the current language is used
 
         Note
         ----
@@ -609,8 +628,8 @@ class BaseUser(SteamID, Commentable):
 
         return Profile(
             *await asyncio.gather(
-                self.equipped_profile_items(),
-                self.profile_customisation_info(),
+                self.equipped_profile_items(language=language),
+                self.profile_customisation_info(language=language),
             )
         )
 
@@ -713,6 +732,7 @@ class BaseUser(SteamID, Commentable):
         game: Game | None = None,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         type: PublishedFileType = PublishedFileType.Community,
+        language: Language | None = None,
         limit: int | None = None,
         before: datetime | None = None,
         after: datetime | None = None,
@@ -742,10 +762,12 @@ class BaseUser(SteamID, Commentable):
         ----------
         game
             The game to fetch published files in.
-        revision
-            The desired revision of the published file to fetch.
         type
             The type of published file to fetch.
+        revision
+            The desired revision of the published file to fetch.
+        language
+            The language to fetch the published file in. If ``None``, the current language is used.
         limit
             The maximum number of published files to search through. Setting this to ``None`` will fetch all of the
             user's published files.
@@ -758,7 +780,7 @@ class BaseUser(SteamID, Commentable):
         ------
         :class:`~steam.PublishedFile`
         """
-        return UserPublishedFilesIterator(self._state, self, game, revision, type, limit, before, after)
+        return UserPublishedFilesIterator(self._state, self, game, type, revision, language, limit, before, after)
 
     @classmethod
     def _patch_without_api(cls) -> None:

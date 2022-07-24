@@ -64,7 +64,7 @@ class HTTPClient:
         self.password: str
         self.api_key: str | None = None
         self.shared_secret: str | None
-        self.language = options.get("language", Language.English)
+        self.language: Language = options.get("language", Language.English)
 
         self._one_time_code = ""
         self._email_code = ""
@@ -365,21 +365,23 @@ class HTTPClient:
         }
         return self.get(api_route("IPlayerService/GetOwnedGames"), params=params)
 
-    def get_user_inventory(self, user_id64: int, app_id: int, context_id: int) -> Coro[trade.Inventory]:
+    def get_user_inventory(
+        self, user_id64: int, app_id: int, context_id: int, language: Language | None
+    ) -> Coro[trade.Inventory]:
         params = {
             "count": 5000,
+            "l": (language or self.language).api_name,
         }
         return self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
 
-    async def get_client_user_inventory(self, app_id: int, context_id: int) -> trade.Inventory:
-        params = {
-            "count": 5000,
-        }
+    async def get_client_user_inventory(
+        self, app_id: int, context_id: int, language: Language | None
+    ) -> trade.Inventory:
         async with self.personal_inventory_lock:  # requires a lock
-            return await self.get(URL.COMMUNITY / f"inventory/{self.user.id64}/{app_id}/{context_id}", params=params)
+            return await self.get_user_inventory(self.user.id64, app_id, context_id, language)
 
     async def get_item_info(
-        self, app_id: int, items: Iterable[tuple[int, int]]
+        self, app_id: int, items: Iterable[tuple[int, int]], language: Language | None
     ) -> dict[tuple[int, int], trade.Description]:
         result: dict[tuple[int, int], trade.Description] = {}
 
@@ -388,6 +390,7 @@ class HTTPClient:
                 "key": self.api_key,
                 "appid": app_id,
                 "class_count": len(chunk),
+                "language": (language or self.language).web_api_name,
             }
 
             for i, (class_id, instance_id) in enumerate(chunk):
@@ -413,8 +416,13 @@ class HTTPClient:
         return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])
 
     async def get_trade_offers(
-        self, active_only: bool = True, sent: bool = True, received: bool = True, updated_only: bool = True
-    ) -> dict[str, Any]:
+        self,
+        active_only: bool = True,
+        sent: bool = True,
+        received: bool = True,
+        updated_only: bool = True,
+        language: Language | None = None,
+    ) -> dict[str, Any]:  # TODO consider making async iter?
         params = {
             "key": self.api_key,
             "active_only": str(active_only).lower(),
@@ -422,6 +430,7 @@ class HTTPClient:
             "get_received_offers": str(received).lower(),
             "get_descriptions": "true",
             "cursor": 0,
+            "language": (language or self.language).api_name,
         }
         if updated_only:
             try:
@@ -450,17 +459,20 @@ class HTTPClient:
 
         return first_page
 
-    def get_trade_history(self, limit: int, previous_time: int = 0) -> ResponseType[trade.GetTradeOfferHistory]:
+    def get_trade_history(
+        self, limit: int, previous_time: int = 0, language: Language | None = None
+    ) -> ResponseType[trade.GetTradeOfferHistory]:
         params = {
             "key": self.api_key,
             "max_trades": limit,
             "get_descriptions": "true",
             "include_total": "true",
             "start_after_time": previous_time,
+            "language": (language or self.language).api_name,
         }
         return self.get(api_route("IEconService/GetTradeHistory"), params=params)
 
-    def get_trade(self, trade_id: int) -> ResponseType[trade.GetTradeOffer]:
+    def get_trade(self, trade_id: int, language: Language | None = None) -> ResponseType[trade.GetTradeOffer]:
         params = {"key": self.api_key, "tradeofferid": trade_id, "get_descriptions": "true"}
         return self.get(api_route("IEconService/GetTradeOffer"), params=params)
 
@@ -517,11 +529,12 @@ class HTTPClient:
         headers = {"Referer": str(referer)}
         return self.post(URL.COMMUNITY / "tradeoffer/new/send", data=payload, headers=headers)
 
-    def get_trade_receipt(self, trade_id: int) -> Coro[dict[str, Any]]:
+    def get_trade_receipt(self, trade_id: int, language: Language | None = None) -> Coro[dict[str, Any]]:
         params = {
             "key": self.api_key,
             "tradeid": trade_id,
             "get_descriptions": "true",
+            "language": (language or self.language).api_name,
         }
         return self.get(api_route("IEconService/GetTradeStatus"), params=params)
 
@@ -587,8 +600,12 @@ class HTTPClient:
     def get_wishlist(self, user_id64: int) -> Coro[dict[str, Any]]:
         return self.get(URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata")
 
-    def get_game(self, game_id: int) -> Coro[dict[str, Any]]:
-        return self.get(URL.STORE / "api/appdetails", params={"appids": game_id, "l": "english"})
+    def get_game(self, game_id: int, language: Language | None) -> Coro[dict[str, Any]]:
+        params = {
+            "appids": game_id,
+            "l": (language or self.language).api_name,
+        }
+        return self.get(URL.STORE / "api/appdetails", params=params)
 
     def get_game_dlc(self, game_id: int) -> Coro[dict[str, Any]]:
         return self.get(URL.STORE / "api/dlcforapp", params={"appid": game_id, "l": "english"})

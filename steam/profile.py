@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from . import utils
 from .badge import Badge
-from .enums import ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, PublishedFileRevision, Result
+from .enums import Language, ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, PublishedFileRevision, Result
 from .errors import WSException
 from .game import StatefulGame
 from .trade import Asset, Item
@@ -119,9 +119,9 @@ class ProfileItem:
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def item(self) -> Item:
+    async def item(self, *, language: Language | None = None) -> Item:
         """Resolve this to an actual item in the owner's inventory."""
-        inventory = await self.owner.inventory(self.game)
+        inventory = await self.owner.inventory(self.game, language=language)
         item = utils.get(inventory, id=self.id)
         assert item
         return item
@@ -185,17 +185,25 @@ class ProfileShowcaseSlot:
     """The slot's associated game."""
 
     asset: Asset | None
+    """The :class:`Asset` the slot is associated with."""
     published_file_id: int | None
     """The ID of the :class:`PublishedFile` the slot is associated with."""
     badge_id: int | None
     border_colour: int | None
+    """The border colour of the slot."""
 
-    async def item(self) -> Item:
-        """Fetches the associated :class:`.Item` from :attr:`asset`."""
+    async def item(self, *, language: Language | None = None) -> Item:
+        """Fetches the associated :class:`.Item` from :attr:`asset`.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the item in. If ``None``, the current language is used.
+        """
         if self.asset is None:
             raise ValueError
         key = (self.asset.class_id, self.asset.instance_id)
-        resp = await self._state.http.get_item_info(self.game.id, [key])
+        resp = await self._state.http.get_item_info(self.game.id, [key], language)
         data: trade.Item = {
             **resp[key],
             **self.asset.to_dict(),
@@ -203,11 +211,21 @@ class ProfileShowcaseSlot:
         }  # type: ignore  # I don't wanna type out this in full to make this type-safe
         return Item(self._state, data, self.owner)
 
-    async def published_file(self, *, revision: PublishedFileRevision = PublishedFileRevision.Default) -> PublishedFile:
-        """Fetches the associated :class:`.PublishedFile` from :attr:`published_file_id`."""
+    async def published_file(
+        self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None
+    ) -> PublishedFile:
+        """Fetches the associated :class:`.PublishedFile` from :attr:`published_file_id`.
+
+        Parameters
+        ----------
+        revision
+            The revision of the published file to fetch.
+        language
+            The language to fetch the published file in. If ``None``, the current language is used.
+        """
         if self.published_file_id is None:
             raise ValueError
-        (file,) = await self._state.fetch_published_files((self.published_file_id,), revision)
+        (file,) = await self._state.fetch_published_files((self.published_file_id,), revision, language)
         assert file
         return file
 
@@ -251,7 +269,14 @@ class ProfileShowcase:
     slots: list[ProfileShowcaseSlot]
     """The slots in this showcase."""
 
-    async def items(self) -> list[Item]:
+    async def items(self, *, language: Language | None) -> list[Item]:
+        """Fetches the associated :class:`.Item`s for the entire showcase.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the items in. If ``None``, the current language is used.
+        """
         asset_map: dict[int, dict[tuple[int, int], Asset]] = {}
         items: list[Item] = []
 
@@ -263,7 +288,7 @@ class ProfileShowcase:
                     asset_map[slot.asset._app_id] = {(slot.asset.class_id, slot.asset.instance_id): slot.asset}
 
         for app_id, assets in asset_map.items():
-            for key, description in (await self._state.http.get_item_info(app_id, assets)).items():
+            for key, description in (await self._state.http.get_item_info(app_id, assets, language)).items():
                 data: trade.Item = {
                     **description,
                     **assets[key].to_dict(),
@@ -272,10 +297,22 @@ class ProfileShowcase:
                 items.append(Item(self._state, data, self.owner))
         return items
 
-    async def published_file(self, revision: PublishedFileRevision = PublishedFileRevision.Default) -> PublishedFile:
+    async def published_file(
+        self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None
+    ) -> PublishedFile:
+        """Fetches the associated :class:`.PublishedFile` from :attr:`published_file_id`.
+
+        Parameters
+        ----------
+        revision
+            The revision of the file to fetch.
+        language
+            The language to fetch the file in. If ``None``, the current language is used.
+        """
         return await self.slots[0].published_file(revision=revision)
 
     async def badges(self) -> list[Badge]:
+        """Fetches the associated :class:`.Badge`s for the entire showcase."""
         all_badges = await self.owner.badges()
         badges = [utils.get(all_badges.badges, id=slot.badge_id) for slot in self.slots if slot.badge_id]
         assert all(badges)
