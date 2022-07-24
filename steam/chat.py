@@ -465,7 +465,7 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
         user
             The user to invite to the chat group.
         """
-        await self._state.invite_user_to_chat(user.id64, self._id)
+        await self._state.invite_user_to_chat_group(user.id64, self._id)
 
     async def join(self, *, invite_code: str | None = None) -> None:
         """Joins the chat group.

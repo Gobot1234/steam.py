@@ -488,7 +488,8 @@ class ConnectionState(Registerable):
         proto = friend_messages.IncomingMessageNotification(
             chat_entry_type=ChatEntryType.Text,
             message=content,
-            rtime32_server_timestamp=int(time()),
+            rtime32_server_timestamp=msg.body.server_timestamp,
+            ordinal=msg.body.ordinal,
             message_no_bbcode=msg.body.message_without_bb_code,
         )
         channel = DMChannel(state=self, participant=self.get_user(user_id64))  # type: ignore
@@ -599,7 +600,7 @@ class ConnectionState(Registerable):
         elif msg.result != Result.OK:
             raise WSException(msg)
 
-    async def invite_user_to_chat(self, user_id64: int, chat_group_id: ChatGroupID) -> None:
+    async def invite_user_to_chat_group(self, user_id64: int, chat_group_id: ChatGroupID) -> None:
         msg = await self.ws.send_um_and_wait(
             "ChatRoom.InviteFriendToChatRoomGroup", chat_group_id=chat_group_id, steamid=user_id64
         )
@@ -651,7 +652,9 @@ class ConnectionState(Registerable):
             steamid1=self.user.id64,
             steamid2=user_id64,
             rtime32_start_time=start,
+            bbcode_format=False,
             time_last=last,
+            start_ordinal=start_ordinal,
             count=100,
         )
 
@@ -760,7 +763,7 @@ class ConnectionState(Registerable):
 
         return msg.body.games
 
-    async def fetch_user_profile_info(self, user_id64: int) -> friends.CMsgClientFriendProfileInfoResponse:
+    async def fetch_friend_profile_info(self, user_id64: int) -> friends.CMsgClientFriendProfileInfoResponse:
         msg: MsgProto[friends.CMsgClientFriendProfileInfoResponse] = await self.ws.send_proto_and_wait(
             MsgProto(EMsg.ClientFriendProfileInfo, steamid_friend=user_id64)
         )
@@ -1213,7 +1216,7 @@ class ConnectionState(Registerable):
             "Community.PostCommentToThread",  # some odd api here
             **owner._commentable_kwargs,
             is_report=True,
-            parent_id=comment_id,
+            id=comment_id,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
