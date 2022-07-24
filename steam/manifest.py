@@ -674,7 +674,7 @@ class GameInfo(ProductInfo, StatefulGame):
         This game's review score.
     review_percentage
         This game's review percentage.
-    dlc
+    partial_dlc
         This game's downloadable content.
     icon_url
         This game's icon URL.
@@ -711,7 +711,7 @@ class GameInfo(ProductInfo, StatefulGame):
         "created_at",
         "review_score",
         "review_percentage",
-        "dlc",
+        "partial_dlc",
         "icon_url",
         "logo_url",
         "website_url",
@@ -765,7 +765,7 @@ class GameInfo(ProductInfo, StatefulGame):
         self.review_score = ReviewType.try_value(int(common.get("review_score", 0)))
         self.review_percentage = int(common.get("review_percentage", 0))
         dlc = extended.get("listofdlc", "")
-        self.dlc = [StatefulGame(state, id=int(id)) for id in dlc.split(",")] if dlc else []
+        self.partial_dlc = [StatefulGame(state, id=int(id)) for id in dlc.split(",")] if dlc else []
 
         os_list = common.get("oslist", "")
         self._on_windows = "windows" in os_list

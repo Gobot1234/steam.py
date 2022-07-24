@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import warnings
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, overload
 
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .friend import Friend
     from .manifest import GameInfo, Manifest
-    from .package import StatefulPackage
+    from .package import FetchedGamePackage
     from .protobufs import player
     from .review import Review
     from .state import ConnectionState
@@ -546,6 +547,68 @@ class StatefulGame(Game):
         (info,), _ = await self._state.fetch_product_info((self.id,))
         return info
 
+    async def dlc(self, *, language: Language | None = None) -> list[DLC]:
+        """Fetch the game's DLC.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the DLC in. If ``None``, the current language will be used.
+        """
+        data = await self._state.http.get_game_dlc(self.id, language)
+        self.name = data["name"]
+        return [DLC(self._state, dlc) for dlc in data["dlc"]]
+
+    async def packages(self, *, language: Language | None = None) -> list[FetchedGamePackage]:
+        """Fetch the game's packages.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the DLC in. If ``None``, the current language will be used.
+        """
+        fetched = await self.fetch(language=language)
+        return fetched._packages
+
+
+@dataclass
+class PartialGamePriceOverview:
+    currency: str
+    initial: int
+    final: int
+    discount_percent: int
+
+
+class DLC(StatefulGame):
+    name: str
+
+    def __init__(self, state: ConnectionState, data: game.DLC):
+        super().__init__(state, id=data["id"], name=data["name"])
+        self.created_at = DateTime.from_timestamp(int(data["release_date"]["steam"]))
+        self.logo_url: str = data["header_image"]
+        self.price_overview = GamePriceOverview(**data["price_overview"])
+
+        platforms = data["platforms"]
+        self._on_windows: bool = platforms["windows"]
+        self._on_mac_os: bool = platforms["mac"]
+        self._on_linux: bool = platforms["linux"]
+
+    def is_free(self) -> bool:
+        """Whether the game is free to download."""
+        return not self.price_overview.final
+
+    def is_on_windows(self) -> bool:
+        """Whether the game is playable on Windows."""
+        return self._on_windows
+
+    def is_on_mac_os(self) -> bool:
+        """Whether the game is playable on macOS."""
+        return self._on_mac_os
+
+    def is_on_linux(self) -> bool:
+        """Whether the game is playable on Linux."""
+        return self._on_linux
+
 
 class UserGame(StatefulGame):
     """Represents a Steam game fetched by :meth:`steam.User.games`
@@ -705,6 +768,12 @@ class Movie:
         return f"<Movie {' '.join(resolved)}>"
 
 
+@dataclass
+class GamePriceOverview(PartialGamePriceOverview):
+    initial_formatted: str
+    final_formatted: str
+
+
 class FetchedGame(StatefulGame):
     """Represents a Steam game fetched by :meth:`steam.Client.fetch_game`\\.
 
@@ -718,7 +787,7 @@ class FetchedGame(StatefulGame):
         The type of the app.
     logo_url
         The logo URL of the game.
-    dlc
+    partial_dlc
         The game's downloadable content.
     website_url
         The website URL of the game.
@@ -733,6 +802,8 @@ class FetchedGame(StatefulGame):
     movies
         A list of the game's movies, each of which has ``name``\\, ``id``\\, ``url`` and optional
         ``created_at`` attributes.
+    price_overview
+        The price overview of the game.
     """
 
     __slots__ = (
@@ -740,13 +811,15 @@ class FetchedGame(StatefulGame):
         "background_url",
         "created_at",
         "type",
-        "dlc",
+        "partial_dlc",
+        "_packages",
         "website_url",
         "developers",
         "publishers",
         "description",
         "full_description",
         "movies",
+        "price_overview",
         "_free",
         "_on_windows",
         "_on_mac_os",
@@ -763,8 +836,18 @@ class FetchedGame(StatefulGame):
             datetime.strptime(data["release_date"]["date"], "%d %b, %Y") if data["release_date"]["date"] else None
         )
         self.type = AppFlag.from_str(data["type"])
+        self.price_overview = FetchedGamePriceOverview(**data["price_overview"])
 
-        self.dlc = [Game(id=dlc_id) for dlc_id in data["dlc"]] if "dlc" in data else None
+        self.partial_dlc = [StatefulGame(state, id=dlc_id) for dlc_id in data.get("dlc", [])]
+
+        from .package import FetchedGamePackage
+
+        self._packages = [
+            FetchedGamePackage(state, package)
+            for package_group in data["package_groups"]
+            for package in package_group["subs"]
+        ]
+
         self.website_url = data.get("website")
         self.developers = data["developers"]
         self.publishers = data["publishers"]
@@ -777,6 +860,9 @@ class FetchedGame(StatefulGame):
         self._on_windows = bool(data["platforms"].get("windows", False))
         self._on_mac_os = bool(data["platforms"].get("mac", False))
         self._on_linux = bool(data["platforms"].get("linux", False))
+
+    async def packages(self, *, languages: Language | None = None) -> list[FetchedGamePackage]:
+        return self._packages
 
     def is_free(self) -> bool:
         """Whether the game is free to download."""

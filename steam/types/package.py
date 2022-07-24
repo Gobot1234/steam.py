@@ -4,27 +4,43 @@
 from typing_extensions import TypedDict
 
 
+class FetchedPackageApp(TypedDict):
+    id: int
+    name: str
+
+
+class FetchedPackagePrice(TypedDict):
+    currency: str
+    initial: int
+    final: int
+    discount_percent: int
+    individual: int
+
+
+class FetchedPackagePlatform(TypedDict):
+    windows: bool
+    mac: bool
+    linux: bool
+
+
+class FetchedPackageController(TypedDict):
+    full_gamepad: bool
+
+
+class FetchedPackageReleaseDate(TypedDict):
+    coming_soon: bool
+    date: str
+
+
 class FetchedPackage(TypedDict):
     packageid: int
     name: str
-    appids: list[int]
-    localized_langs: list[int]
-    formatted_orig_price: str
-    orig_price_cents: int
-    formatted_final_price: str
-    release_date: str
-    available_windows: bool
-    available_mac: bool
-    available_linux: bool
-    support_vrhmd: bool
-    support_vrhmd_only: bool
-    creator_clan_ids: list[int]
-    final_price_cents: int
-    coming_soon: bool
-    no_main_cap: bool
-    deck_compatibility_category: int
-    discount_percent: int
-    discount_end_rtime: int
-    header_image_url: str
-    main_capsule: str
-    library_asset: str
+    page_content: str
+    page_image: str
+    header_image: str
+    small_logo: str
+    apps: list[FetchedPackageApp]
+    price: FetchedPackagePrice
+    platforms: FetchedPackagePlatform
+    controller: FetchedPackageController
+    release_date: FetchedPackageReleaseDate

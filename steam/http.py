@@ -607,8 +607,12 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/appdetails", params=params)
 
-    def get_game_dlc(self, game_id: int) -> Coro[dict[str, Any]]:
-        return self.get(URL.STORE / "api/dlcforapp", params={"appid": game_id, "l": "english"})
+    def get_game_dlc(self, game_id: int, language: Language | None) -> Coro[dict[str, Any]]:
+        params = {
+            "appid": game_id,
+            "l": (language or self.language).api_name,
+        }
+        return self.get(URL.STORE / "api/dlcforapp", params=params)
 
     def get_clan_rss(self, clan_id64: int) -> Coro[str]:
         return self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
@@ -794,13 +798,12 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "my/recommended", data=data)
 
-    def get_package(self, package_id: int) -> Coro[list[FetchedPackage]]:
+    def get_package(self, package_id: int, language: Language | None) -> Coro[dict[str, Any]]:
         params = {
             "packageids": package_id,
-            "l": self.language,
-            # TODO cc param
+            "l": (language or self.language).api_name,
         }
-        return self.get(URL.STORE / "actions/ajaxresolvepackages", params=params)
+        return self.get(URL.STORE / "api/packagedetails", params=params)
 
     async def edit_profile(
         self,

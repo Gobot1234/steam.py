@@ -56,7 +56,27 @@ class PackageGroups(TypedDict):
     selection_text: str
     display_type: Literal[0, 1]
     is_recurring_subscription: bool
-    subs: list[dict[str, str]]
+    subs: list[PackageGroupSub]
+
+
+class PackageGroupSub(TypedDict):
+    packageid: int
+    percent_savings_text: str
+    percent_savings: int
+    option_text: str
+    option_description: str
+    can_get_free_license: str
+    is_free_license: bool
+    price_in_cents_with_discount: int
+
+
+class FetchedGamePriceOverview(TypedDict):
+    currency: str
+    initial: int
+    final: int
+    discount_percent: int
+    initial_formatted: str
+    final_formatted: str
 
 
 class FetchedGame(TypedDict):
@@ -80,7 +100,8 @@ class FetchedGame(TypedDict):
     developers: list[str]
     publishers: list[str]
     demos: list[dict[str, Any]]
-    price_overview: list[dict[str, Any]]
+    price_overview: FetchedGamePriceOverview
+    packages: list[int]
     package_groups: list[PackageGroups]
     platforms: dict[str, bool]
     metacritic: list[dict[str, str]]
@@ -89,3 +110,31 @@ class FetchedGame(TypedDict):
     background: str
     website: str
     movies: list[dict[str, Any]]
+
+
+class DLCPriceOverview(TypedDict):
+    currency: str
+    initial: int
+    final: int
+    discount_percent: int
+
+
+class DLCPlatforms(TypedDict):
+    windows: bool
+    mac: bool
+    linux: bool
+
+
+class DLCReleaseDate(TypedDict):
+    steam: str  # unix timestamps
+    mac: str
+    linux: str
+
+
+class DLC(TypedDict):
+    id: int
+    name: str
+    header_image: str
+    price_overview: DLCPriceOverview
+    platforms: DLCPlatforms
+    release_date: DLCReleaseDate

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -115,6 +117,32 @@ class FetchedPackage(StatefulPackage):
     def is_on_linux(self) -> bool:
         """Whether the game is playable on Linux."""
         return self._on_linux
+
+
+@dataclass
+class FetchedGamePackagePriceOverview:
+    percent_discount: int
+    final: int
+
+
+class FetchedGamePackage(StatefulPackage):
+    __slots__ = (
+        "_is_free",
+        "price_overview",
+    )
+
+    def __init__(self, state: ConnectionState, data: game.PackageGroupSub):
+        name, _, _ = data["option_text"].rpartition(" - ")
+        super().__init__(state, name=name, id=data["packageid"])
+        self._is_free = data["is_free_license"]
+        percent_savings_text: str
+        self.price_overview = FetchedGamePackagePriceOverview(
+            int(re.search(r"-?(\d)", data["percent_savings_text"])[0]),
+            data["price_in_cents_with_discount"],  # this isn't always in cents
+        )
+
+    def is_free(self) -> bool:
+        return self._is_free
 
 
 class License(StatefulPackage):
