@@ -442,7 +442,7 @@ class HTTPClient:
         first_page = resp["response"]
         next_cursor = first_page.get("next_cursor", 0)
         current_cursor = 0
-        while current_cursor != next_cursor:
+        while current_cursor < next_cursor:
             params["cursor"] = next_cursor
             resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
             page = resp["response"]
