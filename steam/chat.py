@@ -354,7 +354,7 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
             }
 
     def __repr__(self) -> str:
-        attrs = ("name", "id", "type", "universe", "instance")
+        attrs = ("name", "id", "universe", "instance")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 

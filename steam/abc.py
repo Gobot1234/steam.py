@@ -474,7 +474,7 @@ class BaseUser(SteamID, Commentable):
     _state: ConnectionState
 
     def __repr__(self) -> str:
-        attrs = ("name", "state", "id", "type", "universe", "instance")
+        attrs = ("name", "state", "id", "universe", "instance")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 

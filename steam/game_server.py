@@ -356,7 +356,7 @@ class GameServer(SteamID):
         self._state = state
 
     def __repr__(self) -> str:
-        attrs = ("name", "game", "ip", "port", "region", "id", "type", "universe", "instance")
+        attrs = ("name", "game", "ip", "port", "region", "id", "universe", "instance")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
