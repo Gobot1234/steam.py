@@ -437,7 +437,6 @@ class HTTPClient:
                 params["time_historical_cutoff"] = self.trades_last_fetched
             except AttributeError:
                 pass
-            self.trades_last_fetched = int(time())
         resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
         first_page = resp["response"]
         next_cursor = first_page.get("next_cursor", 0)
@@ -456,6 +455,9 @@ class HTTPClient:
                 next_cursor = page["next_cursor"]
             except KeyError:
                 break
+
+        if updated_only:
+            self.trades_last_fetched = int(time())
 
         return first_page
 
