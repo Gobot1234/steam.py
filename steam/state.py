@@ -87,7 +87,7 @@ log = logging.getLogger(__name__)
 
 class TradeQueue:
     def __init__(self):
-        self.queue: deque[TradeOffer] = deque()
+        self.queue: list[TradeOffer] = []
         self._waiting_for: dict[int, asyncio.Future[TradeOffer]] = {}
 
     async def wait_for(self, id: int) -> TradeOffer:
