@@ -71,6 +71,7 @@ from .reaction import (
 )
 from .role import RolePermissions
 from .trade import TradeOffer
+from .types.id import ID32
 from .user import ClientUser, User
 from .utils import DateTime
 
@@ -147,16 +148,16 @@ class ConnectionState(Registerable):
         self.clear()
 
     def clear(self) -> None:
-        self._users: weakref.WeakValueDictionary[int, User] = weakref.WeakValueDictionary()
+        self._users: weakref.WeakValueDictionary[ID32, User] = weakref.WeakValueDictionary()
         self._trades: dict[int, TradeOffer] = {}
-        self._groups: dict[int, Group] = {}
-        self._clans: dict[int, Clan] = {}
-        self._clans_by_chat_id: dict[int, Clan] = {}
+        self._groups: dict[ChatGroupID, Group] = {}
+        self._clans: dict[ID32, Clan] = {}
+        self._clans_by_chat_id: dict[ChatGroupID, Clan] = {}
         self._confirmations: dict[int, Confirmation] = {}
         self.confirmation_generation_locks: dict[str, tuple[asyncio.Lock, datetime]] = {}
         self._confirmations_to_ignore: list[int] = []
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
-        self.invites: dict[int, UserInvite | ClanInvite] = {}
+        self.invites: dict[ID64, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
         self.stickers: list[ClientSticker] = []
         self.polling_trades = False
@@ -220,8 +221,8 @@ class ConnectionState(Registerable):
     def confirmations(self) -> list[Confirmation]:
         return list(self._confirmations.values())
 
-    def get_user(self, id64: int) -> User | None:
-        return self._users.get(id64)
+    def get_user(self, id: ID32) -> User | None:
+        return self._users.get(id)
 
     async def fetch_user(self, user_id64: int) -> User | None:
         data = await self.http.get_user(user_id64)
@@ -241,14 +242,16 @@ class ConnectionState(Registerable):
 
         return [self._store_user(data) for data in resp]
 
-    async def _maybe_user(self, id64: int) -> User | SteamID:
-        return self.get_user(id64) or await self.fetch_user(id64) or SteamID(id64)
+    async def _maybe_user(self, id64: ID64) -> User | SteamID:
+        steam_id = SteamID(id64)
+        return self.get_user(steam_id.id) or await self.fetch_user(id64) or steam_id
 
     async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User | SteamID]:
         ret: list[User | SteamID] = []
         to_fetch: dict[ID64, list[int]] = {}
         for idx, id64 in enumerate(id64s):
-            user = self.get_user(id64)
+            steam_id = SteamID(id64)
+            user = self.get_user(steam_id.id)
             if user is not None:
                 ret.append(user)
             else:
@@ -257,7 +260,7 @@ class ConnectionState(Registerable):
                     idxs = to_fetch[id64] = []
 
                 idxs.append(idx)
-                ret.append(SteamID(id64))
+                ret.append(steam_id)
 
         if to_fetch:
             for idxs, user in zip(to_fetch.values(), await self.fetch_users(to_fetch)):
@@ -269,10 +272,10 @@ class ConnectionState(Registerable):
 
     def _store_user(self, data: user.User) -> User:
         try:
-            user = self._users[int(data["steamid"])]
+            user = self._users[int(data["steamid"]) & 0xFFFFFFFF]
         except KeyError:
             user = User(state=self, data=data)
-            self._users[user.id64] = user
+            self._users[user.id] = user
         else:
             user._update(data)
         return user
@@ -287,10 +290,10 @@ class ConnectionState(Registerable):
         await self._fetch_confirmations()
         return self.get_confirmation(id)
 
-    def get_group(self, id: int) -> Group | None:
+    def get_group(self, id: ChatGroupID) -> Group | None:
         return self._groups.get(id)
 
-    def get_clan(self, id: int) -> Clan | None:
+    def get_clan(self, id: ID32) -> Clan | None:
         return self._clans.get(id)
 
     async def fetch_clan(self, id64: int) -> Clan | None:
@@ -492,7 +495,7 @@ class ConnectionState(Registerable):
             ordinal=msg.body.ordinal,
             message_no_bbcode=msg.body.message_without_bb_code,
         )
-        channel = DMChannel(state=self, participant=self.get_user(user_id64))  # type: ignore
+        channel = DMChannel(state=self, participant=self.get_user(user_id64 & 0xFFFFFFFF))  # type: ignore
         message = UserMessage(proto=proto, channel=channel)
         message.author = self.user
         self._messages.append(message)
@@ -689,7 +692,7 @@ class ConnectionState(Registerable):
         ordinal: int,
         reaction_name: str,
         reaction_type: int,
-    ) -> list[int]:
+    ) -> list[ID32]:
         msg: MsgProto[chat.GetMessageReactionReactorsResponse] = await self.ws.send_um_and_wait(
             "ChatRoom.GetMessageReactionReactors",
             chat_group_id=chat_group_id,
@@ -1033,8 +1036,8 @@ class ConnectionState(Registerable):
             data = friend.to_dict(do_nothing_case)
             if not data:
                 continue
-            user_id64 = friend.friendid
-            after = self.get_user(user_id64)
+            steam_id = SteamID(friend.friendid)
+            after = self.get_user(steam_id.id)
             if after is None:  # they're private
                 continue
 
@@ -1055,6 +1058,7 @@ class ConnectionState(Registerable):
 
     def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> user.User:
         data["personaname"] = friend.player_name
+        data["steamid"] = friend.friendid
         data["avatarfull"] = utils._get_avatar_url(friend.avatar_hash)
 
         if friend.last_logoff:
@@ -1240,9 +1244,9 @@ class ConnectionState(Registerable):
                 if steam_id is None:
                     continue
                 if steam_id.type == Type.Individual:
-                    commentable = self.get_user(steam_id.id64) or await self.fetch_user(steam_id.id64)
+                    commentable = self.get_user(steam_id.id) or await self.fetch_user(steam_id.id64)  # type: ignore
                 else:
-                    clan = self.get_clan(steam_id.id64) or await self.fetch_clan(steam_id.id64)
+                    clan = self.get_clan(steam_id.id) or await self.fetch_clan(steam_id.id64)
                     if clan is None:
                         continue
                     # now that we have the clan that the comment was posted in, if the url has a hash in the path we can
@@ -1371,7 +1375,7 @@ class ConnectionState(Registerable):
             self.user.name = msg.body.persona_name or self.user.name
             self.dispatch("user_update", before, self.user)
 
-    async def fetch_friends_who_own(self, game_id: int) -> list[int]:
+    async def fetch_friends_who_own(self, game_id: int) -> list[ID64]:
         msg: Msg[struct_messages.ClientGetFriendsWhoPlayGameResponse] = await self.ws.send_proto_and_wait(
             Msg(EMsg.ClientGetFriendsWhoPlayGame, extended=True, app_id=game_id)
         )
@@ -1397,7 +1401,8 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientClanState)
     async def update_clan(self, msg: MsgProto[client_server.CMsgClientClanState]) -> None:
         await self.handled_chat_groups.wait()
-        clan = self.get_clan(msg.body.steamid_clan) or await self.fetch_clan(msg.body.steamid_clan)
+        steam_id = SteamID(msg.body.steamid_clan)
+        clan = self.get_clan(steam_id.id) or await self.fetch_clan(steam_id.id64, maybe_chunk=False)
         if clan is None:
             return
 

@@ -81,7 +81,7 @@ def make_id64(
     type: TypeType | None = None,
     universe: UniverseType | None = None,
     instance: InstanceType | None = None,
-) -> int:
+) -> ID64:
     """Convert various representations of Steam IDs to its Steam 64-bit ID.
 
     Parameters

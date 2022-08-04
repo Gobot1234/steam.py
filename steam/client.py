@@ -507,8 +507,8 @@ class Client:
             The ID of the user, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
             :attr:`.SteamID.id3`.
         """
-        id64 = make_id64(id=id, type=Type.Individual)
-        return self._connection.get_user(id64)
+        steam_id = SteamID(id=id, type=Type.Individual)
+        return self._connection.get_user(steam_id.id)
 
     async def fetch_user(self, id: utils.Intable) -> User | None:
         """Fetches a user with a matching ID or ``None`` if the user was not found.

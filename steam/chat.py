@@ -222,7 +222,7 @@ class Chat(Channel[ChatMessageT]):
         message_cls: type[ChatMessageT] = self.__class__.__orig_bases__[0].__args__[0]  # type: ignore
         if isinstance(proto, chat.IncomingChatMessageNotification):
             steam_id = SteamID(proto.steamid_sender, type=Type.Individual)
-            self.last_message = message_cls(proto, self, self._state.get_user(steam_id.id64) or steam_id)  # type: ignore
+            self.last_message = message_cls(proto, self, self._state.get_user(steam_id.id) or steam_id)  # type: ignore
 
     def __repr__(self) -> str:
         cls = self.__class__

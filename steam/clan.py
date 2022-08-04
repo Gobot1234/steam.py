@@ -27,7 +27,7 @@ from .utils import DateTime
 
 if TYPE_CHECKING:
     from .state import ConnectionState
-    from .types.id import ChatGroupID
+    from .types.id import ID32
     from .user import User
 
 __all__ = ("Clan", "ClanMember")
