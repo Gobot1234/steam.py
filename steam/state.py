@@ -467,8 +467,8 @@ class ConnectionState(Registerable):
     # ws stuff
 
     @property
-    def _chat_groups(self) -> ChainMap[ChatGroupID, Group | Clan]:
-        return ChainMap(self._clans_by_chat_id, self._groups)  # type: ignore
+    def _chat_groups(self) -> utils.ChainMap[ChatGroupID, Group | Clan]:
+        return utils.ChainMap(self._clans_by_chat_id, self._groups)  # type: ignore  # needs HKT
 
     async def send_user_message(self, user_id64: int, content: str) -> UserMessage:
         contains_bbcode = utils.contains_bbcode(content)

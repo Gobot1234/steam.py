@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import collections
 import contextvars
 import functools
 import html
@@ -696,6 +697,46 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
         def read_ulong(self) -> int: ...
         def write_ulong(self, item: int) -> None: ...
         # fmt: on
+
+
+KT = TypeVar("KT")
+VT = TypeVar("VT")
+MISSING: Final[Any] = object()
+
+
+class ChainMap(collections.ChainMap[KT, VT] if TYPE_CHECKING else collections.ChainMap):
+    # this is different to the standard library's ChainMap because it is always O(n)
+    # keys should be unique between maps
+    def __delitem__(self, key: KT) -> None:
+        for map in self.maps:
+            try:
+                del map[key]
+                return
+            except KeyError:
+                pass
+        raise KeyError(key)
+
+    def popitem(self) -> tuple[KT, VT]:
+        for map in self.maps:
+            try:
+                return map.popitem()
+            except KeyError:
+                pass
+        raise KeyError()
+
+    def pop(self, key: KT, default: VT = MISSING) -> VT:
+        for map in self.maps:
+            try:
+                return map.pop(key)
+            except KeyError:
+                pass
+        if default is not MISSING:
+            return default
+        raise KeyError(key)
+
+    def clear(self) -> None:
+        for map in self.maps:
+            map.clear()
 
 
 # TODO consider in V1 making these allow async iterables after async iterator rework?
