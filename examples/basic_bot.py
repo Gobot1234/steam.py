@@ -13,7 +13,7 @@ async def on_ready():
     print("Logged in as")
     print("Username:", bot.user)
     print("ID:", bot.user.id64)
-    print("Friends:", len(bot.user.friends))
+    print("Friends:", len(await bot.user.friends()))
     print("------------")
 
 
