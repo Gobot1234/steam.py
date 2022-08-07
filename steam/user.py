@@ -295,6 +295,7 @@ class ClientUser(_BaseUser):
         self._friends: dict[ID64, Friend] = {}
 
     async def friends(self) -> list[Friend]:
+        """Returns a list of the user's friends."""
         return list(self._friends.values())
 
     def get_friend(self, id: utils.Intable) -> Friend | None:
