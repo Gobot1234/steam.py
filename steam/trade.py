@@ -579,7 +579,12 @@ class TradeOffer:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
-        trade.partner = partner or SteamID(data["accountid_other"])
+        if partner is None:
+            from .abc import SteamID
+
+            trade.partner = SteamID(data["accountid_other"])
+        else:
+            trade.partner = partner
         trade._update(data)
         return trade
 
