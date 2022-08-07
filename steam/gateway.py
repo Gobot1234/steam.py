@@ -308,7 +308,7 @@ class SteamWebSocket(Registerable):
         try:
             message = await self.socket.receive()
             if message.type is aiohttp.WSMsgType.BINARY and message.data:  # it can sometimes be None/empty
-                return await self.receive(message.data)
+                return self.receive(message.data)
             if message.type is aiohttp.WSMsgType.ERROR:
                 log.debug(f"Received {message}")
                 raise message.data
@@ -319,7 +319,7 @@ class SteamWebSocket(Registerable):
         except WebSocketClosure:
             await self.handle_close()
 
-    async def receive(self, message: bytes) -> None:
+    def receive(self, message: bytes) -> None:
         (emsg_value,) = READ_U32(message)
         emsg = EMsg(utils.clear_proto_bit(emsg_value))
 
@@ -495,13 +495,13 @@ class SteamWebSocket(Registerable):
         return decompressed
 
     @register(EMsg.Multi)
-    async def handle_multi(self, msg: MsgProto[CMsgMulti]) -> None:
+    def handle_multi(self, msg: MsgProto[CMsgMulti]) -> None:
         log.debug("Received a multi")
         data = self.unpack_multi(msg) if msg.body.size_unzipped else msg.body.message_body
 
         while data:
             (size,) = READ_U32(data)
-            await self.receive(data[4 : 4 + size])
+            self.receive(data[4 : 4 + size])
             data = data[4 + size :]
 
     @property

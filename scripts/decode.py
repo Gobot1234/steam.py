@@ -29,14 +29,28 @@ async def amain(input_message: str) -> None:
         if msg.body._unknown_fields:
             print(f"Unknown fields: {msg.body._unknown_fields}")
 
-    async def handle_multi(msg: MsgProto[CMsgMulti]) -> None:
+    def handle_multi(msg: MsgProto[CMsgMulti]) -> None:
         print("This is a multi message, unpacking...")
-        black.format_str(str(msg.body), mode=black.Mode())
-        await fake_ws.handle_multi(msg)
+        fake_ws.handle_multi(msg)
+
+    def handle_um_request(msg: MsgProto[betterproto.Message]) -> None:
+        print("This is a UM request", msg.header.body.job_name_target)
+        print(black.format_str(str(msg.body), mode=black.Mode()))
+        if msg.body._unknown_fields:
+            print(f"Unknown fields: {msg.body._unknown_fields}")
+
+    def handle_um_response(msg: MsgProto[betterproto.Message]) -> None:
+        print("This is a UM response", msg.header.body.job_name_target)
+        print(black.format_str(str(msg.body), mode=black.Mode()))
+        if msg.body._unknown_fields:
+            print(f"Unknown fields: {msg.body._unknown_fields}")
 
     fake_ws.parsers = defaultdict(lambda: parser)
     fake_ws.parsers[EMsg.Multi] = handle_multi
-    await fake_ws.receive(b64decode(input_message))
+    fake_ws.parsers[EMsg.ServiceMethod] = handle_um_request
+    fake_ws.parsers[EMsg.ServiceMethodResponse] = handle_um_response
+
+    fake_ws.receive(b64decode(input_message))
     await asyncio.sleep(2)
 
 
