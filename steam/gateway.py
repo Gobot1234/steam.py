@@ -384,8 +384,8 @@ class SteamWebSocket(Registerable):
             EMsg.ClientToGC,
             appid=app_id,
             msgtype=utils.set_proto_bit(msg.msg) if isinstance(msg, GCMsgProto) else msg.msg,
+            payload=bytes(msg),
         )
-        message.body.payload = bytes(msg)
         message.header.body.routing_app_id = app_id
         message.header.body.job_id_source = self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
 
