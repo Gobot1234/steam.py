@@ -53,7 +53,7 @@ class BaseMsgHdr:
             f"""
 def parse(self, data: bytes) -> None:
     msg, {", ".join(f"self.{p}" for p in cls.PACK[1:])} = self.STRUCT.unpack_from(data)
-    {f"self.msg = {cast}({'clear_proto_bit(msg)' if proto else 'msg'})"}
+    self.msg = {cast}({'clear_proto_bit(msg)' if proto else 'msg'})
 
     {f"self.length += {cls.STRUCT.size}" if proto else ""}
     {f"self.body = self.body.parse(data[{cls.STRUCT.size} : self.length])" if proto else ""}
@@ -70,7 +70,7 @@ cls.parse = parse
             f"""
 def __bytes__(self) -> bytes:
     {"proto_data = bytes(self.body)" if proto else ""}
-    {f"self.length = len(proto_data)" if proto else ""}
+    {'self.length = len(proto_data)' if proto else ""}
     return self.STRUCT.pack(
         {"set_proto_bit(self.msg)" if proto else "self.msg"},
         {", ".join(f"self.{p}" for p in cls.PACK[1:])}
