@@ -118,7 +118,7 @@ class ManifestPathParents(Sequence["ManifestPath"]):
         return self.path._from_parsed_parts(self.path.drive, self.path.root, self.path.parts[: -idx - 1])
 
     def __repr__(self) -> str:
-        return f"<{self.path.__class__.__name__}.parents>"
+        return f"<{self.path!r}.parents>"
 
 
 class ManifestPath(PurePathBase, _IOMixin):
@@ -165,8 +165,8 @@ class ManifestPath(PurePathBase, _IOMixin):
     def _select_from_manifest(self, new_self: Self) -> Self:
         try:
             # try and return the actual path if exists
-            return next(p for p in self._manifest.paths if p == new_self)
-        except StopIteration:
+            return self._manifest._paths[new_self.parts]
+        except KeyError:
             # else attach the manifest and return, this will not support most operations
             new_self._manifest = self._manifest
             return new_self
@@ -231,11 +231,11 @@ class ManifestPath(PurePathBase, _IOMixin):
             raise OSError(errno.EINVAL, f"Invalid argument: {str(self)!r}")
 
         link_parts = tuple(self._mapping.linktarget.rstrip("\x00 \n\t").split("\\"))
-        return next(path for path in self._manifest.paths if path.parts == link_parts)
+        return self._manifest._paths[link_parts]
 
     def iterdir(self) -> Generator[Self, None, None]:
         """Iterate over this path. Similar to :meth:`pathlib.Path.iterdir`."""
-        for path in self._manifest.paths:
+        for path in self._manifest._paths.values():
             if path.parent == self:
                 yield path
 
@@ -245,7 +245,9 @@ class ManifestPath(PurePathBase, _IOMixin):
             raise ValueError(f"Unacceptable pattern: {pattern!r}")
 
         # str.removeprefix
-        yield from filter(methodcaller("match", f"{self.as_posix().rstrip('/')}/{pattern}"), self._manifest.paths)
+        yield from filter(
+            methodcaller("match", f"{self.as_posix().rstrip('/')}/{pattern}"), self._manifest._paths.values()
+        )
 
     def rglob(self, pattern: str) -> Generator[Self, None, None]:
         """Perform a recursive glob operation on this path. Similar to :meth:`pathlib.Path.rglob`."""
@@ -336,7 +338,7 @@ class Manifest:
         "_metadata",
         "_payload",
         "_signature",
-        "_paths_cs",
+        "_paths",
         "_state",
     )
 
@@ -346,6 +348,7 @@ class Manifest:
         self.game = StatefulGame(state, id=game_id)
         self.server = server
         self._key: bytes | None = None
+        self._paths: dict[tuple[str, ...], ManifestPath] = {}
 
         with utils.StructIO(unzip(data)) as io:
             if io.read_u32() != PAYLOAD_MAGIC:
@@ -377,10 +380,17 @@ class Manifest:
     def __len__(self) -> int:
         return len(self._payload.mappings)
 
-    @utils.cached_slot_property
-    def paths(self) -> list[ManifestPath]:
+    @property
+    def paths(self) -> Sequence[ManifestPath]:
         """The depot's files."""
-        return [ManifestPath(self, mapping) for mapping in self._payload.mappings]
+        if self._paths:
+            return list(self._paths.values())
+
+        paths = self._paths
+        for mapping in self._payload.mappings:
+            path = ManifestPath(self, mapping)
+            self._paths[path.parts] = path
+        return list(paths.values())
 
     @property
     def id(self) -> int:
@@ -792,7 +802,7 @@ class GameInfo(ProductInfo, StatefulGame):
             try:
                 build_id = int(value["buildid"])
             except KeyError:
-                log.debug("Got a branch %s with no build id, disgaurding", name)
+                log.debug("Got a branch %s with no build id, discarding", name)
             else:
                 self._branches[name] = Branch(
                     name=name,
