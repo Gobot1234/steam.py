@@ -151,9 +151,7 @@ class CMServerList(AsyncIterator[CMServer]):
         hosts: list[dict[str, Any]] = resp["serverlist"]
         log.debug(f"Received {len(hosts)} servers from WebAPI")
         servers = [CMServer(self._state, url=server["endpoint"], weighted_load=server["wtd_load"]) for server in hosts]
-        for server in sorted(
-            servers, key=attrgetter("weighted_load"), reverse=True
-        ):  # they should already be sorted but oh well
+        for server in sorted(servers, key=attrgetter("weighted_load")):  # they should already be sorted but oh well
             yield server
 
 
