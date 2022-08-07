@@ -811,7 +811,7 @@ class GameInfo(ProductInfo, StatefulGame):
                     password_required=bool(int(value.get("pwdrequired", False))),
                     description=value.get("description") or None,
                 )
-        self.headless_depots: list[HeadlessDepot] = []
+        self.headless_depots: Sequence[HeadlessDepot] = []
 
         for key, depot in depots.items():  # type: ignore
             try:
@@ -857,7 +857,7 @@ class GameInfo(ProductInfo, StatefulGame):
         return self._branches.get(name)
 
     @property
-    def branches(self) -> list[Branch]:
+    def branches(self) -> Sequence[Branch]:
         """The branches for this game."""
         return list(self._branches.values())
 
@@ -870,6 +870,9 @@ class GameInfo(ProductInfo, StatefulGame):
             game.get_branch("public")
         """
         return self._branches["public"]
+
+    async def depots(self) -> Sequence[Depot | HeadlessDepot]:
+        return [depot for branch in self._branches.values() for depot in branch.depots] + self.headless_depots  # type: ignore
 
     def is_on_windows(self) -> bool:
         """Whether the game is playable on Windows."""
@@ -920,7 +923,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
         "sha",
         "size",
         "change_number",
-        "games",
+        "_games",
         "billing_type",
         "license_type",
         "status",
@@ -935,7 +938,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
         proto: app_info.CMsgClientPicsProductInfoResponsePackageInfo,
     ):
         super().__init__(state, proto, id=proto.packageid)
-        self.games = [StatefulGame(state, id=id) for id in data["appids"].values()]
+        self._games = [StatefulGame(state, id=id) for id in data["appids"].values()]
         self.billing_type = BillingType.try_value(data["billingtype"])
         self.license_type = LicenseType.try_value(data["licensetype"])
         self.status = PackageStatus.try_value(data["status"])
@@ -943,28 +946,9 @@ class PackageInfo(ProductInfo, StatefulPackage):
         self.app_items = list(data["appitems"].values())
 
     def __repr__(self) -> str:
-        attrs = ("id", "games", "sha", "change_number")
+        attrs = ("id", "sha", "change_number")
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
-    async def games_info(self) -> list[GameInfo]:
-        """Shorthand for:
-
-        .. code-block:: python3
-
-            infos = await client.fetch_product_info(games=package.games)
-        """
-        if not self.games:
-            return []
-        infos, _ = await self._state.fetch_product_info(game.id for game in self.games)
-        return infos
-
-    async def depots(self) -> list[Depot | HeadlessDepot]:
-        """Fetches this package's depots."""
-        depots = []
-        for game_info in await self.games_info():
-            for branch in game_info.branches:
-                depots.extend(depot for depot in branch.depots if depot.id in self.depot_ids)
-
-            depots.extend(depot for depot in game_info.headless_depots if depot.id in self.depot_ids)
-        return depots
+    async def games(self) -> list[StatefulGame]:
+        return self._games

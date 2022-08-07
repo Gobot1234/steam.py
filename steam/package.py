@@ -5,14 +5,14 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from .enums import LicenseFlag, LicenseType, PaymentMethod
 from .game import PartialGamePriceOverview, StatefulGame
 from .utils import DateTime, Intable
 
 if TYPE_CHECKING:
-    from .manifest import PackageInfo
+    from .manifest import Depot, GameInfo, HeadlessDepot, PackageInfo
     from .message import Authors
     from .protobufs.client_server import CMsgClientLicenseListLicense
     from .protobufs.store import PurchaseReceiptInfo
@@ -93,6 +93,41 @@ class StatefulPackage(Package):
         _, (info,) = await self._state.fetch_product_info(package_ids=(self.id,))
         return info
 
+    async def games_info(self) -> list[GameInfo]:
+        """Shorthand for:
+
+        .. code-block:: python3
+
+            infos = await client.fetch_product_info(games=await package.games())
+        """
+        games = await self.games()
+        if not games:
+            return []
+        infos, _ = await self._state.fetch_product_info(game.id for game in games)
+        return infos
+
+    async def depots(self) -> Sequence[Depot | HeadlessDepot]:
+        """Fetches this package's depots."""
+        try:
+            depot_ids = self.depot_ids  # type: ignore
+        except AttributeError:
+            info = await self.info()
+            depot_ids = info.depot_ids
+
+        games_info = await self.games_info()
+
+        return [
+            depot
+            for game_info in games_info
+            for branch in game_info._branches.values()
+            for depot in branch.depots
+            if depot.id in depot_ids
+        ] + [
+            depot for game_info in games_info for depot in game_info.headless_depots if depot.id in depot_ids
+        ]  # type: ignore
+
+    # TODO .manifests, fetch_manifest
+
 
 @dataclass
 class PackagePriceOverview(PartialGamePriceOverview):
@@ -148,7 +183,6 @@ class FetchedGamePackage(StatefulPackage):
         name, _, _ = data["option_text"].rpartition(" - ")
         super().__init__(state, name=name, id=data["packageid"])
         self._is_free = data["is_free_license"]
-        percent_savings_text: str
         self.price_overview = FetchedGamePackagePriceOverview(
             int(re.search(r"-?(\d)", data["percent_savings_text"])[0]),
             data["price_in_cents_with_discount"],  # this isn't always in cents

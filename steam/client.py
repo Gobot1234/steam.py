@@ -654,16 +654,21 @@ class Client:
         """
         return StatefulPackage(self._connection, id=id)
 
-    async def fetch_package(self, id: int) -> FetchedPackage:
+    async def fetch_package(self, id: int, *, language: Language | None = None) -> FetchedPackage | None:
         """Fetch a package from its ID.
 
         Parameters
         ----------
         id
             The ID of the package.
+        language
+            The language to fetch the package in. If ``None`` uses the current language.
         """
-        resp = await self.http.get_package(id)
-        return FetchedPackage(self._connection, resp[0])
+        resp = await self.http.get_package(id, language)
+        if resp is None:
+            return None
+        data = resp[str(id)]
+        return FetchedPackage(self._connection, data["data"]) if data["success"] else None
 
     @overload
     async def fetch_server(self, *, id: utils.Intable) -> GameServer | None:
