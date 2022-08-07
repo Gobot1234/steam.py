@@ -37,7 +37,6 @@ __all__ = (
 )
 
 ItemT_co = TypeVar("ItemT_co", bound="Item", covariant=True)
-T = TypeVar("T")
 
 
 class Asset:
@@ -235,7 +234,7 @@ else:
     GenericAlias = type(
         types.new_class(
             "",
-            (Generic[T],),
+            (Generic[TypeVar("T")],),  # type: ignore
         )[int]
     )
     kwargs = {"_root": True}
@@ -243,6 +242,7 @@ else:
 
 class InventoryGenericAlias(GenericAlias, **kwargs):
     __alias_name__: str
+    __args__: tuple[type[ItemT_co]]  # type: ignore
 
     def __repr__(self) -> str:
         return f"{self.__origin__.__module__}.{object.__getattribute__(self, '__alias_name__')}"
@@ -278,6 +278,7 @@ class BaseInventory(Generic[ItemT_co]):
         "_state",
         "__orig_class__",  # undocumented typing internals more shim to make extensions work
     )
+    __orig_class__: InventoryGenericAlias
 
     def __init__(
         self, state: ConnectionState, data: trade.Inventory, owner: BaseUser, game: Game, language: Language | None
@@ -332,7 +333,7 @@ class BaseInventory(Generic[ItemT_co]):
 
     def _update(self, data: trade.Inventory) -> None:
         items = []
-        ItemClass: type[Item] = self.__orig_class__.__args__[0]
+        (ItemClass,) = self.__orig_class__.__args__
         for asset in data.get("assets", ()):
             for item in data["descriptions"]:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
@@ -446,6 +447,7 @@ class MovedItem(Item):
         "new_id",
         "new_context_id",
     )
+    REPR_ATTRS = (*Item.REPR_ATTRS, "new_id", "new_context_id")
     new_id: int
     new_context_id: int
 
@@ -526,6 +528,9 @@ class TradeOffer:
         "_is_our_offer",
     )
 
+    id: int
+    partner: User | SteamID
+
     @overload
     def __init__(
         self,
@@ -547,9 +552,6 @@ class TradeOffer:
         items_to_receive: Sequence[Asset],
     ):
         ...
-
-    id: int
-    partner: User | SteamID
 
     def __init__(
         self,
