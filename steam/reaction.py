@@ -161,7 +161,6 @@ class MessageReaction(PartialMessageReaction):
 
 class BaseEmoticon(_IOMixin):
     url: str
-    """The URL for this image used."""
 
     def __init__(self, state: ConnectionState, name: str):
         self._state = state
@@ -193,7 +192,8 @@ class Emoticon(BaseEmoticon):
 
     @property
     def url(self) -> str:
-        return str(BASE_ECONOMY_URL / "emoticon" / self.name)
+        """The URL for this emoticon."""
+        return str(BASE_ECONOMY_URL / "emoticonlarge" / self.name)
 
     async def game(self) -> StatefulGame:
         """Fetches this emoticon's associated game.
@@ -232,6 +232,7 @@ class Sticker(BaseEmoticon):
 
     @property
     def url(self) -> str:
+        """The URL for this sticker."""
         return str(BASE_ECONOMY_URL / "sticker" / self.name)
 
     async def game(self) -> StatefulGame:
