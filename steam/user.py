@@ -359,7 +359,7 @@ class ClientUser(_BaseUser):
 
     async def profile_info(self) -> ProfileInfo:
         """The friend's profile info."""
-        info = await self._state.fetch_user_profile_info(self.id64)
+        info = await self._state.fetch_friend_profile_info(self.id64)
         # why this is friend only I'm not really sure considering it's available through the API
         return ProfileInfo(
             created_at=DateTime.from_timestamp(info.time_created),
