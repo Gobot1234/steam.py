@@ -9,6 +9,7 @@ from __future__ import annotations
 import builtins
 import sys
 from collections.abc import Callable
+from io import StringIO
 from typing import Any
 
 from multidict import MultiDict
@@ -24,7 +25,7 @@ TASK_HAS_NAME = sys.version_info >= (3, 8)
 try:
     import orjson
 
-    JSON_LOADS: Final = orjson.loads
+    JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads
 
     def dumps(
         obj: Any,
@@ -55,8 +56,14 @@ try:
 except ModuleNotFoundError:
     import vdf
 
-    def loads(s: str, *, __func: Callable[..., Any] = vdf.parse, __mapper: type[MultiDict[Any]] = MultiDict) -> VDFDict:
-        return __func(s, mapper=__mapper)
+    def loads(
+        s: str,
+        *,
+        __func: Callable[..., Any] = vdf.parse,
+        __mapper: type[MultiDict[Any]] = MultiDict,
+        __string_io: type[StringIO] = StringIO,
+    ) -> VDFDict:
+        return __func(__string_io(s), mapper=__mapper)
 
     def binary_loads(
         s: bytes, *, __func: Callable[..., Any] = vdf.binary_loads, __mapper: type[MultiDict[Any]] = MultiDict
