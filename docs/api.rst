@@ -745,6 +745,11 @@ Games can be manually constructed using there app id eg:
     :inherited-members:
     :members:
 
+.. attributetable:: DLC
+
+.. autoclass:: DLC()
+    :inherited-members:
+    :members:
 
 Steam IDs
 ~~~~~~~~~~~~~~~

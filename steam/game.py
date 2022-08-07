@@ -585,7 +585,28 @@ class PartialGamePriceOverview:
 
 
 class DLC(StatefulGame):
+    """Represents DLC (downloadable content) for a game.
+
+    Attributes
+    ----------
+    created_at
+        The time the DLC was released at.
+    logo_url
+        The logo url of the DLC.
+    price_overview
+        A price overview for the DLC.
+    """
+
     name: str
+
+    __slots__ = (
+        "created_at",
+        "logo_url",
+        "price_overview",
+        "_on_windows",
+        "_on_mac_os",
+        "_on_linux",
+    )
 
     def __init__(self, state: ConnectionState, data: game.DLC):
         super().__init__(state, id=data["id"], name=data["name"])
