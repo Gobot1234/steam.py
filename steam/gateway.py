@@ -163,8 +163,8 @@ class KeepAliveHandler(threading.Thread):
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = MsgProto[login.CMsgClientHeartBeat](EMsg.ClientHeartBeat, send_reply=True)
         self.msg = "Keeping websocket alive with heartbeat %s."
-        self.block_msg = "Heartbeat blocked for more than %s seconds."
-        self.behind_msg = "Can't keep up, websocket is %.1fs behind."
+        self.block_msg = "Heartbeat blocked for more than {total} seconds."
+        self.behind_msg = "Can't keep up, websocket is {total:.1f}s behind."
         self._stop_ev = threading.Event()
         self._last_ack = time.perf_counter()
         self._last_send = time.perf_counter()
@@ -203,7 +203,7 @@ class KeepAliveHandler(threading.Thread):
                         else:
                             stack = "".join(traceback.format_stack(frame))
                             msg = f"{self.block_msg}\nLoop thread traceback (most recent call last):\n{stack}"
-                        log.warning(msg, total)
+                        log.warning(msg.format(total=total))
 
             except Exception:
                 self.stop()
@@ -221,7 +221,7 @@ class KeepAliveHandler(threading.Thread):
         self._last_ack = ack_time
         self.latency = ack_time - self._last_send
         if self.latency > 10:
-            log.warning(self.behind_msg, self.latency)
+            log.warning(self.behind_msg.format(total=self.latency))
 
 
 class SteamWebSocket(Registerable):
