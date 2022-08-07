@@ -159,6 +159,10 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: Language()
+    :members:
+    :undoc-members:
+
 .. autoclass:: Universe()
     :members:
     :undoc-members:

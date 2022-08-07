@@ -36,6 +36,7 @@ __all__ = (
     "CSGO",
     "STEAM",
     "CUSTOM_GAME",
+    "DLC",
     "UserGame",
     "WishlistGame",
     "FetchedGame",
