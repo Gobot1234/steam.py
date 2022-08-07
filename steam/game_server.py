@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Callable
 from datetime import timedelta
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, overload
 
 from typing_extensions import Literal, TypeAlias
 
@@ -167,6 +167,9 @@ class QueryMeta(type):
         return QueryAll()
 
 
+from typing_extensions import Unpack
+
+
 class Query(Generic[T_co], metaclass=QueryMeta):
     r"""A :class:`pathlib.Path` like class for constructing Global Master Server queries.
 
@@ -227,15 +230,18 @@ class Query(Generic[T_co], metaclass=QueryMeta):
     # TODO use __invert__ to do some cool manipulation where possible and generally change the dunders cause they make little
     # sense atm
     __slots__ = ("_raw", "_type", "_callback")
+    _raw: tuple[Query[Any], Operator, T_co] | tuple[str]
+    _type: type[T_co] | tuple[type[T_co], ...] | None
+    _callback: Callable[[T_co], Any] | None
 
     def __new__(
         cls,
-        *raw: Query[Any] | Operator | str | T_co,
+        *raw: Unpack[tuple[Query[Any], Operator, T_co]] | Unpack[tuple[str]],
         type: type[T_co] | tuple[type[T_co], ...] | None = None,
         callback: Callable[[T_co], Any] = lambda x: x,
     ) -> Query[T_co]:
         self = super().__new__(cls)
-        self._raw = raw
+        self._raw = raw  # type: ignore  # can't tell if this is a pyright bug
         self._type = type
         self._callback = callback
         return self
