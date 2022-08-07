@@ -592,6 +592,11 @@ Trading
 .. autoclass:: Asset()
     :members:
 
+.. attributetable:: MovedItem
+
+.. autoclass:: MovedItem()
+    :members:
+
 Reactions
 ~~~~~~~~~~~~~~~
 

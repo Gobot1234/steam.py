@@ -32,7 +32,7 @@ __all__ = (
     "Item",
     "Inventory",
     "TradeOffer",
-    "TradeOfferReceiptItem",
+    "MovedItem",
     "TradeOfferReceipt",
 )
 
@@ -427,12 +427,12 @@ game
 
 
 class TradeOfferReceipt(NamedTuple):
-    sent: list[TradeOfferReceiptItem]
-    received: list[TradeOfferReceiptItem]
+    sent: list[MovedItem]
+    received: list[MovedItem]
 
 
-class TradeOfferReceiptItem(Item):
-    """An item in a trade receipt.
+class MovedItem(Item):
+    """Represents an item that has moved from one inventory to another.
 
     Attributes
     ----------
@@ -583,16 +583,21 @@ class TradeOffer:
 
     @classmethod
     def _from_history(cls, state: ConnectionState, data: trade.TradeOfferHistoryTrade) -> Self:
-        trade = cls()
+        received: list[trade.TradeOfferReceiptItem] = data.get("assets_received", [])  # type: ignore
+        sent: list[trade.TradeOfferReceiptItem] = data.get("assets_given", [])  # type: ignore
+        from .abc import SteamID
+
+        partner = SteamID(data["steamid_other"])
+        trade = cls(
+            items_to_receive=[MovedItem(state, item, partner) for item in received],
+            items_to_send=[MovedItem(state, item, state.user) for item in sent],
+        )
         trade._state = state
         trade._id = int(data["tradeid"])
-        trade.partner = partner = SteamID(data["steamid_other"])
+        trade.partner = partner
         trade.created_at = DateTime.from_timestamp(data["time_init"])
         trade.state = TradeOfferState.try_value(data["status"])
-        received: list[trade.TradeOfferReceiptItemDict] = data["assets_received"]  # type: ignore
-        sent: list[trade.TradeOfferReceiptItemDict] = data["assets_given"]  # type: ignore
-        trade.items_to_receive = [Item(state, item, partner) for item in received]
-        trade.items_to_send = [Item(state, item, state.user) for item in sent]
+
         return trade
 
     def _update_from_send(
@@ -742,19 +747,19 @@ class TradeOffer:
         descriptions = data["descriptions"]
         assert self.partner is not None
 
-        received: list[TradeOfferReceiptItem] = []
+        received: list[MovedItem] = []
         for asset in trade.get("assets_received", ()):
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    received.append(TradeOfferReceiptItem(self._state, data=item, owner=self.partner))  # type: ignore
+                    received.append(MovedItem(self._state, data=item, owner=self.partner))  # type: ignore
 
-        sent: list[TradeOfferReceiptItem] = []
+        sent: list[MovedItem] = []
         for asset in trade.get("assets_given", ()):
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    sent.append(TradeOfferReceiptItem(self._state, data=item, owner=self._state.user))
+                    sent.append(MovedItem(self._state, data=item, owner=self._state.user))
 
         return TradeOfferReceipt(sent=sent, received=received)
 
