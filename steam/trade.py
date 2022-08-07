@@ -82,7 +82,7 @@ class Asset:
         "_context_id",
         "_state",
     )
-    REPR_ATTRS = ("asset_id", "class_id", "instance_id", "amount", "owner", "game")  # "post_rollback_id"
+    REPR_ATTRS = ("id", "class_id", "instance_id", "amount", "owner", "game")  # "post_rollback_id"
 
     def __init__(self, state: ConnectionState, data: trade.Asset, owner: BaseUser):
         self.id = int(data["assetid"])
@@ -412,7 +412,7 @@ Inventory: TypeAlias = BaseInventory[Item]  # necessitated by TypeVar not curren
 
     .. describe:: y in x
 
-        Determines if an item is in the inventory based off of its :attr:`Item.class_id` and :attr:`Item.instance_id`.
+        Determines if an item is in the inventory based off of its :attr:`Asset.id`.
 
 
 Attributes
