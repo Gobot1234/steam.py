@@ -243,8 +243,8 @@ def CUSTOM_GAME(name: str | None = None, title: str | None = None) -> Game:
 
 
 class FriendThoughts(NamedTuple):
-    upvoted: list[Friend]
-    downvoted: list[Friend]
+    recommended: list[Friend]
+    not_recommended: list[Friend]
 
 
 class StatefulGame(Game):
