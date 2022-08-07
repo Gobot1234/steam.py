@@ -791,6 +791,11 @@ class TradeOffer:
         if resp.get("needs_mobile_confirmation", False):
             await self._state.fetch_and_confirm_confirmation(int(resp["tradeofferid"]))
 
+    @property
+    def url(self) -> str:
+        """The URL of the trade offer."""
+        return str(URL.COMMUNITY / f"tradeoffer/{self.id}")
+
     def is_gift(self) -> bool:
         """Helper method that checks if an offer is a gift to the :class:`~steam.ClientUser`"""
         return bool(self.items_to_receive and not self.items_to_send)
