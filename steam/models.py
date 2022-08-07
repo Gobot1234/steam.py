@@ -83,7 +83,10 @@ class Registerable:
 
     @staticmethod
     def _run_parser_callback(task: asyncio.Task[object]) -> None:
-        exception = task.exception()
+        try:
+            exception = task.exception()
+        except asyncio.CancelledError:
+            return
         if exception:
             traceback.print_exception(exception.__class__, exception, exception.__traceback__)
 
