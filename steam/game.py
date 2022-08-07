@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, overload
@@ -19,7 +20,7 @@ from .utils import DateTime, Intable, id64_from_url
 if TYPE_CHECKING:
     from .clan import Clan
     from .friend import Friend
-    from .manifest import GameInfo, Manifest
+    from .manifest import Depot, GameInfo, HeadlessDepot, Manifest
     from .package import FetchedGamePackage
     from .protobufs import player
     from .review import Review
@@ -403,6 +404,10 @@ class StatefulGame(Game):
             raise ValueError("Fetched game was not valid.")
         return game
 
+    async def depots(self) -> Sequence[Depot | HeadlessDepot]:
+        info = await self.info()
+        return await info.depots()
+
     async def fetch_manifest(
         self, *, id: int, depot_id: int, branch: str = "public", password_hash: str = ""
     ) -> Manifest:
@@ -465,7 +470,7 @@ class StatefulGame(Game):
         password
             The password for the branch, if any.
         password_hash
-            The hashed password for the
+            The hashed password for a manifest.
 
         Yields
         ------
@@ -565,7 +570,7 @@ class StatefulGame(Game):
         Parameters
         ----------
         language
-            The language to fetch the DLC in. If ``None``, the current language will be used.
+            The language to fetch the packages in. If ``None``, the current language will be used.
         """
         fetched = await self.fetch(language=language)
         return fetched._packages
@@ -586,7 +591,7 @@ class DLC(StatefulGame):
         super().__init__(state, id=data["id"], name=data["name"])
         self.created_at = DateTime.from_timestamp(int(data["release_date"]["steam"]))
         self.logo_url: str = data["header_image"]
-        self.price_overview = GamePriceOverview(**data["price_overview"])
+        self.price_overview = PartialGamePriceOverview(**data["price_overview"])
 
         platforms = data["platforms"]
         self._on_windows: bool = platforms["windows"]
@@ -838,7 +843,7 @@ class FetchedGame(StatefulGame):
             else None
         )
         self.type = AppFlag.from_str(data["type"])
-        self.price_overview = FetchedGamePriceOverview(**data["price_overview"])
+        self.price_overview = GamePriceOverview(**data["price_overview"])
 
         self.partial_dlc = [StatefulGame(state, id=dlc_id) for dlc_id in data.get("dlc", [])]
 
