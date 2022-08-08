@@ -42,7 +42,7 @@ class UserInvite(Invite):
     invitee
         The user who sent the invite.
     relationship
-        The relationship you have with the invitee. This ``None`` if the invite was sent while the bot is online.
+        The relationship you have with the invitee.
     """
 
     __slots__ = ()

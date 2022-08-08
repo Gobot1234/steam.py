@@ -528,7 +528,9 @@ Package
    :members:
    :inherited-members:
 
-.. attributetable:: steam.FetchedPackage()
+.. attributetable:: steam.FetchedPackage
+
+.. autoclass:: steam.FetchedPackage()
    :members:
    :inherited-members:
 
@@ -537,6 +539,13 @@ Package
 .. autoclass:: License()
    :members:
    :inherited-members:
+
+.. attributetable:: FetchedGamePackage
+
+.. autoclass:: FetchedGamePackage()
+   :members:
+   :inherited-members:
+
 
 PriceOverview
 ~~~~~~~~~~~~~~~

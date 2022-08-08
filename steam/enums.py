@@ -548,7 +548,7 @@ class TypeChar(IntEnum):
     T = Type.Chat            #: The character used for :class:`~steam.Type.Chat` (Lobby/group chat).
     L = Type.Chat            #: The character used for :class:`~steam.Type.Chat` (Lobby/group chat).
     c = Type.Clan            #: The character used for :class:`~steam.Type.Clan`.
-    a = Type.AnonUser        #: The character used for :class:`~steam.Type.Invalid`.
+    a = Type.AnonUser        #: The character used for :class:`~steam.Type.AnonUser`.
 
 
 class InstanceFlag(Flags):
@@ -582,8 +582,8 @@ class InstanceFlag(Flags):
 
 class FriendRelationship(IntEnum):
     NONE             = 0  #: The user has no relationship to you.
-    Blocked          = 1  #: The user ignored the invite.
-    RequestRecipient = 2  #: The user has requested to be you.
+    Blocked          = 1  #: The user has been blocked.
+    RequestRecipient = 2  #: The user has requested to be friends with you.
     Friend           = 3  #: The user is friends with you.
     RequestInitiator = 4  #: You have requested to be friends with the user.
     Ignored          = 5  #: You have explicitly blocked this other user from comments/chat/etc.
@@ -829,7 +829,7 @@ class ProfileItemType(IntEnum):
     MyGuides                  = 16  #: A showcase of the profile's owner's guides.
     Achievements              = 17  #: The owner's profile's achievements.
     Greenlight                = 18  #: A greenlight showcase.
-    MyGreenlight              = 19  #: A showcase of a greenlighted game the profiles' owner has made.
+    MyGreenlight              = 19  #: A showcase of a greenlight game the profiles' owner has made.
     Salien                    = 20  #: A salien showcase.
     LoyaltyRewardReactions    = 21  #: A loyalty reward showcase.
     SingleArtworkShowcase     = 22  #: A single artwork showcase.
