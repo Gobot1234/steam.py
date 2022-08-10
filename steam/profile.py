@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -286,25 +287,17 @@ class ProfileShowcase:
         language
             The language to fetch the items in. If ``None``, the current language is used.
         """
-        asset_map: dict[int, dict[tuple[int, int], Asset]] = {}
-        items: list[Item] = []
+        asset_map: defaultdict[int, dict[tuple[int, int], Asset]] = defaultdict(dict)
 
         for slot in self.slots:
             if slot.asset:
-                try:
-                    asset_map[slot.asset._app_id][(slot.asset.class_id, slot.asset.instance_id)] = slot.asset
-                except KeyError:
-                    asset_map[slot.asset._app_id] = {(slot.asset.class_id, slot.asset.instance_id): slot.asset}
+                asset_map[slot.asset._app_id][(slot.asset.class_id, slot.asset.instance_id)] = slot.asset
 
-        for app_id, assets in asset_map.items():
-            for key, description in (await self._state.http.get_item_info(app_id, assets, language)).items():
-                data: trade.Item = {
-                    **description,
-                    **assets[key].to_dict(),
-                    "missing": False,
-                }  # type: ignore  # I don't wanna type out this in full to make this type-safe
-                items.append(Item(self._state, data, self.owner))
-        return items
+        return [
+            Item(self._state, {**description, **assets[key].to_dict(), "missing": False}, self.owner)
+            for app_id, assets in asset_map.items()
+            for key, description in (await self._state.http.get_item_info(app_id, assets, language)).items()
+        ]
 
     async def published_file(
         self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None

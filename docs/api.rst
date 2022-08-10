@@ -578,6 +578,11 @@ Profile
 .. autoclass:: EquippedProfileItems()
     :members:
 
+.. attributetable:: ProfileShowcase
+
+.. autoclass:: ProfileShowcase()
+    :members:
+
 .. attributetable:: Profile
 
 .. autoclass:: Profile()
