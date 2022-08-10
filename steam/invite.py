@@ -55,11 +55,14 @@ class UserInvite(Invite):
     async def accept(self) -> None:
         """Accept the invite request."""
         await self._state.http.accept_user_invite(self.invitee.id64)
-        self._state.user._friends[self.invitee.id64] = self.invitee
 
     async def decline(self) -> None:
         """Decline the invite request."""
         await self._state.http.decline_user_invite(self.invitee.id64)
+
+
+class GroupInvite(Invite):
+    ...
 
 
 class ClanInvite(Invite):
