@@ -634,7 +634,7 @@ class BaseUser(SteamID, Commentable):
         )
 
     def is_commentable(self) -> bool:
-        """Specifies if the user's account is able to be commented on."""
+        """Specifies if the user's account can be commented on."""
         if hasattr(self, "is_friend"):
             return self.comment_permissions in (
                 CommentPrivacyState.Public,
@@ -1069,17 +1069,40 @@ class Message(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
+        emoticon
+            The emoticon to add to this message.
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def remove_emoticon(self, emoticon: Emoticon) -> None:
+        """Removes an emoticon from this message.
+
+        Parameters
+        ----------
+        emoticon
+            The emoticon to remove from this message.
+        """
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def add_sticker(self, sticker: Sticker) -> None:
+        """Adds a sticker to this message.
+
+        Parameters
+        ----------
+        sticker
+            The sticker to add to this message.
+        """
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def remove_sticker(self, sticker: Sticker) -> None:
+        """Adds a sticker to this message.
+
+        Parameters
+        ----------
+        sticker
+            The sticker to remove from this message.
+        """
         raise NotImplementedError()

@@ -127,7 +127,7 @@ class QueryMeta(type):
 
         See Also
         --------
-        :meth:`Client.fetch_server` for an query free version of this.
+        :meth:`Client.fetch_server` for a Query free version of this.
         """
         return Query["str"]("\\gameaddr\\", type=str)
 
@@ -227,8 +227,8 @@ class Query(Generic[T_co], metaclass=QueryMeta):
     # - immutable
     # - based on https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
 
-    # TODO use __invert__ to do some cool manipulation where possible and generally change the dunders cause they make little
-    # sense atm
+    # TODO use __invert__ to do some cool manipulation where possible and generally change the dunders cause they make
+    # little sense atm
     __slots__ = ("_raw", "_type", "_callback")
     _raw: tuple[Query[Any], Operator, T_co] | tuple[str]
     _type: type[T_co] | tuple[type[T_co], ...] | None

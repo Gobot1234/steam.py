@@ -45,7 +45,7 @@ class Image:
     fp
         An image or path-like to pass to :func:`open`.
     spoiler
-        Whether or not to mark the image as a spoiler.
+        Whether to mark the image as a spoiler.
 
     Note
     ----

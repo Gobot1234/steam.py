@@ -395,7 +395,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         ----------
         limit
             The maximum number of events to search through. Default is ``100``. Setting this to ``None`` will fetch all
-            of the clan's events, but this will be a very slow operation.
+            the clan's events, but this will be a very slow operation.
         before
             A time to search for events before.
         after
@@ -562,7 +562,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         content
             The content of the announcement.
         hidden
-            Whether or not the announcement should initially be hidden.
+            Whether the announcement should initially be hidden.
 
         Returns
         -------

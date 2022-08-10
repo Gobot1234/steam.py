@@ -716,7 +716,7 @@ Game
 There are some predefined games which are:
 
 +---------------------------------+-----------------+
-| Game Title                      | Accessed via    |
+| Game Name                       | Accessed via    |
 +=================================+=================+
 | Team Fortress 2                 | ``steam.TF2``   |
 +---------------------------------+-----------------+
@@ -733,8 +733,8 @@ Games can be manually constructed using there app id eg:
 
 .. code-block:: python3
 
-    my_rust_instance = steam.Game(id=252490, title="Rust")
-    # this can then be used for trading a game title is not required for this
+    my_rust_instance = steam.Game(id=252490, name="Rust")
+    # this can then be used for trading a game name is not required for this
     # but it is for setting in game statuses if the game isn't a Steam game.
 
 .. autofunction:: CUSTOM_GAME
