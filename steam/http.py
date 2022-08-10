@@ -807,7 +807,7 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/packagedetails", params=params)
 
-    async def edit_profile(
+    async def edit_profile_info(
         self,
         name: str | None,
         real_name: str | None,
@@ -816,33 +816,33 @@ class HTTPClient:
         country: str | None,
         state: str | None,
         city: str | None,
-        avatar: Image | None,
     ) -> None:
-        if any((name, real_name, url, summary, country, state, city, avatar)):
-            info = await self._client.user.profile_info()
+        info = await self.user.profile_info()
 
-            payload = {
-                "sessionID": self.session_id,
-                "type": "profileSave",
-                "weblink_1_title": "",
-                "weblink_1_url": "",
-                "weblink_2_title": "",
-                "weblink_2_url": "",
-                "weblink_3_title": "",
-                "weblink_3_url": "",
-                "personaName": name or self.user.name,
-                "real_name": real_name or info.real_name,
-                "customURL": url or self.user.community_url,
-                "country": country or info.country_name,
-                "state": state or info.state_name,
-                "city": city or info.city_name,
-                "summary": summary or info.summary,
-            }
+        payload = {
+            "sessionID": self.session_id,
+            "type": "profileSave",
+            "weblink_1_title": "",
+            "weblink_1_url": "",
+            "weblink_2_title": "",
+            "weblink_2_url": "",
+            "weblink_3_title": "",
+            "weblink_3_url": "",
+            "personaName": name or self.user.name,
+            "real_name": real_name or info.real_name,
+            "customURL": url or self.user.community_url,
+            "country": country or info.country_name,
+            "state": state or info.state_name,
+            "city": city or info.city_name,
+            "summary": summary or info.summary,
+        }
 
-            await self.post(URL.COMMUNITY / "my/edit", data=payload)
-        if avatar is not None:
+        await self.post(URL.COMMUNITY / "my/edit", data=payload)
+
+    async def update_avatar(self, avatar: Image) -> None:
+        with avatar:
             payload = aiohttp.FormData()
-            payload.add_field("MAX_FILE_SIZE", str(len(avatar)))
+            payload.add_field("MAX_FILE_SIZE", str(avatar.size))
             payload.add_field("type", "player_avatar_image")
             payload.add_field("sId", str(self.user.id64))
             payload.add_field("sessionid", self.session_id)

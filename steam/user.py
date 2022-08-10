@@ -401,6 +401,7 @@ class ClientUser(_BaseUser):
         state: str | None = None,
         city: str | None = None,
         avatar: Image | None = None,
+        # TODO privacy params, use ums
     ) -> None:
         """Edit the client user's profile. Any values that aren't set will use their defaults.
 
@@ -432,7 +433,11 @@ class ClientUser(_BaseUser):
         :exc:`~steam.HTTPException`
             Editing your profile failed.
         """
-        await self._state.http.edit_profile(name, real_name, url, summary, country, state, city, avatar)
+        if any((name, real_name, url, summary, country, state, city)):
+            await self._state.http.edit_profile_info(name, real_name, url, summary, country, state, city)
+        if avatar is not None:
+            await self._state.http.update_avatar(avatar)
+        # TODO privacy stuff
 
 
 class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"]):
