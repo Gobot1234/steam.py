@@ -371,6 +371,8 @@ UMS: Mapping[str, type[betterproto.Message]] = {
     "Player.GetPrivacySettings#1_Response": player.GetPrivacySettingsResponse,
     "Player.GetDurationControl#1_Request": player.GetDurationControlRequest,
     "Player.GetDurationControl#1_Response": player.GetDurationControlResponse,
+    "PublishedFile.Vote#1_Request": published_file.VoteRequest,
+    "PublishedFile.Vote#1_Response": published_file.VoteResponse,
     "PublishedFile.Subscribe#1_Request": published_file.SubscribeRequest,
     "PublishedFile.Subscribe#1_Response": published_file.SubscribeResponse,
     "PublishedFile.Unsubscribe#1_Request": published_file.UnsubscribeRequest,

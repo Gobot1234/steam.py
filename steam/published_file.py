@@ -401,6 +401,14 @@ class PublishedFile(Commentable, Awardable):
 
         return parents
 
+    async def upvote(self) -> None:
+        """Upvotes this published file."""
+        await self._state.upvote_published_file(self.id, True)
+
+    async def downvote(self) -> None:
+        """Downvotes this published file."""
+        await self._state.upvote_published_file(self.id, False)
+
     async def subscribe(self) -> None:
         """Subscribes to this published file's changes."""
         await self._state.subscribe_to_published_file(self.id)
