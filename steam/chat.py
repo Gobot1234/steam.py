@@ -320,7 +320,6 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
         self._roles: dict[int, Role] = {}
 
     @classmethod
-    @abc.abstractmethod
     async def _from_proto(
         cls,
         state: ConnectionState,
