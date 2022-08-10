@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Coroutine
 from datetime import timedelta
 from operator import attrgetter
@@ -214,7 +215,24 @@ class User(_BaseUser, Messageable["UserMessage"]):
         if trade is not None:
             to_send = [item.to_dict() for item in trade.items_to_send]
             to_receive = [item.to_dict() for item in trade.items_to_receive]
-            resp = await self._state.http.send_trade_offer(self, to_send, to_receive, trade.token, trade.message or "")
+            try:
+                resp = await self._state.http.send_trade_offer(
+                    self, to_send, to_receive, trade.token, trade.message or ""
+                )
+            except HTTPException as e:
+                if e.code == Result.Revoked and (
+                    any(item.owner != self for item in trade.items_to_receive)
+                    or any(item.owner != self._state.user for item in trade.items_to_send)
+                ):
+                    if sys.version_info >= (3, 11):
+                        e.add_note(
+                            "You've probably sent an item isn't either in your inventory or the user's inventory"
+                        )
+                    else:
+                        raise ValueError(
+                            "You've probably sent an item isn't either in your inventory or the user's inventory"
+                        ) from e
+                raise e
             trade._has_been_sent = True
             needs_confirmation = resp.get("needs_mobile_confirmation", False)
             trade._update_from_send(self._state, resp, self, active=not needs_confirmation)

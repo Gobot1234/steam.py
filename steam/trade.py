@@ -690,13 +690,7 @@ class TradeOffer:
             raise ClientException("You cannot accept an offer the ClientUser has made")
         self._check_active()
         assert self.partner is not None
-        try:
-            resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
-        except HTTPException as e:
-            if e.code == Result.Revoked:
-                # check the items owner
-                pass
-            raise e
+        resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
         if resp.get("needs_mobile_confirmation", False):
             for tries in range(5):
                 try:
