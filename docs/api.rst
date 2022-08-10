@@ -694,6 +694,11 @@ Users
     :members:
     :inherited-members:
 
+.. attributetable:: Friend
+
+.. autoclass:: Friend()
+    :members:
+    :inherited-members:
 
 Data-Classes
 ---------------
