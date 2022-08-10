@@ -754,7 +754,7 @@ class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
         from .published_file import PublishedFile
 
         initial = await self._state.fetch_user_published_files(
-            self.user.id64, self.app_id, 0, self.type, self.revision, self.language
+            self.user.id64, self.app_id, 1, self.type, self.revision, self.language
         )
 
         for file in initial.publishedfiledetails:
@@ -763,7 +763,7 @@ class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
                 return
             yield file
 
-        for page in range(31, math.ceil(initial.total / 30)):
+        for page in range(2, math.ceil((initial.total + 30) / 30)):
             msg = await self._state.fetch_user_published_files(
                 self.user.id64, self.app_id, page, self.type, self.revision, self.language
             )
