@@ -8,7 +8,7 @@ from datetime import timedelta
 from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, overload
 
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import Literal, TypeAlias, Unpack
 
 from .abc import SteamID
 from .enums import Enum, GameServerRegion, Type
@@ -165,9 +165,6 @@ class QueryMeta(type):
     def all(cls) -> QueryAll:
         """Fetches any servers. Any operations on this will fail."""
         return QueryAll()
-
-
-from typing_extensions import Unpack
 
 
 class Query(Generic[T_co], metaclass=QueryMeta):
