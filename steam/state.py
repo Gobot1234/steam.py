@@ -1774,6 +1774,7 @@ class ConnectionState(Registerable):
             strip_description_bbcode=True,
             return_reactions=True,
             desired_revision=revision,
+            return_apps=True,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -1903,6 +1904,15 @@ class ConnectionState(Registerable):
             "PublishedFile.RemoveChild",
             publishedfileid=published_file_id,
             child_publishedfileid=child_published_file_id,
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def upvote_published_file(self, published_file_id: int, vote_up: bool) -> None:
+        msg = await self.ws.send_um_and_wait(
+            "PublishedFile.Vote",
+            publishedfileid=published_file_id,
+            vote_up=vote_up,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
