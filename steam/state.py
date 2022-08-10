@@ -1601,13 +1601,14 @@ class ConnectionState(Registerable):
     ) -> tuple[list[GameInfo], list[PackageInfo]]:
         games_to_fetch: list[dict[str, int]] = []
         packages_to_fetch: list[dict[str, int]] = []
-        to_collect: list[int] = []
+        app_access_tokens_to_collect: list[int] = []
+        package_access_tokens_to_collect: list[int] = []
 
         for game_id in game_ids:
             try:
                 games_to_fetch.append({"appid": game_id, "access_token": self.licenses[game_id].access_token})
             except KeyError:
-                to_collect.append(game_id)
+                app_access_tokens_to_collect.append(game_id)
 
         for package_id in package_ids:
             try:
@@ -1615,10 +1616,12 @@ class ConnectionState(Registerable):
                     {"packageid": package_id, "access_token": self.licenses[package_id].access_token}
                 )
             except KeyError:
-                to_collect.append(package_id)
+                package_access_tokens_to_collect.append(package_id)
 
-        if to_collect:
-            fetched_tokens = await self.fetch_manifest_access_tokens(to_collect)
+        if app_access_tokens_to_collect or package_access_tokens_to_collect:
+            fetched_tokens = await self.fetch_manifest_access_tokens(
+                app_access_tokens_to_collect, package_access_tokens_to_collect
+            )
             games_to_fetch.extend(token.to_dict(do_nothing_case) for token in fetched_tokens.app_access_tokens)
             packages_to_fetch.extend(token.to_dict(do_nothing_case) for token in fetched_tokens.package_access_tokens)
 
