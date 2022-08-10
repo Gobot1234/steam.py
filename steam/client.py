@@ -725,7 +725,7 @@ class Client:
         servers = await self.fetch_servers(Query.ip / f"{ip}{f':{port}' if port is not None else ''}", limit=1)
         return servers[0] if servers else None
 
-    async def fetch_servers(self, query: Query[Any], limit: int = 100) -> list[GameServer]:
+    async def fetch_servers(self, query: Query[Any], *, limit: int = 100) -> list[GameServer]:
         """Query game servers.
 
         Parameters
