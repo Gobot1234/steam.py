@@ -200,7 +200,7 @@ class Flags(IntEnum):
         if value == 0:
             # causes flags to be iter(cls) does |= on every value (which is not 0) it always returns UnknownValue
             return super().try_value(value)
-        flags = (enum for enum in cls if enum.value & value == value)
+        flags = (enum for enum in cls if enum.value & value)
         returning_flag = next(flags, None)
         if returning_flag is not None:
             for flag in flags:
@@ -211,11 +211,19 @@ class Flags(IntEnum):
 
     def __or__(self, other: Self | int) -> Self:
         cls = self.__class__
-        return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=self.value | int(other))
+        value = self.value | int(other)
+        try:
+            return cls._value_map_[value]
+        except KeyError:
+            return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=value)
 
     def __and__(self, other: Self | int) -> Self:
         cls = self.__class__
-        return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=self.value & int(other))
+        value = self.value & int(other)
+        try:
+            return cls._value_map_[value]
+        except KeyError:
+            return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=value)
 
     __ror__ = __or__
     __rand__ = __and__
@@ -575,7 +583,7 @@ class InstanceFlag(Flags):
     # 20475 -> 1 | 2 |   | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 16384
     # 20476 ->   |   | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 16384
     # Type.Chat exclusive flags
-    ChatMMSLobby = 1 << 17  #: The Steam ID is for a MMS Lobby.
+    ChatMMSLobby = 1 << 17  #: The Steam ID is for an MMS Lobby.
     ChatLobby    = 1 << 18  #: The Steam ID is for a Lobby.
     ChatClan     = 1 << 19  #: The Steam ID is for a Clan.
 
@@ -909,10 +917,10 @@ class AppFlag(Flags):
     @classmethod
     def from_str(cls, name: str) -> Self:
         types = iter(name.split(","))
-        type = next(types).title()
+        type = next(types).strip().title()
         self = cls[TYPE_TRANSFORM_MAP.get(type, type)]
         for type in types:
-            type = type.title()
+            type = type.strip().title()
             self |= cls[TYPE_TRANSFORM_MAP.get(type, type)]
         return self
 
