@@ -1086,7 +1086,7 @@ class ConnectionState(Registerable):
             try:
                 data = self.patch_user_from_ws(data, friend)
             except (KeyError, TypeError):
-                invitee = await self._maybe_user(user_id64)
+                invitee = await self._maybe_user(steam_id.id64)
                 invite = UserInvite(self, invitee, FriendRelationship.RequestRecipient)
                 return self.dispatch("user_invite", invite)
 
