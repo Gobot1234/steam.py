@@ -7,10 +7,11 @@ import collections
 import logging
 import re
 import weakref
-from collections import ChainMap, deque
+from collections import defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Sequence
 from copy import copy
 from datetime import datetime, timedelta
+from itertools import count
 from operator import attrgetter
 from time import time
 from typing import TYPE_CHECKING, Any
@@ -144,15 +145,21 @@ class ConnectionState(Registerable):
         self._ui_mode: UIMode = kwargs.get("ui_mode", UIMode.Desktop)
         self._flags: PersonaStateFlag = kwargs.get("flags", PersonaStateFlag.NONE)
         self._force_kick: bool = kwargs.get("force_kick", False)
+        self.auto_chunk_chat_groups: bool = kwargs.get("auto_chunk_chat_groups", False)
 
         self.clear()
 
     def clear(self) -> None:
         self._users: weakref.WeakValueDictionary[ID32, User] = weakref.WeakValueDictionary()
         self._trades: dict[int, TradeOffer] = {}
+
         self._groups: dict[ChatGroupID, Group] = {}
         self._clans: dict[ID32, Clan] = {}
         self._clans_by_chat_id: dict[ChatGroupID, Clan] = {}
+        self.chat_group_to_view_id: defaultdict[ChatGroupID, int] = defaultdict(count().__next__)
+        self.active_chat_groups: set[ChatGroupID] = set()
+        self.chat_group_members_waiting: dict[tuple[int, int], asyncio.Future[list[User]]] = {}
+
         self._confirmations: dict[int, Confirmation] = {}
         self.confirmation_generation_locks: dict[str, tuple[asyncio.Lock, datetime]] = {}
         self._confirmations_to_ignore: list[int] = []
@@ -160,15 +167,16 @@ class ConnectionState(Registerable):
         self.invites: dict[ID64, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
         self.stickers: list[ClientSticker] = []
+
         self.polling_trades = False
         self.trade_queue = TradeQueue()
-        self.licenses: dict[int, License] = {}
-        self._manifest_passwords: dict[int, dict[str, str]] = {}
-        self.cs_servers: list[ContentServer] = []
-
         self._trades_to_watch: set[int] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
+
+        self.licenses: dict[int, License] = {}
+        self._manifest_passwords: dict[int, dict[str, str]] = {}
+        self.cs_servers: list[ContentServer] = []
 
         self.handled_friends.clear()
         self.handled_emoticons.clear()
@@ -296,7 +304,7 @@ class ConnectionState(Registerable):
     def get_clan(self, id: ID32) -> Clan | None:
         return self._clans.get(id)
 
-    async def fetch_clan(self, id64: int) -> Clan | None:
+    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True) -> Clan | None:
         msg: MsgProto[chat.GetClanChatRoomInfoResponse] = await self.ws.send_um_and_wait(
             "ClanChatRooms.GetClanChatRoomInfo", steamid=id64
         )
@@ -305,7 +313,9 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-        return await Clan._from_proto(self, msg.body.chat_group_summary)
+        clan = await Clan._from_proto(self, msg.body.chat_group_summary, maybe_chunk=maybe_chunk)
+        self._clans[clan.id] = clan
+        return clan
 
     def get_trade(self, id: int) -> TradeOffer | None:
         return self._trades.get(id)
@@ -613,6 +623,31 @@ class ConnectionState(Registerable):
         elif msg.result != Result.OK:
             raise WSException(msg)
 
+    async def request_chat_group_members(
+        self,
+        chat_group_id: ChatGroupID,
+        view_id: int,
+        client_change_number: int,
+        start: int,
+        stop: int,
+    ) -> list[User]:
+        print(f"requesting chat group members {chat_group_id=}, {view_id=}, {client_change_number=}, {start=}, {stop=}")
+        self.chat_group_members_waiting[(view_id, client_change_number)] = future = asyncio.Future()
+        await self.ws.send_um(
+            "ChatRoom.UpdateMemberListView",
+            chat_group_id=chat_group_id,
+            view_id=view_id,
+            start=start,
+            end=stop,
+            client_changenumber=client_change_number,
+        )
+        return await future
+
+    def handle_member_list_view_update(self, msg: MsgProto[chat.MemberListViewUpdatedNotification]):
+        self.chat_group_members_waiting[msg.body.view_id, msg.body.view.client_changenumber].set_result(
+            [self._store_user(self.patch_user_from_ws({}, member.persona)) for member in msg.body.members]
+        )
+
     async def edit_role_name(self, chat_group_id: ChatGroupID, role_id: int, name: str) -> None:
         msg = await self.ws.send_um_and_wait(
             "ChatRoom.RenameRole", chat_group_id=chat_group_id, role_id=role_id, name=name
@@ -629,7 +664,7 @@ class ConnectionState(Registerable):
             "ChatRoom.ReplaceRoleActions",
             chat_group_id=chat_group_id,
             role_id=role_id,
-            actions=chat.RoleActions(**permissions.to_dict()),
+            actions=permissions.to_dict(),
         )
         if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
@@ -857,6 +892,8 @@ class ConnectionState(Registerable):
             await self.handle_user_message(msg)
         elif name == "FriendMessagesClient.MessageReaction":
             await self.handle_user_message_reaction(msg)
+        elif name == "ChatRoomClient.NotifyMemberListViewUpdated":
+            self.handle_member_list_view_update(msg)
         else:
             log.debug("Got an event %r that we don't handle %r", msg.header.body.job_name_target, msg.body)
 
@@ -1007,22 +1044,25 @@ class ConnectionState(Registerable):
         name = msg.header.body.job_name_target
         if name == "ChatRoom.GetMyChatRoomGroups":
             msg: MsgProto[chat.GetMyChatRoomGroupsResponse] = msg
-            for group in msg.body.chat_room_groups:
-                if group.group_summary.clanid:  # received a clan
-                    clan = await Clan._from_proto(self, group.group_summary)
+            for chat_group in msg.body.chat_room_groups:
+                if chat_group.group_summary.clanid:  # received a clan
+                    clan = await Clan._from_proto(self, chat_group.group_summary)
                     clan._update_channels(
-                        group.user_chat_group_state.user_chat_room_state,
-                        default_channel_id=group.group_summary.default_chat_id,
+                        chat_group.user_chat_group_state.user_chat_room_state,
+                        default_channel_id=chat_group.group_summary.default_chat_id,
                     )
                     self._clans[clan.id] = clan
                     assert clan._id is not None
                     self._clans_by_chat_id[clan._id] = clan
                 else:  # else it's a group
-                    group = await Group._from_proto(self, group.group_summary)
+                    group = await Group._from_proto(self, chat_group.group_summary)
+                    group._update_channels(
+                        chat_group.user_chat_group_state.user_chat_room_state,
+                        default_channel_id=chat_group.group_summary.default_chat_id,
+                    )
                     self._groups[group.id] = group
 
             self.handled_chat_groups.set()  # signal to process_group_members that we are ready
-            await self.handled_group_members.wait()  # ensure the members are ready
             await self.handled_friends.wait()  # ensure friend cache is ready
             await self.handled_emoticons.wait()  # ensure emoticon cache is ready
             await self.handled_licenses.wait()  # ensure licenses are ready
@@ -1137,19 +1177,19 @@ class ConnectionState(Registerable):
             self.user._friends = {user.id64: Friend(self, user) for user in await self._maybe_users(client_user_friends)}  # type: ignore
             self.handled_friends.set()
 
-    @register(EMsg.ClientFriendsGroupsList)
-    async def process_group_members(self, msg: MsgProto[friends.CMsgClientFriendsGroupsList]):
-        await self.handled_chat_groups.wait()
-        members = await self._maybe_users(m.ul_steam_id for m in msg.body.memberships)
-        for membership in msg.body.memberships:
-            for member in members:
-                if member and member.id64 == membership.ul_steam_id:
-                    try:
-                        self._groups[membership.n_group_id]._members[member.id64] = member
-                    except KeyError:
-                        log.debug(f"Somehow got an unknown group {membership.n_group_id} and member {member.id64}")
+    async def set_chat_group_active(self, chat_group_id: ChatGroupID) -> chat.GroupState:
+        self.active_chat_groups.add(chat_group_id)
+        proto: MsgProto[chat.SetSessionActiveChatRoomGroupsResponse] = await self.ws.send_um_and_wait(
+            "ChatRoom.SetSessionActiveChatRoomGroups",
+            chat_group_ids=list(self.active_chat_groups),
+            chat_groups_data_requested=[chat_group_id],
+        )
 
-        self.handled_group_members.set()
+        try:
+            (state,) = proto.body.chat_states
+        except ValueError:
+            raise WSForbidden(proto) from None
+        return state
 
     async def fetch_chat_group_roles(self, chat_group_id: ChatGroupID) -> list[chat.Role]:
         msg: MsgProto[chat.GetRolesResponse] = await self.ws.send_um_and_wait(
@@ -1417,6 +1457,7 @@ class ConnectionState(Registerable):
 
         user_counts = msg.body.user_counts
         name_info = msg.body.name_info
+
         if user_counts or name_info:
             before = copy(clan)
         if user_counts:

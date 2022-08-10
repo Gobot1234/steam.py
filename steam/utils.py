@@ -23,6 +23,7 @@ from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable,
 from datetime import datetime, timezone
 from inspect import getmembers, isawaitable
 from io import BytesIO
+from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
 from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, cast, overload
@@ -47,8 +48,6 @@ if TYPE_CHECKING:
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
 _PROTOBUF_MASK = 0x80000000
-
-# from ValvePython/steam
 
 
 def is_proto(emsg: int) -> bool:
@@ -521,6 +520,13 @@ def chunk(iterable: Iterable[_T], size: int) -> Generator[list[_T], None, None]:
     yield chunk
 
 
+def _int_chunks(len: int, size: int) -> Generator[tuple[int, int], None, None]:
+    idxs = range(0, len, size)
+    second = iter(idxs)
+    next(second)
+    yield from zip_longest(idxs, second, fillvalue=len)
+
+
 def update_class(
     instance: Any,
     new_instance: Any,
@@ -699,15 +705,15 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
         # fmt: on
 
 
-KT = TypeVar("KT")
-VT = TypeVar("VT")
+_KT = TypeVar("_KT")
+_VT = TypeVar("_VT")
 MISSING: Final[Any] = object()
 
 
-class ChainMap(collections.ChainMap[KT, VT] if TYPE_CHECKING else collections.ChainMap):
-    # this is different to the standard library's ChainMap because it is always O(n)
+class ChainMap(collections.ChainMap[_KT, _VT] if TYPE_CHECKING else collections.ChainMap):
+    # this is different to the standard library's ChainMap because it is always O(n),
     # keys should be unique between maps
-    def __delitem__(self, key: KT) -> None:
+    def __delitem__(self, key: _KT) -> None:
         for map in self.maps:
             try:
                 del map[key]
@@ -716,7 +722,7 @@ class ChainMap(collections.ChainMap[KT, VT] if TYPE_CHECKING else collections.Ch
                 pass
         raise KeyError(key)
 
-    def popitem(self) -> tuple[KT, VT]:
+    def popitem(self) -> tuple[_KT, _VT]:
         for map in self.maps:
             try:
                 return map.popitem()
@@ -724,7 +730,7 @@ class ChainMap(collections.ChainMap[KT, VT] if TYPE_CHECKING else collections.Ch
                 pass
         raise KeyError()
 
-    def pop(self, key: KT, default: VT = MISSING) -> VT:
+    def pop(self, key: _KT, default: _T = MISSING) -> _VT | _T:
         for map in self.maps:
             try:
                 return map.pop(key)

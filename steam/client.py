@@ -92,6 +92,9 @@ class Client:
         Whether to forcefully kick any other playing sessions on connect. Defaults to ``False``.
     language
         The language to use when interacting with the API.
+    auto_chunk_chat_groups
+        Whether to automatically call chunk on clans and groups filling :attr:`ChatGroup.members`. Setting this to
+        ``True`` isn't recommend unless you have a good internet connection and good hardware.
     """
 
     # TODO
@@ -113,6 +116,7 @@ class Client:
         flags: PersonaStateFlag | None = PersonaStateFlag.NONE,
         force_kick: bool = False,
         language: Language = Language.English,
+        auto_chunk_chat_groups: bool = False,
     ):
         ...
 

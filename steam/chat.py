@@ -10,7 +10,7 @@ import abc
 import asyncio
 from collections.abc import Coroutine, Sequence
 from datetime import datetime
-from operator import attrgetter
+from random import randint
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from typing_extensions import Self, TypeAlias
@@ -18,7 +18,7 @@ from typing_extensions import Self, TypeAlias
 from . import utils
 from .abc import Channel, Message, SteamID
 from .enums import ChatMemberRank, Type
-from .errors import WSForbidden
+from .errors import WSException, WSForbidden
 from .game import StatefulGame
 from .iterators import ChatHistoryIterator
 from .protobufs import MsgProto, chat
@@ -32,9 +32,9 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
     from .image import Image
-    from .message import Authors, ClanMessage, GroupMessage, UserMessage
+    from .message import Authors, ClanMessage, GroupMessage
     from .state import ConnectionState
-    from .types.id import ID64, ChannelID, ChatGroupID
+    from .types.id import ID32, ID64, ChannelID, ChatGroupID
 
 
 ChatT = TypeVar("ChatT", bound="Chat[Any]", covariant=True)
@@ -54,16 +54,18 @@ class Member(WrapsUser):
     clan: Clan | None
     group: Group | None
 
-    def __init__(self, state: ConnectionState, user: User, proto: chat.Member) -> None:
+    def __init__(
+        self, state: ConnectionState, chat_group: ChatGroup[Any, Any], user: User, member: chat.Member
+    ) -> None:
         super().__init__(state, user)
         self.clan = None
         self.group = None
-        self._update(proto)
+        self._update(member)
 
-    def _update(self, proto: chat.Member) -> None:
-        self.rank = ChatMemberRank.try_value(proto.rank)
-        self._role_ids = tuple(proto.role_ids)
-        self.kick_expires_at = DateTime.from_timestamp(proto.time_kick_expire)
+    def _update(self, member: chat.Member) -> None:
+        self.rank = ChatMemberRank.try_value(member.rank)
+        self._role_ids = tuple(member.role_ids)
+        self.kick_expires_at = DateTime.from_timestamp(member.time_kick_expire)
 
     @property
     def roles(self) -> list[Role]:
@@ -93,6 +95,9 @@ class ChatMessage(Message):
         self.created_at = DateTime.from_timestamp(proto.timestamp)
 
     async def fetch_reaction(self, emoticon: Emoticon | Sticker) -> list[MessageReaction]:
+        """Fetches the reactions to this message with a given emoticon."""
+        chat_group = self.clan or self.group
+        assert chat_group is not None
         is_emoticon = isinstance(emoticon, Emoticon)
         reactors = await self._state.fetch_message_reactors(
             *self.channel._location,
@@ -103,8 +108,8 @@ class ChatMessage(Message):
         )
 
         reaction = utils.find(
-            lambda r: (r.emoticon or r.sticker).name == emoticon.name, self.partial_reactions
-        )  # type: ignore
+            lambda r: (r.emoticon or r.sticker).name == emoticon.name, self.partial_reactions  # type: ignore
+        )
         assert reaction
         return [
             MessageReaction(
@@ -112,9 +117,9 @@ class ChatMessage(Message):
                 self,
                 reaction.emoticon,
                 reaction.sticker,
-                user=reactor,
+                user=chat_group._members.get(reactor) or SteamID(reactor),
             )
-            for reactor in await self._state._maybe_users(reactors)
+            for reactor in reactors
         ]
 
     async def fetch_reactions(self) -> list[MessageReaction]:
@@ -225,10 +230,9 @@ class Chat(Channel[ChatMessageT]):
             self.last_message = message_cls(proto, self, self._state.get_user(steam_id.id) or steam_id)  # type: ignore
 
     def __repr__(self) -> str:
-        cls = self.__class__
         attrs = ("name", "id", "group" if self.group is not None else "clan", "position")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{cls.__name__} {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: object) -> bool:
         return self._location == other._location if isinstance(other, Chat) else NotImplemented
@@ -260,31 +264,45 @@ class Chat(Channel[ChatMessageT]):
     #     await self._state.edit_channel(*self._location, name)
 
 
+# class SteamIDMember(SteamID):  # TODO?
+#     ...
+
+
 class ChatGroup(SteamID, Generic[MemberT, ChatT]):
+    """Base class for :class:`steam.Clan` and :class:`steam.Group`."""
+
     __slots__ = (
         "name",
-        "top_members",
+        "_id",
         "game",
-        "owner",
         "tagline",
         "avatar_url",
         "active_member_count",
+        "chunked",
         "_state",
         "_members",
+        "_partial_members",
+        "_owner_id",
+        "_top_members",
         "_channels",
         "_default_channel_id",
         "_roles",
         "_default_role_id",
     )
     name: str
-    top_members: Sequence[MemberT | SteamID]
-    game: StatefulGame
-    owner: User
+    _id: ChatGroupID
+    game: StatefulGame | None
+    owner: MemberT | SteamID
     tagline: str
     avatar_url: str
+    active_member_count: int
+    chunked: bool
     _state: ConnectionState
 
-    _members: dict[ID64, MemberT]
+    _members: dict[ID32, MemberT]
+    _owner_id: ID32
+    _top_members: list[ID32]
+    _partial_members: dict[ID32, chat.Member]  # deleted after _members is populated (if chunked)
 
     _channels: dict[int, ChatT]
     _default_channel_id: int
@@ -292,23 +310,55 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
     _roles: dict[int, Role]
     _default_role_id: int
 
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.chunked = False
+        self.game: StatefulGame | None = None
+        self._members = {}
+        self._partial_members = {}
+        self._channels: dict[int, ChatT] = {}
+        self._roles: dict[int, Role] = {}
+
     @classmethod
     @abc.abstractmethod
     async def _from_proto(
         cls,
         state: ConnectionState,
         proto: chat.GetChatRoomGroupSummaryResponse,
+        *,
+        id: ID32 | ChatGroupID | None = None,
+        maybe_chunk: bool = True,
     ) -> Self:
-        raise NotImplemented
+        self = cls(state, id if id is not None else proto.chat_group_id)
+        self.name = proto.chat_group_name
+        self._id = proto.chat_group_id
+        self.active_member_count = proto.active_member_count
+        self._owner_id = proto.accountid_owner
+        self._top_members = proto.top_members
+        self.tagline = proto.chat_group_tagline
+        self.game = StatefulGame(state, id=proto.appid) if proto.appid else self.game
 
-    @property
-    @abc.abstractmethod
-    def _id(self) -> ChatGroupID:
-        raise NotImplementedError
+        self._default_role_id = proto.default_role_id
+        self._update_channels(proto.chat_rooms, default_channel_id=proto.default_chat_id)
 
-    @_id.setter
-    def _id(self, value: ChatGroupID) -> None:
-        raise NotImplementedError
+        if maybe_chunk:
+            try:
+                group_state = await self._state.set_chat_group_active(proto.chat_group_id)
+            except WSException:
+                pass
+            else:
+                self._partial_members = {member.accountid: member for member in group_state.members}
+                self._roles = {
+                    role.role_id: Role(self._state, self, role, permissions)  # type: ignore
+                    for role in group_state.header_state.roles
+                    for permissions in group_state.header_state.role_actions
+                    if permissions.role_id == role.role_id
+                }
+
+            if self._state.auto_chunk_chat_groups:
+                await self.chunk()
+
+        return self
 
     def _update_channels(
         self, channels: list[chat.State] | list[chat.ChatRoomState], *, default_channel_id: int | None = None
@@ -328,7 +378,7 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
 
     def _update_header_state(self, proto: chat.GroupHeaderState) -> None:
         self.name = proto.chat_name
-        self.owner = self._state.get_user(proto.accountid_owner) or self.owner
+        self._owner_id = proto.accountid_owner
         self.game = StatefulGame(self._state, id=proto.appid)
         self.tagline = proto.tagline
         self.avatar_url = utils._get_avatar_url(proto.avatar_sha)
@@ -337,21 +387,6 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
             for role_action in proto.role_actions:
                 if role.role_id == role_action.role_id:
                     self._roles[role.role_id] = Role(self._state, self, role, role_action)  # type: ignore
-
-    async def _populate_roles(self, actions: list[chat.RoleActions]) -> None:
-        if self._id is None:
-            return
-        try:
-            roles = await self._state.fetch_chat_group_roles(self._id)
-        except WSForbidden:
-            pass
-        else:
-            self._roles = {
-                role.role_id: Role(self._state, self, role, permissions)  # type: ignore
-                for role in roles
-                for permissions in actions
-                if permissions.role_id == role.role_id
-            }
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "universe", "instance")
@@ -374,12 +409,21 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
         id64
             The 64 bit ID of the member to get.
         """
-        return self._members.get(id64)
+        return self._members.get(id64 & 0xFFFFFFFF)  # TODO consider just passing ID32
+
+    @property
+    def owner(self):
+        return self._members.get(self._owner_id) or SteamID(self._owner_id)
+
+    @property
+    def top_members(self) -> Sequence[MemberT | SteamID]:
+        """A list of the chat group's top members."""
+        return [(self._members.get(id) or SteamID(id)) for id in self._top_members]
 
     @property
     def me(self) -> MemberT:
         """The client user's account in this chat group."""
-        return self._members[self._state.user.id64]
+        return self._members[self._state.user.id]
 
     @property
     def channels(self) -> Sequence[ChatT]:
@@ -421,21 +465,14 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
         """The group's default role."""
         return self._roles[self._default_role_id]
 
+    @abc.abstractmethod
     async def chunk(self) -> Sequence[MemberT]:
         """Get a list of all members in the group."""
-        assert self._id is not None
-        return
-        state = await self._state.chunk_chat_group_members(self._id, 1_000_000)
-        print(len(state.members))
-        self._members: dict[ID64, MemberT] = {}
-        member_cls: type[MemberT] = self.__class__.__orig_bases__[0].__args__[0]  # type: ignore
-        users = await self._state._maybe_users(utils.make_id64(member.accountid) for member in state.members)
-
-        for member, user in zip(state.members, users):
-            self._members[user.id64] = member_cls(self._state, user, member)
+        self.chunked = True
+        del self._partial_members
         return self.members
 
-    async def search(self, name: str):
+    async def search(self, name: str) -> list[MemberT]:
         """Search for members in the chat group.
 
         Parameters
@@ -443,19 +480,22 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
         name
             The name of the member to search for.
         """
-        assert self._id is not None
+        search_id = randint(0, 2**64)
         msg: MsgProto[chat.SearchMembersResponse] = await self._state.ws.send_um_and_wait(
             "ChatRoom.SearchMembers",
             chat_group_id=self._id,
             search_text=name,
-            max_results=10,
+            # search_id=search_id,  # TODO test if required
         )
-        member_cls: type[MemberT] = self.__class__.__orig_bases__[0].__args__[0]  # type: ignore
-        print(msg)
-        return [
-            member_cls(self._state, User(self._state, self._state.patch_user_from_ws({}, member.persona)), member)
-            for member in msg.body.matching_members
+
+        if self.chunked:
+            return [self._members[user.accountid] for user in msg.body.matching_members]
+
+        member_cls: type[MemberT] = self.__class__.__orig_class__.__args__[0]  # type: ignore
+        users = [
+            User(self._state, self._state.patch_user_from_ws({}, user.persona)) for user in msg.body.matching_members
         ]
+        return [member_cls(self._state, self, user, self._partial_members[user.id]) for user in users]
 
     async def invite(self, user: User) -> None:
         """Invites a :class:`~steam.User` to the chat group.

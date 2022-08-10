@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import re
 import warnings
+from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, TypeVar, overload
 
@@ -22,7 +23,6 @@ from .event import Announcement, Event
 from .game import Game, StatefulGame
 from .iterators import AnnouncementsIterator, EventIterator
 from .protobufs import chat
-from .role import Role
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -50,8 +50,8 @@ class ClanMember(Member):
     group: None
     clan: Clan
 
-    def __init__(self, state: ConnectionState, user: User, clan: Clan, proto: chat.Member):
-        super().__init__(state, user, proto)
+    def __init__(self, state: ConnectionState, clan: Clan, user: User, proto: chat.Member):
+        super().__init__(state, clan, user, proto)
         self.clan = clan
 
 
@@ -113,7 +113,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         "admins",
         "mods",
         "community_url",
-        "_id",
+        "is_game_clan",
     )
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
@@ -124,6 +124,8 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     # V1
     # Clan.headline
     # Clan.summary
+    # Clan.flags https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L526
+    # or more likely https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L3177
 
     content: str
     created_at: datetime | None
@@ -139,17 +141,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Clan)
         self._state = state
-
-        self._id: ChatGroupID | None = None
-        self.tagline: str | None = None
-        self.game: StatefulGame | None = None
-        self.owner: User | None = None
-        self.active_member_count: int | None = None
-        self.top_members: list[User | None] = []
-        self._channels: dict[int, ClanChannel] = {}
-        self._default_channel_id: int | None = None
-        self._roles: dict[int, Role] = {}
-        self._default_role_id: int | None = None
 
     async def __ainit__(self) -> None:
         resp = await self._state.http._session.get(super().community_url)  # type: ignore
@@ -235,21 +226,52 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         cls,
         state: ConnectionState,
         proto: chat.GetChatRoomGroupSummaryResponse,
+        *,
+        maybe_chunk: bool = True,
     ) -> Self:
-        self = await cls(state, proto.clanid)
+        self = await super()._from_proto(state, proto, id=proto.clanid, maybe_chunk=maybe_chunk)
+        return await self
 
-        self._id = proto.chat_group_id
-        self.tagline = proto.chat_group_tagline or None
-        self.active_member_count = proto.active_member_count
-        self.game = StatefulGame(self._state, id=proto.appid) if proto.appid else self.game
+    # TODO properties for admins and mods when chunked?
 
-        self.owner, *self.top_members = await self._state._maybe_users(
-            [utils.make_id64(u) for u in [proto.accountid_owner] + proto.top_members]
-        )
+    async def chunk(self) -> Sequence[ClanMember]:
+        self._members = dict.fromkeys(self._partial_members)  # type: ignore
+        if len(self._partial_members) <= 100:
+            # TODO might be if self.flags & ClanFlags.Large (2)?
+            for id, member in self._partial_members.items():
+                user = self._state.get_user(id)
+                if user is None:
+                    await asyncio.sleep(0)
+                    user = await self._state._maybe_user(utils.make_id64(id))  # TODO maybe users
+                member = ClanMember(self._state, self, user, member)
+                self._members[member.id] = member
+            return await super().chunk()
 
-        await self._populate_roles(proto.role_actions)
-        self._default_role_id = proto.default_role_id
-        return self
+        # these actually need fetching
+        view_id = self._state.chat_group_to_view_id[self._id]
+        users: dict[ID32, User] = {
+            user.id: user
+            for users in await asyncio.gather(
+                *(
+                    self._state.request_chat_group_members(
+                        self._id,
+                        view_id,
+                        client_change_number,
+                        start,
+                        stop,
+                    )
+                    for client_change_number, (start, stop) in enumerate(
+                        utils._int_chunks(len(self._partial_members), 100)
+                    )
+                )
+            )
+            for user in users
+        }
+        for id, member in self._partial_members.items():
+            member = ClanMember(self._state, self, users[id], member)
+            self._members[member.id] = member
+
+        return await super().chunk()
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
@@ -266,28 +288,24 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         This can be a very slow operation due to the rate limits on this endpoint.
         """
 
-        def process(resp: str) -> BeautifulSoup:
-            soup = BeautifulSoup(resp, HTML_PARSER)
-            for s in soup.find_all("div", id="memberList"):
-                for user in s.find_all("div", class_="member_block"):
-                    ret.append(SteamID(user["data-miniprofile"]))
-
-            return soup
-
-        async def getter(i: int) -> None:
+        async def getter(i: int) -> BeautifulSoup:
             try:
                 resp = await self._state.http.get(
                     f"{self.community_url}/members", params={"p": i + 1, "content_only": "true"}
                 )
             except HTTPException:
                 await asyncio.sleep(20)
-                await getter(i)
+                return await getter(i)
             else:
-                process(resp)
+                soup = BeautifulSoup(resp, HTML_PARSER)
+                for s in soup.find_all("div", id="memberList"):
+                    for user in s.find_all("div", class_="member_block"):
+                        ret.append(SteamID(user["data-miniprofile"]))
+
+                return soup
 
         ret: list[SteamID] = []
-        resp = await self._state.http.get(f"{self.community_url}/members", params={"p": 1, "content_only": "true"})
-        soup = process(resp)
+        soup = await getter(0)
         number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
         await asyncio.gather(*(getter(i) for i in range(1, number_of_pages)))
         return ret
@@ -314,13 +332,14 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         warnings.warn("Clan.icon_url is deprecated, use Clan.avatar_url instead", DeprecationWarning, stacklevel=2)
         return self.avatar_url
 
-    async def join(self) -> None:
+    async def join(self, *, invite_code: str | None = None) -> None:
         """Joins the clan."""
         await self._state.http.join_clan(self.id64)
-        await super().join()
+        await super().join(invite_code=invite_code)
 
     async def leave(self) -> None:
         """Leaves the clan."""
+        await super().leave()
         await self._state.http.leave_clan(self.id64)
 
     # event/announcement stuff

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import Self
 
 if TYPE_CHECKING:
+    from .chat import Member
     from .clan import Clan
     from .group import Group
     from .protobufs import chat
@@ -24,7 +25,7 @@ class Role:
     def __init__(self, state: ConnectionState, group: Clan | Group, role: chat.Role, permissions: chat.RoleActions):
         self._state = state
         self.id = int(role.role_id)
-        self.name = role.name
+        self.name = role.name[len("#ChatRoomRole_") :]  # str.removeprefix
         self.ordinal = role.ordinal
 
         from .clan import Clan
@@ -38,20 +39,18 @@ class Role:
         self.permissions = RolePermissions(permissions)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} id={self.id} name={self.id}>"
+        return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
-    # @property
-    # def members(self) -> list[Member]:
-    #     if self.clan:
-    #         return self.clan.members
-    #     assert self.group is not None
-    #     return [m for m in self.group.members if self in m.roles]
+    @property
+    def members(self) -> list[Member]:
+        chat_group = self.clan or self.group
+        assert chat_group is not None
+        return [m for m in chat_group.members if self in m.roles]
 
     async def edit(self, *, name: str | None = None, permissions: RolePermissions | None = None) -> None:
         chat_group = self.group or self.clan
         assert chat_group is not None
         chat_group_id = chat_group._id
-        assert chat_group_id is not None
         if name is not None:
             await self._state.edit_role_name(self.id, chat_group_id, name=name)
         if permissions is not None:
@@ -61,7 +60,6 @@ class Role:
         chat_group = self.group or self.clan
         assert chat_group is not None
         chat_group_id = chat_group._id
-        assert chat_group_id is not None
         await self._state.delete_role(self.id, chat_group_id)
 
 
@@ -96,7 +94,7 @@ class RolePermissions:
 
     __copy__ = copy
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, bool]:
         return {
             "can_kick": self.kick,
             "can_ban": self.ban_members,
