@@ -118,6 +118,9 @@ class GetOwnedGamesResponseGame(betterproto.Message):
     playtime_windows_forever: int = betterproto.int32_field(8)
     playtime_mac_forever: int = betterproto.int32_field(9)
     playtime_linux_forever: int = betterproto.int32_field(10)
+    rtime_last_played: int = betterproto.uint32_field(11)
+    capsule_filename: str = betterproto.string_field(12)
+    sort_as: str = betterproto.string_field(13)
 
 
 @dataclass(eq=False, repr=False)

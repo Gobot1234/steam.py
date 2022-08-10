@@ -654,6 +654,8 @@ class UserGame(StatefulGame):
         The total amount of time the user has played the game on macOS.
     playtime_linux
         The total amount of time the user has played the game on Linux.
+    last_played_at
+        The time the user last played this game at.
     """
 
     __slots__ = (
@@ -663,6 +665,7 @@ class UserGame(StatefulGame):
         "playtime_mac_os",
         "playtime_linux",
         "icon_url",
+        "last_played_at",
         "_stats_visible",
     )
 
@@ -679,6 +682,7 @@ class UserGame(StatefulGame):
             f"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{self.id}/"
             f"{proto.img_icon_url}.jpg"
         )
+        self.last_played_at = DateTime.from_timestamp(proto.rtime_last_played)
 
         self._stats_visible = proto.has_community_visible_stats
 
