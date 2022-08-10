@@ -430,8 +430,6 @@ class Profile(EquippedProfileItems, ProfileCustomisation):
 class FriendProfile(ProfileInfo, EquippedProfileItems, ProfileCustomisation):
     """Represents a friend's complete profile."""
 
-    __slots__ = ()
-
     def __init__(
         self, equipped_items: EquippedProfileItems, info: ProfileInfo, customisation_info: ProfileCustomisation
     ):

@@ -160,6 +160,7 @@ class MessageReaction(PartialMessageReaction):
 
 
 class BaseEmoticon(_IOMixin):
+    __slots__ = ("_state", "name")
     url: str
 
     def __init__(self, state: ConnectionState, name: str):

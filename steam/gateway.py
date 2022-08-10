@@ -117,8 +117,6 @@ class WebSocketClosure(Exception):
 
 
 class CMServerList(AsyncIterator[CMServer]):
-    __slots__ = ("cell_id",)
-
     def __init__(self, state: ConnectionState, first_cm_to_try: CMServer | None = None):
         super().__init__(state)
         self.cell_id = 0

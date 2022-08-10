@@ -394,8 +394,6 @@ class TradesIterator(AsyncIterator["TradeOffer"]):
 
 
 class DMChannelHistoryIterator(AsyncIterator["UserMessage"]):
-    __slots__ = ("participant",)
-
     def __init__(
         self,
         channel: DMChannel,
@@ -476,8 +474,6 @@ ChatT = TypeVar("ChatT", bound="Chat[Any]", covariant=True)
 
 
 class ChatHistoryIterator(AsyncIterator[ChatMessageT], Generic[ChatMessageT, ChatT]):
-    __slots__ = ("group",)
-
     def __init__(
         self,
         channel: ChatT,

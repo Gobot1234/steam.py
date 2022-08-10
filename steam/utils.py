@@ -598,6 +598,8 @@ class DateTime:
 
 
 class AsyncInit(metaclass=abc.ABCMeta):
+    __slots__ = ()
+
     @abc.abstractmethod
     async def __ainit__(self) -> None:
         ...
