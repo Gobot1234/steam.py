@@ -24,18 +24,6 @@ TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 try:
     import orjson
-
-    JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads
-
-    def dumps(
-        obj: Any,
-        *,
-        __func: Callable[[Any], bytes] = orjson.dumps,
-        __decoder: Callable[[bytes], str] = bytes.decode,
-    ) -> str:
-        return __decoder(__func(obj))
-
-    JSON_DUMPS: Final = dumps
 except ModuleNotFoundError:
     import json
 
@@ -47,6 +35,18 @@ except ModuleNotFoundError:
         __func: Callable[..., str] = json.dumps,
     ) -> str:
         return __func(obj, separators=(",", ":"), ensure_ascii=True)
+
+    JSON_DUMPS: Final = dumps
+else:
+    JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads
+
+    def dumps(
+        obj: Any,
+        *,
+        __func: Callable[[Any], bytes] = orjson.dumps,
+        __decoder: Callable[[bytes], str] = bytes.decode,
+    ) -> str:
+        return __decoder(__func(obj))
 
     JSON_DUMPS: Final = dumps
 
