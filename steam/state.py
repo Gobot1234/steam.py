@@ -631,7 +631,6 @@ class ConnectionState(Registerable):
         start: int,
         stop: int,
     ) -> list[User]:
-        print(f"requesting chat group members {chat_group_id=}, {view_id=}, {client_change_number=}, {start=}, {stop=}")
         self.chat_group_members_waiting[(view_id, client_change_number)] = future = asyncio.Future()
         await self.ws.send_um(
             "ChatRoom.UpdateMemberListView",
