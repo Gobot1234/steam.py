@@ -74,3 +74,16 @@ class ClientGetFriendsWhoPlayGameResponse(StructMessage):
             self.friends = [io.read_u64() for _ in range(io.read_u32())]
 
         return self
+
+
+# used in ext._gc.Client.buy_item
+class ClientMicroTxnAuthorize(StructMessage):
+    def __init__(self, order_id: int):
+        self.order_id = order_id
+        self.code = 1
+
+    def __bytes__(self) -> bytes:
+        with StructIO() as io:
+            io.write_u64(self.order_id)
+            io.write_i32(self.code)
+            return io.buffer

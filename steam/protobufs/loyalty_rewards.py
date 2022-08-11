@@ -65,12 +65,12 @@ class AddReactionResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BatchedQueryRewardItemsRequest(betterproto.Message):
-    requests: list["QueryRewardItemsRequest"] = betterproto.message_field(1)
+    requests: "list[QueryRewardItemsRequest]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class BatchedQueryRewardItemsResponse(betterproto.Message):
-    responses: list["BatchedQueryRewardItemsResponseResponse"] = betterproto.message_field(1)
+    responses: "list[BatchedQueryRewardItemsResponseResponse]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -86,7 +86,7 @@ class GetActivePurchaseBonusesRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetActivePurchaseBonusesResponse(betterproto.Message):
-    bonuses: list["PurchaseBonus"] = betterproto.message_field(1)
+    bonuses: "list[PurchaseBonus]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -96,7 +96,7 @@ class GetEligibleAppsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetEligibleAppsResponse(betterproto.Message):
-    apps: list["GetEligibleAppsResponseEligibleApp"] = betterproto.message_field(1)
+    apps: "list[GetEligibleAppsResponseEligibleApp]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -129,7 +129,7 @@ class GetReactionConfigRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetReactionConfigResponse(betterproto.Message):
-    reactions: list["GetReactionConfigResponseReactionConfig"] = betterproto.message_field(3)
+    reactions: "list[GetReactionConfigResponseReactionConfig]" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -154,12 +154,12 @@ class GetReactionsResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetReactionsSummaryForUserResponse(betterproto.Message):
-    total: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(1)
-    user_reviews: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(2)
-    ugc: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(3)
-    profile: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(4)
-    forum_topics: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(5)
-    comments: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(6)
+    total: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(1)
+    user_reviews: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(2)
+    ugc: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(3)
+    profile: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(4)
+    forum_topics: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(5)
+    comments: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(6)
     total_points_given: int = betterproto.int64_field(7)
     total_points_received: int = betterproto.int64_field(8)
     total_points_given: int = betterproto.int64_field(9)
@@ -218,7 +218,7 @@ class QueryRewardItemsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class QueryRewardItemsResponse(betterproto.Message):
-    definitions: list["Definition"] = betterproto.message_field(1)
+    definitions: "list[Definition]" = betterproto.message_field(1)
     total_count: int = betterproto.int32_field(2)
     count: int = betterproto.int32_field(3)
     next_cursor: str = betterproto.string_field(4)

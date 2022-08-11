@@ -60,7 +60,7 @@ class AddItemRequest(betterproto.Message):
 class ModifyItemsRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     steamid: int = betterproto.uint64_field(2)
-    updates: list["ModifyItemsRequestItemPropertyUpdate"] = betterproto.message_field(3)
+    updates: "list[ModifyItemsRequestItemPropertyUpdate]" = betterproto.message_field(3)
     timestamp: int = betterproto.uint32_field(4)
 
 
@@ -140,7 +140,7 @@ class GetUserPurchaseInfoResponse(betterproto.Message):
 class PurchaseInitRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     language: int = betterproto.int32_field(2)
-    line_items: list["PurchaseInitRequestLineItem"] = betterproto.message_field(3)
+    line_items: "list[PurchaseInitRequestLineItem]" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)

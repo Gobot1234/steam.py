@@ -29,7 +29,7 @@ class GetRecentMessagesRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetRecentMessagesResponse(betterproto.Message):
-    messages: list["GetRecentMessagesResponseFriendMessage"] = betterproto.message_field(1)
+    messages: "list[GetRecentMessagesResponseFriendMessage]" = betterproto.message_field(1)
     more_available: bool = betterproto.bool_field(4)
 
 
@@ -39,7 +39,7 @@ class GetRecentMessagesResponseFriendMessage(betterproto.Message):
     timestamp: int = betterproto.uint32_field(2)
     message: str = betterproto.string_field(3)
     ordinal: int = betterproto.uint32_field(4)
-    reactions: list["GetRecentMessagesResponseFriendMessageMessageReaction"] = betterproto.message_field(5)
+    reactions: "list[GetRecentMessagesResponseFriendMessageMessageReaction]" = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -57,7 +57,7 @@ class GetActiveMessageSessionsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetActiveMessageSessionsResponse(betterproto.Message):
-    message_sessions: list["GetActiveMessageSessionsResponseFriendMessageSession"] = betterproto.message_field(1)
+    message_sessions: "list[GetActiveMessageSessionsResponseFriendMessageSession]" = betterproto.message_field(1)
     timestamp: int = betterproto.uint32_field(2)
 
 

@@ -10,7 +10,7 @@ import betterproto
 
 @dataclass(eq=False, repr=False)
 class GetIndividualRecommendationsRequest(betterproto.Message):
-    requests: list["GetIndividualRecommendationsRequestRecommendationRequest"] = betterproto.message_field(1)
+    requests: "list[GetIndividualRecommendationsRequestRecommendationRequest]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -21,7 +21,7 @@ class GetIndividualRecommendationsRequestRecommendationRequest(betterproto.Messa
 
 @dataclass(eq=False, repr=False)
 class GetIndividualRecommendationsResponse(betterproto.Message):
-    recommendations: list["RecommendationDetails"] = betterproto.message_field(1)
+    recommendations: "list[RecommendationDetails]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -93,7 +93,7 @@ class RecommendationDetails(betterproto.Message):
     ban_check_result: int = betterproto.int32_field(37)
     refunded: bool = betterproto.bool_field(38)
     account_score_spend: int = betterproto.int32_field(39)
-    reactions: list["RecommendationLoyaltyReaction"] = betterproto.message_field(40)
+    reactions: "list[RecommendationLoyaltyReaction]" = betterproto.message_field(40)
     ipaddress: str = betterproto.string_field(41)
 
 

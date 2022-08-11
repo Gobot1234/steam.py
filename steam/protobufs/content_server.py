@@ -37,7 +37,7 @@ class ServerInfo(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetServersForSteamPipeResponse(betterproto.Message):
-    servers: list["ServerInfo"] = betterproto.message_field(1)
+    servers: "list[ServerInfo]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)

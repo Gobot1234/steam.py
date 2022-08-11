@@ -20,7 +20,7 @@ class CMsgClientUcmAddScreenshot(betterproto.Message):
     permissions: int = betterproto.uint32_field(7)
     caption: str = betterproto.string_field(8)
     shortcut_name: str = betterproto.string_field(9)
-    tag: list["CMsgClientUcmAddScreenshotTag"] = betterproto.message_field(10)
+    tag: "list[CMsgClientUcmAddScreenshotTag]" = betterproto.message_field(10)
     tagged_steamid: list[int] = betterproto.fixed64_field(11)
     spoiler_tag: bool = betterproto.bool_field(12)
     tagged_publishedfileid: list[int] = betterproto.uint64_field(13)
@@ -99,8 +99,8 @@ class CMsgClientUcmUpdatePublishedFile(betterproto.Message):
     update_metadata: bool = betterproto.bool_field(21)
     language: int = betterproto.int32_field(22)
     removed_kvtags: list[str] = betterproto.string_field(23)
-    kvtags: list["CMsgClientUcmUpdatePublishedFileKeyValueTag"] = betterproto.message_field(24)
-    previews: list["CMsgClientUcmUpdatePublishedFileAdditionalPreview"] = betterproto.message_field(25)
+    kvtags: "list[CMsgClientUcmUpdatePublishedFileKeyValueTag]" = betterproto.message_field(24)
+    previews: "list[CMsgClientUcmUpdatePublishedFileAdditionalPreview]" = betterproto.message_field(25)
     previews_to_remove: list[int] = betterproto.int32_field(26)
     clear_in_progress: bool = betterproto.bool_field(27)
     remove_all_kvtags: bool = betterproto.bool_field(28)
@@ -188,7 +188,7 @@ class CMsgClientWorkshopItemChangesRequest(betterproto.Message):
 class CMsgClientWorkshopItemChangesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     update_time: int = betterproto.uint32_field(2)
-    workshop_items: list["CMsgClientWorkshopItemChangesResponseWorkshopItemInfo"] = betterproto.message_field(5)
+    workshop_items: "list[CMsgClientWorkshopItemChangesResponseWorkshopItemInfo]" = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)

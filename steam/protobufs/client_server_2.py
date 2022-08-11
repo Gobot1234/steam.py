@@ -30,7 +30,7 @@ class CMsgClientRichPresenceRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientRichPresenceInfo(betterproto.Message):
-    rich_presence: list["CMsgClientRichPresenceInfoRichPresence"] = betterproto.message_field(1)
+    rich_presence: "list[CMsgClientRichPresenceInfoRichPresence]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -222,7 +222,7 @@ class CMsgClientCheckAppBetaPassword(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientCheckAppBetaPasswordResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    betapasswords: list["CMsgClientCheckAppBetaPasswordResponseBetaPassword"] = betterproto.message_field(4)
+    betapasswords: "list[CMsgClientCheckAppBetaPasswordResponseBetaPassword]" = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -279,7 +279,7 @@ class CMsgClientGetCdnAuthTokenResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgDownloadRateStatistics(betterproto.Message):
     cell_id: int = betterproto.uint32_field(1)
-    stats: list["CMsgDownloadRateStatisticsStatsInfo"] = betterproto.message_field(2)
+    stats: "list[CMsgDownloadRateStatisticsStatsInfo]" = betterproto.message_field(2)
     throttling_kbps: int = betterproto.uint32_field(3)
     steam_realm: int = betterproto.uint32_field(4)
 
@@ -327,13 +327,13 @@ class CMsgClientUgsGetGlobalStatsResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     timestamp: int = betterproto.fixed32_field(2)
     day_current: int = betterproto.int32_field(3)
-    days: list["CMsgClientUgsGetGlobalStatsResponseDay"] = betterproto.message_field(4)
+    days: "list[CMsgClientUgsGetGlobalStatsResponseDay]" = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)
 class CMsgClientUgsGetGlobalStatsResponseDay(betterproto.Message):
     day_id: int = betterproto.uint32_field(1)
-    stats: list["CMsgClientUgsGetGlobalStatsResponseDayStat"] = betterproto.message_field(2)
+    stats: "list[CMsgClientUgsGetGlobalStatsResponseDayStat]" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -485,7 +485,7 @@ class CMsgClientRequestForgottenPasswordEmailResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientItemAnnouncements(betterproto.Message):
     count_new_items: int = betterproto.uint32_field(1)
-    unseen_items: list["CMsgClientItemAnnouncementsUnseenItem"] = betterproto.message_field(2)
+    unseen_items: "list[CMsgClientItemAnnouncementsUnseenItem]" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -505,7 +505,7 @@ class CMsgClientRequestItemAnnouncements(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientUserNotifications(betterproto.Message):
-    notifications: list["CMsgClientUserNotificationsNotification"] = betterproto.message_field(1)
+    notifications: "list[CMsgClientUserNotificationsNotification]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -546,7 +546,7 @@ class CMsgClientChatGetFriendMessageHistory(betterproto.Message):
 class CMsgClientChatGetFriendMessageHistoryResponse(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     success: int = betterproto.uint32_field(2)
-    messages: list["CMsgClientChatGetFriendMessageHistoryResponseFriendMessage"] = betterproto.message_field(3)
+    messages: "list[CMsgClientChatGetFriendMessageHistoryResponseFriendMessage]" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -569,7 +569,7 @@ class CMsgClientFsGetFriendsSteamLevels(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientFsGetFriendsSteamLevelsResponse(betterproto.Message):
-    friends: list["CMsgClientFsGetFriendsSteamLevelsResponseFriend"] = betterproto.message_field(1)
+    friends: "list[CMsgClientFsGetFriendsSteamLevelsResponseFriend]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -590,7 +590,7 @@ class CMsgClientEmailAddrInfo(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgCreItemVoteSummary(betterproto.Message):
-    published_file_ids: list["CMsgCreItemVoteSummaryPublishedFileId"] = betterproto.message_field(1)
+    published_file_ids: "list[CMsgCreItemVoteSummaryPublishedFileId]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -601,7 +601,7 @@ class CMsgCreItemVoteSummaryPublishedFileId(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgCreItemVoteSummaryResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    item_vote_summaries: list["CMsgCreItemVoteSummaryResponseItemVoteSummary"] = betterproto.message_field(2)
+    item_vote_summaries: "list[CMsgCreItemVoteSummaryResponseItemVoteSummary]" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -626,7 +626,7 @@ class CMsgCreUpdateUserPublishedItemVoteResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgCreGetUserPublishedItemVoteDetails(betterproto.Message):
-    published_file_ids: list["CMsgCreGetUserPublishedItemVoteDetailsPublishedFileId"] = betterproto.message_field(1)
+    published_file_ids: "list[CMsgCreGetUserPublishedItemVoteDetailsPublishedFileId]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -760,7 +760,7 @@ class CMsgClientDeauthorizeDevice(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientUseLocalDeviceAuthorizations(betterproto.Message):
     authorization_account_id: list[int] = betterproto.uint32_field(1)
-    device_tokens: list["CMsgClientUseLocalDeviceAuthorizationsDeviceToken"] = betterproto.message_field(2)
+    device_tokens: "list[CMsgClientUseLocalDeviceAuthorizationsDeviceToken]" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -777,7 +777,7 @@ class CMsgClientGetAuthorizedDevices(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientGetAuthorizedDevicesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    authorized_device: list["CMsgClientGetAuthorizedDevicesResponseAuthorizedDevice"] = betterproto.message_field(2)
+    authorized_device: "list[CMsgClientGetAuthorizedDevicesResponseAuthorizedDevice]" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -792,7 +792,7 @@ class CMsgClientGetAuthorizedDevicesResponseAuthorizedDevice(betterproto.Message
 
 @dataclass(eq=False, repr=False)
 class CMsgClientSharedLibraryLockStatus(betterproto.Message):
-    locked_library: list["CMsgClientSharedLibraryLockStatusLockedLibrary"] = betterproto.message_field(1)
+    locked_library: "list[CMsgClientSharedLibraryLockStatusLockedLibrary]" = betterproto.message_field(1)
     own_library_locked_by: int = betterproto.uint32_field(2)
 
 
@@ -805,7 +805,7 @@ class CMsgClientSharedLibraryLockStatusLockedLibrary(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientSharedLibraryStopPlaying(betterproto.Message):
     seconds_left: int = betterproto.int32_field(1)
-    stop_apps: list["CMsgClientSharedLibraryStopPlayingStopApp"] = betterproto.message_field(2)
+    stop_apps: "list[CMsgClientSharedLibraryStopPlayingStopApp]" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)

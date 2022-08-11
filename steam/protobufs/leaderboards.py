@@ -71,7 +71,7 @@ class CMsgClientLbsGetLbEntries(betterproto.Message):
 class CMsgClientLbsGetLbEntriesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     leaderboard_entry_count: int = betterproto.int32_field(2)
-    entries: list["CMsgClientLbsGetLbEntriesResponseEntry"] = betterproto.message_field(3)
+    entries: "list[CMsgClientLbsGetLbEntriesResponseEntry]" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)

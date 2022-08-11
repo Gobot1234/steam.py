@@ -190,7 +190,7 @@ class CClanMatchEventByRange(betterproto.Message):
     rtime_before: int = betterproto.uint32_field(1)
     rtime_after: int = betterproto.uint32_field(2)
     qualified: int = betterproto.uint32_field(3)
-    events: list["CClanEventUserNewsTuple"] = betterproto.message_field(4)
+    events: "list[CClanEventUserNewsTuple]" = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)

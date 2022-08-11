@@ -53,7 +53,7 @@ class CMsgClientHideFriend(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientFriendsList(betterproto.Message):
     bincremental: bool = betterproto.bool_field(1)
-    friends: list["CMsgClientFriendsListFriend"] = betterproto.message_field(2)
+    friends: "list[CMsgClientFriendsListFriend]" = betterproto.message_field(2)
     max_friend_count: int = betterproto.uint32_field(3)
     active_friend_count: int = betterproto.uint32_field(4)
     friends_limit_hit: bool = betterproto.bool_field(5)
@@ -69,8 +69,8 @@ class CMsgClientFriendsListFriend(betterproto.Message):
 class CMsgClientFriendsGroupsList(betterproto.Message):
     bremoval: bool = betterproto.bool_field(1)
     bincremental: bool = betterproto.bool_field(2)
-    friend_groups: list["CMsgClientFriendsGroupsListFriendGroup"] = betterproto.message_field(3)
-    memberships: list["CMsgClientFriendsGroupsListFriendGroupsMembership"] = betterproto.message_field(4)
+    friend_groups: "list[CMsgClientFriendsGroupsListFriendGroup]" = betterproto.message_field(3)
+    memberships: "list[CMsgClientFriendsGroupsListFriendGroupsMembership]" = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -89,7 +89,7 @@ class CMsgClientFriendsGroupsListFriendGroupsMembership(betterproto.Message):
 class CMsgClientPlayerNicknameList(betterproto.Message):
     removal: bool = betterproto.bool_field(1)
     incremental: bool = betterproto.bool_field(2)
-    nicknames: list["CMsgClientPlayerNicknameListPlayerNickname"] = betterproto.message_field(3)
+    nicknames: "list[CMsgClientPlayerNicknameListPlayerNickname]" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -136,7 +136,7 @@ class CMsgPersonaChangeResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientPersonaState(betterproto.Message):
     status_flags: int = betterproto.uint32_field(1)
-    friends: list["CMsgClientPersonaStateFriend"] = betterproto.message_field(2)
+    friends: "list[CMsgClientPersonaStateFriend]" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -162,7 +162,7 @@ class CMsgClientPersonaStateFriend(betterproto.Message):
     game_data_blob: bytes = betterproto.bytes_field(60)
     clan_data: "CMsgClientPersonaStateFriendClanData" = betterproto.message_field(64)
     clan_tag: str = betterproto.string_field(65)
-    rich_presence: list["CMsgClientPersonaStateFriendKv"] = betterproto.message_field(71)
+    rich_presence: "list[CMsgClientPersonaStateFriendKv]" = betterproto.message_field(71)
     broadcast_id: int = betterproto.fixed64_field(72)
     game_lobby_id: int = betterproto.fixed64_field(73)
     watching_broadcast_accountid: int = betterproto.uint32_field(74)
@@ -270,9 +270,9 @@ class CMsgClientGetEmoticonList(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientEmoticonList(betterproto.Message):
-    emoticons: list["CMsgClientEmoticonListEmoticon"] = betterproto.message_field(1)
-    stickers: list["CMsgClientEmoticonListSticker"] = betterproto.message_field(2)
-    effects: list["CMsgClientEmoticonListEffect"] = betterproto.message_field(3)
+    emoticons: "list[CMsgClientEmoticonListEmoticon]" = betterproto.message_field(1)
+    stickers: "list[CMsgClientEmoticonListSticker]" = betterproto.message_field(2)
+    effects: "list[CMsgClientEmoticonListEffect]" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)

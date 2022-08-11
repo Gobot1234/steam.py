@@ -15,7 +15,7 @@ class EContentDeltaChunkDataLocation(betterproto.Enum):
 
 @dataclass(eq=False, repr=False)
 class Payload(betterproto.Message):
-    mappings: list["PayloadFileMapping"] = betterproto.message_field(1)
+    mappings: "list[PayloadFileMapping]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -25,7 +25,7 @@ class PayloadFileMapping(betterproto.Message):
     flags: int = betterproto.uint32_field(3)
     sha_filename: bytes = betterproto.bytes_field(4)
     sha_content: bytes = betterproto.bytes_field(5)
-    chunks: list["PayloadFileMappingChunkData"] = betterproto.message_field(6)
+    chunks: "list[PayloadFileMappingChunkData]" = betterproto.message_field(6)
     linktarget: str = betterproto.string_field(7)
 
 
@@ -61,7 +61,7 @@ class ContentDeltaChunks(betterproto.Message):
     depot_id: int = betterproto.uint32_field(1)
     manifest_id_source: int = betterproto.uint64_field(2)
     manifest_id_target: int = betterproto.uint64_field(3)
-    delta_chunks: list["ContentDeltaChunksDeltaChunk"] = betterproto.message_field(4)
+    delta_chunks: "list[ContentDeltaChunksDeltaChunk]" = betterproto.message_field(4)
     chunk_data_location: "EContentDeltaChunkDataLocation" = betterproto.enum_field(5)
 
 
