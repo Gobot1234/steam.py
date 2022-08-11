@@ -151,11 +151,11 @@ class MessageReaction(PartialMessageReaction):
             return NotImplemented
 
         return (
-                self.message == other.message
-                and self.emoticon == other.emoticon
-                and self.sticker == other.sticker
-                and self.user == other.user
-            )
+            self.message == other.message
+            and self.emoticon == other.emoticon
+            and self.sticker == other.sticker
+            and self.user == other.user
+        )
 
 
 class BaseEmoticon(_IOMixin):

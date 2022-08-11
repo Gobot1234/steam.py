@@ -1631,7 +1631,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         if code := msg.body.manifest_request_code:
             return code
-        
+
         raise ValueError
 
     async def fetch_product_info(
