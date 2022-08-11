@@ -165,8 +165,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 a = entry.a
                 if a is not None:
                     href = a.get("href", "")
-                    match = re.findall(r"store.steampowered.com/app/(\d+)", href)
-                    if match:
+                    if match := re.findall(r"store.steampowered.com/app/(\d+)", href):
                         self.game = StatefulGame(self._state, id=match[0])
         stats = soup.find("div", class_="grouppage_resp_stats")
         if stats is None:
@@ -360,10 +359,10 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             The ID of the event.
         """
         data = await self._state.http.get_clan_events(self.id, [id])
-        events = data["events"]
-        if not events:
-            raise ValueError(f"Event {id} not found")
-        return await Event(self._state, self, events[0])
+        if events := data["events"]:
+            return await Event(self._state, self, events[0])
+
+        raise ValueError(f"Event {id} not found")
 
     async def fetch_announcement(self, id: int) -> Announcement:
         """Fetch an announcement from its ID.

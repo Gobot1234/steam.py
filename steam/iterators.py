@@ -656,8 +656,7 @@ class _EventIterator(AsyncIterator[T]):
 
         ids = []
         for url in soup.find_all("guid"):
-            match = cls.ID_PARSE_REGEX.findall(url.text)
-            if match:
+            if match := cls.ID_PARSE_REGEX.findall(url.text):
                 ids.append(int(match[0]))
 
         if not ids:

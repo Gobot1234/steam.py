@@ -136,7 +136,7 @@ class Cog:
         def decorator(coro: E) -> E:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Listeners must be coroutine functions, {coro.__name__} is {type(coro).__name__}")
-            coro.__event_name__ = name if not callable(name) else coro.__name__
+            coro.__event_name__ = coro.__name__ if callable(name) else name
             return coro
 
         return decorator(name) if callable(name) else decorator

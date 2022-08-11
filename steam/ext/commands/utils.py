@@ -112,8 +112,7 @@ class Shlex:
                     characters.pop()
                 characters.append(character)
 
-            ret = remove_quotes("".join(characters))
-            if ret:
+            if ret := remove_quotes("".join(characters)):
                 self._undo_pushback.append(start)
                 return ret
 

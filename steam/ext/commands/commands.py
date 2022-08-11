@@ -100,9 +100,9 @@ class CallbackType(Protocol[P]):
 @converters.converter_for(bool)
 def to_bool(argument: str) -> bool:
     lowered = argument.lower()
-    if lowered in ("yes", "y", "true", "t", "1", "enable", "on"):
+    if lowered in {"yes", "y", "true", "t", "1", "enable", "on"}:
         return True
-    elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
+    elif lowered in {"no", "n", "false", "f", "0", "disable", "off"}:
         return False
     raise BadArgument(f"{argument!r} is not a recognised boolean option")
 
@@ -258,9 +258,7 @@ class Command(Generic[P]):
         """
         commands = []
         command = self
-        while command is not None:
-            if not isinstance(command, Command):
-                break
+        while command is not None and isinstance(command, Command):
             commands.append(command)
             command = command.parent
 
@@ -410,8 +408,7 @@ class Command(Generic[P]):
                 return False
         for cooldown in self.cooldown:
             bucket = cooldown.bucket.get_bucket(ctx)
-            retry_after = cooldown.get_retry_after(bucket, time())
-            if retry_after:
+            if retry_after := cooldown.get_retry_after(bucket, time()):
                 return False
 
         return True
@@ -467,13 +464,10 @@ class Command(Generic[P]):
             for key_arg, value_arg in kv_pairs:
                 if key_arg in kwargs:
                     raise DuplicateKeywordArgument(key_arg)
-                kwargs.update(
-                    {
-                        await self._convert(ctx, key_converter, param, key_arg.strip()): await self._convert(
-                            ctx, value_converter, param, value_arg.strip()
-                        )
-                    }
+                kwargs[await self._convert(ctx, key_converter, param, key_arg.strip())] = await self._convert(
+                    ctx, value_converter, param, value_arg.strip()
                 )
+
         except ValueError:
             raise UnmatchedKeyValuePair("Unmatched key-value pair passed") from None
 

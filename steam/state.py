@@ -322,10 +322,9 @@ class ConnectionState(Registerable):
 
     async def fetch_trade(self, id: int, language: Language | None) -> TradeOffer | None:
         resp = await self.http.get_trade(id, language)
-        data = resp.get("response")
-        if data:
-            trades = await self._process_trades((data["offer"],), (data.get("descriptions", ()),))
-            return trades[0]
+        if data := resp.get("response"):
+            (trade,) = await self._process_trades((data["offer"],), (data.get("descriptions", ()),))
+            return trade
 
     async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer:
         try:
@@ -1630,10 +1629,10 @@ class ConnectionState(Registerable):
         )
         if msg.result != Result.OK:
             raise WSException(msg)
-        code = msg.body.manifest_request_code
-        if not code:
-            raise ValueError
-        return code
+        if code := msg.body.manifest_request_code:
+            return code
+
+        raise ValueError
 
     async def fetch_product_info(
         self, game_ids: Iterable[int] = (), package_ids: Iterable[int] = ()

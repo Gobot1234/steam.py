@@ -774,10 +774,7 @@ def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> _T | None:
     found returns ``None``.
     """
 
-    for element in iterable:
-        if predicate(element):
-            return element
-    return None
+    return next((element for element in iterable if predicate(element)), None)
 
 
 def get(iterable: Iterable[_T], **attrs: Any) -> _T | None:
@@ -813,17 +810,13 @@ def get(iterable: Iterable[_T], **attrs: Any) -> _T | None:
     if len(attrs) == 1:
         k, v = attrs.popitem()
         pred = attrget(k.replace("__", "."))
-        for elem in iterable:
-            if pred(elem) == v:
-                return elem
-        return None
-
+        return next((elem for elem in iterable if pred(elem) == v), None)
     converted = [(attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()]
 
-    for elem in iterable:
-        if _all(pred(elem) == value for pred, value in converted):
-            return elem
-    return None
+    return next(
+        (elem for elem in iterable if _all(pred(elem) == value for pred, value in converted)),
+        None,
+    )
 
 
 async def maybe_coroutine(
@@ -832,6 +825,4 @@ async def maybe_coroutine(
     **kwargs: _P.kwargs,
 ) -> _T:
     value = func(*args, **kwargs)
-    if isawaitable(value):
-        return await value
-    return value  # type: ignore
+    return await value if isawaitable(value) else value

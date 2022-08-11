@@ -401,7 +401,7 @@ class Bot(GroupMixin, Client):
         """
 
         def decorator(coro: E) -> E:
-            self.add_listener(coro, name if not callable(name) else coro.__name__)
+            self.add_listener(coro, coro.__name__ if callable(name) else name)
             return coro
 
         return decorator(name) if callable(name) else decorator

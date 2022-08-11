@@ -74,18 +74,16 @@ class HTTPException(SteamException):
             if isinstance(data, dict):
                 message = data.get("message")
                 if message is None:
-                    truthy_str_values = [  # ignore {'success': False} as the message
+                    if truthy_str_values := [  # ignore {'success': False} as the message
                         value for value in data.values() if value and isinstance(value, str)
-                    ]
-                    if truthy_str_values:
+                    ]:
                         message = str(truthy_str_values[0])
                 self.message = message or ""
-                code = (
+                if code := (
                     data.get("eresult")  # try the data if possible
                     or response.headers.get("X-EResult")  # then the headers
                     or CODE_FINDER.findall(message)  # finally the message
-                )
-                if code:
+                ):
                     if isinstance(code, list):
                         self.message = CODE_FINDER.sub("", message)
                         code = code[0]

@@ -10,7 +10,7 @@ from sphinx.ext import napoleon
 from sphinx.util.typing import restify
 
 RETURN_HEADER = "Returns\n-------+\n"
-RETURNS_WITH_TYPE_RE = re.compile(rf"{RETURN_HEADER}:[^:]+:`[^`]+`\n {4}.*", flags=re.S)  # do nothing to this
+RETURNS_WITH_TYPE_RE = re.compile(rf"{RETURN_HEADER}:[^:]+:`[^`]+`\n {{4}}.*", flags=re.S)  # do nothing to this
 RETURNS_WITH_INFO_RE = re.compile(rf"{RETURN_HEADER}(?P<info>.+)", flags=re.S)
 
 
