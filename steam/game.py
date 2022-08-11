@@ -576,6 +576,17 @@ class StatefulGame(Game):
         fetched = await self.fetch(language=language)
         return fetched._packages
 
+    async def add_free_licenses(self) -> list[License]:
+        """Request the free licenses for this game.
+
+        Raises
+        ------
+        ValueError
+            No licenses were granted.
+        """
+        _, licenses = await self._state.request_free_license(self.id)
+        return licenses
+
 
 @dataclass
 class PartialGamePriceOverview:

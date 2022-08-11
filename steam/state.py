@@ -1980,3 +1980,18 @@ class ConnectionState(Registerable):
         )
         if msg.result != Result.OK:
             raise WSException(msg)
+
+    async def request_free_license(self, *app_ids: int) -> tuple[list[int], list[License]]:
+        old_licenses = self.licenses.copy()
+        self.handled_licenses.clear()
+        msg: MsgProto[client_server_2.CMsgClientRequestFreeLicenseResponse] = await self.ws.send_proto_and_wait(
+            MsgProto(EMsg.ClientRequestFreeLicense, appids=list(app_ids)),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        if any(app_id not in msg.body.granted_appids for app_id in app_ids):
+            raise WSNotFound(msg)
+        if not msg.body.granted_packageids:
+            raise ValueError("No licenses granted")
+        await self.handled_licenses.wait()
+        return msg.body.granted_appids, [l for l in self.licenses.values() if l.id not in old_licenses]
