@@ -885,6 +885,8 @@ class ConnectionState(Registerable):
             await self.handle_chat_group_update(msg)
         elif name == "ChatRoomClient.NotifyChatGroupUserStateChanged":
             await self.handle_chat_group_user_action(msg)
+        elif name == "ChatRoomClient.NotifyMemberStateChange":
+            await self.handle_chat_member_update(msg)
         elif name == "ChatRoomClient.NotifyChatRoomGroupRoomsChange":
             await self.handle_chat_update(msg)
         elif name == "FriendMessagesClient.IncomingMessage":
@@ -1005,7 +1007,7 @@ class ConnectionState(Registerable):
     async def handle_chat_group_user_action(
         self, msg: MsgProto[chat.NotifyChatGroupUserStateChangedNotification]
     ) -> None:
-        if msg.body.user_action == "Joined":  # join group
+        if msg.body.user_action == chat.EChatRoomMemberStateChange.Joined:  # join group
             if msg.body.group_summary.clanid:
                 clan = await Clan._from_proto(self, msg.body.group_summary)
                 self._clans[clan.id] = clan
@@ -1017,7 +1019,7 @@ class ConnectionState(Registerable):
                 self._groups[group.id] = group
                 self.dispatch("group_join", group)
 
-        elif msg.body.user_action == "Parted":  # leave group
+        elif msg.body.user_action == chat.EChatRoomMemberStateChange.Parted:  # leave group
             left = self._chat_groups.pop(msg.body.chat_group_id, None)
             if left is None:
                 return
@@ -1026,6 +1028,31 @@ class ConnectionState(Registerable):
                 self.dispatch("clan_leave", left)
             else:
                 self.dispatch("group_leave", left)
+        # elif msg.body.user_action == chat.EChatRoomMemberStateChange.Invited:
+        #     if msg.body.group_summary.clanid:
+        #         return
+        #     group = await Group._from_proto(self, msg.body.group_summary)
+        #     self._groups[group.id] = group
+        #     self.dispatch("group_invite", group)
+
+    async def handle_chat_member_update(self, msg: MsgProto[chat.MemberStateChangeNotification]) -> None:
+        if msg.body.user_action == chat.EChatRoomMemberStateChange.Joined:
+            try:
+                chat_group = self._chat_groups[msg.body.chat_group_id]
+            except KeyError:
+                return log.debug("Got a chat member update for a chat group we aren't in %d", msg.body.chat_group_id)
+            member = await chat_group._add_member(msg.body.member)
+            self.dispatch("member_join", chat_group, member)
+        elif msg.body.user_action == chat.EChatRoomMemberStateChange.Parted:
+            try:
+                chat_group = self._chat_groups[msg.body.chat_group_id]
+            except KeyError:
+                return log.debug("Got a chat member update for a chat group we aren't in %d", msg.body.chat_group_id)
+            member = chat_group._remove_member(msg.body.member)
+            if member is None:
+                return
+            self.dispatch("member_leave", chat_group, member)
+        # TODO: handle other user_actions
 
     async def handle_chat_update(self, msg: MsgProto[chat.ChatRoomGroupRoomsChangeNotification]):
         try:
@@ -1108,6 +1135,10 @@ class ConnectionState(Registerable):
         data["rich_presence"] = {m.key: m.value for m in friend.rich_presence}
         return data  # type: ignore  # casting is for losers
 
+    def _add_friend(self, user: User) -> Friend:
+        self.user._friends[user.id] = friend = Friend(self, user)
+        return friend
+
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: MsgProto[friends.CMsgClientFriendsList]) -> None:
         elements = None
@@ -1126,9 +1157,18 @@ class ConnectionState(Registerable):
                     else:
                         user = await self.fetch_user(steam_id.id64)
                         assert user is not None
-                        self.user._friends[steam_id.id64] = Friend(self, user)
+                        self._add_friend(user)
                 else:
-                    self.dispatch(f"{'user'if steam_id.type == Type.Individual else 'clan'}_invite_accept", invite)
+                    if isinstance(invite, UserInvite):
+                        assert not isinstance(invite.invitee, SteamID)
+                        self.dispatch("user_invite_accept", invite)
+                        if isinstance(invite.invitee, User):
+                            friend = self._add_friend(invite.invitee)
+                            self.dispatch("friend_add", friend)
+                    else:
+                        self.dispatch("clan_invite_accept", invite)
+                        if isinstance(invite.clan, Clan):
+                            self._clans[invite.clan.id] = invite.clan
             elif relationship in (
                 FriendRelationship.RequestInitiator,
                 FriendRelationship.RequestRecipient,
@@ -1167,7 +1207,7 @@ class ConnectionState(Registerable):
                 except KeyError:
                     friend = self.user._friends.pop(steam_id.id64, None)
                     if friend is None:
-                        return
+                        return log.debug("Unknown friend %s removed", steam_id)
                     self.dispatch("user_remove", friend)  # TODO remove
                     self.dispatch("friend_remove", friend)
                 else:

@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from .review import Review
     from .state import ConnectionState
     from .trade import TradeOffer
+    from .user import User
 
 T = TypeVar("T")
 TT = TypeVar("TT")
@@ -495,7 +496,7 @@ class ChatHistoryIterator(AsyncIterator[ChatMessageT], Generic[ChatMessageT, Cha
         before_timestamp = int(self.before.timestamp())
         last_message_timestamp = before_timestamp
         last_ordinal: int = getattr(self.channel.last_message, "ordinal", 0)
-        message_cls: type[ChatMessageT] = self.channel.__class__.__orig_bases__[0].__args__[0]  # type: ignore
+        message_cls: type[ChatMessageT] = self.channel._type_args[0]
 
         while True:
             resp = await self._state.fetch_group_history(

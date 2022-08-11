@@ -256,8 +256,8 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                     self._state.request_chat_group_members(
                         self._id,
                         view_id,
-                        client_change_number,
-                        start,
+                        client_change_number + 1,  # steam doesn't send responses if they're 0
+                        start + 1,
                         stop,
                     )
                     for client_change_number, (start, stop) in enumerate(
@@ -268,6 +268,13 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             for user in users
         }
         for id, member in self._partial_members.items():
+            try:
+                user = users[id]
+            except KeyError:
+                # steam doesn't include the first user cause ???, this however, isn't that big a deal.
+                user = await self._state._maybe_user(utils.make_id64(id))
+                if isinstance(user, SteamID):
+                    continue
             member = ClanMember(self._state, self, users[id], member)
             self._members[member.id] = member
 

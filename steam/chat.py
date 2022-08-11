@@ -18,7 +18,7 @@ from typing_extensions import Self, TypeAlias
 from . import utils
 from .abc import Channel, Message, SteamID
 from .enums import ChatMemberRank, Type
-from .errors import WSException, WSForbidden
+from .errors import WSException
 from .game import StatefulGame
 from .iterators import ChatHistoryIterator
 from .protobufs import MsgProto, chat
@@ -205,7 +205,7 @@ class Chat(Channel[ChatMessageT]):
     __slots__ = ("id", "name", "joined_at", "position", "last_message")
 
     def __init__(
-        self, state: ConnectionState, group: ChatGroup[Any, Any], proto: GroupChannelProtos
+        self, state: ConnectionState, group: ChatGroup[Any, Self], proto: GroupChannelProtos
     ):  # group is purposely unused
         super().__init__(state)
         self.id = int(proto.chat_id)
@@ -224,7 +224,7 @@ class Chat(Channel[ChatMessageT]):
             DateTime.from_timestamp(proto.time_joined) if isinstance(proto, chat.ChatRoomState) else self.joined_at
         )
         self.position = proto.sort_order if isinstance(proto, chat.State) else self.position
-        message_cls: type[ChatMessageT] = self.__class__.__orig_bases__[0].__args__[0]  # type: ignore
+        (message_cls,) = self._type_args
         if isinstance(proto, chat.IncomingChatMessageNotification):
             steam_id = SteamID(proto.steamid_sender, type=Type.Individual)
             self.last_message = message_cls(proto, self, self._state.get_user(steam_id.id) or steam_id)  # type: ignore
@@ -244,6 +244,10 @@ class Chat(Channel[ChatMessageT]):
         chat_id = chat._id
         assert chat_id is not None
         return chat_id, self.id
+
+    @utils.classproperty
+    def _type_args(cls: type[Chat]) -> tuple[type[ChatMessageT]]:  # type: ignore
+        return cls.__orig_bases__[0].__args__  # type: ignore
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, ChatMessageT]:
         return self._state.send_chat_message(*self._location, content)  # type: ignore
@@ -292,7 +296,6 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
     name: str
     _id: ChatGroupID
     game: StatefulGame | None
-    owner: MemberT | SteamID
     tagline: str
     avatar_url: str
     active_member_count: int
@@ -359,10 +362,31 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
 
         return self
 
+    @utils.classproperty
+    def _type_args(cls: type[ChatGroup]) -> tuple[type[MemberT], type[ChatT]]:  # type: ignore
+        return cls.__orig_bases__[0].__args__  # type: ignore
+
+    async def _add_member(self, member: chat.Member) -> MemberT:
+        member_cls, _ = self._type_args
+        user = await self._state._maybe_user(member.accountid)
+        assert isinstance(user, User)
+        new_member = member_cls(self._state, self, user, member)
+        if self.chunked:
+            self._members[member.accountid] = new_member
+        else:
+            self._partial_members[member.accountid] = member
+        return new_member
+
+    def _remove_member(self, member: chat.Member) -> MemberT | None:
+        if self.chunked:
+            return self._members.pop(member.accountid, None)
+        else:
+            self._partial_members.pop(member.accountid, None)
+
     def _update_channels(
         self, channels: list[chat.State] | list[chat.ChatRoomState], *, default_channel_id: int | None = None
     ) -> None:
-        channel_cls: type[ChatT] = self.__class__.__orig_bases__[0].__args__[1]  # type: ignore
+        _, channel_cls = self._type_args
         for channel in channels:
             try:
                 new_channel = self._channels[channel.chat_id]
@@ -479,18 +503,16 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
         name
             The name of the member to search for.
         """
-        search_id = randint(0, 2**64)
         msg: MsgProto[chat.SearchMembersResponse] = await self._state.ws.send_um_and_wait(
             "ChatRoom.SearchMembers",
             chat_group_id=self._id,
             search_text=name,
-            # search_id=search_id,  # TODO test if required
         )
 
         if self.chunked:
             return [self._members[user.accountid] for user in msg.body.matching_members]
 
-        member_cls: type[MemberT] = self.__class__.__orig_class__.__args__[0]  # type: ignore
+        member_cls, _ = self._type_args
         users = [
             User(self._state, self._state.patch_user_from_ws({}, user.persona)) for user in msg.body.matching_members
         ]
@@ -515,6 +537,8 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
             The invite code to use to join the chat group.
         """
         await self._state.join_chat_group(self._id, invite_code)
+        if self._state.auto_chunk_chat_groups:
+            await self.chunk()
 
     async def leave(self) -> None:
         """Leaves the chat group."""

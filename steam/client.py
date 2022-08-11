@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .comment import Comment
     from .event import Announcement, Event
+    from .friend import Friend
     from .group import Group
     from .invite import ClanInvite, UserInvite
     from .protobufs import Msg, MsgProto
@@ -1140,13 +1141,22 @@ class Client:
                 The user's state now.
             """
 
-        async def on_user_remove(self, user: "steam.User") -> None:
-            """Called when you or the ``user`` remove each other from your friends lists.
+        async def on_friend_add(self, friend: "steam.Friend") -> None:
+            """Called when a friend is added to the client's friends list.
 
             Parameters
             ----------
-            user
-                The user who was removed.
+            friend
+                The friend that was added.
+            """
+
+        async def on_friend_remove(self, friend: "steam.Friend") -> None:
+            """Called when you or the ``friend`` remove each other from your friends lists.
+
+            Parameters
+            ----------
+            friend
+                The friend who was removed.
             """
 
         async def on_clan_invite(self, invite: "steam.ClanInvite") -> None:
@@ -1399,9 +1409,12 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["user_remove"],
+        event: Literal[
+            "friend_add",
+            "friend_remove",
+        ],
         *,
-        check: Callable[[User], bool] = ...,
+        check: Callable[[Friend], bool] = ...,
         timeout: float | None = ...,
     ) -> User:
         ...
