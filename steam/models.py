@@ -11,9 +11,9 @@ from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar
 
-from typing_extensions import Literal, ParamSpec, Self, TypedDict
+from typing_extensions import Self
 from yarl import URL as _URL
 
 from . import utils

@@ -8,10 +8,10 @@ import math
 import re
 from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeAlias, TypeVar
 
 from bs4 import BeautifulSoup
-from typing_extensions import ClassVar, Self, TypeAlias
+from typing_extensions import Self
 from yarl import URL as URL_
 
 from . import utils
@@ -592,7 +592,7 @@ class UserReviewsIterator(AsyncIterator["Review"]):
     def __init__(
         self,
         state: ConnectionState,
-        user: BaseUser,
+        user: User,
         limit: int | None = None,
         before: datetime | None = None,
         after: datetime | None = None,

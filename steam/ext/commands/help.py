@@ -61,7 +61,7 @@ class HelpCommand(Command):
 
         await self.command_not_found(content)
 
-    def get_bot_mapping(self) -> "Mapping[str | None, list[commands.Command]]":
+    def get_bot_mapping(self) -> Mapping[str | None, list[commands.Command]]:
         """
         Generate a mapping of the bot's commands. It's not normally necessary to subclass this. This is passed to
         :meth:`send_help`.

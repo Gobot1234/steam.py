@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -33,7 +32,7 @@ class GetItemShopOverlayAuthUrlResponse(betterproto.Message):
 class GetAssetClassInfoRequest(betterproto.Message):
     language: str = betterproto.string_field(1)
     appid: int = betterproto.uint32_field(2)
-    classes: List["GetAssetClassInfoRequestClass"] = betterproto.message_field(3)
+    classes: list["GetAssetClassInfoRequestClass"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -65,12 +64,12 @@ class ItemDescription(betterproto.Message):
     background_color: str = betterproto.string_field(5)
     icon_url: str = betterproto.string_field(6)
     icon_url_large: str = betterproto.string_field(7)
-    descriptions: List["ItemDescriptionLine"] = betterproto.message_field(8)
+    descriptions: list["ItemDescriptionLine"] = betterproto.message_field(8)
     tradable: bool = betterproto.bool_field(9)
-    actions: List["ItemAction"] = betterproto.message_field(10)
-    owner_descriptions: List["ItemDescriptionLine"] = betterproto.message_field(11)
-    owner_actions: List["ItemAction"] = betterproto.message_field(12)
-    fraudwarnings: List[str] = betterproto.string_field(13)
+    actions: list["ItemAction"] = betterproto.message_field(10)
+    owner_descriptions: list["ItemDescriptionLine"] = betterproto.message_field(11)
+    owner_actions: list["ItemAction"] = betterproto.message_field(12)
+    fraudwarnings: list[str] = betterproto.string_field(13)
     name: str = betterproto.string_field(14)
     name_color: str = betterproto.string_field(15)
     type: str = betterproto.string_field(16)
@@ -79,12 +78,12 @@ class ItemDescription(betterproto.Message):
     market_fee: str = betterproto.string_field(19)
     market_fee_app: int = betterproto.int32_field(28)
     contained_item: "ItemDescription" = betterproto.message_field(20)
-    market_actions: List["ItemAction"] = betterproto.message_field(21)
+    market_actions: list["ItemAction"] = betterproto.message_field(21)
     commodity: bool = betterproto.bool_field(22)
     market_tradable_restriction: int = betterproto.int32_field(23)
     market_marketable_restriction: int = betterproto.int32_field(24)
     marketable: bool = betterproto.bool_field(25)
-    tags: List["ItemTag"] = betterproto.message_field(26)
+    tags: list["ItemTag"] = betterproto.message_field(26)
     item_expiration: str = betterproto.string_field(27)
     market_buy_country_restriction: str = betterproto.string_field(30)
     market_sell_country_restriction: str = betterproto.string_field(31)
@@ -102,4 +101,4 @@ class ItemTag(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetAssetClassInfoResponse(betterproto.Message):
-    descriptions: List["ItemDescription"] = betterproto.message_field(1)
+    descriptions: list["ItemDescription"] = betterproto.message_field(1)

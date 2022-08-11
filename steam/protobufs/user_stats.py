@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -23,8 +22,8 @@ class CMsgClientGetUserStatsResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(2)
     crc_stats: int = betterproto.uint32_field(3)
     schema: bytes = betterproto.bytes_field(4)
-    stats: List["CMsgClientGetUserStatsResponseStats"] = betterproto.message_field(5)
-    achievement_blocks: List["CMsgClientGetUserStatsResponseAchievementBlocks"] = betterproto.message_field(6)
+    stats: list["CMsgClientGetUserStatsResponseStats"] = betterproto.message_field(5)
+    achievement_blocks: list["CMsgClientGetUserStatsResponseAchievementBlocks"] = betterproto.message_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -36,7 +35,7 @@ class CMsgClientGetUserStatsResponseStats(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientGetUserStatsResponseAchievementBlocks(betterproto.Message):
     achievement_id: int = betterproto.uint32_field(1)
-    unlock_time: List[int] = betterproto.fixed32_field(2)
+    unlock_time: list[int] = betterproto.fixed32_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -44,7 +43,7 @@ class CMsgClientStoreUserStatsResponse(betterproto.Message):
     game_id: int = betterproto.fixed64_field(1)
     eresult: int = betterproto.int32_field(2)
     crc_stats: int = betterproto.uint32_field(3)
-    stats_failed_validation: List["CMsgClientStoreUserStatsResponseStatsFailedValidation"] = betterproto.message_field(
+    stats_failed_validation: list["CMsgClientStoreUserStatsResponseStatsFailedValidation"] = betterproto.message_field(
         4
     )
     stats_out_of_date: bool = betterproto.bool_field(5)
@@ -63,7 +62,7 @@ class CMsgClientStoreUserStats2(betterproto.Message):
     settee_steam_id: int = betterproto.fixed64_field(3)
     crc_stats: int = betterproto.uint32_field(4)
     explicit_reset: bool = betterproto.bool_field(5)
-    stats: List["CMsgClientStoreUserStats2Stats"] = betterproto.message_field(6)
+    stats: list["CMsgClientStoreUserStats2Stats"] = betterproto.message_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -77,7 +76,7 @@ class CMsgClientStatsUpdated(betterproto.Message):
     steam_id: int = betterproto.fixed64_field(1)
     game_id: int = betterproto.fixed64_field(2)
     crc_stats: int = betterproto.uint32_field(3)
-    updated_stats: List["CMsgClientStatsUpdatedUpdatedStats"] = betterproto.message_field(4)
+    updated_stats: list["CMsgClientStatsUpdatedUpdatedStats"] = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -90,7 +89,7 @@ class CMsgClientStatsUpdatedUpdatedStats(betterproto.Message):
 class CMsgClientStoreUserStats(betterproto.Message):
     game_id: int = betterproto.fixed64_field(1)
     explicit_reset: bool = betterproto.bool_field(2)
-    stats_to_store: List["CMsgClientStoreUserStatsStatsToStore"] = betterproto.message_field(3)
+    stats_to_store: list["CMsgClientStoreUserStatsStatsToStore"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)

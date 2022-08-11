@@ -26,21 +26,32 @@ from io import BytesIO
 from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Generic, SupportsInt, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Final,
+    Generic,
+    Literal,
+    ParamSpec,
+    SupportsIndex,
+    SupportsInt,
+    TypeAlias,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import aiohttp
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from typing_extensions import Final, Literal, ParamSpec, Self, TypeAlias
+from typing_extensions import Self
 
 from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor, classproperty as classproperty
 from .errors import InvalidSteamID
 
 if TYPE_CHECKING:
-    from typing import SupportsIndex  # doesn't exist in 3.7
-
     from .types.http import StrOrURL
     from .types.id import ID32, ID64
 
@@ -410,19 +421,6 @@ def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:
     )
 
 
-# some backports
-# TODO make a custom cancellable Executor
-if sys.version_info >= (3, 9):
-    from asyncio import to_thread
-else:
-
-    async def to_thread(callable: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T:
-        loop = asyncio.get_running_loop()
-        ctx = contextvars.copy_context()
-        partial = functools.partial(ctx.run, callable, *args, **kwargs)
-        return await loop.run_in_executor(None, partial)
-
-
 _SelfT = TypeVar("_SelfT")
 _T_co = TypeVar("_T_co", covariant=True)
 
@@ -475,7 +473,7 @@ class cached_slot_property(cached_property[_SelfT, _T_co]):
 
 
 def ainput(prompt: str = "") -> Coroutine[None, None, str]:
-    return to_thread(input, prompt)
+    return asyncio.to_thread(input, prompt)
 
 
 def contains_bbcode(string: str) -> bool:

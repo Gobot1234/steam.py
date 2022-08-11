@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -33,9 +32,9 @@ class CMsgClientTicketAuthComplete(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientCmList(betterproto.Message):
-    cm_addresses: List[int] = betterproto.uint32_field(1)
-    cm_ports: List[int] = betterproto.uint32_field(2)
-    cm_websocket_addresses: List[str] = betterproto.string_field(3)
+    cm_addresses: list[int] = betterproto.uint32_field(1)
+    cm_ports: list[int] = betterproto.uint32_field(2)
+    cm_websocket_addresses: list[str] = betterproto.string_field(3)
     percent_default_to_websocket: int = betterproto.uint32_field(4)
 
 
@@ -103,12 +102,12 @@ class CMsgClientSessionToken(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientGameConnectTokens(betterproto.Message):
     max_tokens_to_keep: int = betterproto.uint32_field(1)
-    tokens: List[bytes] = betterproto.bytes_field(2)
+    tokens: list[bytes] = betterproto.bytes_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class CMsgClientGamesPlayed(betterproto.Message):
-    games_played: List["CMsgClientGamesPlayedGamePlayed"] = betterproto.message_field(1)
+    games_played: list["CMsgClientGamesPlayedGamePlayed"] = betterproto.message_field(1)
     client_os_type: int = betterproto.uint32_field(2)
     cloud_gaming_platform: int = betterproto.uint32_field(3)
 
@@ -165,22 +164,22 @@ class CMsgClientAuthList(betterproto.Message):
     tokens_left: int = betterproto.uint32_field(1)
     last_request_seq: int = betterproto.uint32_field(2)
     last_request_seq_from_server: int = betterproto.uint32_field(3)
-    tickets: List[CMsgAuthTicket] = betterproto.message_field(4)
-    app_ids: List[int] = betterproto.uint32_field(5)
+    tickets: list[CMsgAuthTicket] = betterproto.message_field(4)
+    app_ids: list[int] = betterproto.uint32_field(5)
     message_sequence: int = betterproto.uint32_field(6)
 
 
 @dataclass(eq=False, repr=False)
 class CMsgClientAuthListAck(betterproto.Message):
-    ticket_crc: List[int] = betterproto.uint32_field(1)
-    app_ids: List[int] = betterproto.uint32_field(2)
+    ticket_crc: list[int] = betterproto.uint32_field(1)
+    app_ids: list[int] = betterproto.uint32_field(2)
     message_sequence: int = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
 class CMsgClientLicenseList(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    licenses: List["CMsgClientLicenseListLicense"] = betterproto.message_field(2)
+    licenses: list["CMsgClientLicenseListLicense"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -215,7 +214,7 @@ class CMsgClientIsLimitedAccount(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientRequestedClientStats(betterproto.Message):
-    stats_to_send: List["CMsgClientRequestedClientStatsStatsToSend"] = betterproto.message_field(1)
+    stats_to_send: list["CMsgClientRequestedClientStatsStatsToSend"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -226,7 +225,7 @@ class CMsgClientRequestedClientStatsStatsToSend(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientStat2(betterproto.Message):
-    stat_detail: List["CMsgClientStat2StatDetail"] = betterproto.message_field(1)
+    stat_detail: list["CMsgClientStat2StatDetail"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -310,7 +309,7 @@ class CMsgClientConnectionStatsStatsVConn(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientServersAvailable(betterproto.Message):
-    server_types_available: List["CMsgClientServersAvailableServerTypesAvailable"] = betterproto.message_field(1)
+    server_types_available: list["CMsgClientServersAvailableServerTypesAvailable"] = betterproto.message_field(1)
     server_type_for_auth_services: int = betterproto.uint32_field(2)
 
 
@@ -322,7 +321,7 @@ class CMsgClientServersAvailableServerTypesAvailable(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientReportOverlayDetourFailure(betterproto.Message):
-    failure_strings: List[str] = betterproto.string_field(1)
+    failure_strings: list[str] = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -364,7 +363,7 @@ class CMsgClientAmGetClanOfficersResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientAmGetPersonaNameHistory(betterproto.Message):
     id_count: int = betterproto.int32_field(1)
-    ids: List["CMsgClientAmGetPersonaNameHistoryIdInstance"] = betterproto.message_field(2)
+    ids: list["CMsgClientAmGetPersonaNameHistoryIdInstance"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -374,14 +373,14 @@ class CMsgClientAmGetPersonaNameHistoryIdInstance(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CMsgClientAmGetPersonaNameHistoryResponse(betterproto.Message):
-    responses: List["CMsgClientAmGetPersonaNameHistoryResponseNameTableInstance"] = betterproto.message_field(2)
+    responses: list["CMsgClientAmGetPersonaNameHistoryResponseNameTableInstance"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class CMsgClientAmGetPersonaNameHistoryResponseNameTableInstance(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     steamid: int = betterproto.fixed64_field(2)
-    names: List["CMsgClientAmGetPersonaNameHistoryResponseNameTableInstanceNameInstance"] = betterproto.message_field(3)
+    names: list["CMsgClientAmGetPersonaNameHistoryResponseNameTableInstanceNameInstance"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -402,8 +401,8 @@ class CMsgClientClanState(betterproto.Message):
     clan_account_flags: int = betterproto.uint32_field(3)
     name_info: "CMsgClientClanStateNameInfo" = betterproto.message_field(4)
     user_counts: "CMsgClientClanStateUserCounts" = betterproto.message_field(5)
-    events: List["CMsgClientClanStateEvent"] = betterproto.message_field(6)
-    announcements: List["CMsgClientClanStateEvent"] = betterproto.message_field(7)
+    events: list["CMsgClientClanStateEvent"] = betterproto.message_field(6)
+    announcements: list["CMsgClientClanStateEvent"] = betterproto.message_field(7)
     chat_room_private: bool = betterproto.bool_field(8)
 
 

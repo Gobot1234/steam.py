@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from yarl import URL as URL_
 

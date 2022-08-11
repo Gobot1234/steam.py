@@ -5,9 +5,7 @@ from __future__ import annotations
 import abc
 from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
-
-from typing_extensions import Literal
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, overload
 
 from . import utils
 from .abc import Commentable, SteamID, _CommentableKwargs

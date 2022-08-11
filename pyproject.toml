@@ -36,7 +36,7 @@ generate-setup-file = false
 "Bug Tracker" = "https://github.com/Gobot1234/steam.py/issues"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.10"
 aiohttp = ">=3.7,<3.9"
 beautifulsoup4 = "^4.10"
 cryptography = "^37.0"
@@ -92,6 +92,7 @@ help = "A base64 encoded protobufs message from Steam to decode"
 
 [tool.black]
 line-length = 120
+python_version = "py310"
 
 [tool.isort]
 profile = "black"
@@ -102,7 +103,7 @@ ensure_newline_before_comments = true
 
 [tool.blacken-docs]
 line-length = 120
-target-version = ["py37"]
+target-version = ["py310"]
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -120,6 +121,9 @@ exclude = "venv, .venv"
 
 [tool.pyright]
 typeCheckingMode = "basic"
+pythonVersion = "3.10"
+useLibraryCodeForTypes = true
+exclude = ["tests", "steam/ext/commands"]
 reportSelfClsParameterName = "none"
 reportUntypedFunctionDecorator = "error"
 reportUntypedClassDecorator = "error"

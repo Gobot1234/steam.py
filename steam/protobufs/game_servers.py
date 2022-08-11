@@ -4,7 +4,6 @@
 # Last updated 18/05/2022
 
 from dataclasses import dataclass
-from typing import Dict, List
 
 import betterproto
 
@@ -26,7 +25,7 @@ class GetServerListRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetServerListResponse(betterproto.Message):
-    servers: List["GetServerListResponseServer"] = betterproto.message_field(1)
+    servers: list["GetServerListResponseServer"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -53,12 +52,12 @@ class GetServerListResponseServer(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetServerSteamIDsByIpRequest(betterproto.Message):
-    server_ips: List[str] = betterproto.string_field(1)
+    server_ips: list[str] = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class IPsWithSteamIDsResponse(betterproto.Message):
-    servers: List["IPsWithSteamIDsResponseServer"] = betterproto.message_field(1)
+    servers: list["IPsWithSteamIDsResponseServer"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -69,7 +68,7 @@ class IPsWithSteamIDsResponseServer(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetServerIPsBySteamIdRequest(betterproto.Message):
-    server_steamids: List[int] = betterproto.fixed64_field(1)
+    server_steamids: list[int] = betterproto.fixed64_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -114,12 +113,12 @@ class PlayersQueryDataPlayer(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PlayersQueryData(betterproto.Message):
-    players: List[PlayersQueryDataPlayer] = betterproto.message_field(1)
+    players: list[PlayersQueryDataPlayer] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class RulesQueryData(betterproto.Message):
-    rules: Dict[str, str] = betterproto.map_field(1, betterproto.TYPE_STRING, betterproto.TYPE_STRING)
+    rules: dict[str, str] = betterproto.map_field(1, betterproto.TYPE_STRING, betterproto.TYPE_STRING)
 
 
 @dataclass(eq=False, repr=False)

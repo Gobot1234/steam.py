@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import Dict, Generator, TypeVar, overload
+from collections.abc import Generator
+from typing import TypeVar, overload
 
 from .errors import MissingClosingQuotation
 
@@ -11,7 +12,7 @@ _T = TypeVar("_T")
 _VT = TypeVar("_VT")
 
 
-class CaseInsensitiveDict(Dict[str, _VT]):
+class CaseInsensitiveDict(dict[str, _VT]):
     """A dictionary where keys are case insensitive."""
 
     def __init__(self, **kwargs: _VT):
@@ -136,8 +137,5 @@ class Shlex:
         return f"<Shlex {' '.join(resolved)}>"
 
     def __iter__(self) -> Generator[str, None, None]:
-        while True:
-            token = self.read()
-            if token is None:
-                break
+        while (token := self.read()) is not None:
             yield token

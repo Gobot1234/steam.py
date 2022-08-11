@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
 from functools import partial
 from pathlib import Path
-from typing import Generator
 
 import csscompressor
 import htmlmin
@@ -16,7 +16,7 @@ def get_files(output_dir, suffix: str) -> Generator[Path, None, None]:
 
 
 def extract_js_script_and_minimize(code: str, start: int, end: int) -> str:
-    js_code = code[start:end][len("<script>") :]
+    js_code = code[start:end].removeprefix("<script>")
     minimized_js = rjsmin.jsmin(js_code)
 
     return f"{code[:start]}<script>{minimized_js}{code[end:].lstrip()}"

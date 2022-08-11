@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import imghdr
-import io
 import struct
 from time import time
-from typing import TYPE_CHECKING, Any
-
-from typing_extensions import Protocol
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 __all__ = ("Image",)
 
@@ -17,6 +14,7 @@ if TYPE_CHECKING:
     from _typeshed import StrOrBytesPath
 
 
+@runtime_checkable
 class ImageIO(Protocol):
     def seekable(self) -> bool:
         ...
@@ -61,7 +59,7 @@ class Image:
     fp: ImageIO
 
     def __init__(self, fp: ImageIO | StrOrBytesPath | int, *, spoiler: bool = False):
-        self.fp = fp if isinstance(fp, io.BufferedIOBase) else open(fp, "rb")
+        self.fp = fp if isinstance(fp, ImageIO) else open(fp, "rb")
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
 

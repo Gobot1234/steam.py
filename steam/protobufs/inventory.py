@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -18,7 +17,7 @@ class GetInventoryRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class Response(betterproto.Message):
     etag: str = betterproto.string_field(1)
-    removeditemids: List[int] = betterproto.uint64_field(2)
+    removeditemids: list[int] = betterproto.uint64_field(2)
     item_json: str = betterproto.string_field(3)
     itemdef_json: str = betterproto.string_field(4)
     ticket: bytes = betterproto.bytes_field(5)
@@ -29,8 +28,8 @@ class Response(betterproto.Message):
 class ExchangeItemRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     steamid: int = betterproto.uint64_field(2)
-    materialsitemid: List[int] = betterproto.uint64_field(3)
-    materialsquantity: List[int] = betterproto.uint32_field(4)
+    materialsitemid: list[int] = betterproto.uint64_field(3)
+    materialsquantity: list[int] = betterproto.uint32_field(4)
     outputitemdefid: int = betterproto.uint64_field(5)
 
 
@@ -42,14 +41,14 @@ class GetEligiblePromoItemDefIDsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetEligiblePromoItemDefIDsResponse(betterproto.Message):
-    itemdefids: List[int] = betterproto.uint64_field(1)
+    itemdefids: list[int] = betterproto.uint64_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class AddItemRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    itemdefid: List[int] = betterproto.uint64_field(2)
-    itempropsjson: List[str] = betterproto.string_field(3)
+    itemdefid: list[int] = betterproto.uint64_field(2)
+    itempropsjson: list[str] = betterproto.string_field(3)
     steamid: int = betterproto.uint64_field(4)
     notify: bool = betterproto.bool_field(5)
     requestid: int = betterproto.uint64_field(6)
@@ -61,7 +60,7 @@ class AddItemRequest(betterproto.Message):
 class ModifyItemsRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     steamid: int = betterproto.uint64_field(2)
-    updates: List["ModifyItemsRequestItemPropertyUpdate"] = betterproto.message_field(3)
+    updates: list["ModifyItemsRequestItemPropertyUpdate"] = betterproto.message_field(3)
     timestamp: int = betterproto.uint32_field(4)
 
 
@@ -141,7 +140,7 @@ class GetUserPurchaseInfoResponse(betterproto.Message):
 class PurchaseInitRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     language: int = betterproto.int32_field(2)
-    line_items: List["PurchaseInitRequestLineItem"] = betterproto.message_field(3)
+    line_items: list["PurchaseInitRequestLineItem"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)

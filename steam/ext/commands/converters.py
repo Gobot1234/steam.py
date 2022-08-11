@@ -5,10 +5,23 @@ from __future__ import annotations
 import types
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Generator
-from typing import TYPE_CHECKING, Any, Dict, ForwardRef, Generic, NoReturn, Sequence, TypeVar, Union, overload
+from collections.abc import Callable, Generator, Sequence
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ForwardRef,
+    Generic,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    overload,
+    runtime_checkable,
+)
 
-from typing_extensions import Literal, Protocol, TypeAlias, get_args, get_origin, runtime_checkable
+from typing_extensions import Never
 
 from ... import _const, utils
 from ...channel import Channel
@@ -47,7 +60,7 @@ T_co = TypeVar("T_co", covariant=True)
 Converters: TypeAlias = "ConverterBase | BasicConverter[Any]"
 
 
-class ConverterDict(Dict[type, "tuple[Converters, ...]"]):
+class ConverterDict(dict[type, "tuple[Converters, ...]"]):
     def __setitem__(self, key: Any, value: Converters) -> None:
         old_value = super().get(key, ())
         super().__setitem__(key, old_value + (value,))
@@ -471,7 +484,7 @@ class Greedy(Generic[T]):
 
     def __new__(
         cls, *args: Any, **kwargs: Any
-    ) -> NoReturn:  # give a more helpful message than typing._BaseGenericAlias.__call__
+    ) -> Never:  # give a more helpful message than typing._BaseGenericAlias.__call__
         raise TypeError("Greedy cannot be instantiated directly, instead use Greedy[...]")
 
     def __class_getitem__(cls, converter: GreedyTypes[T]) -> Greedy[T]:

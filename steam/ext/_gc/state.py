@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, overload
 from ... import utils
 from ...abc import BaseUser
 from ...enums import IntEnum
-from ...gateway import EventListener, GCMsgsT
+from ...gateway import EventListener, GCMsgProtoT, GCMsgsT, GCMsgT
 from ...models import register, return_true
 from ...protobufs import EMsg, GCMsg, GCMsgProto, MsgProto
 from ...state import ConnectionState
@@ -24,8 +24,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 Inv = TypeVar("Inv", bound=BaseInventory[Any])
-GCMsgProtoT = TypeVar("GCMsgProtoT", bound=GCMsgProto)
-GCMsgT = TypeVar("GCMsgT", bound=GCMsg)
 
 
 class GCState(ConnectionState):

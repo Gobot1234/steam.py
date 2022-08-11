@@ -12,7 +12,6 @@ from ...game import Game
 from ...protobufs import GCMsg, GCMsgProto
 from ...trade import Inventory
 from ...user import ClientUser as ClientUser_
-from .enums import Language
 from .state import GCState
 
 __all__ = ("Client",)

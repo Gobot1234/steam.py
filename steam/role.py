@@ -25,7 +25,7 @@ class Role:
     def __init__(self, state: ConnectionState, group: Clan | Group, role: chat.Role, permissions: chat.RoleActions):
         self._state = state
         self.id = int(role.role_id)
-        self.name = role.name[len("#ChatRoomRole_") :]  # str.removeprefix
+        self.name = role.name.removeprefix("#ChatRoomRole_")
         self.ordinal = role.ordinal
 
         from .clan import Clan

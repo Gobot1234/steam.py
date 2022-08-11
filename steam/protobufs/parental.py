@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -20,8 +19,8 @@ class ParentalSettings(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
     applist_base_id: int = betterproto.uint32_field(2)
     applist_base_description: str = betterproto.string_field(3)
-    applist_base: List["ParentalApp"] = betterproto.message_field(4)
-    applist_custom: List["ParentalApp"] = betterproto.message_field(5)
+    applist_base: list["ParentalApp"] = betterproto.message_field(4)
+    applist_custom: list["ParentalApp"] = betterproto.message_field(5)
     passwordhashtype: int = betterproto.uint32_field(6)
     salt: bytes = betterproto.bytes_field(7)
     passwordhash: bytes = betterproto.bytes_field(8)

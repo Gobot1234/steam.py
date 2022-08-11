@@ -4,14 +4,13 @@
 # Last updated 2/07/2022
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
 
 @dataclass(eq=False, repr=False)
 class GetIndividualRecommendationsRequest(betterproto.Message):
-    requests: List["GetIndividualRecommendationsRequestRecommendationRequest"] = betterproto.message_field(1)
+    requests: list["GetIndividualRecommendationsRequestRecommendationRequest"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -22,7 +21,7 @@ class GetIndividualRecommendationsRequestRecommendationRequest(betterproto.Messa
 
 @dataclass(eq=False, repr=False)
 class GetIndividualRecommendationsResponse(betterproto.Message):
-    recommendations: List["RecommendationDetails"] = betterproto.message_field(1)
+    recommendations: list["RecommendationDetails"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -49,8 +48,8 @@ class GetFriendsRecommendedAppRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetFriendsRecommendedAppResponse(betterproto.Message):
-    accountids_recommended: List[int] = betterproto.uint32_field(1)
-    accountids_not_recommended: List[int] = betterproto.uint32_field(3)
+    accountids_recommended: list[int] = betterproto.uint32_field(1)
+    accountids_not_recommended: list[int] = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -94,7 +93,7 @@ class RecommendationDetails(betterproto.Message):
     ban_check_result: int = betterproto.int32_field(37)
     refunded: bool = betterproto.bool_field(38)
     account_score_spend: int = betterproto.int32_field(39)
-    reactions: List["RecommendationLoyaltyReaction"] = betterproto.message_field(40)
+    reactions: list["RecommendationLoyaltyReaction"] = betterproto.message_field(40)
     ipaddress: str = betterproto.string_field(41)
 
 

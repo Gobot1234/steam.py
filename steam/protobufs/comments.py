@@ -3,7 +3,6 @@
 # Last updated 9/9/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -47,18 +46,18 @@ class GetCommentThreadResponse(betterproto.Message):
             reactionid: int = betterproto.uint32_field(1)
             count: int = betterproto.uint32_field(1)
 
-        reactions: List[Reaction] = betterproto.message_field(12)
+        reactions: list[Reaction] = betterproto.message_field(12)
         parent_id: int = betterproto.fixed64_field(13)
 
-    comments: List[Comment] = betterproto.message_field(1)
-    deleted_comments: List[Comment] = betterproto.message_field(2)
+    comments: list[Comment] = betterproto.message_field(1)
+    deleted_comments: list[Comment] = betterproto.message_field(2)
     id64: int = betterproto.fixed64_field(3)
     thread_id: int = betterproto.fixed64_field(4)
     start: int = betterproto.int32_field(5)
     count: int = betterproto.int32_field(6)
     total_count: int = betterproto.int32_field(7)
     upvotes: int = betterproto.int32_field(8)
-    upvoters: List[int] = betterproto.uint32_field(9)
+    upvoters: list[int] = betterproto.uint32_field(9)
     user_subscribed: bool = betterproto.bool_field(10)
     user_upvoted: bool = betterproto.bool_field(11)
     answer_id: int = betterproto.fixed64_field(12)
@@ -141,7 +140,7 @@ class GetCommentThreadRatingsResponse(betterproto.Message):
     comment_id: int = betterproto.uint64_field(2)
     upvotes: int = betterproto.uint32_field(3)
     has_upvoted: bool = betterproto.bool_field(4)
-    upvoter_ids: List[int] = betterproto.uint32_field(5)
+    upvoter_ids: list[int] = betterproto.uint32_field(5)
 
 
 @dataclass(eq=False, repr=False)

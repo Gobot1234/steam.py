@@ -10,10 +10,9 @@ import builtins
 import sys
 from collections.abc import Callable
 from io import StringIO
-from typing import Any
+from typing import Any, Final, final
 
 from multidict import MultiDict
-from typing_extensions import Final, final
 from yarl import URL as _URL
 
 from .types.vdf import BinaryVDFDict, VDFDict

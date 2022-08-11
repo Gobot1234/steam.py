@@ -11,9 +11,9 @@ import asyncio
 from collections.abc import Coroutine, Sequence
 from datetime import datetime
 from random import randint
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
 
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self
 
 from . import utils
 from .abc import Channel, Message, SteamID

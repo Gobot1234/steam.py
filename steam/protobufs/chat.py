@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -84,7 +83,7 @@ class CreateChatRoomGroupRequest(betterproto.Message):
     steamid_partner: int = betterproto.fixed64_field(1)
     steamid_invited: int = betterproto.fixed64_field(2)
     name: str = betterproto.string_field(3)
-    steamid_invitees: List[int] = betterproto.fixed64_field(4)
+    steamid_invitees: list[int] = betterproto.fixed64_field(4)
     watching_broadcast_accountid: int = betterproto.uint32_field(6)
     watching_broadcast_channel_id: int = betterproto.uint64_field(7)
 
@@ -130,10 +129,10 @@ class GroupHeaderState(betterproto.Message):
     tagline: str = betterproto.string_field(15)
     avatar_sha: bytes = betterproto.bytes_field(16)
     default_role_id: int = betterproto.uint64_field(17)
-    roles: List["Role"] = betterproto.message_field(18)
-    role_actions: List["RoleActions"] = betterproto.message_field(19)
+    roles: list["Role"] = betterproto.message_field(18)
+    role_actions: list["RoleActions"] = betterproto.message_field(19)
     watching_broadcast_accountid: int = betterproto.uint32_field(20)
-    party_beacons: List["PartyBeacon"] = betterproto.message_field(22)
+    party_beacons: list["PartyBeacon"] = betterproto.message_field(22)
     watching_broadcast_channel_id: int = betterproto.uint64_field(23)
     active_minigame_id: int = betterproto.uint64_field(24)
     avatar_ugc_url: str = betterproto.string_field(25)
@@ -146,7 +145,7 @@ class Member(betterproto.Message):
     state: "EChatRoomJoinState" = betterproto.enum_field(3)
     rank: "EChatRoomGroupRank" = betterproto.enum_field(4)
     time_kick_expire: int = betterproto.uint32_field(6)
-    role_ids: List[int] = betterproto.uint64_field(7)
+    role_ids: list[int] = betterproto.uint64_field(7)
 
 
 @dataclass(eq=False, repr=False)
@@ -154,7 +153,7 @@ class State(betterproto.Message):
     chat_id: int = betterproto.uint64_field(1)
     chat_name: str = betterproto.string_field(2)
     voice_allowed: bool = betterproto.bool_field(3)
-    members_in_voice: List[int] = betterproto.uint32_field(4)
+    members_in_voice: list[int] = betterproto.uint32_field(4)
     time_last_message: int = betterproto.uint32_field(5)
     sort_order: int = betterproto.uint32_field(6)
     last_message: str = betterproto.string_field(7)
@@ -164,10 +163,10 @@ class State(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GroupState(betterproto.Message):
     header_state: "GroupHeaderState" = betterproto.message_field(1)
-    members: List["Member"] = betterproto.message_field(2)
+    members: list["Member"] = betterproto.message_field(2)
     default_chat_id: int = betterproto.uint64_field(4)
-    chat_rooms: List["State"] = betterproto.message_field(5)
-    kicked: List["Member"] = betterproto.message_field(7)
+    chat_rooms: list["State"] = betterproto.message_field(5)
+    kicked: list["Member"] = betterproto.message_field(7)
 
 
 @dataclass(eq=False, repr=False)
@@ -186,7 +185,7 @@ class ChatRoomState(betterproto.Message):
 class ChatRoomGroupState(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     time_joined: int = betterproto.uint32_field(2)
-    user_chat_room_state: List["ChatRoomState"] = betterproto.message_field(3)
+    user_chat_room_state: list["ChatRoomState"] = betterproto.message_field(3)
     desktop_notification_level: "EChatRoomNotificationLevel" = betterproto.enum_field(4)
     mobile_notification_level: "EChatRoomNotificationLevel" = betterproto.enum_field(5)
     time_last_group_ack: int = betterproto.uint32_field(6)
@@ -344,7 +343,7 @@ class GetRolesRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetRolesResponse(betterproto.Message):
-    roles: List["Role"] = betterproto.message_field(1)
+    roles: list["Role"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -390,7 +389,7 @@ class GetRoleActionsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetRoleActionsResponse(betterproto.Message):
-    actions: List["RoleActions"] = betterproto.message_field(1)
+    actions: list["RoleActions"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -425,7 +424,7 @@ class GetRolesForUserRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetRolesForUserResponse(betterproto.Message):
-    role_ids: List[int] = betterproto.uint64_field(1)
+    role_ids: list[int] = betterproto.uint64_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -583,7 +582,7 @@ class ServerMessage(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetMessageHistoryResponse(betterproto.Message):
-    messages: List["GetMessageHistoryResponseChatMessage"] = betterproto.message_field(1)
+    messages: list["GetMessageHistoryResponseChatMessage"] = betterproto.message_field(1)
     more_available: bool = betterproto.bool_field(4)
 
 
@@ -595,7 +594,7 @@ class GetMessageHistoryResponseChatMessage(betterproto.Message):
     ordinal: int = betterproto.uint32_field(4)
     server_message: "ServerMessage" = betterproto.message_field(5)
     deleted: bool = betterproto.bool_field(6)
-    reactions: List["GetMessageHistoryResponseChatMessageMessageReaction"] = betterproto.message_field(7)
+    reactions: list["GetMessageHistoryResponseChatMessageMessageReaction"] = betterproto.message_field(7)
 
 
 @dataclass(eq=False, repr=False)
@@ -618,19 +617,19 @@ class GetChatRoomGroupSummaryResponse(betterproto.Message):
     active_member_count: int = betterproto.uint32_field(3)
     active_voice_member_count: int = betterproto.uint32_field(4)
     default_chat_id: int = betterproto.uint64_field(5)
-    chat_rooms: List["State"] = betterproto.message_field(6)
+    chat_rooms: list["State"] = betterproto.message_field(6)
     clanid: int = betterproto.uint32_field(7)
     chat_group_tagline: str = betterproto.string_field(8)
     accountid_owner: int = betterproto.uint32_field(9)
-    top_members: List[int] = betterproto.uint32_field(10)
+    top_members: list[int] = betterproto.uint32_field(10)
     chat_group_avatar_sha: bytes = betterproto.bytes_field(11)
     rank: "EChatRoomGroupRank" = betterproto.enum_field(12)
     default_role_id: int = betterproto.uint64_field(13)
-    role_ids: List[int] = betterproto.uint64_field(14)
-    role_actions: List["RoleActions"] = betterproto.message_field(15)
+    role_ids: list[int] = betterproto.uint64_field(14)
+    role_actions: list["RoleActions"] = betterproto.message_field(15)
     watching_broadcast_accountid: int = betterproto.uint32_field(16)
     appid: int = betterproto.uint32_field(17)
-    party_beacons: List["PartyBeacon"] = betterproto.message_field(18)
+    party_beacons: list["PartyBeacon"] = betterproto.message_field(18)
     watching_broadcast_channel_id: int = betterproto.uint64_field(19)
     active_minigame_id: int = betterproto.uint64_field(20)
     avatar_ugc_url: str = betterproto.string_field(21)
@@ -645,7 +644,7 @@ class SummaryPair(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetMyChatRoomGroupsResponse(betterproto.Message):
-    chat_room_groups: List["SummaryPair"] = betterproto.message_field(1)
+    chat_room_groups: list["SummaryPair"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -672,7 +671,7 @@ class SetAppChatRoomGroupForceActiveRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SetAppChatRoomGroupForceActiveResponse(betterproto.Message):
     result: int = betterproto.uint32_field(1)
-    accounts_in_channel: List[int] = betterproto.uint32_field(2)
+    accounts_in_channel: list[int] = betterproto.uint32_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -739,7 +738,7 @@ class GetInviteLinksForGroupRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetInviteLinksForGroupResponse(betterproto.Message):
-    invite_links: List["GetInviteLinksForGroupResponseLinkInfo"] = betterproto.message_field(1)
+    invite_links: list["GetInviteLinksForGroupResponseLinkInfo"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -757,7 +756,7 @@ class GetBanListRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetBanListResponse(betterproto.Message):
-    bans: List["GetBanListResponseBanInfo"] = betterproto.message_field(1)
+    bans: list["GetBanListResponseBanInfo"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -782,7 +781,7 @@ class GroupInvite(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetInviteListResponse(betterproto.Message):
-    invites: List["GroupInvite"] = betterproto.message_field(1)
+    invites: list["GroupInvite"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -798,22 +797,22 @@ class DeleteInviteLinkResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SetSessionActiveChatRoomGroupsRequest(betterproto.Message):
-    chat_group_ids: List[int] = betterproto.uint64_field(1)
-    chat_groups_data_requested: List[int] = betterproto.uint64_field(2)
+    chat_group_ids: list[int] = betterproto.uint64_field(1)
+    chat_groups_data_requested: list[int] = betterproto.uint64_field(2)
     virtualize_members_threshold: int = betterproto.int32_field(3)
 
 
 @dataclass(eq=False, repr=False)
 class SetSessionActiveChatRoomGroupsResponse(betterproto.Message):
-    chat_states: List["GroupState"] = betterproto.message_field(1)
-    virtualize_members_chat_group_ids: List[int] = betterproto.uint64_field(2)
+    chat_states: list["GroupState"] = betterproto.message_field(1)
+    virtualize_members_chat_group_ids: list[int] = betterproto.uint64_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class SetUserChatGroupPreferencesRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_group_preferences: "SetUserChatGroupPreferencesRequestChatGroupPreferences" = betterproto.message_field(2)
-    chat_room_preferences: List["SetUserChatGroupPreferencesRequestChatRoomPreferences"] = betterproto.message_field(3)
+    chat_room_preferences: list["SetUserChatGroupPreferencesRequestChatRoomPreferences"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -840,7 +839,7 @@ class SetUserChatGroupPreferencesResponse(betterproto.Message):
 class DeleteChatMessagesRequest(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
-    messages: List["DeleteChatMessagesRequestMessage"] = betterproto.message_field(3)
+    messages: list["DeleteChatMessagesRequestMessage"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -862,8 +861,8 @@ class UpdateMemberListViewNotification(betterproto.Message):
     end: int = betterproto.int32_field(4)
     client_changenumber: int = betterproto.int32_field(5)
     delete_view: bool = betterproto.bool_field(6)
-    persona_subscribe_accountids: List[int] = betterproto.int32_field(7)
-    persona_unsubscribe_accountids: List[int] = betterproto.int32_field(8)
+    persona_subscribe_accountids: list[int] = betterproto.int32_field(7)
+    persona_unsubscribe_accountids: list[int] = betterproto.int32_field(8)
 
 
 @dataclass(eq=False, repr=False)
@@ -876,7 +875,7 @@ class SearchMembersRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SearchMembersResponse(betterproto.Message):
-    matching_members: List["SearchMembersResponseMemberMatch"] = betterproto.message_field(1)
+    matching_members: list["SearchMembersResponseMemberMatch"] = betterproto.message_field(1)
     status_flags: int = betterproto.uint32_field(2)
 
 
@@ -915,7 +914,7 @@ class GetMessageReactionReactorsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetMessageReactionReactorsResponse(betterproto.Message):
-    reactors: List[int] = betterproto.uint32_field(1)
+    reactors: list[int] = betterproto.uint32_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -944,7 +943,7 @@ class SetClanChatRoomPrivateResponse(betterproto.Message):
 class Mentions(betterproto.Message):
     mention_all: bool = betterproto.bool_field(1)
     mention_here: bool = betterproto.bool_field(2)
-    ids: List[int] = betterproto.uint32_field(3)
+    ids: list[int] = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -965,7 +964,7 @@ class IncomingChatMessageNotification(betterproto.Message):
 class ChatMessageModifiedNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     chat_id: int = betterproto.uint64_field(2)
-    messages: List["ChatMessageModifiedNotificationChatMessage"] = betterproto.message_field(3)
+    messages: list["ChatMessageModifiedNotificationChatMessage"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -991,7 +990,7 @@ class ChatRoomHeaderStateNotification(betterproto.Message):
 class ChatRoomGroupRoomsChangeNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     default_chat_id: int = betterproto.uint64_field(2)
-    chat_rooms: List["State"] = betterproto.message_field(3)
+    chat_rooms: list["State"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -1010,7 +1009,7 @@ class NotifyChatGroupUserStateChangedNotification(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class NotifyChatRoomDisconnectNotification(betterproto.Message):
-    chat_group_ids: List[int] = betterproto.uint64_field(1)
+    chat_group_ids: list[int] = betterproto.uint64_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1034,10 +1033,10 @@ class MemberListViewUpdatedNotification(betterproto.Message):
     chat_group_id: int = betterproto.uint64_field(1)
     view_id: int = betterproto.uint64_field(2)
     view: "MemberListView" = betterproto.message_field(3)
-    members: List["MemberListViewUpdatedNotificationMemberListViewEntry"] = betterproto.message_field(4)
+    members: list["MemberListViewUpdatedNotificationMemberListViewEntry"] = betterproto.message_field(4)
     status_flags: int = betterproto.uint32_field(5)
     member_summary: "MemberSummaryCounts" = betterproto.message_field(6)
-    subscribed_personas: List[CMsgClientPersonaStateFriend] = betterproto.message_field(7)
+    subscribed_personas: list[CMsgClientPersonaStateFriend] = betterproto.message_field(7)
 
 
 @dataclass(eq=False, repr=False)

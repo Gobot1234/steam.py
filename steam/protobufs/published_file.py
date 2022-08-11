@@ -4,7 +4,6 @@
 # Last updated 09/08/2022
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -90,7 +89,7 @@ class PublishRequest(betterproto.Message):
     youtube_videoid: str = betterproto.string_field(10)
     visibility: int = betterproto.uint32_field(11)
     redirect_uri: str = betterproto.string_field(12)
-    tags: List[str] = betterproto.string_field(13)
+    tags: list[str] = betterproto.string_field(13)
     collection_type: str = betterproto.string_field(14)
     game_type: str = betterproto.string_field(15)
     url: str = betterproto.string_field(16)
@@ -104,7 +103,7 @@ class PublishResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetDetailsRequest(betterproto.Message):
-    publishedfileids: List[int] = betterproto.fixed64_field(1)
+    publishedfileids: list[int] = betterproto.fixed64_field(1)
     includetags: bool = betterproto.bool_field(2)
     includeadditionalpreviews: bool = betterproto.bool_field(3)
     includechildren: bool = betterproto.bool_field(4)
@@ -175,10 +174,10 @@ class PublishedFileDetails(betterproto.Message):
     shortcutname: str = betterproto.string_field(48)
     num_children: int = betterproto.uint32_field(49)
     num_reports: int = betterproto.uint32_field(50)
-    previews: List["PublishedFileDetailsPreview"] = betterproto.message_field(51)
-    tags: List["PublishedFileDetailsTag"] = betterproto.message_field(52)
-    children: List["PublishedFileDetailsChild"] = betterproto.message_field(53)
-    kvtags: List["PublishedFileDetailsKvTag"] = betterproto.message_field(54)
+    previews: list["PublishedFileDetailsPreview"] = betterproto.message_field(51)
+    tags: list["PublishedFileDetailsTag"] = betterproto.message_field(52)
+    children: list["PublishedFileDetailsChild"] = betterproto.message_field(53)
+    kvtags: list["PublishedFileDetailsKvTag"] = betterproto.message_field(54)
     vote_data: "PublishedFileDetailsVoteData" = betterproto.message_field(55)
     playtime_stats: "PublishedFileDetailsPlaytimeStats" = betterproto.message_field(64)
     time_subscribed: int = betterproto.uint32_field(56)
@@ -189,8 +188,8 @@ class PublishedFileDetails(betterproto.Message):
     maybe_inappropriate_violence: bool = betterproto.bool_field(66)
     revision_change_number: int = betterproto.uint64_field(67)
     revision: "EPublishedFileRevision" = betterproto.enum_field(68)
-    available_revisions: List["EPublishedFileRevision"] = betterproto.enum_field(69)
-    reactions: List["PublishedFileDetailsReaction"] = betterproto.message_field(70)
+    available_revisions: list["EPublishedFileRevision"] = betterproto.enum_field(69)
+    reactions: list["PublishedFileDetailsReaction"] = betterproto.message_field(70)
     ban_text_check_result: EBanContentCheckResult = betterproto.enum_field(71)
 
 
@@ -257,14 +256,14 @@ class PublishedFileDetailsReaction(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetDetailsResponse(betterproto.Message):
-    publishedfiledetails: List["PublishedFileDetails"] = betterproto.message_field(1)
+    publishedfiledetails: list["PublishedFileDetails"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class GetItemInfoRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     last_time_updated: int = betterproto.uint32_field(2)
-    workshop_items: List["GetItemInfoRequestWorkshopItem"] = betterproto.message_field(3)
+    workshop_items: list["GetItemInfoRequestWorkshopItem"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -277,8 +276,8 @@ class GetItemInfoRequestWorkshopItem(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetItemInfoResponse(betterproto.Message):
     update_time: int = betterproto.uint32_field(1)
-    workshop_items: List["GetItemInfoResponseWorkshopItemInfo"] = betterproto.message_field(2)
-    private_items: List[int] = betterproto.fixed64_field(3)
+    workshop_items: list["GetItemInfoResponseWorkshopItemInfo"] = betterproto.message_field(2)
+    private_items: list[int] = betterproto.fixed64_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -298,15 +297,15 @@ class GetUserFilesRequest(betterproto.Message):
     type: str = betterproto.string_field(6)
     sortmethod: str = betterproto.string_field(7)
     privacy: int = betterproto.uint32_field(9)
-    requiredtags: List[str] = betterproto.string_field(10)
-    excludedtags: List[str] = betterproto.string_field(11)
-    required_kv_tags: List["GetUserFilesRequestKvTag"] = betterproto.message_field(30)
+    requiredtags: list[str] = betterproto.string_field(10)
+    excludedtags: list[str] = betterproto.string_field(11)
+    required_kv_tags: list["GetUserFilesRequestKvTag"] = betterproto.message_field(30)
     filetype: int = betterproto.uint32_field(14)
     creator_appid: int = betterproto.uint32_field(15)
     match_cloud_filename: str = betterproto.string_field(16)
     cache_max_age_seconds: int = betterproto.uint32_field(27)
     language: int = betterproto.int32_field(29)
-    taggroups: List["GetUserFilesRequestTagGroup"] = betterproto.message_field(34)
+    taggroups: list["GetUserFilesRequestTagGroup"] = betterproto.message_field(34)
     totalonly: bool = betterproto.bool_field(17)
     ids_only: bool = betterproto.bool_field(18)
     return_vote_data: bool = betterproto.bool_field(19)
@@ -333,15 +332,15 @@ class GetUserFilesRequestKvTag(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetUserFilesRequestTagGroup(betterproto.Message):
-    tags: List[str] = betterproto.string_field(1)
+    tags: list[str] = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class GetUserFilesResponse(betterproto.Message):
     total: int = betterproto.uint32_field(1)
     startindex: int = betterproto.uint32_field(2)
-    publishedfiledetails: List["PublishedFileDetails"] = betterproto.message_field(3)
-    apps: List["GetUserFilesResponseApp"] = betterproto.message_field(4)
+    publishedfiledetails: list["PublishedFileDetails"] = betterproto.message_field(3)
+    apps: list["GetUserFilesResponseApp"] = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -355,7 +354,7 @@ class GetUserFilesResponseApp(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class AreFilesInSubscriptionListRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    publishedfileids: List[int] = betterproto.fixed64_field(2)
+    publishedfileids: list[int] = betterproto.fixed64_field(2)
     listtype: int = betterproto.uint32_field(3)
     filetype: int = betterproto.uint32_field(4)
     workshopfiletype: int = betterproto.uint32_field(5)
@@ -363,7 +362,7 @@ class AreFilesInSubscriptionListRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class AreFilesInSubscriptionListResponse(betterproto.Message):
-    files: List["AreFilesInSubscriptionListResponseInList"] = betterproto.message_field(1)
+    files: list["AreFilesInSubscriptionListResponseInList"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -379,7 +378,7 @@ class UpdateRequest(betterproto.Message):
     title: str = betterproto.string_field(3)
     file_description: str = betterproto.string_field(4)
     visibility: int = betterproto.uint32_field(5)
-    tags: List[str] = betterproto.string_field(6)
+    tags: list[str] = betterproto.string_field(6)
     filename: str = betterproto.string_field(7)
     preview_filename: str = betterproto.string_field(8)
     image_width: int = betterproto.uint32_field(15)
@@ -415,7 +414,7 @@ class GetChangeHistoryRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetChangeHistoryResponse(betterproto.Message):
-    changes: List["GetChangeHistoryResponseChangeLog"] = betterproto.message_field(1)
+    changes: list["GetChangeHistoryResponseChangeLog"] = betterproto.message_field(1)
     total: int = betterproto.uint32_field(2)
 
 
@@ -430,9 +429,9 @@ class GetChangeHistoryResponseChangeLog(betterproto.Message):
 class RefreshVotingQueueRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     matching_file_type: int = betterproto.uint32_field(2)
-    tags: List[str] = betterproto.string_field(3)
+    tags: list[str] = betterproto.string_field(3)
     match_all_tags: bool = betterproto.bool_field(4)
-    excluded_tags: List[str] = betterproto.string_field(5)
+    excluded_tags: list[str] = betterproto.string_field(5)
     desired_queue_size: int = betterproto.uint32_field(6)
     desired_revision: "EPublishedFileRevision" = betterproto.enum_field(8)
 
@@ -450,11 +449,11 @@ class QueryFilesRequest(betterproto.Message):
     numperpage: int = betterproto.uint32_field(3)
     creator_appid: int = betterproto.uint32_field(4)
     appid: int = betterproto.uint32_field(5)
-    requiredtags: List[str] = betterproto.string_field(6)
-    excludedtags: List[str] = betterproto.string_field(7)
+    requiredtags: list[str] = betterproto.string_field(6)
+    excludedtags: list[str] = betterproto.string_field(7)
     match_all_tags: bool = betterproto.bool_field(8)
-    required_flags: List[str] = betterproto.string_field(9)
-    omitted_flags: List[str] = betterproto.string_field(10)
+    required_flags: list[str] = betterproto.string_field(9)
+    omitted_flags: list[str] = betterproto.string_field(10)
     search_text: str = betterproto.string_field(11)
     filetype: int = betterproto.uint32_field(12)
     child_publishedfileid: int = betterproto.fixed64_field(13)
@@ -462,8 +461,8 @@ class QueryFilesRequest(betterproto.Message):
     include_recent_votes_only: bool = betterproto.bool_field(15)
     cache_max_age_seconds: int = betterproto.uint32_field(31)
     language: int = betterproto.int32_field(33)
-    required_kv_tags: List["QueryFilesRequestKvTag"] = betterproto.message_field(34)
-    taggroups: List["QueryFilesRequestTagGroup"] = betterproto.message_field(42)
+    required_kv_tags: list["QueryFilesRequestKvTag"] = betterproto.message_field(34)
+    taggroups: list["QueryFilesRequestTagGroup"] = betterproto.message_field(42)
     totalonly: bool = betterproto.bool_field(16)
     ids_only: bool = betterproto.bool_field(35)
     return_vote_data: bool = betterproto.bool_field(17)
@@ -489,13 +488,13 @@ class QueryFilesRequestKvTag(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class QueryFilesRequestTagGroup(betterproto.Message):
-    tags: List[str] = betterproto.string_field(1)
+    tags: list[str] = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class QueryFilesResponse(betterproto.Message):
     total: int = betterproto.uint32_field(1)
-    publishedfiledetails: List["PublishedFileDetails"] = betterproto.message_field(2)
+    publishedfiledetails: list["PublishedFileDetails"] = betterproto.message_field(2)
     next_cursor: str = betterproto.string_field(3)
 
 
@@ -530,7 +529,7 @@ class GetAppRelationshipsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetAppRelationshipsResponse(betterproto.Message):
-    app_relationships: List["GetAppRelationshipsResponseAppRelationship"] = betterproto.message_field(3)
+    app_relationships: list["GetAppRelationshipsResponseAppRelationship"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -542,7 +541,7 @@ class GetAppRelationshipsResponseAppRelationship(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StartPlaytimeTrackingRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    publishedfileids: List[int] = betterproto.uint64_field(2)
+    publishedfileids: list[int] = betterproto.uint64_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -553,7 +552,7 @@ class StartPlaytimeTrackingResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StopPlaytimeTrackingRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    publishedfileids: List[int] = betterproto.uint64_field(2)
+    publishedfileids: list[int] = betterproto.uint64_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -574,7 +573,7 @@ class StopPlaytimeTrackingForAllAppItemsResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SetPlaytimeForControllerConfigsRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    controller_config_usage: List[
+    controller_config_usage: list[
         "SetPlaytimeForControllerConfigsRequestControllerConfigUsage"
     ] = betterproto.message_field(2)
 
@@ -614,12 +613,12 @@ class RemoveChildResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetUserVoteSummaryRequest(betterproto.Message):
-    publishedfileids: List[int] = betterproto.fixed64_field(1)
+    publishedfileids: list[int] = betterproto.fixed64_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class GetUserVoteSummaryResponse(betterproto.Message):
-    summaries: List["GetUserVoteSummaryResponseVoteSummary"] = betterproto.message_field(1)
+    summaries: list["GetUserVoteSummaryResponseVoteSummary"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -640,7 +639,7 @@ class GetItemChangesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetItemChangesResponse(betterproto.Message):
     update_time: int = betterproto.uint32_field(1)
-    workshop_items: List["GetItemChangesResponseWorkshopItemInfo"] = betterproto.message_field(2)
+    workshop_items: list["GetItemChangesResponseWorkshopItemInfo"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -659,7 +658,7 @@ class FileSubscribedNotification(betterproto.Message):
     rtime_subscribed: int = betterproto.uint32_field(5)
     is_depot_content: bool = betterproto.bool_field(6)
     rtime_updated: int = betterproto.uint32_field(7)
-    revisions: List["FileSubscribedNotificationRevisionData"] = betterproto.message_field(8)
+    revisions: list["FileSubscribedNotificationRevisionData"] = betterproto.message_field(8)
 
 
 @dataclass(eq=False, repr=False)

@@ -3,7 +3,6 @@
 # plugin: python-betterproto
 # Last updated 09/09/2021
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -79,7 +78,7 @@ class CMsgProtoBufHeader(betterproto.Message):
     trace_tag: int = betterproto.uint64_field(21)
     webapi_key_id: int = betterproto.uint32_field(25)
     is_from_external_source: bool = betterproto.bool_field(26)
-    forward_to_sys_id: List[int] = betterproto.uint32_field(27)
+    forward_to_sys_id: list[int] = betterproto.uint32_field(27)
     cm_sys_id: int = betterproto.uint32_field(28)
     wg_token: str = betterproto.string_field(30)
     launcher_type: int = betterproto.uint32_field(31)
@@ -158,8 +157,8 @@ class CCuratorPreferences(betterproto.Message):
     adult_content_violence: bool = betterproto.bool_field(6)
     adult_content_sex: bool = betterproto.bool_field(7)
     timestamp_updated: int = betterproto.uint32_field(8)
-    tagids_curated: List[int] = betterproto.uint32_field(9)
-    tagids_filtered: List[int] = betterproto.uint32_field(10)
+    tagids_curated: list[int] = betterproto.uint32_field(9)
+    tagids_filtered: list[int] = betterproto.uint32_field(10)
     website_title: str = betterproto.string_field(11)
     website_url: str = betterproto.string_field(12)
     discussion_url: str = betterproto.string_field(13)
@@ -191,7 +190,7 @@ class CClanMatchEventByRange(betterproto.Message):
     rtime_before: int = betterproto.uint32_field(1)
     rtime_after: int = betterproto.uint32_field(2)
     qualified: int = betterproto.uint32_field(3)
-    events: List["CClanEventUserNewsTuple"] = betterproto.message_field(4)
+    events: list["CClanEventUserNewsTuple"] = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -204,7 +203,7 @@ class CCommunityClanAnnouncementInfo(betterproto.Message):
     updatetime: int = betterproto.uint32_field(6)
     body: str = betterproto.string_field(7)
     commentcount: int = betterproto.int32_field(8)
-    tags: List[str] = betterproto.string_field(9)
+    tags: list[str] = betterproto.string_field(9)
     language: int = betterproto.int32_field(10)
     hidden: bool = betterproto.bool_field(11)
     forum_topic_id: int = betterproto.fixed64_field(12)
@@ -242,7 +241,7 @@ class CClanEventData(betterproto.Message):
     news_post_gid: int = betterproto.fixed64_field(25)
     rtime_mod_reviewed: int = betterproto.uint32_field(26)
     featured_app_tagid: int = betterproto.uint32_field(27)
-    referenced_appids: List[int] = betterproto.uint32_field(28)
+    referenced_appids: list[int] = betterproto.uint32_field(28)
     build_id: int = betterproto.uint32_field(29)
     build_branch: str = betterproto.string_field(30)
 

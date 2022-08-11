@@ -9,19 +9,19 @@ import lzma
 import struct
 import sys
 from base64 import b64decode
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from operator import attrgetter, methodcaller
-from typing import TYPE_CHECKING, Any, Sequence, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, TypeVar, overload
 from zipfile import BadZipFile, ZipFile
 from zlib import crc32
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
-from typing_extensions import Final, Never, Self
+from typing_extensions import Never, Self
 from yarl import URL
 
 from . import utils
@@ -244,9 +244,8 @@ class ManifestPath(PurePathBase, _IOMixin):
         if not pattern:
             raise ValueError(f"Unacceptable pattern: {pattern!r}")
 
-        # str.removeprefix
         yield from filter(
-            methodcaller("match", f"{self.as_posix().rstrip('/')}/{pattern}"), self._manifest._paths.values()
+            methodcaller("match", f"{self.as_posix().removesuffix('/')}/{pattern}"), self._manifest._paths.values()
         )
 
     def rglob(self, pattern: str) -> Generator[Self, None, None]:

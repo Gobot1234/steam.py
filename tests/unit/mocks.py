@@ -11,9 +11,9 @@ from steam.protobufs.chat import IncomingChatMessageNotification, State
 from .test_bot import bot
 
 if TYPE_CHECKING:
-    from steam.types.user import UserDict
+    from steam.types.user import User
 
-USER_DATA: UserDict = {
+USER_DATA: User = {
     "steamid": "1234567890",
     "personaname": "a user",
     "realname": "a real name",

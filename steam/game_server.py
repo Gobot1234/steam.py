@@ -6,9 +6,9 @@ import warnings
 from collections.abc import Callable
 from datetime import timedelta
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, TypeAlias, TypeVar, overload
 
-from typing_extensions import Literal, TypeAlias, Unpack
+from typing_extensions import Unpack
 
 from .abc import SteamID
 from .enums import Enum, GameServerRegion, Type

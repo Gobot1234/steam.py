@@ -16,10 +16,9 @@ import sys
 import time
 import traceback
 from collections.abc import Callable, Collection, Coroutine, Sequence
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, final, overload
 
 import aiohttp
-from typing_extensions import Literal, TypeAlias, final
 
 from . import errors, utils
 from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL

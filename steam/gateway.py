@@ -23,13 +23,11 @@ from dataclasses import dataclass
 from datetime import timedelta
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME  # type: ignore
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar, overload
 from zlib import MAX_WBITS, decompress
 
 import aiohttp
 import async_timeout
-import attr
-from typing_extensions import TypeAlias
 
 from . import utils
 from ._const import DEFAULT_CMS
@@ -85,7 +83,7 @@ if not TYPE_CHECKING:
     EventListener.__class_getitem__ = classmethod(lambda cls, params: cls)
 
 
-@attr.dataclass(slots=True)
+@dataclass(slots=True)
 class CMServer:
     _state: ConnectionState
     url: str

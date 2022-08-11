@@ -7,10 +7,10 @@ import re
 import warnings
 from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, TypeVar, overload
+from typing import TYPE_CHECKING, Literal, TypeVar, overload
 
 from bs4 import BeautifulSoup
-from typing_extensions import Literal, Self
+from typing_extensions import Self
 
 from . import utils
 from ._const import HTML_PARSER

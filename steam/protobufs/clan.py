@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -28,18 +27,18 @@ class GetAdjacentPartnerEventsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetAdjacentPartnerEventsResponse(betterproto.Message):
-    events: List[CClanEventData] = betterproto.message_field(1)
+    events: list[CClanEventData] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class GetEventDetailsRequest(betterproto.Message):
-    event_ids: List[int] = betterproto.int64_field(1)
-    clan_ids: List[int] = betterproto.fixed32_field(2)
+    event_ids: list[int] = betterproto.int64_field(1)
+    clan_ids: list[int] = betterproto.fixed32_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class GetEventDetailsResponse(betterproto.Message):
-    events: List[CClanEventData] = betterproto.message_field(1)
+    events: list[CClanEventData] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -50,4 +49,4 @@ class GetSinglePartnerEventRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetSinglePartnerEventResponse(betterproto.Message):
-    events: List[CClanEventData] = betterproto.message_field(1)
+    events: list[CClanEventData] = betterproto.message_field(1)

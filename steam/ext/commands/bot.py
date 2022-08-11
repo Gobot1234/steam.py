@@ -17,9 +17,7 @@ import warnings
 from collections.abc import Callable, Coroutine, Iterable
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, TypeVar
-
-from typing_extensions import Literal, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, overload
 
 from ... import _const, utils
 from ...client import Client, E, EventType, log

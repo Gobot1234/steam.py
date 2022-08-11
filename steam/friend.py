@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from typing import TYPE_CHECKING
-
-from typing_extensions import Literal
+from typing import TYPE_CHECKING, Literal
 
 from .enums import Language
 from .profile import FriendProfile

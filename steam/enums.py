@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable, Generator, Mapping
 from enum import Enum as _Enum, EnumMeta as _EnumMeta, IntEnum as _IntEnum
 from types import MappingProxyType, new_class
-from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Final, Generic, Literal, TypeVar, cast
 
-from typing_extensions import Final, Literal, Self
+from typing_extensions import Never, Self
 
 from ._const import DOCS_BUILDING
 
@@ -55,8 +55,6 @@ T = TypeVar("T")
 
 T_co = TypeVar("T_co")
 TT_co = TypeVar("TT_co", bound="type[Any]")
-# if sys.version_info >= (3, 9):
-#     classproperty = lambda func: classmethod(property(func))
 
 
 class classproperty(Generic[TT_co, T_co]):
@@ -110,7 +108,7 @@ class EnumMeta(_EnumMeta if TYPE_CHECKING else type):
             yield from cls._member_map_.values()
 
         def __reversed__(cls) -> Generator[Enum, None, None]:
-            yield from reversed(tuple(cls._member_map_.values()))  # can remove tuple cast after 3.7
+            yield from reversed(cls._member_map_.values())
 
         def __getitem__(cls, key: str) -> Enum:
             return cls._member_map_[key]
@@ -125,10 +123,10 @@ class EnumMeta(_EnumMeta if TYPE_CHECKING else type):
     def __len__(cls) -> int:
         return len(cls._member_map_)
 
-    def __setattr__(cls, name: str, value: Any) -> NoReturn:
+    def __setattr__(cls, name: str, value: Any) -> Never:
         raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
 
-    def __delattr__(cls, name: str) -> NoReturn:
+    def __delattr__(cls, name: str) -> Never:
         raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
 
     def __contains__(cls, member: object) -> bool:
@@ -158,10 +156,10 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumMeta):
         super_.__setattr__(self, "value", value)
         return self
 
-    def __setattr__(self, key: str, value: Any) -> NoReturn:
+    def __setattr__(self, key: str, value: Any) -> Never:
         raise AttributeError(f"{self.__class__.__name__} Cannot reassign an Enum members attribute's.")
 
-    def __delattr__(self, item: Any) -> NoReturn:
+    def __delattr__(self, item: Any) -> Never:
         raise AttributeError(f"{self.__class__.__name__} Cannot delete an Enum members attribute's.")
 
     def __bool__(self) -> Literal[True]:

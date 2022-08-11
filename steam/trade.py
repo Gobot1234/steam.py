@@ -9,9 +9,9 @@ import types
 import warnings
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeAlias, TypeVar, overload
 
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self
 
 from . import utils
 from ._const import URL

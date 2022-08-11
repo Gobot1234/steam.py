@@ -7,9 +7,7 @@ import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, overload
-
-from typing_extensions import Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, overload
 
 from . import utils
 from ._const import DOCS_BUILDING, URL
@@ -21,12 +19,11 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .friend import Friend
     from .manifest import Depot, GameInfo, HeadlessDepot, Manifest
-    from .package import FetchedGamePackage
+    from .package import FetchedGamePackage, License
     from .protobufs import player
     from .review import Review
     from .state import ConnectionState
     from .types import game
-    from .user import User
 
 __all__ = (
     "Game",

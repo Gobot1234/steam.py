@@ -11,11 +11,26 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
-from collections.abc import Coroutine, Iterable
+from collections.abc import Callable, Coroutine, Iterable
 from time import time
-from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Generic, TypeVar, Union, get_type_hints, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ForwardRef,
+    Generic,
+    Literal,
+    ParamSpec,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+    overload,
+)
 
-from typing_extensions import Literal, ParamSpec, Protocol, Self, TypeAlias, get_args, get_origin
+from typing_extensions import Self
 
 from ...channel import DMChannel
 from ...errors import ClientException

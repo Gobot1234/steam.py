@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -21,10 +20,10 @@ class CMsgClientUcmAddScreenshot(betterproto.Message):
     permissions: int = betterproto.uint32_field(7)
     caption: str = betterproto.string_field(8)
     shortcut_name: str = betterproto.string_field(9)
-    tag: List["CMsgClientUcmAddScreenshotTag"] = betterproto.message_field(10)
-    tagged_steamid: List[int] = betterproto.fixed64_field(11)
+    tag: list["CMsgClientUcmAddScreenshotTag"] = betterproto.message_field(10)
+    tagged_steamid: list[int] = betterproto.fixed64_field(11)
     spoiler_tag: bool = betterproto.bool_field(12)
-    tagged_publishedfileid: List[int] = betterproto.uint64_field(13)
+    tagged_publishedfileid: list[int] = betterproto.uint64_field(13)
 
 
 @dataclass(eq=False, repr=False)
@@ -57,7 +56,7 @@ class CMsgClientUcmPublishFile(betterproto.Message):
     consumer_app_id: int = betterproto.uint32_field(4)
     title: str = betterproto.string_field(5)
     description: str = betterproto.string_field(6)
-    tags: List[str] = betterproto.string_field(8)
+    tags: list[str] = betterproto.string_field(8)
     workshop_file: bool = betterproto.bool_field(9)
     visibility: int = betterproto.int32_field(10)
     file_type: int = betterproto.uint32_field(11)
@@ -83,7 +82,7 @@ class CMsgClientUcmUpdatePublishedFile(betterproto.Message):
     preview_file_name: str = betterproto.string_field(4)
     title: str = betterproto.string_field(5)
     description: str = betterproto.string_field(6)
-    tags: List[str] = betterproto.string_field(7)
+    tags: list[str] = betterproto.string_field(7)
     visibility: int = betterproto.int32_field(8)
     update_file: bool = betterproto.bool_field(9)
     update_preview_file: bool = betterproto.bool_field(10)
@@ -99,10 +98,10 @@ class CMsgClientUcmUpdatePublishedFile(betterproto.Message):
     metadata: str = betterproto.string_field(20)
     update_metadata: bool = betterproto.bool_field(21)
     language: int = betterproto.int32_field(22)
-    removed_kvtags: List[str] = betterproto.string_field(23)
-    kvtags: List["CMsgClientUcmUpdatePublishedFileKeyValueTag"] = betterproto.message_field(24)
-    previews: List["CMsgClientUcmUpdatePublishedFileAdditionalPreview"] = betterproto.message_field(25)
-    previews_to_remove: List[int] = betterproto.int32_field(26)
+    removed_kvtags: list[str] = betterproto.string_field(23)
+    kvtags: list["CMsgClientUcmUpdatePublishedFileKeyValueTag"] = betterproto.message_field(24)
+    previews: list["CMsgClientUcmUpdatePublishedFileAdditionalPreview"] = betterproto.message_field(25)
+    previews_to_remove: list[int] = betterproto.int32_field(26)
     clear_in_progress: bool = betterproto.bool_field(27)
     remove_all_kvtags: bool = betterproto.bool_field(28)
 
@@ -150,7 +149,7 @@ class CMsgClientUcmEnumerateUserSubscribedFilesWithUpdates(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    subscribed_files: List[
+    subscribed_files: list[
         "CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileId"
     ] = betterproto.message_field(2)
     total_results: int = betterproto.uint32_field(3)
@@ -189,7 +188,7 @@ class CMsgClientWorkshopItemChangesRequest(betterproto.Message):
 class CMsgClientWorkshopItemChangesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     update_time: int = betterproto.uint32_field(2)
-    workshop_items: List["CMsgClientWorkshopItemChangesResponseWorkshopItemInfo"] = betterproto.message_field(5)
+    workshop_items: list["CMsgClientWorkshopItemChangesResponseWorkshopItemInfo"] = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -221,7 +220,7 @@ class CMsgClientUcmEnumeratePublishedFilesByUserAction(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientUcmEnumeratePublishedFilesByUserActionResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    published_files: List[
+    published_files: list[
         "CMsgClientUcmEnumeratePublishedFilesByUserActionResponsePublishedFileId"
     ] = betterproto.message_field(2)
     total_results: int = betterproto.uint32_field(3)

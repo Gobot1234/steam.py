@@ -4,7 +4,6 @@
 # Last updated 03/05/2022
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -32,13 +31,13 @@ class ServerInfo(betterproto.Message):
     use_as_proxy: bool = betterproto.bool_field(10)
     proxy_request_path_template: str = betterproto.string_field(11)
     https_support: str = betterproto.string_field(12)
-    allowed_app_ids: List[int] = betterproto.uint32_field(13)
+    allowed_app_ids: list[int] = betterproto.uint32_field(13)
     preferred_server: bool = betterproto.bool_field(14)
 
 
 @dataclass(eq=False, repr=False)
 class GetServersForSteamPipeResponse(betterproto.Message):
-    servers: List["ServerInfo"] = betterproto.message_field(1)
+    servers: list["ServerInfo"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)

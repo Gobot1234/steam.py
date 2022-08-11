@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
-
-from typing_extensions import Final
+from typing import TYPE_CHECKING, Final, cast
 
 from . import app_info, base, client_server, client_server_2, friends, leaderboards, login, ucm, user_stats
 from .emsg import *

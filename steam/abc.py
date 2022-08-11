@@ -12,11 +12,11 @@ import abc
 import asyncio
 import re
 from collections.abc import Coroutine
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, TypedDict, TypeVar, runtime_checkable
 
-import attr
-from typing_extensions import ClassVar, Final, Protocol, Required, Self, TypedDict, runtime_checkable
+from typing_extensions import Required, Self
 
 from ._const import URL
 from .badge import FavouriteBadge, UserBadges
@@ -892,7 +892,7 @@ class Messageable(Protocol[M_co]):
         return message
 
 
-@attr.dataclass(slots=True)
+@dataclass(slots=True)
 class Channel(Messageable[M_co]):
     _state: ConnectionState
     clan: Clan | None = None

@@ -13,10 +13,9 @@ The appropriate license is in LICENSE
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
 
 import betterproto
-from typing_extensions import TypeAlias
 
 from ..enums import IntEnum, Result
 from .emsg import *

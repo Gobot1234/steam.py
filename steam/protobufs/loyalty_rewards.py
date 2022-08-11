@@ -4,7 +4,6 @@
 # Last updated 19/04/2022
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -25,7 +24,7 @@ class CommunityItemData(betterproto.Message):
     item_movie_webm: str = betterproto.string_field(6)
     item_movie_mp4: str = betterproto.string_field(7)
     animated: bool = betterproto.bool_field(8)
-    badge_data: List[DefinitionBadgeData] = betterproto.message_field(9)
+    badge_data: list[DefinitionBadgeData] = betterproto.message_field(9)
     item_movie_webm_small: str = betterproto.string_field(10)
     item_movie_mp4_small: str = betterproto.string_field(11)
     profile_theme_id: str = betterproto.string_field(12)
@@ -47,7 +46,7 @@ class Definition(betterproto.Message):
     active: bool = betterproto.bool_field(12)
     community_item_data: CommunityItemData = betterproto.message_field(13)
     timestamp_available_end: int = betterproto.uint32_field(14)
-    bundle_defids: List[int] = betterproto.uint32_field(15)
+    bundle_defids: list[int] = betterproto.uint32_field(15)
     usable_duration: int = betterproto.uint32_field(16)
     bundle_discount: int = betterproto.uint32_field(17)
 
@@ -66,12 +65,12 @@ class AddReactionResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BatchedQueryRewardItemsRequest(betterproto.Message):
-    requests: List["QueryRewardItemsRequest"] = betterproto.message_field(1)
+    requests: list["QueryRewardItemsRequest"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class BatchedQueryRewardItemsResponse(betterproto.Message):
-    responses: List["BatchedQueryRewardItemsResponseResponse"] = betterproto.message_field(1)
+    responses: list["BatchedQueryRewardItemsResponseResponse"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -87,7 +86,7 @@ class GetActivePurchaseBonusesRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetActivePurchaseBonusesResponse(betterproto.Message):
-    bonuses: List["PurchaseBonus"] = betterproto.message_field(1)
+    bonuses: list["PurchaseBonus"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -97,7 +96,7 @@ class GetEligibleAppsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetEligibleAppsResponse(betterproto.Message):
-    apps: List["GetEligibleAppsResponseEligibleApp"] = betterproto.message_field(1)
+    apps: list["GetEligibleAppsResponseEligibleApp"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -117,8 +116,8 @@ class GetPointsForSpendResponse(betterproto.Message):
 class GetProfileCustomizationsConfigResponse(betterproto.Message):
     points_cost: int = betterproto.uint32_field(1)
     upgrade_points_cost: int = betterproto.uint32_field(2)
-    purchasable_customization_types: List[int] = betterproto.int32_field(3)
-    upgradable_customization_types: List[int] = betterproto.int32_field(4)
+    purchasable_customization_types: list[int] = betterproto.int32_field(3)
+    upgradable_customization_types: list[int] = betterproto.int32_field(4)
     max_slots_per_type: int = betterproto.uint32_field(5)
     max_upgradable_level: int = betterproto.uint32_field(6)
 
@@ -130,7 +129,7 @@ class GetReactionConfigRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetReactionConfigResponse(betterproto.Message):
-    reactions: List["GetReactionConfigResponseReactionConfig"] = betterproto.message_field(3)
+    reactions: list["GetReactionConfigResponseReactionConfig"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -138,8 +137,8 @@ class GetReactionConfigResponseReactionConfig(betterproto.Message):
     reactionid: int = betterproto.int32_field(1)
     points_cost: int = betterproto.uint32_field(2)
     points_transferred: int = betterproto.uint32_field(3)
-    valid_target_types: List[int] = betterproto.int32_field(4)
-    valid_ugc_types: List[int] = betterproto.uint32_field(5)
+    valid_target_types: list[int] = betterproto.int32_field(4)
+    valid_ugc_types: list[int] = betterproto.uint32_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -150,17 +149,17 @@ class GetReactionsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetReactionsResponse(betterproto.Message):
-    reactionids: List[int] = betterproto.uint32_field(1)
+    reactionids: list[int] = betterproto.uint32_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class GetReactionsSummaryForUserResponse(betterproto.Message):
-    total: List["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(1)
-    user_reviews: List["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(2)
-    ugc: List["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(3)
-    profile: List["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(4)
-    forum_topics: List["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(5)
-    comments: List["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(6)
+    total: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(1)
+    user_reviews: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(2)
+    ugc: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(3)
+    profile: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(4)
+    forum_topics: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(5)
+    comments: list["GetReactionsSummaryForUserResponseBreakdown"] = betterproto.message_field(6)
     total_points_given: int = betterproto.int64_field(7)
     total_points_received: int = betterproto.int64_field(8)
     total_points_given: int = betterproto.int64_field(9)
@@ -197,29 +196,29 @@ class GetSummaryResponseSummary(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class QueryRewardItemsRequest(betterproto.Message):
-    appids: List[int] = betterproto.uint32_field(1)
+    appids: list[int] = betterproto.uint32_field(1)
     time_available: int = betterproto.uint32_field(2)
-    community_item_classes: List[int] = betterproto.int32_field(3)
+    community_item_classes: list[int] = betterproto.int32_field(3)
     language: str = betterproto.string_field(4)
     count: int = betterproto.int32_field(5)
     cursor: str = betterproto.string_field(6)
     sort: int = betterproto.int32_field(7)
     sort_descending: bool = betterproto.bool_field(8)
-    reward_types: List[int] = betterproto.int32_field(9)
-    excluded_community_item_classes: List[int] = betterproto.int32_field(10)
-    definitionids: List[int] = betterproto.uint32_field(11)
-    filters: List[int] = betterproto.int32_field(12)
-    filter_match_all_category_tags: List[str] = betterproto.string_field(13)
-    filter_match_any_category_tags: List[str] = betterproto.string_field(14)
-    contains_definitionids: List[int] = betterproto.uint32_field(15)
+    reward_types: list[int] = betterproto.int32_field(9)
+    excluded_community_item_classes: list[int] = betterproto.int32_field(10)
+    definitionids: list[int] = betterproto.uint32_field(11)
+    filters: list[int] = betterproto.int32_field(12)
+    filter_match_all_category_tags: list[str] = betterproto.string_field(13)
+    filter_match_any_category_tags: list[str] = betterproto.string_field(14)
+    contains_definitionids: list[int] = betterproto.uint32_field(15)
     include_direct_purchase_disabled: bool = betterproto.bool_field(16)
-    excluded_content_descriptors: List[int] = betterproto.uint32_field(17)
-    excluded_appids: List[int] = betterproto.uint32_field(18)
+    excluded_content_descriptors: list[int] = betterproto.uint32_field(17)
+    excluded_appids: list[int] = betterproto.uint32_field(18)
 
 
 @dataclass(eq=False, repr=False)
 class QueryRewardItemsResponse(betterproto.Message):
-    definitions: List["Definition"] = betterproto.message_field(1)
+    definitions: list["Definition"] = betterproto.message_field(1)
     total_count: int = betterproto.int32_field(2)
     count: int = betterproto.int32_field(3)
     next_cursor: str = betterproto.string_field(4)
@@ -234,7 +233,7 @@ class RedeemPointsRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RedeemPointsResponse(betterproto.Message):
     communityitemid: int = betterproto.uint64_field(1)
-    bundle_community_item_ids: List[int] = betterproto.uint64_field(2)
+    bundle_community_item_ids: list[int] = betterproto.uint64_field(2)
 
 
 @dataclass(eq=False, repr=False)

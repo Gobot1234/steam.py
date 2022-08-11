@@ -6,9 +6,7 @@ import inspect
 import sys
 import traceback
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, overload
-
-from typing_extensions import Final
+from typing import TYPE_CHECKING, Any, Final, overload
 
 from ... import ClientException
 from .commands import Command, Group

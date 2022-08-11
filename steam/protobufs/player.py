@@ -4,7 +4,6 @@
 # Last updated 10/08/2022
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -83,12 +82,12 @@ class GetMutualFriendsForIncomingInvitesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IncomingInviteMutualFriendList(betterproto.Message):
     steamid: int = betterproto.fixed64_field(1)
-    mutual_friend_account_ids: List[int] = betterproto.uint32_field(2)
+    mutual_friend_account_ids: list[int] = betterproto.uint32_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class GetMutualFriendsForIncomingInvitesResponse(betterproto.Message):
-    incoming_invite_mutual_friends_lists: List["IncomingInviteMutualFriendList"] = betterproto.message_field(1)
+    incoming_invite_mutual_friends_lists: list["IncomingInviteMutualFriendList"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -96,7 +95,7 @@ class GetOwnedGamesRequest(betterproto.Message):
     steamid: int = betterproto.uint64_field(1)
     include_appinfo: bool = betterproto.bool_field(2)
     include_played_free_games: bool = betterproto.bool_field(3)
-    appids_filter: List[int] = betterproto.uint32_field(4)
+    appids_filter: list[int] = betterproto.uint32_field(4)
     include_free_sub: bool = betterproto.bool_field(5)
     skip_unvetted_apps: bool = betterproto.bool_field(6)
 
@@ -104,7 +103,7 @@ class GetOwnedGamesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetOwnedGamesResponse(betterproto.Message):
     game_count: int = betterproto.uint32_field(1)
-    games: List["GetOwnedGamesResponseGame"] = betterproto.message_field(2)
+    games: list["GetOwnedGamesResponseGame"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -126,13 +125,13 @@ class GetOwnedGamesResponseGame(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetPlayNextRequest(betterproto.Message):
     max_age_seconds: int = betterproto.uint32_field(1)
-    ignore_appids: List[int] = betterproto.uint32_field(2)
+    ignore_appids: list[int] = betterproto.uint32_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class GetPlayNextResponse(betterproto.Message):
     last_update_time: int = betterproto.uint32_field(1)
-    appids: List[int] = betterproto.uint32_field(2)
+    appids: list[int] = betterproto.uint32_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -143,11 +142,11 @@ class GetFriendsGameplayInfoRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetFriendsGameplayInfoResponse(betterproto.Message):
     your_info: "GetFriendsGameplayInfoResponseOwnGameplayInfo" = betterproto.message_field(1)
-    in_game: List["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(2)
-    played_recently: List["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(3)
-    played_ever: List["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(4)
-    owns: List["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(5)
-    in_wishlist: List["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(6)
+    in_game: list["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(2)
+    played_recently: list["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(3)
+    played_ever: list["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(4)
+    owns: list["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(5)
+    in_wishlist: list["GetFriendsGameplayInfoResponseFriendsGameplayInfo"] = betterproto.message_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -174,14 +173,14 @@ class GetFriendsAppsActivityRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetFriendsAppsActivityResponse(betterproto.Message):
-    trending: List["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(1)
-    recent_purchases: List["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(2)
-    unowned: List["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(3)
-    popular: List["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(4)
-    dont_forget: List["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(5)
-    being_discussed: List["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(6)
-    new_to_group: List["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(7)
-    returned_to_group: List["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(8)
+    trending: list["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(1)
+    recent_purchases: list["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(2)
+    unowned: list["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(3)
+    popular: list["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(4)
+    dont_forget: list["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(5)
+    being_discussed: list["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(6)
+    new_to_group: list["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(7)
+    returned_to_group: list["GetFriendsAppsActivityResponseAppFriendsInfo"] = betterproto.message_field(8)
     active_friend_count: int = betterproto.uint32_field(9)
 
 
@@ -197,7 +196,7 @@ class GetFriendsAppsActivityResponseFriendPlayTime(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetFriendsAppsActivityResponseAppFriendsInfo(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
-    friends: List["GetFriendsAppsActivityResponseFriendPlayTime"] = betterproto.message_field(2)
+    friends: list["GetFriendsAppsActivityResponseFriendPlayTime"] = betterproto.message_field(2)
     display_order: int = betterproto.uint32_field(3)
 
 
@@ -209,7 +208,7 @@ class GetGameBadgeLevelsRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetGameBadgeLevelsResponse(betterproto.Message):
     player_level: int = betterproto.uint32_field(1)
-    badges: List["GetGameBadgeLevelsResponseBadge"] = betterproto.message_field(2)
+    badges: list["GetGameBadgeLevelsResponseBadge"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -328,11 +327,11 @@ class GetProfileItemsOwnedRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetProfileItemsOwnedResponse(betterproto.Message):
-    profile_backgrounds: List["ProfileItem"] = betterproto.message_field(1)
-    mini_profile_backgrounds: List["ProfileItem"] = betterproto.message_field(2)
-    avatar_frames: List["ProfileItem"] = betterproto.message_field(3)
-    animated_avatars: List["ProfileItem"] = betterproto.message_field(4)
-    profile_modifiers: List["ProfileItem"] = betterproto.message_field(5)
+    profile_backgrounds: list["ProfileItem"] = betterproto.message_field(1)
+    mini_profile_backgrounds: list["ProfileItem"] = betterproto.message_field(2)
+    avatar_frames: list["ProfileItem"] = betterproto.message_field(3)
+    animated_avatars: list["ProfileItem"] = betterproto.message_field(4)
+    profile_modifiers: list["ProfileItem"] = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -368,7 +367,7 @@ class GetEmoticonListRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetEmoticonListResponse(betterproto.Message):
-    emoticons: List["GetEmoticonListResponseEmoticon"] = betterproto.message_field(1)
+    emoticons: list["GetEmoticonListResponseEmoticon"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -385,12 +384,12 @@ class GetEmoticonListResponseEmoticon(betterproto.Message):
 class GetAchievementsProgressRequest(betterproto.Message):
     steamid: int = betterproto.uint64_field(1)
     language: str = betterproto.string_field(2)
-    appids: List[int] = betterproto.uint32_field(3)
+    appids: list[int] = betterproto.uint32_field(3)
 
 
 @dataclass(eq=False, repr=False)
 class GetAchievementsProgressResponse(betterproto.Message):
-    achievement_progress: List["GetAchievementsProgressResponseAchievementProgress"] = betterproto.message_field(1)
+    achievement_progress: list["GetAchievementsProgressResponseAchievementProgress"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -458,7 +457,7 @@ class ProfileCustomizationSlot(betterproto.Message):
 class ProfileCustomization(betterproto.Message):
     customization_type: "EProfileCustomizationType" = betterproto.enum_field(1)
     large: bool = betterproto.bool_field(2)
-    slots: List["ProfileCustomizationSlot"] = betterproto.message_field(3)
+    slots: list["ProfileCustomizationSlot"] = betterproto.message_field(3)
     active: bool = betterproto.bool_field(4)
     customization_style: "EProfileCustomizationStyle" = betterproto.enum_field(5)
     purchaseid: int = betterproto.uint64_field(6)
@@ -478,10 +477,10 @@ class ProfilePreferences(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetProfileCustomizationResponse(betterproto.Message):
-    customizations: List["ProfileCustomization"] = betterproto.message_field(1)
+    customizations: list["ProfileCustomization"] = betterproto.message_field(1)
     slots_available: int = betterproto.uint32_field(2)
     profile_theme: "ProfileTheme" = betterproto.message_field(3)
-    purchased_customizations: List["GetProfileCustomizationResponsePurchasedCustomization"] = betterproto.message_field(
+    purchased_customizations: list["GetProfileCustomizationResponsePurchasedCustomization"] = betterproto.message_field(
         4
     )
     profile_preferences: "ProfilePreferences" = betterproto.message_field(5)
@@ -501,7 +500,7 @@ class GetPurchasedProfileCustomizationsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetPurchasedProfileCustomizationsResponse(betterproto.Message):
-    purchased_customizations: List[
+    purchased_customizations: list[
         "GetPurchasedProfileCustomizationsResponsePurchasedCustomization"
     ] = betterproto.message_field(1)
 
@@ -519,10 +518,10 @@ class GetPurchasedAndUpgradedProfileCustomizationsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetPurchasedAndUpgradedProfileCustomizationsResponse(betterproto.Message):
-    purchased_customizations: List[
+    purchased_customizations: list[
         "GetPurchasedAndUpgradedProfileCustomizationsResponsePurchasedCustomization"
     ] = betterproto.message_field(1)
-    upgraded_customizations: List[
+    upgraded_customizations: list[
         "GetPurchasedAndUpgradedProfileCustomizationsResponseUpgradedCustomization"
     ] = betterproto.message_field(2)
 
@@ -546,7 +545,7 @@ class GetProfileThemesAvailableRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetProfileThemesAvailableResponse(betterproto.Message):
-    profile_themes: List["ProfileTheme"] = betterproto.message_field(1)
+    profile_themes: list["ProfileTheme"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -612,7 +611,7 @@ class GetLastPlayedTimesRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetLastPlayedTimesResponse(betterproto.Message):
-    games: List["GetLastPlayedTimesResponseGame"] = betterproto.message_field(1)
+    games: list["GetLastPlayedTimesResponseGame"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -651,7 +650,7 @@ class GetNicknameListRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetNicknameListResponse(betterproto.Message):
-    nicknames: List["GetNicknameListResponsePlayerNickname"] = betterproto.message_field(1)
+    nicknames: list["GetNicknameListResponsePlayerNickname"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -680,7 +679,7 @@ class PerFriendPreferences(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetPerFriendPreferencesResponse(betterproto.Message):
-    preferences: List["PerFriendPreferences"] = betterproto.message_field(1)
+    preferences: list["PerFriendPreferences"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -764,8 +763,8 @@ class GetTextFilterWordsRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TextFilterWords(betterproto.Message):
-    text_filter_custom_banned_words: List[str] = betterproto.string_field(1)
-    text_filter_custom_clean_words: List[str] = betterproto.string_field(2)
+    text_filter_custom_banned_words: list[str] = betterproto.string_field(1)
+    text_filter_custom_clean_words: list[str] = betterproto.string_field(2)
     text_filter_words_revision: int = betterproto.uint32_field(3)
 
 
@@ -836,7 +835,7 @@ class GetDurationControlResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LastPlayedTimesNotification(betterproto.Message):
-    games: List["GetLastPlayedTimesResponseGame"] = betterproto.message_field(1)
+    games: list["GetLastPlayedTimesResponseGame"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)

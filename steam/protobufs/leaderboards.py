@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -65,14 +64,14 @@ class CMsgClientLbsGetLbEntries(betterproto.Message):
     range_start: int = betterproto.int32_field(3)
     range_end: int = betterproto.int32_field(4)
     leaderboard_data_request: int = betterproto.int32_field(5)
-    steamids: List[int] = betterproto.fixed64_field(6)
+    steamids: list[int] = betterproto.fixed64_field(6)
 
 
 @dataclass(eq=False, repr=False)
 class CMsgClientLbsGetLbEntriesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
     leaderboard_entry_count: int = betterproto.int32_field(2)
-    entries: List["CMsgClientLbsGetLbEntriesResponseEntry"] = betterproto.message_field(3)
+    entries: list["CMsgClientLbsGetLbEntriesResponseEntry"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)

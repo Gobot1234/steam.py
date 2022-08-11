@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 
@@ -39,7 +38,7 @@ class AddAuthenticatorRequest(betterproto.Message):
     authenticator_type: int = betterproto.uint32_field(4)
     device_identifier: str = betterproto.string_field(5)
     sms_phone_id: str = betterproto.string_field(6)
-    http_headers: List[str] = betterproto.string_field(7)
+    http_headers: list[str] = betterproto.string_field(7)
 
 
 @dataclass(eq=False, repr=False)
@@ -74,7 +73,7 @@ class FinalizeAddAuthenticatorRequest(betterproto.Message):
     authenticator_code: str = betterproto.string_field(2)
     authenticator_time: int = betterproto.uint64_field(3)
     activation_code: str = betterproto.string_field(4)
-    http_headers: List[str] = betterproto.string_field(5)
+    http_headers: list[str] = betterproto.string_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -107,7 +106,7 @@ class CreateEmergencyCodesRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CreateEmergencyCodesResponse(betterproto.Message):
-    codes: List[str] = betterproto.string_field(1)
+    codes: list[str] = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
