@@ -121,7 +121,8 @@ class Client:
         ...
 
     def __init__(self, **options: Any):
-        if loop := options.get("loop"):
+        loop = options.get("loop")
+        if loop:
             import inspect
             import warnings
 
@@ -288,6 +289,7 @@ class Client:
         log.debug(f"Dispatching event {event}")
         method = f"on_{event}"
 
+        # remove the dispatched listener
         if listeners := self._listeners.get(event):
             removed = []
             for idx, (future, condition) in enumerate(listeners):

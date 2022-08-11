@@ -147,16 +147,15 @@ class MessageReaction(PartialMessageReaction):
     ordinal: int | None = None
 
     def __eq__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+
         return (
-            (
                 self.message == other.message
                 and self.emoticon == other.emoticon
                 and self.sticker == other.sticker
                 and self.user == other.user
             )
-            if isinstance(other, self.__class__)
-            else NotImplemented
-        )
 
 
 class BaseEmoticon(_IOMixin):

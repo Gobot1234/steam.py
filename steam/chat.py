@@ -246,8 +246,8 @@ class Chat(Channel[ChatMessageT]):
         return chat_id, self.id
 
     @utils.classproperty
-    def _type_args(self) -> tuple[type[ChatMessageT]]:  # type: ignore
-        return self.__orig_bases__[0].__args__
+    def _type_args(cls: type[Chat]) -> tuple[type[ChatMessageT]]:  # type: ignore
+        return cls.__orig_bases__[0].__args__  # type: ignore
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, ChatMessageT]:
         return self._state.send_chat_message(*self._location, content)  # type: ignore
@@ -363,8 +363,8 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
         return self
 
     @utils.classproperty
-    def _type_args(self) -> tuple[type[MemberT], type[ChatT]]:  # type: ignore
-        return self.__orig_bases__[0].__args__
+    def _type_args(cls: type[ChatGroup]) -> tuple[type[MemberT], type[ChatT]]:  # type: ignore
+        return cls.__orig_bases__[0].__args__  # type: ignore
 
     async def _add_member(self, member: chat.Member) -> MemberT:
         member_cls, _ = self._type_args

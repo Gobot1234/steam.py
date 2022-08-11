@@ -100,8 +100,10 @@ class TypeEvalVisitor(TypeVisitor[Any]):
         instance = self.get(t.type.fullname)
         args = self.collect_types(t.args)
         if args and not all(isinstance(arg, types.AnyType) for arg in args):
-            with contextlib.suppress(Exception):
+            try:
                 instance = instance[args]  # construct a generic alias
+            except Exception:
+                pass
         return instance
 
     def visit_tuple_type(self, t: types.TupleType) -> GenericAlias:
@@ -127,9 +129,12 @@ def load_module(module: str) -> Generator[ChainMap[nodes.Expression, types.Type]
         yield ChainMap()
         return
 
-    with contextlib.suppress(KeyError):
+    try:
         yield cache[module]
         return
+    except KeyError:
+        pass
+
     mod = importlib.import_module(module)
 
     path = ROOT / f"{module.replace('.', '/')}.py"
@@ -175,8 +180,8 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
 
                     if isinstance(method.type, types.CallableType):
                         return_type = method.type.ret_type.args[-1] if is_coroutine else method.type.ret_type
-                        names = method.type.arg_names[0 if is_static else 1 :]
-                        arg_types = method.type.arg_types[0 if is_static else 1 :]
+                        names = method.type.arg_names[1 if not is_static else 0 :]
+                        arg_types = method.type.arg_types[1 if not is_static else 0 :]
                     elif isinstance(method.type, types.Overloaded):
                         items = method.type.items
                         union = types.UnionType(
@@ -187,8 +192,8 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
                         names = []
                         arg_types = []
                         for item in items:
-                            names.extend(item.arg_names[0 if is_static else 1 :])
-                            arg_types.extend(item.arg_types[0 if is_static else 1 :])
+                            names.extend(item.arg_names[1 if not is_static else 0 :])
+                            arg_types.extend(item.arg_types[1 if not is_static else 0 :])
                     else:
                         continue
                 else:
@@ -224,8 +229,10 @@ def add_annotations(app: Sphinx, what: str, name: str, object: Any, *args: Any) 
                 if base.__module__.startswith("steam") and not base.__module__.endswith(("abc", "guard", "utils"))
                 else base.__module__
             )
-            with contextlib.suppress(AttributeError):
+            try:
                 base.__annotations__ = annotations = getattr(base, "__annotations__", {}) | annotations
+            except AttributeError:
+                pass
     else:
         for name, evaled_type in get_annotations(object, what, name):
             if evaled_type is MISSING:

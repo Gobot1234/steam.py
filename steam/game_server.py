@@ -52,77 +52,77 @@ class QueryAll:
 
 class QueryMeta(type):
     @property
-    def not_empty(self) -> Q:
+    def not_empty(cls) -> Q:
         """Fetches servers that are not empty."""
         return Query["Q"](r"\empty\1")
 
     @property
-    def empty(self) -> Q:
+    def empty(cls) -> Q:
         """Fetches servers that are empty."""
         return Query["Q"](r"\noplayers\1")
 
     @property
-    def proxy(self) -> Q:
+    def proxy(cls) -> Q:
         """Fetches servers that are spectator proxies."""
         return Query["Q"](r"\proxy\1")
 
     @property
-    def whitelisted(self) -> Q:
+    def whitelisted(cls) -> Q:
         """Fetches servers that are whitelisted."""
         return Query["Q"](r"\white\1")
 
     @property
-    def dedicated(self) -> Q:
+    def dedicated(cls) -> Q:
         """Fetches servers that are running dedicated."""
         return Query["Q"](r"\dedicated\1")
 
     @property
-    def secure(self) -> Q:
+    def secure(cls) -> Q:
         """Fetches servers that are using anti-cheat technology (VAC, but potentially others as well)."""
         return Query["Q"](r"\secure\1")
 
     @property
-    def linux(self) -> Q:
+    def linux(cls) -> Q:
         """Fetches servers running on a Linux platform."""
         return Query["Q"](r"\linux\1")
 
     @property
-    def no_password(self) -> Q:
+    def no_password(cls) -> Q:
         """Fetches servers that are not password protected."""
         return Query["Q"](r"\password\0")
 
     @property
-    def not_full(self) -> Q:
+    def not_full(cls) -> Q:
         """Fetches servers that are not full."""
         return Query["Q"](r"\full\1")
 
     @property
-    def unique_addresses(self) -> Q:
+    def unique_addresses(cls) -> Q:
         """Fetches only one server for each unique IP address matched."""
         return Query["Q"]("\\collapse_addr_hash\\1")
 
     @property
-    def version_match(self) -> Query[str]:
+    def version_match(cls) -> Query[str]:
         """Fetches servers running version "x" (``"*"`` is wildcard)."""
         return Query["str"]("\\version_match\\", type=str)
 
     @property
-    def name_match(self) -> Query[str]:
+    def name_match(cls) -> Query[str]:
         """Fetches servers with their hostname matching "x" (``"*"`` is wildcard)."""
         return Query["str"]("\\name_match\\", type=str)
 
     @property
-    def running_mod(self) -> Query[str]:
+    def running_mod(cls) -> Query[str]:
         """Fetches servers running the specified modification (e.g. cstrike)."""
         return Query["str"]("\\gamedir\\", type=str)
 
     @property
-    def running_map(self) -> Query[str]:
+    def running_map(cls) -> Query[str]:
         """Fetches servers running the specified map (e.g. cs_italy)"""
         return Query["str"]("\\map\\", type=str)
 
     @property
-    def ip(self) -> Query[str]:
+    def ip(cls) -> Query[str]:
         """Fetches servers on the specified IP address, port is optional.
 
         See Also
@@ -132,37 +132,37 @@ class QueryMeta(type):
         return Query["str"]("\\gameaddr\\", type=str)
 
     @property
-    def running(self) -> Query[Game | int]:
+    def running(cls) -> Query[Game | int]:
         """Fetches servers running a :class:`.Game` or an :class:`int` app id."""
         return Query["Game | int"]("\\appid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
 
     @property
-    def not_running(self) -> Query[Game | int]:
+    def not_running(cls) -> Query[Game | int]:
         """Fetches servers not running a :class:`.Game` or an :class:`int` app id."""
         return Query["Game | int"]("\\nappid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
 
     @property
-    def match_tags(self) -> Query[list[str]]:
+    def match_tags(cls) -> Query[list[str]]:
         """Fetches servers with all the given tag(s) in :attr:`GameServer.tags`."""
         return Query["list[str]"]("\\gametype\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
-    def match_hidden_tags(self) -> Query[list[str]]:
+    def match_hidden_tags(cls) -> Query[list[str]]:
         """Fetches servers with all the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
         return Query["list[str]"]("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
-    def match_any_hidden_tags(self) -> Query[list[str]]:
+    def match_any_hidden_tags(cls) -> Query[list[str]]:
         """Fetches servers with any of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
         return Query["list[str]"]("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
     @property
-    def region(self) -> Query[GameServerRegion]:
+    def region(cls) -> Query[GameServerRegion]:
         """Fetches servers in a given region."""
         return Query["GameServerRegion"]("\\region\\", type=GameServerRegion, callback=lambda region: region.value)
 
     @property
-    def all(self) -> QueryAll:
+    def all(cls) -> QueryAll:
         """Fetches any servers. Any operations on this will fail."""
         return QueryAll()
 
@@ -253,11 +253,10 @@ class Query(Generic[T_co], metaclass=QueryMeta):
         if self._type is not None and isinstance(other, self._type):
             return cls(self, op, other)
 
-        return (
-            cls(self, op, other, type=other._type, callback=other._callback)
-            if isinstance(other, Query)
-            else NotImplemented
-        )
+        if not isinstance(other, Query):
+            return NotImplemented
+
+        return cls(self, op, other, type=other._type, callback=other._callback)
 
     def __truediv__(self, other: T_co) -> Q:  # type: ignore
         return self._process_op(other, Operator.div)

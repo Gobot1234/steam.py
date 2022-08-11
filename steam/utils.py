@@ -627,7 +627,7 @@ PACK_FORMATS: Final = cast("Mapping[str, str]", {
 
 
 class StructIOMeta(type):
-    def __new__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> StructIOMeta:
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> StructIOMeta:
         for method_name, format in PACK_FORMATS.items():
             exec(f"def write_{method_name}(self, item): self.write_struct('<{format}', item)", {}, namespace)
             exec(
@@ -637,7 +637,7 @@ class StructIOMeta(type):
                 namespace,
             )
 
-        return super().__new__(cls, name, bases, namespace)
+        return super().__new__(mcs, name, bases, namespace)
 
 
 class StructIO(BytesIO, metaclass=StructIOMeta):

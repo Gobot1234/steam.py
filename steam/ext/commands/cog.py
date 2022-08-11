@@ -99,7 +99,7 @@ class Cog:
                     cls.__listeners__[attr.__event_name__] = [attr]
 
     def __repr__(self) -> str:
-        return f"<Cog {self.__class__.__module__}.{self.__class__.__name__}>"
+        return f"<Cog {f'{self.__class__.__module__}.{self.__class__.__name__}'!r}>"
 
     # TODO for 3.9 make these class properties
     @property

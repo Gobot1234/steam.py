@@ -244,6 +244,7 @@ class AsyncIterator(Generic[T]):
 
     async def fill(self) -> AsyncGenerator[T, None]:
         raise NotImplementedError
+        yield
 
 
 class FilteredIterator(AsyncIterator[T]):

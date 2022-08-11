@@ -104,42 +104,40 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
 
     if not TYPE_CHECKING:
 
-        def __call__(self, value: Any) -> Enum:
+        def __call__(cls, value: Any) -> Enum:
             try:
-                return self._value_map_[value]
+                return cls._value_map_[value]
             except (KeyError, TypeError):
-                raise ValueError(f"{value!r} is not a valid {self.__name__}")
+                raise ValueError(f"{value!r} is not a valid {cls.__name__}")
 
-        def __iter__(self) -> Generator[Enum, None, None]:
-            yield from self._member_map_.values()
+        def __iter__(cls) -> Generator[Enum, None, None]:
+            yield from cls._member_map_.values()
 
-        def __reversed__(self) -> Generator[Enum, None, None]:
-            yield from reversed(self._member_map_.values())
+        def __reversed__(cls) -> Generator[Enum, None, None]:
+            yield from reversed(cls._member_map_.values())
 
-        def __getitem__(self, key: str) -> Enum:
-            return self._member_map_[key]
+        def __getitem__(cls, key: str) -> Enum:
+            return cls._member_map_[key]
 
         @property
-        def __members__(self) -> MappingProxyType[str, Enum]:
-            return MappingProxyType(self._member_map_)
+        def __members__(cls) -> MappingProxyType[str, Enum]:
+            return MappingProxyType(cls._member_map_)
 
-    def __repr__(self) -> str:
-        return f"<enum {self.__name__!r}>"
+    def __repr__(cls) -> str:
+        return f"<enum {cls.__name__!r}>"
 
-    def __len__(self) -> int:
-        return len(self._member_map_)
+    def __len__(cls) -> int:
+        return len(cls._member_map_)
 
-    def __setattr__(self, name: str, value: Any) -> Never:
-        raise AttributeError(f"{self.__name__}: cannot reassign Enum members.")
+    def __setattr__(cls, name: str, value: Any) -> Never:
+        raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
 
-    def __delattr__(self, name: str) -> Never:
-        raise AttributeError(f"{self.__name__}: cannot delete Enum members.")
+    def __delattr__(cls, name: str) -> Never:
+        raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
 
-    def __contains__(self, member: object) -> bool:
+    def __contains__(cls, member: object) -> bool:
         return (
-            isinstance(member, self) and member.name in self._member_map_
-            if isinstance(member, Enum)
-            else NotImplemented
+            isinstance(member, cls) and member.name in cls._member_map_ if isinstance(member, Enum) else NotImplemented
         )
 
 
@@ -391,108 +389,108 @@ class Language(IntEnum):
     # SteamChinaSimplifiedChinese = 29  # not including until this appears on Steamworks
 
     @classproperty
-    def NATIVE_NAME_MAP(self) -> Mapping[Language, str]:    # type: ignore
+    def NATIVE_NAME_MAP(cls: type[Language]) -> Mapping[Language, str]:  # type: ignore
         """A mapping of every language's native name."""
         return {
-            self.Arabic: "العربية",
-            self.Bulgarian: "езбългарски езикик",
-            self.SimplifiedChinese: "简体中文",
-            self.TraditionalChinese: "繁體中文",
-            self.Czech: "čeština",
-            self.Danish: "Dansk",
-            self.Dutch: "Nederlands",
-            self.English: "English",
-            self.Finnish: "Suomi",
-            self.French: "Français",
-            self.German: "Deutsch",
-            self.Greek: "Ελληνικά",
-            self.Hungarian: "Magyar",
-            self.Italian: "Italiano",
-            self.Japanese: "日本語",
-            self.Korean: "한국어",
-            self.Norwegian: "Norsk",
-            self.Polish: "Polski",
-            self.Portuguese: "Português",
-            self.PortugueseBrazil: "Português-Brasil",
-            self.Romanian: "Română",
-            self.Russian: "Русский",
-            self.Spanish: "Español-España",
-            self.SpanishLatinAmerican: "Español-Latinoamérica",
-            self.Swedish: "Svenska",
-            self.Thai: "ไทย",
-            self.Turkish: "Türkçe",
-            self.Ukrainian: "Українська",
-            self.Vietnamese: "Tiếng Việt",
+            cls.Arabic:               "العربية",
+            cls.Bulgarian:            "езбългарски езикик",
+            cls.SimplifiedChinese:    "简体中文",
+            cls.TraditionalChinese:   "繁體中文",
+            cls.Czech:                "čeština",
+            cls.Danish:               "Dansk",
+            cls.Dutch:                "Nederlands",
+            cls.English:              "English",
+            cls.Finnish:              "Suomi",
+            cls.French:               "Français",
+            cls.German:               "Deutsch",
+            cls.Greek:                "Ελληνικά",
+            cls.Hungarian:            "Magyar",
+            cls.Italian:              "Italiano",
+            cls.Japanese:             "日本語",
+            cls.Korean:               "한국어",
+            cls.Norwegian:            "Norsk",
+            cls.Polish:               "Polski",
+            cls.Portuguese:           "Português",
+            cls.PortugueseBrazil:     "Português-Brasil",
+            cls.Romanian:             "Română",
+            cls.Russian:              "Русский",
+            cls.Spanish:              "Español-España",
+            cls.SpanishLatinAmerican: "Español-Latinoamérica",
+            cls.Swedish:              "Svenska",
+            cls.Thai:                 "ไทย",
+            cls.Turkish:              "Türkçe",
+            cls.Ukrainian:            "Українська",
+            cls.Vietnamese:           "Tiếng Việt",
         }
 
     @classproperty
-    def API_LANGUAGE_MAP(self) -> Mapping[Language, str]:    # type: ignore
+    def API_LANGUAGE_MAP(cls: type[Language]) -> Mapping[Language, str]:  # type: ignore
         """A mapping of every language's name from the Steamworks API."""
         return {
-            self.Arabic: "arabic",
-            self.Bulgarian: "bulgarian",
-            self.SimplifiedChinese: "schinese",
-            self.TraditionalChinese: "tchinese",
-            self.Czech: "czech",
-            self.Danish: "danish",
-            self.Dutch: "dutch",
-            self.English: "english",
-            self.Finnish: "finnish",
-            self.French: "french",
-            self.German: "german",
-            self.Greek: "greek",
-            self.Hungarian: "hungarian",
-            self.Italian: "italian",
-            self.Japanese: "japanese",
-            self.Korean: "koreana",
-            self.Norwegian: "norwegian",
-            self.Polish: "polish",
-            self.Portuguese: "portuguese",
-            self.PortugueseBrazil: "brazilian",
-            self.Romanian: "romanian",
-            self.Russian: "russian",
-            self.Spanish: "spanish",
-            self.SpanishLatinAmerican: "latam",
-            self.Swedish: "swedish",
-            self.Thai: "thai",
-            self.Turkish: "turkish",
-            self.Ukrainian: "ukrainian",
-            self.Vietnamese: "vietnamese",
+            cls.Arabic:               "arabic",
+            cls.Bulgarian:            "bulgarian",
+            cls.SimplifiedChinese:    "schinese",
+            cls.TraditionalChinese:   "tchinese",
+            cls.Czech:                "czech",
+            cls.Danish:               "danish",
+            cls.Dutch:                "dutch",
+            cls.English:              "english",
+            cls.Finnish:              "finnish",
+            cls.French:               "french",
+            cls.German:               "german",
+            cls.Greek:                "greek",
+            cls.Hungarian:            "hungarian",
+            cls.Italian:              "italian",
+            cls.Japanese:             "japanese",
+            cls.Korean:               "koreana",
+            cls.Norwegian:            "norwegian",
+            cls.Polish:               "polish",
+            cls.Portuguese:           "portuguese",
+            cls.PortugueseBrazil:     "brazilian",
+            cls.Romanian:             "romanian",
+            cls.Russian:              "russian",
+            cls.Spanish:              "spanish",
+            cls.SpanishLatinAmerican: "latam",
+            cls.Swedish:              "swedish",
+            cls.Thai:                 "thai",
+            cls.Turkish:              "turkish",
+            cls.Ukrainian:            "ukrainian",
+            cls.Vietnamese:           "vietnamese",
         }
 
     @classproperty
-    def WEB_API_MAP(self) -> Mapping[Language, str]:    # type: ignore
+    def WEB_API_MAP(cls: type[Language]) -> Mapping[Language, str]:  # type: ignore
         """A mapping of every language's name from the Web API."""
         return {
-            self.Arabic: "ar",
-            self.Bulgarian: "bg",
-            self.SimplifiedChinese: "zh-CN",
-            self.TraditionalChinese: "zh-TW",
-            self.Czech: "cs",
-            self.Danish: "da",
-            self.Dutch: "nl",
-            self.English: "en",
-            self.Finnish: "fi",
-            self.French: "fr",
-            self.German: "de",
-            self.Greek: "el",
-            self.Hungarian: "hu",
-            self.Italian: "it",
-            self.Japanese: "ja",
-            self.Korean: "ko",
-            self.Norwegian: "no",
-            self.Polish: "pl",
-            self.Portuguese: "pt",
-            self.PortugueseBrazil: "pt-BR",
-            self.Romanian: "ro",
-            self.Russian: "ru",
-            self.Spanish: "es",
-            self.SpanishLatinAmerican: "es-419",
-            self.Swedish: "sv",
-            self.Thai: "th",
-            self.Turkish: "tr",
-            self.Ukrainian: "uk",
-            self.Vietnamese: "vn",
+            cls.Arabic:               "ar",
+            cls.Bulgarian:            "bg",
+            cls.SimplifiedChinese:    "zh-CN",
+            cls.TraditionalChinese:   "zh-TW",
+            cls.Czech:                "cs",
+            cls.Danish:               "da",
+            cls.Dutch:                "nl",
+            cls.English:              "en",
+            cls.Finnish:              "fi",
+            cls.French:               "fr",
+            cls.German:               "de",
+            cls.Greek:                "el",
+            cls.Hungarian:            "hu",
+            cls.Italian:              "it",
+            cls.Japanese:             "ja",
+            cls.Korean:               "ko",
+            cls.Norwegian:            "no",
+            cls.Polish:               "pl",
+            cls.Portuguese:           "pt",
+            cls.PortugueseBrazil:     "pt-BR",
+            cls.Romanian:             "ro",
+            cls.Russian:              "ru",
+            cls.Spanish:              "es",
+            cls.SpanishLatinAmerican: "es-419",
+            cls.Swedish:              "sv",
+            cls.Thai:                 "th",
+            cls.Turkish:              "tr",
+            cls.Ukrainian:            "uk",
+            cls.Vietnamese:           "vn",
         }
 
     @property

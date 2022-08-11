@@ -231,7 +231,10 @@ class SteamID(metaclass=abc.ABCMeta):
         if self.type == Type.GameServer and self.id == 0:
             return False
 
-        return self.type != Type.AnonGameServer or self.id != 0 or self.instance != 0
+        if self.type == Type.AnonGameServer and self.id == 0 and self.instance == 0:
+            return False
+
+        return True
 
     @staticmethod
     async def from_url(url: StrOrURL, session: ClientSession | None = None) -> SteamID | None:
