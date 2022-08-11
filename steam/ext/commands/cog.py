@@ -99,7 +99,7 @@ class Cog:
                     cls.__listeners__[attr.__event_name__] = [attr]
 
     def __repr__(self) -> str:
-        return f"<Cog {f'{self.__class__.__module__}.{self.__class__.__name__}'!r}>"
+        return f"<Cog {self.__class__.__module__}.{self.__class__.__name__}>"
 
     # TODO for 3.9 make these class properties
     @property
@@ -136,7 +136,7 @@ class Cog:
         def decorator(coro: E) -> E:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Listeners must be coroutine functions, {coro.__name__} is {type(coro).__name__}")
-            coro.__event_name__ = name if not callable(name) else coro.__name__
+            coro.__event_name__ = coro.__name__ if callable(name) else name
             return coro
 
         return decorator(name) if callable(name) else decorator

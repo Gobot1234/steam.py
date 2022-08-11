@@ -38,10 +38,20 @@ else:
     # try to find out the commit hash if checked out from git, and append it to __version__ (since we use this value
     # from setup.py, it gets automatically propagated to an installed copy as well)
     try:
-        commit_count = subprocess.check_output(["git", "rev-list", "--count", "HEAD"]).decode("utf-8").strip()
-        if commit_count:
-            commit_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            if commit_hash:
+        if (
+            commit_count := subprocess.check_output(
+                ["git", "rev-list", "--count", "HEAD"]
+            )
+            .decode("utf-8")
+            .strip()
+        ):
+            if (
+                commit_hash := subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"]
+                )
+                .decode("utf-8")
+                .strip()
+            ):
                 VERSION = f"{VERSION}{commit_count}+g{commit_hash}"
     except Exception:
         pass

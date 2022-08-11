@@ -123,7 +123,12 @@ class TheTestBot(commands.Bot):
     async def raises_command_error(
         self, expected_errors: "IsInstanceable[type[CE]]", content: str
     ) -> "contextlib.AbstractAsyncContextManager[None]":
-        expected_errors = (expected_errors,) if not isinstance(expected_errors, tuple) else expected_errors
+        expected_errors = (
+            expected_errors
+            if isinstance(expected_errors, tuple)
+            else (expected_errors,)
+        )
+
 
         async def on_command_error(ctx: commands.Context, error: CE) -> None:
             error = error.__class__ if isinstance(error, Exception) else error

@@ -646,11 +646,12 @@ class TradeOffer:
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, TradeOffer):
             return NotImplemented
-        if self._has_been_sent and other._has_been_sent:
-            return self.id == other.id
-        elif not (self._has_been_sent and other._has_been_sent):
-            return self.items_to_send == other.items_to_send and self.items_to_receive == other.items_to_receive
-        return NotImplemented
+        return (
+            self.id == other.id
+            if self._has_been_sent and other._has_been_sent
+            else self.items_to_send == other.items_to_send
+            and self.items_to_receive == other.items_to_receive
+        )
 
     async def confirm(self) -> None:
         """Confirms the trade offer.

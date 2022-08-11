@@ -47,11 +47,8 @@ class Client(steam.Client):
         await self.close()
 
 
-@pytest.mark.skipif(
-    not USERNAME if not RUNNING_AS_ACTION else False,
-    reason="If there are issues they are normally present in one of the 2 versions, "
-    "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer",
-)
+@pytest.mark.skipif(False if RUNNING_AS_ACTION else not USERNAME, reason="If there are issues they are normally present in one of the 2 versions, "
+    "as well, it will ask for a CAPTCHA code if you login twice simultaneously on the third computer")
 def test_basic_events() -> None:
     client = Client()
     client.run(USERNAME, PASSWORD, shared_secret=SHARED_SECRET, identity_secret=IDENTITY_SECRET)

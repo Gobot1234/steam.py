@@ -160,8 +160,7 @@ class MsgProto(MsgBase[M]):
             EMsg.ServiceMethodSendToClient,
             EMsg.ServiceMethodCallFromClient,
         ):
-            name = self.header.body.job_name_target
-            if name:
+            if name := self.header.body.job_name_target:
                 name, _, _ = name.partition("#")
                 self.header.body.job_name_target = name
                 proto = get_um(name, self.msg in (EMsg.ServiceMethod, EMsg.ServiceMethodCallFromClient))

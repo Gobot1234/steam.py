@@ -398,7 +398,11 @@ class HTTPClient:
                 params[f"instanceid{i}"] = instance_id
 
             data = await self.get(api_route("ISteamEconomy/GetAssetClassInfo"), params=params)
-            result.update({tuple(map(int, key.split("_"))): value for key, value in data["result"].items()})
+            result |= {
+                tuple(map(int, key.split("_"))): value
+                for key, value in data["result"].items()
+            }
+
 
         return result
 
@@ -595,8 +599,8 @@ class HTTPClient:
         payload = {
             "appid": app_id,
             "market_hash_name": item_name,
-        }
-        payload.update({"currency": currency} if currency is not None else {})
+        } | ({"currency": currency} if currency is not None else {})
+
         return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
 
     def get_wishlist(self, user_id64: int) -> Coro[dict[str, Any]]:
@@ -871,16 +875,15 @@ class HTTPClient:
             headers = {header["name"]: header["value"] for header in result["request_headers"]}
             await self.request("PUT", url=url, headers=headers, data=image.read())
 
-            payload.update(
-                {
-                    "success": 1,
-                    "ugcid": result["ugcid"],
-                    "timestamp": resp["timestamp"],
-                    "hmac": resp["hmac"],
-                    "friend_steamid": user_id64,
-                    "spoiler": int(image.spoiler),
-                }
-            )
+            payload |= {
+                "success": 1,
+                "ugcid": result["ugcid"],
+                "timestamp": resp["timestamp"],
+                "hmac": resp["hmac"],
+                "friend_steamid": user_id64,
+                "spoiler": int(image.spoiler),
+            }
+
             await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
 
     async def send_chat_image(self, chat_id: int, channel_id: int, image: Image) -> None:
@@ -902,17 +905,16 @@ class HTTPClient:
             headers = {header["name"]: header["value"] for header in result["request_headers"]}
             await self.request("PUT", url=url, headers=headers, data=image.read())
 
-            payload.update(
-                {
-                    "success": 1,
-                    "ugcid": result["ugcid"],
-                    "timestamp": resp["timestamp"],
-                    "hmac": resp["hmac"],
-                    "chat_group_id": channel_id,
-                    "chat_id": chat_id,
-                    "spoiler": int(image.spoiler),
-                }
-            )
+            payload |= {
+                "success": 1,
+                "ugcid": result["ugcid"],
+                "timestamp": resp["timestamp"],
+                "hmac": resp["hmac"],
+                "chat_group_id": channel_id,
+                "chat_id": chat_id,
+                "spoiler": int(image.spoiler),
+            }
+
             await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
 
     async def get_api_key(self) -> str | None:
@@ -924,8 +926,7 @@ class HTTPClient:
             return
 
         key_re = re.compile(r"<p>Key: ([0-9A-F]+)</p>")
-        match = key_re.findall(resp)
-        if match:
+        if match := key_re.findall(resp):
             return match[0]
 
         payload = {

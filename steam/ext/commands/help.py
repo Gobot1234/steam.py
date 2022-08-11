@@ -28,8 +28,7 @@ class HelpCommand(Command):
     context: Context  #: The context for the command's invocation.
 
     def __init__(self, **kwargs: Any):
-        default = dict(name="help", help="Shows this message.", cog=self)
-        default.update(kwargs)
+        default = dict(name="help", help="Shows this message.", cog=self) | kwargs
         super().__init__(self.command_callback, **default)
 
     @final
@@ -165,8 +164,11 @@ class DefaultHelpCommand(HelpCommand):
                 if cog_name is not None
                 else message.append("\nUn-categorized commands")
             )
-            for command in commands:
-                message.append(f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}')
+            message.extend(
+                f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}'
+                for command in commands
+            )
+
         await self.context.send("\n".join(message))
 
     async def send_cog_help(self, cog: "commands.Cog") -> None:
@@ -181,8 +183,7 @@ class DefaultHelpCommand(HelpCommand):
 
     async def send_group_help(self, command: "commands.Group") -> None:
         msg = [f"/pre Help with {command.name}:\n\n{command.help}"]
-        sub_commands = "\n".join(c.name for c in command.children)
-        if sub_commands:
+        if sub_commands := "\n".join(c.name for c in command.children):
             msg.append(f"\nAnd its sub commands:\n{sub_commands}")
         await self.context.send("\n".join(msg))
 
