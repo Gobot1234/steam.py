@@ -1,3 +1,5 @@
+import pytest
+
 from steam import AppFlag, Enum, InstanceFlag, Language, Result
 
 
@@ -19,6 +21,11 @@ def test_enum_behaviour() -> None:
     assert Language.English.value == 0
     assert Language["English"] is Language.English
     assert Language(0) is Language.English
+
+    with pytest.raises(AttributeError):
+        Language.English.Arabic  # diverge from enum behaviour
+
+    assert Language.English.api_name
 
 
 def test_enum_try_value() -> None:

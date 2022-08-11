@@ -70,31 +70,37 @@ def _is_descriptor(obj: object) -> bool:
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
-class EnumMeta(_EnumMeta if TYPE_CHECKING else type):
+class EnumType(_EnumMeta if TYPE_CHECKING else type):
     _value_map_: Mapping[Any, Enum]
     _member_map_: Mapping[str, Enum]
 
-    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> Self:
-        enum_class: type[Enum] = super().__new__(mcs, name, bases, attrs)  # type: ignore
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> type[Enum]:
+        value_map: dict[Any, Enum] = {}
+        member_map: dict[str, Enum] = {}
 
-        value_mapping: dict[Any, Enum] = {}
-        member_mapping: dict[str, Enum] = {}
+        new_mcs = type(
+            f"{name}Type",
+            tuple(
+                dict.fromkeys([base.__class__ for base in bases if base.__class__ is not type] + [EnumType, type])
+            ),  # reorder the bases so EnumType and type are last to avoid conflicts
+            {"_value_map_": value_map, "_member_map_": member_map},
+        )
 
-        for key, value in attrs.items():
-            if key[0] == "_" or _is_descriptor(value):
-                continue
+        members = {name: value for name, value in namespace.items() if not _is_descriptor(value) and name[0] != "_"}
 
-            member = value_mapping.get(value)
-            if member is None:
-                member = enum_class.__new__(enum_class, name=key, value=value)
-                value_mapping[member.value] = member
+        cls = super().__new__(
+            new_mcs, name, bases, {key: value for key, value in namespace.items() if key not in members}
+        )  # this allows us to disallow member access from other members as members become proper class variables
 
-            member_mapping[key] = member
-            type.__setattr__(enum_class, key, member)
+        for name, value in members.items():
+            if (member := value_map.get(value)) is None:
+                member = cls.__new__(cls, name=name, value=value)
+                value_map[value] = member
 
-        type.__setattr__(enum_class, "_value_map_", value_mapping)
-        type.__setattr__(enum_class, "_member_map_", member_mapping)
-        return enum_class
+            member_map[name] = member
+            type.__setattr__(new_mcs, name, member)
+
+        return cls
 
     if not TYPE_CHECKING:
 
@@ -137,11 +143,8 @@ class EnumMeta(_EnumMeta if TYPE_CHECKING else type):
 
 # pretending these are enum subclasses makes things much nicer for linters as enums have custom behaviour you can't
 # replicate in the current type system
-class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumMeta):
+class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     """A general enumeration, emulates `enum.Enum`."""
-
-    name: str
-    value: Any
 
     def __new__(cls, *, name: str, value: Any) -> Self:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
@@ -172,7 +175,7 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumMeta):
         return f"<{self.__class__.__name__}.{self.name}: {self.value!r}>"
 
     @classmethod
-    def try_value(cls: type[Self], value: Any) -> Self:
+    def try_value(cls, value: Any) -> Self:
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
