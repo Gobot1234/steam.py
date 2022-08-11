@@ -361,6 +361,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         data = await self._state.http.get_clan_events(self.id, [id])
         if events := data["events"]:
             return await Event(self._state, self, events[0])
+
         raise ValueError(f"Event {id} not found")
 
     async def fetch_announcement(self, id: int) -> Announcement:
