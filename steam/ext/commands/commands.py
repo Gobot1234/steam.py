@@ -464,9 +464,7 @@ class Command(Generic[P]):
             for key_arg, value_arg in kv_pairs:
                 if key_arg in kwargs:
                     raise DuplicateKeywordArgument(key_arg)
-                kwargs[
-                    await self._convert(ctx, key_converter, param, key_arg.strip())
-                ] = await self._convert(
+                kwargs[await self._convert(ctx, key_converter, param, key_arg.strip())] = await self._convert(
                     ctx, value_converter, param, value_arg.strip()
                 )
 

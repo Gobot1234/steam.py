@@ -165,8 +165,7 @@ class DefaultHelpCommand(HelpCommand):
                 else message.append("\nUn-categorized commands")
             )
             message.extend(
-                f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}'
-                for command in commands
+                f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}' for command in commands
             )
 
         await self.context.send("\n".join(message))

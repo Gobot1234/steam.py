@@ -814,11 +814,7 @@ def get(iterable: Iterable[_T], **attrs: Any) -> _T | None:
     converted = [(attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()]
 
     return next(
-        (
-            elem
-            for elem in iterable
-            if _all(pred(elem) == value for pred, value in converted)
-        ),
+        (elem for elem in iterable if _all(pred(elem) == value for pred, value in converted)),
         None,
     )
 

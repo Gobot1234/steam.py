@@ -175,8 +175,8 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
 
                     if isinstance(method.type, types.CallableType):
                         return_type = method.type.ret_type.args[-1] if is_coroutine else method.type.ret_type
-                        names = method.type.arg_names[0 if is_static else 1:]
-                        arg_types = method.type.arg_types[0 if is_static else 1:]
+                        names = method.type.arg_names[0 if is_static else 1 :]
+                        arg_types = method.type.arg_types[0 if is_static else 1 :]
                     elif isinstance(method.type, types.Overloaded):
                         items = method.type.items
                         union = types.UnionType(
@@ -187,8 +187,8 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
                         names = []
                         arg_types = []
                         for item in items:
-                            names.extend(item.arg_names[0 if is_static else 1:])
-                            arg_types.extend(item.arg_types[0 if is_static else 1:])
+                            names.extend(item.arg_names[0 if is_static else 1 :])
+                            arg_types.extend(item.arg_types[0 if is_static else 1 :])
                     else:
                         continue
                 else:

@@ -398,11 +398,7 @@ class HTTPClient:
                 params[f"instanceid{i}"] = instance_id
 
             data = await self.get(api_route("ISteamEconomy/GetAssetClassInfo"), params=params)
-            result |= {
-                tuple(map(int, key.split("_"))): value
-                for key, value in data["result"].items()
-            }
-
+            result |= {tuple(map(int, key.split("_"))): value for key, value in data["result"].items()}
 
         return result
 

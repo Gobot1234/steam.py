@@ -165,9 +165,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 a = entry.a
                 if a is not None:
                     href = a.get("href", "")
-                    if match := re.findall(
-                        r"store.steampowered.com/app/(\d+)", href
-                    ):
+                    if match := re.findall(r"store.steampowered.com/app/(\d+)", href):
                         self.game = StatefulGame(self._state, id=match[0])
         stats = soup.find("div", class_="grouppage_resp_stats")
         if stats is None:

@@ -75,9 +75,7 @@ class HTTPException(SteamException):
                 message = data.get("message")
                 if message is None:
                     if truthy_str_values := [  # ignore {'success': False} as the message
-                        value
-                        for value in data.values()
-                        if value and isinstance(value, str)
+                        value for value in data.values() if value and isinstance(value, str)
                     ]:
                         message = str(truthy_str_values[0])
                 self.message = message or ""

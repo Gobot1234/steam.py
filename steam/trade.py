@@ -649,8 +649,7 @@ class TradeOffer:
         return (
             self.id == other.id
             if self._has_been_sent and other._has_been_sent
-            else self.items_to_send == other.items_to_send
-            and self.items_to_receive == other.items_to_receive
+            else self.items_to_send == other.items_to_send and self.items_to_receive == other.items_to_receive
         )
 
     async def confirm(self) -> None:
