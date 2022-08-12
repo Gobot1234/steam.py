@@ -48,16 +48,10 @@ _P = ParamSpec("_P")
 _PROTOBUF_MASK = 0x80000000
 
 
-def is_proto(emsg: int) -> bool:
-    return emsg & _PROTOBUF_MASK  # type: ignore  # this is boolean like for a bit of extra speed
-
-
-def set_proto_bit(emsg: int) -> int:
-    return emsg | _PROTOBUF_MASK
-
-
-def clear_proto_bit(emsg: int) -> int:
-    return emsg & ~_PROTOBUF_MASK
+# inlined as these are some of the most called functions in the library
+is_proto: Callable[[int], bool] = _PROTOBUF_MASK.__and__  # type: ignore  # this is boolean like for a bit of extra speed
+set_proto_bit = _PROTOBUF_MASK.__or__
+clear_proto_bit = (~_PROTOBUF_MASK).__and__
 
 
 def unpad(s: bytes) -> bytes:
