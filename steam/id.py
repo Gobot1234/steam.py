@@ -36,7 +36,7 @@ def parse_id64(
     universe: Universe = MISSING,
     instance: InstanceFlag = MISSING,
 ) -> ID64:
-    """Convert various representations of Steam IDs to its Steam 64 bit ID.
+    """Convert various representations of Steam IDs to its Steam 64-bit ID.
 
     Parameters
     ----------
@@ -93,24 +93,31 @@ def parse_id64(
         # numeric input
         if 0 <= id < 2**32:  # 32 bit
             try:
-                type = Type(type) if type is not MISSING else Type.Individual
-                universe = Universe(universe) if universe is not MISSING else Universe.Public
+                type = Type.try_value(type) if type is not MISSING else Type.Individual
+                universe = Universe.try_value(universe) if universe is not MISSING else Universe.Public
             except ValueError as e:
                 raise InvalidID(id, e.args[0]) from None
-        elif id < 2**64:  # 64 bit
-            value = id
-            id = id & 0xFFFFFFFF
-            instance = InstanceFlag.try_value((value >> 32) & 0xFFFFF)
+
+            if instance is MISSING:
+                instance = InstanceFlag.Desktop if type in (Type.Individual, Type.GameServer) else InstanceFlag.All
+
+            if not (0 <= universe < 1 << 8):
+                raise InvalidID(id, "universe is bigger than 8 bits")
+            if not (0 <= type < 1 << 4):
+                raise InvalidID(id, "type is bigger than 4 bits")
+            if not (0 <= instance < 1 << 20):
+                raise InvalidID(id, "instance is bigger than 20 bits")
+        elif 0 <= id < 2**64:  # 64 bit
             try:
-                type = Type((value >> 52) & 0xF)
-                universe = Universe((value >> 56) & 0xFF)
+                universe = Universe.try_value((id >> 56) & 0xFF)
+                type = Type.try_value((id >> 52) & 0xF)
             except ValueError as e:
                 raise InvalidID(id, e.args[0]) from None
+
+            instance = InstanceFlag.try_value((id >> 32) & 0xFFFFF)
+            id = id & 0xFFFFFFFF
         else:
             raise InvalidID(id, f"it is too {'large' if id >= 2**64 else 'small'}")
-
-    if instance is MISSING:
-        instance = InstanceFlag.Desktop if type in (Type.Individual, Type.GameServer) else InstanceFlag.All
 
     return ID64(universe << 56 | type << 52 | instance << 32 | id)
 
@@ -145,7 +152,7 @@ def parse_id2(value: str) -> tuple[ID32, Literal[Type.Individual], Universe, Lit
         or 1  # games before orange box used to incorrectly display universe as 0, we support that
     )
 
-    return id, Type.Individual, Universe(universe), InstanceFlag.Desktop
+    return id, Type.Individual, Universe.try_value(universe), InstanceFlag.Desktop
 
 
 ID3_REGEX = re.compile(
@@ -174,9 +181,9 @@ def parse_id3(value: str) -> tuple[ID32, Type, Universe, InstanceFlag] | None:
         return None
 
     id = ID32(int(match["id"]))
-    universe = Universe(int(match["universe"]))
+    universe = Universe.try_value(int(match["universe"]))
     type_char = match["type"].replace("i", "I")
-    type = Type(TypeChar[type_char])
+    type = Type.try_value(TypeChar[type_char])
     instance = InstanceFlag.try_value(int(instance_)) if (instance_ := match["instance"]) else InstanceFlag.All
 
     match type_char:
@@ -350,12 +357,12 @@ class ID(metaclass=abc.ABCMeta):
     @property
     def type(self) -> Type:
         """The Steam type of the ID."""
-        return Type((self.id64 >> 52) & 0xF)
+        return Type.try_value((self.id64 >> 52) & 0xF)
 
     @property
     def universe(self) -> Universe:
         """The Steam universe of the ID."""
-        return Universe((self.id64 >> 56) & 0xFF)
+        return Universe.try_value((self.id64 >> 56) & 0xFF)
 
     @property
     def id(self) -> ID32:
@@ -443,21 +450,34 @@ class ID(metaclass=abc.ABCMeta):
             return None
 
     def is_valid(self) -> bool:
-        """Whether this Steam ID is valid."""
-        if self.universe in (Universe.Invalid, Universe.Max):
+        """Whether this Steam ID is valid.
+
+        A Steam ID is currently considered valid if:
+
+            - It is in ``(0, 2 ** 64)``
+            - :attr:`universe` is in ``(Invalid, Max)``
+            - :attr:`type` is in ``(Invalid, Max)``
+            - If :attr:`type` is `.Type.Individual`:
+                - :attr:`id` is non-zero
+                - :attr:`instance` is in ``[0, Web]``
+            - If :attr:`type` is `.Type.Clan`:
+                - :attr:`id` is non-zero
+                - :attr:`instance` is ``All``.
+            - If :attr:`type` is `.Type.GameServer`:
+                - :attr:`id` is non-zero
+        """
+        if not (Universe.Invalid < self.universe < Universe.Max):
+            return False
+        if not (Type.Invalid < self.type < Type.Max):
             return False
 
         match self.type:
-            case Type.Invalid | Type.Max:
-                return False
             case Type.Individual:
                 return self.id != 0 and self.instance <= InstanceFlag.Web
             case Type.Clan:
                 return self.id != 0 and self.instance == InstanceFlag.All
             case Type.GameServer:
                 return self.id != 0
-            case Type.AnonGameServer:
-                return self.id != 0 or self.instance != InstanceFlag.Desktop
         return True
 
     @staticmethod

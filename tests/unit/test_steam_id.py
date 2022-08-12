@@ -87,8 +87,6 @@ def test_from_id(steam_id: ID, components: list[int]) -> None:
 @pytest.mark.parametrize(
     "id64",
     [
-        18379190083593961473,
-        139611592743452673,
         "invalid_format",
         111111111111111111111111111111111111111,
         "1111111111111111111111111111111111111",
@@ -126,11 +124,21 @@ def test_kwarg_instance() -> None:
         )
 
 
+def test_out_of_current_bounds() -> None:
+    with pytest.raises(InvalidID):
+        ID(5, type=Type.try_value(1 << 4 + 1))
+    with pytest.raises(InvalidID):
+        ID(5, universe=Universe.try_value(1 << 8 + 1))
+    with pytest.raises(InvalidID):
+        ID(5, instance=InstanceFlag.try_value(1 << 20 + 1))
+
+
 @pytest.mark.parametrize(
     "steam_id, valid",
     [
         [ID(0), False],
         [ID(1), True],
+        [ID(2**64 - 1), False],  # everything out of current bound
         [ID(1, type=Type.Invalid), False],  # type out of bound
         [ID(1, universe=Universe.Invalid), False],
         [ID(1, universe=Universe.Max), False],  # universe out of bound
