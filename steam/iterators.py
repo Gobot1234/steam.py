@@ -42,7 +42,7 @@ TT = TypeVar("TT")
 CommentableT = TypeVar("CommentableT", bound="Commentable")
 M = TypeVar("M", bound="Message", covariant=True)
 
-MaybeCoro: TypeAlias = "Callable[[T], bool | Coroutine[Any, Any, bool]]"
+MaybeCoro: TypeAlias = Callable[[T], bool | Coroutine[Any, Any, bool]]
 UNIX_EPOCH = DateTime.from_timestamp(0)
 
 
@@ -613,9 +613,7 @@ class UserReviewsIterator(AsyncIterator["Review"]):
             )
             soup = BeautifulSoup(page, HTML_PARSER)
             if pages == 1:
-                *_, pages = [1] + [
-                    int(a["href"][len("?p=") :]) for a in soup.find_all("a", class_="pagelink")
-                ]  # str.removeprefix
+                *_, pages = [1] + [int(a["href"].removeprefix("?p=")) for a in soup.find_all("a", class_="pagelink")]
             return [
                 int(URL_(review.find("div", class_="leftcol").a["href"]).parts[-1])
                 for review in soup.find_all("div", class_="review_box_content")

@@ -56,9 +56,9 @@ if TYPE_CHECKING:
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
-EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
-EventDeco: TypeAlias = "Callable[[E], E] | E"
+EventType: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
 E = TypeVar("E", bound=EventType)
+EventDeco: TypeAlias = Callable[[E], E] | E
 
 
 class Client:
