@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, TypeAlias, 
 
 from typing_extensions import Unpack
 
-from .abc import SteamID
 from .enums import Enum, GameServerRegion, Type
 from .game import Game, StatefulGame
+from .id import ID
 from .protobufs.game_servers import EQueryType, GetServerListResponseServer, QueryResponse
 
 if TYPE_CHECKING:
@@ -293,7 +293,7 @@ class ServerPlayer(NamedTuple):
     play_time: timedelta
 
 
-class GameServer(SteamID):
+class GameServer(ID):
     """Represents a game server.
 
     Attributes

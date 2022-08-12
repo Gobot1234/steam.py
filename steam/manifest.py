@@ -26,9 +26,9 @@ from yarl import URL
 
 from . import utils
 from ._const import VDF_LOADS, VDFDict
-from .abc import SteamID
 from .enums import AppFlag, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
 from .game import StatefulGame
+from .id import ID
 from .models import _IOMixin
 from .package import StatefulPackage
 from .protobufs import app_info
@@ -418,7 +418,7 @@ class Manifest:
 
 
 @dataclass
-class ContentServer(SteamID):  # is there any point having this inherit steamid?
+class ContentServer(ID):  # is there any point having this inherit steamid?
     _state: ConnectionState
     url: URL
     weighted_load: float

@@ -12,8 +12,10 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, overload
 from . import utils
 from ._const import DOCS_BUILDING, URL
 from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
+from .id import id64_from_url
 from .iterators import GamePublishedFilesIterator, GameReviewsIterator, ManifestIterator
-from .utils import DateTime, Intable, id64_from_url
+from .types.id import Intable
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -382,8 +384,8 @@ class StatefulGame(Game):
         """
         proto = await self._state.fetch_friend_thoughts(self.id)
         return FriendThoughts(
-            [self._state.get_friend(utils.make_id64(id)) for id in proto.accountids_recommended],
-            [self._state.get_friend(utils.make_id64(id)) for id in proto.accountids_not_recommended],
+            [self._state.get_friend(utils.parse_id64(id)) for id in proto.accountids_recommended],
+            [self._state.get_friend(utils.parse_id64(id)) for id in proto.accountids_not_recommended],
         )
 
     # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done

@@ -14,13 +14,14 @@ from typing_extensions import Self
 
 from . import utils
 from ._const import HTML_PARSER
-from .abc import Commentable, SteamID, _CommentableKwargs
+from .abc import Commentable, _CommentableKwargs
 from .channel import ClanChannel
 from .chat import ChatGroup, Member
 from .enums import EventType, Language, Type
 from .errors import HTTPException
 from .event import Announcement, Event
 from .game import Game, StatefulGame
+from .id import ID
 from .iterators import AnnouncementsIterator, EventIterator
 from .protobufs import chat
 from .utils import DateTime
@@ -241,7 +242,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 user = self._state.get_user(id)
                 if user is None:
                     await asyncio.sleep(0)
-                    user = await self._state._maybe_user(utils.make_id64(id))  # TODO maybe users
+                    user = await self._state._maybe_user(utils.parse_id64(id))  # TODO maybe users
                 member = ClanMember(self._state, self, user, member)
                 self._members[member.id] = member
             return await super().chunk()
@@ -271,8 +272,8 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 user = users[id]
             except KeyError:
                 # steam doesn't include the first user cause ???, this however, isn't that big a deal.
-                user = await self._state._maybe_user(utils.make_id64(id))
-                if isinstance(user, SteamID):
+                user = await self._state._maybe_user(utils.parse_id64(id))
+                if isinstance(user, ID):
                     continue
             member = ClanMember(self._state, self, users[id], member)
             self._members[member.id] = member
@@ -286,7 +287,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             "thread_type": 12,
         }
 
-    async def fetch_members(self) -> list[SteamID]:
+    async def fetch_members(self) -> list[ID]:
         """Fetches a clan's member list.
 
         Note
@@ -306,11 +307,11 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 soup = BeautifulSoup(resp, HTML_PARSER)
                 for s in soup.find_all("div", id="memberList"):
                     for user in s.find_all("div", class_="member_block"):
-                        ret.append(SteamID(user["data-miniprofile"]))
+                        ret.append(ID(user["data-miniprofile"]))
 
                 return soup
 
-        ret: list[SteamID] = []
+        ret: list[ID] = []
         soup = await getter(0)
         number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
         await asyncio.gather(*(getter(i) for i in range(1, number_of_pages)))

@@ -18,10 +18,11 @@ from ._const import URL
 from .enums import Language, Result, TradeOfferState
 from .errors import ClientException, ConfirmationError, HTTPException
 from .game import Game, StatefulGame
+from .id import ID
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .abc import BaseUser, SteamID
+    from .abc import BaseUser
     from .state import ConnectionState
     from .types import trade
     from .user import User
@@ -485,7 +486,7 @@ class TradeOffer:
     Attributes
     ----------
     partner
-        The trade offer partner. This should only ever be a :class:`~steam.SteamID` if the partner's profile is private.
+        The trade offer partner. This should only ever be a :class:`steam.ID` if the partner's profile is private.
     items_to_send
         A list of items to send to the partner.
     items_to_receive
@@ -529,7 +530,7 @@ class TradeOffer:
     )
 
     id: int
-    partner: User | SteamID
+    partner: User | ID
 
     @overload
     def __init__(
@@ -575,16 +576,11 @@ class TradeOffer:
         self._has_been_sent = False
 
     @classmethod
-    def _from_api(cls, state: ConnectionState, data: trade.TradeOffer, partner: User | SteamID | None = None) -> Self:
+    def _from_api(cls, state: ConnectionState, data: trade.TradeOffer, partner: User | ID | None = None) -> Self:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
-        if partner is None:
-            from .abc import SteamID
-
-            trade.partner = SteamID(data["accountid_other"])
-        else:
-            trade.partner = partner
+        trade.partner = ID(data["accountid_other"]) if partner is None else partner
         trade._update(data)
         return trade
 
@@ -592,9 +588,9 @@ class TradeOffer:
     def _from_history(cls, state: ConnectionState, data: trade.TradeOfferHistoryTrade) -> Self:
         received: list[trade.TradeOfferReceiptItem] = data.get("assets_received", [])  # type: ignore
         sent: list[trade.TradeOfferReceiptItem] = data.get("assets_given", [])  # type: ignore
-        from .abc import SteamID
+        from .abc import ID
 
-        partner = SteamID(data["steamid_other"])
+        partner = ID(data["steamid_other"])
         trade = cls(
             items_to_receive=[MovedItem(state, item, partner) for item in received],
             items_to_send=[MovedItem(state, item, state.user) for item in sent],

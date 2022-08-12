@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from ._const import URL
 from .errors import ConfirmationError
-from .utils import Intable
+from .types.id import Intable
 
 if TYPE_CHECKING:
     from .state import ConnectionState

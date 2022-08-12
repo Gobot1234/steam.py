@@ -22,13 +22,13 @@ import aiohttp
 
 from . import errors, utils
 from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
-from .abc import SteamID
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game import FetchedGame, Game, StatefulGame
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
+from .id import ID
 from .iterators import TradesIterator
 from .manifest import GameInfo, PackageInfo
 from .models import PriceOverview, return_true
@@ -36,7 +36,8 @@ from .package import FetchedPackage, License, Package, StatefulPackage
 from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker, Emoticon
 from .state import ConnectionState
-from .utils import make_id64
+from .types.id import Intable
+from .utils import parse_id64
 
 if TYPE_CHECKING:
     import steam
@@ -500,32 +501,32 @@ class Client:
                     await throttle()
 
     # state stuff
-
-    def get_user(self, id: utils.Intable) -> User | None:
+    # TODO decide on where this should take id32s
+    def get_user(self, id: Intable) -> User | None:
         """Returns a user from cache with a matching ID or ``None`` if the user was not found.
 
         Parameters
         ----------
         id
-            The ID of the user, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
-            :attr:`.SteamID.id3`.
+            The ID of the user, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
+            :attr:`.ID.id3`.
         """
-        steam_id = SteamID(id=id, type=Type.Individual)
+        steam_id = ID(id=id, type=Type.Individual)
         return self._connection.get_user(steam_id.id)
 
-    async def fetch_user(self, id: utils.Intable) -> User | None:
+    async def fetch_user(self, id: Intable) -> User | None:
         """Fetches a user with a matching ID or ``None`` if the user was not found.
 
         Parameters
         ----------
         id
-            The ID of the user, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
-            :attr:`.SteamID.id3`.
+            The ID of the user, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
+            :attr:`.ID.id3`.
         """
-        id64 = make_id64(id=id, type=Type.Individual)
+        id64 = parse_id64(id=id, type=Type.Individual)
         return await self._connection.fetch_user(id64)
 
-    async def fetch_users(self, *ids: utils.Intable) -> list[User | None]:
+    async def fetch_users(self, *ids: Intable) -> list[User | None]:
         """Fetches a list of :class:`~steam.User` or ``None`` if the user was not found, from their IDs.
 
         Note
@@ -537,7 +538,7 @@ class Client:
         ids
             The user's IDs.
         """
-        id64s = [make_id64(id, type=Type.Individual) for id in ids]
+        id64s = [parse_id64(id, type=Type.Individual) for id in ids]
         return await self._connection.fetch_users(id64s)
 
     async def fetch_user_named(self, name: str) -> User | None:
@@ -573,40 +574,40 @@ class Client:
         """
         return await self._connection.fetch_trade(id, language)
 
-    def get_group(self, id: utils.Intable) -> Group | None:
+    def get_group(self, id: Intable) -> Group | None:
         """Get a group from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
         ----------
         id
-            The ID of the group, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
-            :attr:`.SteamID.id3`.
+            The ID of the group, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
+            :attr:`.ID.id3`.
         """
-        steam_id = SteamID(id=id, type=Type.Chat)
+        steam_id = ID(id=id, type=Type.Chat)
         return self._connection.get_group(steam_id.id)
 
-    def get_clan(self, id: utils.Intable) -> Clan | None:
+    def get_clan(self, id: Intable) -> Clan | None:
         """Get a clan from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
         ----------
         id
-            The ID of the clan, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
-            :attr:`.SteamID.id3`.
+            The ID of the clan, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
+            :attr:`.ID.id3`.
         """
-        steam_id = SteamID(id=id, type=Type.Clan)
+        steam_id = ID(id=id, type=Type.Clan)
         return self._connection.get_clan(steam_id.id)
 
-    async def fetch_clan(self, id: utils.Intable) -> Clan | None:
+    async def fetch_clan(self, id: Intable) -> Clan | None:
         """Fetches a clan from the websocket with a matching ID or ``None`` if the clan was not found.
 
         Parameters
         ----------
         id
-            The ID of the clan, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id`, :attr:`.SteamID.id2` or an
-            :attr:`.SteamID.id3`.
+            The ID of the clan, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
+            :attr:`.ID.id3`.
         """
-        id64 = make_id64(id=id, type=Type.Clan)
+        id64 = parse_id64(id=id, type=Type.Clan)
         return await self._connection.fetch_clan(id64)
 
     async def fetch_clan_named(self, name: str) -> Clan | None:
@@ -617,7 +618,7 @@ class Client:
         name
             The name of the Steam clan.
         """
-        steam_id = await SteamID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
+        steam_id = await ID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
 
     def get_game(self, id: int | Game) -> StatefulGame:
@@ -674,7 +675,7 @@ class Client:
         return FetchedPackage(self._connection, data["data"]) if data["success"] else None
 
     @overload
-    async def fetch_server(self, *, id: utils.Intable) -> GameServer | None:
+    async def fetch_server(self, *, id: Intable) -> GameServer | None:
         ...
 
     @overload
@@ -689,11 +690,11 @@ class Client:
     async def fetch_server(
         self,
         *,
-        id: utils.Intable | None = None,
+        id: Intable | None = None,
         ip: str | None = None,
         port: int | str | None = None,
     ) -> GameServer | None:
-        """Fetch a :class:`.GameServer` from its ip and port or its SteamID or ``None`` if fetching the server failed.
+        """Fetch a :class:`.GameServer` from its ip and port or its Steam ID or ``None`` if fetching the server failed.
 
         Parameters
         ----------
@@ -702,7 +703,7 @@ class Client:
         port
             The port of the server.
         id
-            The ID of the game server, can be an :attr:`.SteamID.id64`, :attr:`.SteamID.id2` or an :attr:`.SteamID.id3`.
+            The ID of the game server, can be an :attr:`.ID.id64`, :attr:`.ID.id2` or an :attr:`.ID.id3`.
             If this is passed, it makes a call to the master server to fetch its ip and port.
 
         Note
@@ -714,7 +715,7 @@ class Client:
             raise TypeError("Too many arguments passed to fetch_server")
         if id:
             # we need to fetch the ip and port
-            servers = await self._connection.fetch_server_ip_from_steam_id(make_id64(id, type=Type.GameServer))
+            servers = await self._connection.fetch_server_ip_from_steam_id(parse_id64(id, type=Type.GameServer))
             if not servers:
                 raise ValueError(f"The master server didn't find a matching server for {id}")
             ip, _, port = servers[0].addr.partition(":")

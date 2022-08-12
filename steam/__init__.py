@@ -22,6 +22,7 @@ from .friend import *
 from .game import *
 from .game_server import *
 from .group import *
+from .id import *
 from .image import *
 from .invite import *
 from .manifest import *

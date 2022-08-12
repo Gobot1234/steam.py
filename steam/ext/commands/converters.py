@@ -26,7 +26,7 @@ from typing_extensions import Never
 from ... import _const, utils
 from ...channel import Channel
 from ...clan import Clan
-from ...errors import HTTPException, InvalidSteamID
+from ...errors import HTTPException, InvalidID
 from ...game import Game, StatefulGame
 from ...group import Group
 from ...user import User
@@ -284,7 +284,7 @@ class UserConverter(Converter[User]):
     async def convert(self, ctx: Context, argument: str) -> User:
         try:
             user = await ctx.bot.fetch_user(argument)
-        except (InvalidSteamID, HTTPException):
+        except (InvalidID, HTTPException):
             if argument.startswith("@"):  # probably a mention
                 try:
                     account_id = ctx.message.mentions.ids[0]
@@ -336,7 +336,7 @@ class ClanConverter(Converter[Clan]):
     async def convert(self, ctx: Context, argument: str) -> Clan:
         try:
             clan = await ctx.bot.fetch_clan(argument)
-        except (InvalidSteamID, HTTPException):
+        except (InvalidID, HTTPException):
             clan = utils.find(lambda c: c.name == argument, ctx.bot.clans)
             if clan is None:
                 id64 = await utils.id64_from_url(argument, session=ctx._state.http._session)
@@ -357,7 +357,7 @@ class GroupConverter(Converter[Group]):
     async def convert(self, ctx: Context, argument: str) -> Group:
         try:
             group = ctx.bot.get_group(argument)
-        except InvalidSteamID:
+        except InvalidID:
             group = utils.find(lambda c: c.name == argument, ctx.bot.groups)
         if group is None:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam group')

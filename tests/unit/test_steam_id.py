@@ -31,47 +31,53 @@ from typing import Optional, Union
 
 import pytest
 
-from steam import InstanceFlag, InvalidSteamID, SteamID, Type, Universe
+from steam import ID, InstanceFlag, InvalidID, Type, Universe
 
 
 def test_hash() -> None:
-    assert hash(SteamID(1)) == hash(SteamID(1))
-    assert hash(SteamID(12345)) != hash(SteamID(8888))
+    assert hash(ID(1)) == hash(ID(1))
+    assert hash(ID(12345)) != hash(ID(8888))
 
 
 @pytest.mark.parametrize(
     "steam_id, components",
     [
-        (SteamID(1), [1, Type.Individual, Universe.Public, InstanceFlag.Desktop]),
-        [SteamID("1"), [1, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID(12), [12, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID("12"), [12, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID(123), [123, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID("123"), [123, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID(12345678), [12345678, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID("12345678"), [12345678, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID(0xFFFFFFFF), [0xFFFFFFFF, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID(str(0xFFFFFFFF)), [0xFFFFFFFF, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [SteamID(76580280500085312), [123456, Type.Individual, Universe.Public, 4444]],
-        [SteamID("76580280500085312"), [123456, Type.Individual, Universe.Public, 4444]],
-        [SteamID(103582791429521412), [4, Type.Clan, Universe.Public, InstanceFlag.All]],
-        [SteamID("103582791429521412"), [4, Type.Clan, Universe.Public, InstanceFlag.All]],
-        [SteamID(), [0, Type.Invalid, Universe.Invalid, InstanceFlag.All]],
-        [SteamID(id=0, type=0, universe=0, instance=0), [0, Type.Invalid, Universe.Invalid, InstanceFlag.All]],
+        (ID(1), [1, Type.Individual, Universe.Public, InstanceFlag.Desktop]),
+        [ID("1"), [1, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID(12), [12, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID("12"), [12, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID(123), [123, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID("123"), [123, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID(12345678), [12345678, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID("12345678"), [12345678, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID(0xFFFFFFFF), [0xFFFFFFFF, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID(str(0xFFFFFFFF)), [0xFFFFFFFF, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        [ID(76580280500085312), [123456, Type.Individual, Universe.Public, 4444]],
+        [ID("76580280500085312"), [123456, Type.Individual, Universe.Public, 4444]],
+        [ID(103582791429521412), [4, Type.Clan, Universe.Public, InstanceFlag.All]],
+        [ID("103582791429521412"), [4, Type.Clan, Universe.Public, InstanceFlag.All]],
+        [ID(0), [0, Type.Invalid, Universe.Invalid, InstanceFlag.All]],
         [
-            SteamID(id=0, type=Type.Invalid, universe=Universe.Invalid, instance=InstanceFlag.All),
+            ID(id=0, type=Type.Invalid, universe=Universe.Invalid, instance=InstanceFlag.All),
             [0, Type.Invalid, Universe.Invalid, InstanceFlag.All],
         ],
         [
-            SteamID(id=0, type="Invalid", universe="Invalid", instance=InstanceFlag.All),
+            ID(id=0, type=Type.Invalid, universe=Universe.Invalid, instance=InstanceFlag.All),
             [0, Type.Invalid, Universe.Invalid, InstanceFlag.All],
         ],
-        [SteamID(1, 2), [1, 2, 1, 0]],
-        [SteamID(1, 2, 3), [1, 2, 3, 0]],
-        [SteamID(1, 2, 3, 4), [1, 2, 3, 4]],
+        [
+            ID(id=0, type=Type.Invalid, universe=Type.Invalid, instance=InstanceFlag.All),
+            [0, Type.Invalid, Universe.Invalid, InstanceFlag.All],
+        ],
+        [ID(1, Type.Multiseat), [1, Type.Multiseat, 1, 0]],
+        [ID(1, Type.Multiseat, Universe.Internal), [1, Type.Multiseat, Universe.Internal, 0]],
+        [
+            ID(1, Type.Multiseat, Universe.Internal, InstanceFlag.Web),
+            [1, Type.Multiseat, Universe.Internal, InstanceFlag.Web],
+        ],
     ],
 )
-def test_from_id(steam_id: SteamID, components: list[int]) -> None:
+def test_from_id(steam_id: ID, components: list[int]) -> None:
     assert steam_id.id == components[0]
     assert steam_id.type == components[1]
     assert steam_id.universe == components[2]
@@ -90,151 +96,148 @@ def test_from_id(steam_id: SteamID, components: list[int]) -> None:
     ],
 )
 def test_invalid_steam_id(id64: Union[int, str]) -> None:
-    with pytest.raises(InvalidSteamID):
-        SteamID(id64)
+    with pytest.raises(InvalidID):
+        ID(id64)
 
 
 def test_kwarg_type() -> None:
-    assert SteamID(id=5, type=1).type == Type.Individual
-    assert SteamID(id=5, type="Individual").type == Type.Individual
-    assert SteamID(id=5, type="AnonUser").type == Type.AnonUser
+    assert ID(id=5, type=Type.Individual).type == Type.Individual
+    assert ID(id=5, type=Type.AnonUser).type == Type.AnonUser
 
 
 def test_kwarg_universe() -> None:
-    with pytest.raises(InvalidSteamID):
-        SteamID(id=5, universe="doesn't exist")
-    with pytest.raises(InvalidSteamID):
-        SteamID(id=5, universe=99999999)
+    with pytest.raises(InvalidID):
+        ID(id=5, universe="doesn't exist")  # type: ignore
+    with pytest.raises(InvalidID):
+        ID(id=5, universe=99999999)  # type: ignore
 
-    assert SteamID(id=5, universe=1).universe == Universe.Public
-    assert SteamID(id=5, universe="Public").universe == Universe.Public
-    assert SteamID(id=5, universe="Dev").universe == Universe.Dev
+    assert ID(id=5, universe=Universe.Public).universe == Universe.Public
+    assert ID(id=5, universe=Universe.Dev).universe == Universe.Dev
 
 
 def test_kwarg_instance() -> None:
-    assert SteamID(id=5, instance=InstanceFlag.Console).instance == InstanceFlag.Console
+    assert ID(id=5, instance=InstanceFlag.Console).instance == InstanceFlag.Console
 
     for type in Type:
         assert (
-            SteamID(id=5, type=type).instance == InstanceFlag.Desktop
+            ID(id=5, type=type).instance == InstanceFlag.Desktop
             if type in (Type.Individual, Type.GameServer)
-            else SteamID(id=5, type=type).instance == InstanceFlag.All
+            else ID(id=5, type=type).instance == InstanceFlag.All
         )
 
 
 @pytest.mark.parametrize(
     "steam_id, valid",
     [
-        [SteamID(), False],
-        [SteamID(0), False],
-        [SteamID(1), True],
-        [SteamID(1, type=Type.Invalid), False],  # type out of bound
-        [SteamID(1, universe=Universe.Invalid), False],
-        [SteamID(1, universe=Universe.Max), False],  # universe out of bound
-        [SteamID(5), True],
+        [ID(0), False],
+        [ID(1), True],
+        [ID(1, type=Type.Invalid), False],  # type out of bound
+        [ID(1, universe=Universe.Invalid), False],
+        [ID(1, universe=Universe.Max), False],  # universe out of bound
+        [ID(5), True],
         # individual
-        [SteamID(123, Type.Individual, Universe.Public, instance=InstanceFlag.All), True],
-        [SteamID(123, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), True],
-        [SteamID(123, Type.Individual, Universe.Public, instance=InstanceFlag.Console), True],
-        [SteamID(123, Type.Individual, Universe.Public, instance=InstanceFlag.Web), True],
+        [ID(123, Type.Individual, Universe.Public, instance=InstanceFlag.All), True],
+        [ID(123, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), True],
+        [ID(123, Type.Individual, Universe.Public, instance=InstanceFlag.Console), True],
+        [ID(123, Type.Individual, Universe.Public, instance=InstanceFlag.Web), True],
         # clan
-        [SteamID(1, Type.Clan, Universe.Public, instance=InstanceFlag.Desktop), False],
-        [SteamID(1, Type.Clan, Universe.Public, instance=InstanceFlag.All), True],
+        [ID(1, Type.Clan, Universe.Public, instance=InstanceFlag.Desktop), False],
+        [ID(1, Type.Clan, Universe.Public, instance=InstanceFlag.All), True],
     ],
 )
-def test_is_valid(steam_id: SteamID, valid: bool) -> None:
+def test_is_valid(steam_id: ID, valid: bool) -> None:
     assert steam_id.is_valid() is valid
 
 
 def test_dunders() -> None:
-    assert SteamID(5) == SteamID(5)
-    assert SteamID(10) != SteamID(5)
-    assert hash(SteamID(5)) == hash(SteamID(5))
-    assert str(SteamID(76580280500085312)) == "76580280500085312"
-    assert eval(repr(SteamID(76561210845291072))) == SteamID(76561210845291072)
+    assert ID(5) == ID(5)
+    assert ID(10) != ID(5)
+    assert hash(ID(5)) == hash(ID(5))
+    assert str(ID(76580280500085312)) == "76580280500085312"
+    assert eval(repr(ID(76561210845291072))) == ID(76561210845291072)
 
 
 @pytest.mark.parametrize(
     "steam_id, id2",
     [
-        [SteamID("STEAM_0:1:4"), "STEAM_1:1:4"],
-        [SteamID("STEAM_1:1:4"), "STEAM_1:1:4"],
-        [SteamID("STEAM_0:0:4"), "STEAM_1:0:4"],
-        [SteamID("STEAM_1:0:4"), "STEAM_1:0:4"],
+        [ID("STEAM_0:1:4"), "STEAM_1:1:4"],
+        [ID("STEAM_1:1:4"), "STEAM_1:1:4"],
+        [ID("STEAM_0:0:4"), "STEAM_1:0:4"],
+        [ID("STEAM_1:0:4"), "STEAM_1:0:4"],
     ],
 )
-def test_as_id2(steam_id: SteamID, id2: str) -> None:
+def test_as_id2(steam_id: ID, id2: str) -> None:
     assert steam_id.id2 == id2
 
 
 @pytest.mark.parametrize(
     "steam_id, id2_zero",
     [
-        [SteamID("STEAM_0:1:4"), "STEAM_0:1:4"],
-        [SteamID("STEAM_1:1:4"), "STEAM_0:1:4"],
-        [SteamID("STEAM_0:0:4"), "STEAM_0:0:4"],
-        [SteamID("STEAM_1:0:4"), "STEAM_0:0:4"],
-        [SteamID("STEAM_4:0:4"), "STEAM_4:0:4"],
-        [SteamID("STEAM_4:1:4"), "STEAM_4:1:4"],
+        [ID("STEAM_0:1:4"), "STEAM_0:1:4"],
+        [ID("STEAM_1:1:4"), "STEAM_0:1:4"],
+        [ID("STEAM_0:0:4"), "STEAM_0:0:4"],
+        [ID("STEAM_1:0:4"), "STEAM_0:0:4"],
+        [ID("STEAM_4:0:4"), "STEAM_4:0:4"],
+        [ID("STEAM_4:1:4"), "STEAM_4:1:4"],
     ],
 )
-def test_as_id2_zero(steam_id: SteamID, id2_zero: str) -> None:
+def test_as_id2_zero(steam_id: ID, id2_zero: str) -> None:
     assert steam_id.id2_zero == id2_zero
 
 
 @pytest.mark.parametrize(
     "steam_id, id3",
     [
-        [SteamID("[U:1:1234]"), "[U:1:1234:0]"],
-        [SteamID("[U:1:1234]"), "[U:1:1234:0]"],
-        [SteamID("[U:1:1234:56]"), "[U:1:1234:56]"],
-        [SteamID("[g:1:4]"), "[g:1:4]"],
-        [SteamID("[A:1:1234:567]"), "[A:1:1234:567]"],
-        [SteamID("[G:1:1234:567]"), "[G:1:1234]"],
-        [SteamID("[T:1:1234]"), "[T:1:1234]"],
-        [SteamID("[c:1:1234]"), "[g:1:1234]"],
-        [SteamID("[L:1:1234]"), "[L:1:1234]"],
+        [ID("[U:1:1234]"), "[U:1:1234:0]"],
+        [ID("[U:1:1234]"), "[U:1:1234:0]"],
+        [ID("[U:1:1234:56]"), "[U:1:1234:56]"],
+        [ID("[g:1:4]"), "[g:1:4]"],
+        [ID("[A:1:1234:567]"), "[A:1:1234:567]"],
+        [ID("[G:1:1234:567]"), "[G:1:1234]"],
+        [ID("[T:1:1234]"), "[T:1:1234]"],
+        [ID("[c:1:1234]"), "[g:1:1234]"],
+        [ID("[L:1:1234]"), "[L:1:1234]"],
     ],
 )
-def test_as_steam3(steam_id: SteamID, id3: str) -> None:
+def test_as_steam3(steam_id: ID, id3: str) -> None:
     assert steam_id.id3 == id3
 
 
 @pytest.mark.parametrize(
     "steam_id, community_url",
     [
-        [SteamID(76580280500085312), "https://steamcommunity.com/profiles/76580280500085312"],  # user url
-        [SteamID("[g:1:4]"), "https://steamcommunity.com/gid/103582791429521412"],  # group url
-        [SteamID("[A:1:4]"), None],  # else None
+        [ID(76580280500085312), "https://steamcommunity.com/profiles/76580280500085312"],  # user url
+        [ID("[g:1:4]"), "https://steamcommunity.com/gid/103582791429521412"],  # group url
+        [ID("[A:1:4]"), None],  # else None
     ],
 )
-def test_community_url(steam_id: SteamID, community_url: Optional[str]) -> None:
+def test_community_url(steam_id: ID, community_url: Optional[str]) -> None:
     assert steam_id.community_url == community_url
 
 
 @pytest.mark.parametrize(
     "steam_id, invite_code",
     [
-        [SteamID(0, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), None],
-        [SteamID(123456, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), "cv-dgb"],
-        [SteamID(123456, Type.Individual, Universe.Beta, instance=InstanceFlag.Desktop), "cv-dgb"],
-        [SteamID(123456, Type.Invalid, Universe.Public, instance=InstanceFlag.Desktop), None],
-        [SteamID(123456, Type.Clan, Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(0, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(123456, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), "cv-dgb"],
+        [ID(123456, Type.Individual, Universe.Beta, instance=InstanceFlag.Desktop), "cv-dgb"],
+        [ID(123456, Type.Invalid, Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(123456, Type.Clan, Universe.Public, instance=InstanceFlag.Desktop), None],
     ],
 )
-def test_as_invite_code(steam_id: SteamID, invite_code: Optional[str]) -> None:
+def test_as_invite_code(steam_id: ID, invite_code: Optional[str]) -> None:
     assert steam_id.invite_code == invite_code
 
 
 @pytest.mark.parametrize(
     "steam_id, invite_url",
     [
-        [SteamID(0, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), None],
-        [SteamID(123456, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), "https://s.team/p/cv-dgb"],
-        [SteamID(123456, Type.Individual, Universe.Beta, instance=InstanceFlag.Desktop), "https://s.team/p/cv-dgb"],
-        [SteamID(123456, Type.Invalid, Universe.Public, instance=InstanceFlag.Desktop), None],
-        [SteamID(123456, Type.Clan, Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(0, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(123456, Type.Individual, Universe.Public, instance=InstanceFlag.Desktop), "https://s.team/p/cv-dgb"],
+        [ID(123456, Type.Individual, Universe.Beta, instance=InstanceFlag.Desktop), "https://s.team/p/cv-dgb"],
+        [ID(123456, Type.Invalid, Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(123456, Type.Clan, Universe.Public, instance=InstanceFlag.Desktop), None],
     ],
 )
-def test_as_invite_url(steam_id: SteamID, invite_url: Optional[str]) -> None:
+def test_as_invite_url(steam_id: ID, invite_url: Optional[str]) -> None:
     assert steam_id.invite_url == invite_url

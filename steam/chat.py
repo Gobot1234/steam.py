@@ -16,10 +16,11 @@ from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
 from typing_extensions import Self
 
 from . import utils
-from .abc import Channel, Message, SteamID
+from .abc import Channel, Message
 from .enums import ChatMemberRank, Type
 from .errors import WSException
 from .game import StatefulGame
+from .id import ID
 from .iterators import ChatHistoryIterator
 from .protobufs import MsgProto, chat
 from .reaction import Emoticon, MessageReaction, Sticker
@@ -87,7 +88,7 @@ class Member(WrapsUser):
 class ChatMessage(Message):
     channel: GroupChannel | ClanChannel
     mentions: chat.Mentions
-    author: Member | SteamID
+    author: Member | ID
 
     def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: Authors):
         super().__init__(channel, proto)
@@ -117,7 +118,7 @@ class ChatMessage(Message):
                 self,
                 reaction.emoticon,
                 reaction.sticker,
-                user=chat_group._members.get(reactor) or SteamID(reactor),
+                user=chat_group._members.get(reactor) or ID(reactor),
             )
             for reactor in reactors
         ]
@@ -198,7 +199,7 @@ class ChatMessage(Message):
 
 
 ChatMessageT = TypeVar("ChatMessageT", bound="GroupMessage | ClanMessage", covariant=True)
-GroupChannelProtos: TypeAlias = "chat.IncomingChatMessageNotification | chat.State | chat.ChatRoomState"
+GroupChannelProtos: TypeAlias = chat.IncomingChatMessageNotification | chat.State | chat.ChatRoomState
 
 
 class Chat(Channel[ChatMessageT]):
@@ -226,8 +227,10 @@ class Chat(Channel[ChatMessageT]):
         self.position = proto.sort_order if isinstance(proto, chat.State) else self.position
         (message_cls,) = self._type_args
         if isinstance(proto, chat.IncomingChatMessageNotification):
-            steam_id = SteamID(proto.steamid_sender, type=Type.Individual)
-            self.last_message = message_cls(proto, self, self._state.get_user(steam_id.id) or steam_id)  # type: ignore
+            steam_id = ID(proto.steamid_sender, type=Type.Individual)
+            chat_group = self.clan or self.group
+            assert chat_group is not None
+            self.last_message = message_cls(proto, self, chat_group.get_member(steam_id.id64) or steam_id)
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "group" if self.group is not None else "clan", "position")
@@ -268,11 +271,11 @@ class Chat(Channel[ChatMessageT]):
     #     await self._state.edit_channel(*self._location, name)
 
 
-# class SteamIDMember(SteamID):  # TODO?
+# class IDMember(ID):  # TODO?
 #     ...
 
 
-class ChatGroup(SteamID, Generic[MemberT, ChatT]):
+class ChatGroup(ID, Generic[MemberT, ChatT]):
     """Base class for :class:`steam.Clan` and :class:`steam.Group`."""
 
     __slots__ = (
@@ -436,12 +439,12 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
 
     @property
     def owner(self):
-        return self._members.get(self._owner_id) or SteamID(self._owner_id)
+        return self._members.get(self._owner_id) or ID(self._owner_id)
 
     @property
-    def top_members(self) -> Sequence[MemberT | SteamID]:
+    def top_members(self) -> Sequence[MemberT | ID]:
         """A list of the chat group's top members."""
-        return [(self._members.get(id) or SteamID(id)) for id in self._top_members]
+        return [(self._members.get(id) or ID(id)) for id in self._top_members]
 
     @property
     def me(self) -> MemberT:
@@ -565,17 +568,17 @@ class ChatGroup(SteamID, Generic[MemberT, ChatT]):
     #     ...
     #
     # add Member.x equivalent for these 3
-    # async def mute(self, member: SteamID) -> None:  # chat.MuteUserRequest
+    # async def mute(self, member: ID) -> None:  # chat.MuteUserRequest
     #     ...
     #
-    # async def kick(self, member: SteamID) -> None:  # chat.KickUserRequest
+    # async def kick(self, member: ID) -> None:  # chat.KickUserRequest
     #     ...
     #
-    # async def ban(self, member: SteamID) -> None:  # chat.SetUserBanStateRequest
+    # async def ban(self, member: ID) -> None:  # chat.SetUserBanStateRequest
     #     ...
     #
     # async def bans(self) -> list[Ban]:  # chat.GetBanListRequest
     #     ...
     #
-    # async def unban(self, user: SteamID) -> None:  # chat.SetUserBanStateRequest
+    # async def unban(self, user: ID) -> None:  # chat.SetUserBanStateRequest
     #     ...

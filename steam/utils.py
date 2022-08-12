@@ -2,7 +2,6 @@
 Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
 
 Contains large portions of:
-https://github.com/ValvePython/steam/blob/master/steam/steamid.py
 https://github.com/Rapptz/discord.py/blob/master/discord/utils.py
 The appropriate licenses are in LICENSE
 """
@@ -12,13 +11,10 @@ from __future__ import annotations
 import abc
 import asyncio
 import collections
-import contextvars
 import functools
 import html
-import json
 import re
 import struct
-import sys
 from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Mapping
 from datetime import datetime, timezone
 from inspect import getmembers, isawaitable
@@ -26,34 +22,25 @@ from io import BytesIO
 from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Final,
-    Generic,
-    Literal,
-    ParamSpec,
-    SupportsIndex,
-    SupportsInt,
-    TypeAlias,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Final, Generic, ParamSpec, TypeVar, cast, overload
 
-import aiohttp
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Self
 
-from .enums import InstanceFlag, Type, TypeChar, Universe, _is_descriptor, classproperty as classproperty
-from .errors import InvalidSteamID
+from .enums import _is_descriptor, classproperty as classproperty
+from .id import (
+    MISSING as MISSING,
+    parse_id2 as parse_id2,
+    parse_id3 as parse_id3,
+    parse_id64 as parse_id64,
+    parse_invite_code as parse_invite_code,
+)
 
 if TYPE_CHECKING:
     from .types.http import StrOrURL
-    from .types.id import ID32, ID64
 
 
 _T = TypeVar("_T")
@@ -71,301 +58,6 @@ def set_proto_bit(emsg: int) -> int:
 
 def clear_proto_bit(emsg: int) -> int:
     return emsg & ~_PROTOBUF_MASK
-
-
-Intable: TypeAlias = "SupportsInt | SupportsIndex | str | bytes"  # anything int(x) wouldn't normally fail on
-TypeType: TypeAlias = """
-Type | Literal[
-    'Invalid', 'Individual', 'Multiseat', 'GameServer', 'AnonGameServer', 'Pending', 'ContentServer', 'Clan',
-    'Chat', 'ConsoleUser', 'AnonUser', 'Max', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
-]
-"""
-UniverseType: TypeAlias = """
-    Universe | Literal['Invalid', 'Public', 'Beta', 'Internal', 'Dev', 'Max', 0, 1, 2, 3, 4, 5, 6]
-"""
-InstanceType: TypeAlias = "InstanceFlag | str | int"
-
-
-def make_id64(
-    id: Intable = 0,
-    type: TypeType | None = None,
-    universe: UniverseType | None = None,
-    instance: InstanceType | None = None,
-) -> ID64:
-    """Convert various representations of Steam IDs to its Steam 64-bit ID.
-
-    Parameters
-    ----------
-    id
-        The ID to convert.
-    type
-        The type of the ID. Can be the name, the integer value of the type or the recommended way is to use
-        :class:`steam.Type`\\.
-    universe
-        The universe of the ID. Can be the name, the integer value of the universe or the recommended way is to use
-        :class:`steam.Universe`\\.
-    instance
-        The instance of the ID.
-
-    Examples
-    --------
-    .. code-block:: python3
-
-        make_id64()  # invalid
-        make_id64(12345)
-        make_id64("12345")  # account ids
-        make_id64(12345, type=steam.Type.Clan)  # makes the clan id into a clan id64
-        make_id64(103582791429521412)
-        make_id64("103582791429521412")  # id64s
-        make_id64("STEAM_1:0:2")  # id2
-        make_id64("[g:1:4]")  # id3
-
-    Raises
-    ------
-    :exc:`.InvalidSteamID`
-        The created 64-bit Steam ID would be invalid.
-
-    Returns
-    -------
-    The 64 bit Steam ID.
-    """
-    # format of a 64-bit steam ID:
-    # 0b0000000100010000000000000000000100010001001001110100110011000010
-    #   └───┰──┘└─┰┘└─────────┰────────┘└──────────────┰───────────────┘
-    #       │     │           │                        │
-    #   universe  └ type      │                        │
-    #   (8 bits)    (4 bits)  └ instance (20 bits)     │
-    #                                                  └  account id
-    #                                                     (32 bits)
-    if not any((id, type, universe, instance)):
-        return 0
-
-    try:
-        id = int(id)
-    except ValueError:
-        # textual input e.g. [g:1:4]
-        try:
-            id, type, universe, instance = id2_to_tuple(id) or id3_to_tuple(id)
-        except TypeError:
-            raise InvalidSteamID(id, "it cannot be parsed") from None
-    else:
-        # numeric input
-        # 32 bit account id
-        if 0 <= id < 2**32:
-            type = type or Type.Individual
-            universe = universe or Universe.Public
-        # 64 bit
-        elif id < 2**64:
-            value = id
-            id = id & 0xFFFFFFFF
-            instance = (value >> 32) & 0xFFFFF
-            type = (value >> 52) & 0xF
-            universe = (value >> 56) & 0xFF
-        else:
-            raise InvalidSteamID(id, "it is too large" if id > 2**64 else "it is too small")
-
-        try:
-            type = Type(type) if isinstance(type, int) else Type[type]
-        except (KeyError, ValueError):
-            raise InvalidSteamID(id, f"{type!r} is not a valid Type") from None
-        try:
-            universe = Universe(universe) if isinstance(universe, int) else Universe[universe]
-        except (KeyError, ValueError):
-            raise InvalidSteamID(id, f"{universe!r} is not a valid Universe") from None
-
-    if instance is None:
-        instance = 1 if type in (Type.Individual, Type.GameServer) else 0
-
-    return universe << 56 | type << 52 | instance << 32 | id
-
-
-ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d{1,10})")
-
-
-def id2_to_tuple(value: str) -> tuple[ID32, Literal[Type.Individual], Universe, Literal[InstanceFlag.Desktop]] | None:
-    """Convert an ID2 into its component parts.
-
-    Parameters
-    ----------
-    value
-        The ID2 e.g. ``STEAM_1:0:1234``.
-
-    Note
-    ----
-    The universe will be always set to ``1``. See :attr:`SteamID.id2_zero`.
-
-    Returns
-    -------
-    A tuple of 32 bit ID, type, universe and instance or ``None``
-
-    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop).
-    """
-    search = ID2_REGEX.search(value)
-
-    if search is None:
-        return None
-
-    id = (int(search["id"]) << 1) | int(search["remainder"])
-    universe = int(search["universe"])
-
-    # games before orange box used to incorrectly display universe as 0, we support that
-    if universe == 0:
-        universe = 1
-
-    return id, Type.Individual, Universe(universe), InstanceFlag.Desktop
-
-
-ID3_REGEX = re.compile(
-    rf"\[(?P<type>[i{''.join(TypeChar._member_map_)}]):"
-    r"(?P<universe>[0-4]):"
-    r"(?P<id>[0-9]{1,10})"
-    r"(:(?P<instance>\d+))?]",
-)
-
-
-def id3_to_tuple(value: str) -> tuple[ID32, Type, Universe, InstanceFlag] | None:
-    """Convert a Steam ID3 into its component parts.
-
-    Parameters
-    ----------
-    value
-        The ID3 e.g. ``[U:1:1234]``.
-
-    Returns
-    -------
-    A tuple of 32 bit ID, type, universe and instance or ``None``
-
-    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop)
-    """
-    search = ID3_REGEX.search(value)
-    if search is None:
-        return None
-
-    id = int(search["id"])
-    universe = Universe(int(search["universe"]))
-    type_char = search["type"].replace("i", "I")
-    type = Type(TypeChar[type_char])
-    instance_ = search["instance"]
-
-    if type_char in "gT" or instance_ is None:
-        instance = InstanceFlag.All
-    else:
-        instance = InstanceFlag.try_value(int(instance_))
-    if type_char == "L":
-        instance |= InstanceFlag.ChatLobby
-    if type_char == "c":
-        instance |= InstanceFlag.ChatClan
-    if type_char in (Type.Individual, Type.GameServer):
-        instance = InstanceFlag.Desktop
-
-    return id, type, universe, instance
-
-
-_INVITE_HEX = "0123456789abcdef"
-_INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
-_INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
-_INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
-_INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
-INVITE_REGEX = re.compile(rf"(https?://s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+))|(?P<code_2>[\-{_INVITE_VALID}]+)")
-
-
-def invite_code_to_tuple(
-    code: str,
-) -> tuple[ID32, Literal[Type.Individual], Literal[Universe.Public], Literal[InstanceFlag.Desktop]] | None:
-    """Convert an invitation code into its component parts.
-
-    Parameters
-    ----------
-    code
-        The invite code e.g. ``cv-dgb``
-
-    Returns
-    -------
-    A tuple of 32 bit ID, type, universe and instance or ``None``
-
-    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop).
-    """
-    search = INVITE_REGEX.search(code)
-
-    if not search:
-        return None
-
-    code = (search["code_1"] or search["code_2"]).replace("-", "")
-
-    id = int(re.sub(f"[{_INVITE_CUSTOM}]", lambda m: _INVITE_INVERSE_MAPPING[m.group()], code), 16)
-
-    if 0 < id < 2**32:
-        return id, Type.Individual, Universe.Public, InstanceFlag.Desktop
-
-
-URL_REGEX = re.compile(
-    r"(?P<clean_url>https?(www\.)?://steamcommunity\.com/(?P<type>profiles|id|gid|groups|app|games)/(?P<value>.+))"
-)
-USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*")
-CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
-
-
-async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> ID64 | None:
-    """Takes a Steam Community url and returns 64-bit Steam ID or ``None``.
-
-    Notes
-    -----
-    - Each call makes a http request to https://steamcommunity.com.
-
-    - Example URLs:
-
-        https://steamcommunity.com/gid/[g:1:4]
-
-        https://steamcommunity.com/gid/103582791429521412
-
-        https://steamcommunity.com/groups/Valve
-
-        https://steamcommunity.com/profiles/[U:1:12]
-
-        https://steamcommunity.com/profiles/76561197960265740
-
-        https://steamcommunity.com/id/johnc
-
-        https://steamcommunity.com/app/570
-
-    Parameters
-    ----------
-    url
-        The Steam community url.
-    session
-        The session to make the request with. If ``None`` is passed a new one is generated.
-
-    Returns
-    -------
-    The found 64-bit ID or ``None`` if ``https://steamcommunity.com`` is down or no matching account is found.
-    """
-
-    search = URL_REGEX.search(str(url))
-
-    if search is None:
-        return None
-
-    gave_session = session is not None
-    session = session or aiohttp.ClientSession()
-
-    try:
-        if search["type"] in ("id", "profiles"):
-            # user profile
-            r = await session.get(search["clean_url"])
-            text = await r.text()
-            data_match = USER_ID64_FROM_URL_REGEX.search(text)
-            data = json.loads(data_match["json"])  # type: ignore  # handled by try+except
-        else:
-            # clan profile
-            r = await session.get(search["clean_url"])
-            text = await r.text()
-            data = CLAN_ID64_FROM_URL_REGEX.search(text)
-        return int(data["steamid"])  # type: ignore  # handled by try+except
-    except (TypeError, AttributeError):
-        return None
-    finally:
-        if not gave_session:
-            await session.close()
 
 
 def unpad(s: bytes) -> bytes:
@@ -707,7 +399,6 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
 
 _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
-MISSING: Final[Any] = object()
 
 
 class ChainMap(collections.ChainMap[_KT, _VT] if TYPE_CHECKING else collections.ChainMap):
@@ -825,4 +516,4 @@ async def maybe_coroutine(
     **kwargs: _P.kwargs,
 ) -> _T:
     value = func(*args, **kwargs)
-    return await value if isawaitable(value) else value
+    return await value if isawaitable(value) else value  # type: ignore

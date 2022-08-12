@@ -10,11 +10,10 @@ from __future__ import annotations
 
 import abc
 import asyncio
-import re
 from collections.abc import Coroutine
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, TypedDict, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypedDict, TypeVar, runtime_checkable
 
 from typing_extensions import Required, Self
 
@@ -23,229 +22,32 @@ from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
 from .game import Game, StatefulGame, UserGame, WishlistGame
+from .id import ID
 from .iterators import AsyncIterator, CommentsIterator, UserPublishedFilesIterator, UserReviewsIterator
 from .models import Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory
-from .utils import (
-    _INVITE_HEX,
-    _INVITE_MAPPING,
-    DateTime,
-    InstanceType,
-    Intable,
-    TypeType,
-    UniverseType,
-    cached_slot_property,
-    id64_from_url,
-    make_id64,
-)
+from .utils import DateTime, cached_slot_property
 
 if TYPE_CHECKING:
-    from aiohttp import ClientSession
-
     from .clan import Clan
     from .comment import Comment
     from .group import Group
-    from .http import StrOrURL
     from .image import Image
     from .message import Authors
     from .protobufs.chat import Mentions
     from .review import Review
     from .state import ConnectionState
-    from .types.id import ID32, ID64
     from .user import User
 
 __all__ = (
-    "SteamID",
     "Message",
     "Channel",
 )
 
 C = TypeVar("C", bound="Commentable")
 M_co = TypeVar("M_co", bound="Message", covariant=True)
-
-
-# TODO when defaults are implemented, make this Generic over Literal[Type] maybe
-# TypeT = typing.TypeVar("TypeT", bound=Type)
-#
-#
-# class SteamID(typing.Generic[TypeT]):
-#     type TypeT
-class SteamID(metaclass=abc.ABCMeta):
-    """Convert a Steam ID between its various representations.
-
-    Note
-    ----
-    See :func:`steam.utils.make_id64` for the full parameter list.
-    """
-
-    __slots__ = ("__BASE",)
-
-    def __init__(
-        self,
-        id: Intable = 0,
-        type: TypeType | None = None,
-        universe: UniverseType | None = None,
-        instance: InstanceType | None = None,
-    ):
-        self.__BASE: Final = make_id64(id, type, universe, instance)
-
-    def __int__(self) -> ID64:
-        return self.__BASE
-
-    def __eq__(self, other: Any) -> bool:
-        try:
-            return self.__BASE == int(other)
-        except (TypeError, ValueError):
-            return NotImplemented
-
-    def __str__(self) -> str:
-        return str(self.__BASE)
-
-    def __hash__(self) -> int:
-        return hash(self.__BASE)
-
-    def __repr__(self) -> str:
-        return f"SteamID(id={self.id}, type={self.type}, universe={self.universe}, instance={self.instance})"
-
-    @property
-    def instance(self) -> InstanceFlag:
-        """The instance of the SteamID."""
-        return InstanceFlag.try_value((self.__BASE >> 32) & 0xFFFFF)
-
-    @property
-    def type(self) -> Type:
-        """The Steam type of the SteamID."""
-        return Type((self.__BASE >> 52) & 0xF)
-
-    @property
-    def universe(self) -> Universe:
-        """The Steam universe of the SteamID."""
-        return Universe((self.__BASE >> 56) & 0xFF)
-
-    @property
-    def id64(self) -> ID64:
-        """The SteamID's 64-bit ID."""
-        return self.__BASE
-
-    @property
-    def id(self) -> ID32:
-        """The SteamID's 32-bit ID."""
-        return self.__BASE & 0xFFFFFFFF
-
-    @property
-    def id2(self) -> str:
-        """The SteamID's ID 2.
-
-        e.g ``STEAM_1:0:1234``.
-        """
-        return f"STEAM_{self.universe.value}:{self.id % 2}:{self.id >> 1}"
-
-    @property
-    def id2_zero(self) -> str:
-        """The SteamID's ID 2 accounted for bugged GoldSrc and Orange Box games.
-
-        Note
-        ----
-        In these games the accounts :attr:`universe`, ``1`` for :class:`.Type.Public`, should be the ``X`` component of
-        ``STEAM_X:0:1234`` however, this was bugged and the value of ``X`` was ``0``.
-
-        e.g ``STEAM_0:0:1234``.
-        """
-        return self.id2.replace("_1", "_0")
-
-    @property
-    def id3(self) -> str:
-        """The SteamID's ID 3.
-
-        e.g ``[U:1:1234]``.
-        """
-        type_char = TypeChar(self.type).name
-        instance = None
-
-        if self.type in (Type.AnonGameServer, Type.Multiseat):
-            instance = self.instance
-        elif self.type == Type.Individual:
-            if self.instance != InstanceFlag.Desktop:
-                instance = self.instance
-        elif self.type == Type.Chat:
-            if self.instance & InstanceFlag.ChatClan > 0:
-                type_char = "c"
-            elif self.instance & InstanceFlag.ChatLobby > 0:
-                type_char = "L"
-            else:
-                type_char = "T"
-
-        return f"[{type_char}:{self.universe.value}:{self.id}{f':{instance.value}' if instance is not None else ''}]"
-
-    @property
-    def invite_code(self) -> str | None:
-        """The SteamID's invite code in the s.team invite code format.
-
-        e.g. ``cv-dgb``.
-        """
-        if self.type == Type.Individual and self.is_valid():
-            invite_code = re.sub(f"[{_INVITE_HEX}]", lambda x: _INVITE_MAPPING[x.group()], f"{self.id:x}")
-            split_idx = len(invite_code) // 2
-            return invite_code if split_idx == 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
-
-    @property
-    def invite_url(self) -> str | None:
-        """The SteamID's full invite code URL.
-
-        e.g ``https://s.team/p/cv-dgb``.
-        """
-        code = self.invite_code
-        return f"https://s.team/p/{code}" if code else None
-
-    @property
-    def community_url(self) -> str | None:
-        """The SteamID's community url.
-
-        e.g https://steamcommunity.com/profiles/123456789.
-        """
-        suffix = {
-            Type.Individual: "profiles",
-            Type.Clan: "gid",
-        }
-        try:
-            return f"https://steamcommunity.com/{suffix[self.type]}/{self.id64}"
-        except KeyError:
-            return None
-
-    def is_valid(self) -> bool:
-        """Whether the SteamID is valid."""
-        if self.type == Type.Invalid or self.type >= Type.Max:
-            return False
-
-        if self.universe == Universe.Invalid or self.universe >= Universe.Max:
-            return False
-
-        if self.type == Type.Individual and (self.id == 0 or self.instance > 4):
-            return False
-
-        if self.type == Type.Clan and (self.id == 0 or self.instance != 0):
-            return False
-
-        if self.type == Type.GameServer and self.id == 0:
-            return False
-
-        if self.type == Type.AnonGameServer and self.id == 0 and self.instance == 0:
-            return False
-
-        return True
-
-    @staticmethod
-    async def from_url(url: StrOrURL, session: ClientSession | None = None) -> SteamID | None:
-        """A helper function creates a SteamID instance from a Steam community url.
-
-        Note
-        ----
-        See :func:`id64_from_url` for the full parameter list.
-        """
-        id64 = await id64_from_url(url, session)
-        return SteamID(id64) if id64 else None
 
 
 class _CommentableKwargs(TypedDict, total=False):
@@ -381,7 +183,7 @@ class Awardable(Protocol):
     #     return [AwardReaction(self._state, reaction) for reaction in reactions]
 
 
-class BaseUser(SteamID, Commentable):
+class BaseUser(ID, Commentable):
     """An ABC that details the common operations on a Steam user.
     The following classes implement this ABC:
 

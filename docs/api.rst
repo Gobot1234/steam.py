@@ -146,7 +146,7 @@ Utilities
 
 steam.py provides some utility functions.
 
-.. autofunction:: steam.utils.make_id64
+.. autofunction:: steam.utils.parse_id64
 
 .. autofunction:: steam.utils.parse_trade_url
 
@@ -782,9 +782,9 @@ Games can be manually constructed using there app id eg:
 Steam IDs
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: SteamID
+.. attributetable:: ID
 
-.. autoclass:: SteamID
+.. autoclass:: ID
     :members:
 
 TradeOffers
@@ -835,7 +835,7 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: WSNotFound
 
-.. autoexception:: InvalidSteamID
+.. autoexception:: InvalidID
 
 
 
@@ -858,4 +858,4 @@ Exception Hierarchy
             - :exc:`WSException`
                 - :exc:`WSForbidden`
                 - :exc:`WSNotFound`
-            - :exc:`InvalidSteamID`
+            - :exc:`InvalidID`

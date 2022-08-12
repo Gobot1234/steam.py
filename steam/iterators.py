@@ -17,6 +17,7 @@ from yarl import URL as URL_
 from . import utils
 from ._const import HTML_PARSER, URL
 from .enums import EventType, Language, PublishedFileQueryFileType, PublishedFileRevision, PublishedFileType
+from .id import ID
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -488,7 +489,6 @@ class ChatHistoryIterator(AsyncIterator[ChatMessageT], Generic[ChatMessageT, Cha
         self.group: Group | Clan = channel.group or channel.clan  # type: ignore
 
     async def fill(self) -> AsyncGenerator[ChatMessageT, None]:
-        from .abc import SteamID
         from .message import Message
         from .reaction import Emoticon, PartialMessageReaction, Sticker
 
@@ -512,7 +512,7 @@ class ChatHistoryIterator(AsyncIterator[ChatMessageT], Generic[ChatMessageT, Cha
                 if not self.after < new_message.created_at < self.before:
                     return
 
-                new_message.author = SteamID(message.sender)
+                new_message.author = ID(message.sender)
                 emoticon_reactions = [
                     PartialMessageReaction(
                         self._state,

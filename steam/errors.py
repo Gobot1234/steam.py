@@ -30,7 +30,7 @@ __all__ = (
     "WSException",
     "WSForbidden",
     "WSNotFound",
-    "InvalidSteamID",
+    "InvalidID",
 )
 
 CODE_FINDER = re.compile(r"\S(\d+)\S")
@@ -191,8 +191,8 @@ class NoCMsFound(LoginError):
     """
 
 
-class InvalidSteamID(SteamException):
-    """Exception that's thrown when a SteamID cannot be valid.
+class InvalidID(SteamException):
+    """Exception that's thrown when a Steam ID cannot be valid.
 
     Subclass of :exc:`SteamException`.
 
@@ -204,4 +204,4 @@ class InvalidSteamID(SteamException):
 
     def __init__(self, id: Any, msg: str | None = None):
         self.id = id
-        super().__init__(f"{id!r} cannot be converted to any valid SteamID{f' as {msg}' if msg is not None else ''}")
+        super().__init__(f"{id!r} cannot be converted to any valid Steam ID{f' as {msg}' if msg is not None else ''}")

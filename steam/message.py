@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias
 
-from .abc import Message, SteamID
+from .abc import Message
 from .chat import ChatMessage
+from .id import ID
 from .reaction import Emoticon, MessageReaction, Sticker
 from .utils import DateTime
 
@@ -23,7 +24,7 @@ __all__ = (
     "ClanMessage",
 )
 
-Authors: TypeAlias = "User | ClientUser | SteamID"
+Authors: TypeAlias = "User | ClientUser | ID"
 
 
 class UserMessage(Message):

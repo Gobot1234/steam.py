@@ -318,7 +318,7 @@ class ClientUser(_BaseUser):
 
     def get_friend(self, id: utils.Intable) -> Friend | None:
         """Get a friend from the client user's friends list."""
-        id64 = utils.make_id64(id, type=Type.Individual)
+        id64 = utils.parse_id64(id, type=Type.Individual)
         return self._friends.get(id64)
 
     async def inventory(self, game: Game, *, language: Language | None = None) -> Inventory:

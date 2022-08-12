@@ -8,9 +8,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, overload
 
 from . import utils
-from .abc import Commentable, SteamID, _CommentableKwargs
+from .abc import Commentable, _CommentableKwargs
 from .enums import EventType
 from .game import Game, StatefulGame
+from .id import ID
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -60,9 +61,9 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         self.clan = clan
         self.id: int = int(data["gid"])
         author = data.get("creator_steamid")
-        self.author: User | SteamID | None = int(author) if author is not None else None  # type: ignore
+        self.author: User | ID | None = int(author) if author is not None else None  # type: ignore
         edited_by = data.get("last_update_steamid")
-        self.last_edited_by: User | SteamID | None = int(edited_by) if edited_by is not None else None  # type: ignore
+        self.last_edited_by: User | ID | None = int(edited_by) if edited_by is not None else None  # type: ignore
         self.name: str = data["event_name"]
         self.content: str = data["event_notes"]
         self.game = StatefulGame(state, id=data["appid"]) if data["appid"] else None

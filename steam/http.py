@@ -22,9 +22,9 @@ from yarl import URL as _URL
 from . import errors, utils
 from .__metadata__ import __version__
 from ._const import JSON_DUMPS, JSON_LOADS, URL
-from .abc import SteamID
 from .enums import Language
 from .guard import generate_one_time_code
+from .id import ID
 from .models import PriceOverviewDict, api_route
 from .user import ClientUser, _BaseUser
 from .utils import cached_property
@@ -501,7 +501,7 @@ class HTTPClient:
 
     def send_trade_offer(
         self,
-        user: SteamID,
+        user: ID,
         to_send: list[trade.AssetToDict],
         to_receive: list[trade.AssetToDict],
         token: str | None,

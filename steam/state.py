@@ -22,7 +22,7 @@ from yarl import URL as URL_
 
 from . import utils
 from ._const import HTML_PARSER, URL, VDF_BINARY_LOADS, VDF_LOADS
-from .abc import Awardable, BaseUser, Commentable, SteamID
+from .abc import Awardable, BaseUser, Commentable
 from .channel import DMChannel
 from .clan import Clan
 from .comment import Comment
@@ -31,6 +31,7 @@ from .errors import *
 from .friend import Friend
 from .group import Group
 from .guard import *
+from .id import ID
 from .invite import ClanInvite, UserInvite
 from .manifest import ContentServer, GameInfo, Manifest, PackageInfo
 from .message import *
@@ -250,15 +251,15 @@ class ConnectionState(Registerable):
 
         return [self._store_user(data) for data in resp]
 
-    async def _maybe_user(self, id64: ID64) -> User | SteamID:
-        steam_id = SteamID(id64)
+    async def _maybe_user(self, id64: ID64) -> User | ID:
+        steam_id = ID(id64)
         return self.get_user(steam_id.id) or await self.fetch_user(id64) or steam_id
 
-    async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User | SteamID]:
-        ret: list[User | SteamID] = []
+    async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User | ID]:
+        ret: list[User | ID] = []
         to_fetch: dict[ID64, list[int]] = {}
         for idx, id64 in enumerate(id64s):
-            steam_id = SteamID(id64)
+            steam_id = ID(id64)
             user = self.get_user(steam_id.id)
             if user is not None:
                 ret.append(user)
@@ -332,7 +333,7 @@ class ConnectionState(Registerable):
         except KeyError:
             log.info(f'Received trade #{data["tradeofferid"]}')
             trade = TradeOffer._from_api(
-                state=self, data=data, partner=await self._maybe_user(utils.make_id64(data["accountid_other"]))
+                state=self, data=data, partner=await self._maybe_user(utils.parse_id64(data["accountid_other"]))
             )
             self._trades[trade.id] = trade
             if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
@@ -1101,7 +1102,7 @@ class ConnectionState(Registerable):
             data = friend.to_dict(do_nothing_case)
             if not data:
                 continue
-            steam_id = SteamID(friend.friendid)
+            steam_id = ID(friend.friendid)
             after = self.get_user(steam_id.id)
             if after is None:  # they're private
                 continue
@@ -1145,7 +1146,7 @@ class ConnectionState(Registerable):
         is_load = not msg.body.bincremental
         for friend in msg.body.friends:
             relationship = FriendRelationship.try_value(friend.efriendrelationship)
-            steam_id = SteamID(friend.ulfriendid)
+            steam_id = ID(friend.ulfriendid)
 
             if relationship == FriendRelationship.Friend:
                 try:
@@ -1159,7 +1160,7 @@ class ConnectionState(Registerable):
                         self._add_friend(user)
                 else:
                     if isinstance(invite, UserInvite):
-                        assert not isinstance(invite.invitee, SteamID)
+                        assert not isinstance(invite.invitee, ID)
                         self.dispatch("user_invite_accept", invite)
                         if isinstance(invite.invitee, User):
                             friend = self._add_friend(invite.invitee)
@@ -1184,7 +1185,7 @@ class ConnectionState(Registerable):
                         elements = soup.find_all("a", class_="linkStandard")
                     invitee_id64 = next(
                         (
-                            utils.make_id64(elements[idx + 1]["data-miniprofile"])
+                            utils.parse_id64(elements[idx + 1]["data-miniprofile"])
                             for idx, element in enumerate(elements)
                             if str(steam_id.id64) in str(element)
                         ),
@@ -1318,7 +1319,7 @@ class ConnectionState(Registerable):
                 commentable: Commentable
                 index: int
             else:
-                steam_id = await SteamID.from_url(url, self.http._session)
+                steam_id = await ID.from_url(url, self.http._session)
                 if steam_id is None:
                     continue
                 if steam_id.type == Type.Individual:
@@ -1479,7 +1480,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientClanState)
     async def update_clan(self, msg: MsgProto[client_server.CMsgClientClanState]) -> None:
         await self.handled_chat_groups.wait()
-        steam_id = SteamID(msg.body.steamid_clan)
+        steam_id = ID(msg.body.steamid_clan)
         clan = self.get_clan(steam_id.id) or await self.fetch_clan(steam_id.id64, maybe_chunk=False)
         if clan is None:
             return
@@ -1514,7 +1515,7 @@ class ConnectionState(Registerable):
     async def _handle_licenses(self, msg: MsgProto[client_server.CMsgClientLicenseList]) -> None:
         users = {
             user.id: user
-            for user in await self._maybe_users(utils.make_id64(license.owner_id) for license in msg.body.licenses)
+            for user in await self._maybe_users(utils.parse_id64(license.owner_id) for license in msg.body.licenses)
         }
         for license in msg.body.licenses:
             self.licenses[license.package_id] = License(self, license, users[license.owner_id])

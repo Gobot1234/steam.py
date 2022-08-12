@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .abc import SteamID
     from .clan import Clan
     from .enums import FriendRelationship
+    from .id import ID
     from .state import ConnectionState
     from .user import User
 
@@ -22,7 +22,7 @@ __all__ = (
 class Invite:
     __slots__ = ("invitee", "relationship", "_state")
 
-    def __init__(self, state: ConnectionState, invitee: User | SteamID, relationship: FriendRelationship | None):
+    def __init__(self, state: ConnectionState, invitee: User | ID, relationship: FriendRelationship | None):
         self._state = state
         self.invitee = invitee
         self.relationship = relationship
@@ -83,8 +83,8 @@ class ClanInvite(Invite):
     def __init__(
         self,
         state: ConnectionState,
-        invitee: User | SteamID,
-        clan: Clan | SteamID,
+        invitee: User | ID,
+        clan: Clan | ID,
         relationship: FriendRelationship | None,
     ):
         super().__init__(state, invitee, relationship)

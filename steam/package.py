@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 from .enums import LicenseFlag, LicenseType, PaymentMethod
 from .game import PartialGamePriceOverview, StatefulGame
-from .utils import DateTime, Intable
+from .types.id import Intable
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .manifest import Depot, GameInfo, HeadlessDepot, PackageInfo
