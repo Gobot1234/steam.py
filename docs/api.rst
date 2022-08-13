@@ -31,7 +31,8 @@ Client
                       on_message, on_typing,
                       on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline, on_trade_cancel,
                       on_trade_expire, on_trade_counter, on_comment,
-                      on_user_invite, on_user_invite_accept, on_user_invite_decline, on_user_update, on_user_remove,
+                      on_user_invite, on_user_invite_accept, on_user_invite_decline, on_friend_add, on_user_update,
+                      on_friend_remove,
                       on_clan_invite, on_clan_invite_accept, on_clan_invite_decline, on_clan_join, on_clan_update,
                       on_clan_leave,
                       on_group_join, on_group_update, on_group_leave,
@@ -107,7 +108,11 @@ traceback and ignoring the exception.
 
 .. automethod:: Client.on_user_invite_decline
 
-.. automethod:: Client.on_user_remove
+.. automethod:: Client.on_friend_add
+
+.. automethod:: Client.on_user_update
+
+.. automethod:: Client.on_friend_remove
 
 .. automethod:: Client.on_clan_invite
 
