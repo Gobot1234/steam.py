@@ -145,7 +145,8 @@ class Client:
 
         self._closed = True
         self._cm_list: CMServerList | None = None
-        self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = {}
+        self._listeners: dict[str,
+                              list[tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
     def _get_state(self, **options: Any) -> ConnectionState:
@@ -204,7 +205,8 @@ class Client:
     async def token(self) -> str:
         resp = await self.http.get(URL.COMMUNITY / "chat/clientjstoken")
         if not resp["logged_in"]:  # we got logged out :(
-            await self.http.login(self.username, self.password, shared_secret=self.shared_secret)  # type: ignore
+            # type: ignore
+            await self.http.login(self.username, self.password, shared_secret=self.shared_secret)
             return await self.token()
         return resp["token"]
 
@@ -260,7 +262,8 @@ class Client:
 
         def decorator(coro: E) -> E:
             if not asyncio.iscoroutinefunction(coro):
-                raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
+                raise TypeError(
+                    f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
 
             setattr(self, coro.__name__, coro)
             log.debug(f"{coro.__name__} has been registered as an event")
@@ -413,7 +416,8 @@ class Client:
 
         if self.ws is not None:
             try:
-                await self.change_presence(game=Game(id=0))  # disconnect from games
+                # disconnect from games
+                await self.change_presence(game=Game(id=0))
                 await self.ws.handle_close()
             except ConnectionClosed:
                 pass
@@ -460,7 +464,8 @@ class Client:
         self.identity_secret = identity_secret
 
         if identity_secret is None:
-            log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
+            log.info(
+                "Trades will not be automatically accepted when sent as no identity_secret was passed.")
 
         await self.login(username, password, shared_secret=shared_secret)
         await self.connect()
@@ -719,7 +724,8 @@ class Client:
             # we need to fetch the ip and port
             servers = await self._connection.fetch_server_ip_from_steam_id(make_id64(id, type=Type.GameServer))
             if not servers:
-                raise ValueError(f"The master server didn't find a matching server for {id}")
+                raise ValueError(
+                    f"The master server didn't find a matching server for {id}")
             ip, _, port = servers[0].addr.partition(":")
         elif not ip:
             raise TypeError("fetch_server missing argument ip")
@@ -904,7 +910,8 @@ class Client:
         force_kick
             Whether to forcefully kick any other playing sessions.
         """
-        games_ = [game.to_dict() for game in games] if games is not None else []
+        games_ = [game.to_dict()
+                  for game in games] if games is not None else []
         if game is not None:
             games_.append(game.to_dict())
         await self.ws.change_presence(games=games_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
@@ -963,7 +970,8 @@ class Client:
             The key-word arguments associated with the event.
         """
         print(f"Ignoring exception in {event}", file=sys.stderr)
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        traceback.print_exception(
+            type(error), error, error.__traceback__, file=sys.stderr)
 
     if TYPE_CHECKING or DOCS_BUILDING:
         # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs
@@ -1328,7 +1336,8 @@ class Client:
         self,
         event: Literal["error"],
         *,
-        check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] = ...,
+        check: Callable[[str, Exception, tuple[Any, ...],
+                         dict[str, Any]], bool] = ...,
         timeout: float | None = ...,
     ) -> tuple[str, Exception, tuple[Any, ...], dict[str, Any]]:
         ...
