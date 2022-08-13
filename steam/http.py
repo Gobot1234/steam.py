@@ -32,7 +32,7 @@ from .utils import cached_property
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
-    from .types import game, trade
+    from .types import app, trade
     from .types.http import Coro, ResponseType, StrOrURL
     from .types.package import FetchedPackage
     from .types.user import User
@@ -356,15 +356,6 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "actions/IgnoreFriendInviteAjax", data=payload)
 
-    def get_user_games(self, user_id64: int) -> ResponseType[game.GetOwnedGames]:
-        params = {
-            "key": self.api_key,
-            "steamid": user_id64,
-            "include_appinfo": 1,
-            "include_played_free_games": 1,
-        }
-        return self.get(api_route("IPlayerService/GetOwnedGames"), params=params)
-
     def get_user_inventory(
         self, user_id64: int, app_id: int, context_id: int, language: Language | None
     ) -> Coro[trade.Inventory]:
@@ -602,16 +593,16 @@ class HTTPClient:
     def get_wishlist(self, user_id64: int) -> Coro[dict[str, Any]]:
         return self.get(URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata")
 
-    def get_game(self, game_id: int, language: Language | None) -> Coro[dict[str, Any]]:
+    def get_app(self, app_id: int, language: Language | None) -> Coro[dict[str, Any]]:
         params = {
-            "appids": game_id,
+            "appids": app_id,
             "l": (language or self.language).api_name,
         }
         return self.get(URL.STORE / "api/appdetails", params=params)
 
-    def get_game_dlc(self, game_id: int, language: Language | None) -> Coro[dict[str, Any]]:
+    def get_app_dlc(self, app_id: int, language: Language | None) -> Coro[dict[str, Any]]:
         params = {
-            "appid": game_id,
+            "appid": app_id,
             "l": (language or self.language).api_name,
         }
         return self.get(URL.STORE / "api/dlcforapp", params=params)
@@ -626,7 +617,7 @@ class HTTPClient:
         name: str,
         description: str,
         event_type: str,
-        game_id: str,
+        app_id: str,
         server_ip: str,
         server_password: str,
         start: datetime | None,
@@ -658,7 +649,7 @@ class HTTPClient:
             "tzOffset": tz_offset,
             "name": name,
             "type": event_type,
-            "appID": game_id,
+            "appID": app_id,
             "serverIP": server_ip,
             "serverPassword": server_password,
             "notes": description,
@@ -741,7 +732,7 @@ class HTTPClient:
 
     def post_review(
         self,
-        game_id: int,
+        app_id: int,
         content: str,
         upvoted: bool,
         public: bool,
@@ -750,8 +741,8 @@ class HTTPClient:
         language: str,
     ) -> Coro[None]:
         data = {
-            "appid": game_id,
-            "steamworksappid": game_id,
+            "appid": app_id,
+            "steamworksappid": app_id,
             "comment": content,
             "rated_up": str(upvoted).lower(),
             "is_public": str(public).lower(),
@@ -764,7 +755,7 @@ class HTTPClient:
         return self.post(URL.STORE / "friends/recommendgame", data=data)
 
     def get_reviews(
-        self, game_id: int, filter: str, review_type: str, purchase_type: str, cursor: str = "*"
+        self, app_id: int, filter: str, review_type: str, purchase_type: str, cursor: str = "*"
     ) -> Coro[dict[str, Any]]:
         params = {
             "json": 1,
@@ -775,7 +766,7 @@ class HTTPClient:
             "purchase_type": purchase_type,
         }
 
-        return self.get(URL.STORE / f"appreviews/{game_id}", params=params)
+        return self.get(URL.STORE / f"appreviews/{app_id}", params=params)
 
     def mark_review_as_helpful(self, review_id: int, rated_up: bool) -> Coro[None]:
         data = {
@@ -792,10 +783,10 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"userreviews/votetag/{review_id}", data=data)
 
-    def delete_review(self, game_id: int) -> Coro[None]:
+    def delete_review(self, app_id: int) -> Coro[None]:
         data = {
             "action": "delete",
-            "appid": game_id,
+            "appid": app_id,
             "sessionid": self.session_id,
         }
         return self.post(URL.COMMUNITY / "my/recommended", data=data)

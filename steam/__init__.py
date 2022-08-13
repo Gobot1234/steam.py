@@ -10,6 +10,7 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 from . import abc as abc, guard as guard, utils as utils
 from .__metadata__ import *
 from .abc import *
+from .app import *
 from .badge import *
 from .channel import *
 from .clan import *
@@ -19,7 +20,6 @@ from .enums import *
 from .errors import *
 from .event import *
 from .friend import *
-from .game import *
 from .game_server import *
 from .group import *
 from .id import *

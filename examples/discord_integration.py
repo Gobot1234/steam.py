@@ -64,9 +64,9 @@ async def user(ctx: commands.Context, user: steam.User = commands.param(converte
     embed = discord.Embed(description=user.name, timestamp=user.created_at)
     embed.set_thumbnail(url=user.avatar_url)
     embed.add_field(name="64 bit ID:", value=str(user.id64))
-    embed.add_field(name="Currently playing:", value=f"{user.game or 'Nothing'}")
+    embed.add_field(name="Currently playing:", value=f"{user.app or 'Nothing'}")
     embed.add_field(name="Friends:", value=len(await user.friends()))
-    embed.add_field(name="Games:", value=len(await user.games()))
+    embed.add_field(name="Apps:", value=len(await user.apps()))
     embed.set_footer(text="Account created on")  # set timestamp goes after this
     await ctx.send(f"Info on {user.name}", embed=embed)
 

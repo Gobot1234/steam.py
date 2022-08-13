@@ -481,9 +481,9 @@ Manifests
    :members:
    :inherited-members:
 
-.. attributetable:: GameInfo
+.. attributetable:: AppInfo
 
-.. autoclass:: GameInfo()
+.. autoclass:: AppInfo()
    :members:
    :inherited-members:
 
@@ -545,9 +545,9 @@ Package
    :members:
    :inherited-members:
 
-.. attributetable:: FetchedGamePackage
+.. attributetable:: FetchedAppPackage
 
-.. autoclass:: FetchedGamePackage()
+.. autoclass:: FetchedAppPackage()
    :members:
    :inherited-members:
 
@@ -725,18 +725,18 @@ Data-Classes
 
 There are a few classes that can be constructed by the user, these include.
 
-Game
+App
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Game
+.. attributetable:: App
 
-.. autoclass:: Game
+.. autoclass:: App
     :members:
 
-There are some predefined games which are:
+There are some predefined apps which are:
 
 +---------------------------------+-----------------+
-| Game Name                       | Accessed via    |
+| App Name                        | Accessed via    |
 +=================================+=================+
 | Team Fortress 2                 | ``steam.TF2``   |
 +---------------------------------+-----------------+
@@ -749,37 +749,36 @@ There are some predefined games which are:
 | Steam                           | ``steam.STEAM`` |
 +---------------------------------+-----------------+
 
-Games can be manually constructed using there app id eg:
+Apps can be manually constructed using there app id eg:
 
 .. code-block:: python3
 
-    my_rust_instance = steam.Game(id=252490, name="Rust")
-    # this can then be used for trading a game name is not required for this
-    # but it is for setting in game statuses if the game isn't a Steam game.
+    my_rust_instance = steam.App(id=252490, name="Rust")
+    # this can then be used for trading an app name is not required for this
 
-.. autofunction:: CUSTOM_GAME
+.. autofunction:: CUSTOM_APP
 
-.. attributetable:: steam.game.StatefulGame
+.. attributetable:: steam.app.StatefulApp
 
-.. autoclass:: steam.game.StatefulGame()
+.. autoclass:: steam.app.StatefulApp()
     :inherited-members:
     :members:
 
-.. attributetable:: UserGame
+.. attributetable:: UserApp
 
-.. autoclass:: UserGame()
+.. autoclass:: UserApp()
     :inherited-members:
     :members:
 
-.. attributetable:: WishlistGame
+.. attributetable:: WishlistApp
 
-.. autoclass:: WishlistGame()
+.. autoclass:: WishlistApp()
     :inherited-members:
     :members:
 
-.. attributetable:: FetchedGame
+.. attributetable:: FetchedApp
 
-.. autoclass:: FetchedGame()
+.. autoclass:: FetchedApp()
     :inherited-members:
     :members:
 

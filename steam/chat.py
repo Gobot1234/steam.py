@@ -17,9 +17,9 @@ from typing_extensions import Self
 
 from . import utils
 from .abc import Channel, Message
+from .app import StatefulApp
 from .enums import ChatMemberRank, Type
 from .errors import WSException
-from .game import StatefulGame
 from .id import ID
 from .iterators import ChatHistoryIterator
 from .protobufs import MsgProto, chat
@@ -281,7 +281,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
     __slots__ = (
         "name",
         "_id",
-        "game",
+        "app",
         "tagline",
         "avatar_url",
         "active_member_count",
@@ -298,7 +298,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
     )
     name: str
     _id: ChatGroupID
-    game: StatefulGame | None
+    app: StatefulApp | None
     tagline: str
     avatar_url: str
     active_member_count: int
@@ -319,7 +319,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.chunked = False
-        self.game: StatefulGame | None = None
+        self.app: StatefulApp | None = None
         self._members = {}
         self._partial_members = {}
         self._channels: dict[int, ChatT] = {}
@@ -341,7 +341,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         self._owner_id = proto.accountid_owner
         self._top_members = proto.top_members
         self.tagline = proto.chat_group_tagline
-        self.game = StatefulGame(state, id=proto.appid) if proto.appid else self.game
+        self.app = StatefulApp(state, id=proto.appid) if proto.appid else self.app
 
         self._default_role_id = proto.default_role_id
         self._update_channels(proto.chat_rooms, default_channel_id=proto.default_chat_id)
@@ -405,7 +405,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
     def _update_header_state(self, proto: chat.GroupHeaderState) -> None:
         self.name = proto.chat_name
         self._owner_id = proto.accountid_owner
-        self.game = StatefulGame(self._state, id=proto.appid)
+        self.app = StatefulApp(self._state, id=proto.appid)
         self.tagline = proto.tagline
         self.avatar_url = utils._get_avatar_url(proto.avatar_sha)
         self._default_role_id = proto.default_role_id or self._default_role_id

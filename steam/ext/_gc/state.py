@@ -17,7 +17,7 @@ from ...state import ConnectionState
 from ...trade import BaseInventory, Inventory
 
 if TYPE_CHECKING:
-    from ...game import Game
+    from ...app import App
     from ...gateway import GCMsgsT
     from ...protobufs.client_server_2 import CMsgGcClient
     from .client import Client
@@ -36,12 +36,12 @@ class GCState(ConnectionState):
         self._gc_connected = asyncio.Event()
         self._gc_ready = asyncio.Event()
         self.backpack: Inventory = None  # type: ignore
-        self._unpatched_inventory: Callable[[BaseUser, Game], Coroutine[Any, Any, Inventory]]
+        self._unpatched_inventory: Callable[[BaseUser, App], Coroutine[Any, Any, Inventory]]
         self.gc_listeners: list[EventListener[Any]] = []
 
     @register(EMsg.ClientFromGC)
     async def parse_gc_message(self, msg: MsgProto[CMsgGcClient]) -> None:
-        if msg.body.appid != self.client._GAME.id:
+        if msg.body.appid != self.client._APP.id:
             return
 
         try:
@@ -107,8 +107,8 @@ class GCState(ConnectionState):
 
     async def fetch_backpack(self, backpack_cls: type[Inv]) -> Inv:
         resp = await self.http.get_client_user_inventory(
-            self.client._GAME.id, self.client._GAME.context_id, self.http.language
+            self.client._APP.id, self.client._APP.context_id, self.http.language
         )
         return backpack_cls(
-            state=self, data=resp, owner=self.client.user, game=self.client._GAME, language=self.http.language
+            state=self, data=resp, owner=self.client.user, game=self.client._APP, language=self.http.language
         )

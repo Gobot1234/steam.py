@@ -7,8 +7,8 @@ from typing import Any
 
 from typing_extensions import ClassVar
 
+from ...app import App
 from ...client import Client as Client_
-from ...game import Game
 from ...protobufs import GCMsg, GCMsgProto
 from ...trade import Inventory
 from ...user import ClientUser as ClientUser_
@@ -20,31 +20,31 @@ __all__ = ("Client",)
 class ClientUser(ClientUser_):
     _state: GCState
 
-    async def inventory(self, game: Game, *, language: Language | None = None) -> Inventory:
+    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
         return (
             self._state.backpack
-            if game == self._state.client.__class__._GAME and self._state._gc_ready.is_set()
-            else await super().inventory(game, language=language)
+            if app == self._state.client.__class__._app and self._state._gc_ready.is_set()
+            else await super().inventory(app, language=language)
         )
 
 
 class Client(Client_):
     _connection: GCState
-    _GAME: ClassVar[Game]
+    _APP: ClassVar[App]
     _GC_HEART_BEAT: ClassVar = 30.0
 
     _ClientUserCls: ClassVar[type[ClientUser]] = ClientUser
     user: ClientUser
 
     def __init__(self, **options: Any):
-        game = options.pop("game", None)
-        if game is not None:  # don't let them overwrite the main game
+        app = options.pop("app", None)
+        if app is not None:  # don't let them overwrite the main app
             try:
-                options["games"].append(game)
+                options["apps"].append(app)
             except (TypeError, KeyError):
-                options["games"] = [game]
-        options["game"] = self._GAME
-        self._original_games: list[Game] | None = options.get("games")
+                options["apps"] = [app]
+        options["app"] = self._APP
+        self._original_apps: list[App] | None = options.get("apps")
         super().__init__(**options)
 
     # things to override

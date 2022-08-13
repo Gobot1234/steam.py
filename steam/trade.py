@@ -15,9 +15,9 @@ from typing_extensions import Self
 
 from . import utils
 from ._const import URL
+from .app import App, StatefulApp
 from .enums import Language, Result, TradeOfferState
 from .errors import ClientException, ConfirmationError, HTTPException
-from .game import Game, StatefulGame
 from .id import ID
 from .utils import DateTime
 
@@ -77,12 +77,12 @@ class Asset:
         "instance_id",
         # "post_rollback_id",
         "owner",
-        "_game_cs",
+        "_app_cs",
         "_app_id",
         "_context_id",
         "_state",
     )
-    REPR_ATTRS = ("id", "class_id", "instance_id", "amount", "owner", "game")  # "post_rollback_id"
+    REPR_ATTRS = ("id", "class_id", "instance_id", "amount", "owner", "app")  # "post_rollback_id"
 
     def __init__(self, state: ConnectionState, data: trade.Asset, owner: BaseUser):
         self.id = int(data["assetid"])
@@ -119,9 +119,9 @@ class Asset:
         }
 
     @utils.cached_slot_property
-    def game(self) -> StatefulGame:
-        """The game the item is from."""
-        return StatefulGame(self._state, id=self._app_id, context_id=self._context_id)
+    def app(self) -> StatefulApp:
+        """The app the item is from."""
+        return StatefulApp(self._state, id=self._app_id, context_id=self._context_id)
 
     @property
     def url(self) -> str:
@@ -272,7 +272,7 @@ class BaseInventory(Generic[ItemT_co]):
     """Base for all inventories."""
 
     __slots__ = (
-        "game",
+        "app",
         "items",
         "owner",
         "_language",
@@ -282,16 +282,16 @@ class BaseInventory(Generic[ItemT_co]):
     __orig_class__: InventoryGenericAlias
 
     def __init__(
-        self, state: ConnectionState, data: trade.Inventory, owner: BaseUser, game: Game, language: Language | None
+        self, state: ConnectionState, data: trade.Inventory, owner: BaseUser, app: App, language: Language | None
     ):
         self._state = state
         self.owner = owner
-        self.game = StatefulGame(state, id=game.id, name=game.name)
+        self.app = StatefulApp(state, id=app.id, name=app.name)
         self._language = language
         self._update(data)
 
     def __repr__(self) -> str:
-        attrs = ("owner", "game")
+        attrs = ("owner", "app")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__orig_class__} {' '.join(resolved)}>"
 
@@ -348,10 +348,10 @@ class BaseInventory(Generic[ItemT_co]):
     async def update(self) -> None:
         """Re-fetches the inventory and updates it inplace."""
         if self.owner == self._state.user:
-            data = await self._state.http.get_client_user_inventory(self.game.id, self.game.context_id, self._language)
+            data = await self._state.http.get_client_user_inventory(self.app.id, self.app.context_id, self._language)
         else:
             data = await self._state.http.get_user_inventory(
-                self.owner.id64, self.game.id, self.game.context_id, self._language
+                self.owner.id64, self.app.id, self.app.context_id, self._language
             )
         self._update(data)
 
@@ -423,8 +423,8 @@ items
     A list of the inventory's items.
 owner
     The owner of the inventory.
-game
-    The game the inventory the game belongs to.
+app
+    The app the inventory the app belongs to.
 """
 
 

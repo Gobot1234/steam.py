@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING, Any
 from . import utils
 from ._const import URL
 from .abc import BaseUser, Messageable
+from .app import App, StatefulApp
 from .enums import CommunityVisibilityState, Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
-from .game import Game, StatefulGame
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .trade import Inventory, TradeOffer
 from .utils import DateTime
@@ -48,7 +48,7 @@ class _BaseUser(BaseUser):
         self.last_logoff = None
         self.last_logon = None
         self.last_seen_online = None
-        self.game = None
+        self.app = None
         self.state = None
         self.flags = None
         self.privacy_state = None
@@ -76,8 +76,8 @@ class _BaseUser(BaseUser):
             DateTime.from_timestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
         )
         self.rich_presence = data["rich_presence"] if "rich_presence" in data else self.rich_presence
-        self.game = (
-            StatefulGame(self._state, name=data["gameextrainfo"], id=data["gameid"]) if "gameid" in data else self.game
+        self.app = (
+            StatefulApp(self._state, name=data["gameextrainfo"], id=data["gameid"]) if "gameid" in data else self.app
         )
         self.state = PersonaState.try_value(data.get("personastate", 0)) or self.state
         self.flags = PersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
@@ -107,8 +107,8 @@ class User(_BaseUser, Messageable["UserMessage"]):
         The user's username.
     state
         The current persona state of the account (e.g. LookingToTrade).
-    game
-        The Game instance attached to the user. Is ``None`` if the user isn't in a game or one that is recognised by the
+    app
+        The app the user is playing. Is ``None`` if the user isn't in a app or one that is recognised by the
         api.
     avatar_url
         The avatar url of the user. Uses the large (184x184 px) image url.
@@ -280,9 +280,9 @@ class ClientUser(_BaseUser):
         A list of the :class:`ClientUser`'s friends.
     state
         The current persona state of the account (e.g. LookingToTrade).
-    game
-        The Game instance attached to the user. Is ``None`` if the user isn't in a game or one that is recognised by
-        the api.
+    app
+        The app the user is currently playing. Is ``None`` if the user isn't in an app or one that is recognised by the
+        api.
     avatar_url
         The avatar url of the user. Uses the large (184x184 px) image url.
     real_name
@@ -321,15 +321,12 @@ class ClientUser(_BaseUser):
         id64 = utils.parse_id64(id, type=Type.Individual)
         return self._friends.get(id64)
 
-    async def inventory(self, game: Game, *, language: Language | None = None) -> Inventory:
-        resp = await self._state.http.get_client_user_inventory(game.id, game.context_id, language)
-        return Inventory(state=self._state, data=resp, owner=self, game=game, language=language)
+    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
+        resp = await self._state.http.get_client_user_inventory(app.id, app.context_id, language)
+        return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""
-        if self.has_setup_profile():
-            return
-
         params = {"welcomed": 1}
         await self._state.http.get(URL.COMMUNITY / "my/edit", params=params)
 

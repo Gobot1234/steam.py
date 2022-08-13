@@ -24,10 +24,10 @@ from typing import (
 from typing_extensions import Never
 
 from ... import _const, utils
+from ...app import App, StatefulApp
 from ...channel import Channel
 from ...clan import Clan
 from ...errors import HTTPException, InvalidID
-from ...game import Game, StatefulGame
 from ...group import Group
 from ...user import User
 from .errors import BadArgument
@@ -45,13 +45,13 @@ __all__ = (
     "ChannelConverter",
     "ClanConverter",
     "GroupConverter",
-    "GameConverter",
+    "AppConverter",
     "Default",
     "DefaultAuthor",
     "DefaultChannel",
     "DefaultClan",
     "DefaultGroup",
-    "DefaultGame",
+    "DefaultApp",
     "Greedy",
 )
 
@@ -155,7 +155,7 @@ class Converter(ConverterBase[T_co], ABC):
         - :class:`~steam.abc.Channel`
         - :class:`~steam.Clan`
         - :class:`~steam.Group`
-        - :class:`~steam.Game`
+        - :class:`~steam.App`
 
     Examples
     --------
@@ -364,15 +364,15 @@ class GroupConverter(Converter[Group]):
         return group
 
 
-class GameConverter(Converter[Game]):
-    """The converter that is used when the type-hint passed is :class:`~steam.Game`.
+class AppConverter(Converter[App]):
+    """The converter that is used when the type-hint passed is :class:`~steam.App`.
 
-    If the param is a digit it is assumed that the argument is the :attr:`Game.id` else it is assumed it is the
-    :attr:`Game.title`.
+    If the param is a digit it is assumed that the argument is the :attr:`App.id` else it is assumed it is the
+    :attr:`App.name`.
     """
 
-    async def convert(self, ctx: Context, argument: str) -> Game:
-        return Game(id=int(argument)) if argument.isdigit() else Game(name=argument)
+    async def convert(self, ctx: Context, argument: str) -> App:
+        return App(id=int(argument)) if argument.isdigit() else App(name=argument)
 
 
 @runtime_checkable
@@ -440,11 +440,11 @@ class DefaultClan(Default):
         return ctx.clan
 
 
-class DefaultGame(Default):
-    """Returns the :attr:`.Context.author`'s :attr:`~steam.User.game`"""
+class DefaultApp(Default):
+    """Returns the :attr:`.Context.author`'s :attr:`~steam.User.app`"""
 
-    async def default(self, ctx: Context) -> StatefulGame:
-        return ctx.author.game
+    async def default(self, ctx: Context) -> StatefulApp:
+        return ctx.author.app
 
 
 def flatten_greedy(item: T | Greedy[Any]) -> Generator[T, None, None]:

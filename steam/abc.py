@@ -18,10 +18,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypedDict, TypeVar, r
 from typing_extensions import Required, Self
 
 from ._const import URL
+from .app import App, StatefulApp, UserApp, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
-from .game import Game, StatefulGame, UserGame, WishlistGame
 from .id import ID
 from .iterators import AsyncIterator, CommentsIterator, UserPublishedFilesIterator, UserReviewsIterator
 from .models import Ban
@@ -206,8 +206,8 @@ class BaseUser(ID, Commentable):
         The user's username.
     state
         The current persona state of the account (e.g. LookingToTrade).
-    game
-        The Game instance attached to the user. Is ``None`` if the user isn't in a game or one that is recognised by the
+    app
+        The App instance attached to the user. Is ``None`` if the user isn't in an app or one that is recognised by the
         api.
     primary_clan
         The primary clan the User displays on their profile.
@@ -234,7 +234,7 @@ class BaseUser(ID, Commentable):
 
     __slots__ = (
         "name",
-        "game",
+        "app",
         "state",
         "flags",
         "country",
@@ -266,7 +266,7 @@ class BaseUser(ID, Commentable):
     last_logoff: datetime | None
     last_logon: datetime | None
     last_seen_online: datetime | None
-    game: StatefulGame | None
+    app: StatefulApp | None
     state: PersonaState | None
     flags: PersonaStateFlag | None
     privacy_state: CommunityVisibilityState | None
@@ -295,13 +295,13 @@ class BaseUser(ID, Commentable):
         """The string used to mention the user in chat."""
         return f"[mention={self.id}]@{self.name}[/mention]"
 
-    async def inventory(self, game: Game, *, language: Language | None = None) -> Inventory:
+    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
         """Fetch a user's :class:`~steam.Inventory` for trading.
 
         Parameters
         -----------
-        game
-            The game to fetch the inventory for.
+        app
+            The app to fetch the inventory for.
         language
             The language to fetch the inventory in. If ``None`` will default to the current language.
 
@@ -310,24 +310,24 @@ class BaseUser(ID, Commentable):
         :exc:`~steam.Forbidden`
             The user's inventory is private.
         """
-        resp = await self._state.http.get_user_inventory(self.id64, game.id, game.context_id, language)
-        return Inventory(state=self._state, data=resp, owner=self, game=game, language=language)
+        resp = await self._state.http.get_user_inventory(self.id64, app.id, app.context_id, language)
+        return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
 
     async def friends(self) -> list[User]:
         """Fetch the list of the users friends."""
         friends = await self._state.http.get_friends(self.id64)
         return [self._state._store_user(friend) for friend in friends]
 
-    async def games(self, *, include_free: bool = True) -> list[UserGame]:
-        r"""Fetches the :class:`~steam.Game`\s the user owns.
+    async def apps(self, *, include_free: bool = True) -> list[UserApp]:
+        r"""Fetches the :class:`~steam.App`\s the user owns.
 
         Parameters
         ----------
         include_free
-            Whether to include free games in the list. Defaults to ``True``.
+            Whether to include free apps in the list. Defaults to ``True``.
         """
-        games = await self._state.fetch_user_games(self.id64, include_free)
-        return [UserGame(self._state, game) for game in games]
+        apps = await self._state.fetch_user_apps(self.id64, include_free)
+        return [UserApp(self._state, app) for app in apps]
 
     async def clans(self) -> list[Clan]:
         r"""Fetches a list of :class:`~steam.Clan`\s the user is in."""
@@ -365,10 +365,10 @@ class BaseUser(ID, Commentable):
             return resp["response"]["player_level"]
         return self._level
 
-    async def wishlist(self) -> list[WishlistGame]:
-        r"""Get the :class:`.WishlistGame`\s the user has on their wishlist."""
+    async def wishlist(self) -> list[WishlistApp]:
+        r"""Get the :class:`.WishlistApp`\s the user has on their wishlist."""
         data = await self._state.http.get_wishlist(self.id64)
-        return [WishlistGame(self._state, id=id, data=game_info) for id, game_info in data.items()]
+        return [WishlistApp(self._state, id=id, data=app_info) for id, app_info in data.items()]
 
     async def favourite_badge(self) -> FavouriteBadge | None:
         """The user's favourite badge."""
@@ -381,7 +381,7 @@ class BaseUser(ID, Commentable):
             item_id=badge.communityitemid,
             type=badge.item_type,
             border_colour=badge.border_color,
-            game=StatefulGame(self._state, id=badge.appid) if badge.appid else None,
+            app=StatefulApp(self._state, id=badge.appid) if badge.appid else None,
             level=badge.level,
         )
 
@@ -477,7 +477,7 @@ class BaseUser(ID, Commentable):
         .. code-block:: python3
 
             async for review in user.reviews(limit=10):
-                print(f"Author: {review.author} {'recommended' if review.recommend 'doesn\\'t recommend'} {review.game}")
+                print(f"Author: {review.author} {'recommended' if review.recommend 'doesn\\'t recommend'} {review.app}")
 
         Flattening into a list:
 
@@ -504,34 +504,34 @@ class BaseUser(ID, Commentable):
         """
         return UserReviewsIterator(self._state, self, limit, before, after)
 
-    async def fetch_review(self, game: Game) -> Review:
-        """Fetch this user's review for a game.
+    async def fetch_review(self, app: App) -> Review:
+        """Fetch this user's review for an app.
 
         Parameters
         ----------
-        game
-            The games to fetch the reviews for.
+        app
+            The apps to fetch the reviews for.
         """
-        (review,) = await self.fetch_reviews(game)
+        (review,) = await self.fetch_reviews(app)
         return review
 
-    async def fetch_reviews(self, *games: Game) -> list[Review]:
-        """Fetch this user's review for games.
+    async def fetch_reviews(self, *apps: App) -> list[Review]:
+        """Fetch this user's review for apps.
 
         Parameters
         ----------
-        games
-            The games to fetch the reviews for.
+        apps
+            The apps to fetch the reviews for.
         """
         from .review import Review
 
-        reviews = await self._state.fetch_user_review(self.id64, (game.id for game in games))
+        reviews = await self._state.fetch_user_review(self.id64, (app.id for app in apps))
         return [Review._from_proto(self._state, review, self) for review in reviews]
 
     def published_files(
         self,
         *,
-        game: Game | None = None,
+        app: App | None = None,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         type: PublishedFileType = PublishedFileType.Community,
         language: Language | None = None,
@@ -562,8 +562,8 @@ class BaseUser(ID, Commentable):
 
         Parameters
         ----------
-        game
-            The game to fetch published files in.
+        app
+            The app to fetch published files in.
         type
             The type of published file to fetch.
         revision
@@ -582,7 +582,7 @@ class BaseUser(ID, Commentable):
         ------
         :class:`~steam.PublishedFile`
         """
-        return UserPublishedFilesIterator(self._state, self, game, type, revision, language, limit, before, after)
+        return UserPublishedFilesIterator(self._state, self, app, type, revision, language, limit, before, after)
 
     @classmethod
     def _patch_without_api(cls) -> None:
@@ -602,7 +602,7 @@ class BaseUser(ID, Commentable):
             self.last_logoff = NotImplemented
             self.last_logon = NotImplemented
             self.last_seen_online = NotImplemented
-            self.game = NotImplemented
+            self.app = NotImplemented
             self.state = NotImplemented
             self.flags = NotImplemented
             self.privacy_state = NotImplemented

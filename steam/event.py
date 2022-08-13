@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, overload
 
 from . import utils
 from .abc import Commentable, _CommentableKwargs
+from .app import App, StatefulApp
 from .enums import EventType
-from .game import Game, StatefulGame
 from .id import ID
 from .utils import DateTime
 
@@ -36,7 +36,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         "author",
         "name",
         "content",
-        "game",
+        "app",
         "starts_at",
         "becomes_visible",
         "stops_being_visible",
@@ -66,7 +66,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         self.last_edited_by: User | ID | None = int(edited_by) if edited_by is not None else None  # type: ignore
         self.name: str = data["event_name"]
         self.content: str = data["event_notes"]
-        self.game = StatefulGame(state, id=data["appid"]) if data["appid"] else None
+        self.app = StatefulApp(state, id=data["appid"]) if data["appid"] else None
         self.type: ClanEventT = EventType.try_value(data["event_type"])
 
         self.starts_at = DateTime.from_timestamp(data["rtime32_start_time"])
@@ -118,8 +118,8 @@ class Event(BaseEvent[ClanEventT]):
         The event's name.
     content
         The event's content.
-    game
-        The game that the event is going to play in.
+    app
+        The app that the event is going to play in.
     clan
         The event's clan.
     starts_at
@@ -164,7 +164,7 @@ class Event(BaseEvent[ClanEventT]):
         }
 
     async def server(self) -> GameServer | None:
-        """The server that the game will be run on, ``None`` if not found.
+        """The server that the app will be run on, ``None`` if not found.
 
         Note
         ----
@@ -185,7 +185,7 @@ class Event(BaseEvent[ClanEventT]):
         name: str,
         content: str,
         *,
-        game: Game | None = None,
+        app: App | None = None,
         starts_at: datetime | None = ...,
         server_address: str | None = ...,
         server_password: str | None = ...,
@@ -221,7 +221,7 @@ class Event(BaseEvent[ClanEventT]):
         *,
         type: Literal[EventType.Game] = ...,
         starts_at: datetime | None = ...,
-        game: Game,
+        app: App,
         server_address: str | None = ...,
         server_password: str | None = ...,
     ) -> None:
@@ -245,7 +245,7 @@ class Event(BaseEvent[ClanEventT]):
             EventType.Trip,
         ]
         | None = None,
-        game: Game | None = None,
+        app: App | None = None,
         starts_at: datetime | None = None,
         server_address: str | None = None,
         server_password: str | None = None,
@@ -264,8 +264,8 @@ class Event(BaseEvent[ClanEventT]):
             The event's content.
         type
             The event's type.
-        game
-            The event's game.
+        app
+            The event's app.
         starts_at
             The event's start time.
         server_address
@@ -274,14 +274,14 @@ class Event(BaseEvent[ClanEventT]):
             The event's server's password.
         """
         type_ = type or self.type
-        new_game = game or self.game
-        game_id = str(new_game) if new_game is not None else None
+        new_app = app or self.app
+        app_id = str(new_app) if new_app is not None else None
         await self._state.http.edit_clan_event(
             self.clan.id64,
             name or self.name,
             content or self.content,
             f"{type_.name}Event",
-            game_id or "",
+            app_id or "",
             server_address or self.server_address if self.server_address else "",
             server_password or self.server_password if self.server_password else "",
             starts_at or self.starts_at,
@@ -292,7 +292,7 @@ class Event(BaseEvent[ClanEventT]):
         self.type = type_
         self.server_address = server_address or self.server_address
         self.server_password = server_password or self.server_password
-        self.game = StatefulGame(self._state, id=game_id) if game_id is not None else None
+        self.app = StatefulApp(self._state, id=app_id) if app_id is not None else None
         self.last_edited_at = DateTime.now()
         self.last_edited_by = self._state.user
 
@@ -314,8 +314,8 @@ class Announcement(BaseEvent[EventType]):
         The announcement's name.
     content
         The announcement's content.
-    game
-        The game that the announcement is for.
+    app
+        The app that the announcement is for.
     clan
         The announcement's clan.
     starts_at
@@ -378,8 +378,8 @@ class Announcement(BaseEvent[EventType]):
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
-        if self.clan.is_game_clan:
-            raise NotImplementedError("Fetching a game announcement's comments is not currently supported")
+        if self.clan.is_app_clan:
+            raise NotImplementedError("Fetching an app announcement's comments is not currently supported")
         return {
             "thread_type": 13,
             "id64": self.clan.id64,

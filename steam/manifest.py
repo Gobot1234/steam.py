@@ -26,8 +26,8 @@ from yarl import URL
 
 from . import utils
 from ._const import VDF_LOADS, VDFDict
+from .app import StatefulApp
 from .enums import AppFlag, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
-from .game import StatefulGame
 from .id import ID
 from .models import _IOMixin
 from .package import StatefulPackage
@@ -55,7 +55,7 @@ __all__ = (
     "PrivateManifestInfo",
     "HeadlessDepot",
     "Depot",
-    "GameInfo",
+    "AppInfo",
     "PackageInfo",
 )
 
@@ -322,15 +322,15 @@ class Manifest:
     ----------
     name
         The name of the manifest.
-    game
-        The game that this manifest was fetched from.
+    app
+        The app that this manifest was fetched from.
     created_at
         The time at which the depot was created at.
     """
 
     __slots__ = (
         "name",
-        "game",
+        "app",
         "server",
         "created_at",
         "_key",
@@ -341,10 +341,10 @@ class Manifest:
         "_state",
     )
 
-    def __init__(self, state: ConnectionState, server: ContentServer, game_id: int, data: bytes):
+    def __init__(self, state: ConnectionState, server: ContentServer, app_id: int, data: bytes):
         self._state = state
         self.name: str | None = None
-        self.game = StatefulGame(state, id=game_id)
+        self.app = StatefulApp(state, id=app_id)
         self.server = server
         self._key: bytes | None = None
         self._paths: dict[tuple[str, ...], ManifestPath] = {}
@@ -429,7 +429,7 @@ class ContentServer(ID):  # is there any point having this inherit steamid?
 
     async def fetch_manifest(
         self,
-        game_id: int,
+        app_id: int,
         id: int,
         depot_id: int,
         name: str | None = None,
@@ -437,13 +437,13 @@ class ContentServer(ID):  # is there any point having this inherit steamid?
         password_hash: str = "",
     ) -> Manifest:
         branch = branch if branch != "public" else ""
-        code = await self._state.fetch_manifest_request_code(id, depot_id, game_id, branch, password_hash)
+        code = await self._state.fetch_manifest_request_code(id, depot_id, app_id, branch, password_hash)
         data = await self.get(f"depot/{depot_id}/manifest/{id}/5{f'/{code}' if code else ''}")
 
-        manifest = Manifest(self._state, self, game_id, data)
+        manifest = Manifest(self._state, self, app_id, data)
         encrypted = manifest._metadata.filenames_encrypted
         if encrypted:
-            key = manifest._key = await self._state.fetch_depot_key(game_id, depot_id)
+            key = manifest._key = await self._state.fetch_depot_key(app_id, depot_id)
         for mapping in manifest._payload.mappings:
             if encrypted:
                 mapping.filename = utils.symmetric_decrypt(b64decode(mapping.filename), key).decode()  # type: ignore # key is never unbound
@@ -517,7 +517,7 @@ class Branch:
         return [depot.manifest for depot in self.depots]
 
     async def fetch_manifests(self) -> list[Manifest]:
-        """Fetch this branch's manifests. Similar to :meth:`StatefulGame.manifests`."""
+        """Fetch this branch's manifests. Similar to :meth:`StatefulApp.manifests`."""
         return await asyncio.gather(*(manifest.fetch() for manifest in self.manifests))  # type: ignore  # typeshed lies
 
 
@@ -557,7 +557,7 @@ class ManifestInfo:
 
     async def fetch(self) -> Manifest:
         """Resolves this manifest info into a full :class:`Manifest`."""
-        return await self._state.fetch_manifest(self.depot.game.id, self.id, self.depot.id, self.name)
+        return await self._state.fetch_manifest(self.depot.app.id, self.id, self.depot.id, self.name)
 
 
 class PrivateManifestInfo(ManifestInfo):
@@ -589,13 +589,13 @@ class PrivateManifestInfo(ManifestInfo):
 class HeadlessDepot:
     """Represents a depot without a branch."""
 
-    __slots__ = ("id", "name", "game", "max_size", "config", "shared_install", "system_defined")
+    __slots__ = ("id", "name", "app", "max_size", "config", "shared_install", "system_defined")
     id: int
     """The depot's ID."""
     name: str
     """The depot's name."""
-    game: GameInfo
-    """The depot's game."""
+    app: AppInfo
+    """The depot's app."""
     max_size: int
     """The depot's maximum size."""
     config: MultiDict[str]
@@ -606,7 +606,7 @@ class HeadlessDepot:
     """Whether this depot is system defined."""
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} name={self.name!r} id={self.id} game={self.game!r}>"
+        return f"<{self.__class__.__name__} name={self.name!r} id={self.id} app={self.app!r}>"
 
     def __eq__(self, other: object) -> bool:
         return self.id == other.id if isinstance(other, self.__class__) else NotImplemented
@@ -647,54 +647,54 @@ class ProductInfo:
         self.change_number = proto.change_number
 
     # async def changes(self) -> ...:
-    #     """A method to fetch the changes to this game since this change number"""
+    #     """A method to fetch the changes to this app since this change number"""
     #     changes = await self._state.fetch_changes_since(self.change_number, True, True)
     #     return changes.app_changes[0].change_number
 
 
-class GameInfo(ProductInfo, StatefulGame):
-    """Represents a collection of information on a game.
+class AppInfo(ProductInfo, StatefulApp):
+    """Represents a collection of information on an app.
 
     Attributes
     ----------
     type
-        The game's type.
+        The app's type.
     has_adult_content
-        Whether this game has adult content according to Steam.
+        Whether this app has adult content according to Steam.
     has_adult_content_violence
-        Whether this game has adult violence according to Steam.
+        Whether this app has adult violence according to Steam.
     market_presence
-        Whether this game has a market presence.
+        Whether this app has a market presence.
     workshop_visible
-        Whether this game has a market presence.
+        Whether this app has a market presence.
     community_hub_visible
-        Whether this game has a content hub visible.
+        Whether this app has a content hub visible.
     controller_support
-        This game's level of controller support.
+        This app's level of controller support.
     publishers
-        This game's publishers.
+        This app's publishers.
     developers
-        This game's developers.
+        This app's developers.
     supported_languages
-        This game's supported languages.
+        This app's supported languages.
     created_at
-        The time this game was created.
+        The time this app was created.
     review_score
-        This game's review score.
+        This app's review score.
     review_percentage
-        This game's review percentage.
+        This app's review percentage.
     partial_dlc
-        This game's downloadable content.
+        This app's downloadable content.
     icon_url
-        This game's icon URL.
+        This app's icon URL.
     logo_url
-        This game's logo URL.
+        This app's logo URL.
     website_url
-        This game's URL.
+        This app's URL.
     headless_depots
-        The depots for this game without a branch.
+        The depots for this app without a branch.
     sha
-        The game's SHA for this product info.
+        The app's SHA for this product info.
     size
         The product info's size.
     change_number
@@ -736,7 +736,7 @@ class GameInfo(ProductInfo, StatefulGame):
     def __init__(
         self,
         state: ConnectionState,
-        data: manifest.GameInfo,
+        data: manifest.AppInfo,
         proto: app_info.CMsgClientPicsProductInfoResponseAppInfo,
     ):
         common = data["common"]
@@ -774,7 +774,7 @@ class GameInfo(ProductInfo, StatefulGame):
         self.review_score = ReviewType.try_value(int(common.get("review_score", 0)))
         self.review_percentage = int(common.get("review_percentage", 0))
         dlc = extended.get("listofdlc", "")
-        self.partial_dlc = [StatefulGame(state, id=int(id)) for id in dlc.split(",")] if dlc else []
+        self.partial_dlc = [StatefulApp(state, id=int(id)) for id in dlc.split(",")] if dlc else []
 
         os_list = common.get("oslist", "")
         self._on_windows = "windows" in os_list
@@ -792,7 +792,7 @@ class GameInfo(ProductInfo, StatefulGame):
             else None
         )
         self.website_url = extended.get("homepage")
-        self.parent = StatefulGame(state, id=int(common["parent"])) if "parent" in common else None
+        self.parent = StatefulApp(state, id=int(common["parent"])) if "parent" in common else None
 
         depots: manifest.Depot = data.get("depots", {})  # type: ignore
         self._branches: dict[str, Branch] = {}
@@ -824,7 +824,7 @@ class GameInfo(ProductInfo, StatefulGame):
                     "name": depot.get("name"),
                     "config": depot.get("config", MultiDict()),
                     "max_size": int(depot["maxsize"]) if "maxsize" in depot else None,
-                    "game": self,
+                    "app": self,
                     "shared_install": bool(int(depot.get("sharedinstall", False))),
                     "system_defined": bool(int(depot.get("system_defined", False))),
                 }
@@ -857,7 +857,7 @@ class GameInfo(ProductInfo, StatefulGame):
 
     @property
     def branches(self) -> Sequence[Branch]:
-        """The branches for this game."""
+        """The branches for this app."""
         return list(self._branches.values())
 
     @property
@@ -866,7 +866,7 @@ class GameInfo(ProductInfo, StatefulGame):
 
         .. code-block:: python3
 
-            game.get_branch("public")
+            app.get_branch("public")
         """
         return self._branches["public"]
 
@@ -874,23 +874,23 @@ class GameInfo(ProductInfo, StatefulGame):
         return [depot for branch in self._branches.values() for depot in branch.depots] + self.headless_depots  # type: ignore
 
     def is_on_windows(self) -> bool:
-        """Whether the game is playable on Windows."""
+        """Whether the app is playable on Windows."""
         return self._on_windows
 
     def is_on_mac_os(self) -> bool:
-        """Whether the game is playable on macOS."""
+        """Whether the app is playable on macOS."""
         return self._on_mac_os
 
     def is_on_linux(self) -> bool:
-        """Whether the game is playable on Linux."""
+        """Whether the app is playable on Linux."""
         return self._on_linux
 
     def has_visible_stats(self) -> bool:
-        """Whether the game has publicly visible stats."""
+        """Whether the app has publicly visible stats."""
         return self._stats_visible
 
     def is_free(self) -> bool:
-        """Whether the game is free to download."""
+        """Whether the app is free to download."""
         return self._free
 
     def __repr__(self) -> str:
@@ -904,8 +904,8 @@ class PackageInfo(ProductInfo, StatefulPackage):
 
     Attributes
     ----------
-    games
-        The games included in the package.
+    apps
+        The apps included in the package.
     billing_type
         The billing type for the package.
     license_type
@@ -922,7 +922,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
         "sha",
         "size",
         "change_number",
-        "_games",
+        "_apps",
         "billing_type",
         "license_type",
         "status",
@@ -937,7 +937,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
         proto: app_info.CMsgClientPicsProductInfoResponsePackageInfo,
     ):
         super().__init__(state, proto, id=proto.packageid)
-        self._games = [StatefulGame(state, id=id) for id in data["appids"].values()]
+        self._apps = [StatefulApp(state, id=id) for id in data["appids"].values()]
         self.billing_type = BillingType.try_value(data["billingtype"])
         self.license_type = LicenseType.try_value(data["licensetype"])
         self.status = PackageStatus.try_value(data["status"])
@@ -949,5 +949,5 @@ class PackageInfo(ProductInfo, StatefulPackage):
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
-    async def games(self) -> list[StatefulGame]:
-        return self._games
+    async def apps(self) -> list[StatefulApp]:
+        return self._apps

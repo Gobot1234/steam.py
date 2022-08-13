@@ -7,24 +7,12 @@ from typing import Any
 from typing_extensions import Literal, TypedDict
 
 
-class GetOwnedGames(TypedDict):
-    games: list[GetOwnedGamesGame]
-
-
-class GetOwnedGamesGame(TypedDict):
-    name: str
-    appid: str
-    playtime_forever: int
-    img_icon_url: str
-    has_community_visible_stats: bool
-
-
-class GameToDict(TypedDict, total=False):
+class AppToDict(TypedDict, total=False):
     game_id: str
     game_extra_info: str
 
 
-class WishlistGame(TypedDict):
+class WishlistApp(TypedDict):
     name: str
     capsule: str
     review_score: int
@@ -70,7 +58,7 @@ class PackageGroupSub(TypedDict):
     price_in_cents_with_discount: int
 
 
-class FetchedGamePriceOverview(TypedDict):
+class FetchedAppPriceOverview(TypedDict):
     currency: str
     initial: int
     final: int
@@ -79,7 +67,7 @@ class FetchedGamePriceOverview(TypedDict):
     final_formatted: str
 
 
-class FetchedGame(TypedDict):
+class FetchedApp(TypedDict):
     # https://wiki.teamfortress.com/wiki/User:RJackson/StorefrontAPI#Result_data_3
     type: Literal["game", "dlc", "demo", "advertising", "mod", "video"]
     name: str
@@ -100,7 +88,7 @@ class FetchedGame(TypedDict):
     developers: list[str]
     publishers: list[str]
     demos: list[dict[str, Any]]
-    price_overview: FetchedGamePriceOverview
+    price_overview: FetchedAppPriceOverview
     packages: list[int]
     package_groups: list[PackageGroups]
     platforms: dict[str, bool]

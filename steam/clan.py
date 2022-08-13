@@ -15,12 +15,12 @@ from typing_extensions import Self
 from . import utils
 from ._const import HTML_PARSER
 from .abc import Commentable, _CommentableKwargs
+from .app import App, StatefulApp
 from .channel import ClanChannel
 from .chat import ChatGroup, Member
 from .enums import EventType, Language, Type
 from .errors import HTTPException
 from .event import Announcement, Event
-from .game import Game, StatefulGame
 from .id import ID
 from .iterators import AnnouncementsIterator, EventIterator
 from .protobufs import chat
@@ -93,8 +93,8 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         The language set for the clan.
     location
         The location set for the clan.
-    game
-        The clan's associated game.
+    app
+        The clan's associated app.
     owner
         The clan's owner.
     admins
@@ -114,7 +114,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         "admins",
         "mods",
         "community_url",
-        "is_game_clan",
+        "is_app_clan",
     )
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
@@ -137,7 +137,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     location: str
     mods: list[ClanMember]
     admins: list[ClanMember]
-    is_game_clan: bool
+    is_app_clan: bool
 
     def __init__(self, state: ConnectionState, id: int):
         super().__init__(id, type=Type.Clan)
@@ -159,15 +159,15 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         self.content = content["content"] if content is not None else None
         icon_url = soup.find("link", rel="image_src")
         self.avatar_url = icon_url["href"] if icon_url else None
-        self.is_game_clan = "games" in resp.url.parts
+        self.is_app_clan = "games" in resp.url.parts
         self.community_url = str(resp.url)
-        if self.is_game_clan:
+        if self.is_app_clan:
             for entry in soup.find_all("div", class_="actionItem"):
                 a = entry.a
                 if a is not None:
                     href = a.get("href", "")
                     if match := re.findall(r"store.steampowered.com/app/(\d+)", href):
-                        self.game = StatefulGame(self._state, id=match[0])
+                        self.app = StatefulApp(self._state, id=match[0])
         stats = soup.find("div", class_="grouppage_resp_stats")
         if stats is None:
             return
@@ -465,7 +465,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         *,
         type: Literal[EventType.Game] = ...,
         starts_at: datetime | None = ...,
-        game: Game,
+        app: App,
         server_address: str | None = ...,
         server_password: str | None = ...,
     ) -> Event[Literal[EventType.Game]]:
@@ -499,7 +499,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             EventType.Sports,
             EventType.Trip,
         ] = EventType.Other,
-        game: Game | None = None,
+        app: App | None = None,
         starts_at: datetime | None = None,
         server_address: str | None = None,
         server_password: str | None = None,
@@ -514,16 +514,16 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             The content for the event.
         type
             The type of the event, defaults to :attr:`ClanEvent.Other`.
-        game
-            The game that will be played in the event. Required if type is :attr:`ClanEvent.Game`.
+        app
+            The app that will be played in the event. Required if type is :attr:`ClanEvent.Game`.
         starts_at
             The time the event will start at.
         server_address
             The address of the server that the event will be played on. This is only allowed if ``type`` is
-            :attr:`ClanEvent.Game`.
+            :attr:`ClanEvent.App`.
         server_password
             The password for the server that the event will be played on. This is only allowed if ``type`` is
-            :attr:`ClanEvent.Game`.
+            :attr:`ClanEvent.App`.
 
         Note
         ----
@@ -539,7 +539,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             name,
             content,
             f"{type.name}Event",
-            str(game.id) if game is not None else "",
+            str(app.id) if app is not None else "",
             server_address or "",
             server_password or "",
             starts_at,

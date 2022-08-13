@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import Self
 
 from .abc import Awardable, Commentable, _CommentableKwargs
+from .app import StatefulApp
 from .chat import WrapsUser
 from .enums import Language, ReviewType
-from .game import StatefulGame
 from .reaction import AwardReaction
 from .user import User
 from .utils import DateTime
@@ -28,7 +28,7 @@ __all__ = (
 
 class ReviewUser(WrapsUser):
     __slots__ = (
-        "number_of_games_owned",
+        "number_of_apps_owned",
         "number_of_reviews",
         "playtime_forever",
         "playtime_last_two_weeks",
@@ -36,7 +36,7 @@ class ReviewUser(WrapsUser):
         "last_played",
     )
 
-    number_of_games_owned: int | None
+    number_of_apps_owned: int | None
     number_of_reviews: int | None
     playtime_forever: timedelta
     playtime_last_two_weeks: timedelta
@@ -47,7 +47,7 @@ class ReviewUser(WrapsUser):
     def _from_proto(cls, state: ConnectionState, user: User, review: ReviewProto) -> Self:
         review_user = cls(state, user)
         review_user.number_of_reviews = None
-        review_user.number_of_games_owned = None
+        review_user.number_of_apps_owned = None
         review_user.playtime_forever = timedelta(seconds=review.playtime_forever)
         review_user.playtime_last_two_weeks = timedelta(seconds=review.playtime_2weeks)
         review_user.playtime_at_review = timedelta(seconds=review.playtime_at_review)
@@ -57,8 +57,8 @@ class ReviewUser(WrapsUser):
     @classmethod
     def _from_data(cls, state: ConnectionState, user: User, data: dict[str, Any]) -> Self:
         review_user = cls(state, user)
-        review_user.number_of_reviews = data["num_games_owned"]
-        review_user.number_of_games_owned = data["num_reviews"]
+        review_user.number_of_reviews = data["num_reviews"]
+        review_user.number_of_apps_owned = data["num_games_owned"]
         review_user.playtime_forever = timedelta(seconds=data["playtime_forever"])
         review_user.playtime_last_two_weeks = timedelta(seconds=data["playtime_last_two_weeks"])
         review_user.playtime_at_review = timedelta(seconds=data["playtime_at_review"])
@@ -66,7 +66,7 @@ class ReviewUser(WrapsUser):
         return review_user
 
 
-class ReviewGame(StatefulGame):
+class ReviewApp(StatefulApp):
     __slots__ = ("review_status",)
 
     def __init__(self, state: ConnectionState, id: int, review_status: int):
@@ -76,14 +76,14 @@ class ReviewGame(StatefulGame):
 
 @dataclass(repr=False, eq=False)
 class Review(Commentable, Awardable):
-    """Represents a review for a game."""
+    """Represents a review for an app."""
 
     _AWARDABLE_TYPE = 1
     __slots__ = (
         "_state",
         "id",
         "author",
-        "game",
+        "app",
         "language",
         "content",
         "created_at",
@@ -107,10 +107,10 @@ class Review(Commentable, Awardable):
     """The ID of the review."""
     author: ReviewUser
     """The author of the review."""
-    game: ReviewGame
-    """The game being reviewed."""
+    app: ReviewApp
+    """The app being reviewed."""
     recommended: bool
-    """Whether the reviewer recommends the game."""
+    """Whether the reviewer recommends the app."""
     language: Language
     """The language the review is written in."""
     content: str
@@ -130,11 +130,11 @@ class Review(Commentable, Awardable):
     comment_count: int
     """The amount of comments this review has."""
     steam_purchase: bool | None
-    """Whether the game was purchased through Steam."""
+    """Whether the app was purchased through Steam."""
     received_compensation: bool
     """Whether the reviewer received compensation for this review."""
     written_during_early_access: bool
-    """Whether the reviewer played the game the game during """
+    """Whether the reviewer played the app the app during early access."""
     developer_response: str | None
     """The developer's response to the review."""
     developer_responded_at: datetime | None
@@ -143,7 +143,7 @@ class Review(Commentable, Awardable):
     """The review's reactions."""
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} id={self.id} game={self.game!r} author={self.author!r}>"
+        return f"<{self.__class__.__name__} id={self.id} app={self.app!r} author={self.author!r}>"
 
     def __eq__(self, other: object) -> bool:
         return self.id == other.id if isinstance(other, self.__class__) else NotImplemented
@@ -153,7 +153,7 @@ class Review(Commentable, Awardable):
         return {
             "thread_type": 8,
             "id64": self.author.id64,
-            "gidfeature": self.game.id,
+            "gidfeature": self.app.id,
         }
 
     @classmethod
@@ -162,7 +162,7 @@ class Review(Commentable, Awardable):
             state,
             id=review.recommendationid,
             author=ReviewUser._from_proto(state, user, review),
-            game=ReviewGame(state, review.appid, review.review_quality),
+            app=ReviewApp(state, review.appid, review.review_quality),
             language=Language.from_str(review.language),
             content=review.review,
             created_at=DateTime.from_timestamp(review.time_created),
@@ -186,12 +186,12 @@ class Review(Commentable, Awardable):
         )
 
     @classmethod
-    def _from_data(cls, state: ConnectionState, data: dict[str, Any], game: ReviewGame, user: User) -> Self:
+    def _from_data(cls, state: ConnectionState, data: dict[str, Any], app: ReviewApp, user: User) -> Self:
         return cls(
             state,
             id=data["recommendationid"],
             author=ReviewUser._from_data(state, user, data["author"]),
-            game=game,
+            app=app,
             language=Language.from_str(data["language"]),
             content=data["review"],
             created_at=DateTime.from_timestamp(data["timestamp_created"]),

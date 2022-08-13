@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Final, Protocol, cast
 
 from yarl import URL
 
-from .game import StatefulGame
+from .app import StatefulApp
 from .models import _IOMixin
 from .utils import DateTime
 
@@ -205,15 +205,15 @@ class Emoticon(BaseEmoticon):
         """The URL for this emoticon."""
         return str(BASE_ECONOMY_URL / "emoticonlarge" / self.name)
 
-    async def game(self) -> StatefulGame:
-        """Fetches this emoticon's associated game.
+    async def app(self) -> StatefulApp:
+        """Fetches this emoticon's associated app.
 
         Note
         ----
-        This game has its :attr:`~Game.name` set unlike :meth:`Sticker.game`.
+        This app has its :attr:`~App.name` set unlike :meth:`Sticker.app`.
         """
         data = await self._state.http.get(BASE_ECONOMY_URL / "emoticonhoverjson" / self.name)
-        return StatefulGame(self._state, id=data["appid"], name=data["app_name"])
+        return StatefulApp(self._state, id=data["appid"], name=data["app_name"])
 
 
 class Sticker(BaseEmoticon):
@@ -245,10 +245,10 @@ class Sticker(BaseEmoticon):
         """The URL for this sticker."""
         return str(BASE_ECONOMY_URL / "sticker" / self.name)
 
-    async def game(self) -> StatefulGame:
-        """Fetches this sticker's associated game."""
+    async def app(self) -> StatefulApp:
+        """Fetches this sticker's associated app."""
         data = await self._state.http.get(BASE_ECONOMY_URL / "stickerjson" / self.name)
-        return StatefulGame(self._state, id=data["appid"])
+        return StatefulApp(self._state, id=data["appid"])
 
 
 class BaseClientEmoticon(BaseEmoticon):
@@ -280,5 +280,5 @@ class ClientSticker(BaseClientEmoticon, Sticker):
         super().__init__(state, proto)
         self._app_id = proto.appid
 
-    async def game(self) -> StatefulGame:
-        return StatefulGame(self._state, id=self._app_id)  # no point fetching
+    async def app(self) -> StatefulApp:
+        return StatefulApp(self._state, id=self._app_id)  # no point fetching

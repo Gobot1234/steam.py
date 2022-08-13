@@ -11,8 +11,8 @@ from .profile import FriendProfile
 from .user import ClientUser, WrapsUser
 
 if TYPE_CHECKING:
+    from .app import App
     from .clan import Clan
-    from .game import Game
     from .group import Group
 
 __all__ = ("Friend",)
@@ -34,15 +34,15 @@ class Friend(WrapsUser):
             )
         )
 
-    async def owns(self, game: Game) -> bool:
-        """Whether the game is owned by this friend.
+    async def owns(self, app: App) -> bool:
+        """Whether the app is owned by this friend.
 
         Parameters
         ----------
-        game
-            The game you want to check the ownership of.
+        app
+            The app you want to check the ownership of.
         """
-        return self.id64 in await self._state.fetch_friends_who_own(game.id)
+        return self.id64 in await self._state.fetch_friends_who_own(app.id)
 
     async def invite_to_group(self, group: Group) -> None:
         """Invites the user to a :class:`Group`.

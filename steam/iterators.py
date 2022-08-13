@@ -22,12 +22,12 @@ from .utils import DateTime
 
 if TYPE_CHECKING:
     from .abc import Authors, BaseUser, Commentable, Message
+    from .app import App, StatefulApp
     from .channel import DMChannel, UserMessage
     from .chat import Chat, ChatMessage
     from .clan import Clan
     from .comment import Comment
     from .event import Announcement, Event
-    from .game import Game, StatefulGame
     from .group import Group
     from .manifest import Manifest
     from .protobufs import friend_messages
@@ -551,27 +551,27 @@ class ChatHistoryIterator(AsyncIterator[ChatMessageT], Generic[ChatMessageT, Cha
                 return
 
 
-class GameReviewsIterator(AsyncIterator["Review"]):
+class AppReviewsIterator(AsyncIterator["Review"]):
     def __init__(
         self,
         state: ConnectionState,
-        game: StatefulGame,
+        app: StatefulApp,
         limit: int | None = None,
         before: datetime | None = None,
         after: datetime | None = None,
     ):  # TODO add support for the other params and make this more efficient
         super().__init__(state, limit, before, after)
-        self.game = game
+        self.app = app
 
     async def fill(self) -> AsyncGenerator[Review, None]:
-        from .review import Review, ReviewGame
+        from .review import Review, ReviewApp
 
         cursor = "*"
         while True:
-            data = await self._state.http.get_reviews(self.game.id, "all", "all", "all", cursor)
+            data = await self._state.http.get_reviews(self.app.id, "all", "all", "all", cursor)
             if cursor == "*":
-                self.game = ReviewGame(self._state, self.game.id, data["query_summary"]["review_score"])
-            assert isinstance(self.game, ReviewGame)
+                self.app = ReviewApp(self._state, self.app.id, data["query_summary"]["review_score"])
+            assert isinstance(self.app, ReviewApp)
             cursor = data["cursor"]
             reviews = data["reviews"]
 
@@ -581,7 +581,7 @@ class GameReviewsIterator(AsyncIterator["Review"]):
             ):
                 if user is None:
                     continue
-                review = Review._from_data(self._state, review, self.game, user)
+                review = Review._from_data(self._state, review, self.app, user)
                 if not self.after < review.created_at < self.before:
                     return
 
@@ -707,20 +707,20 @@ class ManifestIterator(AsyncIterator["Manifest"]):
         limit: int | None,
         before: datetime | None,
         after: datetime | None,
-        game: StatefulGame,
+        app: StatefulApp,
         branch: str,
         password: str | None,
         password_hash: str,
     ):
         super().__init__(state, limit, before, after)
-        self.game = game
+        self.app = app
         self.branch = branch
         self.password = password
         self.password_hash = password_hash
 
     async def fill(self) -> AsyncGenerator[Manifest, None]:
         manifest_coros = await self._state.fetch_manifests(
-            self.game.id, self.branch, self.password, self.limit, self.password_hash
+            self.app.id, self.branch, self.password, self.limit, self.password_hash
         )
         for chunk in utils.chunk(manifest_coros, 100):
             for manifest in await asyncio.gather(*chunk):
@@ -733,7 +733,7 @@ class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
         self,
         state: ConnectionState,
         user: BaseUser,
-        game: Game | None,
+        app: App | None,
         type: PublishedFileType = PublishedFileType.Community,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         language: Language | None = None,
@@ -743,7 +743,7 @@ class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
     ):
         super().__init__(state, limit, before, after)
         self.user = user
-        self.app_id = getattr(game, "id", 0)
+        self.app_id = getattr(app, "id", 0)
         self.revision = revision
         self.type = type
         self.language = language
@@ -773,11 +773,11 @@ class UserPublishedFilesIterator(AsyncIterator["PublishedFile"]):
                 yield file
 
 
-class GamePublishedFilesIterator(AsyncIterator["PublishedFile"]):
+class AppPublishedFilesIterator(AsyncIterator["PublishedFile"]):
     def __init__(
         self,
         state: ConnectionState,
-        game: Game,
+        app: App,
         type: PublishedFileQueryFileType = PublishedFileQueryFileType.Items,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         language: Language | None = None,
@@ -786,7 +786,7 @@ class GamePublishedFilesIterator(AsyncIterator["PublishedFile"]):
         after: datetime | None = None,
     ):
         super().__init__(state, limit, before, after)
-        self.game = game
+        self.app = app
         self.type = type
         self.revision = revision
         self.language = language
@@ -798,8 +798,8 @@ class GamePublishedFilesIterator(AsyncIterator["PublishedFile"]):
         cursor = "*"
 
         while remaining is None or remaining > 0:
-            protos = await self._state.fetch_game_published_files(
-                self.game.id, self.after, self.before, self.type, self.revision, self.language, self.limit, cursor
+            protos = await self._state.fetch_app_published_files(
+                self.app.id, self.after, self.before, self.type, self.revision, self.language, self.limit, cursor
             )
             if remaining is None:
                 remaining = protos.total

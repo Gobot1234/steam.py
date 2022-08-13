@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from . import utils
+from .app import StatefulApp
 from .badge import Badge
 from .enums import (
     Language,
@@ -19,7 +20,6 @@ from .enums import (
     UserBadge,
 )
 from .errors import WSException
-from .game import StatefulGame
 from .trade import Asset, Item
 
 if TYPE_CHECKING:
@@ -78,7 +78,7 @@ class ProfileItem:
         "name",
         "title",
         "description",
-        "game",
+        "app",
         "type",
         "class_",
         "movie",
@@ -101,8 +101,8 @@ class ProfileItem:
         """The item's title."""
         self.description = item.item_description
         """The item's description."""
-        self.game = StatefulGame(state, id=item.appid)
-        """The game the item is from."""
+        self.app = StatefulApp(state, id=item.appid)
+        """The app the item is from."""
         self.type = ProfileItemType.try_value(item.item_type)
         """The item's type."""
         self.class_ = ProfileItemClass.try_value(item.item_class)
@@ -117,7 +117,7 @@ class ProfileItem:
         self._um_name = um_name
 
     def __repr__(self) -> str:
-        return f"<ProfileItem id={self.id} name={self.name!r} game={self.game!r}>"
+        return f"<ProfileItem id={self.id} name={self.name!r} app={self.app!r}>"
 
     async def equip(self) -> None:
         """Equip the profile item."""
@@ -130,7 +130,7 @@ class ProfileItem:
 
     async def item(self, *, language: Language | None = None) -> Item:
         """Resolve this to an actual item in the owner's inventory."""
-        inventory = await self.owner.inventory(self.game, language=language)
+        inventory = await self.owner.inventory(self.app, language=language)
         item = utils.get(inventory, id=self.id)
         assert item
         return item
@@ -176,7 +176,7 @@ class ProfileShowcaseSlot:
         "name",
         "content",
         "index",
-        "game",
+        "app",
         "asset",
         "published_file_id",
         "badge_id",
@@ -190,8 +190,8 @@ class ProfileShowcaseSlot:
     """ The slot's description."""
     index: int | None
     """The slot's index."""
-    game: StatefulGame
-    """The slot's associated game."""
+    app: StatefulApp
+    """The slot's associated app."""
 
     asset: Asset | None
     """The :class:`Asset` the slot is associated with."""
@@ -213,7 +213,7 @@ class ProfileShowcaseSlot:
         if self.asset is None:
             raise ValueError
         key = (self.asset.class_id, self.asset.instance_id)
-        resp = await self._state.http.get_item_info(self.game.id, [key], language)
+        resp = await self._state.http.get_item_info(self.app.id, [key], language)
         data: trade.Item = {
             **resp[key],
             **self.asset.to_dict(),
@@ -358,7 +358,7 @@ class ProfileCustomisation:
                         state,
                         owner=user,
                         index=slot.slot or None,
-                        game=StatefulGame(state, id=slot.appid),
+                        app=StatefulApp(state, id=slot.appid),
                         published_file_id=slot.publishedfileid or None,
                         name=slot.title or None,
                         content=slot.notes or None,

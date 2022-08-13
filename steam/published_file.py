@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING
 from yarl import URL as URL_
 
 from .abc import Awardable, Commentable, _CommentableKwargs
+from .app import StatefulApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
-from .game import StatefulGame
 from .models import URL, _IOMixin
 from .reaction import AwardReaction
 from .utils import DateTime
@@ -106,7 +106,7 @@ class PublishedFile(Commentable, Awardable):
         "id",
         "name",
         "author",
-        "game",
+        "app",
         "created_with",
         "created_at",
         "updated_at",
@@ -181,9 +181,9 @@ class PublishedFile(Commentable, Awardable):
         """The file's name."""
         self.author = author
         """The file's author."""
-        self.game = StatefulGame(state, id=proto.consumer_appid, name=proto.app_name)
-        """The file's game."""
-        self.created_with = StatefulGame(state, id=proto.creator_appid)
+        self.app = StatefulApp(state, id=proto.consumer_appid, name=proto.app_name)
+        """The file's app."""
+        self.created_with = StatefulApp(state, id=proto.creator_appid)
         """The file's created_with."""
         self.created_at = DateTime.from_timestamp(proto.time_created)
         """The time the file was created at."""
@@ -324,7 +324,7 @@ class PublishedFile(Commentable, Awardable):
         """The file's reactions."""
 
     def __repr__(self) -> str:
-        attrs = ("name", "id", "author", "game", "manifest_id", "change_number")
+        attrs = ("name", "id", "author", "app", "manifest_id", "change_number")
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
@@ -337,7 +337,7 @@ class PublishedFile(Commentable, Awardable):
 
     async def manifest(self) -> Manifest:
         """The manifest associated with this published file."""
-        return await self._state.fetch_manifest(self.game.id, self.manifest_id, self.game.id, self.name)
+        return await self._state.fetch_manifest(self.app.id, self.manifest_id, self.app.id, self.name)
 
     @asynccontextmanager
     async def open(self) -> AsyncGenerator[BytesIO, None]:
@@ -508,7 +508,7 @@ class PublishedFile(Commentable, Awardable):
             preview_filename = ""
         await self._state.edit_published_file(
             self.id,
-            self.game.id,
+            self.app.id,
             name if name is not None else self.name,
             description if description is not None else self.description,
             visibility or self.visibility,

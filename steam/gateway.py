@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from .enums import UIMode
     from .protobufs.base import CMsgMulti
     from .state import ConnectionState
-    from .types.game import GameToDict
+    from .types.app import AppToDict
     from .types.http import Coro
 
 
@@ -375,7 +375,7 @@ class SteamWebSocket(Registerable):
 
             assert isinstance(client, GCClient), "Attempting to send a GC message without a GC client"
 
-        app_id = client._GAME.id
+        app_id = client._APP.id
         message = MsgProto[CMsgGcClient](
             EMsg.ClientToGC,
             appid=app_id,
@@ -433,7 +433,7 @@ class SteamWebSocket(Registerable):
 
         await self.send_um("ChatRoom.GetMyChatRoomGroups")
         await self.change_presence(
-            games=self._connection._games,
+            apps=self._connection._apps,
             state=self._connection._state,
             flags=self._connection._flags,
             force_kick=self._connection._force_kick,
@@ -538,13 +538,13 @@ class SteamWebSocket(Registerable):
     async def change_presence(
         self,
         *,
-        games: list[GameToDict] | None = None,
+        apps: list[AppToDict] | None = None,
         state: PersonaState | None = None,
         flags: PersonaStateFlag | None = None,
         ui_mode: UIMode | None = None,
         force_kick: bool = False,
     ) -> None:
-        self._connection._games = games or self._connection._games
+        self._connection._apps = apps or self._connection._apps
         self._connection._state = state or self._connection._state
         self._connection._ui_mode = ui_mode or self._connection._ui_mode
         self._connection._flags = flags or self._connection._flags
@@ -554,10 +554,10 @@ class SteamWebSocket(Registerable):
             kick_msg = MsgProto(EMsg.ClientKickPlayingSession)
             log.debug("Kicking any currently playing sessions")
             await self.send_proto(kick_msg)
-        if games:
-            games_msg = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=games)
-            log.debug("Sending %r to change activity", games_msg)
-            await self.send_proto(games_msg)
+        if apps:
+            apps_msg = MsgProto(EMsg.ClientGamesPlayedWithDataBlob, games_played=apps)
+            log.debug("Sending %r to change activity", apps_msg)
+            await self.send_proto(apps_msg)
         if state is not None or flags is not None:
             state_msg = MsgProto(EMsg.ClientChangeStatus, persona_state=state, persona_state_flags=flags)
             log.debug("Sending %r to change state", state_msg)

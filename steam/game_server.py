@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, TypeAlias, 
 
 from typing_extensions import Unpack
 
+from .app import App, StatefulApp
 from .enums import Enum, GameServerRegion, Type
-from .game import Game, StatefulGame
 from .id import ID
 from .protobufs.game_servers import EQueryType, GetServerListResponseServer, QueryResponse
 
@@ -132,14 +132,14 @@ class QueryMeta(type):
         return Query["str"]("\\gameaddr\\", type=str)
 
     @property
-    def running(cls) -> Query[Game | int]:
-        """Fetches servers running a :class:`.Game` or an :class:`int` app id."""
-        return Query["Game | int"]("\\appid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
+    def running(cls) -> Query[App | int]:
+        """Fetches servers running a :class:`.App` or an :class:`int` app id."""
+        return Query["App | int"]("\\appid\\", type=(App, int), callback=lambda app: getattr(app, "id", app))
 
     @property
-    def not_running(cls) -> Query[Game | int]:
-        """Fetches servers not running a :class:`.Game` or an :class:`int` app id."""
-        return Query["Game | int"]("\\nappid\\", type=(Game, int), callback=lambda game: getattr(game, "id", game))
+    def not_running(cls) -> Query[App | int]:
+        """Fetches servers not running a :class:`.App` or an :class:`int` app id."""
+        return Query["App | int"]("\\nappid\\", type=(App, int), callback=lambda app: getattr(app, "id", game))
 
     @property
     def match_tags(cls) -> Query[list[str]]:
@@ -191,7 +191,7 @@ class Query(Generic[T_co], metaclass=QueryMeta):
     Examples
     --------
 
-    Match games running TF2, that are not empty and are using VAC
+    Match servers running TF2, that are not empty and are using VAC
 
     .. code-block:: pycon
 
@@ -199,21 +199,22 @@ class Query(Generic[T_co], metaclass=QueryMeta):
         <Query query='\\appid\\440\\empty\\1\\secure\\1'>
 
 
-    Matches games that are not empty, not full and are not using VAC
+    Matches servers that are not empty, not full and are not using VAC
 
     .. code-block:: pycon
 
         >>> Query.not_empty / Query.not_full | Query.secure
         <Query query='\\empty\\1\\nor\\[\\full\\1\\secure\\1]'>
 
-    Match games where the server name is not "A cool Server" or the server doesn't support alltalk or increased max players
+    Match servers where the server name is not "A cool Server" or the server doesn't support alltalk or increased max
+    players
 
     .. code-block:: pycon
 
         >>> Query.name_match / "A not cool server" | Query.match_tags / ["alltalk", "increased_maxplayers"]
         <Query query='\\nor\\[\\name_match\\A not cool server\\gametype\\[alltalk,increased_maxplayers]]'>
 
-    Match games where the server is not on linux and the server doesn't have no password (has a password)
+    Match servers where the server is not on linux and the server doesn't have no password (has a password)
 
     .. code-block:: pycon
 
@@ -300,8 +301,8 @@ class GameServer(ID):
     ----------
     name
         The name of the server.
-    game
-        The game of the server.
+    app
+        The app of the server.
     ip
         The ip of the server.
     port
@@ -324,7 +325,7 @@ class GameServer(ID):
 
     __slots__ = (
         "name",
-        "game",
+        "app",
         "ip",
         "port",
         "tags",
@@ -343,7 +344,7 @@ class GameServer(ID):
     def __init__(self, state: ConnectionState, server: GetServerListResponseServer):
         super().__init__(server.steamid, type=Type.GameServer)
         self.name = server.name
-        self.game = StatefulGame(state, id=server.appid)
+        self.app = StatefulApp(state, id=server.appid)
         self.ip = server.addr.split(":")[0]  # TODO change to IPv4Address
         self.port = server.gameport
         self.tags = server.gametype.split(",")
@@ -359,7 +360,7 @@ class GameServer(ID):
         self._state = state
 
     def __repr__(self) -> str:
-        attrs = ("name", "game", "ip", "port", "region", "id", "universe", "instance")
+        attrs = ("name", "app", "ip", "port", "region", "id", "universe", "instance")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
@@ -375,7 +376,7 @@ class GameServer(ID):
         return self._dedicated
 
     async def _query(self, type: EQueryType) -> QueryResponse:
-        return await self._state.query_server(int(IPv4Address(self.ip)), self.port, self.game.id, type)
+        return await self._state.query_server(int(IPv4Address(self.ip)), self.port, self.app.id, type)
 
     # async def ping(self):  # FIXME not sure how to expose this
     #     proto = await self._query(EQueryType.Ping)

@@ -22,15 +22,15 @@ import aiohttp
 
 from . import errors, utils
 from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
+from .app import App, FetchedApp, StatefulApp
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
-from .game import FetchedGame, Game, StatefulGame
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .id import ID
 from .iterators import TradesIterator
-from .manifest import GameInfo, PackageInfo
+from .manifest import AppInfo, PackageInfo
 from .models import PriceOverview, return_true
 from .package import FetchedPackage, License, Package, StatefulPackage
 from .published_file import PublishedFile
@@ -75,10 +75,10 @@ class Client:
         The connector to use with the :class:`aiohttp.ClientSession`.
     max_messages
         The maximum number of messages to store in the internal cache, default is 1000.
-    game
-        A games to set your status as on connect.
-    games
-        A list of games to set your status to on connect.
+    app
+        An app to set your status as on connect.
+    apps
+        A list of apps to set your status to on connect.
     state
         The state to show your account as on connect.
 
@@ -111,8 +111,8 @@ class Client:
         proxy_auth: aiohttp.BasicAuth | None = ...,
         connector: aiohttp.BaseConnector | None = ...,
         max_messages: int | None = 1000,
-        game: Game | None = ...,
-        games: list[Game] = ...,
+        app: App | None = ...,
+        apps: list[App] = ...,
         state: PersonaState | None = PersonaState.Online,
         ui_mode: UIMode | None = UIMode.Desktop,
         flags: PersonaStateFlag | None = PersonaStateFlag.NONE,
@@ -412,7 +412,7 @@ class Client:
 
         if self.ws is not None:
             try:
-                await self.change_presence(game=Game(id=0))  # disconnect from games
+                await self.change_presence(app=App(id=0))  # disconnect from games
                 await self.ws.handle_close()
             except ConnectionClosed:
                 pass
@@ -622,32 +622,32 @@ class Client:
         steam_id = await ID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
 
-    def get_game(self, id: int | Game) -> StatefulGame:
-        """Creates a stateful game from its ID.
+    def get_app(self, id: int | App) -> StatefulApp:
+        """Creates a stateful app from its ID.
 
         Parameters
         ----------
         id
-            The app id of the game or a :class:`~steam.Game` instance.
+            The app id of the app or a :class:`~steam.App` instance.
         """
-        return StatefulGame(self._connection, id=getattr(id, "id", id))
+        return StatefulApp(self._connection, id=getattr(id, "id", id))
 
-    async def fetch_game(self, id: int | Game, *, language: Language | None = None) -> FetchedGame | None:
-        """Fetch a game from its ID or ``None`` if the game was not found.
+    async def fetch_app(self, id: int | App, *, language: Language | None = None) -> FetchedApp | None:
+        """Fetch an app from its ID or ``None`` if the app was not found.
 
         Parameters
         ----------
         id
-            The app id of the game or a :class:`~steam.Game` instance.
+            The app id of the app or a :class:`~steam.App` instance.
         language
-            The language to fetch the game in. If ``None`` uses the current language.
+            The language to fetch the app in. If ``None`` uses the current language.
         """
         id = id if isinstance(id, int) else id.id
-        resp = await self.http.get_game(id, language)
+        resp = await self.http.get_app(id, language)
         if resp is None:
             return None
         data = resp[str(id)]
-        return FetchedGame(self._connection, data["data"]) if data["success"] else None
+        return FetchedApp(self._connection, data["data"]) if data["success"] else None
 
     def get_package(self, id: int) -> StatefulPackage:
         """Creates a package from its ID.
@@ -742,7 +742,7 @@ class Client:
     # content server related stuff
 
     @overload
-    async def fetch_product_info(self, *, games: Collection[Game]) -> list[GameInfo]:
+    async def fetch_product_info(self, *, apps: Collection[App]) -> list[AppInfo]:
         ...
 
     @overload
@@ -751,31 +751,31 @@ class Client:
 
     @overload
     async def fetch_product_info(
-        self, *, games: Collection[Game], packages: Collection[Package]
-    ) -> tuple[list[GameInfo], list[PackageInfo]]:
+        self, *, apps: Collection[App], packages: Collection[Package]
+    ) -> tuple[list[AppInfo], list[PackageInfo]]:
         ...
 
     async def fetch_product_info(
-        self, *, games: Collection[Game] = (), packages: Collection[Package] = ()
-    ) -> list[GameInfo] | list[PackageInfo] | tuple[list[GameInfo], list[PackageInfo]]:
+        self, *, apps: Collection[App] = (), packages: Collection[Package] = ()
+    ) -> list[AppInfo] | list[PackageInfo] | tuple[list[AppInfo], list[PackageInfo]]:
         """Fetch product info.
 
         Parameters
         ----------
-        games
-            The games to fetch info on.
+        apps
+            The apps to fetch info on.
         packages
             The packages to fetch info on.
         """
 
-        game_infos, package_infos = await self._connection.fetch_product_info(
-            (game.id for game in games), (package.id for package in packages)
+        app_infos, package_infos = await self._connection.fetch_product_info(
+            (app.id for app in apps), (package.id for package in packages)
         )
 
-        if games and packages:
-            return game_infos, package_infos
+        if apps and packages:
+            return app_infos, package_infos
 
-        return game_infos if games else package_infos
+        return app_infos if apps else package_infos
 
     # miscellaneous stuff
 
@@ -873,8 +873,8 @@ class Client:
     async def change_presence(
         self,
         *,
-        game: Game | None = None,
-        games: list[Game] | None = None,
+        app: App | None = None,
+        apps: list[App] | None = None,
         state: PersonaState | None = None,
         ui_mode: UIMode | None = None,
         flags: PersonaStateFlag | None = None,
@@ -884,10 +884,10 @@ class Client:
 
         Parameters
         ----------
-        game
-            A games to set your status as.
-        games
-            A list of games to set your status to.
+        app
+            An app to set your status as.
+        apps
+            A list of apps to set your status to.
         state
             The state to show your account as.
 
@@ -903,10 +903,10 @@ class Client:
         force_kick
             Whether to forcefully kick any other playing sessions.
         """
-        games_ = [game.to_dict() for game in games] if games is not None else []
-        if game is not None:
-            games_.append(game.to_dict())
-        await self.ws.change_presence(games=games_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
+        apps_ = [app.to_dict() for app in apps] if apps is not None else []
+        if app is not None:
+            apps_.append(app.to_dict())
+        await self.ws.change_presence(apps=apps_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
 
     async def trade_url(self, generate_new: bool = False) -> str:
         """Fetches this account's trade url.
@@ -922,19 +922,19 @@ class Client:
         """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
-    async def fetch_price(self, name: str, game: Game, currency: int | None = None) -> PriceOverview:
+    async def fetch_price(self, name: str, app: App, currency: int | None = None) -> PriceOverview:
         """Fetch the :class:`PriceOverview` for an item.
 
         Parameters
         ----------
         name
             The name of the item.
-        game
-            The game the item is from.
+        app
+            The app the item is from.
         currency
             The currency to fetch the price in.
         """
-        price = await self.http.get_price(game.id, name, currency)
+        price = await self.http.get_price(app.id, name, currency)
         return PriceOverview(price)
 
     # events to be subclassed
@@ -1149,7 +1149,7 @@ class Client:
                 - :attr:`~steam.User.last_logon`
                 - :attr:`~steam.User.last_logoff`
                 - :attr:`~steam.User.last_seen_online`
-                - :attr:`~steam.User.game`
+                - :attr:`~steam.User.app`
 
             Parameters
             ----------

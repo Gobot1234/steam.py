@@ -33,7 +33,7 @@ from .group import Group
 from .guard import *
 from .id import ID
 from .invite import ClanInvite, UserInvite
-from .manifest import ContentServer, GameInfo, Manifest, PackageInfo
+from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
 from .message import *
 from .message import ClanMessage
 from .models import Registerable, register
@@ -81,7 +81,7 @@ if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
     from .gateway import SteamWebSocket
-    from .types import game, trade, user
+    from .types import app, trade, user
     from .types.http import Coro
     from .types.id import ID64, ChannelID, ChatGroupID
 
@@ -136,12 +136,12 @@ class ConnectionState(Registerable):
         self.handled_licenses = asyncio.Event()
         self.max_messages: int = kwargs.pop("max_messages", 1000)
 
-        game = kwargs.get("game")
-        games = kwargs.get("games")
-        games = [game.to_dict() for game in games] if games is not None else []
-        if game is not None:
-            games.append(game.to_dict())
-        self._games: list[game.GameToDict] = games
+        app = kwargs.get("app")
+        apps = kwargs.get("apps")
+        apps = [app.to_dict() for app in apps] if apps is not None else []
+        if app is not None:
+            apps.append(app.to_dict())
+        self._apps: list[app.AppToDict] = apps
         self._state: PersonaState = kwargs.get("state", PersonaState.Online)
         self._ui_mode: UIMode = kwargs.get("ui_mode", UIMode.Desktop)
         self._flags: PersonaStateFlag = kwargs.get("flags", PersonaStateFlag.NONE)
@@ -779,15 +779,15 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.body
 
-    async def fetch_game_player_count(self, game_id: int) -> int:
+    async def fetch_app_player_count(self, app_id: int) -> int:
         msg: MsgProto[client_server_2.CMsgDpGetNumberOfCurrentPlayersResponse] = await self.ws.send_proto_and_wait(
-            MsgProto(EMsg.ClientGetNumberOfCurrentPlayersDP, appid=game_id)
+            MsgProto(EMsg.ClientGetNumberOfCurrentPlayersDP, appid=app_id)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.body.player_count
 
-    async def fetch_user_games(self, user_id64: int, include_free: bool) -> list[player.GetOwnedGamesResponseGame]:
+    async def fetch_user_apps(self, user_id64: int, include_free: bool) -> list[player.GetOwnedGamesResponseGame]:
         msg: MsgProto[player.GetOwnedGamesResponse] = await self.ws.send_um_and_wait(
             "Player.GetOwnedGames",
             steamid=user_id64,
@@ -1454,9 +1454,9 @@ class ConnectionState(Registerable):
             self.user.name = msg.body.persona_name or self.user.name
             self.dispatch("user_update", before, self.user)
 
-    async def fetch_friends_who_own(self, game_id: int) -> list[ID64]:
+    async def fetch_friends_who_own(self, app_id: int) -> list[ID64]:
         msg: Msg[struct_messages.ClientGetFriendsWhoPlayGameResponse] = await self.ws.send_proto_and_wait(
-            Msg(EMsg.ClientGetFriendsWhoPlayGame, extended=True, app_id=game_id)
+            Msg(EMsg.ClientGetFriendsWhoPlayGame, extended=True, app_id=app_id)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -1534,7 +1534,7 @@ class ConnectionState(Registerable):
 
     async def fetch_manifest(
         self,
-        game_id: int,
+        app_id: int,
         id: int,
         depot_id: int,
         name: str | None = None,
@@ -1557,26 +1557,26 @@ class ConnectionState(Registerable):
 
         for server in tuple(self.cs_servers):
             try:
-                return await server.fetch_manifest(game_id, id, depot_id, name, branch, password_hash)
+                return await server.fetch_manifest(app_id, id, depot_id, name, branch, password_hash)
             except HTTPException as exc:
                 if 500 <= exc.status <= 599:
                     del self.cs_servers[0]
                 else:
                     raise
 
-        return await self.fetch_manifest(game_id, id, depot_id, name, branch, password_hash)
+        return await self.fetch_manifest(app_id, id, depot_id, name, branch, password_hash)
 
     async def fetch_manifests(
-        self, game_id: int, branch_name: str, password: str | None, limit: int | None, password_hash: str = ""
+        self, app_id: int, branch_name: str, password: str | None, limit: int | None, password_hash: str = ""
     ) -> list[Coro[Manifest]]:
-        (product_info,), _ = await self.fetch_product_info((game_id,))
+        (product_info,), _ = await self.fetch_product_info((app_id,))
 
         branch = product_info.get_branch(branch_name)
         if branch is None:
-            raise ValueError(f"No branch named {branch_name!r} for app {game_id}")
+            raise ValueError(f"No branch named {branch_name!r} for app {app_id}")
 
         try:
-            branch.password = self._manifest_passwords[game_id].get(branch_name)
+            branch.password = self._manifest_passwords[app_id].get(branch_name)
         except KeyError:
             pass
         if branch.password_required and branch.password is None:
@@ -1586,7 +1586,7 @@ class ConnectionState(Registerable):
             password_msg: MsgProto[
                 client_server_2.CMsgClientCheckAppBetaPasswordResponse
             ] = await self.ws.send_proto_and_wait(
-                MsgProto(EMsg.ClientCheckAppBetaPassword, app_id=game_id, betapassword=password)
+                MsgProto(EMsg.ClientCheckAppBetaPassword, app_id=app_id, betapassword=password)
             )
             if password_msg.result != Result.OK:
                 raise WSException(password_msg)
@@ -1597,13 +1597,13 @@ class ConnectionState(Registerable):
                 raise ValueError(f"Supplied password is not for the branch {branch!r}")
             branch.password = branch_password.betapassword
             try:
-                self._manifest_passwords[game_id][branch.name] = branch.password
+                self._manifest_passwords[app_id][branch.name] = branch.password
             except KeyError:
-                self._manifest_passwords[game_id] = {branch.name: branch.password}
+                self._manifest_passwords[app_id] = {branch.name: branch.password}
 
         return [
             self.fetch_manifest(
-                game_id,
+                app_id,
                 depot.manifest.id,
                 depot.id,
                 depot.name,
@@ -1636,18 +1636,18 @@ class ConnectionState(Registerable):
         raise ValueError
 
     async def fetch_product_info(
-        self, game_ids: Iterable[int] = (), package_ids: Iterable[int] = ()
-    ) -> tuple[list[GameInfo], list[PackageInfo]]:
-        games_to_fetch: list[dict[str, int]] = []
+        self, app_ids: Iterable[int] = (), package_ids: Iterable[int] = ()
+    ) -> tuple[list[AppInfo], list[PackageInfo]]:
+        apps_to_fetch: list[dict[str, int]] = []
         packages_to_fetch: list[dict[str, int]] = []
         app_access_tokens_to_collect: list[int] = []
         package_access_tokens_to_collect: list[int] = []
 
-        for game_id in game_ids:
+        for app_id in app_ids:
             try:
-                games_to_fetch.append({"appid": game_id, "access_token": self.licenses[game_id].access_token})
+                apps_to_fetch.append({"appid": app_id, "access_token": self.licenses[app_id].access_token})
             except KeyError:
-                app_access_tokens_to_collect.append(game_id)
+                app_access_tokens_to_collect.append(app_id)
 
         for package_id in package_ids:
             try:
@@ -1661,12 +1661,12 @@ class ConnectionState(Registerable):
             fetched_tokens = await self.fetch_manifest_access_tokens(
                 app_access_tokens_to_collect, package_access_tokens_to_collect
             )
-            games_to_fetch.extend(token.to_dict(do_nothing_case) for token in fetched_tokens.app_access_tokens)
+            apps_to_fetch.extend(token.to_dict(do_nothing_case) for token in fetched_tokens.app_access_tokens)
             packages_to_fetch.extend(token.to_dict(do_nothing_case) for token in fetched_tokens.package_access_tokens)
 
         to_send = MsgProto[app_info.CMsgClientPicsProductInfoRequest](
             EMsg.ClientPICSProductInfoRequest,
-            apps=games_to_fetch,
+            apps=apps_to_fetch,
             packages=packages_to_fetch,
             supports_package_tokens=True,
         )
@@ -1675,7 +1675,7 @@ class ConnectionState(Registerable):
         await self.ws.send_proto(to_send)
 
         response_pending = True
-        games: list[GameInfo] = []
+        apps: list[AppInfo] = []
         packages: list[PackageInfo] = []
 
         check: Callable[[MsgProto[app_info.CMsgClientPicsProductInfoResponse]], bool] = (
@@ -1684,8 +1684,8 @@ class ConnectionState(Registerable):
         while response_pending:
             msg = await self.ws.wait_for(EMsg.ClientPICSProductInfoResponse, check)
 
-            games.extend(
-                GameInfo(
+            apps.extend(
+                AppInfo(
                     self,
                     VDF_LOADS(  # type: ignore  # can be removed if AnyOf ever happens
                         app.buffer[:-1].decode("UTF-8", "replace")
@@ -1708,11 +1708,11 @@ class ConnectionState(Registerable):
 
             response_pending = msg.body.response_pending
 
-        return games, packages
+        return apps, packages
 
-    async def fetch_depot_key(self, game_id: int, depot_id: int) -> bytes:
+    async def fetch_depot_key(self, app_id: int, depot_id: int) -> bytes:
         msg: MsgProto[client_server_2.CMsgClientGetDepotDecryptionKeyResponse] = await self.ws.send_proto_and_wait(
-            MsgProto(EMsg.ClientGetDepotDecryptionKey, app_id=game_id, depot_id=depot_id)
+            MsgProto(EMsg.ClientGetDepotDecryptionKey, app_id=app_id, depot_id=depot_id)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -1720,15 +1720,15 @@ class ConnectionState(Registerable):
 
     async def fetch_manifest_access_tokens(
         self,
-        game_ids: list[int] | None = None,
+        app_ids: list[int] | None = None,
         package_ids: list[int] | None = None,
     ) -> app_info.CMsgClientPicsAccessTokenResponse:
 
-        game_ids = [] if game_ids is None else game_ids
+        app_ids = [] if app_ids is None else app_ids
         package_ids = [] if package_ids is None else package_ids
 
         msg: MsgProto[app_info.CMsgClientPicsAccessTokenResponse] = await self.ws.send_proto_and_wait(
-            MsgProto(EMsg.ClientPICSAccessTokenRequest, appids=game_ids, packageids=package_ids),
+            MsgProto(EMsg.ClientPICSAccessTokenRequest, appids=app_ids, packageids=package_ids),
         )
         if msg.result not in (
             Result.OK,
@@ -1819,9 +1819,9 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.body
 
-    async def fetch_game_published_files(
+    async def fetch_app_published_files(
         self,
-        game_id: int,
+        app_id: int,
         after: datetime,
         before: datetime,
         file_type: PublishedFileQueryFileType,
@@ -1833,7 +1833,7 @@ class ConnectionState(Registerable):
         msg: MsgProto[published_file.QueryFilesResponse] = await self.ws.send_um_and_wait(
             "PublishedFile.QueryFiles",
             numperpage=min(limit or 100, 100),
-            appid=game_id,
+            appid=app_id,
             filetype=file_type,
             cursor=cursor,
             language=(language or self.language).value,
@@ -1959,7 +1959,7 @@ class ConnectionState(Registerable):
     async def edit_published_file(
         self,
         published_file_id: int,
-        game_id: int,
+        app_id: int,
         name: str,
         content: str,
         visibility: int,
@@ -1969,7 +1969,7 @@ class ConnectionState(Registerable):
     ):
         msg = await self.ws.send_um_and_wait(
             "PublishedFile.Update",
-            appid=game_id,
+            appid=app_id,
             publishedfileid=published_file_id,
             title=name,
             file_description=content,

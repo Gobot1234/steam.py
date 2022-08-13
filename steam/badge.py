@@ -7,8 +7,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from .app import StatefulApp
 from .enums import UserBadge
-from .game import StatefulGame
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -30,17 +30,17 @@ class BaseBadge:
         The badge's ID.
     level
         The badge's level.
-    game
-        The game associated with the badge.
+    app
+        The app associated with the badge.
     """
 
     __slots__ = ()
     id: int
     level: int
-    game: StatefulGame | None
+    app: StatefulApp | None
 
     def __repr__(self) -> str:
-        attrs = ("id", "level", "game")
+        attrs = ("id", "level", "app")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
@@ -58,8 +58,8 @@ class FavouriteBadge(BaseBadge):
         The badge's ID.
     level
         The badge's level.
-    game
-        The game associated with the badge.
+    app
+        The app associated with the badge.
     item_id
         The badge's item's ID.
     type
@@ -68,11 +68,11 @@ class FavouriteBadge(BaseBadge):
         The colour of the boarder of the badge.
     """
 
-    __slots__ = ("id", "level", "game", "item_id", "type", "border_colour")
+    __slots__ = ("id", "level", "app", "item_id", "type", "border_colour")
 
     id: int
     level: int
-    game: StatefulGame | None
+    app: StatefulApp | None
     item_id: int
     type: int
     border_colour: int
@@ -87,8 +87,8 @@ class Badge(BaseBadge):
         The badge's ID.
     level
         The badge's level.
-    game
-        The game associated with the badge.
+    app
+        The app associated with the badge.
     xp
         The badge's XP.
     completion_time
@@ -97,7 +97,7 @@ class Badge(BaseBadge):
         The scarcity of the badge.
     """
 
-    __slots__ = ("id", "xp", "game", "level", "scarcity", "completion_time")
+    __slots__ = ("id", "xp", "app", "level", "scarcity", "completion_time")
 
     def __init__(self, state: ConnectionState, data: dict[str, Any]):
         self.id = UserBadge.try_value(data["badgeid"])
@@ -105,7 +105,7 @@ class Badge(BaseBadge):
         self.xp: int = data["xp"]
         self.completion_time = DateTime.from_timestamp(data["completion_time"])
         self.scarcity: int = data["scarcity"]
-        self.game = StatefulGame(state, id=data["appid"]) if "appid" in data else None
+        self.app = StatefulApp(state, id=data["appid"]) if "appid" in data else None
 
 
 if TYPE_CHECKING or sys.version_info >= (3, 9):

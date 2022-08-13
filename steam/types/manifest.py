@@ -10,7 +10,7 @@ from typing_extensions import Literal, NotRequired, Required
 from .vdf import TypedVDFDict, VDFDict, VDFInt, VDFList
 
 
-class GameInfo(TypedVDFDict):
+class AppInfo(TypedVDFDict):
     appid: str
     common: Common
     extended: NotRequired[Extended]

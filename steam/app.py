@@ -13,49 +13,49 @@ from . import utils
 from ._const import DOCS_BUILDING, URL
 from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
 from .id import id64_from_url
-from .iterators import GamePublishedFilesIterator, GameReviewsIterator, ManifestIterator
+from .iterators import AppPublishedFilesIterator, AppReviewsIterator, ManifestIterator
 from .types.id import Intable
 from .utils import DateTime
 
 if TYPE_CHECKING:
     from .clan import Clan
     from .friend import Friend
-    from .manifest import Depot, GameInfo, HeadlessDepot, Manifest
-    from .package import FetchedGamePackage, License
+    from .manifest import AppInfo, Depot, HeadlessDepot, Manifest
+    from .package import FetchedAppPackage, License
     from .protobufs import player
     from .review import Review
     from .state import ConnectionState
-    from .types import game
+    from .types import app
 
 __all__ = (
-    "Game",
+    "App",
     "TF2",
     "LFD2",
     "DOTA2",
     "CSGO",
     "STEAM",
-    "CUSTOM_GAME",
+    "CUSTOM_APP",
     "DLC",
-    "UserGame",
-    "WishlistGame",
-    "FetchedGame",
+    "UserApp",
+    "WishlistApp",
+    "FetchedApp",
 )
 
 T = TypeVar("T")
 APP_ID_MAX = 2**32 - 1
 
 
-class Game:
-    """Represents a Steam game.
+class App:
+    """Represents a Steam app.
 
     Attributes
     ----------
     name
-        The game's name.
+        The app's name.
     id
-        The game's app ID.
+        The app's app ID.
     context_id
-        The context id of the game normally ``2``.
+        The context id of the app normally ``2``.
     """
 
     __slots__ = (
@@ -95,29 +95,25 @@ class Game:
         *,
         id: Intable | None = None,
         name: str | None = None,
-        title: str | None = None,
         context_id: int | None = None,
     ):
-        if title is not None:
-            warnings.warn("Game.title is depreciated, use Game.name instead", DeprecationWarning)
-        name = name or title
         if name is None and id is None:
             raise TypeError("__init__() missing a required keyword argument: 'id' or 'name'")
 
         if id is None:
-            game = utils.get(Games, name=name)
-            if game is None:
-                raise ValueError(f"Cannot find a matching game for {name!r}")
-            id = game.id
+            app = utils.get(Apps, name=name)
+            if app is None:
+                raise ValueError(f"Cannot find a matching app for {name!r}")
+            id = app.id
         else:
             try:
                 id = int(id)
             except (ValueError, TypeError):
                 raise ValueError("id expected to support int()") from None
 
-            game = utils.get(Games, id=id)
-            if game is not None:
-                name = game.name
+            app = utils.get(Apps, id=id)
+            if app is not None:
+                name = app.name
 
         if id < 0:
             raise ValueError("id cannot be negative")
@@ -138,46 +134,35 @@ class Game:
         return f"{self.__class__.__name__}({', '.join(resolved)})"
 
     def __eq__(self, other: Any) -> bool:
-        return self.id == other.id if isinstance(other, Game) else NotImplemented
+        return self.id == other.id if isinstance(other, App) else NotImplemented
 
     def __hash__(self) -> int:
         return hash(self.id)
 
-    @property
-    def title(self) -> str | None:
-        """The game's name.
-
-        .. deprecated:: 0.8.0
-
-            Use :attr:`name` instead.
-        """
-        warnings.warn("Game.title is depreciated, use Game.name instead", DeprecationWarning, stacklevel=2)
-        return self.name
-
-    def to_dict(self) -> game.GameToDict:
-        if self.is_steam_game():
-            return {"game_id": str(self.id)}
+    def to_dict(self) -> app.AppToDict:
+        if self.is_valid():
+            return {"app_id": str(self.id)}
 
         if self.name is None or self.id is None:
-            raise TypeError("un-serializable game with no title and or id")
-        return {"game_id": str(self.id), "game_extra_info": self.name}
+            raise TypeError("un-serializable app with no title and or id")
+        return {"app_id": str(self.id), "game_extra_info": self.name}
 
-    def is_steam_game(self) -> bool:
-        """Whether the game could be a Steam game."""
+    def is_valid(self) -> bool:
+        """Whether the app could be a Steam app."""
         return self.id <= APP_ID_MAX
 
     @property
     def url(self) -> str:
-        """What should be the game's url on steamcommunity if applicable."""
+        """What should be the app's url on steamcommunity if applicable."""
         return f"{URL.COMMUNITY}/app/{self.id}"
 
 
-class Games(Game, Enum):
+class Apps(App, Enum):
     """This is "enum" to trick type checkers into allowing Literal[TF2] to be valid for overloads in extensions."""
 
     __slots__ = ("_name",)
 
-    def __new__(cls, name: str, *args: Any, value: tuple[str, int, int] | tuple[()] = ()) -> Games:
+    def __new__(cls, name: str, *args: Any, value: tuple[str, int, int] | tuple[()] = ()) -> Apps:
         self = object.__new__(cls)
         set_attribute = object.__setattr__
 
@@ -211,36 +196,108 @@ class Games(Game, Enum):
     STEAM = "Steam", 753, 6
 
 
-TF2 = Games.TF2
-DOTA2 = Games.DOTA2
-CSGO = Games.CSGO
-LFD2 = Games.LFD2
-STEAM = Games.STEAM
+TF2 = Apps.TF2
+DOTA2 = Apps.DOTA2
+CSGO = Apps.CSGO
+LFD2 = Apps.LFD2
+STEAM = Apps.STEAM
 
 
-@overload
-def CUSTOM_GAME(name: str) -> Game:  # type: ignore
-    ...
-
-
-def CUSTOM_GAME(name: str | None = None, title: str | None = None) -> Game:
-    """Create a custom game instance for :meth:`~steam.Client.change_presence`.
-    The :attr:`Game.id` will be set to ``15190414816125648896`` and the :attr:`Game.context_id` to ``None``.
+def CUSTOM_APP(
+    name: str,
+) -> App:  # TODO if actually optimising make this return a different class cause it's a u64 cause haha steam
+    """Create a custom app instance for :meth:`~steam.Client.change_presence`.
+    The :attr:`App.id` will be set to ``15190414816125648896`` and the :attr:`App.context_id` to ``None``.
 
     Example:
 
     .. code-block:: python3
 
-        await client.change_presence(game=steam.CUSTOM_GAME("my cool game"))
+        await client.change_presence(app=steam.CUSTOM_APP("my cool game"))
 
     Parameters
     ----------
     name
-        The name of the game to set your playing status to.
+        The name of the app to set your playing status to.
     """
-    if name is None and title is None:
-        raise TypeError("CUSTOM_GAME missing argument 'name'")
-    return Game(name=name or title, id=15190414816125648896, context_id=None)
+    return App(name=name, id=15190414816125648896, context_id=None)
+
+
+import hashlib
+from contextlib import asynccontextmanager
+from datetime import timezone
+from ipaddress import IPv4Address
+from zlib import crc32
+
+
+class Ignore:
+    async def changes_since(self, change_number: int) -> tuple[list[AppInfo], list[PackageInfo]]:
+        ...
+
+    async def fetch_encrypted_ticket(self, key: bytes, *, user_data: bytes = b"") -> GameTicket:
+        encrypted_ticket = await self._state.fetch_encrypted_app_ticket(self.id, user_data)
+        decrypted = utils.StructIO(utils.symmetric_decrypt(encrypted_ticket.encrypted_ticket, key))
+        if crc32(decrypted.buffer, encrypted_ticket.crc_encryptedticket):
+            raise ValueError
+
+        user_data = decrypted.buffer[: encrypted_ticket.cb_encrypteduserdata]
+        decrypted.seek(encrypted_ticket.cb_encrypteduserdata)
+        ticket_length = decrypted.read_u32()
+        ticket = GameTicket(
+            decrypted.buffer[
+                encrypted_ticket.encrypted_app_ticket.cb_encrypteduserdata
+                + ticket_length : encrypted_ticket.encrypted_app_ticket.cb_encrypteduserdata
+            ],
+            encrypted=True,
+        )
+        remainder = decrypted.buffer[encrypted_ticket.cb_encrypteduserdata + ticket_length :]
+        if len(remainder) >= 8 + 20:
+            to_hash = decrypted.buffer[: encrypted_ticket.cb_encrypteduserdata + ticket_length]
+            salt = remainder[:8]
+            hash = remainder[8:28]
+            remainder = remainder[28:]
+
+            hasher = hashlib.sha1(to_hash + salt)
+            digested = hasher.digest()
+            assert digested == hash, f"Oh no {digested} {hash}"
+
+        return ticket
+
+    @asynccontextmanager
+    async def create_auth_ticket(self) -> AsyncGenerator[GameTicket, None]:
+        """Create an authentication ticket for this game.
+
+        Examples
+        --------
+
+        .. code-block:: python3
+
+            async with game.create_auth_ticket() as ticket:
+                ...  # send the ticket to a user or server
+        """
+        # for the ticket to be valid we have to be playing the game
+        to_dict = self.to_dict()
+        state = self._state
+        games = state._games.copy()  # keep a copy of the old list
+        if to_dict not in games:
+            await state.ws.change_presence(games=[*games, to_dict])
+
+        ticket = await state.create_ticket(self.id)
+        try:
+            yield GameTicket(ticket, encrypted=False)
+        finally:
+            await state.cancel_ticket(self.id)
+            if to_dict not in games:
+                await state.ws.change_presence(games=games)
+
+    async def fetch_ownership_ticket(self) -> Ticket:
+        await self._state.fetch_ownership_ticket(self.id)
+
+    async def create_post(self, content: str) -> Post:
+        return await self._state.user.create_post(self, content)
+
+    async def fetch_using_ws(self):
+        ...
 
 
 class FriendThoughts(NamedTuple):
@@ -248,8 +305,8 @@ class FriendThoughts(NamedTuple):
     not_recommended: list[Friend]
 
 
-class StatefulGame(Game):
-    """Games that have state."""
+class StatefulApp(App):
+    """Apps that have state."""
 
     __slots__ = ("_state",)
 
@@ -263,13 +320,13 @@ class StatefulGame(Game):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     async def clan(self) -> Clan:
-        """Fetch this game's clan.
+        """Fetch this app's clan.
 
-        This can be useful to get a Game's updates.
+        This can be useful to get an App's updates.
 
         .. code-block:: python3
 
-            clan = await game.clan()
+            clan = await app.clan()
             async for update in clan.announcements().filter(
                 lambda announcement: announcement.type in (steam.ClanEvent.MajorUpdate, steam.ClanEvent.SmallUpdate)
             ):
@@ -278,23 +335,23 @@ class StatefulGame(Game):
         Raises
         ------
         ValueError
-            This game has no associated clan.
+            This app has no associated clan.
         """
 
         id64 = await id64_from_url(self.url, self._state.http._session)
         if id64 is None:
-            raise ValueError("Game has no associated clan")
+            raise ValueError("App has no associated clan")
         clan = await self._state.fetch_clan(id64)
         if clan is None:
-            raise ValueError("Game has no associated clan")
+            raise ValueError("App has no associated clan")
         return clan
 
     async def player_count(self) -> int:
-        """The games current player count."""
-        return await self._state.fetch_game_player_count(self.id)
+        """The apps current player count."""
+        return await self._state.fetch_app_player_count(self.id)
 
     async def friends_who_own(self) -> list[Friend]:
-        """Fetch the users in your friend list who own this game."""
+        """Fetch the users in your friend list who own this app."""
         id64s = await self._state.fetch_friends_who_own(self.id)
         return [self._state.get_friend(id64) for id64 in id64s]
 
@@ -308,14 +365,14 @@ class StatefulGame(Game):
         received_compensation: bool = False,
         language: Language | None = None,
     ) -> Review:
-        """Review a game.
+        """Review an app.
 
         Parameters
         ----------
         content
             The content of the review.
         recommend
-            Whether you recommended the game.
+            Whether you recommended the app.
         public
             Whether the review should be public.
         commentable
@@ -337,8 +394,8 @@ class StatefulGame(Game):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> GameReviewsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Game`'s
+    ) -> AppReviewsIterator:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.App`'s
         :class:`steam.Review`\\s.
 
         Examples
@@ -348,7 +405,7 @@ class StatefulGame(Game):
 
         .. code-block:: python3
 
-            async for review in game.reviews(limit=10):
+            async for review in app.reviews(limit=10):
                 print("Reviewer:", review.author)
                 print("Said:", review.content)
 
@@ -356,7 +413,7 @@ class StatefulGame(Game):
 
         .. code-block:: python3
 
-            reviews = await game.reviews(limit=50).flatten()
+            reviews = await app.reviews(limit=50).flatten()
             # reviews is now a list of Review
 
         All parameters are optional.
@@ -365,7 +422,7 @@ class StatefulGame(Game):
         ----------
         limit
             The maximum number of reviews to search through. Default is ``100``. Setting this to ``None`` will fetch all
-            the game's reviews, but this will be a very slow operation.
+            the app's reviews, but this will be a very slow operation.
         before
             A time to search for reviews before.
         after
@@ -375,10 +432,10 @@ class StatefulGame(Game):
         ------
         :class:`~steam.Review`
         """
-        return GameReviewsIterator(self._state, self, limit, before, after)
+        return AppReviewsIterator(self._state, self, limit, before, after)
 
     async def friend_thoughts(self) -> FriendThoughts:
-        """Fetch the client user's friends who recommended and didn't recommend this game in a review.
+        """Fetch the client user's friends who recommended and didn't recommend this app in a review.
 
         .. source:: FriendThoughts
         """
@@ -388,21 +445,21 @@ class StatefulGame(Game):
             [self._state.get_friend(utils.parse_id64(id)) for id in proto.accountids_not_recommended],
         )
 
-    # async def fetch(self) -> Self & FetchedGame:  # TODO update signature to this when types.Intersection is done
-    #     fetched = await self._state.client.fetch_game(self)
+    # async def fetch(self) -> Self & FetchedApp:  # TODO update signature to this when types.Intersection is done
+    #     fetched = await self._state.client.fetch_app(self)
     #     return utils.update_class(fetched, copy.copy(self))
 
-    async def fetch(self, *, language: Language | None = None) -> FetchedGame:
+    async def fetch(self, *, language: Language | None = None) -> FetchedApp:
         """Shorthand for:
 
         .. code-block:: python3
 
-            game = await client.fetch_game(game)
+            app = await client.fetch_app(app)
         """
-        game = await self._state.client.fetch_game(self, language=language)
-        if game is None:
-            raise ValueError("Fetched game was not valid.")
-        return game
+        app = await self._state.client.fetch_app(self, language=language)
+        if app is None:
+            raise ValueError("Fetched app was not valid.")
+        return app
 
     async def depots(self) -> Sequence[Depot | HeadlessDepot]:
         info = await self.info()
@@ -411,7 +468,7 @@ class StatefulGame(Game):
     async def fetch_manifest(
         self, *, id: int, depot_id: int, branch: str = "public", password_hash: str = ""
     ) -> Manifest:
-        """Fetch a CDN manifest for a game.
+        """Fetch a CDN manifest for an app.
 
         Parameters
         ----------
@@ -419,6 +476,10 @@ class StatefulGame(Game):
             The ID of the manifest to fetch.
         depot_id
             The ID of the manifest's associated depot.
+        branch
+            The name of the branch the manifest is from.
+        password_hash
+            The hashed password for the manifest.
         """
         return await self._state.fetch_manifest(
             self.id, id, depot_id, name=None, branch=branch, password_hash=password_hash
@@ -434,7 +495,7 @@ class StatefulGame(Game):
         password: str | None = None,
         password_hash: str = "",
     ) -> ManifestIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.Game`'s
+        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.App`'s
         :class:`steam.Manifest`\\s.
 
         Examples
@@ -444,7 +505,7 @@ class StatefulGame(Game):
 
         .. code-block:: python3
 
-            async for manifest in game.manifests(limit=10):
+            async for manifest in app.manifests(limit=10):
                 print("Manifest:", manifest.name)
                 print(f"Contains {len(manifest.paths)} manifests")
 
@@ -452,7 +513,7 @@ class StatefulGame(Game):
 
         .. code-block:: python3
 
-            manifests = await game.manifests(limit=50).flatten()
+            manifests = await app.manifests(limit=50).flatten()
             # manifests is now a list of Manifest
 
         All parameters are optional.
@@ -481,7 +542,7 @@ class StatefulGame(Game):
             limit=limit,
             before=before,
             after=after,
-            game=self,
+            app=self,
             branch=branch,
             password=password,
             password_hash=password_hash,
@@ -496,8 +557,8 @@ class StatefulGame(Game):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> GamePublishedFilesIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a game's :class:`steam.PublishedFile`\\s.
+    ) -> AppPublishedFilesIterator:
+        """An :class:`~steam.iterators.AsyncIterator` for accessing an app's :class:`steam.PublishedFile`\\s.
 
         Examples
         --------
@@ -506,7 +567,7 @@ class StatefulGame(Game):
 
         .. code-block:: python3
 
-            async for published_file in game.published_files(limit=10):
+            async for published_file in app.published_files(limit=10):
                 print("Published file:", published_file.name)
                 print("Published at:", published_file.created_at)
                 print("Published by:", published_file.author)
@@ -515,7 +576,7 @@ class StatefulGame(Game):
 
         .. code-block:: python3
 
-            published_files = await game.published_files(limit=50).flatten()
+            published_files = await app.published_files(limit=50).flatten()
             # published_files is now a list of PublishedFile
 
         All parameters are optional.
@@ -530,7 +591,7 @@ class StatefulGame(Game):
             The language to fetch the published files in. If ``None`` the current language is used.
         limit
             The maximum number of published files to search through. Default is ``100``. Setting this to ``None`` will
-            fetch all the game's published files, but this will be a very slow operation.
+            fetch all the app's published files, but this will be a very slow operation.
         before
             A time to search for published files before.
         after
@@ -540,32 +601,32 @@ class StatefulGame(Game):
         ------
         :class:`~steam.PublishedFile`
         """
-        return GamePublishedFilesIterator(self._state, self, type, revision, language, limit, before, after)
+        return AppPublishedFilesIterator(self._state, self, type, revision, language, limit, before, after)
 
-    async def info(self) -> GameInfo:
+    async def info(self) -> AppInfo:
         """Shorthand for:
 
         .. code-block:: python3
 
-            (info,) = await client.fetch_product_info(games=[game])
+            (info,) = await client.fetch_product_info(apps=[app])
         """
         (info,), _ = await self._state.fetch_product_info((self.id,))
         return info
 
     async def dlc(self, *, language: Language | None = None) -> list[DLC]:
-        """Fetch the game's DLC.
+        """Fetch the app's DLC.
 
         Parameters
         ----------
         language
             The language to fetch the DLC in. If ``None``, the current language will be used.
         """
-        data = await self._state.http.get_game_dlc(self.id, language)
+        data = await self._state.http.get_app_dlc(self.id, language)
         self.name = data["name"]
         return [DLC(self._state, dlc) for dlc in data["dlc"]]
 
-    async def packages(self, *, language: Language | None = None) -> list[FetchedGamePackage]:
-        """Fetch the game's packages.
+    async def packages(self, *, language: Language | None = None) -> list[FetchedAppPackage]:
+        """Fetch the app's packages.
 
         Parameters
         ----------
@@ -576,7 +637,7 @@ class StatefulGame(Game):
         return fetched._packages
 
     async def add_free_licenses(self) -> list[License]:
-        """Request the free licenses for this game.
+        """Request the free licenses for this app.
 
         Raises
         ------
@@ -588,15 +649,15 @@ class StatefulGame(Game):
 
 
 @dataclass
-class PartialGamePriceOverview:
+class PartialAppPriceOverview:
     currency: str
     initial: int
     final: int
     discount_percent: int
 
 
-class DLC(StatefulGame):
-    """Represents DLC (downloadable content) for a game.
+class DLC(StatefulApp):
+    """Represents DLC (downloadable content) for an app.
 
     Attributes
     ----------
@@ -619,11 +680,11 @@ class DLC(StatefulGame):
         "_on_linux",
     )
 
-    def __init__(self, state: ConnectionState, data: game.DLC):
+    def __init__(self, state: ConnectionState, data: app.DLC):
         super().__init__(state, id=data["id"], name=data["name"])
         self.created_at = DateTime.from_timestamp(int(data["release_date"]["steam"]))
         self.logo_url: str = data["header_image"]
-        self.price_overview = PartialGamePriceOverview(**data["price_overview"])
+        self.price_overview = PartialAppPriceOverview(**data["price_overview"])
 
         platforms = data["platforms"]
         self._on_windows: bool = platforms["windows"]
@@ -631,41 +692,41 @@ class DLC(StatefulGame):
         self._on_linux: bool = platforms["linux"]
 
     def is_free(self) -> bool:
-        """Whether the game is free to download."""
+        """Whether the app is free to download."""
         return not self.price_overview.final
 
     def is_on_windows(self) -> bool:
-        """Whether the game is playable on Windows."""
+        """Whether the app is playable on Windows."""
         return self._on_windows
 
     def is_on_mac_os(self) -> bool:
-        """Whether the game is playable on macOS."""
+        """Whether the app is playable on macOS."""
         return self._on_mac_os
 
     def is_on_linux(self) -> bool:
-        """Whether the game is playable on Linux."""
+        """Whether the app is playable on Linux."""
         return self._on_linux
 
 
-class UserGame(StatefulGame):
-    """Represents a Steam game fetched by :meth:`steam.User.games`
+class UserApp(StatefulApp):
+    """Represents a Steam app fetched by :meth:`steam.User.apps`
 
     Attributes
     ----------
     playtime_forever
-        The total time the game has been played for.
+        The total time the app has been played for.
     icon_url
-        The icon url of the game.
+        The icon url of the app.
     playtime_two_weeks
-        The amount of time the user has played the game in the last two weeks.
+        The amount of time the user has played the app in the last two weeks.
     playtime_windows
-        The total amount of time the user has played the game on Windows.
+        The total amount of time the user has played the app on Windows.
     playtime_mac_os
-        The total amount of time the user has played the game on macOS.
+        The total amount of time the user has played the app on macOS.
     playtime_linux
-        The total amount of time the user has played the game on Linux.
+        The total amount of time the user has played the app on Linux.
     last_played_at
-        The time the user last played this game at.
+        The time the user last played this app at.
     """
 
     __slots__ = (
@@ -697,39 +758,39 @@ class UserGame(StatefulGame):
         self._stats_visible = proto.has_community_visible_stats
 
     def has_visible_stats(self) -> bool:
-        """Whether the game has publicly visible stats."""
+        """Whether the app has publicly visible stats."""
         return self._stats_visible
 
 
-class WishlistGame(StatefulGame):
-    """Represents a Steam game fetched by :meth:`steam.User.wishlist`\\.
+class WishlistApp(StatefulApp):
+    """Represents a Steam app fetched by :meth:`steam.User.wishlist`\\.
 
     Attributes
     ----------
     priority
-        The priority of the game in the wishlist.
+        The priority of the app in the wishlist.
     added_at
-        The time that the game was added to their wishlist.
+        The time that the app was added to their wishlist.
     created_at
-        The time the game was uploaded at.
+        The time the app was uploaded at.
     background_url
-        The background URL of the game.
+        The background URL of the app.
     rank
-        The global rank of the game by popularity.
+        The global rank of the app by popularity.
     review_status
-        The review status of the game.
+        The review status of the app.
     score
-        The score of the game out of ten.
+        The score of the app out of ten.
     screenshots
-        The screenshots of the game.
+        The screenshots of the app.
     tags
-        The tags of the game.
+        The tags of the app.
     total_reviews
-        The total number reviews for the game.
+        The total number reviews for the app.
     type
         The type of the app.
     logo_url
-        The logo url of the game.
+        The logo url of the app.
     """
 
     __slots__ = (
@@ -753,7 +814,7 @@ class WishlistGame(StatefulGame):
 
     name: str
 
-    def __init__(self, state: ConnectionState, id: int | str, data: game.WishlistGame):
+    def __init__(self, state: ConnectionState, id: int | str, data: app.WishlistApp):
         super().__init__(state, id=id, name=data["name"])
         self.logo_url = data["capsule"]
         self.score = data["review_score"]
@@ -777,19 +838,19 @@ class WishlistGame(StatefulGame):
         self._on_linux = bool(data.get("linux", False))
 
     def is_free(self) -> bool:
-        """Whether the game is free to download."""
+        """Whether the app is free to download."""
         return self._free
 
     def is_on_windows(self) -> bool:
-        """Whether the game is playable on Windows."""
+        """Whether the app is playable on Windows."""
         return self._on_windows
 
     def is_on_mac_os(self) -> bool:
-        """Whether the game is playable on macOS."""
+        """Whether the app is playable on macOS."""
         return self._on_mac_os
 
     def is_on_linux(self) -> bool:
-        """Whether the game is playable on Linux."""
+        """Whether the app is playable on Linux."""
         return self._on_linux
 
 
@@ -810,41 +871,41 @@ class Movie:
 
 
 @dataclass
-class GamePriceOverview(PartialGamePriceOverview):
+class AppPriceOverview(PartialAppPriceOverview):
     initial_formatted: str
     final_formatted: str
 
 
-class FetchedGame(StatefulGame):
-    """Represents a Steam game fetched by :meth:`steam.Client.fetch_game`\\.
+class FetchedApp(StatefulApp):
+    """Represents a Steam app fetched by :meth:`steam.Client.fetch_app`\\.
 
     Attributes
     ----------
     created_at
-        The time the game was uploaded at.
+        The time the app was uploaded at.
     background_url
-        The background URL of the game.
+        The background URL of the app.
     type
         The type of the app.
     logo_url
-        The logo URL of the game.
+        The logo URL of the app.
     partial_dlc
-        The game's downloadable content.
+        The app's downloadable content.
     website_url
-        The website URL of the game.
+        The website URL of the app.
     developers
-        The developers of the game.
+        The developers of the app.
     publishers
-        The publishers of the game.
+        The publishers of the app.
     description
-        The short description of the game.
+        The short description of the app.
     full_description
-        The full description of the game.
+        The full description of the app.
     movies
-        A list of the game's movies, each of which has ``name``\\, ``id``\\, ``url`` and optional
+        A list of the app's movies, each of which has ``name``\\, ``id``\\, ``url`` and optional
         ``created_at`` attributes.
     price_overview
-        The price overview of the game.
+        The price overview of the app.
     """
 
     __slots__ = (
@@ -869,7 +930,7 @@ class FetchedGame(StatefulGame):
 
     name: str
 
-    def __init__(self, state: ConnectionState, data: game.FetchedGame):
+    def __init__(self, state: ConnectionState, data: app.FetchedApp):
         super().__init__(state, id=data["steam_appid"], name=data["name"])
         self.logo_url = data["header_image"]
         self.background_url = data["background"]
@@ -879,14 +940,14 @@ class FetchedGame(StatefulGame):
             else None
         )
         self.type = AppFlag.from_str(data["type"])
-        self.price_overview = GamePriceOverview(**data["price_overview"])
+        self.price_overview = AppPriceOverview(**data["price_overview"])
 
-        self.partial_dlc = [StatefulGame(state, id=dlc_id) for dlc_id in data.get("dlc", [])]
+        self.partial_dlc = [StatefulApp(state, id=dlc_id) for dlc_id in data.get("dlc", [])]
 
-        from .package import FetchedGamePackage
+        from .package import FetchedAppPackage
 
         self._packages = [
-            FetchedGamePackage(state, package)
+            FetchedAppPackage(state, package)
             for package_group in data["package_groups"]
             for package in package_group["subs"]
         ]
@@ -904,21 +965,21 @@ class FetchedGame(StatefulGame):
         self._on_mac_os = bool(data["platforms"].get("mac", False))
         self._on_linux = bool(data["platforms"].get("linux", False))
 
-    async def packages(self, *, languages: Language | None = None) -> list[FetchedGamePackage]:
+    async def packages(self, *, languages: Language | None = None) -> list[FetchedAppPackage]:
         return self._packages
 
     def is_free(self) -> bool:
-        """Whether the game is free to download."""
+        """Whether the app is free to download."""
         return self._free
 
     def is_on_windows(self) -> bool:
-        """Whether the game is playable on Windows."""
+        """Whether the app is playable on Windows."""
         return self._on_windows
 
     def is_on_mac_os(self) -> bool:
-        """Whether the game is playable on macOS."""
+        """Whether the app is playable on macOS."""
         return self._on_mac_os
 
     def is_on_linux(self) -> bool:
-        """Whether the game is playable on Linux."""
+        """Whether the app is playable on Linux."""
         return self._on_linux
