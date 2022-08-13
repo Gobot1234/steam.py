@@ -11,6 +11,7 @@ from __future__ import annotations
 import abc
 import json
 import re
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 import aiohttp
@@ -202,10 +203,24 @@ def parse_id3(value: str) -> tuple[ID32, Type, Universe, InstanceFlag] | None:
 _INVITE_HEX = "0123456789abcdef"
 _INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
 _INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
-_INVITE_MAPPING = dict(zip(_INVITE_HEX, _INVITE_CUSTOM))
-_INVITE_INVERSE_MAPPING = dict(zip(_INVITE_CUSTOM, _INVITE_HEX))
 _URL_START = r"(?:https?://)?(?:www\.)?"
 INVITE_REGEX = re.compile(rf"({_URL_START}s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+))|(?P<code_2>[\-{_INVITE_VALID}]+)")
+_INVITE_CUSTOM_RE = re.compile(f"[{_INVITE_CUSTOM}]")
+_INVITE_HEX_RE = re.compile(f"[{_INVITE_HEX}]")
+
+
+def _invite_custom_sub(s: str, map: Mapping[str, str] = dict(zip(_INVITE_CUSTOM, _INVITE_HEX)), /) -> str:
+    def sub(m: re.Match[str]) -> str:
+        return map[m.group()]
+
+    return _INVITE_CUSTOM_RE.sub(sub, s)
+
+
+def _invite_hex_sub(s: str, map: Mapping[str, str] = dict(zip(_INVITE_HEX, _INVITE_CUSTOM)), /) -> str:
+    def sub(m: re.Match[str]) -> str:
+        return map[m.group()]
+
+    return _INVITE_HEX_RE.sub(sub, s)
 
 
 def parse_invite_code(
@@ -231,23 +246,20 @@ def parse_invite_code(
 
     code = (search["code_1"] or search["code_2"]).replace("-", "")
 
-    def sub(m: re.Match[str]) -> str:
-        return _INVITE_INVERSE_MAPPING[m.group()]
-
-    id = ID32(int(re.sub(f"[{_INVITE_CUSTOM}]", sub, code), 16))
+    id = ID32(int(_invite_custom_sub(code), 16))
 
     if 0 < id < 2**32:
         return id, Type.Individual, Universe.Public, InstanceFlag.Desktop
 
 
 URL_REGEX = re.compile(
-    r"(?P<clean_url>{_URL_START}steamcommunity\.com/(?P<type>profiles|id|gid|groups|app|games)/(?P<value>.+))"
+    rf"(?P<clean_url>{_URL_START}steamcommunity\.com/(?P<type>profiles|id|gid|groups|app|games)/(?P<value>.+))"
 )
 USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*")
 CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
 
 
-async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> ID64 | None:
+async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING) -> ID64 | None:
     """Takes a Steam Community url and returns 64-bit Steam ID or ``None``.
 
     Notes
@@ -285,8 +297,8 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = N
     if not (search := URL_REGEX.search(str(url))):
         return None
 
-    gave_session = session is not None
-    session = session or aiohttp.ClientSession()
+    gave_session = session is not MISSING
+    session = session if gave_session else aiohttp.ClientSession()
 
     try:
         if search["type"] in ("id", "profiles"):  # user profile
@@ -421,7 +433,7 @@ class ID(metaclass=abc.ABCMeta):
         e.g. ``cv-dgb``.
         """
         if self.type == Type.Individual and self.is_valid():
-            invite_code = re.sub(f"[{_INVITE_HEX}]", lambda x: _INVITE_MAPPING[x.group()], f"{self.id:x}")
+            invite_code = _invite_hex_sub(f"{self.id:x}")
             split_idx = len(invite_code) // 2
             return invite_code if split_idx == 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
 
