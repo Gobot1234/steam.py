@@ -38,7 +38,10 @@ def main(tag: str | None):
 
     if tag:
         STABLE = GITHUB_PAGES_DOCS / "stable"
-        STABLE.unlink(missing_ok=True)
+        try:
+            STABLE.unlink(missing_ok=True)
+        except OSError:
+            pass
         STABLE.symlink_to(target_dir.relative_to(GITHUB_PAGES_DOCS), target_is_directory=True)
 
         index = json.loads((GITHUB_PAGES / "index.json").read_text())

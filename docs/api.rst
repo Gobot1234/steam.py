@@ -595,6 +595,16 @@ Profile
     :inherited-members:
 
 
+PublishedFile
+~~~~~~~~~~~~~~~
+
+.. attributetable:: PublishedFile
+
+.. autoclass:: PublishedFile()
+    :members:
+    :inherited-members:
+
+
 Trading
 ~~~~~~~~~~~~~~~
 
