@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     )
     from .state import ConnectionState
 
-
 __all__ = (
     "Award",
     "AwardReaction",
@@ -52,32 +51,34 @@ class _Reaction:
 
 
 BASE_REACTION_URL: Final = "https://store.cloudflare.steamstatic.com/public/images/loyalty/reactions/{type}/{id}.png"
-BASE_ECONOMY_URL: Final = URL("https://community.akamai.steamstatic.com/economy")
-AWARD_ID_TO_NAME: Final = cast("Mapping[int, str]", {
-    1: "Deep Thoughts",
-    2: "Heartwarming",
-    3: "Hilarious",
-    4: "Hot Take",
-    5: "Poetry",
-    6: "Extra Helpful",
-    7: "Gotta Have It",
-    8: "Michelangelo",
-    9: "Treasure",
-    10: "Mind Blown",
-    11: "Golden Unicorn",
-    12: "Mad Scientist",
-    13: "Clever",
-    14: "Warm Blanket",
-    15: "Saucy",
-    16: "Slow Clap",
-    17: "Take My Points",
-    18: "Wholesome",
-    19: "Jester",
-    20: "Fancy Pants",
-    21: "Whoa",
-    22: "Super Star",
-    23: "Wild",
-})  # fmt: skip
+BASE_ECONOMY_URL: Final = URL(
+    "https://community.akamai.steamstatic.com/economy")
+AWARD_ID_TO_NAME: Final = cast(
+    "Mapping[int, str]", {
+        1: "Deep Thoughts",
+        2: "Heartwarming",
+        3: "Hilarious",
+        4: "Hot Take",
+        5: "Poetry",
+        6: "Extra Helpful",
+        7: "Gotta Have It",
+        8: "Michelangelo",
+        9: "Treasure",
+        10: "Mind Blown",
+        11: "Golden Unicorn",
+        12: "Mad Scientist",
+        13: "Clever",
+        14: "Warm Blanket",
+        15: "Saucy",
+        16: "Slow Clap",
+        17: "Take My Points",
+        18: "Wholesome",
+        19: "Jester",
+        20: "Fancy Pants",
+        21: "Whoa",
+        22: "Super Star",
+        23: "Wild",
+    })  # fmt: skip
 
 
 class Award(_IOMixin):
@@ -110,8 +111,11 @@ class Award(_IOMixin):
         return BASE_REACTION_URL.format(type="animated", id=self.id)
 
     @asynccontextmanager
-    async def open(self, *, animated: bool = False) -> AsyncGenerator[BytesIO, None]:
-        async with self._state.http._session.get(self.animated_url if animated else self.url) as r:
+    async def open(self,
+                   *,
+                   animated: bool = False) -> AsyncGenerator[BytesIO, None]:
+        async with self._state.http._session.get(
+                self.animated_url if animated else self.url) as r:
             yield BytesIO(await r.read())
 
 
@@ -163,12 +167,9 @@ class MessageReaction(PartialMessageReaction):
         if not isinstance(other, self.__class__):
             return NotImplemented
 
-        return (
-            self.message == other.message
-            and self.emoticon == other.emoticon
-            and self.sticker == other.sticker
-            and self.user == other.user
-        )
+        return (self.message == other.message
+                and self.emoticon == other.emoticon
+                and self.sticker == other.sticker and self.user == other.user)
 
 
 class BaseEmoticon(_IOMixin):
@@ -215,8 +216,11 @@ class Emoticon(BaseEmoticon):
         ----
         This game has its :attr:`~Game.name` set unlike :meth:`Sticker.game`.
         """
-        data = await self._state.http.get(BASE_ECONOMY_URL / "emoticonhoverjson" / self.name)
-        return StatefulGame(self._state, id=data["appid"], name=data["app_name"])
+        data = await self._state.http.get(BASE_ECONOMY_URL /
+                                          "emoticonhoverjson" / self.name)
+        return StatefulGame(self._state,
+                            id=data["appid"],
+                            name=data["app_name"])
 
 
 class Sticker(BaseEmoticon):
@@ -250,14 +254,16 @@ class Sticker(BaseEmoticon):
 
     async def game(self) -> StatefulGame:
         """Fetches this sticker's associated game."""
-        data = await self._state.http.get(BASE_ECONOMY_URL / "stickerjson" / self.name)
+        data = await self._state.http.get(BASE_ECONOMY_URL / "stickerjson" /
+                                          self.name)
         return StatefulGame(self._state, id=data["appid"])
 
 
 class BaseClientEmoticon(BaseEmoticon):
     __slots__ = ("count", "use_count", "last_used", "received_at")
 
-    def __init__(self, state: ConnectionState, proto: ClientEmoticonProto | ClientStickerProto):
+    def __init__(self, state: ConnectionState,
+                 proto: ClientEmoticonProto | ClientStickerProto):
         super().__init__(state, proto.name)
         self.count = proto.count
         self.use_count = proto.use_count
@@ -277,7 +283,7 @@ class ClientEmoticon(BaseClientEmoticon, Emoticon):
 class ClientSticker(BaseClientEmoticon, Sticker):
     """Represents a :class:`Sticker` the :class:`ClientUser` owns."""
 
-    __slots__ = ("_app_id",)
+    __slots__ = ("_app_id", )
 
     def __init__(self, state: ConnectionState, proto: ClientStickerProto):
         super().__init__(state, proto)

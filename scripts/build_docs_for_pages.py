@@ -22,18 +22,16 @@ def main(tag: str | None):
     GITHUB_PAGES_DOCS = GITHUB_PAGES / "docs"
     target_dir = GITHUB_PAGES_DOCS / (tag or "latest")
 
-    build_main(
-        [
-            str(DOCS_STEAM_PY),
-            str(target_dir),
-            *(str(p) for p in DOCS_STEAM_PY.rglob("*.rst|*.md")),
-            "-b",
-            "dirhtml",
-            "-a",
-            "-E",
-            "-T",
-        ]
-    )
+    build_main([
+        str(DOCS_STEAM_PY),
+        str(target_dir),
+        *(str(p) for p in DOCS_STEAM_PY.rglob("*.rst|*.md")),
+        "-b",
+        "dirhtml",
+        "-a",
+        "-E",
+        "-T",
+    ])
 
     if tag:
         STABLE = GITHUB_PAGES_DOCS / "stable"
@@ -41,7 +39,8 @@ def main(tag: str | None):
             STABLE.unlink(missing_ok=True)
         except OSError:
             pass
-        STABLE.symlink_to(target_dir.relative_to(GITHUB_PAGES_DOCS), target_is_directory=True)
+        STABLE.symlink_to(target_dir.relative_to(GITHUB_PAGES_DOCS),
+                          target_is_directory=True)
 
         index = json.loads((GITHUB_PAGES / "index.json").read_text())
 
