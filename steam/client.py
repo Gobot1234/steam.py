@@ -49,8 +49,8 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .group import Group
     from .invite import ClanInvite, UserInvite
-    from .reaction import MessageReaction
     from .protobufs import Msg, MsgProto
+    from .reaction import MessageReaction
     from .trade import TradeOffer
     from .user import ClientUser, User
 
