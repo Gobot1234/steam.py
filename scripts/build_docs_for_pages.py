@@ -37,9 +37,9 @@ def main(tag: str | None):
     )
 
     if tag:
-        stable = GITHUB_PAGES_DOCS / "stable"
-        stable.unlink(missing_ok=True)
-        stable.symlink_to(target_dir, target_is_directory=True)
+        STABLE = GITHUB_PAGES_DOCS / "stable"
+        STABLE.unlink(missing_ok=True)
+        STABLE.symlink_to(target_dir.relative_to(GITHUB_PAGES_DOCS), target_is_directory=True)
 
     index = json.loads((GITHUB_PAGES / "index.json").read_text())
     if tag:
