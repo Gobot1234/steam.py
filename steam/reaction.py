@@ -135,17 +135,27 @@ class AwardReaction:
 
 @dataclass
 class PartialMessageReaction:
+    """Represents a partial reaction to a message."""
+
     _state: ConnectionState
     message: Message
+    """The message the reaction applies to. """
     emoticon: Emoticon | None
+    """The emoticon that was reacted with."""
     sticker: Sticker | None
+    """The sticker that was reacted with."""
 
 
 @dataclass
 class MessageReaction(PartialMessageReaction):
+    """Represents a reaction to a message."""
+
     user: Authors
+    """The user that reacted to the message."""
     created_at: datetime | None = None
+    """The time the reaction was added to the message."""
     ordinal: int | None = None
+    """The ordinal of the the message."""
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
