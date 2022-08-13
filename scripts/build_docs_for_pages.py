@@ -37,16 +37,19 @@ def main(tag: str | None):
     )
 
     if tag:
+        STABLE = GITHUB_PAGES_DOCS / "stable"
         try:
-            (GITHUB_PAGES_DOCS / "stable").symlink_to(target_dir, target_is_directory=True)
-        except FileExistsError:
+            STABLE.unlink(missing_ok=True)
+        except OSError:
             pass
+        STABLE.symlink_to(target_dir.relative_to(GITHUB_PAGES_DOCS), target_is_directory=True)
 
-    index = json.loads((GITHUB_PAGES / "index.json").read_text())
-    if tag:
-        index["docs"]["tags"].append(tag)
+        index = json.loads((GITHUB_PAGES / "index.json").read_text())
 
-    (GITHUB_PAGES / "index.json").write_text(json.dumps(index, indent=2))
+        if tag not in index["docs"]["tags"]:
+            index["docs"]["tags"].append(tag)
+
+        (GITHUB_PAGES / "index.json").write_text(json.dumps(index, indent=2))
 
 
 if __name__ == "__main__":

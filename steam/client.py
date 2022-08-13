@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from .group import Group
     from .invite import ClanInvite, UserInvite
     from .protobufs import Msg, MsgProto
+    from .reaction import MessageReaction
     from .trade import TradeOffer
     from .user import ClientUser, User
 
@@ -1014,6 +1015,24 @@ class Client:
                 The user that started typing.
             when
                 The time the user started typing at.
+            """
+
+        async def on_reaction_add(self, reaction: MessageReaction) -> None:
+            """Called when a reaction is added to a message.
+
+            Parameters
+            ----------
+            reaction
+                The reaction that was added.
+            """
+
+        async def on_reaction_remove(self, reaction: MessageReaction) -> None:
+            """Called when a reaction is removed from a message.
+
+            Parameters
+            ----------
+            reaction
+                The reaction that was removed.
             """
 
         async def on_trade_receive(self, trade: "steam.TradeOffer") -> None:

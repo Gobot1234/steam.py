@@ -175,7 +175,7 @@ class PyAttributeTable(SphinxDirective):
         return [node]
 
 
-def build_lookup_table(env: BuildEnvironment) -> dict[str, str]:
+def build_lookup_table(env: BuildEnvironment) -> dict[str, list[str]]:
     # Given an environment, load up a lookup table of
     # full-class-name: objects
     result = {}
