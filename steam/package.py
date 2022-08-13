@@ -140,11 +140,9 @@ class FetchedPackage(StatefulPackage):
 
     def __init__(self, state: ConnectionState, data: package.FetchedPackage):
         super().__init__(state, name=data["name"], id=data["packageid"])
-        self._games = [StatefulGame(
-            state, id=app["id"], name=app["name"]) for app in data["apps"]]
+        self._games = [StatefulGame(state, id=app["id"], name=app["name"]) for app in data["apps"]]
         self.description = data["page_content"]
-        self.created_at = DateTime.parse_steam_date(
-            data["release_date"]["date"], full_month=False)
+        self.created_at = DateTime.parse_steam_date(data["release_date"]["date"], full_month=False)
         self.logo_url = data["small_logo"]
         self.logo_url = data["header_image"]
         platforms = data["platforms"]
@@ -226,16 +224,13 @@ class License(StatefulPackage):
         """The license's type."""
         self.flags = LicenseFlag.try_value(proto.flags)
         """The license's flags."""
-        self.created_at = DateTime.from_timestamp(
-            proto.time_created) if proto.time_created else None
+        self.created_at = DateTime.from_timestamp(proto.time_created) if proto.time_created else None
         """The license's creation date."""
-        self.master_package = StatefulPackage(
-            state, id=proto.master_package_id) if proto.master_package_id else None
+        self.master_package = StatefulPackage(state, id=proto.master_package_id) if proto.master_package_id else None
         """The license's master package."""
         self.next_process_at = DateTime.from_timestamp(proto.time_next_process)
         """The date when the license will be processed."""
-        self.time_limit = timedelta(
-            minutes=proto.minute_limit) if proto.minute_limit else None
+        self.time_limit = timedelta(minutes=proto.minute_limit) if proto.minute_limit else None
         """The time limit for the license."""
         self.time_used = timedelta(minutes=proto.minutes_used)
         """The time the license has been used."""

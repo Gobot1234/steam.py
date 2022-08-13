@@ -42,8 +42,7 @@ def main(tag: str | None):
             STABLE.unlink(missing_ok=True)
         except OSError:
             pass
-        STABLE.symlink_to(target_dir.relative_to(
-            GITHUB_PAGES_DOCS), target_is_directory=True)
+        STABLE.symlink_to(target_dir.relative_to(GITHUB_PAGES_DOCS), target_is_directory=True)
 
         index = json.loads((GITHUB_PAGES / "index.json").read_text())
 
