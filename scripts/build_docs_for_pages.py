@@ -41,12 +41,12 @@ def main(tag: str | None):
         STABLE.unlink(missing_ok=True)
         STABLE.symlink_to(target_dir.relative_to(GITHUB_PAGES_DOCS), target_is_directory=True)
 
-    index = json.loads((GITHUB_PAGES / "index.json").read_text())
-    if tag:
+        index = json.loads((GITHUB_PAGES / "index.json").read_text())
+
         if tag not in index["docs"]["tags"]:
             index["docs"]["tags"].append(tag)
 
-    (GITHUB_PAGES / "index.json").write_text(json.dumps(index, indent=2))
+        (GITHUB_PAGES / "index.json").write_text(json.dumps(index, indent=2))
 
 
 if __name__ == "__main__":
