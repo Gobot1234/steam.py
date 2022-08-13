@@ -4,17 +4,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any
-from typing import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Sequence
 
-from .enums import LicenseFlag
-from .enums import LicenseType
-from .enums import PaymentMethod
-from .game import PartialGamePriceOverview
-from .game import StatefulGame
-from .utils import DateTime
-from .utils import Intable
+from .enums import LicenseFlag, LicenseType, PaymentMethod
+from .game import PartialGamePriceOverview, StatefulGame
+from .utils import DateTime, Intable
 
 if TYPE_CHECKING:
     from .manifest import Depot, GameInfo, HeadlessDepot, PackageInfo
@@ -50,8 +44,7 @@ class Package:
         """The package's name."""
 
     def __eq__(self, other: object) -> bool:
-        return self.id == other.id if isinstance(other,
-                                                 Package) else NotImplemented
+        return self.id == other.id if isinstance(other, Package) else NotImplemented
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -63,7 +56,7 @@ class Package:
 class StatefulPackage(Package):
     """A package with state."""
 
-    __slots__ = ("_state", )
+    __slots__ = ("_state",)
 
     def __init__(self, state: ConnectionState, **kwargs: Any):
         super().__init__(**kwargs)
@@ -96,8 +89,7 @@ class StatefulPackage(Package):
 
             (info,) = await client.fetch_product_info(packages=[package])
         """
-        _, (info, ) = await self._state.fetch_product_info(
-            package_ids=(self.id, ))
+        _, (info,) = await self._state.fetch_product_info(package_ids=(self.id,))
         return info
 
     async def games_info(self) -> list[GameInfo]:
@@ -110,8 +102,7 @@ class StatefulPackage(Package):
         games = await self.games()
         if not games:
             return []
-        infos, _ = await self._state.fetch_product_info(game.id
-                                                        for game in games)
+        infos, _ = await self._state.fetch_product_info(game.id for game in games)
         return infos
 
     async def depots(self) -> Sequence[Depot | HeadlessDepot]:
@@ -125,12 +116,13 @@ class StatefulPackage(Package):
         games_info = await self.games_info()
 
         return [
-            depot for game_info in games_info
+            depot
+            for game_info in games_info
             for branch in game_info._branches.values()
-            for depot in branch.depots if depot.id in depot_ids
+            for depot in branch.depots
+            if depot.id in depot_ids
         ] + [
-            depot for game_info in games_info
-            for depot in game_info.headless_depots if depot.id in depot_ids
+            depot for game_info in games_info for depot in game_info.headless_depots if depot.id in depot_ids
         ]  # type: ignore
 
     # TODO .manifests, fetch_manifest
@@ -146,13 +138,9 @@ class FetchedPackage(StatefulPackage):
 
     def __init__(self, state: ConnectionState, data: package.FetchedPackage):
         super().__init__(state, name=data["name"], id=data["packageid"])
-        self._games = [
-            StatefulGame(state, id=app["id"], name=app["name"])
-            for app in data["apps"]
-        ]
+        self._games = [StatefulGame(state, id=app["id"], name=app["name"]) for app in data["apps"]]
         self.description = data["page_content"]
-        self.created_at = DateTime.parse_steam_date(
-            data["release_date"]["date"], full_month=False)
+        self.created_at = DateTime.parse_steam_date(data["release_date"]["date"], full_month=False)
         self.logo_url = data["small_logo"]
         self.logo_url = data["header_image"]
         platforms = data["platforms"]
@@ -226,8 +214,7 @@ class License(StatefulPackage):
         "access_token",
     )
 
-    def __init__(self, state: ConnectionState,
-                 proto: CMsgClientLicenseListLicense, owner: Authors):
+    def __init__(self, state: ConnectionState, proto: CMsgClientLicenseListLicense, owner: Authors):
         super().__init__(state, id=proto.package_id)
         self.owner: Authors = owner
         """The license's owner."""
@@ -235,17 +222,13 @@ class License(StatefulPackage):
         """The license's type."""
         self.flags = LicenseFlag.try_value(proto.flags)
         """The license's flags."""
-        self.created_at = DateTime.from_timestamp(
-            proto.time_created) if proto.time_created else None
+        self.created_at = DateTime.from_timestamp(proto.time_created) if proto.time_created else None
         """The license's creation date."""
-        self.master_package = StatefulPackage(
-            state,
-            id=proto.master_package_id) if proto.master_package_id else None
+        self.master_package = StatefulPackage(state, id=proto.master_package_id) if proto.master_package_id else None
         """The license's master package."""
         self.next_process_at = DateTime.from_timestamp(proto.time_next_process)
         """The date when the license will be processed."""
-        self.time_limit = timedelta(
-            minutes=proto.minute_limit) if proto.minute_limit else None
+        self.time_limit = timedelta(minutes=proto.minute_limit) if proto.minute_limit else None
         """The time limit for the license."""
         self.time_used = timedelta(minutes=proto.minutes_used)
         """The time the license has been used."""

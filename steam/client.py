@@ -14,53 +14,27 @@ import random
 import sys
 import time
 import traceback
-from collections.abc import Callable
-from collections.abc import Collection
-from collections.abc import Coroutine
-from collections.abc import Sequence
-from typing import Any
-from typing import overload
-from typing import TYPE_CHECKING
-from typing import TypeVar
+from collections.abc import Callable, Collection, Coroutine, Sequence
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import aiohttp
-from typing_extensions import final
-from typing_extensions import Literal
-from typing_extensions import TypeAlias
+from typing_extensions import Literal, TypeAlias, final
 
-from . import errors
-from . import utils
-from ._const import DOCS_BUILDING
-from ._const import TASK_HAS_NAME
-from ._const import URL
+from . import errors, utils
+from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
 from .abc import SteamID
-from .enums import Language
-from .enums import PersonaState
-from .enums import PersonaStateFlag
-from .enums import PublishedFileRevision
-from .enums import Type
-from .enums import UIMode
-from .game import FetchedGame
-from .game import Game
-from .game import StatefulGame
-from .game_server import GameServer
-from .game_server import Query
+from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
+from .game import FetchedGame, Game, StatefulGame
+from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .manifest import GameInfo
-from .manifest import PackageInfo
-from .models import PriceOverview
-from .models import return_true
-from .package import FetchedPackage
-from .package import License
-from .package import Package
-from .package import StatefulPackage
+from .manifest import GameInfo, PackageInfo
+from .models import PriceOverview, return_true
+from .package import FetchedPackage, License, Package, StatefulPackage
 from .published_file import PublishedFile
-from .reaction import ClientEmoticon
-from .reaction import ClientSticker
-from .reaction import Emoticon
+from .reaction import ClientEmoticon, ClientSticker, Emoticon
 from .state import ConnectionState
 from .utils import make_id64
 
@@ -79,7 +53,7 @@ if TYPE_CHECKING:
     from .trade import TradeOffer
     from .user import ClientUser, User
 
-__all__ = ("Client", )
+__all__ = ("Client",)
 
 log = logging.getLogger(__name__)
 EventType: TypeAlias = "Callable[..., Coroutine[Any, Any, Any]]"
@@ -155,8 +129,8 @@ class Client:
 
             warnings.warn(
                 "The loop argument is deprecated and scheduled for removal in V.1",
-                stacklevel=len(inspect.stack()) +
-                1,  # make sure its always at the top of the stack most likely where the Client was created
+                stacklevel=len(inspect.stack())
+                + 1,  # make sure its always at the top of the stack most likely where the Client was created
             )
         self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self, **options)
@@ -170,8 +144,7 @@ class Client:
 
         self._closed = True
         self._cm_list: CMServerList | None = None
-        self._listeners: dict[str, list[tuple[asyncio.Future,
-                                              Callable[..., bool]]]] = {}
+        self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
     def _get_state(self, **options: Any) -> ConnectionState:
@@ -231,9 +204,7 @@ class Client:
         resp = await self.http.get(URL.COMMUNITY / "chat/clientjstoken")
         if not resp["logged_in"]:  # we got logged out :(
             # type: ignore
-            await self.http.login(self.username,
-                                  self.password,
-                                  shared_secret=self.shared_secret)
+            await self.http.login(self.username, self.password, shared_secret=self.shared_secret)
             return await self.token()
         return resp["token"]
 
@@ -267,9 +238,7 @@ class Client:
     def event(self, coro: E) -> E:
         ...
 
-    def event(
-            self,
-            coro: Callable[[E], E] | E | None = None) -> Callable[[E], E] | E:
+    def event(self, coro: Callable[[E], E] | E | None = None) -> Callable[[E], E] | E:
         """|maybecallabledeco|
         Register an event to listen to.
 
@@ -291,9 +260,7 @@ class Client:
 
         def decorator(coro: E) -> E:
             if not asyncio.iscoroutinefunction(coro):
-                raise TypeError(
-                    f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}"
-                )
+                raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
 
             setattr(self, coro.__name__, coro)
             log.debug(f"{coro.__name__} has been registered as an event")
@@ -301,8 +268,7 @@ class Client:
 
         return decorator(coro) if coro is not None else decorator
 
-    async def _run_event(self, coro: EventType, event_name: str, *args: Any,
-                         **kwargs: Any) -> None:
+    async def _run_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> None:
         try:
             await coro(*args, **kwargs)
         except asyncio.CancelledError:
@@ -313,11 +279,13 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: EventType, event_name: str, *args: Any,
-                        **kwargs: Any) -> asyncio.Task:
+    def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task:
         wrapped = self._run_event(coro, event_name, *args, **kwargs)
-        return (self.loop.create_task(wrapped, name=f"task_{event_name}")
-                if TASK_HAS_NAME else self.loop.create_task(wrapped))
+        return (
+            self.loop.create_task(wrapped, name=f"task_{event_name}")
+            if TASK_HAS_NAME
+            else self.loop.create_task(wrapped)
+        )
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
         log.debug(f"Dispatching event {event}")
@@ -405,11 +373,7 @@ class Client:
         except KeyboardInterrupt:
             log.info("Closing the event loop")
 
-    async def login(self,
-                    username: str,
-                    password: str,
-                    *,
-                    shared_secret: str | None = None) -> None:
+    async def login(self, username: str, password: str, *, shared_secret: str | None = None) -> None:
         """Login a Steam account and the Steam API with the specified credentials.
 
         Parameters
@@ -497,9 +461,7 @@ class Client:
         self.identity_secret = identity_secret
 
         if identity_secret is None:
-            log.info(
-                "Trades will not be automatically accepted when sent as no identity_secret was passed."
-            )
+            log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
 
         await self.login(username, password, shared_secret=shared_secret)
         await self.connect()
@@ -517,8 +479,7 @@ class Client:
         async def throttle() -> None:
             now = time.monotonic()
             between = now - last_connect
-            sleep = random.random(
-            ) * 4 if between > 600 else 100 / between**0.5
+            sleep = random.random() * 4 if between > 600 else 100 / between**0.5
             log.info(f"Attempting to connect to another CM in {sleep}")
             await asyncio.sleep(sleep)
 
@@ -526,9 +487,7 @@ class Client:
             last_connect = time.monotonic()
 
             try:
-                self.ws = await asyncio.wait_for(SteamWebSocket.from_client(
-                    self, cm_list=self._cm_list),
-                                                 timeout=60)
+                self.ws = await asyncio.wait_for(SteamWebSocket.from_client(self, cm_list=self._cm_list), timeout=60)
             except exceptions:
                 await throttle()
                 continue
@@ -593,10 +552,8 @@ class Client:
         name
             The name of the user after https://steamcommunity.com/id
         """
-        id64 = await utils.id64_from_url(URL.COMMUNITY / f"id/{name}",
-                                         self.http._session)
-        return await self._connection.fetch_user(
-            id64) if id64 is not None else None
+        id64 = await utils.id64_from_url(URL.COMMUNITY / f"id/{name}", self.http._session)
+        return await self._connection.fetch_user(id64) if id64 is not None else None
 
     def get_trade(self, id: int) -> TradeOffer | None:
         """Get a trade from cache with a matching ID or ``None`` if the trade was not found.
@@ -608,11 +565,7 @@ class Client:
         """
         return self._connection.get_trade(id)
 
-    async def fetch_trade(
-            self,
-            id: int,
-            *,
-            language: Language | None = None) -> TradeOffer | None:
+    async def fetch_trade(self, id: int, *, language: Language | None = None) -> TradeOffer | None:
         """Fetches a trade with a matching ID or ``None`` if the trade was not found.
 
         Parameters
@@ -668,10 +621,8 @@ class Client:
         name
             The name of the Steam clan.
         """
-        steam_id = await SteamID.from_url(URL.COMMUNITY / "clans" / name,
-                                          self.http._session)
-        return await self._connection.fetch_clan(
-            steam_id.id64) if steam_id is not None else None
+        steam_id = await SteamID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
+        return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
 
     def get_game(self, id: int | Game) -> StatefulGame:
         """Creates a stateful game from its ID.
@@ -683,11 +634,7 @@ class Client:
         """
         return StatefulGame(self._connection, id=getattr(id, "id", id))
 
-    async def fetch_game(
-            self,
-            id: int | Game,
-            *,
-            language: Language | None = None) -> FetchedGame | None:
+    async def fetch_game(self, id: int | Game, *, language: Language | None = None) -> FetchedGame | None:
         """Fetch a game from its ID or ``None`` if the game was not found.
 
         Parameters
@@ -702,8 +649,7 @@ class Client:
         if resp is None:
             return None
         data = resp[str(id)]
-        return FetchedGame(self._connection,
-                           data["data"]) if data["success"] else None
+        return FetchedGame(self._connection, data["data"]) if data["success"] else None
 
     def get_package(self, id: int) -> StatefulPackage:
         """Creates a package from its ID.
@@ -715,11 +661,7 @@ class Client:
         """
         return StatefulPackage(self._connection, id=id)
 
-    async def fetch_package(
-            self,
-            id: int,
-            *,
-            language: Language | None = None) -> FetchedPackage | None:
+    async def fetch_package(self, id: int, *, language: Language | None = None) -> FetchedPackage | None:
         """Fetch a package from its ID.
 
         Parameters
@@ -733,8 +675,7 @@ class Client:
         if resp is None:
             return None
         data = resp[str(id)]
-        return FetchedPackage(self._connection,
-                              data["data"]) if data["success"] else None
+        return FetchedPackage(self._connection, data["data"]) if data["success"] else None
 
     @overload
     async def fetch_server(self, *, id: utils.Intable) -> GameServer | None:
@@ -777,25 +718,17 @@ class Client:
             raise TypeError("Too many arguments passed to fetch_server")
         if id:
             # we need to fetch the ip and port
-            servers = await self._connection.fetch_server_ip_from_steam_id(
-                make_id64(id, type=Type.GameServer))
+            servers = await self._connection.fetch_server_ip_from_steam_id(make_id64(id, type=Type.GameServer))
             if not servers:
-                raise ValueError(
-                    f"The master server didn't find a matching server for {id}"
-                )
+                raise ValueError(f"The master server didn't find a matching server for {id}")
             ip, _, port = servers[0].addr.partition(":")
         elif not ip:
             raise TypeError("fetch_server missing argument ip")
 
-        servers = await self.fetch_servers(
-            Query.ip / f"{ip}{f':{port}' if port is not None else ''}",
-            limit=1)
+        servers = await self.fetch_servers(Query.ip / f"{ip}{f':{port}' if port is not None else ''}", limit=1)
         return servers[0] if servers else None
 
-    async def fetch_servers(self,
-                            query: Query[Any],
-                            *,
-                            limit: int = 100) -> list[GameServer]:
+    async def fetch_servers(self, query: Query[Any], *, limit: int = 100) -> list[GameServer]:
         """Query game servers.
 
         Parameters
@@ -811,13 +744,11 @@ class Client:
     # content server related stuff
 
     @overload
-    async def fetch_product_info(self, *,
-                                 games: Collection[Game]) -> list[GameInfo]:
+    async def fetch_product_info(self, *, games: Collection[Game]) -> list[GameInfo]:
         ...
 
     @overload
-    async def fetch_product_info(
-            self, *, packages: Collection[Package]) -> list[PackageInfo]:
+    async def fetch_product_info(self, *, packages: Collection[Package]) -> list[PackageInfo]:
         ...
 
     @overload
@@ -827,12 +758,8 @@ class Client:
         ...
 
     async def fetch_product_info(
-        self,
-        *,
-        games: Collection[Game] = (),
-        packages: Collection[Package] = ()
-    ) -> list[GameInfo] | list[PackageInfo] | tuple[list[GameInfo],
-                                                    list[PackageInfo]]:
+        self, *, games: Collection[Game] = (), packages: Collection[Package] = ()
+    ) -> list[GameInfo] | list[PackageInfo] | tuple[list[GameInfo], list[PackageInfo]]:
         """Fetch product info.
 
         Parameters
@@ -844,7 +771,8 @@ class Client:
         """
 
         game_infos, package_infos = await self._connection.fetch_product_info(
-            (game.id for game in games), (package.id for package in packages))
+            (game.id for game in games), (package.id for package in packages)
+        )
 
         if games and packages:
             return game_infos, package_infos
@@ -871,8 +799,7 @@ class Client:
         language
             The language to fetch the published file in. If ``None``, the current language is used.
         """
-        (file, ) = await self._connection.fetch_published_files(
-            (id, ), revision, language)
+        (file,) = await self._connection.fetch_published_files((id,), revision, language)
         return file
 
     async def fetch_published_files(
@@ -892,8 +819,7 @@ class Client:
         language
             The language to fetch the published files in. If ``None``, the current language is used.
         """
-        return await self._connection.fetch_published_files(
-            ids, revision, language)
+        return await self._connection.fetch_published_files(ids, revision, language)
 
     def trade_history(
         self,
@@ -944,11 +870,7 @@ class Client:
         ---------
         :class:`~steam.TradeOffer`
         """
-        return TradesIterator(state=self._connection,
-                              limit=limit,
-                              before=before,
-                              after=after,
-                              language=language)
+        return TradesIterator(state=self._connection, limit=limit, before=before, after=after, language=language)
 
     async def change_presence(
         self,
@@ -983,15 +905,10 @@ class Client:
         force_kick
             Whether to forcefully kick any other playing sessions.
         """
-        games_ = [game.to_dict()
-                  for game in games] if games is not None else []
+        games_ = [game.to_dict() for game in games] if games is not None else []
         if game is not None:
             games_.append(game.to_dict())
-        await self.ws.change_presence(games=games_,
-                                      state=state,
-                                      flags=flags,
-                                      ui_mode=ui_mode,
-                                      force_kick=force_kick)
+        await self.ws.change_presence(games=games_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
 
     async def trade_url(self, generate_new: bool = False) -> str:
         """Fetches this account's trade url.
@@ -1007,10 +924,7 @@ class Client:
         """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
-    async def fetch_price(self,
-                          name: str,
-                          game: Game,
-                          currency: int | None = None) -> PriceOverview:
+    async def fetch_price(self, name: str, game: Game, currency: int | None = None) -> PriceOverview:
         """Fetch the :class:`PriceOverview` for an item.
 
         Parameters
@@ -1050,10 +964,7 @@ class Client:
             The key-word arguments associated with the event.
         """
         print(f"Ignoring exception in {event}", file=sys.stderr)
-        traceback.print_exception(type(error),
-                                  error,
-                                  error.__traceback__,
-                                  file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     if TYPE_CHECKING or DOCS_BUILDING:
         # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs
@@ -1097,8 +1008,7 @@ class Client:
                 The message that was received.
             """
 
-        async def on_typing(self, user: "steam.User",
-                            when: "datetime.datetime") -> None:
+        async def on_typing(self, user: "steam.User", when: "datetime.datetime") -> None:
             """Called when typing is started.
 
             Parameters
@@ -1213,8 +1123,7 @@ class Client:
                 The invite received.
             """
 
-        async def on_user_invite_accept(self,
-                                        invite: "steam.UserInvite") -> None:
+        async def on_user_invite_accept(self, invite: "steam.UserInvite") -> None:
             """Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
 
             Parameters
@@ -1223,8 +1132,7 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_user_invite_decline(self,
-                                         invite: "steam.UserInvite") -> None:
+        async def on_user_invite_decline(self, invite: "steam.UserInvite") -> None:
             """Called when the client/invitee declines an invite from/to a :class:`~steam.User` to become a friend.
 
             Parameters
@@ -1233,8 +1141,7 @@ class Client:
                 The invite that was declined.
             """
 
-        async def on_user_update(self, before: "steam.User",
-                                 after: "steam.User") -> None:
+        async def on_user_update(self, before: "steam.User", after: "steam.User") -> None:
             """Called when a user is updated, due to one or more of the following attributes changing:
 
                 - :attr:`~steam.User.name`
@@ -1282,8 +1189,7 @@ class Client:
                 The invite received.
             """
 
-        async def on_clan_invite_accept(self,
-                                        invite: "steam.ClanInvite") -> None:
+        async def on_clan_invite_accept(self, invite: "steam.ClanInvite") -> None:
             """Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
 
             Parameters
@@ -1292,8 +1198,7 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_clan_invite_decline(self,
-                                         invite: "steam.ClanInvite") -> None:
+        async def on_clan_invite_decline(self, invite: "steam.ClanInvite") -> None:
             """Called when the client/invitee declines an invite to join a :class:`~steam.Clan`.
 
             Parameters
@@ -1311,8 +1216,7 @@ class Client:
                 The joined clan.
             """
 
-        async def on_clan_update(self, before: "steam.Clan",
-                                 after: "steam.Clan") -> None:
+        async def on_clan_update(self, before: "steam.Clan", after: "steam.Clan") -> None:
             """Called when a clan is updated, due to one or more of the following attributes changing:
 
                 - :attr:`~steam.Clan.name`
@@ -1348,8 +1252,7 @@ class Client:
                 The joined group.
             """
 
-        async def on_group_update(self, before: "steam.Group",
-                                  after: "steam.Group") -> None:
+        async def on_group_update(self, before: "steam.Group", after: "steam.Group") -> None:
             """Called when a group is updated.
 
             Parameters
@@ -1378,8 +1281,7 @@ class Client:
                 The event that was created.
             """
 
-        async def on_announcement_create(
-                self, announcement: "steam.Announcement") -> None:
+        async def on_announcement_create(self, announcement: "steam.Announcement") -> None:
             """Called when an announcement in a clan is created.
 
             Parameters
@@ -1409,7 +1311,13 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["connect", "disconnect", "ready", "login", "logout", ],
+        event: Literal[
+            "connect",
+            "disconnect",
+            "ready",
+            "login",
+            "logout",
+        ],
         *,
         check: Callable[[], bool] = ...,
         timeout: float | None = ...,
@@ -1421,8 +1329,7 @@ class Client:
         self,
         event: Literal["error"],
         *,
-        check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]],
-                        bool] = ...,
+        check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] = ...,
         timeout: float | None = ...,
     ) -> tuple[str, Exception, tuple[Any, ...], dict[str, Any]]:
         ...
@@ -1490,9 +1397,15 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["trade_receive", "trade_send", "trade_accept",
-                       "trade_decline", "trade_cancel", "trade_expire",
-                       "trade_counter", ],
+        event: Literal[
+            "trade_receive",
+            "trade_send",
+            "trade_accept",
+            "trade_decline",
+            "trade_cancel",
+            "trade_expire",
+            "trade_counter",
+        ],
         *,
         check: Callable[[TradeOffer], bool] = ...,
         timeout: float | None = ...,
@@ -1502,8 +1415,11 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["user_invite", "user_invite_accept",
-                       "user_invite_decline", ],
+        event: Literal[
+            "user_invite",
+            "user_invite_accept",
+            "user_invite_decline",
+        ],
         *,
         check: Callable[[UserInvite], bool] = ...,
         timeout: float | None = ...,
@@ -1513,7 +1429,10 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["friend_add", "friend_remove", ],
+        event: Literal[
+            "friend_add",
+            "friend_remove",
+        ],
         *,
         check: Callable[[Friend], bool] = ...,
         timeout: float | None = ...,
@@ -1523,8 +1442,11 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["clan_invite", "clan_invite_accept",
-                       "clan_invite_decline", ],
+        event: Literal[
+            "clan_invite",
+            "clan_invite_accept",
+            "clan_invite_decline",
+        ],
         *,
         check: Callable[[ClanInvite], bool] = ...,
         timeout: float | None = ...,
@@ -1534,7 +1456,10 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["clan_join", "clan_leave", ],
+        event: Literal[
+            "clan_join",
+            "clan_leave",
+        ],
         *,
         check: Callable[[Clan], bool] = ...,
         timeout: float | None = ...,
@@ -1544,7 +1469,10 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["group_join", "group_leave", ],
+        event: Literal[
+            "group_join",
+            "group_leave",
+        ],
         *,
         check: Callable[[Group], bool] = ...,
         timeout: float | None = ...,
@@ -1574,7 +1502,10 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal["socket_receive", "socket_send", ],
+        event: Literal[
+            "socket_receive",
+            "socket_send",
+        ],
         *,
         check: Callable[[Msgs], bool] = ...,
         timeout: float | None = ...,
