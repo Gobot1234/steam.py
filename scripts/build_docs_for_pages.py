@@ -3,7 +3,6 @@ A script to build the docs for GitHub pages.
 
 Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
 """
-
 from __future__ import annotations
 
 import json

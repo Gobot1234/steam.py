@@ -5,7 +5,6 @@ Contains large portions of:
 https://github.com/Rapptz/discord.py/blob/master/discord/client.py
 The appropriate license is in LICENSE
 """
-
 from __future__ import annotations
 
 import asyncio
@@ -15,27 +14,53 @@ import random
 import sys
 import time
 import traceback
-from collections.abc import Callable, Collection, Coroutine, Sequence
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from collections.abc import Callable
+from collections.abc import Collection
+from collections.abc import Coroutine
+from collections.abc import Sequence
+from typing import Any
+from typing import overload
+from typing import TYPE_CHECKING
+from typing import TypeVar
 
 import aiohttp
-from typing_extensions import Literal, TypeAlias, final
+from typing_extensions import final
+from typing_extensions import Literal
+from typing_extensions import TypeAlias
 
-from . import errors, utils
-from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
+from . import errors
+from . import utils
+from ._const import DOCS_BUILDING
+from ._const import TASK_HAS_NAME
+from ._const import URL
 from .abc import SteamID
-from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
-from .game import FetchedGame, Game, StatefulGame
-from .game_server import GameServer, Query
+from .enums import Language
+from .enums import PersonaState
+from .enums import PersonaStateFlag
+from .enums import PublishedFileRevision
+from .enums import Type
+from .enums import UIMode
+from .game import FetchedGame
+from .game import Game
+from .game import StatefulGame
+from .game_server import GameServer
+from .game_server import Query
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .iterators import TradesIterator
-from .manifest import GameInfo, PackageInfo
-from .models import PriceOverview, return_true
-from .package import FetchedPackage, License, Package, StatefulPackage
+from .manifest import GameInfo
+from .manifest import PackageInfo
+from .models import PriceOverview
+from .models import return_true
+from .package import FetchedPackage
+from .package import License
+from .package import Package
+from .package import StatefulPackage
 from .published_file import PublishedFile
-from .reaction import ClientEmoticon, ClientSticker, Emoticon
+from .reaction import ClientEmoticon
+from .reaction import ClientSticker
+from .reaction import Emoticon
 from .state import ConnectionState
 from .utils import make_id64
 

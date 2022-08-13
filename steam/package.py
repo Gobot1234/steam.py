@@ -1,15 +1,20 @@
 """Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
-
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any
+from typing import Sequence
+from typing import TYPE_CHECKING
 
-from .enums import LicenseFlag, LicenseType, PaymentMethod
-from .game import PartialGamePriceOverview, StatefulGame
-from .utils import DateTime, Intable
+from .enums import LicenseFlag
+from .enums import LicenseType
+from .enums import PaymentMethod
+from .game import PartialGamePriceOverview
+from .game import StatefulGame
+from .utils import DateTime
+from .utils import Intable
 
 if TYPE_CHECKING:
     from .manifest import Depot, GameInfo, HeadlessDepot, PackageInfo

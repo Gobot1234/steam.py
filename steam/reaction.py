@@ -1,15 +1,17 @@
 """Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
-
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, cast
+from typing import cast
+from typing import TYPE_CHECKING
 
-from typing_extensions import Final, Protocol
+from typing_extensions import Final
+from typing_extensions import Protocol
 from yarl import URL
 
 from .game import StatefulGame
