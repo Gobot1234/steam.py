@@ -48,12 +48,12 @@ class DataclassesMock:
 
 class MockUser(steam.User, DataclassesMock):
     def __init__(self):
-        super().__init__(bot._connection, USER_DATA)
+        super().__init__(bot._state, USER_DATA)
 
 
 class MockGroup(steam.Group, DataclassesMock):
     def __init__(self):
-        super().__init__(bot._connection, 0)
+        super().__init__(bot._state, 0)
         self.name = "a group"
 
 
@@ -63,7 +63,7 @@ class MockGroupChannel(steam.GroupChannel, DataclassesMock):
             chat_id=0,
             chat_name="a group channel",
         )
-        super().__init__(bot._connection, group=group, proto=proto)
+        super().__init__(bot._state, group=group, proto=proto)
 
 
 class MockMessage(steam.Message, DataclassesMock):
