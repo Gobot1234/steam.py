@@ -31,24 +31,24 @@ except ModuleNotFoundError:
 
     def dumps(
         obj: Any,
-        *,
         __func: Callable[..., str] = json.dumps,
+        /,
     ) -> str:
         return __func(obj, separators=(",", ":"), ensure_ascii=True)
 
-    JSON_DUMPS: Final = dumps
+    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps)
 else:
     JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads
 
     def dumps(
         obj: Any,
-        *,
         __func: Callable[[Any], bytes] = orjson.dumps,
         __decoder: Callable[[bytes], str] = bytes.decode,
+        /,
     ) -> str:
         return __decoder(__func(obj))
 
-    JSON_DUMPS: Final = dumps
+    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps)
 
 
 try:
@@ -58,20 +58,24 @@ except ModuleNotFoundError:
 
     def loads(
         s: str,
-        *,
         __func: Callable[..., Any] = vdf.parse,
         __mapper: type[MultiDict[Any]] = MultiDict,
         __string_io: type[StringIO] = StringIO,
+        /,
     ) -> VDFDict:
         return __func(__string_io(s), mapper=__mapper)
 
     def binary_loads(
-        s: bytes, *, __func: Callable[..., Any] = vdf.binary_loads, __mapper: type[MultiDict[Any]] = MultiDict
+        s: bytes,
+        __func: Callable[..., Any] = vdf.binary_load,
+        __mapper: type[MultiDict[Any]] = MultiDict,
+        __bytes_io: type[BytesIO] = BytesIO,
+        /,
     ) -> BinaryVDFDict:
-        return __func(s, mapper=__mapper)
+        return __func(__bytes_io(s), mapper=__mapper)
 
-    VDF_LOADS: Final = loads
-    VDF_BINARY_LOADS: Final = binary_loads
+    VDF_LOADS: Final = cast(Callable[[str], VDFDict], loads)
+    VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], binary_loads)
 
 else:
     VDF_LOADS: Final[Callable[[str], VDFDict]] = orvdf.loads
