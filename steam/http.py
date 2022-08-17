@@ -311,7 +311,7 @@ class HTTPClient:
                     api_route("ISteamUser/GetPlayerSummaries", version=2),
                     params={"key": self.api_key, "steamids": ",".join(map(str, sublist))},
                 )
-                for sublist in utils.chunk(user_id64s, 100)
+                for sublist in utils.as_chunks(user_id64s, 100)
             )
         ):
             ret.extend(resp["response"]["players"])

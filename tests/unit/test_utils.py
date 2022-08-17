@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 import random
+from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
-from typing import NamedTuple, Optional
+from typing import Any, NamedTuple, Optional
 
 import pytest
 from yarl import URL
@@ -17,7 +18,8 @@ class FakeModel(NamedTuple):
     data: bytes
 
 
-def test_find() -> None:
+@pytest.mark.asyncio
+async def test_find() -> None:
     # Generate a random collection of instances
     instances = [FakeModel(data=bytes(random.randrange(256) for _ in range(128))) for _ in range(256)]
 
@@ -30,8 +32,15 @@ def test_find() -> None:
     # Ensure the model is found
     assert utils.find(lambda m: m.data == model_to_find.data, instances) == model_to_find
 
+    async def async_iter() -> AsyncGenerator[FakeModel, None]:
+        for model in instances:
+            yield model
 
-def test_get() -> None:
+    assert await utils.find(lambda m: m.data == model_to_find.data, async_iter()) == model_to_find
+
+
+@pytest.mark.asyncio
+async def test_get() -> None:
     # Generate a random collection of instances
     instances = [FakeModel(data=bytes(random.randrange(256) for _ in range(128))) for _ in range(256)]
 
@@ -43,6 +52,41 @@ def test_get() -> None:
 
     # Ensure the model is found
     assert utils.get(instances, data=model_to_find.data) == model_to_find
+
+    async def async_iter() -> AsyncGenerator[FakeModel, None]:
+        for model in instances:
+            yield model
+
+    assert await utils.get(async_iter(), data=model_to_find.data) == model_to_find
+
+
+@pytest.mark.asyncio
+async def test_as_chunks() -> None:
+    assert not list(utils.as_chunks([], 1))
+
+    first, *rest, last = list(utils.as_chunks(range(100), 5))
+    assert len(first) == 5
+    assert len(last) == 5
+    assert all(len(chunk) == 5 for chunk in rest)
+
+    first, *rest, last = list(utils.as_chunks(range(100), 3))
+    assert len(first) == 3
+    assert len(last) == 1
+    assert all(len(chunk) == 3 for chunk in rest)
+
+    async def arange(*args: Any, **kwargs: Any) -> AsyncGenerator[int, None]:
+        for i in range(*args, **kwargs):
+            yield i
+
+    first, *rest, last = [elem async for elem in utils.as_chunks(arange(100), 5)]
+    assert len(first) == 5
+    assert len(last) == 5
+    assert all(len(chunk) == 5 for chunk in rest)
+
+    first, *rest, last = [elem async for elem in utils.as_chunks(arange(100), 3)]
+    assert len(first) == 3
+    assert len(last) == 1
+    assert all(len(chunk) == 3 for chunk in rest)
 
 
 @pytest.mark.asyncio

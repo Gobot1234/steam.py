@@ -11,17 +11,18 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+import math
 import random
 import sys
 import time
 import traceback
-from collections.abc import Callable, Collection, Coroutine, Sequence
+from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, final, overload
 
 import aiohttp
 
 from . import errors, utils
-from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL
+from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL, UNIX_EPOCH
 from .app import App, FetchedApp, StatefulApp
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game_server import GameServer, Query
@@ -29,7 +30,6 @@ from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
 from .id import ID
-from .iterators import TradesIterator
 from .manifest import AppInfo, PackageInfo
 from .models import PriceOverview, return_true
 from .package import FetchedPackage, License, Package, StatefulPackage
@@ -37,7 +37,7 @@ from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker, Emoticon
 from .state import ConnectionState
 from .types.id import Intable
-from .utils import parse_id64
+from .utils import parse_id64, DateTime
 
 if TYPE_CHECKING:
     import steam
@@ -144,8 +144,7 @@ class Client:
         self.identity_secret: str | None = None
 
         self._closed = True
-        self._cm_list: CMServerList | None = None
-        self._listeners: dict[str, list[tuple[asyncio.Future, Callable[..., bool]]]] = {}
+        self._listeners: dict[str, list[tuple[asyncio.Future[Any], Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
 
     def _get_state(self, **options: Any) -> ConnectionState:
@@ -485,7 +484,7 @@ class Client:
             last_connect = time.monotonic()
 
             try:
-                self.ws = await asyncio.wait_for(SteamWebSocket.from_client(self, cm_list=self._cm_list), timeout=60)
+                self.ws = await asyncio.wait_for(SteamWebSocket.from_client(self), timeout=60)
             except exceptions:
                 await throttle()
                 continue
@@ -495,7 +494,7 @@ class Client:
                     await self.ws.poll_event()
             except exceptions as exc:
                 if isinstance(exc, ConnectionClosed):
-                    self._cm_list = exc.cm_list
+                    self._connection._connected_cm = exc.cm
                 self.dispatch("disconnect")
             finally:
                 if not self.is_closed():
@@ -826,8 +825,8 @@ class Client:
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,
         language: Language | None = None,
-    ) -> TradesIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.ClientUser`'s
+    ) -> AsyncGenerator[TradeOffer, None]:
+        """An :term:`async iterator` for accessing a :class:`steam.ClientUser`'s
         :class:`steam.TradeOffer` objects.
 
         Examples
@@ -842,13 +841,6 @@ class Client:
                 items = ", ".join(items) or "Nothing"
                 print("Partner:", trade.partner)
                 print("Sent:", items)
-
-        Flattening into a list:
-
-        .. code-block:: python3
-
-            trades = await client.trade_history(limit=50).flatten()
-            # trades is now a list of TradeOffer
 
         All parameters are optional.
 
@@ -868,7 +860,64 @@ class Client:
         ---------
         :class:`~steam.TradeOffer`
         """
-        return TradesIterator(state=self._connection, limit=limit, before=before, after=after, language=language)
+        from .trade import TradeOffer
+
+        total = 100
+        previous_time = 0
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+        after_timestamp = after.timestamp()
+        before_timestamp = before.timestamp()
+        yielded = 0
+
+        async def get_trades(page: int = 100) -> list[TradeOffer]:
+            nonlocal total, previous_time
+            resp = await self._connection.http.get_trade_history(page, previous_time, language)
+            data = resp["response"]
+            if total is None:
+                total = data.get("total_trades", 0)
+            if not total:
+                return []
+
+            trades: list[TradeOffer] = []
+            descriptions = data.get("descriptions", ())
+            trade = None
+            for trade in data.get("trades", []):
+                if not after_timestamp < trade["time_init"] < before_timestamp:
+                    break
+                for item in descriptions:
+                    for asset in trade.get("assets_received", []):
+                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
+                            asset.update(item)
+                    for asset in trade.get("assets_given", []):
+                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
+                            asset.update(item)
+
+                trades.append(TradeOffer._from_history(state=self._connection, data=trade))
+
+            assert trade is not None
+            previous_time = trade["time_init"]
+            for trade, partner in zip(trades, await self._connection._maybe_users(trade.partner for trade in trades)):
+                trade.partner = partner
+            return trades
+
+        for trade in await get_trades():
+            for item in trade.items_to_receive:
+                item.owner = trade.partner
+            if limit is not None and yielded >= limit:
+                return
+            yield trade
+            yielded += 1
+
+        if total < 100:
+            for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
+                for trade in await get_trades(page):
+                    for item in trade.items_to_receive:
+                        item.owner = trade.partner
+                    if limit is not None and yielded >= limit:
+                        return
+                    yield trade
+                    yielded += 1
 
     async def change_presence(
         self,

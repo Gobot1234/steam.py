@@ -31,9 +31,8 @@ import async_timeout
 
 from . import utils
 from ._const import DEFAULT_CMS
-from .enums import IntEnum, PersonaState, PersonaStateFlag, Result
+from .enums import *
 from .errors import NoCMsFound
-from .iterators import AsyncIterator
 from .models import Registerable, register, return_true
 from .protobufs import EMsg, GCMsg, GCMsgProto, Msg, MsgProto, login
 from .protobufs.client_server_2 import CMsgGcClient
@@ -49,8 +48,8 @@ if TYPE_CHECKING:
 
 __all__ = (
     "ConnectionClosed",
-    "CMServerList",
     "SteamWebSocket",
+    "CMServer",
     "Msgs",
 )
 
@@ -103,52 +102,47 @@ class CMServer:
             return float("inf")
 
 
+async def fetch_cm_list(state: ConnectionState, cell_id: int = 0) -> AsyncGenerator[CMServer, None]:
+    if state._connected_cm is not None:
+        yield state._connected_cm
+    log.debug("Attempting to fetch servers from the WebAPI")
+    state.cell_id = cell_id
+    try:
+        data = await state.http.get_cm_list(cell_id)
+    except Exception:
+        servers = [CMServer(state, url=cm_url, weighted_load=0) for cm_url in DEFAULT_CMS]
+        random.shuffle(servers)
+        log.debug("Error occurred when fetching CM server list, falling back to internal list", exc_info=True)
+        for cm in servers:
+            yield cm
+        return
+
+    resp = data["response"]
+    if not resp["success"]:
+        servers = [CMServer(state, url=cm_url, weighted_load=0) for cm_url in DEFAULT_CMS]
+        random.shuffle(servers)
+        log.debug("Error occurred when fetching CM server list, falling back to internal list", exc_info=True)
+        for cm in servers:
+            yield cm
+        return
+
+    hosts: list[dict[str, Any]] = resp["serverlist"]
+    log.debug(f"Received {len(hosts)} servers from WebAPI")
+    for cm in sorted(
+        (CMServer(state, url=server["endpoint"], weighted_load=server["wtd_load"]) for server in hosts),
+        key=attrgetter("weighted_load"),
+    ):  # they should already be sorted but oh well
+        yield cm
+
+
 class ConnectionClosed(Exception):
-    def __init__(self, cm: CMServer, cms: CMServerList):
+    def __init__(self, cm: CMServer):
         self.cm = cm
-        self.cm_list = cms
         super().__init__(f"Connection to {self.cm.url}, has closed.")
 
 
 class WebSocketClosure(Exception):
     """An exception to make up for the fact that aiohttp doesn't signal closure."""
-
-
-class CMServerList(AsyncIterator[CMServer]):
-    def __init__(self, state: ConnectionState, first_cm_to_try: CMServer | None = None):
-        super().__init__(state)
-        self.cell_id = 0
-        self._first_cm = first_cm_to_try
-
-    async def fill(self, cell_id: int = 0) -> AsyncGenerator[CMServer, None]:
-        if self._first_cm is not None:
-            yield self._first_cm
-        log.debug("Attempting to fetch servers from the WebAPI")
-        self.cell_id = cell_id
-        try:
-            data = await self._state.http.get_cm_list(cell_id)
-        except Exception:
-            servers = [CMServer(self._state, url=cm_url, weighted_load=0) for cm_url in DEFAULT_CMS]
-            random.shuffle(servers)
-            log.debug("Error occurred when fetching CM server list, falling back to internal list", exc_info=True)
-            for server in servers:
-                yield server
-            return
-
-        resp = data["response"]
-        if not resp["success"]:
-            servers = [CMServer(self._state, url=cm_url, weighted_load=0) for cm_url in DEFAULT_CMS]
-            random.shuffle(servers)
-            log.debug("Error occurred when fetching CM server list, falling back to internal list", exc_info=True)
-            for server in servers:
-                yield server
-            return
-
-        hosts: list[dict[str, Any]] = resp["serverlist"]
-        log.debug(f"Received {len(hosts)} servers from WebAPI")
-        servers = [CMServer(self._state, url=server["endpoint"], weighted_load=server["wtd_load"]) for server in hosts]
-        for server in sorted(servers, key=attrgetter("weighted_load")):  # they should already be sorted but oh well
-            yield server
 
 
 class KeepAliveHandler(threading.Thread):
@@ -224,7 +218,11 @@ class SteamWebSocket(Registerable):
     parsers: dict[EMsg, Callable[..., Any]]
 
     def __init__(
-        self, state: ConnectionState, socket: aiohttp.ClientWebSocketResponse, cm_list: CMServerList, cm: CMServer
+        self,
+        state: ConnectionState,
+        socket: aiohttp.ClientWebSocketResponse,
+        cm_list: AsyncGenerator[CMServer, None],
+        cm: CMServer,
     ):
         self.socket = socket
 
@@ -269,12 +267,10 @@ class SteamWebSocket(Registerable):
         return future
 
     @classmethod
-    async def from_client(
-        cls, client: Client, cm: CMServer | None = None, cm_list: CMServerList | None = None
-    ) -> SteamWebSocket:
+    async def from_client(cls, client: Client) -> SteamWebSocket:
         state = client._connection
-        cm_list = cm_list or CMServerList(state, cm)
         token = await client.token()
+        cm_list = fetch_cm_list(state)
         async for cm in cm_list:
             log.info(f"Attempting to create a websocket connection to: {cm}")
             socket = await cm.connect()
@@ -402,16 +398,12 @@ class SteamWebSocket(Registerable):
             return
         if not self.socket.closed:
             await self.close()
-            try:
-                await self.cm_list.__anext__()  # pop the disconnected cm
-            except StopAsyncIteration:
-                pass
         if hasattr(self, "_keep_alive"):
             self._keep_alive.stop()
             del self._keep_alive
         log.info("Websocket closed, cannot reconnect.")
         self.closed = True
-        raise ConnectionClosed(self.cm, self.cm_list)
+        raise ConnectionClosed(self.cm)
 
     @register(EMsg.ClientLogOnResponse)
     async def handle_logon(self, msg: MsgProto[login.CMsgClientLogonResponse]) -> None:
@@ -424,7 +416,7 @@ class SteamWebSocket(Registerable):
             return await self.handle_close()
 
         self.session_id = msg.session_id
-        self.cm_list.cell_id = msg.body.cell_id
+        self._connection.cell_id = msg.body.cell_id
 
         interval = msg.body.out_of_game_heartbeat_seconds
         self._keep_alive = KeepAliveHandler(ws=self, interval=interval)

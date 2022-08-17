@@ -80,7 +80,7 @@ from .utils import DateTime
 if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
-    from .gateway import SteamWebSocket
+    from .gateway import CMServer, SteamWebSocket
     from .types import app, trade, user
     from .types.http import Coro
     from .types.id import ID64, ChannelID, ChatGroupID
@@ -175,6 +175,9 @@ class ConnectionState(Registerable):
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
 
+        self.cell_id = 0
+        self._connected_cm: CMServer | None = None
+
         self.licenses: dict[int, License] = {}
         self._manifest_passwords: dict[int, dict[str, str]] = {}
         self.cs_servers: list[ContentServer] = []
@@ -259,7 +262,7 @@ class ConnectionState(Registerable):
         ret: list[User | ID] = []
         to_fetch: dict[ID64, list[int]] = {}
         for idx, id64 in enumerate(id64s):
-            steam_id = ID(id64)
+            steam_id = ID(id64, type=Type.Invalid)
             user = self.get_user(steam_id.id)
             if user is not None:
                 ret.append(user)

@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
-import warnings
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, overload
 
 from . import utils
-from ._const import DOCS_BUILDING, URL
+from ._const import DOCS_BUILDING, UNIX_EPOCH, URL
 from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
-from .id import id64_from_url
-from .iterators import AppPublishedFilesIterator, AppReviewsIterator, ManifestIterator
+from .id import ID, id64_from_url
 from .types.id import Intable
 from .utils import DateTime
 
@@ -23,6 +22,7 @@ if TYPE_CHECKING:
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest
     from .package import FetchedAppPackage, License
     from .protobufs import player
+    from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
     from .types import app
@@ -327,10 +327,9 @@ class StatefulApp(App):
         .. code-block:: python3
 
             clan = await app.clan()
-            async for update in clan.announcements().filter(
-                lambda announcement: announcement.type in (steam.ClanEvent.MajorUpdate, steam.ClanEvent.SmallUpdate)
-            ):
-                ...  # do something with the update
+            async for update in clan.announcements():
+                if update.type in (steam.ClanEvent.MajorUpdate, steam.ClanEvent.SmallUpdate):
+                    ...  # do something with the update
 
         Raises
         ------
@@ -388,14 +387,14 @@ class StatefulApp(App):
         )
         return await self._state.user.fetch_review(self)  # TODO this sucks can we actually get the id ourselves?
 
-    def reviews(
+    async def reviews(
         self,
         *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> AppReviewsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.App`'s
+    ) -> AsyncGenerator[Review, None]:
+        """An :term:`async iterator` for accessing a :class:`steam.App`'s
         :class:`steam.Review`\\s.
 
         Examples
@@ -408,13 +407,6 @@ class StatefulApp(App):
             async for review in app.reviews(limit=10):
                 print("Reviewer:", review.author)
                 print("Said:", review.content)
-
-        Flattening into a list:
-
-        .. code-block:: python3
-
-            reviews = await app.reviews(limit=50).flatten()
-            # reviews is now a list of Review
 
         All parameters are optional.
 
@@ -432,7 +424,32 @@ class StatefulApp(App):
         ------
         :class:`~steam.Review`
         """
-        return AppReviewsIterator(self._state, self, limit, before, after)
+        from .review import Review, ReviewApp
+
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+        cursor = "*"
+        app = self
+
+        while True:
+            data = await self._state.http.get_reviews(self.id, "all", "all", "all", cursor)
+            if cursor == "*":
+                app = ReviewApp(self._state, self.id, data["query_summary"]["review_score"])
+            assert isinstance(app, ReviewApp)
+            cursor = data["cursor"]
+            reviews = data["reviews"]
+
+            for review, user in zip(
+                reviews,
+                await self._state.fetch_users(int(review["author"]["steamid"]) for review in reviews),
+            ):
+                if user is None:
+                    continue
+                review = Review._from_data(self._state, review, app, user)
+                if not after < review.created_at < before:
+                    return
+
+                yield review
 
     async def friend_thoughts(self) -> FriendThoughts:
         """Fetch the client user's friends who recommended and didn't recommend this app in a review.
@@ -485,7 +502,7 @@ class StatefulApp(App):
             self.id, id, depot_id, name=None, branch=branch, password_hash=password_hash
         )
 
-    def manifests(
+    async def manifests(
         self,
         *,
         limit: int | None = 100,
@@ -494,8 +511,8 @@ class StatefulApp(App):
         branch: str = "public",
         password: str | None = None,
         password_hash: str = "",
-    ) -> ManifestIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a :class:`steam.App`'s
+    ) -> AsyncGenerator[Manifest, None]:
+        """An :term:`async iterator` for accessing a :class:`steam.App`'s
         :class:`steam.Manifest`\\s.
 
         Examples
@@ -508,13 +525,6 @@ class StatefulApp(App):
             async for manifest in app.manifests(limit=10):
                 print("Manifest:", manifest.name)
                 print(f"Contains {len(manifest.paths)} manifests")
-
-        Flattening into a list:
-
-        .. code-block:: python3
-
-            manifests = await app.manifests(limit=50).flatten()
-            # manifests is now a list of Manifest
 
         All parameters are optional.
 
@@ -537,18 +547,13 @@ class StatefulApp(App):
         ------
         :class:`Manifest`
         """
-        return ManifestIterator(
-            state=self._state,
-            limit=limit,
-            before=before,
-            after=after,
-            app=self,
-            branch=branch,
-            password=password,
-            password_hash=password_hash,
-        )
+        manifest_coros = await self._state.fetch_manifests(self.id, branch, password, limit, password_hash)
+        for chunk in utils.as_chunks(manifest_coros, 100):
+            for manifest in await asyncio.gather(*chunk):
+                if after < manifest.created_at < before:
+                    yield manifest
 
-    def published_files(
+    async def published_files(
         self,
         *,
         type: PublishedFileQueryFileType = PublishedFileQueryFileType.Items,
@@ -557,8 +562,8 @@ class StatefulApp(App):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> AppPublishedFilesIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing an app's :class:`steam.PublishedFile`\\s.
+    ) -> AsyncGenerator[PublishedFile, None]:
+        """An :term:`async iterator` for accessing an app's :class:`steam.PublishedFile`\\s.
 
         Examples
         --------
@@ -571,13 +576,6 @@ class StatefulApp(App):
                 print("Published file:", published_file.name)
                 print("Published at:", published_file.created_at)
                 print("Published by:", published_file.author)
-
-        Flattening into a list:
-
-        .. code-block:: python3
-
-            published_files = await app.published_files(limit=50).flatten()
-            # published_files is now a list of PublishedFile
 
         All parameters are optional.
 
@@ -601,7 +599,37 @@ class StatefulApp(App):
         ------
         :class:`~steam.PublishedFile`
         """
-        return AppPublishedFilesIterator(self._state, self, type, revision, language, limit, before, after)
+        from .published_file import PublishedFile
+
+        before = before or DateTime.now()
+        after = after or UNIX_EPOCH
+        remaining = None
+        cursor = "*"
+        yielded = 0
+
+        while remaining is None or remaining > 0:
+            protos = await self._state.fetch_app_published_files(
+                self.id, after, before, type, revision, language, limit, cursor
+            )
+            if remaining is None:
+                remaining = protos.total
+            remaining -= len(protos.publishedfiledetails)
+            cursor = protos.next_cursor
+
+            files: list[PublishedFile] = []
+            for file in protos.publishedfiledetails:
+                file = PublishedFile(self._state, file, ID(file.creator))
+                if not after < file.created_at < before:
+                    remaining = 0
+                    break
+                files.append(file)
+
+            for file, author in zip(files, await self._state._maybe_users(file.author.id64 for file in files)):
+                if limit is not None and yielded >= limit:
+                    return
+                file.author = author
+                yield file
+                yielded += 1
 
     async def info(self) -> AppInfo:
         """Shorthand for:

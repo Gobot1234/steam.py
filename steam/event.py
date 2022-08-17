@@ -60,10 +60,9 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         self._state = state
         self.clan = clan
         self.id: int = int(data["gid"])
-        author = data.get("creator_steamid")
-        self.author: User | ID | None = int(author) if author is not None else None  # type: ignore
+        self.author: User | ID = ID(data["creator_steamid"])
         edited_by = data.get("last_update_steamid")
-        self.last_edited_by: User | ID | None = int(edited_by) if edited_by is not None else None  # type: ignore
+        self.last_edited_by: User | ID | None = ID(edited_by) if edited_by is not None else None
         self.name: str = data["event_name"]
         self.content: str = data["event_notes"]
         self.app = StatefulApp(state, id=data["appid"]) if data["appid"] else None
@@ -361,7 +360,7 @@ class Announcement(BaseEvent[EventType]):
         "approved_at",
         "tags",
     )
-    approved_by: User
+    # approved_by: User
     server_ip: None
     server_password: None
 

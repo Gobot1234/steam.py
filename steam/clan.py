@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import re
 import warnings
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 from bs4 import BeautifulSoup
 from typing_extensions import Self
 
 from . import utils
-from ._const import HTML_PARSER
+from ._const import HTML_PARSER, UNIX_EPOCH
 from .abc import Commentable, _CommentableKwargs
 from .app import App, StatefulApp
 from .channel import ClanChannel
@@ -22,8 +23,8 @@ from .enums import EventType, Language, Type
 from .errors import HTTPException
 from .event import Announcement, Event
 from .id import ID
-from .iterators import AnnouncementsIterator, EventIterator
 from .protobufs import chat
+from .types.id import ID64
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -377,14 +378,14 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         announcement = data["events"][0]
         return await Announcement(self._state, self, announcement)
 
-    def events(
+    async def events(
         self,
         *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> EventIterator:
-        """An :class:`~steam.iterators.AsyncIterator` over a clan's :class:`steam.Event`\\s.
+    ) -> AsyncGenerator[Event[EventType], None]:
+        """An :term:`async iterator` over a clan's :class:`steam.Event`\\s.
 
         Examples
         --------
@@ -412,16 +413,62 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         ---------
         :class:`~steam.Event`
         """
-        return EventIterator(self, self._state, limit, before, after)
+        rss = await self._state.http.get_clan_rss(
+            self.id64
+        )  # TODO make this use the calendar? does that work for announcements
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
 
-    def announcements(
+        soup = BeautifulSoup(rss, HTML_PARSER)
+
+        ids: list[int] = []
+        for url in soup.find_all("guid"):
+            if match := re.findall(r"events/+(\d+)", url.text):
+                ids.append(int(match[0]))
+
+        if not ids:
+            return
+
+        events: list[Event[EventType]] = []
+        resp = await self._state.http.get_clan_events(self.id, ids)
+        data = resp["events"]
+        for event_ in data:
+            event = Event(self._state, self, event_)
+            if not after < event.starts_at < before:
+                break
+            events.append(event)
+
+        for yielded, (event, (author, last_edited_by)) in enumerate(
+            zip(
+                events,
+                utils.as_chunks(
+                    await self._state._maybe_users(
+                        itertools.chain.from_iterable(
+                            (
+                                e.author.id64,
+                                e.last_edited_by.id64 if e.last_edited_by is not None else ID64(0),
+                            )
+                            for e in events
+                        )
+                    ),
+                    2,
+                ),
+            )
+        ):
+            if limit is not None and yielded >= limit:
+                return
+            event.author = author
+            event.last_edited_by = last_edited_by if last_edited_by.id != 0 else None
+            yield event
+
+    async def announcements(
         self,
         *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> AnnouncementsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` over a clan's :class:`steam.Announcement`\\s.
+    ) -> AsyncGenerator[Announcement, None]:
+        """An :term:`async iterator` over a clan's :class:`steam.Announcement`\\s.
 
         Examples
         --------
@@ -455,7 +502,54 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         ---------
         :class:`~steam.Announcement`
         """
-        return AnnouncementsIterator(self, self._state, limit, before, after)
+        rss = await self._state.http.get_clan_rss(
+            self.id64
+        )  # TODO make this use the calendar? does that work for announcements
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+        soup = BeautifulSoup(rss, HTML_PARSER)
+
+        ids: list[int] = []
+        for url in soup.find_all("guid"):
+            if match := re.findall(r"announcements/detail/(\d+)", url.text):
+                ids.append(int(match[0]))
+
+        if not ids:
+            return
+
+        announcements_: list[dict[str, Any]] = []
+        for announcement in await asyncio.gather(*(self._state.http.get_clan_announcement(self.id, id) for id in ids)):
+            announcements_ += announcement["events"]
+
+        announcements: list[Announcement] = []
+        for announcement_ in announcements_:
+            announcement = Announcement(self._state, self, announcement_)
+            if not after < announcement.starts_at < before:
+                break
+            announcements.append(announcement)
+
+        for yielded, (announcement, (author, last_edited_by)) in enumerate(
+            zip(
+                announcements,
+                utils.as_chunks(
+                    await self._state._maybe_users(
+                        itertools.chain.from_iterable(
+                            (
+                                a.author.id64,
+                                a.last_edited_by.id64 if a.last_edited_by is not None else ID64(0),
+                            )
+                            for a in announcements
+                        )
+                    ),
+                    2,
+                ),
+            )
+        ):
+            if limit is not None and yielded >= limit:
+                return
+            announcement.author = author
+            announcement.last_edited_by = last_edited_by if last_edited_by.id != 0 else None
+            yield announcement
 
     @overload
     async def create_event(

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Final, Literal
 
 import aiohttp
 
+from ._const import MISSING
 from .enums import InstanceFlag, Type, TypeChar, Universe
 from .errors import InvalidID
 from .types.id import ID32, ID64, Intable
@@ -25,8 +26,6 @@ if TYPE_CHECKING:
 
     from .types.http import StrOrURL
 
-
-MISSING: Final[Any] = object()
 
 __all__ = ("ID",)
 
@@ -493,7 +492,7 @@ class ID(metaclass=abc.ABCMeta):
         return True
 
     @staticmethod
-    async def from_url(url: StrOrURL, session: ClientSession | None = None) -> ID | None:
+    async def from_url(url: StrOrURL, session: ClientSession = MISSING) -> ID | None:
         """A helper function creates a Steam ID instance from a Steam community url.
 
         Note

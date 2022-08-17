@@ -8,15 +8,18 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from ._const import MISSING, UNIX_EPOCH
 from .abc import Channel
 from .chat import Chat, GroupChannelProtos
-from .iterators import DMChannelHistoryIterator
-from .message import ClanMessage, GroupMessage, UserMessage
+from .message import ClanMessage, GroupMessage, Message, UserMessage
+from .reaction import Emoticon, MessageReaction, Sticker
+from .utils import DateTime
 
 if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
     from .image import Image
+    from .protobufs import friend_messages
     from .state import ConnectionState
     from .user import User
 
@@ -93,14 +96,76 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
         """
         await self._state.send_user_typing(self.participant.id64)
 
-    def history(
+    async def history(
         self,
         *,
         limit: int | None = 100,
-        before: datetime | None = None,
-        after: datetime | None = None,
-    ) -> DMChannelHistoryIterator:
-        return DMChannelHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
+        before: datetime = MISSING,
+        after: datetime = MISSING,
+    ) -> AsyncGenerator[UserMessage, None]:
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+        after_timestamp = int(after.timestamp())
+        before_timestamp = int(before.timestamp())
+        yielded = 0
+
+        last_message_timestamp = before_timestamp
+        ordinal = 0
+
+        while True:
+            resp = await self._state.fetch_user_history(
+                self.participant.id64, start=after_timestamp, last=last_message_timestamp, start_ordinal=ordinal
+            )
+
+            message: friend_messages.GetRecentMessagesResponseFriendMessage | None = None
+
+            for message in resp.messages:
+                new_message = UserMessage.__new__(UserMessage)
+                new_message.created_at = DateTime.from_timestamp(message.timestamp)
+                if not after < new_message.created_at < before:
+                    return
+                if limit is not None and yielded >= limit:
+                    return
+
+                Message.__init__(new_message, channel=self, proto=message)
+                new_message.author = self.participant if message.accountid == self.participant.id else self._state.user
+                emoticon_reactions = [
+                    MessageReaction(
+                        self._state,
+                        new_message,
+                        Emoticon(self._state, r.reaction),
+                        None,
+                        self.participant if reactor == self.participant.id else self._state.user,
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == 1
+                    for reactor in r.reactors
+                ]
+                sticker_reactions = [
+                    MessageReaction(
+                        self._state,
+                        new_message,
+                        None,
+                        Sticker(self._state, r.reaction),
+                        self.participant if reactor == self.participant.id else self._state.user,
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == 2
+                    for reactor in r.reactors
+                ]
+                new_message.reactions = emoticon_reactions + sticker_reactions
+
+                yield new_message
+                yielded += 1
+
+            if message is None:
+                return
+
+            last_message_timestamp = message.timestamp
+            ordinal = message.ordinal
+
+            if not resp.more_available:
+                return
 
 
 class GroupChannel(Chat[GroupMessage]):

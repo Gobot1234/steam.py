@@ -10,20 +10,21 @@ from __future__ import annotations
 
 import abc
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import AsyncGenerator, Coroutine
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypedDict, TypeVar, runtime_checkable
 
+from bs4 import BeautifulSoup
 from typing_extensions import Required, Self
+from yarl import URL as URL_
 
-from ._const import URL
+from ._const import HTML_PARSER, UNIX_EPOCH, URL
 from .app import App, StatefulApp, UserApp, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
 from .id import ID
-from .iterators import AsyncIterator, CommentsIterator, UserPublishedFilesIterator, UserReviewsIterator
 from .models import Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     from .image import Image
     from .message import Authors
     from .protobufs.chat import Mentions
+    from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
     from .user import User
@@ -108,15 +110,15 @@ class Commentable(Protocol):
         """
         return await self._state.post_comment(self, content, subscribe)
 
-    def comments(
+    async def comments(
         self,
         *,
         oldest_first: bool = False,
         limit: int | None = None,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> CommentsIterator[Self]:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a comment section's :class:`~steam.Comment` objects.
+    ) -> AsyncGenerator[Comment[Self], None]:
+        """An :term:`async iterator` for accessing a comment section's :class:`~steam.Comment` objects.
 
         Examples
         --------
@@ -127,13 +129,6 @@ class Commentable(Protocol):
 
             async for comment in commentable.comments(limit=10):
                 print("Author:", comment.author, "Said:", comment.content)
-
-        Flattening into a list:
-
-        .. code-block:: python3
-
-            comments = await commentable.comments(limit=50).flatten()
-            # comments is now a list of Comment
 
         All parameters are optional.
 
@@ -153,9 +148,54 @@ class Commentable(Protocol):
         ---------
         :class:`~steam.Comment`
         """
-        return CommentsIterator(
-            oldest_first=oldest_first, owner=self, state=self._state, limit=limit, before=before, after=after
-        )
+        from .comment import Comment
+        from .reaction import AwardReaction
+
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+        count: int | None = None
+        total_count = 0
+        yielded = 0
+
+        async def get_comments(chunk: int) -> list[Comment[Self]]:
+            nonlocal after, before, count, total_count, yielded
+
+            starting_from = total_count - count if total_count and count else 0
+            proto = await self._state.fetch_comments(self, chunk, starting_from, oldest_first)
+
+            if count is None:
+                total_count = count = proto.total_count
+
+            comments: list[Comment[Self]] = []
+            comment = None
+            for comment in proto.comments:
+                comment = Comment(
+                    self._state,
+                    id=comment.id,
+                    content=comment.content,
+                    created_at=DateTime.from_timestamp(comment.timestamp),
+                    reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
+                    author=comment.author_id64,  # type: ignore
+                    owner=self,
+                )
+                if after < comment.created_at < before:
+                    if limit is not None and yielded >= limit:
+                        break
+                    comments.append(comment)
+                    yielded += 1
+                else:
+                    break
+
+            count -= len(comments)
+            return comments
+
+        for comment in await get_comments(min(limit or 100, 100)):
+            yield comment
+
+        assert count is not None
+        while count > 0:
+            for comment in await get_comments(min(count, 100)):
+                yield comment
 
 
 class Awardable(Protocol):
@@ -461,14 +501,14 @@ class BaseUser(ID, Commentable):
         bans = await self.bans()
         return bans.is_banned()
 
-    def reviews(
+    async def reviews(
         self,
         *,
         limit: int | None = None,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> UserReviewsIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a user's :class:`~steam.Review`\\s.
+    ) -> AsyncGenerator[Review, None]:
+        """An :term:`async iterator` for accessing a user's :class:`~steam.Review`\\s.
 
         Examples
         --------
@@ -478,13 +518,6 @@ class BaseUser(ID, Commentable):
 
             async for review in user.reviews(limit=10):
                 print(f"Author: {review.author} {'recommended' if review.recommend 'doesn\\'t recommend'} {review.app}")
-
-        Flattening into a list:
-
-        .. code-block:: python3
-
-            reviews = await user.reviews(limit=50).flatten()
-            # reviews is now a list of Review
 
         All parameters are optional.
 
@@ -502,7 +535,44 @@ class BaseUser(ID, Commentable):
         ------
         :class:`~steam.Review`
         """
-        return UserReviewsIterator(self._state, self, limit, before, after)
+        from .review import Review
+
+        pages = 1
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+        yielded = 0
+
+        async def get_reviews(page_number: int = 1) -> AsyncGenerator[Review, None]:
+            nonlocal yielded, pages
+
+            # ideally I'd like to find an actual api for these
+            page = await self._state.http.get(
+                URL.COMMUNITY / f"profiles/{self.id64}/recommended", params={"p": page_number}
+            )
+            soup = BeautifulSoup(page, HTML_PARSER)
+            if pages == 1:
+                *_, pages = [1] + [int(a["href"].removeprefix("?p=")) for a in soup.find_all("a", class_="pagelink")]
+            app_ids = [
+                int(URL_(review.find("div", class_="leftcol").a["href"]).parts[-1])
+                for review in soup.find_all("div", class_="review_box_content")
+            ]
+
+            for review_ in await self._state.fetch_user_review(self.id64, app_ids):
+                review = Review._from_proto(self._state, review_, self)
+                if not after < review.created_at < before:
+                    return
+                if limit is not None and yielded >= limit:
+                    return
+
+                yield review
+                yielded += 1
+
+        async for review in get_reviews():
+            yield review
+
+        for page in range(2, pages + 1):
+            async for review in get_reviews(page):
+                yield review
 
     async def fetch_review(self, app: App) -> Review:
         """Fetch this user's review for an app.
@@ -528,7 +598,7 @@ class BaseUser(ID, Commentable):
         reviews = await self._state.fetch_user_review(self.id64, (app.id for app in apps))
         return [Review._from_proto(self._state, review, self) for review in reviews]
 
-    def published_files(
+    async def published_files(
         self,
         *,
         app: App | None = None,
@@ -538,8 +608,8 @@ class BaseUser(ID, Commentable):
         limit: int | None = None,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> UserPublishedFilesIterator:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a user's :class:`~steam.PublishedFile`\\s.
+    ) -> AsyncGenerator[PublishedFile, None]:
+        """An :term:`async iterator` for accessing a user's :class:`~steam.PublishedFile`\\s.
 
         Examples
         --------
@@ -550,13 +620,6 @@ class BaseUser(ID, Commentable):
 
             async for file in user.published_files(limit=10):
                 print("Author:", file.author, "Published:", file.name)
-
-        Flattening into a list:
-
-        .. code-block:: python3
-
-            files = await user.published_files(limit=50).flatten()
-            # files is now a list of PublishedFile
 
         All parameters are optional.
 
@@ -582,7 +645,28 @@ class BaseUser(ID, Commentable):
         ------
         :class:`~steam.PublishedFile`
         """
-        return UserPublishedFilesIterator(self._state, self, app, type, revision, language, limit, before, after)
+        from .published_file import PublishedFile
+
+        before = before or DateTime.now()
+        after = after or UNIX_EPOCH
+        app_id = app.id if app else 0
+        total = 30
+        yielded = 0
+
+        while yielded < total:
+            page = yielded // 30 + 1
+            msg = await self._state.fetch_user_published_files(self.id64, app_id, page, type, revision, language)
+            if msg.total:
+                total = msg.total
+
+            for file in msg.publishedfiledetails:
+                file = PublishedFile(self._state, file, self)
+                if not after < file.created_at < before:
+                    return
+                if limit is not None and yielded >= limit:
+                    return
+                yield file
+                yielded += 1
 
     @classmethod
     def _patch_without_api(cls) -> None:
@@ -707,8 +791,8 @@ class Channel(Messageable[M_co]):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> AsyncIterator[M_co]:
-        """An :class:`~steam.iterators.AsyncIterator` for accessing a channel's :class:`steam.Message`\\s.
+    ) -> AsyncGenerator[M_co, None]:
+        """An :term:`async iterator` for accessing a channel's :class:`steam.Message`\\s.
 
         Examples
         --------
@@ -719,13 +803,6 @@ class Channel(Messageable[M_co]):
 
             async for message in channel.history(limit=10):
                 print("Author:", message.author, "Said:", message.content)
-
-        Flattening into a list:
-
-        .. code-block:: python3
-
-            messages = await channel.history(limit=50).flatten()
-            # messages is now a list of Message
 
         All parameters are optional.
 

@@ -15,14 +15,24 @@ import functools
 import html
 import re
 import struct
-from collections.abc import Awaitable, Callable, Coroutine, Generator, Iterable, Mapping
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterable,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Generator,
+    Iterable,
+    Mapping,
+    Sized,
+)
 from datetime import datetime, timezone
 from inspect import getmembers, isawaitable
 from io import BytesIO
 from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Final, Generic, ParamSpec, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, ParamSpec, TypeAlias, TypeVar, cast, overload
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -30,9 +40,10 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Self
 
+from ._const import MISSING
 from .enums import _is_descriptor, classproperty as classproperty
 from .id import (
-    MISSING as MISSING,
+    id64_from_url as id64_from_url,
     parse_id2 as parse_id2,
     parse_id3 as parse_id3,
     parse_id64 as parse_id64,
@@ -40,7 +51,7 @@ from .id import (
 )
 
 if TYPE_CHECKING:
-    from .types.http import StrOrURL
+    from .types.http import Coro, StrOrURL
 
 
 _T = TypeVar("_T")
@@ -190,18 +201,6 @@ def _get_avatar_url(sha: bytes) -> str:
     hexed = sha.hex()
     hash = hexed if hexed != "\x00" * 20 else "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
     return f"https://avatars.cloudflare.steamstatic.com/{hash}_full.jpg"
-
-
-def chunk(iterable: Iterable[_T], size: int) -> Generator[list[_T], None, None]:
-    chunk: list[_T] = []
-
-    for element in iterable:
-        if len(chunk) == size:
-            yield chunk
-            chunk = []
-        chunk.append(element)
-
-    yield chunk
 
 
 def _int_chunks(len: int, size: int) -> Generator[tuple[int, int], None, None]:
@@ -430,10 +429,81 @@ class ChainMap(collections.ChainMap[_KT, _VT] if TYPE_CHECKING else collections.
             map.clear()
 
 
-# TODO consider in V1 making these allow async iterables after async iterator rework?
 # everything below here is directly from discord.py's utils
 # https://github.com/Rapptz/discord.py/blob/master/discord/utils.py
-def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> _T | None:
+_Iter: TypeAlias = Iterable[_T] | AsyncIterable[_T]
+
+
+def _chunk(iterator: Iterable[_T], max_size: int) -> Generator[list[_T], None, None]:
+    ret: list[_T] = []
+    for item in iterator:
+        ret.append(item)
+        if len(ret) == max_size:
+            yield ret
+            ret = []
+    if ret:
+        yield ret
+
+
+async def _achunk(
+    iterator: AsyncIterable[_T], max_size: int, len: Callable[[Sized], int] = len, /
+) -> AsyncGenerator[list[_T], None]:
+    ret: list[_T] = []
+    async for item in iterator:
+        ret.append(item)
+        if len(ret) == max_size:
+            yield ret
+            ret = []
+    if ret:
+        yield ret
+
+
+@overload
+def as_chunks(iterator: AsyncIterable[_T], /, max_size: int) -> AsyncGenerator[list[_T], None]:
+    ...
+
+
+@overload
+def as_chunks(iterator: Iterable[_T], /, max_size: int) -> Generator[list[_T], None, None]:
+    ...
+
+
+def as_chunks(iterator: _Iter[_T], /, max_size: int) -> _Iter[list[_T]]:
+    """A helper function that collects an iterator into chunks of a given size.
+
+    Parameters
+    ----------
+    iterator: Union[:class:`collections.abc.Iterable`, :class:`collections.abc.AsyncIterable`]
+        The iterator to chunk, can be sync or async.
+    max_size: :class:`int`
+        The maximum chunk size.
+
+
+    Warning
+    -------
+        The last chunk collected may not be as large as ``max_size``.
+
+    Returns
+    --------
+    A new iterator which yields chunks of a given size.
+    """
+    if max_size <= 0:
+        raise ValueError("Chunk sizes must be greater than 0.")
+
+    return _achunk(iterator, max_size) if hasattr(iterator, "__aiter__") else _chunk(iterator, max_size)  # type: ignore
+
+
+@overload
+def find(predicate: Callable[[_T], bool], iterable: AsyncIterable[_T], /) -> Coro[_T | None]:
+    ...
+
+
+@overload
+def find(predicate: Callable[[_T], bool], iterable: Iterable[_T], /) -> _T | None:
+    ...
+
+
+def find(predicate: Callable[[_T], bool], iterable: _Iter[_T], /) -> _T | Coro[_T | None] | None:
     """A helper to return the first element found in the sequence.
 
     Examples
@@ -459,10 +529,59 @@ def find(predicate: Callable[[_T], bool], iterable: Iterable[_T]) -> _T | None:
     found returns ``None``.
     """
 
-    return next((element for element in iterable if predicate(element)), None)
+    if hasattr(iterable, "__aiter__"):  # isinstance(iterable, collections.abc.AsyncIterable) is too slow
+        return anext((element async for element in iterable if predicate(element)), None)  # type: ignore
+    else:
+        return next((element for element in iterable if predicate(element)), None)  # type: ignore
 
 
-def get(iterable: Iterable[_T], **attrs: Any) -> _T | None:
+def _get(
+    iterable: Iterable[_T],
+    _all: Callable[[Iterable[bool]], bool] = all,
+    attrget: type[attrgetter[_T]] = attrgetter,
+    /,
+    **attrs: Any,
+) -> _T | None:
+    # Special case the single element call
+    if len(attrs) == 1:
+        k, v = attrs.popitem()
+        pred = attrget(k.replace("__", "."))
+        return next((elem for elem in iterable if pred(elem) == v), None)
+
+    converted = [(attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()]
+
+    return next((elem for elem in iterable if _all(pred(elem) == value for pred, value in converted)), None)
+
+
+def _aget(
+    iterable: AsyncIterable[_T],
+    _all: Callable[[Iterable[bool]], bool] = all,
+    attrget: type[attrgetter[_T]] = attrgetter,
+    /,
+    **attrs: Any,
+) -> Coro[_T | None]:
+    # Special case the single element call
+    if len(attrs) == 1:
+        k, v = attrs.popitem()
+        pred = attrget(k.replace("__", "."))
+        return anext((elem async for elem in iterable if pred(elem) == v), None)
+
+    converted = [(attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()]
+
+    return anext((elem async for elem in iterable if _all(pred(elem) == value for pred, value in converted)), None)
+
+
+@overload
+def get(iterable: AsyncIterable[_T], /, **attrs: Any) -> Coro[_T | None]:
+    ...
+
+
+@overload
+def get(iterable: Iterable[_T], /, **attrs: Any) -> _T | None:
+    ...
+
+
+def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | Coro[_T | None] | None:
     """A helper that returns the first element in the iterable that meets all the traits passed in ``attrs``. This
     is an alternative for :func:`find`.
 
@@ -486,21 +605,10 @@ def get(iterable: Iterable[_T], **attrs: Any) -> _T | None:
     The first element from the ``iterable`` which matches all the traits passed in ``attrs`` or ``None`` if no matching
     element was found.
     """
-
-    # global -> local
-    _all = all
-    attrget = attrgetter
-
-    # Special case the single element call
-    if len(attrs) == 1:
-        k, v = attrs.popitem()
-        pred = attrget(k.replace("__", "."))
-        return next((elem for elem in iterable if pred(elem) == v), None)
-    converted = [(attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()]
-
-    return next(
-        (elem for elem in iterable if _all(pred(elem) == value for pred, value in converted)),
-        None,
+    return (
+        _aget(iterable, **attrs)  # type: ignore
+        if hasattr(iterable, "__aiter__")  # isinstance(iterable, collections.abc.AsyncIterable) is too slow
+        else _get(iterable, **attrs)  # type: ignore
     )
 
 

@@ -8,22 +8,21 @@ from __future__ import annotations
 
 import abc
 import asyncio
-from collections.abc import Coroutine, Sequence
+from collections.abc import AsyncGenerator, Coroutine, Iterable, Sequence
 from datetime import datetime
-from random import randint
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
 from . import utils
+from ._const import UNIX_EPOCH
 from .abc import Channel, Message
 from .app import StatefulApp
 from .enums import ChatMemberRank, Type
 from .errors import WSException
 from .id import ID
-from .iterators import ChatHistoryIterator
 from .protobufs import MsgProto, chat
-from .reaction import Emoticon, MessageReaction, Sticker
+from .reaction import Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .role import Role
 from .user import User, WrapsUser
 from .utils import DateTime
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
     from .image import Image
-    from .message import Authors, ClanMessage, GroupMessage
+    from .message import ClanMessage, GroupMessage
     from .state import ConnectionState
     from .types.id import ID32, ID64, ChannelID, ChatGroupID
 
@@ -258,14 +257,79 @@ class Chat(Channel[ChatMessageT]):
     def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
         return self._state.http.send_chat_image(*self._location, image)
 
-    def history(
+    async def history(
         self,
         *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> ChatHistoryIterator[ChatMessageT, Self]:
-        return ChatHistoryIterator(state=self._state, channel=self, limit=limit, before=before, after=after)
+    ) -> AsyncGenerator[ChatMessageT, None]:
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+
+        chat_group = self.clan or self.group
+        assert chat_group is not None
+        after_timestamp = int(after.timestamp())
+        before_timestamp = int(before.timestamp())
+        last_message_timestamp = before_timestamp
+        last_ordinal: int = getattr(self.last_message, "ordinal", 0)
+        yielded = 0
+        (message_cls,) = self._type_args
+
+        while True:
+            resp = await self._state.fetch_group_history(
+                *self._location, start=after_timestamp, last=last_message_timestamp, last_ordinal=last_ordinal
+            )
+            message = None
+            messages: list[ChatMessageT] = []
+
+            for message in resp.messages:
+                new_message = message_cls.__new__(message_cls)
+                Message.__init__(new_message, channel=self, proto=message)
+                new_message.created_at = DateTime.from_timestamp(message.server_timestamp)
+                if not after < new_message.created_at < before:
+                    return
+                if limit is not None and yielded >= limit:
+                    return
+
+                new_message.author = ID(message.sender)
+                emoticon_reactions = [
+                    PartialMessageReaction(
+                        self._state,
+                        new_message,
+                        Emoticon(self._state, r.reaction),
+                        None,
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == 1
+                ]
+                sticker_reactions = [
+                    PartialMessageReaction(
+                        self._state,
+                        new_message,
+                        None,
+                        Sticker(self._state, r.reaction),
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == 2
+                ]
+                new_message.partial_reactions = emoticon_reactions + sticker_reactions
+
+                messages.append(new_message)
+                yielded += 1
+
+            if message is None:
+                return
+
+            for message, author in zip(messages, chat_group._maybe_members(m.author.id for m in messages)):
+                message.author = author
+                yield message
+
+            last_message_timestamp = message.server_timestamp
+            last_ordinal = message.ordinal
+
+            if not resp.more_available:
+                return
 
     # async def edit(self, *, name: str) -> None:
     #     await self._state.edit_channel(*self._location, name)
@@ -436,6 +500,13 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
             The 64 bit ID of the member to get.
         """
         return self._members.get(id64 & 0xFFFFFFFF)  # TODO consider just passing ID32
+
+    def _maybe_members(self, ids: Iterable[ID32]) -> list[MemberT | PartialMember]:
+        if self.chunked:
+            return [self._members.get(id) or ID(id) for id in ids if id in self._members]
+        else:
+            return [ID(id) for id in ids]
+            # return [PartialMember(self._partial_members[id]) for id in ids if id in self._partial_members]  # TODO
 
     @property
     def owner(self):

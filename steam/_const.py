@@ -9,8 +9,9 @@ from __future__ import annotations
 import builtins
 import sys
 from collections.abc import Callable
-from io import StringIO
-from typing import Any, Final, final
+from datetime import datetime, timezone
+from io import BytesIO, StringIO
+from typing import TYPE_CHECKING, Any, Final, Literal, cast, final
 
 from multidict import MultiDict
 from yarl import URL as _URL
@@ -83,6 +84,29 @@ except ModuleNotFoundError:
     HTML_PARSER: Final = "html.parser"
 else:
     HTML_PARSER: Final = "lxml-xml"
+
+
+UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+@final
+class MissingSentinel(Any if TYPE_CHECKING else object):
+    __slots__ = ()
+
+    def __eq__(self, other: Any) -> Literal[False]:
+        return False
+
+    def __bool__(self) -> Literal[False]:
+        return False
+
+    def __hash__(self) -> Literal[0]:
+        return 0
+
+    def __repr__(self) -> Literal["..."]:
+        return "..."
+
+
+MISSING: Final = MissingSentinel()
 
 
 @final
