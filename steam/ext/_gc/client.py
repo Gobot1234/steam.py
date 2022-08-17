@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from typing_extensions import ClassVar
+from typing_extensions import ClassVar, Never
 
 from ...app import App
 from ...client import Client as Client_
+from ...enums import Language
 from ...protobufs import GCMsg, GCMsgProto
 from ...trade import Inventory
 from ...user import ClientUser as ClientUser_
@@ -23,13 +24,13 @@ class ClientUser(ClientUser_):
     async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
         return (
             self._state.backpack
-            if app == self._state.client.__class__._app and self._state._gc_ready.is_set()
+            if app == self._state.client.__class__._APP and self._state._gc_ready.is_set()
             else await super().inventory(app, language=language)
         )
 
 
 class Client(Client_):
-    _connection: GCState
+    _state: GCState
     _APP: ClassVar[App]
     _GC_HEART_BEAT: ClassVar = 30.0
 
@@ -51,7 +52,7 @@ class Client(Client_):
     def _get_gc_message(self) -> GCMsgProto[Any] | GCMsg[Any]:
         raise NotImplementedError()
 
-    def _get_state(self, **options: Any) -> None:
+    def _get_state(self, **options: Any) -> Never:
         raise NotImplementedError("cannot instantiate Client without a state")
 
     async def connect(self) -> None:
@@ -73,11 +74,11 @@ class Client(Client_):
     async def _handle_ready(self) -> None:
         data = await self.http.get_user(self.user.id64)
         assert data is not None
-        self.http.user = self.__class__._ClientUserCls(self._connection, data)
+        self.http.user = self.__class__._ClientUserCls(self._state, data)
         await super()._handle_ready()
 
     async def wait_for_gc_ready(self) -> None:
-        await self._connection._gc_ready.wait()
+        await self._state._gc_ready.wait()
 
     # async def buy_item(self, def_id: int, price: int, def_ids: list[int], prices: int) -> None:
     #     ...

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, final, overl
 import aiohttp
 
 from . import errors, utils
-from ._const import DOCS_BUILDING, TASK_HAS_NAME, URL, UNIX_EPOCH
+from ._const import DOCS_BUILDING, TASK_HAS_NAME, UNIX_EPOCH, URL
 from .app import App, FetchedApp, StatefulApp
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game_server import GameServer, Query
@@ -37,7 +37,7 @@ from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker, Emoticon
 from .state import ConnectionState
 from .types.id import Intable
-from .utils import parse_id64, DateTime
+from .utils import DateTime, parse_id64
 
 if TYPE_CHECKING:
     import steam
@@ -135,7 +135,7 @@ class Client:
             )
         self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self, **options)
-        self._connection = self._get_state(**options)
+        self._state = self._get_state(**options)
         self.ws: SteamWebSocket = None  # type: ignore
 
         self.username: str | None = None
@@ -158,42 +158,42 @@ class Client:
     @property
     def users(self) -> Sequence[User]:
         """A read-only list of all the users the connected client can see."""
-        return self._connection.users
+        return self._state.users
 
     @property
     def trades(self) -> Sequence[TradeOffer]:
         """A read-only list of all the trades the connected client can see."""
-        return self._connection.trades
+        return self._state.trades
 
     @property
     def groups(self) -> Sequence[Group]:
         """A read-only list of all the groups the connected client is in."""
-        return self._connection.groups
+        return self._state.groups
 
     @property
     def messages(self) -> Sequence[Message]:
         """A read-only list of all the messages the client has."""
-        return self._connection._messages
+        return self._state._messages
 
     @property
     def clans(self) -> Sequence[Clan]:
         """A read-only list of all the clans the connected client is in."""
-        return self._connection.clans
+        return self._state.clans
 
     @property
     def licenses(self) -> Sequence[License]:
         """A read-only list of licenses the client has access to."""
-        return list(self._connection.licenses.values())
+        return list(self._state.licenses.values())
 
     @property
     def emoticons(self) -> Sequence[ClientEmoticon]:
         """A read-only list of all the emoticons the client has."""
-        return self._connection.emoticons
+        return self._state.emoticons
 
     @property
     def stickers(self) -> Sequence[ClientSticker]:
         """A read-only list of all the stickers the client has."""
-        return self._connection.stickers
+        return self._state.stickers
 
     @property
     def latency(self) -> float:
@@ -400,7 +400,7 @@ class Client:
 
         await self.http.login(username, password, shared_secret=shared_secret)
         self._closed = False
-        self.loop.create_task(self._connection.__ainit__())
+        self.loop.create_task(self._state.__ainit__())
 
     async def close(self) -> None:
         """Close the connection to Steam."""
@@ -425,7 +425,7 @@ class Client:
         """
         self._closed = False
         self._ready.clear()
-        self._connection.clear()
+        self._state.clear()
         self.http.clear()
 
     async def start(
@@ -494,7 +494,7 @@ class Client:
                     await self.ws.poll_event()
             except exceptions as exc:
                 if isinstance(exc, ConnectionClosed):
-                    self._connection._connected_cm = exc.cm
+                    self._state._connected_cm = exc.cm
                 self.dispatch("disconnect")
             finally:
                 if not self.is_closed():
@@ -512,7 +512,7 @@ class Client:
             :attr:`.ID.id3`.
         """
         steam_id = ID(id=id, type=Type.Individual)
-        return self._connection.get_user(steam_id.id)
+        return self._state.get_user(steam_id.id)
 
     async def fetch_user(self, id: Intable) -> User | None:
         """Fetches a user with a matching ID or ``None`` if the user was not found.
@@ -524,7 +524,7 @@ class Client:
             :attr:`.ID.id3`.
         """
         id64 = parse_id64(id=id, type=Type.Individual)
-        return await self._connection.fetch_user(id64)
+        return await self._state.fetch_user(id64)
 
     async def fetch_users(self, *ids: Intable) -> list[User | None]:
         """Fetches a list of :class:`~steam.User` or ``None`` if the user was not found, from their IDs.
@@ -539,7 +539,7 @@ class Client:
             The user's IDs.
         """
         id64s = [parse_id64(id, type=Type.Individual) for id in ids]
-        return await self._connection.fetch_users(id64s)
+        return await self._state.fetch_users(id64s)
 
     async def fetch_user_named(self, name: str) -> User | None:
         """Fetches a user from https://steamcommunity.com from their community URL name.
@@ -550,7 +550,7 @@ class Client:
             The name of the user after https://steamcommunity.com/id
         """
         id64 = await utils.id64_from_url(URL.COMMUNITY / f"id/{name}", self.http._session)
-        return await self._connection.fetch_user(id64) if id64 is not None else None
+        return await self._state.fetch_user(id64) if id64 is not None else None
 
     def get_trade(self, id: int) -> TradeOffer | None:
         """Get a trade from cache with a matching ID or ``None`` if the trade was not found.
@@ -560,7 +560,7 @@ class Client:
         id
             The id of the trade to search for from the cache.
         """
-        return self._connection.get_trade(id)
+        return self._state.get_trade(id)
 
     async def fetch_trade(self, id: int, *, language: Language | None = None) -> TradeOffer | None:
         """Fetches a trade with a matching ID or ``None`` if the trade was not found.
@@ -572,7 +572,7 @@ class Client:
         language
             The language to fetch the trade in. ``None`` uses the current language.
         """
-        return await self._connection.fetch_trade(id, language)
+        return await self._state.fetch_trade(id, language)
 
     def get_group(self, id: Intable) -> Group | None:
         """Get a group from cache with a matching ID or ``None`` if the group was not found.
@@ -584,7 +584,7 @@ class Client:
             :attr:`.ID.id3`.
         """
         steam_id = ID(id=id, type=Type.Chat)
-        return self._connection.get_group(steam_id.id)
+        return self._state.get_group(steam_id.id)
 
     def get_clan(self, id: Intable) -> Clan | None:
         """Get a clan from cache with a matching ID or ``None`` if the group was not found.
@@ -596,7 +596,7 @@ class Client:
             :attr:`.ID.id3`.
         """
         steam_id = ID(id=id, type=Type.Clan)
-        return self._connection.get_clan(steam_id.id)
+        return self._state.get_clan(steam_id.id)
 
     async def fetch_clan(self, id: Intable) -> Clan | None:
         """Fetches a clan from the websocket with a matching ID or ``None`` if the clan was not found.
@@ -608,7 +608,7 @@ class Client:
             :attr:`.ID.id3`.
         """
         id64 = parse_id64(id=id, type=Type.Clan)
-        return await self._connection.fetch_clan(id64)
+        return await self._state.fetch_clan(id64)
 
     async def fetch_clan_named(self, name: str) -> Clan | None:
         """Fetches a clan from https://steamcommunity.com with a matching name or ``None`` if the clan was not found.
@@ -619,7 +619,7 @@ class Client:
             The name of the Steam clan.
         """
         steam_id = await ID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
-        return await self._connection.fetch_clan(steam_id.id64) if steam_id is not None else None
+        return await self._state.fetch_clan(steam_id.id64) if steam_id is not None else None
 
     def get_app(self, id: int | App) -> StatefulApp:
         """Creates a stateful app from its ID.
@@ -629,7 +629,7 @@ class Client:
         id
             The app id of the app or a :class:`~steam.App` instance.
         """
-        return StatefulApp(self._connection, id=getattr(id, "id", id))
+        return StatefulApp(self._state, id=getattr(id, "id", id))
 
     async def fetch_app(self, id: int | App, *, language: Language | None = None) -> FetchedApp | None:
         """Fetch an app from its ID or ``None`` if the app was not found.
@@ -646,7 +646,7 @@ class Client:
         if resp is None:
             return None
         data = resp[str(id)]
-        return FetchedApp(self._connection, data["data"]) if data["success"] else None
+        return FetchedApp(self._state, data["data"]) if data["success"] else None
 
     def get_package(self, id: int) -> StatefulPackage:
         """Creates a package from its ID.
@@ -656,7 +656,7 @@ class Client:
         id
             The ID of the package.
         """
-        return StatefulPackage(self._connection, id=id)
+        return StatefulPackage(self._state, id=id)
 
     async def fetch_package(self, id: int, *, language: Language | None = None) -> FetchedPackage | None:
         """Fetch a package from its ID.
@@ -672,7 +672,7 @@ class Client:
         if resp is None:
             return None
         data = resp[str(id)]
-        return FetchedPackage(self._connection, data["data"]) if data["success"] else None
+        return FetchedPackage(self._state, data["data"]) if data["success"] else None
 
     @overload
     async def fetch_server(self, *, id: Intable) -> GameServer | None:
@@ -715,7 +715,7 @@ class Client:
             raise TypeError("Too many arguments passed to fetch_server")
         if id:
             # we need to fetch the ip and port
-            servers = await self._connection.fetch_server_ip_from_steam_id(parse_id64(id, type=Type.GameServer))
+            servers = await self._state.fetch_server_ip_from_steam_id(parse_id64(id, type=Type.GameServer))
             if not servers:
                 raise ValueError(f"The master server didn't find a matching server for {id}")
             ip, _, port = servers[0].addr.partition(":")
@@ -735,8 +735,8 @@ class Client:
         limit
             The maximum amount of servers to return.
         """
-        servers = await self._connection.fetch_servers(query.query, limit)
-        return [GameServer(self._connection, server) for server in servers]
+        servers = await self._state.fetch_servers(query.query, limit)
+        return [GameServer(self._state, server) for server in servers]
 
     # content server related stuff
 
@@ -767,7 +767,7 @@ class Client:
             The packages to fetch info on.
         """
 
-        app_infos, package_infos = await self._connection.fetch_product_info(
+        app_infos, package_infos = await self._state.fetch_product_info(
             (app.id for app in apps), (package.id for package in packages)
         )
 
@@ -796,7 +796,7 @@ class Client:
         language
             The language to fetch the published file in. If ``None``, the current language is used.
         """
-        (file,) = await self._connection.fetch_published_files((id,), revision, language)
+        (file,) = await self._state.fetch_published_files((id,), revision, language)
         return file
 
     async def fetch_published_files(
@@ -816,9 +816,9 @@ class Client:
         language
             The language to fetch the published files in. If ``None``, the current language is used.
         """
-        return await self._connection.fetch_published_files(ids, revision, language)
+        return await self._state.fetch_published_files(ids, revision, language)
 
-    def trade_history(
+    async def trade_history(
         self,
         *,
         limit: int | None = 100,
@@ -872,7 +872,7 @@ class Client:
 
         async def get_trades(page: int = 100) -> list[TradeOffer]:
             nonlocal total, previous_time
-            resp = await self._connection.http.get_trade_history(page, previous_time, language)
+            resp = await self._state.http.get_trade_history(page, previous_time, language)
             data = resp["response"]
             if total is None:
                 total = data.get("total_trades", 0)
@@ -893,11 +893,11 @@ class Client:
                         if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
                             asset.update(item)
 
-                trades.append(TradeOffer._from_history(state=self._connection, data=trade))
+                trades.append(TradeOffer._from_history(state=self._state, data=trade))
 
             assert trade is not None
             previous_time = trade["time_init"]
-            for trade, partner in zip(trades, await self._connection._maybe_users(trade.partner for trade in trades)):
+            for trade, partner in zip(trades, await self._state._maybe_users(trade.partner for trade in trades)):
                 trade.partner = partner
             return trades
 
@@ -965,7 +965,7 @@ class Client:
         generate_new
             Whether or not to generate a new trade token, defaults to ``False``.
         """
-        return await self._connection.fetch_trade_url(generate_new)
+        return await self._state.fetch_trade_url(generate_new)
 
     async def wait_until_ready(self) -> None:
         """Waits until the client's internal cache is all ready."""

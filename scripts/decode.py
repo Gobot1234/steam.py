@@ -21,7 +21,7 @@ from steam.protobufs.base import CMsgMulti
 async def amain(input_message: str) -> None:
     client = steam.Client()
     client.http.user = steam.ID(0)  # type: ignore
-    fake_ws = SteamWebSocket(client._connection, None, None, None)  # type: ignore
+    fake_ws = SteamWebSocket(client._state, None, None, None)  # type: ignore
 
     def parser(msg: MsgBase[betterproto.Message]) -> None:
         print(f"{msg.msg=}")

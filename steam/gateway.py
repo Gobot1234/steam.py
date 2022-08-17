@@ -227,7 +227,7 @@ class SteamWebSocket(Registerable):
         self.socket = socket
 
         # state stuff
-        self._connection = state
+        self._state = state
         self.cm_list = cm_list
         self.cm = cm
         # the keep alive
@@ -268,7 +268,7 @@ class SteamWebSocket(Registerable):
 
     @classmethod
     async def from_client(cls, client: Client) -> SteamWebSocket:
-        state = client._connection
+        state = client._state
         token = await client.token()
         cm_list = fetch_cm_list(state)
         async for cm in cm_list:
@@ -283,10 +283,10 @@ class SteamWebSocket(Registerable):
                     account_name=client.username,
                     web_logon_nonce=token,
                     client_os_type=4294966596,
-                    client_language=self._connection.http.language.api_name,
+                    client_language=self._state.http.language.api_name,
                     protocol_version=65580,
                     chat_mode=2,
-                    ui_mode=self._connection._ui_mode,
+                    ui_mode=self._state._ui_mode,
                     qos_level=2,
                 )
             )
@@ -365,7 +365,7 @@ class SteamWebSocket(Registerable):
         await self.send(bytes(message))
 
     async def send_gc_message(self, msg: GCMsgs) -> int:  # for ext's to send GC messages
-        client = self._connection.client
+        client = self._state.client
         if __debug__ or TYPE_CHECKING:
             from .ext._gc import Client as GCClient
 
@@ -410,13 +410,13 @@ class SteamWebSocket(Registerable):
         if msg.result != Result.OK:
             log.debug(f"Failed to login with result: {msg.result}")
             if msg.result == Result.InvalidPassword:
-                http = self._connection.http
+                http = self._state.http
                 await http.logout()
                 await http.login(http.username, http.password, shared_secret=http.shared_secret)
             return await self.handle_close()
 
         self.session_id = msg.session_id
-        self._connection.cell_id = msg.body.cell_id
+        self._state.cell_id = msg.body.cell_id
 
         interval = msg.body.out_of_game_heartbeat_seconds
         self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
@@ -425,10 +425,10 @@ class SteamWebSocket(Registerable):
 
         await self.send_um("ChatRoom.GetMyChatRoomGroups")
         await self.change_presence(
-            apps=self._connection._apps,
-            state=self._connection._state,
-            flags=self._connection._flags,
-            force_kick=self._connection._force_kick,
+            apps=self._state._apps,
+            state=self._state._state,
+            flags=self._state._flags,
+            force_kick=self._state._force_kick,
         )
         await self.send_proto(MsgProto(EMsg.ClientGetEmoticonList))
         await self.send_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
@@ -536,11 +536,11 @@ class SteamWebSocket(Registerable):
         ui_mode: UIMode | None = None,
         force_kick: bool = False,
     ) -> None:
-        self._connection._apps = apps or self._connection._apps
-        self._connection._state = state or self._connection._state
-        self._connection._ui_mode = ui_mode or self._connection._ui_mode
-        self._connection._flags = flags or self._connection._flags
-        self._connection._force_kick = force_kick
+        self._state._apps = apps or self._state._apps
+        self._state._state = state or self._state._state
+        self._state._ui_mode = ui_mode or self._state._ui_mode
+        self._state._flags = flags or self._state._flags
+        self._state._force_kick = force_kick
 
         if force_kick:
             kick_msg = MsgProto(EMsg.ClientKickPlayingSession)
