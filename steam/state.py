@@ -1409,7 +1409,7 @@ class ConnectionState(Registerable):
         if msg.body.count_new_items:
             await self.poll_trades()
 
-    async def fetch_user_review(self, user_id64: int, app_ids: Iterable[int]) -> list[reviews.RecommendationDetails]:
+    async def fetch_user_reviews(self, user_id64: int, app_ids: Iterable[int]) -> list[reviews.RecommendationDetails]:
         msg: MsgProto[reviews.GetIndividualRecommendationsResponse] = await self.ws.send_um_and_wait(
             "UserReviews.GetIndividualRecommendations",
             requests=[{"steamid": user_id64, "appid": app_id} for app_id in app_ids],

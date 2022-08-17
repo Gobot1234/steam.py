@@ -557,7 +557,7 @@ class BaseUser(ID, Commentable):
                 for review in soup.find_all("div", class_="review_box_content")
             ]
 
-            for review_ in await self._state.fetch_user_review(self.id64, app_ids):
+            for review_ in await self._state.fetch_user_reviews(self.id64, app_ids):
                 review = Review._from_proto(self._state, review_, self)
                 if not after < review.created_at < before:
                     return
@@ -595,7 +595,7 @@ class BaseUser(ID, Commentable):
         """
         from .review import Review
 
-        reviews = await self._state.fetch_user_review(self.id64, (app.id for app in apps))
+        reviews = await self._state.fetch_user_reviews(self.id64, (app.id for app in apps))
         return [Review._from_proto(self._state, review, self) for review in reviews]
 
     async def published_files(
