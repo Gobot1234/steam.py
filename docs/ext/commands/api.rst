@@ -249,7 +249,7 @@ Default Values
 
 .. autoclass:: DefaultGroup()
 
-.. autoclass:: DefaultGame()
+.. autoclass:: DefaultApp()
 
 Greedy
 -------
