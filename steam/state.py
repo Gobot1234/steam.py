@@ -1816,7 +1816,6 @@ class ConnectionState(Registerable):
             strip_description_bbcode=True,
             return_reactions=True,
             desired_revision=revision,
-            return_apps=True,
         )
         if msg.result != Result.OK:
             raise WSException(msg)
