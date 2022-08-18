@@ -262,7 +262,7 @@ class ConnectionState(Registerable):
         ret: list[User | ID] = []
         to_fetch: dict[ID64, list[int]] = {}
         for idx, id64 in enumerate(id64s):
-            steam_id = ID(id64, type=Type.Invalid)
+            steam_id = ID(id64, type=Type.Individual)
             user = self.get_user(steam_id.id)
             if user is not None:
                 ret.append(user)
