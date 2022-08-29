@@ -33,7 +33,6 @@ __all__ = (
     "ReviewType",
     "GameServerRegion",
     "EventType",
-    "ClanEvent",
     "ProfileItemType",
     "ProfileCustomisationStyle",
     "ProfileItemClass",
@@ -811,13 +810,6 @@ class EventType(IntEnum):
     InGameGeneral          = 35  #: An in game general event.
 
 
-if not DOCS_BUILDING:
-    class ClanEvent(IntEnum):
-        for _member in EventType:
-            locals()[_member.name] = _member.value
-        del _member
-
-
 class ProfileItemType(IntEnum):
     Invalid                   = 0   #: An invalid item type.
     RareAchievementShowcase   = 1   #: A rare achievements showcase.
@@ -1161,16 +1153,3 @@ class PublishedFileQueryFileType(IntEnum):
 if __debug__:
     _ENUM_NAMES = {enum.__name__ for enum in Enum.__subclasses__() + IntEnum.__subclasses__()}
     assert _ENUM_NAMES.issubset(__all__), f"__all__ is not complete, missing {_ENUM_NAMES - set(__all__)}"
-
-
-# shim for old enum names
-def __getattr__(name: str) -> Any:
-    if name == "ClanEvent":
-        return EventType
-    if name[0] == "E" and name[1:] in __all__:
-        import warnings
-
-        warnings.warn('Enums with "E" prefix are depreciated and scheduled for removal in V.1', DeprecationWarning)
-        return globals()[name[1:]]
-
-    raise AttributeError(name)
