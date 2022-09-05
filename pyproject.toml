@@ -40,7 +40,7 @@ python = "^3.10"
 aiohttp = ">=3.7,<3.9"
 beautifulsoup4 = "^4.10"
 cryptography = "^37.0"
-betterproto = "2.0.0b4"
+betterproto = "2.0.0b5"
 typing-extensions = "4.2.0"
 vdf = "^3.4"
 tomli = {version = "~2", optional = true, python = "<3.11"}
