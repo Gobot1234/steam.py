@@ -37,7 +37,7 @@ generate-setup-file = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
-aiohttp = ">=3.7,<3.9"
+aiohttp = "^3.8"
 beautifulsoup4 = "^4.10"
 cryptography = "^38.0"
 betterproto = "2.0.0b4"
@@ -45,12 +45,16 @@ typing-extensions = "4.3.0"
 vdf = "^3.4"
 tomli = {version = "~2", optional = true, python = "<3.11"}
 
+[tool.poetry.group.speedups]
+optional = true
 [tool.poetry.group.speedups.dependencies]
 aiohttp = {version = ">=3.7,<3.9", extras = ["speedups"]}
 lxml = "^4.8.0"
 # orvdf = "^1.0.0"
 orjson = "^3.6.8"
 
+[tool.poetry.group.docs]
+optional = true
 [tool.poetry.group.docs.dependencies]
 sphinx = "^5.0"
 myst-parser = "^0.18"
@@ -63,14 +67,14 @@ htmlmin = "^0.1.12"
 rjsmin = "^1.2.0"
 
 [tool.poetry.group.dev.dependencies]
-black = "^22.1"
+black = "^22.3"
 isort = "^5.10"
 #flake8 = "^4.0"
 pytest = "^7.1"
 pytest-asyncio = "^0.18"
 mypy = "^0.961"
 pre-commit = "^2.18"
-poethepoet = {version="^0.13"}  #, extras=["poetry_plugin"]}
+poethepoet = {version="^0.13", extras=["poetry_plugin"]}
 blacken-docs = "^1.12"
 
 [tool.poe.tasks]
@@ -138,5 +142,5 @@ testpaths = ["tests"]
 asyncio_mode = "strict"
 
 [build-system]
-requires = ["poetry-core==1.1.0b2", "tomli; python_version < '3.11'"]
+requires = ["poetry-core>=1.1.0,<2", "tomli; python_version < '3.11'"]
 build-backend = "poetry.core.masonry.api"
