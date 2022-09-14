@@ -22,7 +22,7 @@ from .chat import ChatGroup, Member
 from .enums import EventType, Language, Type
 from .errors import HTTPException
 from .event import Announcement, Event
-from .id import ID
+from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
 from .protobufs import chat
 from .types.id import ID64
 from .utils import DateTime
@@ -148,7 +148,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         resp = await self._state.http._session.get(super().community_url)  # type: ignore
         text = await resp.text()  # technically we loose proper request handling here
         if not self.id64:
-            search = utils.CLAN_ID64_FROM_URL_REGEX.search(text)
+            search = CLAN_ID64_FROM_URL_REGEX.search(text)
             if search is None:
                 raise ValueError("unreachable code reached")
             super().__init__(search["steamid"], type=Type.Clan)
@@ -178,7 +178,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 text = stat.text.split("Founded")[1].strip()
                 if ", " not in stat.text:
                     text = f"{text}, {DateTime.now().year}"
-                self.created_at = utils.DateTime.parse_steam_date(text)
+                self.created_at = DateTime.parse_steam_date(text)
             if "Language" in stat.text:
                 self.language = stat.text.split("Language")[1].strip()
             if "Location" in stat.text:
@@ -243,7 +243,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 user = self._state.get_user(id)
                 if user is None:
                     await asyncio.sleep(0)
-                    user = await self._state._maybe_user(utils.parse_id64(id))  # TODO maybe users
+                    user = await self._state._maybe_user(parse_id64(id))  # TODO maybe users
                 member = ClanMember(self._state, self, user, member)
                 self._members[member.id] = member
             return await super().chunk()
@@ -273,7 +273,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 user = users[id]
             except KeyError:
                 # steam doesn't include the first user cause ???, this however, isn't that big a deal.
-                user = await self._state._maybe_user(utils.parse_id64(id))
+                user = await self._state._maybe_user(parse_id64(id))
                 if isinstance(user, ID):
                     continue
             member = ClanMember(self._state, self, users[id], member)
