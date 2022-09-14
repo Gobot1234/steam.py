@@ -431,6 +431,8 @@ class StatefulApp(App):
         cursor = "*"
         app = self
 
+        yielded = 0
+
         while True:
             data = await self._state.http.get_reviews(self.id, "all", "all", "all", cursor)
             if cursor == "*":
@@ -448,8 +450,11 @@ class StatefulApp(App):
                 review = Review._from_data(self._state, review, app, user)
                 if not after < review.created_at < before:
                     return
+                if limit is not None and yielded >= limit:
+                    return
 
                 yield review
+                yielded += 1
 
     async def friend_thoughts(self) -> FriendThoughts:
         """Fetch the client user's friends who recommended and didn't recommend this app in a review.
