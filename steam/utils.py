@@ -325,7 +325,7 @@ class StructIOMeta(type):
         return super().__new__(mcs, name, bases, namespace)
 
 
-class StructIO(BytesIO, metaclass=StructIOMeta):
+class StructIO(BytesIO, metaclass=type if TYPE_CHECKING else StructIOMeta):
     __slots__ = ()
 
     def __repr__(self) -> str:
@@ -351,14 +351,14 @@ class StructIO(BytesIO, metaclass=StructIOMeta):
         self.write(struct.pack(format, *to_write))
 
     def read_cstring(self, terminator: bytes = b"\x00") -> bytes:
-        starting_position = self.position
-        data = self.read()
-        null_index = data.find(terminator)
-        if null_index == -1:
-            raise RuntimeError("Reached end of buffer")
-        result = data[:null_index]  # bytes without the terminator
-        self.seek(starting_position + null_index + len(terminator))  # advance offset past terminator
-        return result
+        data = self.getbuffer()[self.position :]
+        for i, chars in enumerate(as_chunks(data, len(terminator))):
+            if bytes(chars) == terminator:
+                result = bytes(data[: i * len(terminator)])
+                self.position += len(result) + len(terminator)
+                return result
+
+        raise RuntimeError("Reached end of buffer")
 
     if TYPE_CHECKING:
         # added by the metaclass
