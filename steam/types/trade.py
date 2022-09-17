@@ -93,7 +93,7 @@ class TradeOffer(TypedDict):
 
 class GetTradeOffer(TypedDict):
     offer: TradeOffer
-    descriptions: Description
+    descriptions: list[Description]
 
 
 class TradeOfferReceiptAsset(Asset):
