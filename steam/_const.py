@@ -90,6 +90,7 @@ else:
 
 
 UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)
+STEAM_EPOCH = datetime(2003, 1, 1, tzinfo=timezone.utc)
 
 
 @final
