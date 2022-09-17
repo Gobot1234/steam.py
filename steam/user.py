@@ -15,6 +15,8 @@ from .abc import BaseUser, Messageable
 from .app import App, StatefulApp
 from .enums import CommunityVisibilityState, Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
+
+# from .models import Avatar
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .trade import Inventory, TradeOffer
 from .utils import DateTime

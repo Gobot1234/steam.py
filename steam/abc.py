@@ -27,7 +27,7 @@ from .enums import *
 from .errors import WSException
 from .game_server import GameServer
 from .id import ID
-from .models import Avatar, Ban
+from .models import Ban  # , Avatar
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory
