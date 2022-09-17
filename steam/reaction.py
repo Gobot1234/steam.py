@@ -132,7 +132,7 @@ class AwardReaction:
         return f"<{self.__class__.__name__} award={self.award!r} count={self.count}>"
 
 
-@dataclass
+@dataclass(slots=True)
 class PartialMessageReaction:
     """Represents a partial reaction to a message."""
 
@@ -145,7 +145,7 @@ class PartialMessageReaction:
     """The sticker that was reacted with."""
 
 
-@dataclass
+@dataclass(slots=True)
 class MessageReaction(PartialMessageReaction):
     """Represents a reaction to a message."""
 

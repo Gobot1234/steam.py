@@ -60,7 +60,6 @@ __all__ = (
 )
 
 log = logging.getLogger(__name__)
-NameT = TypeVar("NameT", bound="str | None", covariant=True)
 
 
 def unzip(data: bytes) -> bytes:
@@ -88,10 +87,9 @@ def unzip(data: bytes) -> bytes:
     return data
 
 
-@dataclass
+@dataclass(slots=True)
 class ManifestPathParents(Sequence["ManifestPath"]):
     # this class is mostly a copy and paste from pathlib.py
-    __slots__ = ("path",)
     path: ManifestPath  # we don't care about reference cycles
 
     def __len__(self) -> int:
@@ -417,7 +415,7 @@ class Manifest:
         return self.size_original != self.size_compressed if self.size_compressed else False
 
 
-@dataclass
+@dataclass(slots=True)
 class ContentServer(ID):  # is there any point having this inherit steamid?
     _state: ConnectionState
     url: URL
@@ -585,11 +583,10 @@ class PrivateManifestInfo(ManifestInfo):
             return None
 
 
-@dataclass
+@dataclass(repr=False, slots=True)
 class HeadlessDepot:
     """Represents a depot without a branch."""
 
-    __slots__ = ("id", "name", "app", "max_size", "config", "shared_install", "system_defined")
     id: int
     """The depot's ID."""
     name: str
@@ -612,14 +609,13 @@ class HeadlessDepot:
         return self.id == other.id if isinstance(other, self.__class__) else NotImplemented
 
 
-@dataclass
+@dataclass(repr=False, slots=True)
 class Depot(HeadlessDepot):
     """Represents a depot which is a grouping of files.
 
     Read more on `steamworks <https://partner.steamgames.com/doc/store/application/depots>`_.
     """
 
-    __slots__ = ("manifest", "branch")
     manifest: ManifestInfo
     """The depot's associated manifest."""
     branch: Branch

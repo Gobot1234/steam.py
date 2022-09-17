@@ -125,14 +125,12 @@ class StatefulPackage(Package):
             for branch in app_info._branches.values()
             for depot in branch.depots
             if depot.id in depot_ids
-        ] + [
-            depot for app_info in apps_info for depot in app_info.headless_depots if depot.id in depot_ids
-        ]  # type: ignore
+        ] + [depot for app_info in apps_info for depot in app_info.headless_depots if depot.id in depot_ids]
 
     # TODO .manifests, fetch_manifest
 
 
-@dataclass
+@dataclass(slots=True)
 class PackagePriceOverview(PartialAppPriceOverview):
     individual: int
 
@@ -170,7 +168,7 @@ class FetchedPackage(StatefulPackage):
         return self._on_linux
 
 
-@dataclass
+@dataclass(slots=True)
 class FetchedAppPackagePriceOverview:
     percent_discount: int
     final: int

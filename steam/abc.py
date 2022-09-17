@@ -12,20 +12,22 @@ import abc
 import asyncio
 from collections.abc import AsyncGenerator, Coroutine
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
+from ipaddress import IPv4Address, IPv6Address
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypedDict, TypeVar, runtime_checkable
 
 from bs4 import BeautifulSoup
 from typing_extensions import Required, Self
 from yarl import URL as URL_
 
-from ._const import HTML_PARSER, UNIX_EPOCH, URL
+from ._const import HTML_PARSER, STEAM_EPOCH, UNIX_EPOCH, URL
 from .app import App, StatefulApp, UserApp, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
+from .game_server import GameServer
 from .id import ID
-from .models import Ban
+from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory
@@ -57,9 +59,6 @@ class _CommentableKwargs(TypedDict, total=False):
     thread_type: Required[int]
     gidfeature: int
     gidfeature2: int
-    thread_id: int
-    upvotes: int
-    include_deleted: bool
 
 
 class Commentable(Protocol):
@@ -249,23 +248,8 @@ class BaseUser(ID, Commentable):
     app
         The App instance attached to the user. Is ``None`` if the user isn't in an app or one that is recognised by the
         api.
-    primary_clan
-        The primary clan the User displays on their profile.
-
-        Note
-        ----
-        This can be lazily awaited to get more attributes of the clan.
-
-    avatar_url
-        The avatar url of the user. Uses the large (184x184 px) image url.
-    real_name
-        The user's real name defined by them. Could be ``None``.
-    created_at
-        The time at which the user's account was created. Could be ``None``.
     last_logoff
         The last time the user logged into steam. Could be None (e.g. if they are currently online).
-    country
-        The country code of the account. Could be ``None``.
     flags
         The persona state flags of the account.
     rich_presence
@@ -297,22 +281,16 @@ class BaseUser(ID, Commentable):
     )
 
     name: str
-    real_name: str | None
-    community_url: str | None
-    avatar_url: str | None  # TODO make this a property and add avatar hash
-    primary_clan: Clan | None
-    country: str | None
-    created_at: datetime | None
     last_logoff: datetime | None
     last_logon: datetime | None
     last_seen_online: datetime | None
     app: StatefulApp | None
     state: PersonaState | None
     flags: PersonaStateFlag | None
-    privacy_state: CommunityVisibilityState | None
-    comment_permissions: CommentPrivacyState | None
-    profile_state: CommunityVisibilityState | None
     rich_presence: dict[str, str] | None
+    game_server_ip: IPv4Address | IPv6Address | None
+    game_server_port: int | None
+    _avatar_sha: bytes
     _state: ConnectionState
 
     def __repr__(self) -> str:
@@ -335,6 +313,18 @@ class BaseUser(ID, Commentable):
         """The string used to mention the user in chat."""
         return f"[mention={self.id}]@{self.name}[/mention]"
 
+    @property
+    def avatar(self) -> Avatar:
+        return Avatar(self._state, self._avatar_sha)
+
+    async def server(self) -> GameServer:
+        """Fetch the game server this user is currently playing on."""
+        if self.game_server_ip is None:
+            raise ValueError("User is not playing on a game server")
+        server = await self._state.client.fetch_server(ip=self.game_server_ip, port=self.game_server_port)
+        assert server is not None
+        return server
+
     async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
         """Fetch a user's :class:`~steam.Inventory` for trading.
 
@@ -353,10 +343,10 @@ class BaseUser(ID, Commentable):
         resp = await self._state.http.get_user_inventory(self.id64, app.id, app.context_id, language)
         return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
 
-    async def friends(self) -> list[User]:
+    async def friends(self) -> list[User | ID]:
         """Fetch the list of the users friends."""
-        friends = await self._state.http.get_friends(self.id64)
-        return [self._state._store_user(friend) for friend in friends]
+        friends = await self._state.http.get_friends_ids(self.id64)
+        return await self._state._maybe_users(friends)
 
     async def apps(self, *, include_free: bool = True) -> list[UserApp]:
         r"""Fetches the :class:`~steam.App`\s the user owns.
@@ -368,6 +358,11 @@ class BaseUser(ID, Commentable):
         """
         apps = await self._state.fetch_user_apps(self.id64, include_free)
         return [UserApp(self._state, app) for app in apps]
+
+    async def wishlist(self) -> list[WishlistApp]:
+        r"""Get the :class:`.WishlistApp`\s the user has on their wishlist."""
+        data = await self._state.http.get_wishlist(self.id64)
+        return [WishlistApp(self._state, id=id, data=app_info) for id, app_info in data.items()]
 
     async def clans(self) -> list[Clan]:
         r"""Fetches a list of :class:`~steam.Clan`\s the user is in."""
@@ -393,22 +388,28 @@ class BaseUser(ID, Commentable):
         resp["EconomyBan"] = resp["EconomyBan"] != "none"
         return Ban(data=resp)
 
+    async def is_banned(self) -> bool:
+        """Specifies if the user is banned from any part of Steam.
+
+        Shorthand for:
+
+        .. code-block:: python3
+
+            bans = await user.bans()
+            bans.is_banned()
+        """
+        bans = await self.bans()
+        return bans.is_banned()
+
+    async def level(self) -> int:
+        """Fetches the user's level."""
+        badges = await self.badges()
+        return badges.level
+
     async def badges(self) -> UserBadges:
         r"""Fetches the user's :class:`.UserBadges`\s."""
         resp = await self._state.http.get_user_badges(self.id64)
-        return UserBadges(self._state, data=resp["response"])
-
-    async def level(self) -> int:
-        """Fetches the user's level if your account is premium, otherwise it's cached."""
-        if self._state.http.api_key is not None:
-            resp = await self._state.http.get_user_level(self.id64)
-            return resp["response"]["player_level"]
-        return self._level
-
-    async def wishlist(self) -> list[WishlistApp]:
-        r"""Get the :class:`.WishlistApp`\s the user has on their wishlist."""
-        data = await self._state.http.get_wishlist(self.id64)
-        return [WishlistApp(self._state, id=id, data=app_info) for id, app_info in data.items()]
+        return UserBadges(self._state, self, data=resp["response"])
 
     async def favourite_badge(self) -> FavouriteBadge | None:
         """The user's favourite badge."""
@@ -417,8 +418,8 @@ class BaseUser(ID, Commentable):
             return
 
         return FavouriteBadge(
-            id=UserBadge.try_value(badge.badgeid),
-            item_id=badge.communityitemid,
+            id=badge.badgeid,
+            community_item_id=badge.communityitemid,
             type=badge.item_type,
             border_colour=badge.border_color,
             app=StatefulApp(self._state, id=badge.appid) if badge.appid else None,
@@ -444,15 +445,9 @@ class BaseUser(ID, Commentable):
             modifier=ProfileItem(self._state, self, items.profile_modifier) if items.profile_modifier else None,
         )
 
-    async def profile_customisation_info(self, *, language: Language | None = None) -> ProfileCustomisation:
-        """Fetch a user's profile customisation information.
-
-        Parameters
-        ----------
-        language
-            The language to fetch the profile items in. If ``None`` the current language is used
-        """
-        info = await self._state.fetch_user_profile_customisation(self.id64, language)
+    async def profile_customisation_info(self) -> ProfileCustomisation:
+        """Fetch a user's profile customisation information."""
+        info = await self._state.fetch_user_profile_customisation(self.id64)
         return ProfileCustomisation(self._state, self, info)
 
     async def profile(self, *, language: Language | None = None) -> Profile:
@@ -471,35 +466,9 @@ class BaseUser(ID, Commentable):
         return Profile(
             *await asyncio.gather(
                 self.equipped_profile_items(language=language),
-                self.profile_customisation_info(language=language),
+                self.profile_customisation_info(),
             )
         )
-
-    def is_commentable(self) -> bool:
-        """Specifies if the user's account can be commented on."""
-        if hasattr(self, "is_friend"):
-            return self.comment_permissions in (
-                CommentPrivacyState.Public,
-                CommentPrivacyState.FriendsOnly if self.is_friend() else CommentPrivacyState.Public,
-            )
-        return True  # our account
-
-    def is_private(self) -> bool:
-        """Specifies if the user has a private profile."""
-        return self.privacy_state == CommunityVisibilityState.Private
-
-    async def is_banned(self) -> bool:
-        """Specifies if the user is banned from any part of Steam.
-
-        Shorthand for:
-
-        .. code-block:: python3
-
-            bans = await user.bans()
-            bans.is_banned()
-        """
-        bans = await self.bans()
-        return bans.is_banned()
 
     async def reviews(
         self,
@@ -668,56 +637,6 @@ class BaseUser(ID, Commentable):
                 yield file
                 yielded += 1
 
-    @classmethod
-    def _patch_without_api(cls) -> None:
-        import functools
-
-        def __init__(self, state: ConnectionState, data: dict[str, Any]) -> None:
-            super().__init__(data["steamid"])
-            self._state = state
-            self.name = data["persona_name"]
-            self.avatar_url = data.get("avatar_url") or self.avatar_url
-
-            self.real_name = NotImplemented
-            self.trade_url = URL.COMMUNITY / f"tradeoffer/new?partner={self.id}"
-            self.primary_clan = NotImplemented
-            self.country = NotImplemented
-            self.created_at = NotImplemented
-            self.last_logoff = NotImplemented
-            self.last_logon = NotImplemented
-            self.last_seen_online = NotImplemented
-            self.app = NotImplemented
-            self.state = NotImplemented
-            self.flags = NotImplemented
-            self.privacy_state = NotImplemented
-            self._commentable = NotImplemented
-            self._setup_profile = NotImplemented
-            self._level = data["level"]
-
-        def __repr__(self) -> str:
-            attrs = ("name", "id", "type", "universe", "instance")
-            resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-            return f"<{self.__class__.__name__} {' '.join(resolved)}>"
-
-        setattr(cls, "__init__", __init__)
-        setattr(cls, "__repr__", __repr__)
-
-        def not_implemented(function: str) -> None:
-            @functools.wraps(getattr(cls, function))
-            async def wrapped(*_, **__) -> None:
-                raise NotImplementedError(
-                    f"Accounts without an API key cannot use User.{function}, this is a Steam limitation not a library "
-                    f"limitation, sorry."
-                )
-
-            setattr(cls, function, wrapped)
-
-        not_implemented("friends")
-        not_implemented("badges")
-        not_implemented("is_commentable")
-        not_implemented("is_private")
-        not_implemented("is_banned")
-
     async def fetch_post(self, id: int) -> Post:
         ...
 
@@ -825,9 +744,6 @@ class Channel(Messageable[M_co]):
 
 def _clean_up_content(content: str) -> str:  # steam does weird stuff with content
     return content.replace(r"\[", "[").replace("\\\\", "\\")
-
-
-STEAM_EPOCH = datetime(2005, 1, 1, tzinfo=timezone.utc)
 
 
 class Message(metaclass=abc.ABCMeta):

@@ -34,7 +34,7 @@ __all__ = (
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class DetailsPreview(_IOMixin):
     _state: ConnectionState
     id: int
@@ -49,7 +49,7 @@ class DetailsPreview(_IOMixin):
         return int(URL_(self.url).parts[2])
 
 
-@dataclass
+@dataclass(slots=True)
 class PreviewInfo(_IOMixin):
     _state: ConnectionState
     ugc_id: int
@@ -57,7 +57,7 @@ class PreviewInfo(_IOMixin):
     url: str
 
 
-@dataclass
+@dataclass(slots=True)
 class PublishedFileChild:
     _state: ConnectionState
     id: int
@@ -90,9 +90,8 @@ class PublishedFileChild:
         return await resolved.manifest()
 
 
-@dataclass
+@dataclass(slots=True)
 class PublishedFileChange:
-    __slots__ = ("description", "created_at")
     description: str
     created_at: datetime
 

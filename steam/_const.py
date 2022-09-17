@@ -19,7 +19,6 @@ from yarl import URL as _URL
 from .types.vdf import BinaryVDFDict, VDFDict
 
 DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
-TASK_HAS_NAME = sys.version_info >= (3, 8)
 
 
 try:

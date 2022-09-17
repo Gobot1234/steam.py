@@ -681,7 +681,7 @@ class StatefulApp(App):
         return licenses
 
 
-@dataclass
+@dataclass(slots=True)
 class PartialAppPriceOverview:
     currency: str
     initial: int
@@ -903,7 +903,7 @@ class Movie:
         return f"<Movie {' '.join(resolved)}>"
 
 
-@dataclass
+@dataclass(slots=True)
 class AppPriceOverview(PartialAppPriceOverview):
     initial_formatted: str
     final_formatted: str

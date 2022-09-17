@@ -64,7 +64,7 @@ class ProfileInfo:
         return f"<{self.__class__.__name__} real_name={self.real_name!r}>"
 
 
-@dataclass
+@dataclass(slots=True)
 class ProfileMovie:
     url: str  # TODO add more attributes like maybe created_at?
 
@@ -168,20 +168,10 @@ class EquippedProfileItems:
     """The equipped modifier for the user."""
 
 
-@dataclass
+@dataclass(slots=True)
 class ProfileShowcaseSlot:
-    __slots__ = (
-        "_state",
-        "owner",
-        "name",
-        "content",
-        "index",
-        "app",
-        "asset",
-        "published_file_id",
-        "badge_id",
-        "border_colour",
-    )
+    """Represents a showcase slot."""
+
     _state: ConnectionState
     owner: BaseUser
     name: str | None
@@ -249,19 +239,8 @@ class ProfileShowcaseSlot:
         return badge
 
 
-@dataclass
+@dataclass(slots=True)
 class ProfileShowcase:
-    __slots__ = (
-        "_state",
-        "owner",
-        "type",
-        "large",
-        "active",
-        "purchase_id",
-        "level",
-        "style",
-        "slots",
-    )
     _state: ConnectionState
     owner: BaseUser
     type: ProfileItemType
@@ -321,16 +300,14 @@ class ProfileShowcase:
         return badges  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class ProfileTheme:
-    __slots__ = ("id", "name")
     id: str
     name: str
 
 
-@dataclass
+@dataclass(slots=True)
 class PurchasedCustomisation:  # TODO should this be merged into ProfileCustomisationSlot.purchase_id if the ids match
-    __slots__ = ("id", "type", "level")
     id: int
     type: ProfileCustomisationStyle
     level: int

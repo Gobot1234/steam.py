@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, final, overl
 import aiohttp
 
 from . import errors, utils
-from ._const import DOCS_BUILDING, TASK_HAS_NAME, UNIX_EPOCH, URL
+from ._const import DOCS_BUILDING, UNIX_EPOCH, URL
 from .app import App, FetchedApp, StatefulApp
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game_server import GameServer, Query
@@ -278,12 +278,9 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task:
-        wrapped = self._run_event(coro, event_name, *args, **kwargs)
-        return (
-            self.loop.create_task(wrapped, name=f"task_{event_name}")
-            if TASK_HAS_NAME
-            else self.loop.create_task(wrapped)
+    def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task[None]:
+        return asyncio.create_task(
+            self._run_event(coro, event_name, *args, **kwargs), name=f"steam.py: task_{event_name}"
         )
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:

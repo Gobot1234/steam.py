@@ -227,21 +227,7 @@ class Item(Asset):
         return self._is_marketable
 
 
-kwargs: dict[str, Any]
-if sys.version_info >= (3, 9, 2):  # GenericAlias wasn't subclass-able in 3.9.0
-    GenericAlias = types.GenericAlias
-    kwargs = {}
-else:
-    GenericAlias = type(
-        types.new_class(
-            "",
-            (Generic[TypeVar("T")],),  # type: ignore
-        )[int]
-    )
-    kwargs = {"_root": True}
-
-
-class InventoryGenericAlias(GenericAlias, **kwargs):
+class InventoryGenericAlias(types.GenericAlias):
     __alias_name__: str
     __args__: tuple[type[ItemT_co]]  # type: ignore
 
@@ -333,16 +319,15 @@ class BaseInventory(Generic[ItemT_co]):
             return generic_alias
 
     def _update(self, data: trade.Inventory) -> None:
-        items = []
+        items: list[ItemT_co] = []
         (ItemClass,) = self.__orig_class__.__args__
         for asset in data.get("assets", ()):
-            for item in data["descriptions"]:
-                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
-                    item.update(asset)  # type: ignore  # maybe this will work if types.IntersectionType happens
-                    items.append(ItemClass(self._state, data=item, owner=self.owner))  # type: ignore
+            for description in data["descriptions"]:
+                if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]:
+                    items.append(ItemClass(self._state, data=description | asset, owner=self.owner))
                     break
             else:
-                items.append(Asset(self._state, data=asset, owner=self.owner))
+                items.append(Asset(self._state, data=asset, owner=self.owner))  # type: ignore  # should never happen anyway
         self.items: Sequence[ItemT_co] = items
 
     async def update(self) -> None:

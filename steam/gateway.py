@@ -69,17 +69,14 @@ GCMsgProtoT = TypeVar("GCMsgProtoT", bound=GCMsgProto[Any])
 READ_U32 = struct.Struct("<I").unpack_from
 
 
-@dataclass
+@dataclass(slots=True)
 class EventListener(Generic[MsgsT]):
-    __slots__ = ("emsg", "check", "future")
-
     emsg: IntEnum | None
     check: Callable[[MsgsT], bool]
     future: asyncio.Future[MsgsT]
 
-
-if not TYPE_CHECKING:
-    EventListener.__class_getitem__ = classmethod(lambda cls, params: cls)
+    if not TYPE_CHECKING:
+        __class_getitem__ = classmethod(lambda cls, params: cls)
 
 
 @dataclass(slots=True)

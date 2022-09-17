@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 from typing_extensions import Never
 
@@ -22,7 +22,7 @@ __all__ = ("Comment",)
 OwnerT = TypeVar("OwnerT", bound="Commentable")
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class Comment(Awardable, Generic[OwnerT]):
     """Represents a comment on a Steam profile.
 
@@ -52,8 +52,7 @@ class Comment(Awardable, Generic[OwnerT]):
         The comment's reactions.
     """
 
-    _AWARDABLE_TYPE = 5
-    __slots__ = ("_state", "content", "id", "created_at", "reactions", "author", "owner")
+    _AWARDABLE_TYPE: ClassVar = 5
 
     _state: ConnectionState
     id: int

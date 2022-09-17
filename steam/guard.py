@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import base64
-import dataclasses
 import hmac
 import struct
+from dataclasses import dataclass
 from hashlib import sha1
 from time import time
 from typing import TYPE_CHECKING, Any
@@ -89,16 +89,8 @@ def generate_device_id(user_id64: Intable) -> str:
     return f'android:{"-".join(partial_id)}'
 
 
-@dataclasses.dataclass
+@dataclass(repr=False, slots=True)
 class Confirmation:
-    __slots__ = (
-        "_state",
-        "id",
-        "data_conf_id",
-        "data_key",
-        "trade_id",
-    )
-
     _state: ConnectionState
     id: str
     data_conf_id: int

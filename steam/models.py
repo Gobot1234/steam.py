@@ -11,13 +11,14 @@ from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from io import BytesIO
+from types import CoroutineType
 from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar
 
 from typing_extensions import Self
 from yarl import URL as _URL
 
 from . import utils
-from ._const import TASK_HAS_NAME, URL
+from ._const import URL
 from .enums import IntEnum
 from .image import Image
 from .protobufs import EMsg
@@ -88,7 +89,7 @@ class Registerable:
         except asyncio.CancelledError:
             return
         if exception:
-            traceback.print_exception(exception.__class__, exception, exception.__traceback__)
+            traceback.print_exception(exception)
 
     def run_parser(self, emsg: IntEnum, msg: Msgs) -> None:
         try:
@@ -100,13 +101,16 @@ class Registerable:
             except Exception:
                 log.debug("Ignoring event %s", msg.msg)
         else:
-            coro = utils.maybe_coroutine(event_parser, msg)
 
-            (
-                self.loop.create_task(coro, name=f"task_{event_parser.__name__}")
-                if TASK_HAS_NAME
-                else self.loop.create_task(coro)
-            ).add_done_callback(self._run_parser_callback)
+            try:
+                result = event_parser(msg)
+            except Exception:
+                return traceback.print_exc()
+
+            if isinstance(result, CoroutineType):
+                asyncio.create_task(result, name=f"steam.py: {event_parser.__name__}").add_done_callback(
+                    self._run_parser_callback
+                )
 
 
 EventParser = None
