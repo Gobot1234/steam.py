@@ -32,7 +32,7 @@ from io import BytesIO
 from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Final, Generic, ParamSpec, TypeAlias, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, NamedTuple, ParamSpec, TypeAlias, TypeVar, cast, overload
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -48,6 +48,7 @@ from .id import (
     parse_id3 as parse_id3,
     parse_id64 as parse_id64,
     parse_invite_code as parse_invite_code,
+    ID,
 )
 
 if TYPE_CHECKING:
@@ -99,7 +100,12 @@ def verify_signature(data: bytes, signature: bytes) -> bool:
         return True
 
 
-def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:
+class TradeURLInfo(NamedTuple):
+    token: str
+    id: ID
+
+
+def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
     """Parses a trade URL for useful information.
 
     Parameters
@@ -109,13 +115,18 @@ def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:
 
     Returns
     -------
-    A :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``.
+    A :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group`|`TradeURLInfo` objects or ``None``.
     """
-    return re.search(
-        r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/?\?partner=(?P<user_id>[0-9]{,10})"
-        r"&token=(?P<token>[\w-]{7,})",
-        html.unescape(str(url)),
-    )
+    if (
+        match := re.match(
+            r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/?\?partner=(?P<user_id>[0-9]{,10})"
+            r"&token=(?P<token>[\w-]{7,})",
+            html.unescape(str(url)),
+        )
+    ) is None:
+        return None
+    else:
+        return TradeURLInfo(match["token"], ID(match["user_id"]))
 
 
 _SelfT = TypeVar("_SelfT")
