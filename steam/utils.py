@@ -105,8 +105,9 @@ class TradeURLInfo:
     token: str
     id: ID
 
-    def __post_init__(self):
-        self.url = f"https://steamcommunity.com/tradeoffer/new/?partner={self.id}&token={self.token}"
+    @property
+    def url(self) -> str:
+        return URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}&token={self.token}"
 
 
 def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
