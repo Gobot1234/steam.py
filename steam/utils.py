@@ -26,13 +26,14 @@ from collections.abc import (
     Mapping,
     Sized,
 )
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from inspect import getmembers, isawaitable
 from io import BytesIO
 from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Final, Generic, ParamSpec, TypeAlias, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, NamedTuple, ParamSpec, TypeAlias, TypeVar, cast, overload
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -40,9 +41,10 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Self
 
-from ._const import MISSING
+from ._const import MISSING, URL
 from .enums import _is_descriptor, classproperty as classproperty
 from .id import (
+    ID,
     id64_from_url as id64_from_url,
     parse_id2 as parse_id2,
     parse_id3 as parse_id3,
@@ -99,7 +101,17 @@ def verify_signature(data: bytes, signature: bytes) -> bool:
         return True
 
 
-def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:
+@dataclass
+class TradeURLInfo:
+    token: str
+    id: ID
+
+    @property
+    def url(self) -> str:
+        return URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}&token={self.token}"
+
+
+def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
     """Parses a trade URL for useful information.
 
     Parameters
@@ -109,13 +121,20 @@ def parse_trade_url(url: StrOrURL) -> re.Match[str] | None:
 
     Returns
     -------
-    A :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group` objects or ``None``.
+    TradeURLInfo is a :func:`~dataclasses.dataclass` defined as:
+
+    .. source:: TradeURLInfo
     """
-    return re.search(
-        r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/?\?partner=(?P<user_id>[0-9]{,10})"
-        r"&token=(?P<token>[\w-]{7,})",
-        html.unescape(str(url)),
-    )
+    if (
+        match := re.match(
+            r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/?\?partner=(?P<user_id>[0-9]{,10})"
+            r"&token=(?P<token>[\w-]{7,})",
+            html.unescape(str(url)),
+        )
+    ) is None:
+        return None
+
+    return TradeURLInfo(match["token"], ID(match["user_id"]))
 
 
 _SelfT = TypeVar("_SelfT")
