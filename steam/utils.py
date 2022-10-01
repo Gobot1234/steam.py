@@ -104,6 +104,7 @@ def verify_signature(data: bytes, signature: bytes) -> bool:
 class TradeURLInfo:
     token: str
     id: ID
+
     def __post_init__(self):
         self.url = f"https://steamcommunity.com/tradeoffer/new/?partner={self.id}&token={self.token}"
 
@@ -119,7 +120,7 @@ def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
     Returns
     -------
     TradeURLInfo is a :class:`typing.NamedTuple` defined as:
-            
+
     .. source:: TradeURLInfo
     """
     if (
@@ -130,7 +131,7 @@ def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
         )
     ) is None:
         return None
-        
+
     return TradeURLInfo(match["token"], ID(match["user_id"]))
 
 
