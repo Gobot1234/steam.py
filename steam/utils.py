@@ -7,6 +7,7 @@ The appropriate licenses are in LICENSE
 """
 
 from __future__ import annotations
+from ._const import URL
 
 import abc
 import asyncio
@@ -26,6 +27,7 @@ from collections.abc import (
     Mapping,
     Sized,
 )
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from inspect import getmembers, isawaitable
 from io import BytesIO
