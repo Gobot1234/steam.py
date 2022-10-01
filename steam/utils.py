@@ -100,9 +100,12 @@ def verify_signature(data: bytes, signature: bytes) -> bool:
         return True
 
 
-class TradeURLInfo(NamedTuple):
+@dataclass
+class TradeURLInfo:
     token: str
     id: ID
+    def __post_init__(self):
+        self.url = f"https://steamcommunity.com/tradeoffer/new/?partner={self.id}&token={self.token}"
 
 
 def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
@@ -115,7 +118,9 @@ def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
 
     Returns
     -------
-    A :class:`re.Match` object with ``token`` and ``user_id`` :meth:`re.Match.group`|`TradeURLInfo` objects or ``None``.
+    TradeURLInfo is a :class:`typing.NamedTuple` defined as:
+            
+    .. source:: TradeURLInfo
     """
     if (
         match := re.match(
@@ -125,8 +130,8 @@ def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
         )
     ) is None:
         return None
-    else:
-        return TradeURLInfo(match["token"], ID(match["user_id"]))
+        
+    return TradeURLInfo(match["token"], ID(match["user_id"]))
 
 
 _SelfT = TypeVar("_SelfT")
