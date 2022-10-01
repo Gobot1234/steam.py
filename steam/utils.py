@@ -7,7 +7,6 @@ The appropriate licenses are in LICENSE
 """
 
 from __future__ import annotations
-from ._const import URL
 
 import abc
 import asyncio
@@ -42,7 +41,7 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Self
 
-from ._const import MISSING
+from ._const import MISSING, URL
 from .enums import _is_descriptor, classproperty as classproperty
 from .id import (
     ID,
