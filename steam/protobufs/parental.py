@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .msg import UnifiedMessage
+
 
 @dataclass(eq=False, repr=False)
 class ParentalApp(betterproto.Message):
@@ -30,8 +32,7 @@ class ParentalSettings(betterproto.Message):
     is_site_license_lock: bool = betterproto.bool_field(12)
 
 
-@dataclass(eq=False, repr=False)
-class EnableParentalSettingsRequest(betterproto.Message):
+class EnableParentalSettingsRequest(UnifiedMessage, um_name="Parental.EnableParentalSettings"):
     password: str = betterproto.string_field(1)
     settings: "ParentalSettings" = betterproto.message_field(2)
     sessionid: str = betterproto.string_field(3)
@@ -39,45 +40,37 @@ class EnableParentalSettingsRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(10)
 
 
-@dataclass(eq=False, repr=False)
-class EnableParentalSettingsResponse(betterproto.Message):
+class EnableParentalSettingsResponse(UnifiedMessage, um_name="Parental.EnableParentalSettings"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class DisableParentalSettingsRequest(betterproto.Message):
+class DisableParentalSettingsRequest(UnifiedMessage, um_name="Parental.DisableParentalSettings"):
     password: str = betterproto.string_field(1)
     steamid: int = betterproto.fixed64_field(10)
 
 
-@dataclass(eq=False, repr=False)
-class DisableParentalSettingsResponse(betterproto.Message):
+class DisableParentalSettingsResponse(UnifiedMessage, um_name="Parental.DisableParentalSettings"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class GetParentalSettingsRequest(betterproto.Message):
+class GetParentalSettingsRequest(UnifiedMessage, um_name="Parental.GetParentalSettings"):
     steamid: int = betterproto.fixed64_field(10)
 
 
-@dataclass(eq=False, repr=False)
-class GetParentalSettingsResponse(betterproto.Message):
+class GetParentalSettingsResponse(UnifiedMessage, um_name="Parental.GetParentalSettings"):
     settings: "ParentalSettings" = betterproto.message_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetSignedParentalSettingsRequest(betterproto.Message):
+class GetSignedParentalSettingsRequest(UnifiedMessage, um_name="Parental.GetSignedParentalSettings"):
     priority: int = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetSignedParentalSettingsResponse(betterproto.Message):
+class GetSignedParentalSettingsResponse(UnifiedMessage, um_name="Parental.GetSignedParentalSettings"):
     serialized_settings: bytes = betterproto.bytes_field(1)
     signature: bytes = betterproto.bytes_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class SetParentalSettingsRequest(betterproto.Message):
+class SetParentalSettingsRequest(UnifiedMessage, um_name="Parental.SetParentalSettings"):
     password: str = betterproto.string_field(1)
     settings: "ParentalSettings" = betterproto.message_field(2)
     new_password: str = betterproto.string_field(3)
@@ -85,61 +78,50 @@ class SetParentalSettingsRequest(betterproto.Message):
     steamid: int = betterproto.fixed64_field(10)
 
 
-@dataclass(eq=False, repr=False)
-class SetParentalSettingsResponse(betterproto.Message):
+class SetParentalSettingsResponse(UnifiedMessage, um_name="Parental.SetParentalSettings"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class ValidateTokenRequest(betterproto.Message):
+class ValidateTokenRequest(UnifiedMessage, um_name="Parental.ValidateToken"):
     unlock_token: str = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class ValidateTokenResponse(betterproto.Message):
+class ValidateTokenResponse(UnifiedMessage, um_name="Parental.ValidateToken"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class ValidatePasswordRequest(betterproto.Message):
+class ValidatePasswordRequest(UnifiedMessage, um_name="Parental.ValidatePassword"):
     password: str = betterproto.string_field(1)
     session: str = betterproto.string_field(2)
     send_unlock_on_success: bool = betterproto.bool_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class ValidatePasswordResponse(betterproto.Message):
+class ValidatePasswordResponse(UnifiedMessage, um_name="Parental.ValidatePassword"):
     token: str = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class LockClientRequest(betterproto.Message):
+class LockClientRequest(UnifiedMessage, um_name="Parental.LockClient"):
     session: str = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class LockClientResponse(betterproto.Message):
+class LockClientResponse(UnifiedMessage, um_name="Parental.LockClient"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class RequestRecoveryCodeRequest(betterproto.Message):
+class RequestRecoveryCodeRequest(UnifiedMessage, um_name="Parental.RequestRecoveryCode"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class RequestRecoveryCodeResponse(betterproto.Message):
+class RequestRecoveryCodeResponse(UnifiedMessage, um_name="Parental.RequestRecoveryCode"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class DisableWithRecoveryCodeRequest(betterproto.Message):
+class DisableWithRecoveryCodeRequest(UnifiedMessage, um_name="Parental.DisableWithRecoveryCode"):
     recovery_code: int = betterproto.uint32_field(1)
     steamid: int = betterproto.fixed64_field(10)
 
 
-@dataclass(eq=False, repr=False)
-class DisableWithRecoveryCodeResponse(betterproto.Message):
+class DisableWithRecoveryCodeResponse(UnifiedMessage, um_name="Parental.DisableWithRecoveryCode"):
     pass
 
 

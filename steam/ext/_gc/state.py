@@ -7,19 +7,19 @@ import logging
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, overload
 
-from ... import utils
+from ..._const import CLEAR_PROTO_BIT, IS_PROTO
 from ...abc import BaseUser
 from ...enums import IntEnum
 from ...gateway import EventListener, GCMsgProtoT, GCMsgsT, GCMsgT
 from ...models import register, return_true
-from ...protobufs import EMsg, GCMsg, GCMsgProto, MsgProto
+from ...protobufs import EMsg, GCMessage, GCProtobufMessage
 from ...state import ConnectionState
 from ...trade import BaseInventory, Inventory
 
 if TYPE_CHECKING:
     from ...app import App
     from ...gateway import GCMsgsT
-    from ...protobufs.client_server_2 import CMsgGcClient
+    from ...protobufs.client_server_2 import CMsgGcClientFromGC
     from .client import Client
 
 log = logging.getLogger(__name__)
@@ -40,35 +40,33 @@ class GCState(ConnectionState):
         self.gc_listeners: list[EventListener[Any]] = []
 
     @register(EMsg.ClientFromGC)
-    async def parse_gc_message(self, msg: MsgProto[CMsgGcClient]) -> None:
-        if msg.body.appid != self.client._APP.id:
+    async def parse_gc_message(self, msg: CMsgGcClientFromGC) -> None:
+        if msg.appid != self.client._APP.id:
             return
 
         try:
-            language = self.__class__.Language(utils.clear_proto_bit(msg.body.msgtype))
+            language = self.__class__.Language(CLEAR_PROTO_BIT(msg.msgtype))
         except ValueError:
-            return log.info(
-                f"Ignoring unknown msg type: {msg.body.msgtype} ({utils.clear_proto_bit(msg.body.msgtype)})"
-            )
+            return log.info(f"Ignoring unknown msg type: {msg.msgtype} ({CLEAR_PROTO_BIT(msg.msgtype)})")
 
         try:
             gc_msg = (
-                GCMsgProto(language, msg.body.payload)
-                if utils.is_proto(msg.body.msgtype)
-                else GCMsg(language, msg.body.payload)
+                GCProtobufMessage().parse(msg.payload, language)
+                if IS_PROTO(msg.msgtype)
+                else GCMessage().parse(msg.payload, language)
             )
         except Exception as exc:
-            return log.error("Failed to deserialize message: %r, %r", language, msg.body.payload, exc_info=exc)
+            return log.error("Failed to deserialize message: %r, %r", language, msg.payload, exc_info=exc)
         else:
             log.debug("Socket has received GC message %r from the websocket.", gc_msg)
 
         self.dispatch("gc_message_receive", gc_msg)
-        self.run_parser(language, gc_msg)
+        self.run_parser(gc_msg)
 
         # remove the dispatched listener
-        removed = []
+        removed: list[int] = []
         for idx, entry in enumerate(self.gc_listeners):
-            if entry.emsg != language:
+            if entry.msg != language:
                 continue
 
             future = entry.future
@@ -101,7 +99,7 @@ class GCState(ConnectionState):
         self, emsg: IntEnum | None, check: Callable[[GCMsgsT], bool] = return_true
     ) -> asyncio.Future[GCMsgsT]:
         future: asyncio.Future[GCMsgsT] = self.loop.create_future()
-        entry = EventListener(emsg=emsg, check=check, future=future)
+        entry = EventListener(msg=emsg, check=check, future=future)
         self.gc_listeners.append(entry)
         return future
 
@@ -110,5 +108,5 @@ class GCState(ConnectionState):
             self.client._APP.id, self.client._APP.context_id, self.http.language
         )
         return backpack_cls(
-            state=self, data=resp, owner=self.client.user, game=self.client._APP, language=self.http.language
+            state=self, data=resp, owner=self.client.user, app=self.client._APP, language=self.http.language
         )

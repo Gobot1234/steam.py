@@ -7,9 +7,10 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .msg import UnifiedMessage
 
-@dataclass(eq=False, repr=False)
-class GetIndividualRecommendationsRequest(betterproto.Message):
+
+class GetIndividualRecommendationsRequest(UnifiedMessage, um_name="UserReviews.GetIndividualRecommendations"):
     requests: "list[GetIndividualRecommendationsRequestRecommendationRequest]" = betterproto.message_field(1)
 
 
@@ -19,13 +20,11 @@ class GetIndividualRecommendationsRequestRecommendationRequest(betterproto.Messa
     appid: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetIndividualRecommendationsResponse(betterproto.Message):
+class GetIndividualRecommendationsResponse(UnifiedMessage, um_name="UserReviews.GetIndividualRecommendations"):
     recommendations: "list[RecommendationDetails]" = betterproto.message_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class UpdateRequest(betterproto.Message):
+class UpdateRequest(UnifiedMessage, um_name="UserReviews.Update"):
     recommendationid: int = betterproto.uint64_field(1)
     review_text: str = betterproto.string_field(2)
     voted_up: bool = betterproto.bool_field(3)
@@ -36,18 +35,15 @@ class UpdateRequest(betterproto.Message):
     comments_disabled: bool = betterproto.bool_field(8)
 
 
-@dataclass(eq=False, repr=False)
-class UpdateResponse(betterproto.Message):
+class UpdateResponse(UnifiedMessage, um_name="UserReviews.Update"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class GetFriendsRecommendedAppRequest(betterproto.Message):
+class GetFriendsRecommendedAppRequest(UnifiedMessage, um_name="UserReviews.GetFriendsRecommendedApp"):
     appid: int = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetFriendsRecommendedAppResponse(betterproto.Message):
+class GetFriendsRecommendedAppResponse(UnifiedMessage, um_name="UserReviews.GetFriendsRecommendedApp"):
     accountids_recommended: list[int] = betterproto.uint32_field(1)
     accountids_not_recommended: list[int] = betterproto.uint32_field(3)
 

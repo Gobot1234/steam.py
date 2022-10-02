@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .msg import UnifiedMessage
 from .player import EBanContentCheckResult
 
 
@@ -28,55 +29,46 @@ class EPublishedFileForSaleStatus(betterproto.Enum):
     TentativeApproval = 5
 
 
-@dataclass(eq=False, repr=False)
-class VoteRequest(betterproto.Message):
+class VoteRequest(UnifiedMessage, um_name="PublishedFile.Vote"):
     publishedfileid: int = betterproto.uint64_field(1)
     vote_up: bool = betterproto.bool_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class VoteResponse(betterproto.Message):
+class VoteResponse(UnifiedMessage, um_name="PublishedFile.Vote"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class SubscribeRequest(betterproto.Message):
+class SubscribeRequest(UnifiedMessage, um_name="PublishedFile.Subscribe"):
     publishedfileid: int = betterproto.uint64_field(1)
     list_type: int = betterproto.uint32_field(2)
     appid: int = betterproto.int32_field(3)
     notify_client: bool = betterproto.bool_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class SubscribeResponse(betterproto.Message):
+class SubscribeResponse(UnifiedMessage, um_name="PublishedFile.Subscribe"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class UnsubscribeRequest(betterproto.Message):
+class UnsubscribeRequest(UnifiedMessage, um_name="PublishedFile.Unsubscribe"):
     publishedfileid: int = betterproto.uint64_field(1)
     list_type: int = betterproto.uint32_field(2)
     appid: int = betterproto.int32_field(3)
     notify_client: bool = betterproto.bool_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class UnsubscribeResponse(betterproto.Message):
+class UnsubscribeResponse(UnifiedMessage, um_name="PublishedFile.Unsubscribe"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class CanSubscribeRequest(betterproto.Message):
+class CanSubscribeRequest(UnifiedMessage, um_name="PublishedFile.CanSubscribe"):
     publishedfileid: int = betterproto.uint64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CanSubscribeResponse(betterproto.Message):
+class CanSubscribeResponse(UnifiedMessage, um_name="PublishedFile.CanSubscribe"):
     can_subscribe: bool = betterproto.bool_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class PublishRequest(betterproto.Message):
+class PublishRequest(UnifiedMessage, um_name="PublishedFile.Publish"):
     appid: int = betterproto.uint32_field(1)
     consumer_appid: int = betterproto.uint32_field(2)
     cloudfilename: str = betterproto.string_field(3)
@@ -95,14 +87,12 @@ class PublishRequest(betterproto.Message):
     url: str = betterproto.string_field(16)
 
 
-@dataclass(eq=False, repr=False)
-class PublishResponse(betterproto.Message):
+class PublishResponse(UnifiedMessage, um_name="PublishedFile.Publish"):
     publishedfileid: int = betterproto.uint64_field(1)
     redirect_uri: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetDetailsRequest(betterproto.Message):
+class GetDetailsRequest(UnifiedMessage, um_name="PublishedFile.GetDetails"):
     publishedfileids: list[int] = betterproto.fixed64_field(1)
     includetags: bool = betterproto.bool_field(2)
     includeadditionalpreviews: bool = betterproto.bool_field(3)
@@ -254,13 +244,11 @@ class PublishedFileDetailsReaction(betterproto.Message):
     count: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetDetailsResponse(betterproto.Message):
+class GetDetailsResponse(UnifiedMessage, um_name="PublishedFile.GetDetails"):
     publishedfiledetails: "list[PublishedFileDetails]" = betterproto.message_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetItemInfoRequest(betterproto.Message):
+class GetItemInfoRequest(UnifiedMessage, um_name="PublishedFile.GetItemInfo"):
     appid: int = betterproto.uint32_field(1)
     last_time_updated: int = betterproto.uint32_field(2)
     workshop_items: "list[GetItemInfoRequestWorkshopItem]" = betterproto.message_field(3)
@@ -273,8 +261,7 @@ class GetItemInfoRequestWorkshopItem(betterproto.Message):
     desired_revision: "EPublishedFileRevision" = betterproto.enum_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class GetItemInfoResponse(betterproto.Message):
+class GetItemInfoResponse(UnifiedMessage, um_name="PublishedFile.GetItemInfo"):
     update_time: int = betterproto.uint32_field(1)
     workshop_items: "list[GetItemInfoResponseWorkshopItemInfo]" = betterproto.message_field(2)
     private_items: list[int] = betterproto.fixed64_field(3)
@@ -288,8 +275,7 @@ class GetItemInfoResponseWorkshopItemInfo(betterproto.Message):
     flags: int = betterproto.uint32_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class GetUserFilesRequest(betterproto.Message):
+class GetUserFilesRequest(UnifiedMessage, um_name="PublishedFile.GetUserFiles"):
     steamid: int = betterproto.fixed64_field(1)
     appid: int = betterproto.uint32_field(2)
     page: int = betterproto.uint32_field(4)
@@ -335,8 +321,7 @@ class GetUserFilesRequestTagGroup(betterproto.Message):
     tags: list[str] = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetUserFilesResponse(betterproto.Message):
+class GetUserFilesResponse(UnifiedMessage, um_name="PublishedFile.GetUserFiles"):
     total: int = betterproto.uint32_field(1)
     startindex: int = betterproto.uint32_field(2)
     publishedfiledetails: "list[PublishedFileDetails]" = betterproto.message_field(3)
@@ -351,8 +336,7 @@ class GetUserFilesResponseApp(betterproto.Message):
     private: bool = betterproto.bool_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class AreFilesInSubscriptionListRequest(betterproto.Message):
+class AreFilesInSubscriptionListRequest(UnifiedMessage, um_name="PublishedFile.AreFilesInSubscriptionList"):
     appid: int = betterproto.uint32_field(1)
     publishedfileids: list[int] = betterproto.fixed64_field(2)
     listtype: int = betterproto.uint32_field(3)
@@ -360,8 +344,7 @@ class AreFilesInSubscriptionListRequest(betterproto.Message):
     workshopfiletype: int = betterproto.uint32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class AreFilesInSubscriptionListResponse(betterproto.Message):
+class AreFilesInSubscriptionListResponse(UnifiedMessage, um_name="PublishedFile.AreFilesInSubscriptionList"):
     files: "list[AreFilesInSubscriptionListResponseInList]" = betterproto.message_field(1)
 
 
@@ -371,8 +354,7 @@ class AreFilesInSubscriptionListResponseInList(betterproto.Message):
     inlist: bool = betterproto.bool_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class UpdateRequest(betterproto.Message):
+class UpdateRequest(UnifiedMessage, um_name="PublishedFile.Update"):
     appid: int = betterproto.uint32_field(1)
     publishedfileid: int = betterproto.fixed64_field(2)
     title: str = betterproto.string_field(3)
@@ -385,26 +367,22 @@ class UpdateRequest(betterproto.Message):
     image_height: int = betterproto.uint32_field(16)
 
 
-@dataclass(eq=False, repr=False)
-class UpdateResponse(betterproto.Message):
+class UpdateResponse(UnifiedMessage, um_name="PublishedFile.Update"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class GetChangeHistoryEntryRequest(betterproto.Message):
+class GetChangeHistoryEntryRequest(UnifiedMessage, um_name="PublishedFile.GetChangeHistoryEntry"):
     publishedfileid: int = betterproto.fixed64_field(1)
     timestamp: int = betterproto.uint32_field(2)
     language: int = betterproto.int32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class GetChangeHistoryEntryResponse(betterproto.Message):
+class GetChangeHistoryEntryResponse(UnifiedMessage, um_name="PublishedFile.GetChangeHistoryEntry"):
     change_description: str = betterproto.string_field(1)
     language: int = betterproto.int32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetChangeHistoryRequest(betterproto.Message):
+class GetChangeHistoryRequest(UnifiedMessage, um_name="PublishedFile.GetChangeHistory"):
     publishedfileid: int = betterproto.fixed64_field(1)
     total_only: bool = betterproto.bool_field(2)
     startindex: int = betterproto.uint32_field(3)
@@ -412,8 +390,7 @@ class GetChangeHistoryRequest(betterproto.Message):
     language: int = betterproto.int32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class GetChangeHistoryResponse(betterproto.Message):
+class GetChangeHistoryResponse(UnifiedMessage, um_name="PublishedFile.GetChangeHistory"):
     changes: "list[GetChangeHistoryResponseChangeLog]" = betterproto.message_field(1)
     total: int = betterproto.uint32_field(2)
 
@@ -425,8 +402,7 @@ class GetChangeHistoryResponseChangeLog(betterproto.Message):
     language: int = betterproto.int32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class RefreshVotingQueueRequest(betterproto.Message):
+class RefreshVotingQueueRequest(UnifiedMessage, um_name="PublishedFile.RefreshVotingQueue"):
     appid: int = betterproto.uint32_field(1)
     matching_file_type: int = betterproto.uint32_field(2)
     tags: list[str] = betterproto.string_field(3)
@@ -436,13 +412,11 @@ class RefreshVotingQueueRequest(betterproto.Message):
     desired_revision: "EPublishedFileRevision" = betterproto.enum_field(8)
 
 
-@dataclass(eq=False, repr=False)
-class RefreshVotingQueueResponse(betterproto.Message):
+class RefreshVotingQueueResponse(UnifiedMessage, um_name="PublishedFile.RefreshVotingQueue"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class QueryFilesRequest(betterproto.Message):
+class QueryFilesRequest(UnifiedMessage, um_name="PublishedFile.QueryFiles"):
     query_type: int = betterproto.uint32_field(1)
     page: int = betterproto.uint32_field(2)
     cursor: str = betterproto.string_field(39)
@@ -491,44 +465,37 @@ class QueryFilesRequestTagGroup(betterproto.Message):
     tags: list[str] = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class QueryFilesResponse(betterproto.Message):
+class QueryFilesResponse(UnifiedMessage, um_name="PublishedFile.QueryFiles"):
     total: int = betterproto.uint32_field(1)
     publishedfiledetails: "list[PublishedFileDetails]" = betterproto.message_field(2)
     next_cursor: str = betterproto.string_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class AddAppRelationshipRequest(betterproto.Message):
+class AddAppRelationshipRequest(UnifiedMessage, um_name="PublishedFile.AddAppRelationship"):
     publishedfileid: int = betterproto.uint64_field(1)
     appid: int = betterproto.uint32_field(2)
     relationship: int = betterproto.uint32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class AddAppRelationshipResponse(betterproto.Message):
+class AddAppRelationshipResponse(UnifiedMessage, um_name="PublishedFile.AddAppRelationship"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class RemoveAppRelationshipRequest(betterproto.Message):
+class RemoveAppRelationshipRequest(UnifiedMessage, um_name="PublishedFile.RemoveAppRelationship"):
     publishedfileid: int = betterproto.uint64_field(1)
     appid: int = betterproto.uint32_field(2)
     relationship: int = betterproto.uint32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class RemoveAppRelationshipResponse(betterproto.Message):
+class RemoveAppRelationshipResponse(UnifiedMessage, um_name="PublishedFile.RemoveAppRelationship"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class GetAppRelationshipsRequest(betterproto.Message):
+class GetAppRelationshipsRequest(UnifiedMessage, um_name="PublishedFile.GetAppRelationships"):
     publishedfileid: int = betterproto.uint64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetAppRelationshipsResponse(betterproto.Message):
+class GetAppRelationshipsResponse(UnifiedMessage, um_name="PublishedFile.GetAppRelationships"):
     app_relationships: "list[GetAppRelationshipsResponseAppRelationship]" = betterproto.message_field(3)
 
 
@@ -538,40 +505,37 @@ class GetAppRelationshipsResponseAppRelationship(betterproto.Message):
     relationship: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class StartPlaytimeTrackingRequest(betterproto.Message):
+class StartPlaytimeTrackingRequest(UnifiedMessage, um_name="PublishedFile.StartPlaytimeTracking"):
     appid: int = betterproto.uint32_field(1)
     publishedfileids: list[int] = betterproto.uint64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class StartPlaytimeTrackingResponse(betterproto.Message):
+class StartPlaytimeTrackingResponse(UnifiedMessage, um_name="PublishedFile.StartPlaytimeTracking"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class StopPlaytimeTrackingRequest(betterproto.Message):
+class StopPlaytimeTrackingRequest(UnifiedMessage, um_name="PublishedFile.StopPlaytimeTracking"):
     appid: int = betterproto.uint32_field(1)
     publishedfileids: list[int] = betterproto.uint64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class StopPlaytimeTrackingResponse(betterproto.Message):
+class StopPlaytimeTrackingResponse(UnifiedMessage, um_name="PublishedFile.StopPlaytimeTracking"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class StopPlaytimeTrackingForAllAppItemsRequest(betterproto.Message):
+class StopPlaytimeTrackingForAllAppItemsRequest(
+    UnifiedMessage, um_name="PublishedFile.StopPlaytimeTrackingForAllAppItems"
+):
     appid: int = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class StopPlaytimeTrackingForAllAppItemsResponse(betterproto.Message):
+class StopPlaytimeTrackingForAllAppItemsResponse(
+    UnifiedMessage, um_name="PublishedFile.StopPlaytimeTrackingForAllAppItems"
+):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class SetPlaytimeForControllerConfigsRequest(betterproto.Message):
+class SetPlaytimeForControllerConfigsRequest(UnifiedMessage, um_name="PublishedFile.SetPlaytimeForControllerConfigs"):
     appid: int = betterproto.uint32_field(1)
     controller_config_usage: list[
         "SetPlaytimeForControllerConfigsRequestControllerConfigUsage"
@@ -584,40 +548,33 @@ class SetPlaytimeForControllerConfigsRequestControllerConfigUsage(betterproto.Me
     seconds_active: float = betterproto.float_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class SetPlaytimeForControllerConfigsResponse(betterproto.Message):
+class SetPlaytimeForControllerConfigsResponse(UnifiedMessage, um_name="PublishedFile.SetPlaytimeForControllerConfigs"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class AddChildRequest(betterproto.Message):
+class AddChildRequest(UnifiedMessage, um_name="PublishedFile.AddChild"):
     publishedfileid: int = betterproto.uint64_field(1)
     child_publishedfileid: int = betterproto.uint64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class AddChildResponse(betterproto.Message):
+class AddChildResponse(UnifiedMessage, um_name="PublishedFile.AddChild"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class RemoveChildRequest(betterproto.Message):
+class RemoveChildRequest(UnifiedMessage, um_name="PublishedFile.RemoveChild"):
     publishedfileid: int = betterproto.uint64_field(1)
     child_publishedfileid: int = betterproto.uint64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class RemoveChildResponse(betterproto.Message):
+class RemoveChildResponse(UnifiedMessage, um_name="PublishedFile.RemoveChild"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class GetUserVoteSummaryRequest(betterproto.Message):
+class GetUserVoteSummaryRequest(UnifiedMessage, um_name="PublishedFile.GetUserVoteSummary"):
     publishedfileids: list[int] = betterproto.fixed64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetUserVoteSummaryResponse(betterproto.Message):
+class GetUserVoteSummaryResponse(UnifiedMessage, um_name="PublishedFile.GetUserVoteSummary"):
     summaries: "list[GetUserVoteSummaryResponseVoteSummary]" = betterproto.message_field(1)
 
 
@@ -629,15 +586,13 @@ class GetUserVoteSummaryResponseVoteSummary(betterproto.Message):
     reported: bool = betterproto.bool_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class GetItemChangesRequest(betterproto.Message):
+class GetItemChangesRequest(UnifiedMessage, um_name="PublishedFile.GetItemChanges"):
     appid: int = betterproto.uint32_field(1)
     last_time_updated: int = betterproto.uint32_field(2)
     num_items_max: int = betterproto.uint32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class GetItemChangesResponse(betterproto.Message):
+class GetItemChangesResponse(UnifiedMessage, um_name="PublishedFile.GetItemChanges"):
     update_time: int = betterproto.uint32_field(1)
     workshop_items: "list[GetItemChangesResponseWorkshopItemInfo]" = betterproto.message_field(2)
 
@@ -649,8 +604,7 @@ class GetItemChangesResponseWorkshopItemInfo(betterproto.Message):
     manifest_id: int = betterproto.fixed64_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class FileSubscribedNotification(betterproto.Message):
+class FileSubscribedNotification(UnifiedMessage, um_name="PublishedFileClient.NotifyFileSubscribed"):
     published_file_id: int = betterproto.fixed64_field(1)
     app_id: int = betterproto.uint32_field(2)
     file_hcontent: int = betterproto.fixed64_field(3)
@@ -668,13 +622,11 @@ class FileSubscribedNotificationRevisionData(betterproto.Message):
     rtime_updated: int = betterproto.uint32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class FileUnsubscribedNotification(betterproto.Message):
+class FileUnsubscribedNotification(UnifiedMessage, um_name="PublishedFileClient.NotifyFileUnsubscribed"):
     published_file_id: int = betterproto.fixed64_field(1)
     app_id: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class FileDeletedClientNotification(betterproto.Message):
+class FileDeletedClientNotification(UnifiedMessage, um_name="PublishedFileClient.NotifyFileDeleted"):
     published_file_id: int = betterproto.fixed64_field(1)
     app_id: int = betterproto.uint32_field(2)

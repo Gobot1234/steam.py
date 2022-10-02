@@ -58,16 +58,9 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
-_PROTOBUF_MASK = 0x80000000
 
 
-# inlined as these are some of the most called functions in the library
-is_proto: Callable[[int], bool] = _PROTOBUF_MASK.__and__  # type: ignore  # this is boolean like for a bit of extra speed
-set_proto_bit = _PROTOBUF_MASK.__or__
-clear_proto_bit = (~_PROTOBUF_MASK).__and__
-
-
-def unpad(s: bytes) -> bytes:
+def unpad(s: bytes, /) -> bytes:
     return s[: -s[-1]]
 
 

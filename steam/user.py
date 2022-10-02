@@ -347,19 +347,19 @@ class ClientUser(_BaseUser):
         items = await self._state.fetch_profile_items(language)
         return OwnedProfileItems(
             backgrounds=[
-                ProfileItem(self._state, self, background, um_name="ProfileBackground")
+                ProfileItem(self._state, self, background, um=player.SetProfileBackgroundRequest)
                 for background in items.profile_backgrounds
             ],
             mini_profile_backgrounds=[
-                ProfileItem(self._state, self, mini_profile_background, um_name="MiniProfileBackground")
+                ProfileItem(self._state, self, mini_profile_background, um=player.SetMiniProfileBackgroundRequest)
                 for mini_profile_background in items.mini_profile_backgrounds
             ],
             avatar_frames=[
-                ProfileItem(self._state, self, avatar_frame, um_name="AvatarFrame")
+                ProfileItem(self._state, self, avatar_frame, um=player.SetAvatarFrameRequest)
                 for avatar_frame in items.avatar_frames
             ],
             animated_avatars=[
-                ProfileItem(self._state, self, animated_avatar, um_name="AnimatedAvatar")
+                ProfileItem(self._state, self, animated_avatar, um=player.SetAnimatedAvatarRequest)
                 for animated_avatar in items.animated_avatars
             ],
             modifiers=[ProfileItem(self._state, self, modifier) for modifier in items.profile_modifiers],

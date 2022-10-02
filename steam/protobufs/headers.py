@@ -1,140 +1,58 @@
-"""
-Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
-
-Contains large portions of:
-https://github.com/ValvePython/steam/tree/master/steam/core/msg/headers.py
-The appropriate license is in LICENSE
-"""
+"""Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
 
 from __future__ import annotations
 
 import struct
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from dataclasses import dataclass
+from typing import Final
 
 import betterproto
+from typing_extensions import Self
 
-from ..enums import IntEnum, Result
-from ..utils import clear_proto_bit as clear_proto_bit, set_proto_bit as set_proto_bit
-from .base import CMsgProtoBufHeader
-from .emsg import EMsg as EMsg
+from .._const import READ_U32
+from ..enums import Result
 
 __all__ = (
-    "do_nothing_case",
-    "MsgHdr",
-    "ExtendedMsgHdr",
-    "MsgHdrProto",
-    "GCMsgHdr",
-    "GCMsgHdrProto",
+    "MessageHeader",
+    "ProtobufMessageHeader",
+    "GCMessageHeader",
 )
 
 
-do_nothing_case = cast(betterproto.Casing, lambda value: value)
+# lifted from base.py to avoid import issues
+@dataclass(eq=False, repr=False, slots=True)
+class CMsgProtoBufHeader(betterproto.Message):
+    steam_id: int = betterproto.fixed64_field(1)
+    session_id: int = betterproto.int32_field(2)
+    routing_app_id: int = betterproto.uint32_field(3)
+    job_id_source: int = betterproto.fixed64_field(10)
+    job_id_target: int = betterproto.fixed64_field(11)
+    job_name_target: str = betterproto.string_field(12)
+    seq_num: int = betterproto.int32_field(24)
+    eresult: int = betterproto.int32_field(13)
+    error_message: str = betterproto.string_field(14)
+    auth_account_flags: int = betterproto.uint32_field(16)
+    token_source: int = betterproto.uint32_field(22)
+    admin_spoofing_user: bool = betterproto.bool_field(23)
+    transport_error: int = betterproto.int32_field(17)
+    message_id: int = betterproto.uint64_field(18)
+    publisher_group_id: int = betterproto.uint32_field(19)
+    sys_id: int = betterproto.uint32_field(20)
+    trace_tag: int = betterproto.uint64_field(21)
+    webapi_key_id: int = betterproto.uint32_field(25)
+    is_from_external_source: bool = betterproto.bool_field(26)
+    forward_to_sys_id: list[int] = betterproto.uint32_field(27)
+    cm_sys_id: int = betterproto.uint32_field(28)
+    wg_token: str = betterproto.string_field(30)
+    launcher_type: int = betterproto.uint32_field(31)
+    realm: int = betterproto.uint32_field(32)
+    ip: int = betterproto.uint32_field(15, group="ip_addr")
+    ip_v6: bytes = betterproto.bytes_field(29, group="ip_addr")
 
 
-class BaseMsgHdr:
-    __slots__ = ()
-
-    STRUCT: ClassVar[struct.Struct]
-    PACK: ClassVar[tuple[str, ...]]
-    body: ClassVar[Any]
-    msg: IntEnum
-
-    def __init_subclass__(cls, proto: bool = False, cast_msg_to_emsg: bool = True) -> None:
-        if cls.__name__ == "GCMsgHdr":
-            return  # can't generate parse and bytes for this as it doesn't have a "normal" structure
-
-        # generate the parse and __bytes__ methods
-        cast = "EMsg" if cast_msg_to_emsg else ""
-
-        # this is a bit of a mess but this unpacks the data from self.STRUCT
-        # then sets self.msg and optionally converts it to an EMsg
-        # then if `proto`, sets the header length and parses the body
-        exec(
-            f"""
-def parse(self, data: bytes) -> None:
-    msg, {", ".join(f"self.{p}" for p in cls.PACK[1:])} = self.STRUCT.unpack_from(data)
-    self.msg = {cast}({'clear_proto_bit(msg)' if proto else 'msg'})
-
-    {f"self.length += {cls.STRUCT.size}" if proto else ""}
-    {f"self.body = self.body.parse(data[{cls.STRUCT.size} : self.length])" if proto else ""}
-
-cls.parse = parse
-"""
-        )
-
-        # again a bit of a mess but this serializes the body
-        # alters self.length to be the proto length (hack to get picked up in cls.PACK)
-        # packs self using self.STRUCT
-        # then if `proto`, adds the protobuf info
-        exec(
-            f"""
-def __bytes__(self) -> bytes:
-    {"proto_data = bytes(self.body)" if proto else ""}
-    {'self.length = len(proto_data)' if proto else ""}
-    return self.STRUCT.pack(
-        {"set_proto_bit(self.msg)" if proto else "self.msg"},
-        {", ".join(f"self.{p}" for p in cls.PACK[1:])}
-    ) {"+ proto_data" if proto else ""}
-
-cls.__bytes__ = __bytes__
-"""
-        )
-
-    def __repr__(self) -> str:
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.PACK]
-        if self.body is not self:
-            resolved.extend(f"{k}={v!r}" for k, v in self.body.to_dict(do_nothing_case).items())
-        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
-
-    if TYPE_CHECKING:
-
-        def parse(self, data: bytes) -> None:
-            ...
-
-        def __bytes__(self) -> bytes:
-            ...
-
-
-class NoMsg(IntEnum):
-    NONE = -1
-
-
-NO_MSG: IntEnum = NoMsg.NONE
-
-
-class MsgHdr(BaseMsgHdr):
+class MessageHeader:
     __slots__ = (
-        "msg",
-        "eresult",
         "job_name_target",
-        "job_id_target",
-        "job_id_source",
-        "body",
-    )
-
-    STRUCT = struct.Struct("<Iqq")
-    PACK = ("msg", "job_id_target", "job_id_source")
-    body: MsgHdr
-    steam_id = -1
-    session_id = -1
-
-    def __init__(self, data: bytes | None = None):
-        self.msg = NO_MSG
-        self.eresult = Result.Invalid
-        self.job_name_target = None
-        self.job_id_target = -1
-        self.job_id_source = -1
-        self.body = self
-
-        if data:
-            self.parse(data)
-
-
-class ExtendedMsgHdr(BaseMsgHdr):
-    __slots__ = (
-        "body",
-        "job_name_target",
-        "msg",
         "header_size",
         "header_version",
         "job_id_target",
@@ -144,13 +62,11 @@ class ExtendedMsgHdr(BaseMsgHdr):
         "session_id",
     )
 
-    STRUCT = struct.Struct("<IBHqqBqi")
-    PACK = __slots__[2:]
-    body: ExtendedMsgHdr
-    eresult = Result.Invalid
+    STRUCT: Final = struct.Struct("<BHqqBqi")
+    eresult: Final = Result.Invalid
+    length: Final = STRUCT.size
 
-    def __init__(self, data: bytes | None = None):
-        self.msg = NO_MSG
+    def __init__(self):
         self.header_size = 36
         self.header_version = 2
         self.job_name_target = None
@@ -159,77 +75,72 @@ class ExtendedMsgHdr(BaseMsgHdr):
         self.header_canary = 239
         self.steam_id = -1
         self.session_id = -1
-        self.body = self
 
-        if data:
-            self.parse(data)
+    def parse(self, data: bytes) -> Self:
+        (
+            self.header_version,
+            self.job_id_target,
+            self.job_id_source,
+            self.header_canary,
+            self.steam_id,
+            self.session_id,
+        ) = self.STRUCT.unpack_from(data)
+        return self
 
-            if self.header_size != 36 or self.header_version != 2:
-                raise RuntimeError("Failed to parse header")
-
-
-class MsgHdrProto(BaseMsgHdr, proto=True):
-    __slots__ = ("body", "msg", "length")
-
-    STRUCT = struct.Struct("<II")
-    PACK = ("msg", "length")
-    body: CMsgProtoBufHeader
-    steam_id = -1
-
-    def __init__(self, data: bytes | None = None):
-        self.msg = NO_MSG
-        self.body = CMsgProtoBufHeader()
-        self.length = 0
-
-        if data:
-            self.parse(data)
+    def __bytes__(self) -> bytes:
+        return self.STRUCT.pack(
+            self.header_version,
+            self.job_id_target,
+            self.job_id_source,
+            self.header_canary,
+            self.steam_id,
+            self.session_id,
+        )
 
 
-class GCMsgHdr(BaseMsgHdr, cast_msg_to_emsg=False):
-    __slots__ = ("header_version", "job_id_target", "job_id_source", "msg", "body")
+@dataclass(eq=False, repr=False, slots=True)
+class ProtobufMessageHeader(CMsgProtoBufHeader):
+    length: int = 0
+    STRUCT: Final = struct.Struct("<I")
 
-    STRUCT = struct.Struct("<Hqq")
-    PACK = ()
-    body: GCMsgHdr
-    steam_id = -1
-    session_id = -1
-    eresult = Result.Invalid
+    def parse(self, data: bytes) -> Self:
+        self.length = READ_U32(data) + 4
+        return betterproto.Message.parse(self, data[4 : self.length])
 
-    def __init__(self, data: bytes | None = None):
-        self.msg = NO_MSG
+    def __bytes__(self) -> bytes:
+        proto_data = betterproto.Message.__bytes__(self)
+        return self.STRUCT.pack(len(proto_data)) + proto_data
 
+
+del ProtobufMessageHeader.__dataclass_fields__["length"]  # hack to get betterproto to ignore this
+del ProtobufMessageHeader.__dataclass_fields__["STRUCT"]
+
+
+class GCMessageHeader:
+    __slots__ = ("header_version", "job_id_target", "job_id_source")
+
+    STRUCT: Final = struct.Struct("<Hqq")
+    PACK: Final = ()
+    steam_id: Final = -1
+    session_id: Final = -1
+    eresult: Final = Result.Invalid
+    length: Final = STRUCT.size
+    job_name_target: Final = None
+
+    def __init__(self):
         self.header_version = 1
         self.job_id_target = -1
         self.job_id_source = 0
-        self.body = self
-
-        if data:
-            self.parse(data)
+        super().__init__()
 
     # special cases
     def __bytes__(self) -> bytes:
         return self.STRUCT.pack(self.header_version, self.job_id_target, self.job_id_source)
 
-    def parse(self, data: bytes) -> None:
+    def parse(self, data: bytes) -> Self:
         (
             self.header_version,
             self.job_id_target,
             self.job_id_source,
         ) = self.STRUCT.unpack_from(data)
-
-
-class GCMsgHdrProto(BaseMsgHdr, proto=True, cast_msg_to_emsg=False):
-    __slots__ = ("msg", "body", "length")
-
-    STRUCT = struct.Struct("<Ii")
-    PACK = ("msg", "length")
-    body: CMsgProtoBufHeader
-    steam_id = -1
-
-    def __init__(self, data: bytes | None = None):
-        self.msg = NO_MSG
-        self.body = CMsgProtoBufHeader()
-        self.length = 0
-
-        if data:
-            self.parse(data)
+        return self

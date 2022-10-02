@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .msg import UnifiedMessage
+
 
 @dataclass(eq=False, repr=False)
 class DefinitionBadgeData(betterproto.Message):
@@ -51,25 +53,21 @@ class Definition(betterproto.Message):
     bundle_discount: int = betterproto.uint32_field(17)
 
 
-@dataclass(eq=False, repr=False)
-class AddReactionRequest(betterproto.Message):
+class AddReactionRequest(UnifiedMessage, um_name="LoyaltyRewards.AddReaction"):
     target_type: int = betterproto.int32_field(1)
     targetid: int = betterproto.uint64_field(2)
     reactionid: int = betterproto.uint32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class AddReactionResponse(betterproto.Message):
+class AddReactionResponse(UnifiedMessage, um_name="LoyaltyRewards.AddReaction"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class BatchedQueryRewardItemsRequest(betterproto.Message):
+class BatchedQueryRewardItemsRequest(UnifiedMessage, um_name="LoyaltyRewards.BatchedQueryRewardItems"):
     requests: "list[QueryRewardItemsRequest]" = betterproto.message_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class BatchedQueryRewardItemsResponse(betterproto.Message):
+class BatchedQueryRewardItemsResponse(UnifiedMessage, um_name="LoyaltyRewards.BatchedQueryRewardItems"):
     responses: "list[BatchedQueryRewardItemsResponseResponse]" = betterproto.message_field(1)
 
 
@@ -79,23 +77,19 @@ class BatchedQueryRewardItemsResponseResponse(betterproto.Message):
     response: "QueryRewardItemsResponse" = betterproto.message_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetActivePurchaseBonusesRequest(betterproto.Message):
+class GetActivePurchaseBonusesRequest(UnifiedMessage, um_name="LoyaltyRewards.GetActivePurchaseBonuses"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class GetActivePurchaseBonusesResponse(betterproto.Message):
+class GetActivePurchaseBonusesResponse(UnifiedMessage, um_name="LoyaltyRewards.GetActivePurchaseBonuses"):
     bonuses: "list[PurchaseBonus]" = betterproto.message_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetEligibleAppsRequest(betterproto.Message):
+class GetEligibleAppsRequest(UnifiedMessage, um_name="LoyaltyRewards.GetEligibleApps"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class GetEligibleAppsResponse(betterproto.Message):
+class GetEligibleAppsResponse(UnifiedMessage, um_name="LoyaltyRewards.GetEligibleApps"):
     apps: "list[GetEligibleAppsResponseEligibleApp]" = betterproto.message_field(1)
 
 
@@ -107,13 +101,11 @@ class GetEligibleAppsResponseEligibleApp(betterproto.Message):
     hero_carousel_image: str = betterproto.string_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class GetPointsForSpendResponse(betterproto.Message):
+class GetPointsForSpendResponse(UnifiedMessage, um_name="LoyaltyRewards.GetPointsForSpend"):
     points: int = betterproto.int64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetProfileCustomizationsConfigResponse(betterproto.Message):
+class GetProfileCustomizationsConfigResponse(UnifiedMessage, um_name="LoyaltyRewards.GetProfileCustomizationsConfig"):
     points_cost: int = betterproto.uint32_field(1)
     upgrade_points_cost: int = betterproto.uint32_field(2)
     purchasable_customization_types: list[int] = betterproto.int32_field(3)
@@ -122,13 +114,11 @@ class GetProfileCustomizationsConfigResponse(betterproto.Message):
     max_upgradable_level: int = betterproto.uint32_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class GetReactionConfigRequest(betterproto.Message):
+class GetReactionConfigRequest(UnifiedMessage, um_name="LoyaltyRewards.GetReactionConfig"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class GetReactionConfigResponse(betterproto.Message):
+class GetReactionConfigResponse(UnifiedMessage, um_name="LoyaltyRewards.GetReactionConfig"):
     reactions: "list[GetReactionConfigResponseReactionConfig]" = betterproto.message_field(3)
 
 
@@ -141,19 +131,16 @@ class GetReactionConfigResponseReactionConfig(betterproto.Message):
     valid_ugc_types: list[int] = betterproto.uint32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class GetReactionsRequest(betterproto.Message):
+class GetReactionsRequest(UnifiedMessage, um_name="LoyaltyRewards.GetReactions"):
     target_type: int = betterproto.int32_field(1)
     targetid: int = betterproto.uint64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetReactionsResponse(betterproto.Message):
+class GetReactionsResponse(UnifiedMessage, um_name="LoyaltyRewards.GetReactions"):
     reactionids: list[int] = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetReactionsSummaryForUserResponse(betterproto.Message):
+class GetReactionsSummaryForUserResponse(UnifiedMessage, um_name="LoyaltyRewards.GetReactionsSummaryForUser"):
     total: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(1)
     user_reviews: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(2)
     ugc: "list[GetReactionsSummaryForUserResponseBreakdown]" = betterproto.message_field(3)
@@ -175,13 +162,11 @@ class GetReactionsSummaryForUserResponseBreakdown(betterproto.Message):
     points_received: int = betterproto.int64_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class GetSummaryRequest(betterproto.Message):
+class GetSummaryRequest(UnifiedMessage, um_name="LoyaltyRewards.GetSummary"):
     steamid: int = betterproto.fixed64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetSummaryResponse(betterproto.Message):
+class GetSummaryResponse(UnifiedMessage, um_name="LoyaltyRewards.GetSummary"):
     summary: "GetSummaryResponseSummary" = betterproto.message_field(1)
     timestamp_updated: int = betterproto.uint32_field(2)
     auditid_highwater: int = betterproto.uint64_field(3)
@@ -194,8 +179,7 @@ class GetSummaryResponseSummary(betterproto.Message):
     points_spent: int = betterproto.int64_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class QueryRewardItemsRequest(betterproto.Message):
+class QueryRewardItemsRequest(UnifiedMessage, um_name="LoyaltyRewards.QueryRewardItems"):
     appids: list[int] = betterproto.uint32_field(1)
     time_available: int = betterproto.uint32_field(2)
     community_item_classes: list[int] = betterproto.int32_field(3)
@@ -216,61 +200,59 @@ class QueryRewardItemsRequest(betterproto.Message):
     excluded_appids: list[int] = betterproto.uint32_field(18)
 
 
-@dataclass(eq=False, repr=False)
-class QueryRewardItemsResponse(betterproto.Message):
+class QueryRewardItemsResponse(UnifiedMessage, um_name="LoyaltyRewards.QueryRewardItems"):
     definitions: "list[Definition]" = betterproto.message_field(1)
     total_count: int = betterproto.int32_field(2)
     count: int = betterproto.int32_field(3)
     next_cursor: str = betterproto.string_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class RedeemPointsRequest(betterproto.Message):
+class RedeemPointsRequest(UnifiedMessage, um_name="LoyaltyRewards.RedeemPoints"):
     defid: int = betterproto.uint32_field(1)
     expected_points_cost: int = betterproto.int64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class RedeemPointsResponse(betterproto.Message):
+class RedeemPointsResponse(UnifiedMessage, um_name="LoyaltyRewards.RedeemPoints"):
     communityitemid: int = betterproto.uint64_field(1)
     bundle_community_item_ids: list[int] = betterproto.uint64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class RedeemPointsForBadgeLevelRequest(betterproto.Message):
+class RedeemPointsForBadgeLevelRequest(UnifiedMessage, um_name="LoyaltyRewards.RedeemPointsForBadgeLevel"):
     defid: int = betterproto.uint32_field(1)
     num_levels: int = betterproto.int32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class RedeemPointsForProfileCustomizationRequest(betterproto.Message):
+class RedeemPointsForProfileCustomizationRequest(
+    UnifiedMessage, um_name="LoyaltyRewards.RedeemPointsForProfileCustomization"
+):
     customization_type: int = betterproto.int32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class RedeemPointsForProfileCustomizationResponse(betterproto.Message):
+class RedeemPointsForProfileCustomizationResponse(
+    UnifiedMessage, um_name="LoyaltyRewards.RedeemPointsForProfileCustomization"
+):
     purchaseid: int = betterproto.uint64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class RedeemPointsForProfileCustomizationUpgradeRequest(betterproto.Message):
+class RedeemPointsForProfileCustomizationUpgradeRequest(
+    UnifiedMessage, um_name="LoyaltyRewards.RedeemPointsForProfileCustomizationUpgrade"
+):
     customization_type: int = betterproto.int32_field(1)
     new_level: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class RedeemPointsForProfileCustomizationUpgradeResponse(betterproto.Message):
+class RedeemPointsForProfileCustomizationUpgradeResponse(
+    UnifiedMessage, um_name="LoyaltyRewards.RedeemPointsForProfileCustomizationUpgrade"
+):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class RegisterForSteamDeckRewardsRequest(betterproto.Message):
+class RegisterForSteamDeckRewardsRequest(UnifiedMessage, um_name="LoyaltyRewards.RegisterForSteamDeckRewards"):
     serial_number: str = betterproto.string_field(1)
     controller_code: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class RegisterForSteamDeckRewardsResponse(betterproto.Message):
+class RegisterForSteamDeckRewardsResponse(UnifiedMessage, um_name="LoyaltyRewards.RegisterForSteamDeckRewards"):
     granted_profile_modifier: bool = betterproto.bool_field(1)
 
 

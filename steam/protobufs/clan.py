@@ -1,52 +1,45 @@
-from dataclasses import dataclass
-
 import betterproto
 
 from .base import CClanEventData
+from .msg import UnifiedMessage
 
 
-@dataclass(eq=False, repr=False)
-class RespondToClanInviteRequest(betterproto.Message):
+class RespondToClanInviteRequest(UnifiedMessage, um_name="Clan.RespondToClanInvite"):
     steamid: int = betterproto.fixed64_field(1)
     accept: bool = betterproto.bool_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class RespondToClanInviteResponse(betterproto.Message):
+class RespondToClanInviteResponse(UnifiedMessage, um_name="Clan.RespondToClanInvite"):
     pass
 
 
 # not public and also non-functional atm
-@dataclass(eq=False, repr=False)
-class GetAdjacentPartnerEventsRequest(betterproto.Message):
+
+
+class GetAdjacentPartnerEventsRequest(UnifiedMessage, um_name="Clan.GetAdjacentPartnerEvents"):
     steam_id: int = betterproto.fixed64_field(1)  # might be account id
     announcement_id: int = betterproto.fixed64_field(2)
     # count_later: int = betterproto.uint32_field(2)  # might allow announcement_id
     # might allow the limit
 
 
-@dataclass(eq=False, repr=False)
-class GetAdjacentPartnerEventsResponse(betterproto.Message):
+class GetAdjacentPartnerEventsResponse(UnifiedMessage, um_name="Clan.GetAdjacentPartnerEvents"):
     events: list[CClanEventData] = betterproto.message_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetEventDetailsRequest(betterproto.Message):
-    event_ids: list[int] = betterproto.int64_field(1)
+class GetEventDetailsRequest(UnifiedMessage, um_name="Clan.GetEventDetails"):
+    event_ids: list[int] = betterproto.fixed64_field(1)
     clan_ids: list[int] = betterproto.fixed32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetEventDetailsResponse(betterproto.Message):
+class GetEventDetailsResponse(UnifiedMessage, um_name="Clan.GetEventDetails"):
     events: list[CClanEventData] = betterproto.message_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetSinglePartnerEventRequest(betterproto.Message):
+class GetSinglePartnerEventRequest(UnifiedMessage, um_name="Clan.GetSinglePartnerEvent"):
     clan_id: int = betterproto.fixed32_field(1)
     announcement_id: int = betterproto.uint64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetSinglePartnerEventResponse(betterproto.Message):
+class GetSinglePartnerEventResponse(UnifiedMessage, um_name="Clan.GetSinglePartnerEvent"):
     events: list[CClanEventData] = betterproto.message_field(1)

@@ -7,33 +7,16 @@ from typing import Any
 from typing_extensions import Self
 
 from ..utils import StructIO
-from .emsg import EMsg
-from .protobufs import PROTOBUFS
 
 
-class StructMessageMeta(type):
-    def __new__(mcs, name: str, bases: tuple[type, ...], attrs: dict[str, Any]) -> Self:
-        attrs["__slots__"] = slots = tuple(attrs.get("__annotations__", ()))
-        exec(
-            f"def __init__(self, {', '.join(f'{slot}=None' for slot in slots)}): "
-            f"{' '.join(f'self.{slot} = {slot};' for slot in slots) or 'pass'}\n",
-            {},
-            attrs,
-        )
+class StructMessage:
+    __slots__ = ()
 
-        cls = super().__new__(mcs, name, bases, attrs)
-        if cls.__module__ == __name__ and name != "StructMessage":
-            PROTOBUFS[EMsg[name]] = cls  # type: ignore
-
-        return cls
-
-
-class StructMessage(metaclass=StructMessageMeta):
     def from_dict(self, dict: dict[str, Any]) -> Self:
         self.__init__(**dict)
         return self
 
-    def to_dict(self, *_) -> dict[str, Any]:
+    def to_dict(self, *_: Any) -> dict[str, Any]:
         try:
             annotations = self.__annotations__
         except AttributeError:
@@ -56,34 +39,3 @@ class StructMessage(metaclass=StructMessageMeta):
 
     def parse(self, data: bytes) -> Self:
         raise NotImplementedError
-
-
-class ClientGetFriendsWhoPlayGame(StructMessage):
-    app_id: int
-
-
-class ClientGetFriendsWhoPlayGameResponse(StructMessage):
-    eresult: int
-    app_id: int
-    friends: list[int]
-
-    def parse(self, data: bytes) -> Self:
-        with StructIO(data) as io:
-            self.eresult = io.read_u32()
-            self.app_id = io.read_u64()
-            self.friends = [io.read_u64() for _ in range(io.read_u32())]
-
-        return self
-
-
-# used in ext._gc.Client.buy_item
-class ClientMicroTxnAuthorize(StructMessage):
-    def __init__(self, order_id: int):
-        self.order_id = order_id
-        self.code = 1
-
-    def __bytes__(self) -> bytes:
-        with StructIO() as io:
-            io.write_u64(self.order_id)
-            io.write_i32(self.code)
-            return io.buffer

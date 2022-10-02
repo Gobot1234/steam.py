@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from typing_extensions import Self
 
@@ -90,20 +90,20 @@ class RolePermissions:
         self.set_watching_broadcast = proto.can_set_watching_broadcast
 
     def copy(self) -> Self:
-        return self.__class__(chat.RoleActions(**self.to_dict()))
+        return self.__class__(self.to_proto())
 
     __copy__ = copy
 
-    def to_dict(self) -> dict[str, bool]:
-        return {
-            "can_kick": self.kick,
-            "can_ban": self.ban_members,
-            "can_invite": self.invite,
-            "can_change_tagline_avatar_name": self.manage_group,
-            "can_chat": self.send_messages,
-            "can_view_history": self.read_message_history,
-            "can_change_group_roles": self.change_group_roles,
-            "can_change_user_roles": self.change_user_roles,
-            "can_mention_all": self.mention_all,
-            "can_set_watching_broadcast": self.set_watching_broadcast,
-        }
+    def to_proto(self) -> chat.RoleActions:
+        return chat.RoleActions(
+            can_kick=self.kick,
+            can_ban=self.ban_members,
+            can_invite=self.invite,
+            can_change_tagline_avatar_name=self.manage_group,
+            can_chat=self.send_messages,
+            can_view_history=self.read_message_history,
+            can_change_group_roles=self.change_group_roles,
+            can_change_user_roles=self.change_user_roles,
+            can_mention_all=self.mention_all,
+            can_set_watching_broadcast=self.set_watching_broadcast,
+        )

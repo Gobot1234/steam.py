@@ -7,9 +7,10 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .msg import UnifiedMessage
 
-@dataclass(eq=False, repr=False)
-class GetServersForSteamPipeRequest(betterproto.Message):
+
+class GetServersForSteamPipeRequest(UnifiedMessage, um_name="ContentServerDirectory.GetServersForSteamPipe"):
     cell_id: int = betterproto.uint32_field(1)
     max_servers: int = betterproto.uint32_field(2)
     ip_override: str = betterproto.string_field(3)
@@ -35,40 +36,34 @@ class ServerInfo(betterproto.Message):
     preferred_server: bool = betterproto.bool_field(14)
 
 
-@dataclass(eq=False, repr=False)
-class GetServersForSteamPipeResponse(betterproto.Message):
+class GetServersForSteamPipeResponse(UnifiedMessage, um_name="ContentServerDirectory.GetServersForSteamPipe"):
     servers: "list[ServerInfo]" = betterproto.message_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetDepotPatchInfoRequest(betterproto.Message):
+class GetDepotPatchInfoRequest(UnifiedMessage, um_name="ContentServerDirectory.GetDepotPatchInfo"):
     appid: int = betterproto.uint32_field(1)
     depotid: int = betterproto.uint32_field(2)
     source_manifestid: int = betterproto.uint64_field(3)
     target_manifestid: int = betterproto.uint64_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class GetDepotPatchInfoResponse(betterproto.Message):
+class GetDepotPatchInfoResponse(UnifiedMessage, um_name="ContentServerDirectory.GetDepotPatchInfo"):
     is_available: bool = betterproto.bool_field(1)
     patch_size: int = betterproto.uint64_field(2)
     patched_chunks_size: int = betterproto.uint64_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class GetClientUpdateHostsRequest(betterproto.Message):
+class GetClientUpdateHostsRequest(UnifiedMessage, um_name="ContentServerDirectory.GetClientUpdateHosts"):
     cached_signature: str = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class GetClientUpdateHostsResponse(betterproto.Message):
+class GetClientUpdateHostsResponse(UnifiedMessage, um_name="ContentServerDirectory.GetClientUpdateHosts"):
     hosts_kv: str = betterproto.string_field(1)
     valid_until_time: int = betterproto.uint64_field(2)
     ip_country: str = betterproto.string_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class GetManifestRequestCodeRequest(betterproto.Message):
+class GetManifestRequestCodeRequest(UnifiedMessage, um_name="ContentServerDirectory.GetManifestRequestCode"):
     app_id: int = betterproto.uint32_field(1)
     depot_id: int = betterproto.uint32_field(2)
     manifest_id: int = betterproto.uint64_field(3)
@@ -76,6 +71,5 @@ class GetManifestRequestCodeRequest(betterproto.Message):
     branch_password_hash: str = betterproto.string_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class GetManifestRequestCodeResponse(betterproto.Message):
+class GetManifestRequestCodeResponse(UnifiedMessage, um_name="ContentServerDirectory.GetManifestRequestCode"):
     manifest_request_code: int = betterproto.uint64_field(1)

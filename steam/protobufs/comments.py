@@ -7,10 +7,10 @@ from dataclasses import dataclass
 import betterproto
 
 from .base import CMsgIpAddress
+from .msg import UnifiedMessage
 
 
-@dataclass(eq=False, repr=False)
-class GetCommentThreadRequest(betterproto.Message):
+class GetCommentThreadRequest(UnifiedMessage, um_name="Community.GetCommentThread"):
     id64: int = betterproto.fixed64_field(1)
     thread_type: int = betterproto.uint32_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
@@ -25,8 +25,7 @@ class GetCommentThreadRequest(betterproto.Message):
     oldest_first: bool = betterproto.bool_field(12)
 
 
-@dataclass(eq=False, repr=False)
-class GetCommentThreadResponse(betterproto.Message):
+class GetCommentThreadResponse(UnifiedMessage, um_name="Community.GetCommentThread"):
     @dataclass(eq=False, repr=False)
     class Comment(betterproto.Message):
         id: int = betterproto.fixed64_field(1)
@@ -69,8 +68,7 @@ class GetCommentThreadResponse(betterproto.Message):
     gidfeature2: int = betterproto.fixed64_field(18)
 
 
-@dataclass(eq=False, repr=False)
-class PostCommentToThreadRequest(betterproto.Message):
+class PostCommentToThreadRequest(UnifiedMessage, um_name="Community.PostCommentToThread"):
     id64: int = betterproto.fixed64_field(1)
     thread_type: int = betterproto.uint32_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
@@ -81,16 +79,14 @@ class PostCommentToThreadRequest(betterproto.Message):
     is_report: bool = betterproto.bool_field(9)
 
 
-@dataclass(eq=False, repr=False)
-class PostCommentToThreadResponse(betterproto.Message):
+class PostCommentToThreadResponse(UnifiedMessage, um_name="Community.PostCommentToThread"):
     id: int = betterproto.fixed64_field(1)
     thread_id: int = betterproto.fixed64_field(2)
     count: int = betterproto.int32_field(3)
     upvotes: int = betterproto.int32_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class DeleteCommentFromThreadRequest(betterproto.Message):
+class DeleteCommentFromThreadRequest(UnifiedMessage, um_name="Community.DeleteCommentFromThread"):
     id64: int = betterproto.fixed64_field(1)
     thread_type: int = betterproto.uint32_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
@@ -99,13 +95,11 @@ class DeleteCommentFromThreadRequest(betterproto.Message):
     undelete: bool = betterproto.bool_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class DeleteCommentFromThreadResponse(betterproto.Message):
+class DeleteCommentFromThreadResponse(UnifiedMessage, um_name="Community.DeleteCommentFromThread"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class RateCommentThreadRequest(betterproto.Message):
+class RateCommentThreadRequest(UnifiedMessage, um_name="Community.RateCommentThread"):
     thread_type: str = betterproto.string_field(1)
     id64: int = betterproto.fixed64_field(2)
     gidfeature: int = betterproto.fixed64_field(3)
@@ -115,8 +109,7 @@ class RateCommentThreadRequest(betterproto.Message):
     suppress_notifications: bool = betterproto.bool_field(7)
 
 
-@dataclass(eq=False, repr=False)
-class RateCommentThreadResponse(betterproto.Message):
+class RateCommentThreadResponse(UnifiedMessage, um_name="Community.RateCommentThread"):
     id: int = betterproto.fixed64_field(1)
     thread_id: int = betterproto.uint64_field(2)
     count: int = betterproto.uint32_field(3)
@@ -124,8 +117,7 @@ class RateCommentThreadResponse(betterproto.Message):
     has_upvoted: bool = betterproto.bool_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class GetCommentThreadRatingsRequest(betterproto.Message):
+class GetCommentThreadRatingsRequest(UnifiedMessage, um_name="Community.GetCommentThreadRatings"):
     thread_type: str = betterproto.string_field(1)
     id64: int = betterproto.uint64_field(2)
     gidfeature: int = betterproto.uint64_field(3)
@@ -134,8 +126,7 @@ class GetCommentThreadRatingsRequest(betterproto.Message):
     max_results: int = betterproto.uint32_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class GetCommentThreadRatingsResponse(betterproto.Message):
+class GetCommentThreadRatingsResponse(UnifiedMessage, um_name="Community.GetCommentThreadRatings"):
     thread_id: int = betterproto.uint64_field(1)
     comment_id: int = betterproto.uint64_field(2)
     upvotes: int = betterproto.uint32_field(3)
@@ -143,13 +134,11 @@ class GetCommentThreadRatingsResponse(betterproto.Message):
     upvoter_ids: list[int] = betterproto.uint32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class RateClanAnnouncementRequest(betterproto.Message):
+class RateClanAnnouncementRequest(UnifiedMessage, um_name="Community.RateClanAnnouncement"):
     announcementid: int = betterproto.uint64_field(1)
     vote_up: bool = betterproto.bool_field(2)
     clan_accountid: int = betterproto.uint32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class RateClanAnnouncementResponse(betterproto.Message):
+class RateClanAnnouncementResponse(UnifiedMessage, um_name="Community.RateClanAnnouncement"):
     pass

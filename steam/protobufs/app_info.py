@@ -7,6 +7,9 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .emsg import EMsg
+from .msg import ProtobufMessage
+
 
 @dataclass(eq=False, repr=False)
 class CMsgClientAppInfoUpdate(betterproto.Message):
@@ -75,8 +78,7 @@ class CMsgClientPackageInfoResponsePackage(betterproto.Message):
     buffer: bytes = betterproto.bytes_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientPicsChangesSinceRequest(betterproto.Message):
+class CMsgClientPicsChangesSinceRequest(ProtobufMessage, msg=EMsg.ClientPICSChangesSinceRequest):
     since_change_number: int = betterproto.uint32_field(1)
     send_app_info_changes: bool = betterproto.bool_field(2)
     send_package_info_changes: bool = betterproto.bool_field(3)
@@ -84,8 +86,7 @@ class CMsgClientPicsChangesSinceRequest(betterproto.Message):
     num_package_info_cached: int = betterproto.uint32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientPicsChangesSinceResponse(betterproto.Message):
+class CMsgClientPicsChangesSinceResponse(ProtobufMessage, msg=EMsg.ClientPICSChangesSinceResponse):
     current_change_number: int = betterproto.uint32_field(1)
     since_change_number: int = betterproto.uint32_field(2)
     force_full_update: bool = betterproto.bool_field(3)
@@ -109,8 +110,7 @@ class CMsgClientPicsChangesSinceResponseAppChange(betterproto.Message):
     needs_token: bool = betterproto.bool_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientPicsProductInfoRequest(betterproto.Message):
+class CMsgClientPicsProductInfoRequest(ProtobufMessage, msg=EMsg.ClientPICSProductInfoRequest):
     packages: "list[CMsgClientPicsProductInfoRequestPackageInfo]" = betterproto.message_field(1)
     apps: "list[CMsgClientPicsProductInfoRequestAppInfo]" = betterproto.message_field(2)
     meta_data_only: bool = betterproto.bool_field(3)
@@ -131,8 +131,7 @@ class CMsgClientPicsProductInfoRequestPackageInfo(betterproto.Message):
     access_token: int = betterproto.uint64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientPicsProductInfoResponse(betterproto.Message):
+class CMsgClientPicsProductInfoResponse(ProtobufMessage, msg=EMsg.ClientPICSProductInfoResponse):
     apps: "list[CMsgClientPicsProductInfoResponseAppInfo]" = betterproto.message_field(1)
     unknown_appids: list[int] = betterproto.uint32_field(2)
     packages: "list[CMsgClientPicsProductInfoResponsePackageInfo]" = betterproto.message_field(3)
@@ -164,14 +163,12 @@ class CMsgClientPicsProductInfoResponsePackageInfo(betterproto.Message):
     size: int = betterproto.uint32_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientPicsAccessTokenRequest(betterproto.Message):
+class CMsgClientPicsAccessTokenRequest(ProtobufMessage, msg=EMsg.ClientPICSAccessTokenRequest):
     packageids: list[int] = betterproto.uint32_field(1)
     appids: list[int] = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientPicsAccessTokenResponse(betterproto.Message):
+class CMsgClientPicsAccessTokenResponse(ProtobufMessage, msg=EMsg.ClientPICSAccessTokenResponse):
     package_access_tokens: "list[CMsgClientPicsAccessTokenResponsePackageToken]" = betterproto.message_field(1)
     package_denied_tokens: list[int] = betterproto.uint32_field(2)
     app_access_tokens: "list[CMsgClientPicsAccessTokenResponseAppToken]" = betterproto.message_field(3)

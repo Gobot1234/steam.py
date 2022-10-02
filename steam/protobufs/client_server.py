@@ -8,7 +8,9 @@ from dataclasses import dataclass
 import betterproto
 
 from .base import CMsgAuthTicket, CMsgIpAddress
+from .emsg import EMsg
 from .encrypted_app_ticket import EncryptedAppTicket
+from .msg import ProtobufMessage
 
 
 @dataclass(eq=False, repr=False)
@@ -18,8 +20,7 @@ class CMsgClientRegisterAuthTicketWithCm(betterproto.Message):
     client_instance_id: int = betterproto.uint64_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientTicketAuthComplete(betterproto.Message):
+class CMsgClientTicketAuthComplete(ProtobufMessage, msg=EMsg.ClientTicketAuthComplete):
     steam_id: int = betterproto.fixed64_field(1)
     game_id: int = betterproto.fixed64_field(2)
     estate: int = betterproto.uint32_field(3)
@@ -30,16 +31,14 @@ class CMsgClientTicketAuthComplete(betterproto.Message):
     owner_steam_id: int = betterproto.fixed64_field(8)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientCmList(betterproto.Message):
+class CMsgClientCmList(ProtobufMessage, msg=EMsg.ClientCMList):
     cm_addresses: list[int] = betterproto.uint32_field(1)
     cm_ports: list[int] = betterproto.uint32_field(2)
     cm_websocket_addresses: list[str] = betterproto.string_field(3)
     percent_default_to_websocket: int = betterproto.uint32_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientP2PConnectionInfo(betterproto.Message):
+class CMsgClientP2PConnectionInfo(ProtobufMessage, msg=EMsg.ClientP2PConnectionInfo):
     steam_id_dest: int = betterproto.fixed64_field(1)
     steam_id_src: int = betterproto.fixed64_field(2)
     app_id: int = betterproto.uint32_field(3)
@@ -48,8 +47,7 @@ class CMsgClientP2PConnectionInfo(betterproto.Message):
     rendezvous: bytes = betterproto.bytes_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientP2PConnectionFailInfo(betterproto.Message):
+class CMsgClientP2PConnectionFailInfo(ProtobufMessage, msg=EMsg.ClientP2PConnectionFailInfo):
     steam_id_dest: int = betterproto.fixed64_field(1)
     steam_id_src: int = betterproto.fixed64_field(2)
     app_id: int = betterproto.uint32_field(3)
@@ -59,8 +57,7 @@ class CMsgClientP2PConnectionFailInfo(betterproto.Message):
     close_message: str = betterproto.string_field(8)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientNetworkingCertRequest(betterproto.Message):
+class CMsgClientNetworkingCertRequest(ProtobufMessage, msg=EMsg.ClientNetworkingCertRequest):
     key_data: bytes = betterproto.bytes_field(2)
     app_id: int = betterproto.uint32_field(3)
 
@@ -72,8 +69,7 @@ class CMsgClientNetworkingCertReply(betterproto.Message):
     ca_signature: bytes = betterproto.bytes_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientNetworkingMobileCertRequest(betterproto.Message):
+class CMsgClientNetworkingMobileCertRequest(ProtobufMessage, msg=EMsg.ClientNetworkingMobileCertRequest):
     app_id: int = betterproto.uint32_field(1)
 
 
@@ -82,31 +78,26 @@ class CMsgClientNetworkingMobileCertReply(betterproto.Message):
     encoded_cert: str = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientGetAppOwnershipTicket(betterproto.Message):
+class CMsgClientGetAppOwnershipTicket(ProtobufMessage, msg=EMsg.ClientGetAppOwnershipTicket):
     app_id: int = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientGetAppOwnershipTicketResponse(betterproto.Message):
+class CMsgClientGetAppOwnershipTicketResponse(ProtobufMessage, msg=EMsg.ClientGetAppOwnershipTicketResponse):
     eresult: int = betterproto.uint32_field(1)
     app_id: int = betterproto.uint32_field(2)
     ticket: bytes = betterproto.bytes_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientSessionToken(betterproto.Message):
+class CMsgClientSessionToken(ProtobufMessage, msg=EMsg.ClientSessionToken):
     token: int = betterproto.uint64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientGameConnectTokens(betterproto.Message):
+class CMsgClientGameConnectTokens(ProtobufMessage, msg=EMsg.ClientGameConnectTokens):
     max_tokens_to_keep: int = betterproto.uint32_field(1)
     tokens: list[bytes] = betterproto.bytes_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientGamesPlayed(betterproto.Message):
+class CMsgClientGamesPlayed(ProtobufMessage, msg=EMsg.ClientGamesPlayedWithDataBlob):
     games_played: "list[CMsgClientGamesPlayedGamePlayed]" = betterproto.message_field(1)
     client_os_type: int = betterproto.uint32_field(2)
     cloud_gaming_platform: int = betterproto.uint32_field(3)
@@ -140,27 +131,23 @@ class CMsgClientGamesPlayedGamePlayed(betterproto.Message):
     controller_connection_type: int = betterproto.uint32_field(24)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgGsApprove(betterproto.Message):
+class CMsgGsApprove(ProtobufMessage, msg=EMsg.GSApprove):
     steam_id: int = betterproto.fixed64_field(1)
     owner_steam_id: int = betterproto.fixed64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgGsDeny(betterproto.Message):
+class CMsgGsDeny(ProtobufMessage, msg=EMsg.GSDeny):
     steam_id: int = betterproto.fixed64_field(1)
     edeny_reason: int = betterproto.int32_field(2)
     deny_string: str = betterproto.string_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgGsKick(betterproto.Message):
+class CMsgGsKick(ProtobufMessage, msg=EMsg.GSKick):
     steam_id: int = betterproto.fixed64_field(1)
     edeny_reason: int = betterproto.int32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientAuthList(betterproto.Message):
+class CMsgClientAuthList(ProtobufMessage, msg=EMsg.ClientAuthList):
     tokens_left: int = betterproto.uint32_field(1)
     last_request_seq: int = betterproto.uint32_field(2)
     last_request_seq_from_server: int = betterproto.uint32_field(3)
@@ -169,15 +156,13 @@ class CMsgClientAuthList(betterproto.Message):
     message_sequence: int = betterproto.uint32_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientAuthListAck(betterproto.Message):
+class CMsgClientAuthListAck(ProtobufMessage, msg=EMsg.ClientAuthListAck):
     ticket_crc: list[int] = betterproto.uint32_field(1)
     app_ids: list[int] = betterproto.uint32_field(2)
     message_sequence: int = betterproto.uint32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLicenseList(betterproto.Message):
+class CMsgClientLicenseList(ProtobufMessage, msg=EMsg.ClientLicenseList):
     eresult: int = betterproto.int32_field(1)
     licenses: "list[CMsgClientLicenseListLicense]" = betterproto.message_field(2)
 
@@ -204,16 +189,14 @@ class CMsgClientLicenseListLicense(betterproto.Message):
     master_package_id: int = betterproto.uint32_field(18)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientIsLimitedAccount(betterproto.Message):
+class CMsgClientIsLimitedAccount(ProtobufMessage, msg=EMsg.ClientIsLimitedAccount):
     bis_limited_account: bool = betterproto.bool_field(1)
     bis_community_banned: bool = betterproto.bool_field(2)
     bis_locked_account: bool = betterproto.bool_field(3)
     bis_limited_account_allowed_to_invite_friends: bool = betterproto.bool_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientRequestedClientStats(betterproto.Message):
+class CMsgClientRequestedClientStats(ProtobufMessage, msg=EMsg.ClientRequestedClientStats):
     stats_to_send: "list[CMsgClientRequestedClientStatsStatsToSend]" = betterproto.message_field(1)
 
 
@@ -223,8 +206,7 @@ class CMsgClientRequestedClientStatsStatsToSend(betterproto.Message):
     stat_aggregate_method: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientStat2(betterproto.Message):
+class CMsgClientStat2(ProtobufMessage, msg=EMsg.ClientStat2):
     stat_detail: "list[CMsgClientStat2StatDetail]" = betterproto.message_field(1)
 
 
@@ -238,16 +220,14 @@ class CMsgClientStat2StatDetail(betterproto.Message):
     app_id: int = betterproto.uint32_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientInviteToGame(betterproto.Message):
+class CMsgClientInviteToGame(ProtobufMessage, msg=EMsg.ClientInviteToGame):
     steam_id_dest: int = betterproto.fixed64_field(1)
     steam_id_src: int = betterproto.fixed64_field(2)
     connect_string: str = betterproto.string_field(3)
     remote_play: str = betterproto.string_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientChatInvite(betterproto.Message):
+class CMsgClientChatInvite(ProtobufMessage, msg=EMsg.ClientChatInvite):
     steam_id_invited: int = betterproto.fixed64_field(1)
     steam_id_chat: int = betterproto.fixed64_field(2)
     steam_id_patron: int = betterproto.fixed64_field(3)
@@ -257,8 +237,7 @@ class CMsgClientChatInvite(betterproto.Message):
     game_id: int = betterproto.fixed64_field(7)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientConnectionStats(betterproto.Message):
+class CMsgClientConnectionStats(ProtobufMessage, msg=EMsg.ClientConnectionStats):
     stats_logon: "CMsgClientConnectionStatsStatsLogon" = betterproto.message_field(1)
     stats_vconn: "CMsgClientConnectionStatsStatsVConn" = betterproto.message_field(2)
 
@@ -307,8 +286,7 @@ class CMsgClientConnectionStatsStatsVConn(betterproto.Message):
     mem_pool_msg_in_use: int = betterproto.uint32_field(20)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientServersAvailable(betterproto.Message):
+class CMsgClientServersAvailable(ProtobufMessage, msg=EMsg.ClientServersAvailable):
     server_types_available: "list[CMsgClientServersAvailableServerTypesAvailable]" = betterproto.message_field(1)
     server_type_for_auth_services: int = betterproto.uint32_field(2)
 
@@ -319,26 +297,22 @@ class CMsgClientServersAvailableServerTypesAvailable(betterproto.Message):
     changed: bool = betterproto.bool_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientReportOverlayDetourFailure(betterproto.Message):
+class CMsgClientReportOverlayDetourFailure(ProtobufMessage, msg=EMsg.ClientReportOverlayDetourFailure):
     failure_strings: list[str] = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientRequestEncryptedAppTicket(betterproto.Message):
+class CMsgClientRequestEncryptedAppTicket(ProtobufMessage, msg=EMsg.ClientRequestEncryptedAppTicket):
     app_id: int = betterproto.uint32_field(1)
     userdata: bytes = betterproto.bytes_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientRequestEncryptedAppTicketResponse(betterproto.Message):
+class CMsgClientRequestEncryptedAppTicketResponse(ProtobufMessage, msg=EMsg.ClientRequestEncryptedAppTicketResponse):
     app_id: int = betterproto.uint32_field(1)
     eresult: int = betterproto.int32_field(2)
     encrypted_app_ticket: EncryptedAppTicket = betterproto.message_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientWalletInfoUpdate(betterproto.Message):
+class CMsgClientWalletInfoUpdate(ProtobufMessage, msg=EMsg.ClientWalletInfoUpdate):
     has_wallet: bool = betterproto.bool_field(1)
     balance: int = betterproto.int32_field(2)
     currency: int = betterproto.int32_field(3)
@@ -389,14 +363,12 @@ class CMsgClientAmGetPersonaNameHistoryResponseNameTableInstanceNameInstance(bet
     name: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientDeregisterWithServer(betterproto.Message):
+class CMsgClientDeregisterWithServer(ProtobufMessage, msg=EMsg.ClientDeregisterWithServer):
     eservertype: int = betterproto.uint32_field(1)
     app_id: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientClanState(betterproto.Message):
+class CMsgClientClanState(ProtobufMessage, msg=EMsg.ClientClanState):
     steamid_clan: int = betterproto.fixed64_field(1)
     clan_account_flags: int = betterproto.uint32_field(3)
     name_info: "CMsgClientClanStateNameInfo" = betterproto.message_field(4)

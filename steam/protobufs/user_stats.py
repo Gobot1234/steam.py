@@ -7,17 +7,18 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .emsg import EMsg
+from .msg import ProtobufMessage
 
-@dataclass(eq=False, repr=False)
-class CMsgClientGetUserStats(betterproto.Message):
+
+class CMsgClientGetUserStats(ProtobufMessage, msg=EMsg.ClientGetUserStats):
     game_id: int = betterproto.fixed64_field(1)
     crc_stats: int = betterproto.uint32_field(2)
     schema_local_version: int = betterproto.int32_field(3)
     steam_id_for_user: int = betterproto.fixed64_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientGetUserStatsResponse(betterproto.Message):
+class CMsgClientGetUserStatsResponse(ProtobufMessage, msg=EMsg.ClientGetUserStatsResponse):
     game_id: int = betterproto.fixed64_field(1)
     eresult: int = betterproto.int32_field(2)
     crc_stats: int = betterproto.uint32_field(3)
@@ -38,8 +39,7 @@ class CMsgClientGetUserStatsResponseAchievementBlocks(betterproto.Message):
     unlock_time: list[int] = betterproto.fixed32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientStoreUserStatsResponse(betterproto.Message):
+class CMsgClientStoreUserStatsResponse(ProtobufMessage, msg=EMsg.ClientStoreUserStatsResponse):
     game_id: int = betterproto.fixed64_field(1)
     eresult: int = betterproto.int32_field(2)
     crc_stats: int = betterproto.uint32_field(3)
@@ -55,8 +55,7 @@ class CMsgClientStoreUserStatsResponseStatsFailedValidation(betterproto.Message)
     reverted_stat_value: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientStoreUserStats2(betterproto.Message):
+class CMsgClientStoreUserStats2(ProtobufMessage, msg=EMsg.ClientStoreUserStats2):
     game_id: int = betterproto.fixed64_field(1)
     settor_steam_id: int = betterproto.fixed64_field(2)
     settee_steam_id: int = betterproto.fixed64_field(3)
@@ -71,8 +70,7 @@ class CMsgClientStoreUserStats2Stats(betterproto.Message):
     stat_value: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientStatsUpdated(betterproto.Message):
+class CMsgClientStatsUpdated(ProtobufMessage, msg=EMsg.ClientStatsUpdated):
     steam_id: int = betterproto.fixed64_field(1)
     game_id: int = betterproto.fixed64_field(2)
     crc_stats: int = betterproto.uint32_field(3)
@@ -85,8 +83,7 @@ class CMsgClientStatsUpdatedUpdatedStats(betterproto.Message):
     stat_value: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientStoreUserStats(betterproto.Message):
+class CMsgClientStoreUserStats(ProtobufMessage, msg=EMsg.ClientStoreUserStats):
     game_id: int = betterproto.fixed64_field(1)
     explicit_reset: bool = betterproto.bool_field(2)
     stats_to_store: "list[CMsgClientStoreUserStatsStatsToStore]" = betterproto.message_field(3)

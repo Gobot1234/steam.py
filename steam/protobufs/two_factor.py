@@ -7,14 +7,14 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .msg import UnifiedMessage
 
-@dataclass(eq=False, repr=False)
-class StatusRequest(betterproto.Message):
+
+class StatusRequest(UnifiedMessage, um_name="TwoFactor.QueryStatus"):
     steamid: int = betterproto.fixed64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class StatusResponse(betterproto.Message):
+class StatusResponse(UnifiedMessage, um_name="TwoFactor.QueryStatus"):
     state: int = betterproto.uint32_field(1)
     inactivation_reason: int = betterproto.uint32_field(2)
     authenticator_type: int = betterproto.uint32_field(3)
@@ -30,8 +30,7 @@ class StatusResponse(betterproto.Message):
     time_transferred: int = betterproto.uint32_field(13)
 
 
-@dataclass(eq=False, repr=False)
-class AddAuthenticatorRequest(betterproto.Message):
+class AddAuthenticatorRequest(UnifiedMessage, um_name="TwoFactor.AddAuthenticator"):
     steamid: int = betterproto.fixed64_field(1)
     authenticator_time: int = betterproto.uint64_field(2)
     serial_number: int = betterproto.fixed64_field(3)
@@ -41,8 +40,7 @@ class AddAuthenticatorRequest(betterproto.Message):
     http_headers: list[str] = betterproto.string_field(7)
 
 
-@dataclass(eq=False, repr=False)
-class AddAuthenticatorResponse(betterproto.Message):
+class AddAuthenticatorResponse(UnifiedMessage, um_name="TwoFactor.AddAuthenticator"):
     shared_secret: bytes = betterproto.bytes_field(1)
     serial_number: int = betterproto.fixed64_field(2)
     revocation_code: str = betterproto.string_field(3)
@@ -55,20 +53,17 @@ class AddAuthenticatorResponse(betterproto.Message):
     status: int = betterproto.int32_field(10)
 
 
-@dataclass(eq=False, repr=False)
-class SendEmailRequest(betterproto.Message):
+class SendEmailRequest(UnifiedMessage, um_name="TwoFactor.SendEmail"):
     steamid: int = betterproto.fixed64_field(1)
     email_type: int = betterproto.uint32_field(2)
     include_activation_code: bool = betterproto.bool_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class SendEmailResponse(betterproto.Message):
+class SendEmailResponse(UnifiedMessage, um_name="TwoFactor.SendEmail"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class FinalizeAddAuthenticatorRequest(betterproto.Message):
+class FinalizeAddAuthenticatorRequest(UnifiedMessage, um_name="TwoFactor.FinalizeAddAuthenticator"):
     steamid: int = betterproto.fixed64_field(1)
     authenticator_code: str = betterproto.string_field(2)
     authenticator_time: int = betterproto.uint64_field(3)
@@ -76,54 +71,45 @@ class FinalizeAddAuthenticatorRequest(betterproto.Message):
     http_headers: list[str] = betterproto.string_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class FinalizeAddAuthenticatorResponse(betterproto.Message):
+class FinalizeAddAuthenticatorResponse(UnifiedMessage, um_name="TwoFactor.FinalizeAddAuthenticator"):
     success: bool = betterproto.bool_field(1)
     want_more: bool = betterproto.bool_field(2)
     server_time: int = betterproto.uint64_field(3)
     status: int = betterproto.int32_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class RemoveAuthenticatorRequest(betterproto.Message):
+class RemoveAuthenticatorRequest(UnifiedMessage, um_name="TwoFactor.RemoveAuthenticator"):
     revocation_code: str = betterproto.string_field(2)
     revocation_reason: int = betterproto.uint32_field(5)
     steamguard_scheme: int = betterproto.uint32_field(6)
     remove_all_steamguard_cookies: bool = betterproto.bool_field(7)
 
 
-@dataclass(eq=False, repr=False)
-class RemoveAuthenticatorResponse(betterproto.Message):
+class RemoveAuthenticatorResponse(UnifiedMessage, um_name="TwoFactor.RemoveAuthenticator"):
     success: bool = betterproto.bool_field(1)
     server_time: int = betterproto.uint64_field(3)
     revocation_attempts_remaining: int = betterproto.uint32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class CreateEmergencyCodesRequest(betterproto.Message):
+class CreateEmergencyCodesRequest(UnifiedMessage, um_name="TwoFactor.CreateEmergencyCodes"):
     code: str = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CreateEmergencyCodesResponse(betterproto.Message):
+class CreateEmergencyCodesResponse(UnifiedMessage, um_name="TwoFactor.CreateEmergencyCodes"):
     codes: list[str] = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class DestroyEmergencyCodesRequest(betterproto.Message):
+class DestroyEmergencyCodesRequest(UnifiedMessage, um_name="TwoFactor.DestroyEmergencyCodes"):
     steamid: int = betterproto.fixed64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class DestroyEmergencyCodesResponse(betterproto.Message):
+class DestroyEmergencyCodesResponse(UnifiedMessage, um_name="TwoFactor.DestroyEmergencyCodes"):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class ValidateTokenRequest(betterproto.Message):
+class ValidateTokenRequest(UnifiedMessage, um_name="TwoFactor.ValidateToken"):
     code: str = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class ValidateTokenResponse(betterproto.Message):
+class ValidateTokenResponse(UnifiedMessage, um_name="TwoFactor.ValidateToken"):
     valid: bool = betterproto.bool_field(1)

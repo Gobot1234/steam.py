@@ -949,9 +949,9 @@ class Client:
         force_kick
             Whether to forcefully kick any other playing sessions.
         """
-        apps_ = [app.to_dict() for app in apps] if apps is not None else []
+        apps_ = [app.to_proto() for app in apps] if apps is not None else []
         if app is not None:
-            apps_.append(app.to_dict())
+            apps_.append(app.to_proto())
         await self.ws.change_presence(apps=apps_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
 
     async def trade_url(self, generate_new: bool = False) -> str:
@@ -1334,8 +1334,8 @@ class Client:
                 The announcement that was created.
             """
 
-        async def on_socket_receive(self, msg: "Msg | MsgProto") -> None:
-            """Called when the connected CM parses a received ``Msg``/``MsgProto``
+        async def on_socket_receive(self, msg: "Message | ProtobufMessage") -> None:
+            """Called when the connected CM parses a received a message.
 
             Parameters
             ----------
@@ -1343,8 +1343,8 @@ class Client:
                 The received message.
             """
 
-        async def on_socket_send(self, msg: "Msg | MsgProto") -> None:
-            """Called when the client sends a ``Msg``/``MsgProto`` to the connected CM.
+        async def on_socket_send(self, msg: "Message | ProtobufMessage") -> None:
+            """Called when the client sends a message to the connected CM.
 
             Parameters
             ----------

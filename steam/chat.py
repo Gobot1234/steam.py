@@ -21,7 +21,7 @@ from .app import StatefulApp
 from .enums import ChatMemberRank, Type
 from .errors import WSException
 from .id import ID
-from .protobufs import MsgProto, chat
+from .protobufs import chat
 from .reaction import Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .role import Role
 from .user import User, WrapsUser
@@ -412,7 +412,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
 
         if maybe_chunk:
             try:
-                group_state = await self._state.set_chat_group_active(proto.chat_group_id)
+                group_state = await self._state.set_chat_group_active(self._id)
             except WSException:
                 pass
             else:
@@ -577,10 +577,11 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         name
             The name of the member to search for.
         """
-        msg: MsgProto[chat.SearchMembersResponse] = await self._state.ws.send_um_and_wait(
-            "ChatRoom.SearchMembers",
-            chat_group_id=self._id,
-            search_text=name,
+        msg: chat.SearchMembersResponse = await self._state.ws.send_um_and_wait(
+            chat.SearchMembersRequest(
+                chat_group_id=self._id,
+                search_text=name,
+            )
         )
 
         if self.chunked:

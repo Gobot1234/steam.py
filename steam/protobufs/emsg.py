@@ -1424,6 +1424,7 @@ class EMsg(IntEnum):
     WorkerProcessPingResponse                                = 9001
     WorkerProcessShutdown                                    = 9002
 
+
     # DRMWorkerProcess
     DRMWorkerProcessDRMAndSign                               = 9100
     DRMWorkerProcessDRMAndSignResponse                       = 9101
@@ -1510,6 +1511,8 @@ class EMsg(IntEnum):
     ClientVoiceCallPreAuthorizeResponse                      = 9801
     ClientServerTimestampRequest                             = 9802
     ClientServerTimestampResponse                            = 9803
+    ServiceMethodCallFromClientNonAuthed                     = 9804
+    ClientHello                                              = 9805
 
     # ClientLANP2P
     ClientLANP2PRequestChunk                                 = 9900

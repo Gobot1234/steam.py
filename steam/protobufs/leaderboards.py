@@ -7,6 +7,9 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .emsg import EMsg
+from .msg import ProtobufMessage
+
 
 @dataclass(eq=False, repr=False)
 class CMsgClientLbsSetScore(betterproto.Message):
@@ -38,8 +41,7 @@ class CMsgClientLbsSetUgcResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLbsFindOrCreateLb(betterproto.Message):
+class CMsgClientLbsFindOrCreateLb(ProtobufMessage, msg=EMsg.ClientLBSFindOrCreateLB):
     app_id: int = betterproto.uint32_field(1)
     leaderboard_sort_method: int = betterproto.int32_field(2)
     leaderboard_display_type: int = betterproto.int32_field(3)
@@ -47,8 +49,7 @@ class CMsgClientLbsFindOrCreateLb(betterproto.Message):
     leaderboard_name: str = betterproto.string_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLbsFindOrCreateLbResponse(betterproto.Message):
+class CMsgClientLbsFindOrCreateLbResponse(ProtobufMessage, msg=EMsg.ClientLBSFindOrCreateLBResponse):
     eresult: int = betterproto.int32_field(1)
     leaderboard_id: int = betterproto.int32_field(2)
     leaderboard_entry_count: int = betterproto.int32_field(3)
@@ -57,8 +58,7 @@ class CMsgClientLbsFindOrCreateLbResponse(betterproto.Message):
     leaderboard_name: str = betterproto.string_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLbsGetLbEntries(betterproto.Message):
+class CMsgClientLbsGetLbEntries(ProtobufMessage, msg=EMsg.ClientLBSGetLBEntries):
     app_id: int = betterproto.int32_field(1)
     leaderboard_id: int = betterproto.int32_field(2)
     range_start: int = betterproto.int32_field(3)
@@ -67,8 +67,7 @@ class CMsgClientLbsGetLbEntries(betterproto.Message):
     steamids: list[int] = betterproto.fixed64_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLbsGetLbEntriesResponse(betterproto.Message):
+class CMsgClientLbsGetLbEntriesResponse(ProtobufMessage, msg=EMsg.ClientLBSGetLBEntriesResponse):
     eresult: int = betterproto.int32_field(1)
     leaderboard_entry_count: int = betterproto.int32_field(2)
     entries: "list[CMsgClientLbsGetLbEntriesResponseEntry]" = betterproto.message_field(3)

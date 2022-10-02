@@ -7,7 +7,7 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 from __future__ import annotations
 
 import builtins
-import sys
+import struct
 from collections.abc import Callable
 from datetime import datetime, timezone
 from io import BytesIO, StringIO
@@ -91,6 +91,18 @@ else:
 
 UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)
 STEAM_EPOCH = datetime(2003, 1, 1, tzinfo=timezone.utc)
+
+
+def READ_U32(s: bytes, unpacker: Callable[[bytes], tuple[int]] = struct.Struct("<I").unpack_from, /) -> int:
+    (u32,) = unpacker(s)
+    return u32
+
+
+_PROTOBUF_MASK = 0x80000000
+# inlined as these are some of the most called functions in the library
+IS_PROTO: Final[Callable[[int], bool]] = _PROTOBUF_MASK.__and__  # type: ignore  # this is boolean like for a bit of extra speed
+SET_PROTO_BIT: Final = _PROTOBUF_MASK.__or__
+CLEAR_PROTO_BIT: Final = (~_PROTOBUF_MASK).__and__
 
 
 @final

@@ -6,10 +6,32 @@
 from dataclasses import dataclass
 
 import betterproto
+from typing_extensions import Self
+
+from ..utils import StructIO
+from .emsg import EMsg
+from .msg import Message, ProtobufMessage
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientFriendMsg(betterproto.Message):
+class ClientGetFriendsWhoPlayGame(Message, msg=EMsg.ClientGetFriendsWhoPlayGame):
+    app_id: int
+
+
+class ClientGetFriendsWhoPlayGameResponse(Message, msg=EMsg.ClientGetFriendsWhoPlayGameResponse):
+    eresult: int
+    app_id: int
+    friends: list[int]
+
+    def parse(self, data: bytes) -> Self:
+        with StructIO(data) as io:
+            self.eresult = io.read_u32()
+            self.app_id = io.read_u64()
+            self.friends = [io.read_u64() for _ in range(io.read_u32())]
+
+        return self
+
+
+class CMsgClientFriendMsg(ProtobufMessage, msg=EMsg.ClientFriendMsg):
     steamid: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)
     message: bytes = betterproto.bytes_field(3)
@@ -17,8 +39,7 @@ class CMsgClientFriendMsg(betterproto.Message):
     echo_to_sender: bool = betterproto.bool_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientFriendMsgIncoming(betterproto.Message):
+class CMsgClientFriendMsgIncoming(ProtobufMessage, msg=EMsg.ClientFriendMsgIncoming):
     steamid_from: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)
     from_limited_account: bool = betterproto.bool_field(3)
@@ -26,32 +47,27 @@ class CMsgClientFriendMsgIncoming(betterproto.Message):
     rtime32_server_timestamp: int = betterproto.fixed32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientAddFriend(betterproto.Message):
+class CMsgClientAddFriend(ProtobufMessage, msg=EMsg.ClientAddFriend):
     steamid_to_add: int = betterproto.fixed64_field(1)
     accountname_or_email_to_add: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientAddFriendResponse(betterproto.Message):
+class CMsgClientAddFriendResponse(ProtobufMessage, msg=EMsg.ClientAddFriendResponse):
     eresult: int = betterproto.int32_field(1)
     steam_id_added: int = betterproto.fixed64_field(2)
     persona_name_added: str = betterproto.string_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientRemoveFriend(betterproto.Message):
+class CMsgClientRemoveFriend(ProtobufMessage, msg=EMsg.ClientRemoveFriend):
     friendid: int = betterproto.fixed64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientHideFriend(betterproto.Message):
+class CMsgClientHideFriend(ProtobufMessage, msg=EMsg.ClientHideFriend):
     friendid: int = betterproto.fixed64_field(1)
     hide: bool = betterproto.bool_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientFriendsList(betterproto.Message):
+class CMsgClientFriendsList(ProtobufMessage, msg=EMsg.ClientFriendsList):
     bincremental: bool = betterproto.bool_field(1)
     friends: "list[CMsgClientFriendsListFriend]" = betterproto.message_field(2)
     max_friend_count: int = betterproto.uint32_field(3)
@@ -65,8 +81,7 @@ class CMsgClientFriendsListFriend(betterproto.Message):
     efriendrelationship: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientFriendsGroupsList(betterproto.Message):
+class CMsgClientFriendsGroupsList(ProtobufMessage, msg=EMsg.ClientFriendsGroupsList):
     bremoval: bool = betterproto.bool_field(1)
     bincremental: bool = betterproto.bool_field(2)
     friend_groups: "list[CMsgClientFriendsGroupsListFriendGroup]" = betterproto.message_field(3)
@@ -109,14 +124,12 @@ class CMsgClientSetPlayerNicknameResponse(betterproto.Message):
     eresult: int = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientRequestFriendData(betterproto.Message):
+class CMsgClientRequestFriendData(ProtobufMessage, msg=EMsg.ClientRequestFriendData):
     persona_state_requested: int = betterproto.uint32_field(1)
     friends: list[int] = betterproto.fixed64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientChangeStatus(betterproto.Message):
+class CMsgClientChangeStatus(ProtobufMessage, msg=EMsg.ClientChangeStatus):
     persona_state: int = betterproto.uint32_field(1)
     player_name: str = betterproto.string_field(2)
     is_auto_generated_name: bool = betterproto.bool_field(3)
@@ -133,8 +146,7 @@ class CMsgPersonaChangeResponse(betterproto.Message):
     player_name: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientPersonaState(betterproto.Message):
+class CMsgClientPersonaState(ProtobufMessage, msg=EMsg.ClientPersonaState):
     status_flags: int = betterproto.uint32_field(1)
     friends: "list[CMsgClientPersonaStateFriend]" = betterproto.message_field(2)
 
@@ -186,13 +198,11 @@ class CMsgClientPersonaStateFriendKv(betterproto.Message):
     value: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientFriendProfileInfo(betterproto.Message):
+class CMsgClientFriendProfileInfo(ProtobufMessage, msg=EMsg.ClientFriendProfileInfo):
     steamid_friend: int = betterproto.fixed64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientFriendProfileInfoResponse(betterproto.Message):
+class CMsgClientFriendProfileInfoResponse(ProtobufMessage, msg=EMsg.ClientFriendProfileInfoResponse):
     eresult: int = betterproto.int32_field(1)
     steamid_friend: int = betterproto.fixed64_field(2)
     time_created: int = betterproto.uint32_field(3)
@@ -263,13 +273,11 @@ class CMsgClientRemoveFriendFromGroupResponse(betterproto.Message):
     eresult: int = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientGetEmoticonList(betterproto.Message):
+class CMsgClientGetEmoticonList(ProtobufMessage, msg=EMsg.ClientGetEmoticonList):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientEmoticonList(betterproto.Message):
+class CMsgClientEmoticonList(ProtobufMessage, msg=EMsg.ClientEmoticonList):
     emoticons: "list[CMsgClientEmoticonListEmoticon]" = betterproto.message_field(1)
     stickers: "list[CMsgClientEmoticonListSticker]" = betterproto.message_field(2)
     effects: "list[CMsgClientEmoticonListEffect]" = betterproto.message_field(3)

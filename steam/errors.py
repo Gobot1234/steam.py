@@ -133,9 +133,9 @@ class WSException(SteamException):
     def __init__(self, msg: Msgs):
         self.msg = msg
         self.code = msg.result
-        self.message: str | None = getattr(msg.header.body, "error_message", None)
+        self.message: str | None = getattr(msg.header, "error_message", None)
         super().__init__(
-            f"The request {msg.header.body.job_name_target or msg.msg} failed. (error code: {self.code!r})"
+            f"The request {msg.header.job_name_target or msg.MSG} failed. (error code: {self.code!r})"
             f"{f': {self.message}' if self.message else ''}"
         )
 

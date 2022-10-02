@@ -14,6 +14,7 @@ from ._const import DOCS_BUILDING, UNIX_EPOCH, URL
 from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
 from .id import ID, id64_from_url
 from .types.id import Intable
+from .protobufs import client_server, player
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -139,13 +140,13 @@ class App:
     def __hash__(self) -> int:
         return hash(self.id)
 
-    def to_dict(self) -> app.AppToDict:
+    def to_proto(self) -> client_server.CMsgClientGamesPlayedGamePlayed:
         if self.is_valid():
-            return {"app_id": str(self.id)}
+            return client_server.CMsgClientGamesPlayedGamePlayed(game_id=self.id)
 
         if self.name is None or self.id is None:
             raise TypeError("un-serializable app with no title and or id")
-        return {"app_id": str(self.id), "game_extra_info": self.name}
+        return client_server.CMsgClientGamesPlayedGamePlayed(game_id=self.id, game_extra_info=self.name)
 
     def is_valid(self) -> bool:
         """Whether the app could be a Steam app."""
@@ -613,9 +614,7 @@ class StatefulApp(App):
         yielded = 0
 
         while remaining is None or remaining > 0:
-            protos = await self._state.fetch_app_published_files(
-                self.id, after, before, type, revision, language, limit, cursor
-            )
+            protos = await self._state.fetch_app_published_files(self.id, type, revision, language, limit, cursor)
             if remaining is None:
                 remaining = protos.total
             remaining -= len(protos.publishedfiledetails)

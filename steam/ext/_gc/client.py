@@ -10,7 +10,7 @@ from typing_extensions import ClassVar, Never
 from ...app import App
 from ...client import Client as Client_
 from ...enums import Language
-from ...protobufs import GCMsg, GCMsgProto
+from ...protobufs import GCMessage, GCProtobufMessage
 from ...trade import Inventory
 from ...user import ClientUser as ClientUser_
 from .state import GCState
@@ -49,7 +49,7 @@ class Client(Client_):
         super().__init__(**options)
 
     # things to override
-    def _get_gc_message(self) -> GCMsgProto[Any] | GCMsg[Any]:
+    def _get_gc_message(self) -> GCProtobufMessage | GCMessage:
         raise NotImplementedError()
 
     def _get_state(self, **options: Any) -> Never:

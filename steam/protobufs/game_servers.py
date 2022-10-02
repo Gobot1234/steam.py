@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import betterproto
 
 from .base import CMsgIpAddress
+from .msg import UnifiedMessage
 
 
 class EQueryType(betterproto.Enum):
@@ -17,14 +18,12 @@ class EQueryType(betterproto.Enum):
     Rules = 3
 
 
-@dataclass(eq=False, repr=False)
-class GetServerListRequest(betterproto.Message):
+class GetServerListRequest(UnifiedMessage, um_name="GameServers.GetServerList"):
     filter: str = betterproto.string_field(1)
     limit: int = betterproto.uint32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetServerListResponse(betterproto.Message):
+class GetServerListResponse(UnifiedMessage, um_name="GameServers.GetServerList"):
     servers: "list[GetServerListResponseServer]" = betterproto.message_field(1)
 
 
@@ -50,13 +49,11 @@ class GetServerListResponseServer(betterproto.Message):
     gametype: str = betterproto.string_field(18)
 
 
-@dataclass(eq=False, repr=False)
-class GetServerSteamIDsByIpRequest(betterproto.Message):
+class GetServerSteamIDsByIpRequest(UnifiedMessage, um_name="GameServers.GetServerSteamIDsByIP"):
     server_ips: list[str] = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class IPsWithSteamIDsResponse(betterproto.Message):
+class IPsWithSteamIDsResponse(UnifiedMessage, um_name="GameServers.GetServerSteamIDsByIP"):
     servers: "list[IPsWithSteamIDsResponseServer]" = betterproto.message_field(1)
 
 
@@ -66,13 +63,11 @@ class IPsWithSteamIDsResponseServer(betterproto.Message):
     steamid: int = betterproto.fixed64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetServerIPsBySteamIdRequest(betterproto.Message):
+class GetServerIPsBySteamIdRequest(UnifiedMessage, um_name="GameServers.GetServerIPsBySteamID"):
     server_steamids: list[int] = betterproto.fixed64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class QueryRequest(betterproto.Message):
+class QueryRequest(UnifiedMessage, um_name="GameServers.QueryByFakeIP"):
     fake_ip: int = betterproto.uint32_field(1)
     fake_port: int = betterproto.uint32_field(2)
     app_id: int = betterproto.uint32_field(3)
@@ -121,8 +116,7 @@ class RulesQueryData(betterproto.Message):
     rules: dict[str, str] = betterproto.map_field(1, betterproto.TYPE_STRING, betterproto.TYPE_STRING)
 
 
-@dataclass(eq=False, repr=False)
-class QueryResponse(betterproto.Message):
+class QueryResponse(UnifiedMessage, um_name="GameServers.QueryByFakeIP"):
     ping_data: PingQueryData = betterproto.message_field(1)
     players_data: PlayersQueryData = betterproto.message_field(2)
     rules_data: RulesQueryData = betterproto.message_field(3)

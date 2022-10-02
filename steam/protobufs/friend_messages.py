@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .msg import UnifiedMessage
+
 
 class EMessageReactionType(betterproto.Enum):
     Invalid = 0
@@ -14,8 +16,7 @@ class EMessageReactionType(betterproto.Enum):
     Sticker = 2
 
 
-@dataclass(eq=False, repr=False)
-class GetRecentMessagesRequest(betterproto.Message):
+class GetRecentMessagesRequest(UnifiedMessage, um_name="FriendMessages.GetRecentMessages"):
     steamid1: int = betterproto.fixed64_field(1)
     steamid2: int = betterproto.fixed64_field(2)
     count: int = betterproto.uint32_field(3)
@@ -27,8 +28,7 @@ class GetRecentMessagesRequest(betterproto.Message):
     ordinal_last: int = betterproto.uint32_field(9)
 
 
-@dataclass(eq=False, repr=False)
-class GetRecentMessagesResponse(betterproto.Message):
+class GetRecentMessagesResponse(UnifiedMessage, um_name="FriendMessages.GetRecentMessages"):
     messages: "list[GetRecentMessagesResponseFriendMessage]" = betterproto.message_field(1)
     more_available: bool = betterproto.bool_field(4)
 
@@ -49,14 +49,12 @@ class GetRecentMessagesResponseFriendMessageMessageReaction(betterproto.Message)
     reactors: list[int] = betterproto.uint32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class GetActiveMessageSessionsRequest(betterproto.Message):
+class GetActiveMessageSessionsRequest(UnifiedMessage, um_name="FriendMessages.GetActiveMessageSessions"):
     lastmessage_since: int = betterproto.uint32_field(1)
     only_sessions_with_messages: bool = betterproto.bool_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class GetActiveMessageSessionsResponse(betterproto.Message):
+class GetActiveMessageSessionsResponse(UnifiedMessage, um_name="FriendMessages.GetActiveMessageSessions"):
     message_sessions: "list[GetActiveMessageSessionsResponseFriendMessageSession]" = betterproto.message_field(1)
     timestamp: int = betterproto.uint32_field(2)
 
@@ -69,8 +67,7 @@ class GetActiveMessageSessionsResponseFriendMessageSession(betterproto.Message):
     unread_message_count: int = betterproto.uint32_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class SendMessageRequest(betterproto.Message):
+class SendMessageRequest(UnifiedMessage, um_name="FriendMessages.SendMessage"):
     steamid: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)
     message: str = betterproto.string_field(3)
@@ -80,16 +77,14 @@ class SendMessageRequest(betterproto.Message):
     client_message_id: str = betterproto.string_field(8)
 
 
-@dataclass(eq=False, repr=False)
-class SendMessageResponse(betterproto.Message):
+class SendMessageResponse(UnifiedMessage, um_name="FriendMessages.SendMessage"):
     modified_message: str = betterproto.string_field(1)
     server_timestamp: int = betterproto.uint32_field(2)
     ordinal: int = betterproto.uint32_field(3)
     message_without_bb_code: str = betterproto.string_field(4)
 
 
-@dataclass(eq=False, repr=False)
-class AckMessageNotification(betterproto.Message):
+class AckMessageNotification(UnifiedMessage, um_name="FriendMessages.AckMessage"):
     steamid_partner: int = betterproto.fixed64_field(1)
     timestamp: int = betterproto.uint32_field(2)
 
@@ -105,8 +100,7 @@ class IsInFriendsUiBetaResponse(betterproto.Message):
     has_used_friendsui: bool = betterproto.bool_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class UpdateMessageReactionRequest(betterproto.Message):
+class UpdateMessageReactionRequest(UnifiedMessage, um_name="FriendMessages.UpdateMessageReaction"):
     steamid: int = betterproto.fixed64_field(1)
     server_timestamp: int = betterproto.uint32_field(2)
     ordinal: int = betterproto.uint32_field(3)
@@ -115,13 +109,11 @@ class UpdateMessageReactionRequest(betterproto.Message):
     is_add: bool = betterproto.bool_field(6)
 
 
-@dataclass(eq=False, repr=False)
-class UpdateMessageReactionResponse(betterproto.Message):
+class UpdateMessageReactionResponse(UnifiedMessage, um_name="FriendMessages.UpdateMessageReaction"):
     reactors: list[int] = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class IncomingMessageNotification(betterproto.Message):
+class IncomingMessageNotification(UnifiedMessage, um_name="FriendMessagesClient.IncomingMessage"):
     steamid_friend: int = betterproto.fixed64_field(1)
     chat_entry_type: int = betterproto.int32_field(2)
     from_limited_account: bool = betterproto.bool_field(3)
@@ -133,8 +125,7 @@ class IncomingMessageNotification(betterproto.Message):
     low_priority: bool = betterproto.bool_field(9)
 
 
-@dataclass(eq=False, repr=False)
-class MessageReactionNotification(betterproto.Message):
+class MessageReactionNotification(UnifiedMessage, um_name="FriendMessagesClient.MessageReaction"):
     steamid_friend: int = betterproto.fixed64_field(1)
     server_timestamp: int = betterproto.uint32_field(2)
     ordinal: int = betterproto.uint32_field(3)

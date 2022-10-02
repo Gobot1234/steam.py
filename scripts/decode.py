@@ -5,17 +5,19 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 """
 
 import asyncio
-import sys
+import logging
 from base64 import b64decode
 from collections import defaultdict
 
-import betterproto
 import black
 
 import steam
 from steam.gateway import SteamWebSocket
-from steam.protobufs import EMsg, MsgBase, MsgProto
+from steam.protobufs import EMsg, ProtobufMessage, UnifiedMessage
 from steam.protobufs.base import CMsgMulti
+
+logging.getLogger("steam").setLevel(logging.DEBUG)
+logging.basicConfig()
 
 
 async def amain(input_message: str) -> None:
@@ -23,34 +25,38 @@ async def amain(input_message: str) -> None:
     client.http.user = steam.ID(0)  # type: ignore
     fake_ws = SteamWebSocket(client._state, None, None, None)  # type: ignore
 
-    def parser(msg: MsgBase[betterproto.Message]) -> None:
-        print(f"{msg.msg=}")
-        print(black.format_str(str(msg.body), mode=black.Mode()))
-        if msg.body._unknown_fields:
-            print(f"Unknown fields: {msg.body._unknown_fields}")
+    def parser(msg: ProtobufMessage) -> None:
+        print(f"{msg.MSG=}")
+        print(black.format_str(str(msg), mode=black.Mode()))
+        print(black.format_str(str(msg.header), mode=black.Mode()))
+        if msg._unknown_fields:
+            print(f"Unknown fields: {msg._unknown_fields}")
 
-    def handle_multi(msg: MsgProto[CMsgMulti]) -> None:
+    def handle_multi(msg: CMsgMulti) -> None:
         print("This is a multi message, unpacking...")
         fake_ws.handle_multi(msg)
 
-    def handle_um_request(msg: MsgProto[betterproto.Message]) -> None:
-        print("This is a UM request", msg.header.body.job_name_target)
-        print(black.format_str(str(msg.body), mode=black.Mode()))
-        if msg.body._unknown_fields:
-            print(f"Unknown fields: {msg.body._unknown_fields}")
+    def handle_um_request(msg: UnifiedMessage) -> None:
+        print("This is a UM request", msg.UM_NAME)
+        print(black.format_str(str(msg), mode=black.Mode()))
+        print(black.format_str(str(msg.header), mode=black.Mode()))
+        if msg._unknown_fields:
+            print(f"Unknown fields: {msg._unknown_fields}")
 
-    def handle_um_response(msg: MsgProto[betterproto.Message]) -> None:
-        print("This is a UM response", msg.header.body.job_name_target)
-        print(black.format_str(str(msg.body), mode=black.Mode()))
-        if msg.body._unknown_fields:
-            print(f"Unknown fields: {msg.body._unknown_fields}")
+    def handle_um_response(msg: UnifiedMessage) -> None:
+        print("This is a UM response", msg.UM_NAME)
+        print(black.format_str(str(msg), mode=black.Mode()))
+        print(black.format_str(str(msg.header), mode=black.Mode()))
+        if msg._unknown_fields:
+            print(f"Unknown fields: {msg._unknown_fields}")
 
     fake_ws.parsers = defaultdict(lambda: parser)
     fake_ws.parsers[EMsg.Multi] = handle_multi
-    fake_ws.parsers[EMsg.ServiceMethod] = handle_um_request
-    fake_ws.parsers[EMsg.ServiceMethodResponse] = handle_um_response
-
-    fake_ws.receive(b64decode(input_message))
+    for msg in (EMsg.ServiceMethod, EMsg.ServiceMethodCallFromClient, EMsg.ServiceMethodCallFromClientNonAuthed):
+        fake_ws.parsers[msg] = handle_um_request
+    for msg in (EMsg.ServiceMethodResponse, EMsg.ServiceMethodSendToClient):
+        fake_ws.parsers[msg] = handle_um_response
+    fake_ws.receive(bytearray(b64decode(input_message)))
     await asyncio.sleep(2)
 
 

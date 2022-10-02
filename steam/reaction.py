@@ -13,6 +13,7 @@ from yarl import URL
 
 from .app import StatefulApp
 from .models import _IOMixin
+from .protobufs.chat import EChatRoomMessageReactionType
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -196,6 +197,7 @@ class Emoticon(BaseEmoticon):
     """
 
     __slots__ = ()
+    _TYPE: Final = EChatRoomMessageReactionType.Emoticon
 
     def __str__(self):
         return f":{self.name}:"
@@ -236,6 +238,7 @@ class Sticker(BaseEmoticon):
     """
 
     __slots__ = ()
+    _TYPE: Final = EChatRoomMessageReactionType.Sticker
 
     def __str__(self) -> str:
         return f"/sticker {self.name}"

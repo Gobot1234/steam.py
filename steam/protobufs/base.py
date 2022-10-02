@@ -6,6 +6,9 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .emsg import EMsg
+from .msg import ProtobufMessage
+
 
 class EProtoClanEventType(betterproto.Enum):
     OtherEvent = 1
@@ -52,49 +55,18 @@ class CMsgIpAddress(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+@dataclass(eq=False, repr=False)
 class CMsgIpAddressBucket(betterproto.Message):
     original_ip_address: "CMsgIpAddress" = betterproto.message_field(1)
     bucket: int = betterproto.fixed64_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgProtoBufHeader(betterproto.Message):
-    steam_id: int = betterproto.fixed64_field(1)
-    session_id: int = betterproto.int32_field(2)
-    routing_app_id: int = betterproto.uint32_field(3)
-    job_id_source: int = betterproto.fixed64_field(10)
-    job_id_target: int = betterproto.fixed64_field(11)
-    job_name_target: str = betterproto.string_field(12)
-    seq_num: int = betterproto.int32_field(24)
-    eresult: int = betterproto.int32_field(13)
-    error_message: str = betterproto.string_field(14)
-    auth_account_flags: int = betterproto.uint32_field(16)
-    token_source: int = betterproto.uint32_field(22)
-    admin_spoofing_user: bool = betterproto.bool_field(23)
-    transport_error: int = betterproto.int32_field(17)
-    message_id: int = betterproto.uint64_field(18)
-    publisher_group_id: int = betterproto.uint32_field(19)
-    sys_id: int = betterproto.uint32_field(20)
-    trace_tag: int = betterproto.uint64_field(21)
-    webapi_key_id: int = betterproto.uint32_field(25)
-    is_from_external_source: bool = betterproto.bool_field(26)
-    forward_to_sys_id: list[int] = betterproto.uint32_field(27)
-    cm_sys_id: int = betterproto.uint32_field(28)
-    wg_token: str = betterproto.string_field(30)
-    launcher_type: int = betterproto.uint32_field(31)
-    realm: int = betterproto.uint32_field(32)
-    ip: int = betterproto.uint32_field(15, group="ip_addr")
-    ip_v6: bytes = betterproto.bytes_field(29, group="ip_addr")
-
-
-@dataclass(eq=False, repr=False)
-class CMsgMulti(betterproto.Message):
+class CMsgMulti(ProtobufMessage, msg=EMsg.Multi):
     size_unzipped: int = betterproto.uint32_field(1)
     message_body: bytes = betterproto.bytes_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgProtobufWrapped(betterproto.Message):
+class CMsgProtobufWrapped(ProtobufMessage, msg=EMsg.ProtobufWrapped):
     message_body: bytes = betterproto.bytes_field(1)
 
 

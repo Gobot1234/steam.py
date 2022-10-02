@@ -20,6 +20,7 @@ from .enums import (
     UserBadge,
 )
 from .errors import WSException
+from .protobufs.msg import UnifiedMessage
 from .trade import Asset, Item
 
 if TYPE_CHECKING:
@@ -85,11 +86,16 @@ class ProfileItem:
         "equipped_flags",
         "owner",
         "_state",
-        "_um_name",
+        "_um",
     )
 
     def __init__(
-        self, state: ConnectionState, owner: BaseUser, item: player.ProfileItem, *, um_name: str | None = None
+        self,
+        state: ConnectionState,
+        owner: BaseUser,
+        item: player.ProfileItem,
+        *,
+        um: type[SupportsEquip] | None = None,
     ):
         self.id = item.communityitemid
         """The item's id."""
@@ -114,17 +120,19 @@ class ProfileItem:
 
         self.owner = owner
         self._state = state
-        self._um_name = um_name
+        if um is not None:
+            assert issubclass(um, UnifiedMessage)  # until we have intersections this works with pyright
+        self._um = um
 
     def __repr__(self) -> str:
         return f"<ProfileItem id={self.id} name={self.name!r} app={self.app!r}>"
 
     async def equip(self) -> None:
         """Equip the profile item."""
-        if self._um_name is None:
+        if self._um is None:
             raise ValueError(f"Cannot equip {self!r}")
 
-        msg = await self._state.ws.send_um_and_wait(f"Player.Set{self._um_name}", communityitemid=self.id)
+        msg = await self._state.ws.send_um_and_wait(self._um(communityitemid=self.id))
         if msg.result != Result.OK:
             raise WSException(msg)
 

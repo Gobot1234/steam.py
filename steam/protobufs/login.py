@@ -8,20 +8,19 @@ from dataclasses import dataclass
 import betterproto
 
 from .base import CMsgIpAddress
+from .emsg import EMsg
+from .msg import ProtobufMessage
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientHeartBeat(betterproto.Message):
+class CMsgClientHeartBeat(ProtobufMessage, msg=EMsg.ClientHeartBeat):
     send_reply: bool = betterproto.bool_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientServerTimestampRequest(betterproto.Message):
+class CMsgClientServerTimestampRequest(ProtobufMessage, msg=EMsg.ClientServerTimestampRequest):
     client_request_timestamp: int = betterproto.uint64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientServerTimestampResponse(betterproto.Message):
+class CMsgClientServerTimestampResponse(ProtobufMessage, msg=EMsg.ClientServerTimestampResponse):
     client_request_timestamp: int = betterproto.uint64_field(1)
     server_timestamp_ms: int = betterproto.uint64_field(2)
 
@@ -35,8 +34,11 @@ class CMsgClientSecret(betterproto.Message):
     hmac: bytes = betterproto.bytes_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLogon(betterproto.Message):
+class CMsgClientHello(ProtobufMessage, msg=EMsg.ClientHello):
+    protocol_version: int = betterproto.uint32_field(1)
+
+
+class CMsgClientLogon(ProtobufMessage, msg=EMsg.ClientLogon):
     protocol_version: int = betterproto.uint32_field(1)
     deprecated_obfustucated_private_ip: int = betterproto.uint32_field(2)
     cell_id: int = betterproto.uint32_field(3)
@@ -90,10 +92,11 @@ class CMsgClientLogon(betterproto.Message):
     priority_reason: int = betterproto.int32_field(104)
     embedded_client_secret: "CMsgClientSecret" = betterproto.message_field(105)
     disable_partner_autogrants: bool = betterproto.bool_field(106)
+    is_steam_deck: bool = betterproto.bool_field(107)
+    access_token: str = betterproto.string_field(108)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLogonResponse(betterproto.Message):
+class CMsgClientLogonResponse(ProtobufMessage, msg=EMsg.ClientLogOnResponse):
     eresult: int = betterproto.int32_field(1)
     out_of_game_heartbeat_seconds: int = betterproto.int32_field(2)
     in_game_heartbeat_seconds: int = betterproto.int32_field(3)
@@ -119,43 +122,39 @@ class CMsgClientLogonResponse(betterproto.Message):
     client_instance_id: int = betterproto.uint64_field(27)
     force_client_update_check: bool = betterproto.bool_field(28)
     agreement_session_url: str = betterproto.string_field(29)
+    token_id: int = betterproto.uint64_field(30)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientRequestWebApiAuthenticateUserNonce(betterproto.Message):
+class CMsgClientRequestWebApiAuthenticateUserNonce(ProtobufMessage, msg=EMsg.ClientRequestWebAPIAuthenticateUserNonce):
     token_type: int = betterproto.int32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientRequestWebApiAuthenticateUserNonceResponse(betterproto.Message):
+class CMsgClientRequestWebApiAuthenticateUserNonceResponse(
+    ProtobufMessage, msg=EMsg.ClientRequestWebAPIAuthenticateUserNonceResponse
+):
     eresult: int = betterproto.int32_field(1)
     webapi_authenticate_user_nonce: str = betterproto.string_field(11)
     token_type: int = betterproto.int32_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLogOff(betterproto.Message):
+class CMsgClientLogOff(ProtobufMessage, msg=EMsg.ClientLogOff):
     pass
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLoggedOff(betterproto.Message):
+class CMsgClientLoggedOff(ProtobufMessage, msg=EMsg.ClientLoggedOff):
     eresult: int = betterproto.int32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientNewLoginKey(betterproto.Message):
+class CMsgClientNewLoginKey(ProtobufMessage, msg=EMsg.ClientNewLoginKey):
     unique_id: int = betterproto.uint32_field(1)
     login_key: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientNewLoginKeyAccepted(betterproto.Message):
+class CMsgClientNewLoginKeyAccepted(ProtobufMessage, msg=EMsg.ClientNewLoginKeyAccepted):
     unique_id: int = betterproto.uint32_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientAccountInfo(betterproto.Message):
+class CMsgClientAccountInfo(ProtobufMessage, msg=EMsg.ClientAccountInfo):
     persona_name: str = betterproto.string_field(1)
     ip_country: str = betterproto.string_field(2)
     count_authed_computers: int = betterproto.int32_field(5)
@@ -170,11 +169,9 @@ class CMsgClientAccountInfo(betterproto.Message):
     is_phone_needing_reverify: bool = betterproto.bool_field(19)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientChallengeRequest(betterproto.Message):
+class CMsgClientChallengeRequest(ProtobufMessage, msg=EMsg.ClientChallengeRequest):
     steamid: int = betterproto.fixed64_field(1)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientChallengeResponse(betterproto.Message):
+class CMsgClientChallengeResponse(ProtobufMessage, msg=EMsg.ClientChallengeResponse):
     challenge: int = betterproto.fixed64_field(1)

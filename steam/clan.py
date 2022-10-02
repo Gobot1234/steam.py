@@ -236,16 +236,17 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     # TODO properties for admins and mods when chunked?
 
     async def chunk(self) -> Sequence[ClanMember]:
+        if self.chunked:
+            return self.members
+
         self._members = dict.fromkeys(self._partial_members)  # type: ignore
         if len(self._partial_members) <= 100:
             # TODO might be if self.flags & ClanFlags.Large (2)?
-            for id, member in self._partial_members.items():
-                user = self._state.get_user(id)
-                if user is None:
-                    await asyncio.sleep(0)
-                    user = await self._state._maybe_user(parse_id64(id))  # TODO maybe users
-                member = ClanMember(self._state, self, user, member)
-                self._members[member.id] = member
+            for user, member in zip(
+                await self._state._maybe_users(parse_id64(id, type=Type.Individual) for id in self._partial_members),
+                self._partial_members.values(),
+            ):
+                self._members[user.id] = ClanMember(self._state, self, user, member)
             return await super().chunk()
 
         # these actually need fetching
@@ -254,10 +255,11 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             user.id: user
             for users in await asyncio.gather(
                 *(
-                    self._state.request_chat_group_members(
+                    self._state.fetch_chat_group_members(
                         self._id,
                         view_id,
-                        client_change_number + 1,  # steam doesn't send responses if they're 0
+                        client_change_number
+                        + 1,  # steam doesn't send responses if they're 0 (TODO this might be a betterproto bug)
                         start + 1,
                         stop,
                     )
@@ -272,13 +274,10 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             try:
                 user = users[id]
             except KeyError:
-                # steam doesn't include the first user cause ???, this however, isn't that big a deal.
                 user = await self._state._maybe_user(parse_id64(id))
-                if isinstance(user, ID):
+                if type(user) is ID:
                     continue
-            member = ClanMember(self._state, self, users[id], member)
-            self._members[member.id] = member
-
+            self._members[user.id] = ClanMember(self._state, self, user, member)  # type: ignore  # pyright being daft
         return await super().chunk()
 
     @property

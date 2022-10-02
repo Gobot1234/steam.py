@@ -7,6 +7,9 @@ from dataclasses import dataclass
 
 import betterproto
 
+from .emsg import EMsg
+from .msg import ProtobufMessage
+
 
 @dataclass(eq=False, repr=False)
 class CMsgClientUcmAddScreenshot(betterproto.Message):
@@ -232,6 +235,5 @@ class CMsgClientUcmEnumeratePublishedFilesByUserActionResponsePublishedFileId(be
     rtime_time_stamp: int = betterproto.fixed32_field(2)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientScreenshotsChanged(betterproto.Message):
+class CMsgClientScreenshotsChanged(ProtobufMessage, msg=EMsg.ClientScreenshotsChanged):
     pass
