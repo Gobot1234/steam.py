@@ -732,7 +732,7 @@ There are some predefined apps which are:
 | Steam                           | ``steam.STEAM`` |
 +---------------------------------+-----------------+
 
-Apps can be manually constructed using there app id eg:
+Apps can be manually constructed using their app ID eg:
 
 .. code-block:: python3
 
