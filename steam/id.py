@@ -32,6 +32,7 @@ __all__ = ("ID",)
 
 def parse_id64(
     id: Intable,
+    *,
     type: Type = MISSING,
     universe: Universe = MISSING,
     instance: InstanceFlag = MISSING,
@@ -70,13 +71,7 @@ def parse_id64(
     -------
     The 64-bit Steam ID.
     """
-    # format of a 64-bit steam ID:
-    # 0b0000000100010000000000000000000100010001001001110100110011000010
-    #   └───┰──┘└─┰┘└─────────┰────────┘└──────────────┰───────────────┘
-    #       │     │           │                        │
-    #   universe  └ type      └ instance               └  account id
-    #   (8 bits)    (4 bits)    (20 bits)                 (32 bits)
-    #   Universe    Type        InstanceFlag              ID32
+
     if not id and type is MISSING and universe is MISSING and instance is MISSING:
         return ID64(0)
 
@@ -85,7 +80,7 @@ def parse_id64(
     except ValueError:
         # textual input e.g. [g:1:4]
         assert isinstance(id, str)
-        result = parse_id2(id) or parse_id3(id)
+        result = parse_id2(id) or parse_id3(id)  # or parse_invite_code(id)  # TODO
         if result is None:
             raise InvalidID(id, "it cannot be parsed") from None
         id, type, universe, instance = result
@@ -108,12 +103,8 @@ def parse_id64(
             if not (0 <= instance < 1 << 20):
                 raise InvalidID(id, "instance is bigger than 20 bits")
         elif 0 <= id < 2**64:  # 64 bit
-            try:
-                universe = Universe.try_value((id >> 56) & 0xFF)
-                type = Type.try_value((id >> 52) & 0xF)
-            except ValueError as e:
-                raise InvalidID(id, e.args[0]) from None
-
+            universe = Universe.try_value((id >> 56) & 0xFF)
+            type = Type.try_value((id >> 52) & 0xF)
             instance = InstanceFlag.try_value((id >> 32) & 0xFFFFF)
             id = id & 0xFFFFFFFF
         else:
@@ -156,10 +147,12 @@ def parse_id2(value: str) -> tuple[ID32, Literal[Type.Individual], Universe, Lit
 
 
 ID3_REGEX = re.compile(
-    rf"\[(?P<type>[i{''.join(TypeChar._member_map_)}]):"
-    r"(?P<universe>[0-4]):"
-    r"(?P<id>[0-9]{1,10})"
-    r"(:(?P<instance>\d+))?]",
+    (
+        rf"\[(?P<type>[i{''.join(TypeChar._member_map_)}]):"
+        r"(?P<universe>[0-4]):"
+        r"(?P<id>[0-9]{1,10})"
+        r"(:(?P<instance>\d+))?]"
+    )
 )
 
 
@@ -252,7 +245,7 @@ def parse_invite_code(
 
 
 URL_REGEX = re.compile(
-    rf"(?P<clean_url>{_URL_START}steamcommunity\.com/(?P<type>profiles|id|gid|groups|app|games)/(?P<value>.+))"
+    rf"(?P<clean_url>{_URL_START}steamcommunity\.com/(?P<type>profiles|id|user|gid|groups|app|games)/(?P<value>.+))"
 )
 USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*")
 CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
@@ -300,7 +293,7 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING)
     session = session if gave_session else aiohttp.ClientSession()
 
     try:
-        if search["type"] in ("id", "profiles"):  # user profile
+        if search["type"] in {"id", "profiles", "user"}:  # user profile
             r = await session.get(search["clean_url"])
             text = await r.text()
             if not (match := USER_ID64_FROM_URL_REGEX.search(text)):
@@ -325,31 +318,80 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING)
 class ID(metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations.
 
-    Note
-    ----
-    See :func:`steam.utils.parse_id64` for the full parameter list.
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two IDs are equal.
+
+        .. describe:: hash(x)
+
+            Returns the hash of the ID.
+
+        .. describe:: str(x)
+
+            Returns the string representation of :attr:`id64`.
+
+        .. describe:: int(x)
+
+            Returns the :attr:`id64` of the ID.
+
+        .. describe:: format(x, format_spec)
+
+            Formats the ID using the given format spec.
+
+            Prefixes of ``32``, ``64`` can be used to specify which of :attr:`id` or :attr:`id64` to use.
+            Anything after the prefix is passed to :func:`format`.
+
+            E.g.
+
+            .. code-block:: pycon
+
+                >>> format(steam_id, "64x")  # formats the `id64` as a hex string
+                "11000010264339c"
+                >>> format(steam_id, "32b")  # formats the `id` as binary
+                "10011001000011001110011100"
+
+
+    Parameters
+    ----------
+    id
+        The ID to convert.
+    type
+        The type of the ID.
+    universe
+        The universe of the ID.
+    instance
+        The instance of the ID.
     """
 
-    __slots__ = ("id64",)
+    # format of a 64-bit steam ID:
+    # 0b0000000100010000000000000000000100010001001001110100110011000010
+    #   └───┰──┘└─┰┘└─────────┰────────┘└──────────────┰───────────────┘
+    #       │     │           │                        │
+    #   universe  └ type      └ instance               └ account id
+    #   (8 bits)    (4 bits)    (20 bits)                (32 bits)
+    #   Universe    Type        InstanceFlag             ID32
+    #   Public      Individual  All                      287788226
+
+    __slots__ = ("id64", "__weakref__")
 
     def __init__(
         self,
         id: Intable,
+        *,
         type: Type = MISSING,
         universe: Universe = MISSING,
         instance: InstanceFlag = MISSING,
     ):
-        self.id64: Final = parse_id64(id, type, universe, instance)
+        self.id64: Final = parse_id64(id, type=type, universe=universe, instance=instance)
         """The Steam ID's 64-bit ID."""
 
     def __int__(self) -> ID64:
         return self.id64
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-
-        return self.id64 == other.id64
+        return self.id64 == other.id64 if isinstance(other, ID) else NotImplemented
 
     def __str__(self) -> str:
         return str(self.id64)
@@ -360,10 +402,19 @@ class ID(metaclass=abc.ABCMeta):
     def __repr__(self) -> str:
         return f"ID(id={self.id}, type={self.type!r}, universe={self.universe!r}, instance={self.instance!r})"
 
+    def __format__(self, format_spec: str, /) -> str:
+        match format_spec[:2]:
+            case "64" | "":
+                return format(self.id64, format_spec[2:])
+            case "32":
+                return format(self.id, format_spec[2:])
+            case _:
+                raise ValueError(f"Unknown format specifier {format_spec!r}")
+
     @property
-    def instance(self) -> InstanceFlag:
-        """The instance of the ID."""
-        return InstanceFlag.try_value((self.id64 >> 32) & 0xFFFFF)
+    def universe(self) -> Universe:
+        """The Steam universe of the ID."""
+        return Universe.try_value((self.id64 >> 56) & 0xFF)
 
     @property
     def type(self) -> Type:
@@ -371,9 +422,9 @@ class ID(metaclass=abc.ABCMeta):
         return Type.try_value((self.id64 >> 52) & 0xF)
 
     @property
-    def universe(self) -> Universe:
-        """The Steam universe of the ID."""
-        return Universe.try_value((self.id64 >> 56) & 0xFF)
+    def instance(self) -> InstanceFlag:
+        """The instance of the ID."""
+        return InstanceFlag.try_value((self.id64 >> 32) & 0xFFFFF)
 
     @property
     def id(self) -> ID32:
@@ -432,7 +483,7 @@ class ID(metaclass=abc.ABCMeta):
         e.g. ``cv-dgb``.
         """
         if self.type == Type.Individual and self.is_valid():
-            invite_code = _invite_hex_sub(f"{self.id:x}")
+            invite_code = _invite_hex_sub(f"{self:32x}")
             split_idx = len(invite_code) // 2
             return invite_code if split_idx == 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
 
@@ -466,25 +517,25 @@ class ID(metaclass=abc.ABCMeta):
         A Steam ID is currently considered valid if:
 
             - It is in ``(0, 2 ** 64)``
-            - :attr:`universe` is in ``(Invalid, Max)``
-            - :attr:`type` is in ``(Invalid, Max)``
-            - If :attr:`type` is `.Type.Individual`:
+            - :attr:`universe` is in ``(Invalid, Dev]``
+            - :attr:`type` is in ``(Invalid, AnonUser]``
+            - If :attr:`type` is :class:`.Type.Individual`:
                 - :attr:`id` is non-zero
                 - :attr:`instance` is in ``[0, Web]``
-            - If :attr:`type` is `.Type.Clan`:
+            - If :attr:`type` is :class:`.Type.Clan`:
                 - :attr:`id` is non-zero
                 - :attr:`instance` is ``All``.
-            - If :attr:`type` is `.Type.GameServer`:
+            - If :attr:`type` is :class:`.Type.GameServer`:
                 - :attr:`id` is non-zero
         """
-        if not (Universe.Invalid < self.universe < Universe.Max):
+        if not (Universe.Invalid < self.universe <= Universe.Dev):
             return False
-        if not (Type.Invalid < self.type < Type.Max):
+        if not (Type.Invalid < self.type <= Type.AnonUser):
             return False
 
         match self.type:
             case Type.Individual:
-                return self.id != 0 and self.instance <= InstanceFlag.Web
+                return self.id != 0 and 0 <= self.instance <= InstanceFlag.Web
             case Type.Clan:
                 return self.id != 0 and self.instance == InstanceFlag.All
             case Type.GameServer:

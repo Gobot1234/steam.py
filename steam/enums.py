@@ -526,7 +526,6 @@ class Universe(IntEnum):
     Beta     = 2  #: Beta universe used inside Valve.
     Internal = 3  #: Internal universe used inside Valve.
     Dev      = 4  #: Dev universe used inside Valve.
-    Max      = 6  #: Total number of universes, used for sanity checks.
 
 
 class Type(IntEnum):
@@ -541,7 +540,6 @@ class Type(IntEnum):
     Chat           = 8   #: Steam group chat or lobby.
     ConsoleUser    = 9   #: Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
     AnonUser       = 10  #: Anonymous user account. (Used to create an account or reset a password)
-    Max            = 11  #: Max of 16 items in this field
 
 
 class TypeChar(IntEnum):
@@ -596,7 +594,6 @@ class FriendRelationship(IntEnum):
     RequestInitiator = 4  #: You have requested to be friends with the user.
     Ignored          = 5  #: You have explicitly blocked this other user from comments/chat/etc.
     IgnoredFriend    = 6  #: The user has ignored the current user.
-    Max              = 8  #: The total number of friend relationships used for looping and verification.
 
 
 class PersonaState(IntEnum):
@@ -608,7 +605,6 @@ class PersonaState(IntEnum):
     LookingToTrade = 5  #: The user is online and wanting to trade.
     LookingToPlay  = 6  #: The user is online and wanting to play.
     Invisible      = 7  #: The user is invisible.
-    Max            = 8  #: The total number of states. Only used for looping and validation.
 
 
 class PersonaStateFlag(Flags):
@@ -1115,7 +1111,6 @@ class PublishedFileType(IntEnum):
     SteamworksAccessInvite = 13  #: Internal
     SteamVideo             = 14  #: Steam video
     GameManagedItem        = 15  #: Managed completely by the game, not the user, and not shown on the web
-    Max                    = 16
 
 
 class PublishedFileVisibility(IntEnum):
