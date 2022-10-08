@@ -9,6 +9,7 @@ from __future__ import annotations
 import builtins
 import struct
 from collections.abc import Callable
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from io import BytesIO, StringIO
 from typing import TYPE_CHECKING, Any, Final, Literal, cast, final
@@ -17,6 +18,9 @@ from multidict import MultiDict
 from yarl import URL as _URL
 
 from .types.vdf import BinaryVDFDict, VDFDict
+
+if TYPE_CHECKING:
+    from .state import ConnectionState
 
 DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
 
@@ -103,6 +107,8 @@ _PROTOBUF_MASK = 0x80000000
 IS_PROTO: Final[Callable[[int], bool]] = _PROTOBUF_MASK.__and__  # type: ignore  # this is boolean like for a bit of extra speed
 SET_PROTO_BIT: Final = _PROTOBUF_MASK.__or__
 CLEAR_PROTO_BIT: Final = (~_PROTOBUF_MASK).__and__
+
+STATE = ContextVar["ConnectionState"]("APP_STATE")
 
 
 @final

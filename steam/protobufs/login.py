@@ -98,8 +98,7 @@ class CMsgClientLogon(ProtobufMessage, msg=EMsg.ClientLogon):
 
 class CMsgClientLogonResponse(ProtobufMessage, msg=EMsg.ClientLogOnResponse):
     eresult: int = betterproto.int32_field(1)
-    out_of_game_heartbeat_seconds: int = betterproto.int32_field(2)
-    in_game_heartbeat_seconds: int = betterproto.int32_field(3)
+    heartbeat_seconds: int = betterproto.int32_field(3)
     deprecated_public_ip: int = betterproto.uint32_field(4)
     rtime32_server_time: int = betterproto.fixed32_field(5)
     account_flags: int = betterproto.uint32_field(6)

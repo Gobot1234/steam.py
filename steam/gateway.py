@@ -50,7 +50,7 @@ from .protobufs import (
     friends,
     login,
 )
-from .user import ClientUser
+from .user import AnonymousClientUser, ClientUser
 
 if TYPE_CHECKING:
     from .client import Client
@@ -186,6 +186,9 @@ class KeepAliveHandler(threading.Thread):
                     return self.stop()
 
             log.debug(self.msg, self.heartbeat)
+            if self.ws.loop.is_closed():
+                return self.stop()
+
             coro = self.ws.send_proto(self.heartbeat)
             f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
             # block until sending is complete
@@ -271,16 +274,16 @@ class SteamWebSocket(Registerable):
         ...
 
     @overload
-    def wait_for(self, msg: type[MsgT], check: Callable[[MsgT], bool] = return_true) -> asyncio.Future[MsgT]:
+    def wait_for(self, msg: type[MsgT], *, check: Callable[[MsgT], bool] = return_true) -> asyncio.Future[MsgT]:
         ...
 
     @overload
     def wait_for(
-        self, msg: type[ProtoMsgT], check: Callable[[ProtoMsgT], bool] = return_true
+        self, msg: type[ProtoMsgT], *, check: Callable[[ProtoMsgT], bool] = return_true
     ) -> asyncio.Future[ProtoMsgT]:
         ...
 
-    def wait_for(  # type: ignore
+    def wait_for(
         self,
         msg: type[ProtoMsgs] | None = None,
         *,
@@ -291,16 +294,6 @@ class SteamWebSocket(Registerable):
         entry = EventListener(msg=msg.MSG if msg else emsg, check=check, future=future)
         self.listeners.append(entry)
         return future
-
-    @classmethod
-    @overload
-    async def from_client(cls, client: Client) -> SteamWebSocket:
-        ...
-
-    @classmethod
-    @overload
-    async def from_client(cls, client: Client, refresh_token: str, user_id64: ID64) -> SteamWebSocket:
-        ...
 
     @classmethod
     async def from_client(cls, client: Client, refresh_token: str = MISSING) -> SteamWebSocket:
@@ -353,12 +346,11 @@ class SteamWebSocket(Registerable):
             state._users[client.user.id] = client.user  # type: ignore
             self._state.cell_id = msg.cell_id
 
-            interval = msg.out_of_game_heartbeat_seconds
-            self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
+            self._keep_alive = KeepAliveHandler(ws=self, interval=msg.heartbeat_seconds)
             self._keep_alive.start()
             log.debug("Heartbeat started.")
 
-            state.client.ws = self
+            client.ws = self
             state.login_complete.set()
 
             await self.send_um(chat.GetMyChatRoomGroupsRequest())
@@ -450,6 +442,72 @@ class SteamWebSocket(Registerable):
         self.client_id = poll_resp.new_client_id or begin_resp.client_id
         self.access_token = poll_resp.access_token
         return poll_resp.refresh_token
+
+    @classmethod
+    async def anonymous_login_from_client(cls, client: Client) -> SteamWebSocket:
+        PROTOCOL_VERSION: Final = 65580
+        state = client._state
+        cm_list = fetch_cm_list(state)
+        async for cm in cm_list:
+            log.info(f"Attempting to create an anonymous websocket connection to: {cm}")
+            socket = await cm.connect()
+            log.debug(f"Connected to {cm}")
+
+            self = cls(state, socket, cm_list, cm)
+            self._dispatch("connect")
+
+            async def poll():
+                while True:
+                    await self.poll_event()
+
+            task = asyncio.create_task(poll())
+
+            self.steam_id = parse_id64(0, type=Type.AnonUser, universe=Universe.Public)
+
+            msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
+                login.CMsgClientLogon(
+                    protocol_version=PROTOCOL_VERSION,
+                    client_package_version=1561159470,
+                    client_language=state.language.api_name,
+                ),
+                check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
+            )
+            if msg.result != Result.OK:
+                log.debug(f"Failed to login with result: {msg.result}")
+                await self.handle_close()
+                return await self.from_client(client)
+
+            self.session_id = msg.header.session_id
+            self.steam_id = msg.header.steam_id
+            self._state.cell_id = msg.cell_id
+
+            self._keep_alive = KeepAliveHandler(ws=self, interval=msg.heartbeat_seconds)
+            self._keep_alive.start()
+            log.debug("Heartbeat started.")
+
+            client.ws = self
+            state.login_complete.set()
+            state.http.user = AnonymousClientUser(state, self.steam_id)  # type: ignore
+
+            await self.send_proto(
+                login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
+            )
+
+            self._dispatch("login")
+            log.debug("Logon completed")
+
+            def shallow_cancelled_error(_: object) -> None:
+                try:
+                    task.exception()
+                except (asyncio.CancelledError, asyncio.InvalidStateError):
+                    pass
+
+            task.add_done_callback(shallow_cancelled_error)
+            task.cancel()  # we let Client.connect handle poll_event from here on out
+            await client._handle_ready()
+
+            return self
+        raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
 
     async def poll_event(self) -> None:
         try:

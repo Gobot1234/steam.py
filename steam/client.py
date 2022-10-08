@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, final, overl
 import aiohttp
 
 from . import errors, utils
-from ._const import DOCS_BUILDING, MISSING, UNIX_EPOCH, URL
+from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
 from .app import App, FetchedApp, StatefulApp
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game_server import GameServer, Query
@@ -139,6 +139,7 @@ class Client:
         self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self, **options)
         self._state = self._get_state(**options)
+        STATE.set(self._state)
         self.ws: SteamWebSocket = None  # type: ignore
 
         self.username: str | None = None

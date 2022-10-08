@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, overload
 
 from . import utils
-from ._const import DOCS_BUILDING, UNIX_EPOCH, URL
+from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
 from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
 from .id import ID, id64_from_url
 from .protobufs import client_server, player
@@ -155,52 +155,6 @@ class App:
     def url(self) -> str:
         """What should be the app's url on steamcommunity if applicable."""
         return f"{URL.COMMUNITY}/app/{self.id}"
-
-
-class Apps(App, Enum):
-    """This is "enum" to trick type checkers into allowing Literal[TF2] to be valid for overloads in extensions."""
-
-    __slots__ = ("_name",)
-
-    def __new__(cls, name: str, *args: Any, value: tuple[str, int, int] | tuple[()] = ()) -> Apps:
-        self = object.__new__(cls)
-        set_attribute = object.__setattr__
-
-        if args:  # being called when docs are building
-            name = ""
-            value = (name, args[0], args[1])
-
-        assert value
-        set_attribute(self, "_name", name)
-        set_attribute(self, "name", value[0])
-        set_attribute(self, "id", value[1])
-        set_attribute(self, "context_id", value[2])
-        return self
-
-    if DOCS_BUILDING:
-
-        def __init__(self, *args: Any) -> None:
-            ...
-
-    def __repr__(self) -> str:
-        return self._name
-
-    @property
-    def value(self) -> int:
-        return self.id
-
-    TF2 = "Team Fortress 2", 440, 2
-    LFD2 = "Left 4 Dead 2", 550, 2
-    DOTA2 = "DOTA 2", 570, 2
-    CSGO = "Counter Strike Global-Offensive", 730, 2
-    STEAM = "Steam", 753, 6
-
-
-TF2 = Apps.TF2
-DOTA2 = Apps.DOTA2
-CSGO = Apps.CSGO
-LFD2 = Apps.LFD2
-STEAM = Apps.STEAM
 
 
 def CUSTOM_APP(
@@ -677,6 +631,59 @@ class StatefulApp(App):
         """
         _, licenses = await self._state.request_free_license(self.id)
         return licenses
+
+
+class Apps(StatefulApp, Enum):
+    """This is "enum" to trick type checkers into allowing Literal[TF2] to be valid for overloads in extensions."""
+
+    __slots__ = ("_name",)
+
+    def __new__(cls, name: str, *args: Any, value: tuple[str, int, int] | tuple[()] = ()) -> Apps:
+        self = object.__new__(cls)
+        set_attribute = object.__setattr__
+
+        if args:  # being called when docs are building
+            name = ""
+            value = (name, args[0], args[1])
+
+        assert value
+        set_attribute(self, "_name", name)
+        set_attribute(self, "name", value[0])
+        set_attribute(self, "id", value[1])
+        set_attribute(self, "context_id", value[2])
+        return self
+
+    if DOCS_BUILDING:
+
+        def __init__(self, *args: Any) -> None:
+            ...
+
+    def __repr__(self) -> str:
+        return self._name
+
+    @property
+    def value(self) -> int:
+        return self.id
+
+    TF2 = "Team Fortress 2", 440, 2
+    LFD2 = "Left 4 Dead 2", 550, 2
+    DOTA2 = "DOTA 2", 570, 2
+    CSGO = "Counter Strike Global-Offensive", 730, 2
+    STEAM = "Steam", 753, 6
+
+    @property
+    def _state(self) -> ConnectionState:
+        state = STATE.get(MISSING)
+        if state is MISSING:
+            raise ValueError("Cannot access the state of constant apps outside of a client.")
+        return state
+
+
+TF2 = Apps.TF2  #: The Team Fortress 2 app.
+DOTA2 = Apps.DOTA2  #: The DOTA 2 app.
+CSGO = Apps.CSGO  #: The Counter Strike Global-Offensive app.
+LFD2 = Apps.LFD2  #: The Left 4 Dead 2 app.
+STEAM = Apps.STEAM  #: The Steam app with context ID 6 (gifts).
 
 
 @dataclass(slots=True)

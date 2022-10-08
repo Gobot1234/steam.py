@@ -1762,7 +1762,7 @@ class ConnectionState(Registerable):
 
         while response_pending:
             msg = await self.ws.wait_for(
-                app_info.CMsgClientPicsProductInfoResponse, lambda msg: msg.header.job_id_target == job_id
+                app_info.CMsgClientPicsProductInfoResponse, check=lambda msg: msg.header.job_id_target == job_id
             )
 
             apps.extend(

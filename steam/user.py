@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 __all__ = (
     "User",
     "ClientUser",
+    "AnonymousClientUser",
 )
 
 
@@ -451,3 +452,14 @@ class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"])
             # probably wont be different than the above
 
         User.register(cls)
+
+
+class AnonymousClientUser(ID):
+    __slots__ = ("_state",)
+
+    def __init__(self, state: ConnectionState, id64: int):
+        super().__init__(id64, type=Type.AnonUser)
+        self._state = state
+
+    def __repr__(self) -> str:
+        return f"<AnonymousClientUser id={self.id} universe={self.universe!r}, instance={self.instance!r}>"
