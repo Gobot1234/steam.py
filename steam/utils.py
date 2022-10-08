@@ -3,7 +3,7 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 
 Contains large portions of:
 https://github.com/Rapptz/discord.py/blob/master/discord/utils.py
-The appropriate licenses are in LICENSE
+The appropriate license is in LICENSE
 """
 
 from __future__ import annotations
@@ -44,6 +44,7 @@ from typing_extensions import Self
 from ._const import JSON_LOADS, MISSING, URL
 from .enums import _is_descriptor, classproperty as classproperty
 from .id import (
+    _URL_START,
     ID,
     id64_from_url as id64_from_url,
     parse_id2 as parse_id2,
@@ -94,14 +95,16 @@ def verify_signature(data: bytes, signature: bytes) -> bool:
         return True
 
 
-@dataclass
+@dataclass(slots=True)
 class TradeURLInfo:
-    token: str
     id: ID
+    token: str | None = None
 
     @property
     def url(self) -> str:
-        return URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}&token={self.token}"
+        """The full trade URL."""
+        url = URL.COMMUNITY / "tradeoffer/new" % {"partner": self.id.id}
+        return str(url % {"token": self.token}) if self.token else str(url)
 
 
 def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
@@ -120,14 +123,16 @@ def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
     """
     if (
         match := re.match(
-            r"(?:https?://)?(?:www\.)?steamcommunity\.com/tradeoffer/new/?\?partner=(?P<user_id>[0-9]{,10})"
-            r"&token=(?P<token>[\w-]{7,})",
+            (
+                rf"{_URL_START}steamcommunity\.com/tradeoffer/new/?\?partner=(?P<user_id>\d{{,10}})"
+                r"(?:&token=(?P<token>[\w-]{7,}))?"
+            ),
             html.unescape(str(url)),
         )
     ) is None:
         return None
 
-    return TradeURLInfo(match["token"], ID(match["user_id"]))
+    return TradeURLInfo(ID(match["user_id"]), match["token"] or None)
 
 
 _SelfT = TypeVar("_SelfT")

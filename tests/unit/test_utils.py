@@ -6,12 +6,12 @@ from __future__ import annotations
 import random
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple
 
 import pytest
 from yarl import URL
 
-from steam import utils
+from steam import ID, utils
 
 
 class FakeModel(NamedTuple):
@@ -102,20 +102,24 @@ async def test_maybe_coroutine() -> None:
     assert await utils.maybe_coroutine(function_2) == 2
 
 
-user_1 = {
-    "user_id": "440528954",
-    "token": "MpmarfFH",
-}
-user_2 = {
-    "user_id": "287788226",
-    "token": "NBewyDB2",
-}
+user_1 = utils.TradeURLInfo(
+    id=ID(440528954),
+    token="MpmarfFH",
+)
+user_2 = utils.TradeURLInfo(
+    id=ID(287788226),
+    token="NBewyDB2",
+)
+
+user_2_no_token = utils.TradeURLInfo(
+    id=ID(287788226),
+)
 
 
 @pytest.mark.parametrize(
     "url, expected",
     [
-        ("https://steamcommunity.com/tradeoffer/new/?partner=440528954&token=MpmarfFH", user_1),
+        ("https://steamcommunity.com/tradeoffer/new?partner=440528954&token=MpmarfFH", user_1),
         ("steamcommunity.com/tradeoffer/new/?partner=440528954&token=MpmarfFH", user_1),
         ("www.steamcommunity.com/tradeoffer/new/?partner=440528954&token=MpmarfFH", user_1),
         ("https://steamcommunity.com/tradeoffer/new/?partner=440528954&amp;token=MpmarfFH", user_1),
@@ -125,14 +129,15 @@ user_2 = {
         ("www.steamcommunity.com/tradeoffer/new/?partner=287788226&token=NBewyDB2", user_2),
         ("https://steamcommunity.com/tradeoffer/new/?partner=287788226&amp;token=NBewyDB2", user_2),
         (URL("https://steamcommunity.com/tradeoffer/new/?partner=287788226&token=NBewyDB2"), user_2),
+        ("https://steamcommunity.com/tradeoffer/new/?partner=287788226", user_2_no_token),
         ("https://stemcommunity.com/tradeoffer/new/?partner=287788226&token=NBewyDB2", None),
         ("https://steamcommunity.com/tradeoffer/new", None),
     ],
 )
-def test_parse_trade_url(url: str, expected: Optional[dict[str, str]]) -> None:
+def test_parse_trade_url(url: str, expected: utils.TradeURLInfo | None) -> None:
     match = utils.parse_trade_url(url)
 
-    assert match.groupdict() == expected if match is not None else expected is None
+    assert match == expected if match is not None else expected is None
 
 
 def test_update_class():
