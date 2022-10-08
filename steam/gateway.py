@@ -21,8 +21,7 @@ import traceback
 from collections.abc import AsyncGenerator, Callable, Iterable
 from dataclasses import dataclass
 from datetime import timedelta
-from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME  # type: ignore
-from hashlib import sha1
+from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, TypeVar, overload
 from zlib import MAX_WBITS, decompress
@@ -35,7 +34,6 @@ from . import utils
 from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, MISSING, READ_U32, SET_PROTO_BIT
 from .enums import *
 from .errors import NoCMsFound, WSException
-from .guard import generate_one_time_code
 from .models import Registerable, register, return_true
 from .protobufs import (
     EMsg,
@@ -59,6 +57,7 @@ if TYPE_CHECKING:
     from .protobufs.base import CMsgMulti
     from .state import ConnectionState
     from .types.http import Coro
+    from .types.id import ID64
 
 
 __all__ = (
@@ -252,7 +251,7 @@ class SteamWebSocket(Registerable):
         self.closed = False
 
         self.session_id = 0
-        self.steam_id = 76561197960265728
+        self.steam_id = 0
         self._current_job_id = 0
         self._gc_current_job_id = 0
         self.refresh_token: str
@@ -293,9 +292,21 @@ class SteamWebSocket(Registerable):
         return future
 
     @classmethod
+    @overload
     async def from_client(cls, client: Client) -> SteamWebSocket:
+        ...
+
+    @classmethod
+    @overload
+    async def from_client(cls, client: Client, refresh_token: str, user_id64: ID64) -> SteamWebSocket:
+        ...
+
+    @classmethod
+    async def from_client(
+        cls, client: Client, refresh_token: str = MISSING, user_id64: ID64 = MISSING
+    ) -> SteamWebSocket:
+        PROTOCOL_VERSION: Final = 65580
         state = client._state
-        token = await client.token()
         cm_list = fetch_cm_list(state)
         async for cm in cm_list:
             log.info(f"Attempting to create a websocket connection to: {cm}")
@@ -303,22 +314,145 @@ class SteamWebSocket(Registerable):
             log.debug(f"Connected to {cm}")
 
             self = cls(state, socket, cm_list, cm)
-            await self.send_proto(
-                MsgProto(
-                    EMsg.ClientLogon,
-                    account_name=client.username,
-                    web_logon_nonce=token,
-                    client_os_type=4294966596,
-                    client_language=self._state.http.language.api_name,
-                    protocol_version=65580,
-                    chat_mode=2,
-                    ui_mode=self._state._ui_mode,
-                    qos_level=2,
-                )
-            )
             self._dispatch("connect")
+
+            async def poll():
+                while True:
+                    await self.poll_event()
+
+            task = asyncio.create_task(poll())
+            await self.send_proto(login.CMsgClientHello(PROTOCOL_VERSION))
+
+            if refresh_token is MISSING:
+                self.refresh_token = await self.fetch_refresh_token()
+                # steam_id is set in fetch_refresh_token
+            else:
+                self.refresh_token = refresh_token
+                if user_id64 is MISSING:
+                    raise TypeError("user_id64 is required when passing a refresh_token")
+                self.steam_id = user_id64
+
+            msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
+                login.CMsgClientLogon(
+                    protocol_version=PROTOCOL_VERSION,
+                    client_package_version=1561159470,
+                    client_os_type=16,
+                    client_language=state.language.api_name,
+                    supports_rate_limit_response=True,
+                    chat_mode=2,
+                    access_token=self.refresh_token,  # lol
+                ),
+                check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
+            )
+            if msg.result != Result.OK:
+                log.debug(f"Failed to login with result: {msg.result}")
+                await self.handle_close()
+                return await self.from_client(client)
+
+            self.session_id = msg.header.session_id
+
+            (us,) = await self.fetch_users((self.steam_id,))
+            client.http.user = ClientUser(state, us)
+            state._users[client.user.id] = client.user  # type: ignore
+            self._state.cell_id = msg.cell_id
+
+            interval = msg.out_of_game_heartbeat_seconds
+            self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
+            self._keep_alive.start()
+            log.debug("Heartbeat started.")
+
+            state.client.ws = self
+            state.login_complete.set()
+
+            await self.send_um(chat.GetMyChatRoomGroupsRequest())
+            await self.send_proto(friends.CMsgClientGetEmoticonList())
+            await self.send_proto(client_server_2.CMsgClientRequestCommentNotifications())
+            await self.send_proto(
+                login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
+            )
+            await self.change_presence(
+                apps=self._state._apps,
+                state=self._state._state,
+                flags=self._state._flags,
+                force_kick=self._state._force_kick,
+            )
+
+            self._dispatch("login")
+            log.debug("Logon completed")
+
+            def shallow_cancelled_error(_: object) -> None:
+                try:
+                    task.exception()
+                except (asyncio.CancelledError, asyncio.InvalidStateError):
+                    pass
+
+            task.add_done_callback(shallow_cancelled_error)
+            task.cancel()  # we let Client.connect handle poll_event from here on out
+
             return self
         raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
+
+    async def fetch_refresh_token(self) -> str:
+        client = self._state.client
+        assert client.username
+        assert client.password
+        rsa_msg: auth.GetPasswordRsaPublicKeyResponse = await self.send_um_and_wait(
+            auth.GetPasswordRsaPublicKeyRequest(client.username)
+        )
+
+        begin_resp: auth.BeginAuthSessionViaCredentialsResponse = await self.send_um_and_wait(
+            auth.BeginAuthSessionViaCredentialsRequest(
+                account_name=client.username,
+                encrypted_password=base64.b64encode(
+                    rsa.RSAPublicNumbers(int(rsa_msg.publickey_exp, 16), int(rsa_msg.publickey_mod, 16))
+                    .public_key()
+                    .encrypt(client.password.encode(), padding.PKCS1v15())
+                ).decode(),
+                encryption_timestamp=rsa_msg.timestamp,
+                platform_type=auth.EAuthTokenPlatformType.SteamClient,
+                persistence=auth.ESessionPersistence.Persistent,
+                website_id="Client",
+            )
+        )
+
+        for allowed_confirmation in begin_resp.allowed_confirmations:
+            match allowed_confirmation.confirmation_type:
+                case auth.EAuthSessionGuardType.NONE:
+                    raise NotImplementedError()  # no guard
+                case auth.EAuthSessionGuardType.EmailCode | auth.EAuthSessionGuardType.DeviceCode:
+                    code = await client.code()
+                    code_msg: auth.UpdateAuthSessionWithSteamGuardCodeResponse = await self.send_proto_and_wait(
+                        auth.UpdateAuthSessionWithSteamGuardCodeRequest(
+                            client_id=begin_resp.client_id,
+                            steamid=begin_resp.steamid,
+                            code=code,
+                            code_type=allowed_confirmation.confirmation_type,
+                        )
+                    )
+                    if code_msg.result != Result.OK:
+                        raise WSException(code_msg)
+                    poll_resp: auth.PollAuthSessionStatusResponse = await self.send_um_and_wait(
+                        auth.PollAuthSessionStatusRequest(
+                            client_id=begin_resp.client_id,
+                            request_id=begin_resp.request_id,
+                        )
+                    )
+                    break
+                case auth.EAuthSessionGuardType.EmailConfirmation | auth.EAuthSessionGuardType.DeviceConfirmation:
+                    raise NotImplementedError("Email and Device confirmation support is not implemented yet")
+                case auth.EAuthSessionGuardType.MachineToken:
+                    raise NotImplementedError("Machine tokens are not supported yet")
+                case _:
+                    raise NotImplementedError(
+                        f"Unknown auth session guard type: {allowed_confirmation.confirmation_type}"
+                    )
+        else:
+            raise ValueError("No valid auth session guard type was found")
+
+        self.steam_id = begin_resp.steamid
+        self.client_id = poll_resp.new_client_id or begin_resp.client_id
+        self.access_token = poll_resp.access_token
+        return poll_resp.refresh_token
 
     async def poll_event(self) -> None:
         try:
@@ -434,49 +568,18 @@ class SteamWebSocket(Registerable):
         self.closed = True
         raise ConnectionClosed(self.cm)
 
-    @register(EMsg.ClientLogOnResponse)
-    async def handle_logon(self, msg: MsgProto[login.CMsgClientLogonResponse]) -> None:
-        if msg.result != Result.OK:
-            log.debug(f"Failed to login with result: {msg.result}")
-            if msg.result == Result.InvalidPassword:
-                http = self._state.http
-                await http.logout()
-                await http.login(http.username, http.password, shared_secret=http.shared_secret)
-            return await self.handle_close()
-
-        self.session_id = msg.session_id
-        self._state.cell_id = msg.body.cell_id
-
-        interval = msg.body.out_of_game_heartbeat_seconds
-        self._keep_alive = KeepAliveHandler(ws=self, interval=interval)
-        self._keep_alive.start()
-        log.debug("Heartbeat started.")
-
-        await self.send_um("ChatRoom.GetMyChatRoomGroups")
-        await self.change_presence(
-            apps=self._state._apps,
-            state=self._state._state,
-            flags=self._state._flags,
-            force_kick=self._state._force_kick,
-        )
-        await self.send_proto(MsgProto(EMsg.ClientGetEmoticonList))
-        await self.send_proto(MsgProto(EMsg.ClientRequestCommentNotifications))
-        await self.send_proto(MsgProto(EMsg.ClientServerTimestampRequest, client_request_timestamp=time.time() * 1000))
-
-        log.debug("Logon completed")
-
     @register(EMsg.ClientHeartBeat)
-    def ack_heartbeat(self, msg: MsgProto[login.CMsgClientHeartBeat]) -> None:
+    def ack_heartbeat(self, msg: login.CMsgClientHeartBeat) -> None:
         self._keep_alive.ack()
 
     @register(EMsg.ClientServerTimestampResponse)
-    def set_steam_time(self, msg: MsgProto[login.CMsgClientServerTimestampResponse]) -> None:
-        self.server_offset = timedelta(milliseconds=msg.body.server_timestamp_ms - msg.body.client_request_timestamp)
+    def set_steam_time(self, msg: login.CMsgClientServerTimestampResponse) -> None:
+        self.server_offset = timedelta(milliseconds=msg.server_timestamp_ms - msg.client_request_timestamp)
 
     @staticmethod
-    def unpack_multi(msg: MsgProto[CMsgMulti]) -> bytes | None:
-        data = msg.body.message_body
-        log.debug(f"Decompressing payload ({len(data)} -> {msg.body.size_unzipped})")
+    def unpack_multi(msg: CMsgMulti) -> bytearray | None:
+        data = msg.message_body
+        log.debug(f"Decompressing payload ({len(data)} -> {msg.size_unzipped})")
         if data[:2] != b"\037\213":
             return log.info("Received a file that's not GZipped")
 

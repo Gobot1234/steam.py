@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .group import Group
     from .invite import ClanInvite, UserInvite
-    from .protobufs import Msg, MsgProto
+    from .protobufs import Message, ProtobufMessage
     from .reaction import MessageReaction
     from .trade import TradeOffer
     from .user import ClientUser, User
@@ -200,12 +200,10 @@ class Client:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return float("nan") if self.ws is None else self.ws.latency
 
-    async def token(self) -> str:
-        resp = await self.http.get(URL.COMMUNITY / "chat/clientjstoken")
-        if not resp["logged_in"]:  # we got logged out :(
-            await self.http.login(self.username, self.password, shared_secret=self.shared_secret)  # type: ignore
-            return await self.token()
-        return resp["token"]
+    @property
+    def refresh_token(self) -> str | None:
+        """The refresh token for the logged in account, can be used to login."""
+        return None if self.ws is None else self.ws.refresh_token
 
     async def code(self) -> str:
         """Get the current steam guard code.
@@ -280,7 +278,7 @@ class Client:
 
     def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task[None]:
         return asyncio.create_task(
-            self._run_event(coro, event_name, *args, **kwargs), name=f"steam.py: task_{event_name}"
+            self._run_event(coro, event_name, *args, **kwargs), name=f"steam.py task: {event_name}"
         )
 
     def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
@@ -289,7 +287,7 @@ class Client:
 
         # remove the dispatched listener
         if listeners := self._listeners.get(event):
-            removed = []
+            removed: list[int] = []
             for idx, (future, condition) in enumerate(listeners):
                 if future.cancelled():
                     removed.append(idx)
@@ -311,7 +309,7 @@ class Client:
                         removed.append(idx)
 
             if len(removed) == len(listeners):
-                self._listeners.pop(event)
+                del self._listeners[event]
             else:
                 for idx in reversed(removed):
                     del listeners[idx]
@@ -355,7 +353,7 @@ class Client:
         async def runner() -> None:
             asyncio.events.new_event_loop = old_new_event_loop
             try:
-                await self.start(*args, **kwargs)
+                await self.login(*args, **kwargs)
             finally:
                 if not self.is_closed():
                     await self.close()
@@ -367,37 +365,6 @@ class Client:
             asyncio.run(runner())
         except KeyboardInterrupt:
             log.info("Closing the event loop")
-
-    async def login(self, username: str, password: str, *, shared_secret: str | None = None) -> None:
-        """Login a Steam account and the Steam API with the specified credentials.
-
-        Parameters
-        ----------
-        username
-            The username of the user's account.
-        password
-            The password of the user's account.
-        shared_secret
-            The shared_secret of the desired Steam account, used to generate the 2FA code for login. If ``None`` is
-            passed, the code will need to be inputted by the user via :meth:`code`.
-
-        Raises
-        ------
-        :exc:`.InvalidCredentials`
-            Invalid credentials were passed.
-        :exc:`.LoginError`
-            An unknown login related error occurred.
-        :exc:`.NoCMsFound`
-            No community managers could be found to connect to.
-        """
-        log.info("Logging in to steamcommunity.com")
-        self.username = username
-        self.password = password
-        self.shared_secret = shared_secret
-
-        await self.http.login(username, password, shared_secret=shared_secret)
-        self._closed = False
-        self.loop.create_task(self._state.__ainit__())
 
     async def close(self) -> None:
         """Close the connection to Steam."""
@@ -425,15 +392,37 @@ class Client:
         self._state.clear()
         self.http.clear()
 
-    async def start(
+    @overload
+    async def login(
         self,
         username: str,
         password: str,
         *,
-        shared_secret: str | None = None,
-        identity_secret: str | None = None,
+        shared_secret: str = ...,
+        identity_secret: str = ...,
     ) -> None:
-        """A shorthand coroutine for :meth:`login` and :meth:`connect`.
+        ...
+
+    @overload
+    async def login(
+        self,
+        *,
+        refresh_token: str,
+        id: Intable,
+    ) -> None:
+        ...
+
+    async def login(
+        self,
+        username: str = MISSING,
+        password: str = MISSING,
+        *,
+        shared_secret: str = MISSING,
+        identity_secret: str = MISSING,
+        refresh_token: str = MISSING,
+        id: Intable = MISSING,
+    ) -> None:
+        """Initialize a connection to a Steam CM and login.
 
         If no ``shared_secret`` is passed, you will have to manually enter a Steam guard code using :meth:`code`.
 
@@ -447,21 +436,25 @@ class Client:
             The shared secret for the account to login to.
         identity_secret
             The identity secret for the account to login to.
-        """
 
+        Other Parameters
+        ----------------
+        id
+            The ID of the account to login to, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
+            :attr:`.ID.id3`.
+        refresh_token
+            The refresh token of the account to login to.
+        """
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
         self.identity_secret = identity_secret
 
+        self._closed = False
+
         if identity_secret is None:
             log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
 
-        await self.login(username, password, shared_secret=shared_secret)
-        await self.connect()
-
-    async def connect(self) -> None:
-        """Initialize a connection to a Steam CM after logging in."""
         exceptions = (
             OSError,
             ConnectionClosed,
@@ -477,11 +470,14 @@ class Client:
             log.info(f"Attempting to connect to another CM in {sleep}")
             await asyncio.sleep(sleep)
 
+        self.http.clear()
         while not self.is_closed():
             last_connect = time.monotonic()
 
             try:
-                self.ws = await asyncio.wait_for(SteamWebSocket.from_client(self), timeout=60)
+                self.ws = await asyncio.wait_for(
+                    SteamWebSocket.from_client(self, refresh_token, utils.parse_id64(id)), timeout=60
+                )
             except exceptions:
                 await throttle()
                 continue
@@ -985,7 +981,7 @@ class Client:
 
     # events to be subclassed
 
-    async def on_error(self, event: str, error: Exception, *args, **kwargs):
+    async def on_error(self, event: str, error: Exception, *args: object, **kwargs: object):
         """The default error handler provided by the client.
 
         Usually when an event raises an uncaught exception, a traceback is printed to :attr:`sys.stderr` and the

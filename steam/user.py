@@ -137,24 +137,24 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
     async def add(self) -> None:
         """Sends a friend invite to the user to your friends list."""
-        await self._state.http.add_user(self.id64)
+        await self._state.add_user(self.id64)
 
     async def remove(self) -> None:
         """Remove the user from your friends list."""
-        await self._state.http.remove_user(self.id64)
+        await self._state.remove_user(self.id64)
         self._state.user._friends.pop(self.id64, None)
 
     async def cancel_invite(self) -> None:
         """Cancels an invitation sent to the user. This effectively does the same thing as :meth:`remove`."""
-        await self._state.http.remove_user(self.id64)
+        await self._state.remove_user(self.id64)
 
     async def block(self) -> None:
         """Blocks the user."""
-        await self._state.http.block_user(self.id64)
+        await self._state.block_user(self.id64)
 
     async def unblock(self) -> None:
         """Unblocks the user."""
-        await self._state.http.unblock_user(self.id64)
+        await self._state.unblock_user(self.id64)
 
     async def escrow(self, token: str | None = None) -> timedelta | None:
         """Check how long any received items would take to arrive. ``None`` if the user has no escrow or has a

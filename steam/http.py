@@ -3,38 +3,35 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 import logging
 import re
 import urllib.parse
-import warnings
-from base64 import b64encode
 from collections.abc import Callable, Iterable
-from datetime import datetime
+from datetime import date, datetime
+from http.cookies import SimpleCookie
+from random import randbytes
 from sys import version_info
 from time import time
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import aiohttp
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
-from yarl import URL as _URL
+from yarl import URL as URL_
 
 from . import errors, utils
 from .__metadata__ import __version__
 from ._const import JSON_DUMPS, JSON_LOADS, URL
 from .enums import Language
-from .guard import generate_one_time_code
 from .id import ID
 from .models import PriceOverviewDict, api_route
-from .user import ClientUser, _BaseUser
+from .user import ClientUser
 from .utils import cached_property
 
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
-    from .types import app, trade
-    from .types.http import Coro, ResponseType, StrOrURL
-    from .types.package import FetchedPackage
+    from .types import trade
+    from .types.http import Coro, ResponseDict, StrOrURL
+    from .types.id import ID64
     from .types.user import User
 
 
@@ -81,11 +78,9 @@ class HTTPClient:
         self.proxy: str | None = options.get("proxy")
         self.proxy_auth: aiohttp.BasicAuth | None = options.get("proxy_auth")
         self.connector: aiohttp.BaseConnector | None = options.get("connector")
-        self.personal_inventory_lock = asyncio.Lock()
 
     def clear(self) -> None:
         self._session = aiohttp.ClientSession(
-            cookies={"Steam_Language": self.language.api_name},
             connector=self.connector,
             json_serialize=JSON_DUMPS,
         )
@@ -93,6 +88,11 @@ class HTTPClient:
     async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Any:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
         payload = kwargs.get("data")
+
+        url = url if isinstance(url, URL_) else URL_(url)
+
+        if url.host == URL.COMMUNITY.host and not self.logged_in:
+            await self.login(self._client.ws.refresh_token)
 
         for tries in range(5):
             async with self._session.request(method, url, **kwargs, proxy=self.proxy, proxy_auth=self.proxy_auth) as r:
@@ -108,7 +108,7 @@ class HTTPClient:
 
                 # we are being rate limited
                 elif r.status == 429:
-                    # I haven't been able to get any X-Retry-After headers from the API but we should probably still
+                    # I haven't been able to get any X-Retry-After headers from the API, but we should probably still
                     # handle it
                     log.warning("We are being Rate limited")
                     try:
@@ -122,12 +122,6 @@ class HTTPClient:
                     await asyncio.sleep(1 + tries * 3)
                     continue
 
-                # been logged out
-                elif 300 <= r.status <= 399 and "login" in r.headers.get("location", ""):
-                    log.debug("Logged out of session re-logging in")
-                    await self.login(self.username, self.password, self.shared_secret)
-                    continue
-
                 elif r.status == 401:
                     if not data:
                         raise errors.HTTPException(r, data)
@@ -136,7 +130,7 @@ class HTTPClient:
                         # time to fetch a new key
                         key = await self.get_api_key()
                         assert key is not None
-                        self.api_key = kwargs["key"] = key
+                        kwargs["key"] = key
                         # retry with our new key
 
                 # the usual error cases
@@ -162,73 +156,78 @@ class HTTPClient:
             f"wss://{cm}/cmsocket/", headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
         )
 
-    async def login(self, username: str, password: str, shared_secret: str | None) -> None:
-        self.username = username
-        self.password = password
-        self.shared_secret = shared_secret
-        self.clear()
+    async def login(self, refresh_token: str) -> None:
+        resp = await self.post(
+            URL.LOGIN / "jwt/finalizelogin",
+            data={
+                "nonce": refresh_token,
+                "sessionid": self.session_id,
+                "redir": URL.COMMUNITY / "login/home/?goto=",
+            },
+        )
 
-        try:
-            resp = await self._send_login_request()
-
-            if resp.get("captcha_needed") and resp.get("message") != "Please wait and try again later.":
-                self._captcha_id = resp["captcha_gid"]
-                print(
-                    "Please enter the captcha text at "
-                    f"https://steamcommunity.com/login/rendercaptcha/?gid={resp['captcha_gid']}"
+        for fut in asyncio.as_completed(
+            [
+                self._session.post(
+                    info["url"],
+                    headers={
+                        "Origin": str(URL.COMMUNITY),
+                        "Referer": str(URL.COMMUNITY),
+                        "Accept": "application/json, text/plain, */*",
+                    },
+                    data=info["params"] | {"steamID": self.user.id64},
                 )
-                captcha_text = await utils.ainput(">>> ")
-                self._captcha_text = captcha_text.strip()
-                return await self.login(username, password, shared_secret)
+                for info in resp["transfer_info"]
+            ]
+        ):
+            try:
+                resp = await fut
+            except Exception:
+                continue
+            else:
+                break
+        else:
+            raise errors.LoginError("Failed to login")
 
-            if not resp["success"]:
-                raise errors.InvalidCredentials(resp.get("message", "An unexpected error occurred"))
+        jar = self._session.cookie_jar
+        for cookie in resp.headers.getall("Set-Cookie", ()):
+            cookie = SimpleCookie[str](cookie)
+            for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
+                jar.update_cookies(cookie.copy(), url)
 
-            jar = self._session.cookie_jar
-            cookies = jar.filter_cookies(URL.COMMUNITY)
-            for url in resp["transfer_urls"]:
-                jar.update_cookies(copy.deepcopy(cookies), _URL(url).origin())
+        self.logged_in = True
 
-            self.api_key = await self.get_api_key()
-            if self.api_key is None:
-                log.info("Failed to get API key")
+    async def get_api_key(self) -> str | None:
+        if self.api_key is not None:
+            return self.api_key
 
-                async def get_user(user_id64: int) -> User:  # this is a lie
-                    user_id = user_id64 & 0xFFFFFFFF
-                    ret = await self.get(URL.COMMUNITY / f"miniprofile/{user_id}/json")
-                    ret["steamid"] = user_id64
-                    return ret
+        resp = await self.get(URL.COMMUNITY / "dev/apikey")
+        if (
+            "<h2>Access Denied</h2>" in resp
+            or "You must have a validated email address to create a Steam Web API key" in resp
+        ):
+            raise RuntimeError("You must have a premium Steam account or validated email address to use this method")
 
-                async def get_users(user_id64s: Iterable[int]) -> list[User]:
-                    return await asyncio.gather(*(self.get_user(user_id64) for user_id64 in user_id64s))  # type: ignore
+        key_re = re.compile(r"<p>Key: ([0-9A-F]+)</p>")
+        if match := key_re.findall(resp):
+            return match[0]
 
-                _BaseUser._patch_without_api()
-                self.get_user = get_user
-                self.get_users = get_users
-                warnings.warn(
-                    "Some methods of User objects are not available as no API key can be generated", UserWarning
-                )
-                await self.get(URL.COMMUNITY / "home")
+        payload = {
+            "domain": "steam.py",
+            "agreeToTerms": "agreed",
+            "sessionid": self.session_id,
+            "Submit": "Register",
+        }
+        resp = await self.post(URL.COMMUNITY / "dev/registerkey", data=payload)
+        return key_re.findall(resp)[0]
 
-            data = await self.get_user(resp["transfer_parameters"]["steamid"])
-            state = self._client._state
-            assert data
-            self.user = ClientUser(state=state, data=data)
-            state._users[self.user.id64] = self.user
-            self.logged_in = True
-            self._client.dispatch("login")
-
-        except:
-            await self._session.close()
-            raise
-
-    @cached_property  # should always be called after making at least one request
+    @cached_property
     def session_id(self) -> str:
-        cookies = self._session.cookie_jar.filter_cookies(URL.COMMUNITY)
-        return cookies["sessionid"].value
+        return randbytes(16).hex()
 
     async def close(self) -> None:
-        await self.logout()
+        if self.logged_in:
+            await self.logout()
         await self._session.close()
 
     async def logout(self) -> None:
@@ -239,66 +238,8 @@ class HTTPClient:
         self.user = None  # type: ignore
         self._client.dispatch("logout")
 
-    async def _get_rsa_params(self) -> tuple[bytes, int]:
-        payload = {"username": self.username, "donotcache": int(time() * 1000)}
-        try:
-            key_response = await self.post(URL.COMMUNITY / "login/getrsakey", data=payload)
-        except Exception as exc:
-            raise errors.LoginError("Could not obtain RSA key") from exc
-        try:
-            n = int(key_response["publickey_mod"], 16)
-            e = int(key_response["publickey_exp"], 16)
-            rsa_timestamp = key_response["timestamp"]
-        except KeyError:
-            raise errors.LoginError("Could not obtain rsa-key") from None
-        else:
-            return (
-                b64encode(
-                    rsa.RSAPublicNumbers(e, n).public_key().encrypt(self.password.encode("utf-8"), padding.PKCS1v15())
-                ),
-                rsa_timestamp,
-            )
-
-    async def _send_login_request(self) -> dict[str, Any]:
-        password, timestamp = await self._get_rsa_params()
-        payload = {
-            "username": self.username,
-            "password": password.decode(),
-            "emailauth": self._email_code,
-            "emailsteamid": self._steam_id,
-            "twofactorcode": (
-                generate_one_time_code(self.shared_secret) if self.shared_secret is not None else self._one_time_code
-            ),
-            # attempting this straight away makes login a bit faster for everyone with a shared_secret and doesn't
-            # hurt performance for others
-            "captchagid": self._captcha_id,
-            "captcha_text": self._captcha_text,
-            "loginfriendlyname": self.user_agent,
-            "rsatimestamp": timestamp,
-            "remember_login": True,
-            "donotcache": int(time() * 1000),
-        }
-        try:
-            resp = await self.post(URL.COMMUNITY / "login/dologin", data=payload)
-            if resp.get("requires_twofactor"):
-                self._one_time_code = await self._client.code()
-            elif resp.get("emailauth_needed"):
-                self._steam_id = resp.get("emailsteamid")
-                self._email_code = await self._client.code()
-            else:
-                return resp
-            return await self._send_login_request()
-        except errors.LoginError:
-            raise
-        except Exception as exc:
-            try:
-                msg = exc.args[0]
-            except IndexError:
-                msg = None
-            raise errors.LoginError(msg) from exc
-
     async def get_user(self, user_id64: int) -> User | None:
-        params = {"key": self.api_key, "steamids": user_id64}
+        params = {"key": await self.get_api_key(), "steamids": user_id64}
         resp = await self.get(api_route("ISteamUser/GetPlayerSummaries", version=2), params=params)
         return resp["response"]["players"][0] if resp["response"]["players"] else None
 
@@ -309,7 +250,7 @@ class HTTPClient:
             *(
                 self.get(
                     api_route("ISteamUser/GetPlayerSummaries", version=2),
-                    params={"key": self.api_key, "steamids": ",".join(map(str, sublist))},
+                    params={"key": await self.get_api_key(), "steamids": ",".join(map(str, sublist))},
                 )
                 for sublist in utils.as_chunks(user_id64s, 100)
             )
@@ -317,94 +258,22 @@ class HTTPClient:
             ret.extend(resp["response"]["players"])
         return ret
 
-    def add_user(self, user_id64: int) -> Coro[None]:
-        payload = {
-            "sessionID": self.session_id,
-            "steamid": user_id64,
-            "accept_invite": 0,
-        }
-        return self.post(URL.COMMUNITY / "actions/AddFriendAjax", data=payload)
-
-    def remove_user(self, user_id64: int) -> Coro[None]:
-        payload = {
-            "sessionID": self.session_id,
-            "steamid": user_id64,
-        }
-        return self.post(URL.COMMUNITY / "actions/RemoveFriendAjax", data=payload)
-
-    def block_user(self, user_id64: int) -> Coro[None]:
-        payload = {"sessionID": self.session_id, "steamid": user_id64, "block": 1}
-        return self.post(URL.COMMUNITY / "actions/BlockUserAjax", data=payload)
-
-    def unblock_user(self, user_id64: int) -> Coro[None]:
-        payload = {"sessionID": self.session_id, "steamid": user_id64, "block": 0}
-        return self.post(URL.COMMUNITY / "actions/BlockUserAjax", data=payload)
-
-    def accept_user_invite(self, user_id64: int) -> Coro[None]:
-        payload = {
-            "sessionID": self.session_id,
-            "steamid": user_id64,
-            "accept_invite": 1,
-        }
-        return self.post(URL.COMMUNITY / "actions/AddFriendAjax", data=payload)
-
-    def decline_user_invite(self, user_id64: int) -> Coro[None]:
-        payload = {
-            "sessionID": self.session_id,
-            "steamid": user_id64,
-            "accept_invite": 0,
-        }
-        return self.post(URL.COMMUNITY / "actions/IgnoreFriendInviteAjax", data=payload)
-
-    def get_user_inventory(
-        self, user_id64: int, app_id: int, context_id: int, language: Language | None
-    ) -> Coro[trade.Inventory]:
+    async def get_user_escrow(self, user_id64: int, token: str | None) -> ResponseDict[dict[str, Any]]:
         params = {
-            "count": 5000,
-            "l": (language or self.language).api_name,
-        }
-        return self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
-
-    async def get_client_user_inventory(
-        self, app_id: int, context_id: int, language: Language | None
-    ) -> trade.Inventory:
-        async with self.personal_inventory_lock:  # requires a lock
-            return await self.get_user_inventory(self.user.id64, app_id, context_id, language)
-
-    async def get_item_info(
-        self, app_id: int, items: Iterable[tuple[int, int]], language: Language | None
-    ) -> dict[tuple[int, int], trade.Description]:
-        result: dict[tuple[int, int], trade.Description] = {}
-
-        for chunk in utils.chunk(items, 100):
-            params = {
-                "key": self.api_key,
-                "appid": app_id,
-                "class_count": len(chunk),
-                "language": (language or self.language).web_api_name,
-            }
-
-            for i, (class_id, instance_id) in enumerate(chunk):
-                params[f"classid{i}"] = class_id
-                params[f"instanceid{i}"] = instance_id
-
-            data = await self.get(api_route("ISteamEconomy/GetAssetClassInfo"), params=params)
-            result |= {tuple(map(int, key.split("_"))): value for key, value in data["result"].items()}
-
-        return result
-
-    def get_user_escrow(self, user_id64: int, token: str | None) -> ResponseType[dict[str, Any]]:
-        params = {
-            "key": self.api_key,
+            "key": await self.get_api_key(),
             "steamid_target": user_id64,
             "trade_offer_access_token": token if token is not None else "",
         }
-        return self.get(api_route("IEconService/GetTradeHoldDurations"), params=params)
+        return await self.get(api_route("IEconService/GetTradeHoldDurations"), params=params)
 
-    async def get_friends(self, user_id64: int) -> list[User]:
-        params = {"key": self.api_key, "steamid": user_id64, "relationship": "friend"}
+    async def get_friends_ids(self, user_id64: int) -> list[ID64]:
+        params = {
+            "key": await self.get_api_key(),
+            "steamid": user_id64,
+            "relationship": "friend",
+        }
         friends = await self.get(api_route("ISteamUser/GetFriendList"), params=params)
-        return await self.get_users([friend["steamid"] for friend in friends["friendslist"]["friends"]])
+        return [friend["steamid"] for friend in friends["friendslist"]["friends"]]
 
     async def get_trade_offers(
         self,
@@ -415,7 +284,7 @@ class HTTPClient:
         language: Language | None = None,
     ) -> dict[str, Any]:  # TODO consider making async iter?
         params = {
-            "key": self.api_key,
+            "key": await self.get_api_key(),
             "active_only": str(active_only).lower(),
             "get_sent_offers": str(sent).lower(),
             "get_received_offers": str(received).lower(),
@@ -452,22 +321,27 @@ class HTTPClient:
 
         return first_page
 
-    def get_trade_history(
+    async def get_trade_history(
         self, limit: int, previous_time: int = 0, language: Language | None = None
-    ) -> ResponseType[trade.GetTradeOfferHistory]:
+    ) -> ResponseDict[trade.GetTradeOfferHistory]:
         params = {
-            "key": self.api_key,
+            "key": await self.get_api_key(),
             "max_trades": limit,
             "get_descriptions": "true",
             "include_total": "true",
             "start_after_time": previous_time,
             "language": (language or self.language).api_name,
         }
-        return self.get(api_route("IEconService/GetTradeHistory"), params=params)
+        return await self.get(api_route("IEconService/GetTradeHistory"), params=params)
 
-    def get_trade(self, trade_id: int, language: Language | None = None) -> ResponseType[trade.GetTradeOffer]:
-        params = {"key": self.api_key, "tradeofferid": trade_id, "get_descriptions": "true"}
-        return self.get(api_route("IEconService/GetTradeOffer"), params=params)
+    async def get_trade(self, trade_id: int, language: Language | None = None) -> ResponseDict[trade.GetTradeOffer]:
+        params = {
+            "key": await self.get_api_key(),
+            "tradeofferid": trade_id,
+            "get_descriptions": "true",
+            "language": (language or self.language).api_name,
+        }
+        return await self.get(api_route("IEconService/GetTradeOffer"), params=params)
 
     def accept_user_trade(self, user_id64: int, trade_id: int) -> Coro[dict[str, Any]]:
         payload = {
@@ -522,14 +396,14 @@ class HTTPClient:
         headers = {"Referer": str(referer)}
         return self.post(URL.COMMUNITY / "tradeoffer/new/send", data=payload, headers=headers)
 
-    def get_trade_receipt(self, trade_id: int, language: Language | None = None) -> Coro[dict[str, Any]]:
+    async def get_trade_receipt(self, trade_id: int, language: Language | None = None) -> dict[str, Any]:
         params = {
-            "key": self.api_key,
+            "key": await self.get_api_key(),
             "tradeid": trade_id,
             "get_descriptions": "true",
             "language": (language or self.language).api_name,
         }
-        return self.get(api_route("IEconService/GetTradeStatus"), params=params)
+        return await self.get(api_route("IEconService/GetTradeStatus"), params=params)
 
     def get_cm_list(self, cell_id: int) -> Coro[dict[str, Any]]:
         params = {
@@ -538,7 +412,7 @@ class HTTPClient:
         }
         return self.get(api_route("ISteamDirectory/GetCMListForConnect"), params=params)
 
-    def join_clan(self, clan_id64: int) -> Coro[None]:
+    async def join_clan(self, clan_id64: int) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "action": "join",
@@ -562,21 +436,21 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "actions/GroupInvite", data=payload)
 
-    def get_user_clans(self, user_id64: int) -> Coro[dict[str, Any]]:
-        params = {"key": self.api_key, "steamid": user_id64}
-        return self.get(api_route("ISteamUser/GetUserGroupList"), params=params)
+    async def get_user_clans(self, user_id64: int) -> dict[str, Any]:
+        params = {"key": await self.get_api_key(), "steamid": user_id64}
+        return await self.get(api_route("ISteamUser/GetUserGroupList"), params=params)
 
-    def get_user_bans(self, user_id64: int) -> Coro[dict[str, Any]]:
-        params = {"key": self.api_key, "steamids": user_id64}
-        return self.get(api_route("ISteamUser/GetPlayerBans"), params=params)
+    async def get_user_bans(self, user_id64: int) -> dict[str, Any]:
+        params = {"key": await self.get_api_key(), "steamids": user_id64}
+        return await self.get(api_route("ISteamUser/GetPlayerBans"), params=params)
 
-    def get_user_level(self, user_id64: int) -> Coro[dict[str, Any]]:
-        params = {"key": self.api_key, "steamid": user_id64}
-        return self.get(api_route("IPlayerService/GetSteamLevel"), params=params)
+    async def get_user_level(self, user_id64: int) -> dict[str, Any]:
+        params = {"key": await self.get_api_key(), "steamid": user_id64}
+        return await self.get(api_route("IPlayerService/GetSteamLevel"), params=params)
 
-    def get_user_badges(self, user_id64: int) -> Coro[dict[str, Any]]:
-        params = {"key": self.api_key, "steamid": user_id64}
-        return self.get(api_route("IPlayerService/GetBadges"), params=params)
+    async def get_user_badges(self, user_id64: int) -> dict[str, Any]:
+        params = {"key": await self.get_api_key(), "steamid": user_id64}
+        return await self.get(api_route("IPlayerService/GetBadges"), params=params)
 
     def clear_nickname_history(self) -> Coro[None]:
         payload = {"sessionid": self.session_id}
@@ -609,6 +483,12 @@ class HTTPClient:
 
     def get_clan_rss(self, clan_id64: int) -> Coro[str]:
         return self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
+
+    def get_clan_events_for(self, clan_id64: ID64, date: date) -> Coro[str]:
+        return self.post(
+            URL.COMMUNITY / f"gid/{clan_id64}/events",
+            data={"xml": 1, "action": "eventFeed", "month": date.month, "year": date.year},
+        )
 
     def _edit_clan_event(
         self,
@@ -903,24 +783,3 @@ class HTTPClient:
             }
 
             await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
-
-    async def get_api_key(self) -> str | None:
-        resp = await self.get(URL.COMMUNITY / "dev/apikey")
-        if (
-            "<h2>Access Denied</h2>" in resp
-            or "You must have a validated email address to create a Steam Web API key" in resp
-        ):
-            return
-
-        key_re = re.compile(r"<p>Key: ([0-9A-F]+)</p>")
-        if match := key_re.findall(resp):
-            return match[0]
-
-        payload = {
-            "domain": "steam.py",
-            "agreeToTerms": "agreed",
-            "sessionid": self.session_id,
-            "Submit": "Register",
-        }
-        resp = await self.post(URL.COMMUNITY / "dev/registerkey", data=payload)
-        return key_re.findall(resp)[0]

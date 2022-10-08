@@ -123,7 +123,7 @@ class TradeQueue:
 
 
 class ConnectionState(Registerable):
-    parsers: dict[EMsg, Callable]
+    parsers: dict[EMsg, Callable[..., Any]]
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
@@ -134,8 +134,9 @@ class ConnectionState(Registerable):
         self.handled_emoticons = asyncio.Event()
         self.handled_chat_groups = asyncio.Event()
         self.handled_group_members = asyncio.Event()
+        self.login_complete = asyncio.Event()
         self.handled_licenses = asyncio.Event()
-        self.max_messages: int = kwargs.pop("max_messages", 1000)
+        self.max_messages: int | None = kwargs.pop("max_messages", 1000)
 
         app = kwargs.get("app")
         apps = kwargs.get("apps")
@@ -160,7 +161,6 @@ class ConnectionState(Registerable):
         self._clans_by_chat_id: dict[ChatGroupID, Clan] = {}
         self.chat_group_to_view_id: defaultdict[ChatGroupID, int] = defaultdict(count().__next__)
         self.active_chat_groups: set[ChatGroupID] = set()
-        self.chat_group_members_waiting: dict[tuple[int, int], asyncio.Future[list[User]]] = {}
 
         self._confirmations: dict[int, Confirmation] = {}
         self.confirmation_generation_locks: dict[str, tuple[asyncio.Lock, datetime]] = {}
@@ -550,7 +550,7 @@ class ConnectionState(Registerable):
         )
 
     async def send_chat_message(
-        self, chat_group_id: ChatGroupID, chat_id: ChannelID, content: str
+        self, chat_group_id: ChatGroupID, chat_id: ChatID, content: str
     ) -> ClanMessage | GroupMessage:
         msg: chat.SendChatMessageResponse = await self.ws.send_um_and_wait(
             chat.SendChatMessageRequest(chat_id=chat_id, chat_group_id=chat_group_id, message=content)
@@ -589,7 +589,7 @@ class ConnectionState(Registerable):
     async def react_to_chat_message(
         self,
         chat_group_id: ChatGroupID,
-        chat_id: ChannelID,
+        chat_id: ChatID,
         server_timestamp: int,
         ordinal: int,
         reaction_name: str,
@@ -723,7 +723,7 @@ class ConnectionState(Registerable):
         return msg
 
     async def fetch_chat_group_history(
-        self, chat_group_id: ChatGroupID, chat_id: ChannelID, start: int, last: int, last_ordinal: int
+        self, chat_group_id: ChatGroupID, chat_id: ChatID, start: int, last: int, last_ordinal: int
     ) -> chat.GetMessageHistoryResponse:
         msg: chat.GetMessageHistoryResponse = await self.ws.send_um_and_wait(
             chat.GetMessageHistoryRequest(
@@ -744,7 +744,7 @@ class ConnectionState(Registerable):
     async def fetch_message_reactors(
         self,
         chat_group_id: ChatGroupID,
-        chat_id: ChannelID,
+        chat_id: ChatID,
         server_timestamp: int,
         ordinal: int,
         reaction_name: str,
@@ -1241,6 +1241,7 @@ class ConnectionState(Registerable):
                 else:
                     self.dispatch(f"{'user'if steam_id.type == Type.Individual else 'clan'}_invite_decline", invite)
         if is_load:
+            await self.login_complete.wait()
             self.user._friends = {user.id64: Friend(self, user) for user in await self._maybe_users(client_user_friends)}  # type: ignore
             self.handled_friends.set()
 
