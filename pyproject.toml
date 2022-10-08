@@ -2,7 +2,7 @@
 name = "steamio"
 version = "1.0.0a"
 description = "A Python wrapper for the Steam API"
-authors = ["Gobot1234"]
+authors = ["Gobot1234 <gobot1234yt@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 keywords = ["steam.py", "steam", "steamio", "steam-api"]
@@ -111,7 +111,6 @@ target-version = ["py310"]
 
 [tool.mypy]
 ignore_missing_imports = true
-strict_optional = false
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
@@ -120,8 +119,6 @@ allow_redefinition = true
 show_error_codes = true
 warn_no_return = false
 pretty = true
-files = "steam/*.py, steam/ext/commands/*.py, steam/protobufs/__init__.py, steam/protobufs/headers.py"
-exclude = "venv, .venv"
 
 [tool.pyright]
 typeCheckingMode = "basic"
@@ -132,10 +129,22 @@ reportSelfClsParameterName = "none"
 reportUntypedFunctionDecorator = "error"
 reportUntypedClassDecorator = "error"
 reportUntypedNamedTuple = "error"
-reportImplicitStringConcatenation = "none"  # I like to use this a fair bit
+reportImplicitStringConcatenation = "error"
 reportOverlappingOverload = "error"
 reportMissingTypeArgument = "error"
-venv = ".venv"
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+strictParameterNoneValue = true
+reportMissingImports = "error"
+reportUnusedImport = "error"
+reportFunctionMemberAccess = "warning"
+reportDuplicateImport = "error"
+reportUnnecessaryTypeIgnoreComment = "warning"
+reportUnknownParameterType = "error"
+reportUnknownReturnType = "error"
+# reportUnknownArgumentType = "error"
+reportUnknownMemberType = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
