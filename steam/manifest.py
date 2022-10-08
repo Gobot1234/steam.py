@@ -33,7 +33,7 @@ from .models import _IOMixin
 from .package import StatefulPackage
 from .protobufs import app_info
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
-from .utils import DateTime
+from .utils import DateTime, cached_slot_property
 
 if sys.platform == "win32":
     from pathlib import PureWindowsPath as PurePathBase
@@ -335,8 +335,8 @@ class Manifest:
         "_metadata",
         "_payload",
         "_signature",
-        "_paths",
         "_state",
+        "_cs_paths",
     )
 
     def __init__(self, state: ConnectionState, server: ContentServer, app_id: int, data: bytes):
@@ -345,7 +345,6 @@ class Manifest:
         self.app = StatefulApp(state, id=app_id)
         self.server = server
         self._key: bytes | None = None
-        self._paths: dict[tuple[str, ...], ManifestPath] = {}
 
         with utils.StructIO(unzip(data)) as io:
             if io.read_u32() != PAYLOAD_MAGIC:
@@ -377,17 +376,14 @@ class Manifest:
     def __len__(self) -> int:
         return len(self._payload.mappings)
 
+    @cached_slot_property("_cs_paths")
+    def _paths(self) -> dict[tuple[str, ...], ManifestPath]:
+        return {(path := ManifestPath(self, mapping)).parts: path for mapping in self._payload.mappings}
+
     @property
     def paths(self) -> Sequence[ManifestPath]:
         """The depot's files."""
-        if self._paths:
-            return list(self._paths.values())
-
-        paths = self._paths
-        for mapping in self._payload.mappings:
-            path = ManifestPath(self, mapping)
-            self._paths[path.parts] = path
-        return list(paths.values())
+        return list(self._paths.values())
 
     @property
     def id(self) -> int:

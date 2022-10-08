@@ -137,7 +137,7 @@ _T_co = TypeVar("_T_co", covariant=True)
 class cached_property(Generic[_SelfT, _T_co]):
     __slots__ = ("function", "__doc__")
 
-    def __init__(self, function: Callable[[_SelfT], _T_co]):
+    def __init__(self, function: Callable[[_SelfT], _T_co], /):
         self.function = function
         self.__doc__: str | None = getattr(function, "__doc__", None)
 
@@ -159,7 +159,33 @@ class cached_property(Generic[_SelfT, _T_co]):
         return value
 
 
-class cached_slot_property(cached_property[_SelfT, _T_co]):
+@overload
+def cached_slot_property(function: Callable[[_SelfT], _T_co], /) -> CachedSlotProperty[_SelfT, _T_co]:
+    ...
+
+
+@overload
+def cached_slot_property(name: str, /) -> Callable[[Callable[[_SelfT], _T_co]], CachedSlotProperty[_SelfT, _T_co]]:
+    ...
+
+
+def cached_slot_property(function_or_name: Any, /) -> Any:
+    if isinstance(function_or_name, str):
+
+        def wrapper(function: Callable[[_SelfT], _T_co]) -> CachedSlotProperty[_SelfT, _T_co]:
+            return CachedSlotProperty(function, function_or_name)
+
+        return wrapper
+    return CachedSlotProperty(function_or_name, f"_{function_or_name.__name__}_cs")
+
+
+class CachedSlotProperty(cached_property[_SelfT, _T_co]):
+    __slots__ = ("name", "__doc__")
+
+    def __init__(self, function: Callable[[_SelfT], _T_co], name: str):
+        super().__init__(function)
+        self.name = name
+
     @overload
     def __get__(self, instance: None, _) -> Self:
         ...
@@ -172,12 +198,11 @@ class cached_slot_property(cached_property[_SelfT, _T_co]):
         if instance is None:
             return self
 
-        slot_name = f"_{self.function.__name__}_cs"
         try:
-            return getattr(instance, slot_name)
+            return getattr(instance, self.name)
         except AttributeError:
             value = self.function(instance)
-            setattr(instance, slot_name, value)
+            setattr(instance, self.name, value)
             return value
 
 
