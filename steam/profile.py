@@ -5,30 +5,23 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from . import utils
 from .app import StatefulApp
-from .badge import Badge
-from .enums import (
-    Language,
-    ProfileCustomisationStyle,
-    ProfileItemClass,
-    ProfileItemType,
-    PublishedFileRevision,
-    Result,
-    UserBadge,
-)
+from .badge import UserBadge
+from .enums import Language, ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, PublishedFileRevision, Result
 from .errors import WSException
-from .protobufs.msg import UnifiedMessage
+from .protobufs import UnifiedMessage, econ
 from .trade import Asset, Item
 
 if TYPE_CHECKING:
     from .abc import BaseUser
+    from .clan import Clan
     from .protobufs import player
     from .published_file import PublishedFile
     from .state import ConnectionState
-    from .types import trade
+    from .types import id
 
 __all__ = (
     "ProfileInfo",
@@ -68,6 +61,11 @@ class ProfileInfo:
 @dataclass(slots=True)
 class ProfileMovie:
     url: str  # TODO add more attributes like maybe created_at?
+
+
+class SupportsEquip(Protocol):
+    def __init__(self, *, communityitemid: int) -> None:
+        ...
 
 
 class ProfileItem:
@@ -176,7 +174,7 @@ class EquippedProfileItems:
     """The equipped modifier for the user."""
 
 
-@dataclass(slots=True)
+@dataclass(repr=False, slots=True)
 class ProfileShowcaseSlot:
     """Represents a showcase slot."""
 
@@ -188,17 +186,22 @@ class ProfileShowcaseSlot:
     """ The slot's description."""
     index: int | None
     """The slot's index."""
-    app: StatefulApp
+    app: StatefulApp | None
     """The slot's associated app."""
 
     asset: Asset | None
     """The :class:`Asset` the slot is associated with."""
     published_file_id: int | None
     """The ID of the :class:`PublishedFile` the slot is associated with."""
-    badge_id: UserBadge | None
+    badge_id: int | None
     """The ID of the :class:`UserBadge` the slot is associated with."""
     border_colour: int | None
     """The border colour of the slot."""
+    clan: Clan | None
+    """The Steam ID of the clan the slot is associated with."""
+
+    def __repr__(self) -> str:
+        return f"<ProfileShowcaseSlot name={self.name!r} index={self.index!r} app={self.app!r}>"
 
     async def item(self, *, language: Language | None = None) -> Item:
         """Fetches the associated :class:`.Item` from :attr:`asset`.
@@ -210,14 +213,10 @@ class ProfileShowcaseSlot:
         """
         if self.asset is None:
             raise ValueError
+        assert self.app is not None
         key = (self.asset.class_id, self.asset.instance_id)
-        resp = await self._state.http.get_item_info(self.app.id, [key], language)
-        data: trade.Item = {
-            **resp[key],
-            **self.asset.to_dict(),
-            "missing": False,
-        }  # type: ignore  # I don't wanna type out this in full to make this type-safe
-        return Item(self._state, data, self.owner)
+        resp = await self._state.fetch_item_info(self.app.id, [key], language)
+        return Item(self._state, self.asset.to_proto(), resp[key], self.owner)
 
     async def published_file(
         self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None
@@ -237,17 +236,20 @@ class ProfileShowcaseSlot:
         assert file
         return file
 
-    async def badge(self) -> Badge:
+    async def badge(self) -> UserBadge:
         """Fetches the associated :class:`.Badge` from :attr:`badge_id`."""
         if self.badge_id is None:
             raise ValueError
         badges = await self.owner.badges()
-        badge = utils.get(badges.badges, id=self.badge_id)
+        badge = utils.get(
+            badges.badges, id=self.badge_id, app__id=self.app.id if self.app and self.app.id != 753 else None
+        )  # TODO manual
+
         assert badge
         return badge
 
 
-@dataclass(slots=True)
+@dataclass(repr=False, slots=True)
 class ProfileShowcase:
     _state: ConnectionState
     owner: BaseUser
@@ -266,7 +268,10 @@ class ProfileShowcase:
     slots: list[ProfileShowcaseSlot]
     """The slots in this showcase."""
 
-    async def items(self, *, language: Language | None) -> list[Item]:
+    def __repr__(self) -> str:
+        return f"<ProfileShowcase type={self.type!r} active={self.active!r} level={self.level!r} style={self.style!r}>"
+
+    async def items(self, *, language: Language | None = None) -> list[Item]:
         """Fetches the associated :class:`.Item`s for the entire showcase.
 
         Parameters
@@ -274,22 +279,22 @@ class ProfileShowcase:
         language
             The language to fetch the items in. If ``None``, the current language is used.
         """
-        asset_map: defaultdict[int, dict[tuple[int, int], Asset]] = defaultdict(dict)
+        asset_map: defaultdict[int, dict[id.CacheKey, Asset]] = defaultdict(dict)
 
         for slot in self.slots:
             if slot.asset:
                 asset_map[slot.asset._app_id][(slot.asset.class_id, slot.asset.instance_id)] = slot.asset
 
         return [
-            Item(self._state, {**description, **assets[key].to_dict(), "missing": False}, self.owner)
+            Item(self._state, assets[key].to_proto(), description, self.owner)
             for app_id, assets in asset_map.items()
-            for key, description in (await self._state.http.get_item_info(app_id, assets, language)).items()
+            for key, description in (await self._state.fetch_item_info(app_id, assets, language)).items()
         ]
 
-    async def published_file(
+    async def published_files(
         self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None
-    ) -> PublishedFile:
-        """Fetches the associated :class:`.PublishedFile` from :attr:`published_file_id`.
+    ) -> list[PublishedFile]:
+        r"""Fetches the associated :class:`.PublishedFile` for the entire showcase.
 
         Parameters
         ----------
@@ -298,12 +303,20 @@ class ProfileShowcase:
         language
             The language to fetch the file in. If ``None``, the current language is used.
         """
-        return await self.slots[0].published_file(revision=revision)
+        published_files = await self._state.fetch_published_files(
+            (slot.published_file_id for slot in self.slots if slot.published_file_id), revision, language
+        )
+        assert all(published_files)
+        return published_files  # type: ignore  # needs HKT to be fixed
 
-    async def badges(self) -> list[Badge]:
+    async def badges(self) -> list[UserBadge]:
         """Fetches the associated :class:`.Badge`s for the entire showcase."""
         all_badges = await self.owner.badges()
-        badges = [utils.get(all_badges.badges, id=slot.badge_id) for slot in self.slots if slot.badge_id]
+        badges = [
+            utils.get(all_badges, id=slot.badge_id, app__id=slot.app.id)
+            for slot in self.slots
+            if slot.badge_id and slot.app
+        ]
         assert all(badges)
         return badges  # type: ignore
 
@@ -334,6 +347,8 @@ class ProfileCustomisation:
     )
 
     def __init__(self, state: ConnectionState, user: BaseUser, proto: player.GetProfileCustomizationResponse):
+        from .clan import Clan
+
         self.showcases = [
             ProfileShowcase(
                 state,
@@ -343,26 +358,27 @@ class ProfileCustomisation:
                         state,
                         owner=user,
                         index=slot.slot or None,
-                        app=StatefulApp(state, id=slot.appid),
+                        app=StatefulApp(state, id=slot.appid) if slot.appid else None,
                         published_file_id=slot.publishedfileid or None,
                         name=slot.title or None,
                         content=slot.notes or None,
-                        badge_id=UserBadge.try_value(slot.badgeid) if slot.badgeid else None,
+                        badge_id=slot.badgeid or None,
                         border_colour=slot.border_color or None,
                         asset=Asset(
-                            {
-                                "assetid": slot.item_assetid,  # type: ignore  # this just gets cast to an int anyway
-                                "appid": slot.appid,
-                                "contextid": slot.item_contextid,
-                                "instanceid": slot.item_instanceid,
-                                "classid": slot.item_classid,
-                                "amount": 1,
-                                "missing": False,
-                            },
+                            state,
+                            econ.Asset(
+                                assetid=slot.item_assetid,
+                                appid=slot.appid,
+                                contextid=slot.item_contextid,
+                                instanceid=slot.item_instanceid,
+                                classid=slot.item_classid,
+                                amount=1,
+                            ),
                             user,
                         )
                         if slot.item_assetid
                         else None,
+                        clan=Clan(state, slot.accountid) if slot.accountid else None,
                     )
                     for slot in customisation.slots
                 ],

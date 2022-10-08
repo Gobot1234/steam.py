@@ -16,6 +16,7 @@ from .app import StatefulApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
 from .models import URL, _IOMixin
 from .reaction import AwardReaction
+from .types.id import ID64
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -323,7 +324,7 @@ class PublishedFile(Commentable, Awardable):
         """The file's reactions."""
 
     def __repr__(self) -> str:
-        attrs = ("name", "id", "author", "app", "manifest_id", "change_number")
+        attrs = ("name", "id", "author", "type", "app", "manifest_id", "change_number")
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
@@ -382,16 +383,16 @@ class PublishedFile(Commentable, Awardable):
         cursor = "*"
         more = True
         parents: list[PublishedFile] = []
-        authors: set[int] = set()
+        authors = set[ID64]()
 
         while more:
             proto = await self._state.fetch_published_file_parents(self.id, revision, language, cursor)
             more = len(parents) < proto.total
 
             for file in proto.publishedfiledetails:
-                author: Authors = file.creator  # type: ignore
-                parents.append(PublishedFile(self._state, file, author))
-                authors.add(file.creator)
+                author = ID64(file.creator)
+                parents.append(PublishedFile(self._state, file, author))  # type: ignore
+                authors.add(author)
 
         for author in await self._state._maybe_users(authors):
             for parent in parents:

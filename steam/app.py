@@ -13,8 +13,8 @@ from . import utils
 from ._const import DOCS_BUILDING, UNIX_EPOCH, URL
 from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
 from .id import ID, id64_from_url
-from .types.id import Intable
 from .protobufs import client_server, player
+from .types.id import AppID, ContextID, Intable
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest
     from .package import FetchedAppPackage, License
-    from .protobufs import player
     from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
@@ -43,7 +42,7 @@ __all__ = (
 )
 
 T = TypeVar("T")
-APP_ID_MAX = 2**32 - 1
+APP_ID_MAX: Final = AppID(1 << 32 - 1)
 
 
 class App:
@@ -122,9 +121,9 @@ class App:
         if name == "Steam" and context_id is None:
             context_id = 6
 
-        self.id: int = id
+        self.id: AppID = AppID(id)
         self.name: str | None = name
-        self.context_id: int = 2 if context_id is None else context_id
+        self.context_id: ContextID = ContextID(2 if context_id is None else context_id)
 
     def __str__(self) -> str:
         return self.name or ""
@@ -958,11 +957,12 @@ class FetchedApp(StatefulApp):
         "_on_windows",
         "_on_mac_os",
         "_on_linux",
+        "_language",
     )
 
     name: str
 
-    def __init__(self, state: ConnectionState, data: app.FetchedApp):
+    def __init__(self, state: ConnectionState, data: app.FetchedApp, language: Language):
         super().__init__(state, id=data["steam_appid"], name=data["name"])
         self.logo_url = data["header_image"]
         self.background_url = data["background"]
@@ -997,7 +997,11 @@ class FetchedApp(StatefulApp):
         self._on_mac_os = bool(data["platforms"].get("mac", False))
         self._on_linux = bool(data["platforms"].get("linux", False))
 
-    async def packages(self, *, languages: Language | None = None) -> list[FetchedAppPackage]:
+        self._language = language
+
+    async def packages(self, *, language: Language | None = None) -> list[FetchedAppPackage]:
+        if language is not self._language:
+            return await super().packages(language=language)
         return self._packages
 
     def is_free(self) -> bool:

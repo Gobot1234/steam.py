@@ -188,10 +188,9 @@ class ConnectionState(Registerable):
         self.handled_licenses.clear()
 
     async def __ainit__(self) -> None:
-        if self.http.api_key is not None:
-            self._device_id = generate_device_id(self.user)
+        self._device_id = generate_device_id(self.user)
 
-            await self.poll_trades()
+        await self.poll_trades()
 
     @utils.cached_property
     def ws(self) -> SteamWebSocket:
@@ -1149,12 +1148,13 @@ class ConnectionState(Registerable):
                 try:
                     invite = self.invites.pop(steam_id.id64)
                 except KeyError:
-                    if is_load:
-                        client_user_friends.append(steam_id.id64)
-                    else:
-                        user = await self.fetch_user(steam_id.id64)
-                        assert user is not None
-                        self._add_friend(user)
+                    if steam_id.type == Type.Individual:
+                        if is_load:
+                            client_user_friends.append(steam_id.id64)
+                        else:
+                            user = await self.fetch_user(steam_id.id64)
+                            assert user is not None
+                            self._add_friend(user)
                 else:
                     if isinstance(invite, UserInvite):
                         assert not isinstance(invite.invitee, ID)
@@ -1454,10 +1454,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
         # but also if this doesn't work there's no point including this method
-        return [
-            _Reaction(reactionid=id, count=count)  # type: ignore
-            for id, count in collections.Counter(msg.reactionids).items()
-        ]
+        return [_Reaction(reactionid=id, count=count) for id, count in collections.Counter(msg.reactionids).items()]
 
     @register(EMsg.ClientUserNotifications)
     async def parse_notification(self, msg: client_server_2.CMsgClientUserNotifications) -> None:

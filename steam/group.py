@@ -35,8 +35,7 @@ class Group(ChatGroup[GroupMember, GroupChannel]):
     __slots__ = ()
 
     def __init__(self, state: ConnectionState, id: ChatGroupID):
-        super().__init__(id, type=Type.Chat)
-        self._state = state
+        super().__init__(state, id, type=Type.Chat)
         self._id = id
 
     async def chunk(self) -> Sequence[GroupMember]:

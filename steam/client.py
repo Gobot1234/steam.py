@@ -642,7 +642,7 @@ class Client:
         if resp is None:
             return None
         data = resp[str(id)]
-        return FetchedApp(self._state, data["data"]) if data["success"] else None
+        return FetchedApp(self._state, data["data"], language or self._state.language) if data["success"] else None
 
     def get_package(self, id: int) -> StatefulPackage:
         """Creates a package from its ID.

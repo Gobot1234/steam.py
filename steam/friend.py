@@ -30,7 +30,7 @@ class Friend(WrapsUser):
             *await asyncio.gather(
                 self.equipped_profile_items(language=language),
                 self.profile_info(),
-                self.profile_customisation_info(language=language),
+                self.profile_customisation_info(),
             )
         )
 
