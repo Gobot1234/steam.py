@@ -29,7 +29,6 @@ __all__ = (
     "ChatMemberRank",
     "ChatEntryType",
     "UIMode",
-    "UserBadge",
     "ReviewType",
     "GameServerRegion",
     "EventType",
@@ -516,7 +515,7 @@ class Language(IntEnum):
 
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
-    "Mapping[str, Language]", {value: key for key, value in Language.API_LANGUAGE_MAP.items()}
+    Mapping[str, Language], {value: key for key, value in Language.API_LANGUAGE_MAP.items()}
 )
 
 
@@ -688,60 +687,6 @@ class UIMode(IntEnum):
     Web        = 3  #: The UI mode for the web client.
 
 
-class UserBadge(IntEnum):
-    Invalid                           = 0  #: Invalid Badge.
-    YearsOfService                    = 1  #: The years of service badge.
-    Community                         = 2  #: The pillar of the community badge.
-    Portal2PotatoARG                  = 3  #: The portal to potato badge.
-    TreasureHunt                      = 4  #: The treasure hunter badge.
-    SummerSale2011                    = 5  #: The Summer sale badge for 2011.
-    WinterSale2011                    = 6  #: The Winter sale badge for 2011.
-    SummerSale2012                    = 7  #: The Summer sale badge for 2012.
-    WinterSale2012                    = 8  #: The Winter sale badge for 2012.
-    CommunityTranslator               = 9  #: The community translator badge.
-    CommunityModerator                = 10  #: The community moderator badge.
-    ValveEmployee                     = 11  #: The Valve employee badge.
-    GameDeveloper                     = 12  #: The game developer badge.
-    GameCollector                     = 13  #: The game collector badge.
-    TradingCardBetaParticipant        = 14  #: The trading card beta participant badge.
-    SteamBoxBeta                      = 15  #: The Steam box beta badge.
-    Summer2014RedTeam                 = 16  #: The Summer sale badge for 2014 for the red team.
-    Summer2014BlueTeam                = 17  #: The Summer sale badge for 2014 for the blue team.
-    Summer2014PinkTeam                = 18  #: The Summer sale badge for 2014 for the pink team.
-    Summer2014GreenTeam               = 19  #: The Summer sale badge for 2014 for the green team.
-    Summer2014PurpleTeam              = 20  #: The Summer sale badge for 2014 for the purple team.
-    Auction2014                       = 21  #: The auction badge for 2014.
-    GoldenProfile2014                 = 22  #: The golden profile for 2014.
-    TowerAttackMiniGame               = 23  #: The tower attack mini-game badge.
-    Winter2015ARGRedHerring           = 24  #: The Winter ARG red herring badge for 2015.
-    SteamAwards2016Nominations        = 25  #: The Steam Awards Nominations badge for 2016.
-    StickerCompletionist2017          = 26  #: The sticker completionist badge for 2017.
-    SteamAwards2017Nominations        = 27  #: The Steam Awards Nominations badge for 2017.
-    SpringCleaning2018                = 28  #: The Spring cleaning badge for 2018.
-    Salien                            = 29  #: The Salien badge.
-    RetiredModerator                  = 30  #: The retired moderator badge.
-    SteamAwards2018Nominations        = 31  #: The Steam Awards Nominations badge for 2018.
-    ValveModerator                    = 32  #: The Valve moderator badge.
-    WinterSale2018                    = 33  #: The Winter sale badge for 2018.
-    LunarNewYearSale2019              = 34  #: The lunar new years sale badge for 2019.
-    LunarNewYearSale2019GoldenProfile = 35  #: The lunar new year golden profile sale badge for 2019.
-    SpringCleaning2019                = 36  #: The Spring cleaning badge for 2019.
-    Summer2019                        = 37  #: The Summer sale badge for 2019.
-    Summer2019TeamHare                = 38  #: The Summer sale badge for 2014 for team hare.
-    Summer2019TeamTortoise            = 39  #: The Summer sale badge for 2014 for team tortoise.
-    Summer2019TeamCorgi               = 40  #: The Summer sale badge for 2014 for team corgi.
-    Summer2019TeamCockatiel           = 41  #: The Summer sale badge for 2014 for team cockatiel.
-    Summer2019TeamPig                 = 42  #: The Summer sale badge for 2014 for team pig.
-    SteamAwards2019Nominations        = 43  #: The Steam Awards Nominations badge for 2019.
-    WinterSaleEvent2019               = 44  #: The Winter sale badge for 2019.
-    WinterSale2019Steamville          = 45  #: The Winter sale Steamville badge for 2019.
-    LunarNewYearSale2020              = 46  #: The lunar new years sale badge for 2020.
-    SpringCleaning2020                = 47  #: The Spring cleaning badge for 2020.
-    AwardsCommunityContributor        = 48  #: The Steam Awards Community Contributor badge.
-    AwardsCommunityPatron             = 49  #: The Steam Awards Community Patron badge.
-    SteamAwards2020Nominations        = 50  #: The Steam Awards Nominations badge for 2020.
-
-
 class ReviewType(IntEnum):
     NONE                   = 0  #: No reviews.
     OverwhelminglyNegative = 1  #: 0 - 19% positive reviews and few of them.
@@ -876,7 +821,7 @@ class DepotFileFlag(Flags):
     Symlink             = 1 << 9
 
 
-TYPE_TRANSFORM_MAP: Final = cast("Mapping[str, str]", {
+TYPE_TRANSFORM_MAP: Final = cast(Mapping[str, str], {
     "Dlc": "DLC",
 })
 
@@ -1069,7 +1014,7 @@ class PublishedFileRevision(IntEnum):
     RejectedSnapshotChina = 5
 
 
-class PublishedFileQueryType:
+class PublishedFileQueryType(IntEnum):
     RankedByVote                                  = 0
     RankedByPublicationDate                       = 1
     AcceptedForGameRankedByAcceptanceDate         = 2

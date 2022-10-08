@@ -2,38 +2,26 @@
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from .app import StatefulApp
-from .enums import UserBadge
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from .abc import BaseUser
     from .state import ConnectionState
 
 
 __all__ = (
-    "Badge",
     "FavouriteBadge",
+    "UserBadge",
     "UserBadges",
 )
 
 
 class BaseBadge:
-    """
-    Attributes
-    ----------
-    id
-        The badge's ID.
-    level
-        The badge's level.
-    app
-        The app associated with the badge.
-    """
-
     __slots__ = ()
     id: int
     level: int
@@ -45,93 +33,74 @@ class BaseBadge:
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, self.__class__) and self.id == other.id
+        return self.id == other.id and self.app == other.app if isinstance(other, BaseBadge) else NotImplemented
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class FavouriteBadge(BaseBadge):
-    """Represents a User's favourite badge.
-
-    Attributes
-    ----------
-    id
-        The badge's ID.
-    level
-        The badge's level.
-    app
-        The app associated with the badge.
-    item_id
-        The badge's item's ID.
-    type
-        The badge's type.
-    border_colour
-        The colour of the boarder of the badge.
-    """
-
-    __slots__ = ("id", "level", "app", "item_id", "type", "border_colour")
+    """Represents a User's favourite badge."""
 
     id: int
+    """The badge's ID."""
     level: int
+    """The badge's level."""
     app: StatefulApp | None
-    item_id: int
+    """The app associated with the badge."""
+    community_item_id: int
+    """The badge's community item ID."""
     type: int
+    """The badge's type."""
     border_colour: int
+    """The colour of the boarder of the badge."""
 
 
-class Badge(BaseBadge):
-    """Represents a Steam badge.
+class UserBadge(BaseBadge):
+    """Represents a Steam badge on a user's profile."""
 
-    Attributes
-    ----------
-    id
-        The badge's ID.
-    level
-        The badge's level.
-    app
-        The app associated with the badge.
-    xp
-        The badge's XP.
-    completion_time
-        The time the badge was completed at.
-    scarcity
-        The scarcity of the badge.
-    """
+    __slots__ = ("id", "xp", "app", "user", "level", "scarcity", "completion_time", "community_item_id")
 
-    __slots__ = ("id", "xp", "app", "level", "scarcity", "completion_time")
-
-    def __init__(self, state: ConnectionState, data: dict[str, Any]):
-        self.id = UserBadge.try_value(data["badgeid"])
+    def __init__(self, state: ConnectionState, user: BaseUser, data: dict[str, Any]):
+        self.id: int = data["badgeid"]
+        """The badge's ID."""
         self.level: int = data["level"]
+        """The badge's level."""
         self.xp: int = data["xp"]
+        """The badge's XP."""
         self.completion_time = DateTime.from_timestamp(data["completion_time"])
+        """The time the badge was completed at."""
         self.scarcity: int = data["scarcity"]
+        """The scarcity of the badge."""
         self.app = StatefulApp(state, id=data["appid"]) if "appid" in data else None
+        """The app associated with the badge."""
+        self.community_item_id: int | None = data.get("communityitemid")
+        """The badge's community item ID."""
+        self.user = user
 
 
-if TYPE_CHECKING or sys.version_info >= (3, 9):
-    UserBadgeBase = Sequence[Badge]
-else:
-    UserBadgeBase = Sequence
-
-
-class UserBadges(UserBadgeBase):
+class UserBadges(Sequence[UserBadge]):
     """Represents a Steam :class:`~steam.User`'s badges/level.
 
-    Attributes
-    ----------
-    level
-        The badge's level.
-    xp
-        The badge's XP.
-    xp_needed_to_level_up
-        The amount of XP the user needs to level up.
-    xp_needed_for_current_level
-        The amount of XP the user's current level requires to achieve.
-    badges
-        A list of the user's badges.
+    .. container:: operations
+
+        .. describe:: len(x)
+
+            Returns the number of badges.
+
+        .. describe:: iter(x)
+
+            Returns an iterator over the badges.
+
+        .. describe:: y in x
+
+            Returns whether the badge is in the badges.
+
+        .. describe:: x[y]
+
+            Returns the badge at the given index.
     """
 
     __slots__ = (
+        "user",
         "xp",
         "level",
         "badges",
@@ -139,12 +108,18 @@ class UserBadges(UserBadgeBase):
         "xp_needed_for_current_level",
     )
 
-    def __init__(self, state: ConnectionState, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, user: BaseUser, data: dict[str, Any]):
+        self.user = user
         self.level: int = data["player_level"]
+        """The user's level."""
         self.xp: int = data["player_xp"]
+        """The users's XP."""
         self.xp_needed_to_level_up: int = data["player_xp_needed_to_level_up"]
+        """The amount of XP the user needs to level up."""
         self.xp_needed_for_current_level: int = data["player_xp_needed_current_level"]
-        self.badges: Sequence[Badge] = [Badge(state, data) for data in data["badges"]]
+        """The amount of XP the user's current level requires to achieve."""
+        self.badges: Sequence[UserBadge] = [UserBadge(state, user, data) for data in data["badges"]]
+        """A list of the user's badges."""
 
     def __repr__(self) -> str:
         attrs = ("level", "xp")
