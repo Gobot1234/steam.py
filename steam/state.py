@@ -316,7 +316,7 @@ class ConnectionState(Registerable):
     async def fetch_trade(self, id: int, language: Language | None) -> TradeOffer | None:
         resp = await self.http.get_trade(id, language)
         if data := resp.get("response"):
-            (trade,) = await self._process_trades((data["offer"],), (data.get("descriptions", ()),))
+            (trade,) = await self._process_trades((data["offer"],), data.get("descriptions", ()))
             return trade
 
     async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer:
