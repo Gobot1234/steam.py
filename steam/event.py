@@ -53,6 +53,8 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         "comment_count",
         "server_address",
         "server_password",
+        "_feature",
+        "_feature2",
         "_state",
     )
 
@@ -93,9 +95,11 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
 
     async def __ainit__(self) -> None:
         if self.last_edited_by:
-            self.author, self.last_edited_by = await self._state._maybe_users((self.author, self.last_edited_by))  # type: ignore
+            self.author, self.last_edited_by = await self._state._maybe_users(
+                (self.author.id64, self.last_edited_by.id64)
+            )
         else:
-            self.author = await self._state._maybe_user(self.author)  # type: ignore
+            self.author = await self._state._maybe_user(self.author.id64)
 
     def __repr__(self) -> str:
         attrs = ("id", "name", "type", "author", "clan")
@@ -438,3 +442,9 @@ class Announcement(BaseEvent[EventType]):
     async def downvote(self) -> None:
         """Downvote this announcement."""
         return await self._state.rate_clan_announcement(self.clan.id, self.id, False)
+
+    # async def topic(self) -> Topic:
+    #     """Fetch the forum topic for this announcement."""
+    #     topic = await self.clan.fetch_topic(self.topic_id)
+    #     assert topic
+    #     return topic
