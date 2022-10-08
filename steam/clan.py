@@ -401,57 +401,76 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         after
             A time to search for events after.
 
+            Warning
+            -------
+            If this is ``None`` and :attr:`created_at` is ``None``, this has to fetch events all the way back until 2007
+
         Yields
         ---------
         :class:`~steam.Event`
         """
-        rss = await self._state.http.get_clan_rss(
-            self.id64
-        )  # TODO make this use the calendar? does that work for announcements
-        after = after or UNIX_EPOCH
-        before = before or DateTime.now()
 
-        soup = BeautifulSoup(rss, HTML_PARSER)
+        after = after or self.created_at or datetime(2007, 7, 1, tzinfo=timezone.utc)
+        # uh-oh I really hope you have a created_at cause I have no way of telling if this request is done
+        # date from https://www.ign.com/articles/2007/08/06/steam-community-beta-opens (public release of steamcommunity)
+        before = before or DateTime.now()
+        start_at_month = after.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        stop_at_month = after.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        dates: list[date] = []
+        start_month = start_at_month.month
+        stop_month = 13
+
+        for year in range(start_at_month.year, stop_at_month.year + 1):
+            if year == stop_at_month.year:
+                stop_month = stop_at_month.month + 1
+            dates.extend(date(year, month, 1) for month in range(start_month, stop_month))
+            start_month = 1
 
         ids: list[int] = []
-        for url in soup.find_all("guid"):
-            if match := re.findall(r"events/+(\d+)", url.text):
-                ids.append(int(match[0]))
+        for date_chunk in utils.as_chunks(dates, 12):
+            for xml in await asyncio.gather(
+                *(self._state.http.get_clan_events_for(self.id64, date) for date in date_chunk)
+            ):
+                soup = BeautifulSoup(xml, HTML_PARSER)
+                ids.extend(
+                    int(url.rpartition("/")[2])
+                    for event_title in soup.find_all("div", class_="eventBlockTitle")
+                    for url in event_title.a.get("href")
+                    if url
+                )
 
-        if not ids:
-            return
+        yielded = 0
 
-        events: list[Event[EventType]] = []
-        resp = await self._state.http.get_clan_events(self.id, ids)
-        data = resp["events"]
-        for event_ in data:
-            event = Event(self._state, self, event_)
-            if not after < event.starts_at < before:
-                break
-            events.append(event)
+        for id_chunk in utils.as_chunks(ids, 15):
+            events: list[Event[EventType]] = []
+            for event in ids:
+                resp = await self._state.http.get_clan_events(self.id, id_chunk)
+                data = resp["events"]
+                for event_ in data:
+                    event = Event(self._state, self, event_)
+                    if not after < event.starts_at < before:
+                        break
+                    events.append(event)
 
-        for yielded, (event, (author, last_edited_by)) in enumerate(
-            zip(
-                events,
-                utils.as_chunks(
-                    await self._state._maybe_users(
-                        itertools.chain.from_iterable(
-                            (
-                                e.author.id64,
-                                e.last_edited_by.id64 if e.last_edited_by is not None else ID64(0),
-                            )
-                            for e in events
+            authors = utils.as_chunks(
+                await self._state._maybe_users(
+                    itertools.chain.from_iterable(
+                        (
+                            e.author.id64,
+                            e.last_edited_by.id64 if e.last_edited_by is not None else ID64(0),
                         )
-                    ),
-                    2,
+                        for e in events
+                    )
                 ),
+                2,
             )
-        ):
-            if limit is not None and yielded >= limit:
-                return
-            event.author = author
-            event.last_edited_by = last_edited_by if last_edited_by.id != 0 else None
-            yield event
+            for event in events:
+                if limit is not None and yielded >= limit:
+                    return
+                event.author, event.last_edited_by = next(authors)
+                yield event
+                yielded += 1
 
     async def announcements(
         self,
@@ -459,6 +478,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
+        # hidden: bool = False,
     ) -> AsyncGenerator[Announcement, None]:
         """An :term:`async iterator` over a clan's :class:`steam.Announcement`\\s.
 
@@ -470,13 +490,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         .. code-block:: python3
 
             async for announcement in clan.announcements(limit=10):
-                print(
-                    announcement.author,
-                    "made an announcement",
-                    announcement.name,
-                    "at",
-                    announcement.created_at,
-                )
+                print(announcement.author, "made an announcement", announcement.name, "at", announcement.created_at)
 
         All parameters are optional.
 
@@ -509,12 +523,13 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         if not ids:
             return
 
-        announcements_: list[dict[str, Any]] = []
-        for announcement in await asyncio.gather(*(self._state.http.get_clan_announcement(self.id, id) for id in ids)):
-            announcements_ += announcement["events"]
-
         announcements: list[Announcement] = []
-        for announcement_ in announcements_:
+        for announcement_ in itertools.chain.from_iterable(
+            map(
+                itemgetter("event"),
+                await asyncio.gather(*(self._state.http.get_clan_announcement(self.id, id) for id in ids)),
+            )
+        ):
             announcement = Announcement(self._state, self, announcement_)
             if not after < announcement.starts_at < before:
                 break
@@ -577,7 +592,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             EventType.Other,
             EventType.Chat,
             EventType.Game,
-            # ClanEvent.Broadcast,  # TODO need to wait until implementing stream support for this
+            # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
             EventType.Party,
             EventType.Meeting,
             EventType.SpecialCause,
@@ -589,7 +604,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         starts_at: datetime | None = None,
         server_address: IPAdress | str | None = None,
         server_password: str | None = None,
-    ) -> Event[EventType]:
+    ) -> Event[CreateableEvents]:
         """Create an event.
 
         Parameters
@@ -599,17 +614,17 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         content
             The content for the event.
         type
-            The type of the event, defaults to :attr:`ClanEvent.Other`.
+            The type of the event, defaults to :attr:`EventType.Other`.
         app
-            The app that will be played in the event. Required if type is :attr:`ClanEvent.Game`.
+            The app that will be played in the event. Required if type is :attr:`EventType.Game`.
         starts_at
             The time the event will start at.
         server_address
             The address of the server that the event will be played on. This is only allowed if ``type`` is
-            :attr:`ClanEvent.App`.
+            :attr:`EventType.App`.
         server_password
             The password for the server that the event will be played on. This is only allowed if ``type`` is
-            :attr:`ClanEvent.App`.
+            :attr:`EventType.App`.
 
         Note
         ----
@@ -635,7 +650,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         for element in soup.find_all("div", class_="eventBlockTitle"):
             a = element.a
             if a is not None and a.text == name:  # this is bad?
-                _, __, id = a["href"].rpartition("/")
+                _, _, id = a["href"].rpartition("/")
                 event = await self.fetch_event(int(id))
                 self._state.dispatch("event_create", event)
                 return event
@@ -668,7 +683,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         for element in soup.find_all("div", class_="announcement"):
             a = element.a
             if a is not None and a.text == name:  # this is bad?
-                _, __, id = a["href"].rpartition("/")
+                _, _, id = a["href"].rpartition("/")
                 announcement = await self.fetch_announcement(int(id))
                 self._state.dispatch("announcement_create", announcement)
                 return announcement
