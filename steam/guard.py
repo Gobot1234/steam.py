@@ -41,10 +41,10 @@ def generate_one_time_code(shared_secret: str, timestamp: int | None = None) -> 
     time_hmac = hmac.new(base64.b64decode(shared_secret), time_buffer, digestmod=sha1).digest()
     begin = time_hmac[19] & 0xF
 
-    full_code = struct.unpack(">I", time_hmac[begin : begin + 4])[0] & 0x7FFFFFFF  # unpack as Big endian uint32
+    full_code: int = struct.unpack(">I", time_hmac[begin : begin + 4])[0] & 0x7FFFFFFF  # unpack as Big endian uint32
 
     chars = "23456789BCDFGHJKMNPQRTVWXY"
-    code = []
+    code: list[str] = []
     for _ in range(5):
         full_code, i = divmod(full_code, len(chars))
         code.append(chars[i])

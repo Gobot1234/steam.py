@@ -2,7 +2,7 @@ import contextlib
 import traceback
 from copy import copy
 from io import StringIO
-from typing import Any, Generator, Optional, TypeVar, Union
+from typing import Any, AsyncGenerator, Generator, Optional, TypeVar, Union
 
 import pytest
 from typing_extensions import TypeAlias
@@ -11,7 +11,6 @@ import steam
 from steam.ext import commands
 from tests.unit.mocks import GROUP_MESSAGE
 
-CE = TypeVar("CE", bound=commands.CommandError)
 T = TypeVar("T")
 IsInstanceable: TypeAlias = "Union[type[T], tuple[type[T], ...]]"
 SomeCoolType = int
@@ -121,11 +120,13 @@ class TheTestBot(commands.Bot):
 
     @contextlib.asynccontextmanager
     async def raises_command_error(
-        self, expected_errors: "IsInstanceable[type[CE]]", content: str
-    ) -> "contextlib.AbstractAsyncContextManager[None]":
+        self, expected_errors: "IsInstanceable[type[commands.CommandError]]", content: str
+    ) -> AsyncGenerator[None, None]:
         expected_errors = expected_errors if isinstance(expected_errors, tuple) else (expected_errors,)
 
-        async def on_command_error(ctx: commands.Context, error: CE) -> None:
+        async def on_command_error(
+            ctx: commands.Context, error: type[commands.CommandError] | commands.CommandError
+        ) -> None:
             error = error.__class__ if isinstance(error, Exception) else error
             if ctx.message.content == content:
                 if error not in expected_errors:
@@ -143,8 +144,8 @@ class TheTestBot(commands.Bot):
         yield
 
     @contextlib.asynccontextmanager
-    async def returns_command_completion(self, content: str) -> "contextlib.AbstractAsyncContextManager[None]":
-        async def on_command_error(ctx: commands.Context, error: CE) -> None:
+    async def returns_command_completion(self, content: str) -> AsyncGenerator[None, None]:
+        async def on_command_error(ctx: commands.Context, error: commands.CommandError) -> None:
             if ctx.message.content == content:
                 raise error
 
@@ -222,7 +223,7 @@ async def test_positional_or_keyword_commands(
         ("string", commands.BadArgument),
     ],
 )
-async def test_variadic_commands(input: str, expected_exception: commands.CommandError) -> None:
+async def test_variadic_commands(input: str, expected_exception: commands.CommandError | None) -> None:
     bot = TheTestBot()
 
     @bot.command
@@ -386,6 +387,6 @@ async def test_converters() -> None:
 
 def teardown_module(_) -> None:
     for error in FAILS:
-        traceback.print_exception(error.__class__, error, error.__traceback__)
+        traceback.print_exception(error)
     if FAILS:
         pytest.fail("failed to finish tests")

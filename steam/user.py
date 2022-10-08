@@ -11,17 +11,17 @@ from ipaddress import IPv4Address
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any
 
-from steam.id import ID
-
 from . import utils
 from ._const import URL
 from .abc import BaseUser, Messageable
 from .app import StatefulApp
 from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
+from .id import ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import player
 from .trade import TradeOffer
+from .types.id import ID64, AppID, Intable
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
     from .state import ConnectionState
     from .trade import Inventory
-    from .types.id import ID64, AppID, Intable
 
 __all__ = (
     "User",
@@ -289,7 +288,7 @@ class ClientUser(_BaseUser):
 
     # TODO more stuff to add https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/profile.js
 
-    __slots__ = ("_friends",)
+    __slots__ = ("_friends", "_inventory_locks")
 
     def __init__(self, state: ConnectionState, proto: UserProto):
         super().__init__(state, proto)

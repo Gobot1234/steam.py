@@ -26,13 +26,12 @@ from .errors import HTTPException
 from .event import Announcement, Event
 from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
 from .protobufs import chat
-from .types.id import ID64
+from .types.id import ID32, ID64
 from .utils import DateTime
 
 if TYPE_CHECKING:
     from .state import ConnectionState
     from .types.http import IPAdress
-    from .types.id import ID32
     from .user import User
 
 __all__ = ("Clan", "ClanMember")

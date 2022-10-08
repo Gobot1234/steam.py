@@ -58,12 +58,10 @@ return_true = _ReturnTrue()
 
 
 class Registerable:
-    __slots__ = ("loop", "parsers_name")
-    loop: asyncio.AbstractEventLoop
+    __slots__ = ("parsers_name",)
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         self = super().__new__(cls)
-        self.loop = asyncio.get_event_loop()
         cls.parsers_name = tuple(cls.__annotations__)[0]
         bases = tuple(reversed(cls.__mro__[:-2]))  # skip Registerable and object
         for idx, base in enumerate(bases):
@@ -83,6 +81,14 @@ class Registerable:
 
         return self
 
+    @utils.cached_property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        return asyncio.get_running_loop()
+
+    @utils.cached_property
+    def _logger(self) -> logging.Logger:
+        return logging.getLogger(self.__class__.__module__)
+
     @staticmethod
     def _run_parser_callback(task: asyncio.Task[object]) -> None:
         try:
@@ -92,15 +98,16 @@ class Registerable:
         if exception:
             traceback.print_exception(exception)
 
-    def run_parser(self, emsg: IntEnum, msg: Msgs) -> None:
+    def run_parser(self, msg: Msgs) -> None:
         try:
-            event_parser = getattr(self, self.parsers_name)[emsg]
-        except KeyError:
-            log = logging.getLogger(self.__class__.__module__)
+            event_parser: Callable[[Msgs], CoroutineType[Any, Any, object] | object] = getattr(self, self.parsers_name)[
+                msg.__class__.MSG
+            ]
+        except (KeyError, TypeError):
             try:
-                log.debug("Ignoring event %r", msg)
+                self._logger.debug("Ignoring event %r", msg, exc_info=True)
             except Exception:
-                log.debug("Ignoring event %s", msg.msg)
+                self._logger.debug("Ignoring event with %r", msg.__class__)
         else:
 
             try:

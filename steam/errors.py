@@ -94,6 +94,9 @@ class HTTPException(SteamException):
         else:
             self.message = ""
 
+        if response.headers.get("X-Error_Message"):
+            self.message = response.headers["X-Error_Message"]
+
         self.message = self.message.replace("  ", " ").strip()
         super().__init__(
             f"{response.status} {response.reason} (error code: {self.code})"

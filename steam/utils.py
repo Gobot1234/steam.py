@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import base64
 import collections
 import functools
 import html
@@ -79,9 +80,11 @@ def symmetric_decrypt(text: bytes, key: bytes) -> bytes:
 STEAM_PUBLIC_KEY: Final = rsa.RSAPublicNumbers(
     17,
     int(
-        "1572435756163492767473017547683098671778311221560259237468446760604065883521072242173339019599191749864"
-        "5577395742561473053175122897795413393419038630648254894306773660858554891146738442477393264257606729213"
-        "7056263003121836768211312089498275802694267916711103128551999842076575732754013467986241640244933837449"
+        (
+            "1572435756163492767473017547683098671778311221560259237468446760604065883521072242173339019599191749864"
+            "5577395742561473053175122897795413393419038630648254894306773660858554891146738442477393264257606729213"
+            "7056263003121836768211312089498275802694267916711103128551999842076575732754013467986241640244933837449"
+        )
     ),
 )
 
@@ -303,7 +306,7 @@ class DateTime:
     def strptime(input: str, format: str) -> datetime:
         return datetime.strptime(input, format).replace(tzinfo=timezone.utc)
 
-    @staticmethod
+    @staticmethod  # TODO actually make this reliable for languages other than english
     def parse_steam_date(input: str, *, full_month: bool = True) -> datetime | None:
         if ", " not in input:
             input += f"{input}, {DateTime.now().year}"  # assume current year
@@ -331,7 +334,7 @@ class AsyncInit(metaclass=abc.ABCMeta):
         return self.__await_inner__().__await__()
 
 
-PACK_FORMATS: Final = cast("Mapping[str, str]", {
+PACK_FORMATS: Final = cast(Mapping[str, str], {
     "i8": "b",
     "u8": "B",
     "i16": "h",
@@ -352,8 +355,10 @@ class StructIOMeta(type):
         for method_name, format in PACK_FORMATS.items():
             exec(f"def write_{method_name}(self, item): self.write_struct('<{format}', item)", {}, namespace)
             exec(
-                f"def read_{method_name}(self):"
-                f"return self.read_struct('<{format}', {struct.calcsize(f'<{format}')})[0]",
+                (
+                    f"def read_{method_name}(self):"
+                    f"return self.read_struct('<{format}', {struct.calcsize(f'<{format}')})[0]"
+                ),
                 {},
                 namespace,
             )
@@ -361,7 +366,9 @@ class StructIOMeta(type):
         return super().__new__(mcs, name, bases, namespace)
 
 
-class StructIO(BytesIO, metaclass=type if TYPE_CHECKING else StructIOMeta):
+class StructIO(
+    BytesIO, metaclass=type if TYPE_CHECKING else StructIOMeta
+):  # type[BytesIO] is a subclass of ABCMeta at type time
     __slots__ = ()
 
     def __repr__(self) -> str:
@@ -430,7 +437,7 @@ _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
 
 
-class ChainMap(collections.ChainMap[_KT, _VT] if TYPE_CHECKING else collections.ChainMap):
+class ChainMap(collections.ChainMap[_KT, _VT]):
     # this is different to the standard library's ChainMap because it is always O(n),
     # keys should be unique between maps
     def __delitem__(self, key: _KT) -> None:
@@ -494,7 +501,9 @@ def decode_jwt(token: str) -> JWTToken:
 _Iter: TypeAlias = Iterable[_T] | AsyncIterable[_T]
 
 
-def _chunk(iterator: Iterable[_T], max_size: int) -> Generator[list[_T], None, None]:
+def _chunk(
+    iterator: Iterable[_T], max_size: int, len: Callable[[Sized], int] = len, /
+) -> Generator[list[_T], None, None]:
     ret: list[_T] = []
     for item in iterator:
         ret.append(item)
@@ -548,7 +557,7 @@ def as_chunks(iterator: _Iter[_T], /, max_size: int) -> _Iter[list[_T]]:
     A new iterator which yields chunks of a given size.
     """
     if max_size <= 0:
-        raise ValueError("Chunk sizes must be greater than 0.")
+        raise ValueError("max_size must be greater than 0")
 
     return _achunk(iterator, max_size) if hasattr(iterator, "__aiter__") else _chunk(iterator, max_size)  # type: ignore
 
@@ -597,38 +606,38 @@ def find(predicate: Callable[[_T], bool], iterable: _Iter[_T], /) -> _T | Coro[_
 
 def _get(
     iterable: Iterable[_T],
-    _all: Callable[[Iterable[bool]], bool] = all,
-    attrget: type[attrgetter[_T]] = attrgetter,
+    all: Callable[[Iterable[bool]], bool] = all,
+    attrgetter: type[attrgetter[_T]] = attrgetter,
     /,
     **attrs: Any,
 ) -> _T | None:
     # Special case the single element call
     if len(attrs) == 1:
         k, v = attrs.popitem()
-        pred = attrget(k.replace("__", "."))
+        pred = attrgetter(k.replace("__", "."))
         return next((elem for elem in iterable if pred(elem) == v), None)
 
-    converted = [(attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()]
+    converted = [(attrgetter(attr.replace("__", ".")), value) for attr, value in attrs.items()]
 
-    return next((elem for elem in iterable if _all(pred(elem) == value for pred, value in converted)), None)
+    return next((elem for elem in iterable if all(pred(elem) == value for pred, value in converted)), None)
 
 
 def _aget(
     iterable: AsyncIterable[_T],
-    _all: Callable[[Iterable[bool]], bool] = all,
-    attrget: type[attrgetter[_T]] = attrgetter,
+    all: Callable[[Iterable[bool]], bool] = all,
+    attrgetter: type[attrgetter[_T]] = attrgetter,
     /,
     **attrs: Any,
 ) -> Coro[_T | None]:
     # Special case the single element call
     if len(attrs) == 1:
         k, v = attrs.popitem()
-        pred = attrget(k.replace("__", "."))
+        pred = attrgetter(k.replace("__", "."))
         return anext((elem async for elem in iterable if pred(elem) == v), None)
 
-    converted = [(attrget(attr.replace("__", ".")), value) for attr, value in attrs.items()]
+    converted = [(attrgetter(attr.replace("__", ".")), value) for attr, value in attrs.items()]
 
-    return anext((elem async for elem in iterable if _all(pred(elem) == value for pred, value in converted)), None)
+    return anext((elem async for elem in iterable if all(pred(elem) == value for pred, value in converted)), None)
 
 
 @overload
