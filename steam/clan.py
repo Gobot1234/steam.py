@@ -5,13 +5,15 @@ from __future__ import annotations
 import asyncio
 import itertools
 import re
-import warnings
 from collections.abc import AsyncGenerator, Sequence
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
+from datetime import date, datetime, timezone
+from ipaddress import IPv4Address
+from operator import itemgetter
+from typing import TYPE_CHECKING, Literal, TypeVar, overload
 
 from bs4 import BeautifulSoup
 from typing_extensions import Self
+from yarl import URL
 
 from . import utils
 from ._const import HTML_PARSER, UNIX_EPOCH
@@ -29,10 +31,23 @@ from .utils import DateTime
 
 if TYPE_CHECKING:
     from .state import ConnectionState
+    from .types.http import IPAdress
     from .types.id import ID32
     from .user import User
 
 __all__ = ("Clan", "ClanMember")
+
+BoringEvents = Literal[
+    EventType.Other,
+    EventType.Chat,
+    EventType.Party,
+    EventType.Meeting,
+    EventType.SpecialCause,
+    EventType.MusicAndArts,
+    EventType.Sports,
+    EventType.Trip,
+]
+CreateableEvents = Literal[BoringEvents, EventType.Game]
 
 BoringEventT = TypeVar(
     "BoringEventT",
@@ -74,8 +89,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     ------------
     name
         The name of the clan.
-    avatar_url
-        The icon url of the clan. Uses the large (184x184 px) image url.
     content
         The content of the clan.
     tagline
@@ -105,7 +118,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     """
 
     __slots__ = (
-        "content",
+        "summary",
         "created_at",
         "language",
         "location",
@@ -125,11 +138,10 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
 
     # V1
     # Clan.headline
-    # Clan.summary
     # Clan.flags https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L526
     # or more likely https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L3177
 
-    content: str
+    summary: str
     created_at: datetime | None
     member_count: int
     online_count: int
@@ -141,7 +153,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     is_app_clan: bool
 
     def __init__(self, state: ConnectionState, id: int):
-        super().__init__(id, type=Type.Clan)
+        super().__init__(state, id, type=Type.Clan)
         self._state = state
 
     async def __ainit__(self) -> None:
@@ -151,21 +163,23 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             search = CLAN_ID64_FROM_URL_REGEX.search(text)
             if search is None:
                 raise ValueError("unreachable code reached")
-            super().__init__(search["steamid"], type=Type.Clan)
+            super().__init__(self._state, search["steamid"], type=Type.Clan)
 
         soup = BeautifulSoup(text, HTML_PARSER)
-        _, __, name = soup.title.text.rpartition(" :: ")
-        self.name = name
+        if not hasattr(self, "name"):
+            _, _, self.name = soup.title.text.rpartition(" :: ")
         content = soup.find("meta", property="og:description")
-        self.content = content["content"] if content is not None else None
-        icon_url = soup.find("link", rel="image_src")
-        self.avatar_url = icon_url["href"] if icon_url else None
+        self.summary = content["content"] if content is not None else None
+        if not hasattr(self, "_avatar_sha"):
+            icon_url = soup.find("link", rel="image_src")
+            url = URL(icon_url["href"]) if icon_url else None
+            if url:
+                self._avatar_sha = bytes.fromhex(url.path.removesuffix("/").removesuffix("_full.jpg"))
         self.is_app_clan = "games" in resp.url.parts
-        self.community_url = str(resp.url)
+
         if self.is_app_clan:
             for entry in soup.find_all("div", class_="actionItem"):
-                a = entry.a
-                if a is not None:
+                if (a := entry.a) is not None:
                     href = a.get("href", "")
                     if match := re.findall(r"store.steampowered.com/app/(\d+)", href):
                         self.app = StatefulApp(self._state, id=match[0])
@@ -230,7 +244,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         *,
         maybe_chunk: bool = True,
     ) -> Self:
-        self = await super()._from_proto(state, proto, id=proto.clanid, maybe_chunk=maybe_chunk)
+        self = await super()._from_proto(state, proto, id=ID32(proto.clanid), maybe_chunk=maybe_chunk)
         return await self
 
     # TODO properties for admins and mods when chunked?
@@ -247,6 +261,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 self._partial_members.values(),
             ):
                 self._members[user.id] = ClanMember(self._state, self, user, member)
+
             return await super().chunk()
 
         # these actually need fetching
@@ -305,10 +320,11 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 return await getter(i)
             else:
                 soup = BeautifulSoup(resp, HTML_PARSER)
-                for s in soup.find_all("div", id="memberList"):
-                    for user in s.find_all("div", class_="member_block"):
-                        ret.append(ID(user["data-miniprofile"]))
-
+                ret.extend(
+                    ID(user["data-miniprofile"])
+                    for s in soup.find_all("div", id="memberList")
+                    for user in s.find_all("div", class_="member_block")
+                )
                 return soup
 
         ret: list[ID] = []
@@ -316,28 +332,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
         await asyncio.gather(*(getter(i) for i in range(1, number_of_pages)))
         return ret
-
-    @property
-    def description(self) -> str:
-        """An alias to :attr:`content`.
-
-        .. deprecated:: 0.8.0
-
-            Use :attr:`content` instead.
-        """
-        warnings.warn("Clan.description is deprecated, use Clan.content instead", DeprecationWarning, stacklevel=2)
-        return self.content
-
-    @property
-    def icon_url(self) -> str:
-        """An alias to :attr:`avatar_url`.
-
-        .. deprecated:: 0.8.0
-
-            Use :attr:`avatar_url` instead.
-        """
-        warnings.warn("Clan.icon_url is deprecated, use Clan.avatar_url instead", DeprecationWarning, stacklevel=2)
-        return self.avatar_url
 
     async def join(self, *, invite_code: str | None = None) -> None:
         """Joins the clan."""
@@ -374,8 +368,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             The ID of the announcement.
         """
         data = await self._state.http.get_clan_announcement(self.id, id)
-        announcement = data["events"][0]
-        return await Announcement(self._state, self, announcement)
+        return await Announcement(self._state, self, data["event"])
 
     async def events(
         self,
@@ -559,7 +552,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         type: Literal[EventType.Game] = ...,
         starts_at: datetime | None = ...,
         app: App,
-        server_address: str | None = ...,
+        server_address: IPAdress | str | None = ...,
         server_password: str | None = ...,
     ) -> Event[Literal[EventType.Game]]:
         ...
@@ -594,7 +587,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         ] = EventType.Other,
         app: App | None = None,
         starts_at: datetime | None = None,
-        server_address: str | None = None,
+        server_address: IPAdress | str | None = None,
         server_password: str | None = None,
     ) -> Event[EventType]:
         """Create an event.
@@ -626,6 +619,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         -------
         The created event.
         """
+        server_address = IPv4Address(server_address) if server_address is not None else ""
 
         resp = await self._state.http.create_clan_event(
             self.id64,
@@ -633,7 +627,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             content,
             f"{type.name}Event",
             str(app.id) if app is not None else "",
-            server_address or "",
+            str(server_address),
             server_password or "",
             starts_at,
         )

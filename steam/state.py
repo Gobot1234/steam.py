@@ -74,7 +74,7 @@ from .reaction import (
 )
 from .role import RolePermissions
 from .trade import TradeOffer
-from .types.id import ID32, CacheKey
+from .types.id import ID32, ID64, CacheKey, ChatGroupID, ChatID, Intable
 from .user import ClientUser, User
 from .utils import DateTime, cached_property
 
@@ -82,9 +82,8 @@ if TYPE_CHECKING:
     from .abc import Message
     from .client import Client
     from .gateway import CMServer, SteamWebSocket
-    from .types import app, trade, user
+    from .types import trade
     from .types.http import Coro
-    from .types.id import ID64, ChannelID, ChatGroupID
 
 log = logging.getLogger(__name__)
 
@@ -237,27 +236,17 @@ class ConnectionState(Registerable):
     def get_user(self, id: ID32) -> User | None:
         return self._users.get(id)
 
-    async def fetch_user(self, user_id64: int) -> User | None:
-        data = await self.http.get_user(user_id64)
-        return self._store_user(data) if data else None
-        # return (await self.fetch_users([user_id64]))[0]
+    async def fetch_user(self, user_id64: ID64) -> User | None:
+        (user,) = await self.fetch_users((user_id64,))
+        return user
 
-    async def fetch_users(self, user_id64s: Iterable[int]) -> list[User | None]:
-        resp = await self.http.get_users(user_id64s)
-        """
-        msg: MsgProto[CMsgClientRequestFriendData] = MsgProto(
-            EMsg.ClientRequestFriendData,
-            persona_state_requested=863,  # 1 | 2 | 4 | 8 | 16 | 64 | 256 | 512  corresponds to EClientPersonaStateFlag
-            friends=user_id64s,
-        )
-        await self.ws.send_as_proto(msg)
-        """
+    async def fetch_users(self, user_id64s: Iterable[int]) -> list[User]:
+        friends = await self.ws.fetch_users(user_id64s)
+        return [self._store_user(user) for user in friends]
 
-        return [self._store_user(data) for data in resp]
-
-    async def _maybe_user(self, id64: ID64) -> User | ID:
-        steam_id = ID(id64)
-        return self.get_user(steam_id.id) or await self.fetch_user(id64) or steam_id
+    async def _maybe_user(self, id: Intable) -> User | ID:
+        steam_id = ID(id)
+        return self.get_user(steam_id.id) or await self.fetch_user(steam_id.id64) or steam_id
 
     async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User | ID]:
         ret: list[User | ID] = []
@@ -283,14 +272,14 @@ class ConnectionState(Registerable):
 
         return ret
 
-    def _store_user(self, data: user.User) -> User:
+    def _store_user(self, proto: friends.CMsgClientPersonaStateFriend) -> User:
         try:
-            user = self._users[int(data["steamid"]) & 0xFFFFFFFF]
+            user = self._users[proto.friendid & 0xFFFFFFFF]  # type: ignore
         except KeyError:
-            user = User(state=self, data=data)
+            user = User(state=self, proto=proto)
             self._users[user.id] = user
         else:
-            user._update(data)
+            user._update(proto)
         return user
 
     def get_friend(self, id64: ID64) -> Friend:
@@ -359,20 +348,20 @@ class ConnectionState(Registerable):
     async def _process_trades(
         self, trades: Iterable[trade.TradeOffer], descriptions: Collection[trade.Description]
     ) -> list[TradeOffer]:
-        ret = []
+        ret: list[TradeOffer] = []
         for trade in trades:
-            for item in descriptions:
+            for description in descriptions:
                 for asset in trade.get("items_to_receive", ()):
-                    if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                        asset.update(item)
+                    if description["classid"] == asset["classid"] and description["instanceid"] == asset["instanceid"]:
+                        asset.update(description)
                 for asset in trade.get("items_to_give", ()):
-                    if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                        asset.update(item)
+                    if description["classid"] == asset["classid"] and description["instanceid"] == asset["instanceid"]:
+                        asset.update(description)
             ret.append(await self._store_trade(trade))
         return ret
 
     async def poll_trades(self) -> None:
-        if self.polling_trades or not self.http.api_key:
+        if self.polling_trades or not await self.http.get_api_key():
             return
 
         self.polling_trades = True
@@ -779,7 +768,7 @@ class ConnectionState(Registerable):
 
         return msg.servers
 
-    async def fetch_server_ip_from_steam_id(self, *ids: int) -> list[game_servers.IPsWithSteamIDsResponseServer]:
+    async def fetch_server_ip_from_steam_id(self, *ids: ID64) -> list[game_servers.IPsWithSteamIDsResponseServer]:
         msg: game_servers.IPsWithSteamIDsResponse = await self.ws.send_um_and_wait(
             game_servers.GetServerIPsBySteamIdRequest(
                 server_steamids=list(ids),
@@ -1137,31 +1126,11 @@ class ConnectionState(Registerable):
 
             before = copy(after)
 
-            try:
-                data = self.patch_user_from_ws(data, friend)
-            except (KeyError, TypeError):
-                invitee = await self._maybe_user(steam_id.id64)
-                invite = UserInvite(self, invitee, FriendRelationship.RequestRecipient)
-                return self.dispatch("user_invite", invite)
-
-            after._update(data)
+            after._update(friend)
             old = [getattr(before, attr, None) for attr in BaseUser.__slots__]
             new = [getattr(after, attr, None) for attr in BaseUser.__slots__]
-            if old != new:
+            if old != new and self.handled_friends.is_set():
                 self.dispatch("user_update", before, after)
-
-    def patch_user_from_ws(self, data: dict[str, Any], friend: friends.CMsgClientPersonaStateFriend) -> user.User:
-        data["personaname"] = friend.player_name
-        data["steamid"] = friend.friendid
-        data["avatarfull"] = utils._get_avatar_url(friend.avatar_hash)
-
-        if friend.last_logoff:
-            data["lastlogoff"] = friend.last_logoff
-        data["gameextrainfo"] = friend.game_name or None
-        data["personastate"] = friend.persona_state
-        data["personastateflags"] = friend.persona_state_flags
-        data["rich_presence"] = {m.key: m.value for m in friend.rich_presence}
-        return data  # type: ignore  # casting is for losers
 
     def _add_friend(self, user: User) -> Friend:
         self.user._friends[user.id64] = friend = Friend(self, user)
@@ -1610,7 +1579,7 @@ class ConnectionState(Registerable):
             clan.active_member_count = user_counts.chatting
         if name_info:
             clan.name = name_info.clan_name
-            clan.avatar_url = utils._get_avatar_url(name_info.sha_avatar)
+            clan._avatar_sha = name_info.sha_avatar
 
         if user_counts or name_info:
             self.dispatch("clan_update", before, clan)

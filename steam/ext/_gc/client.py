@@ -72,9 +72,8 @@ class Client(Client_):
             await super().connect()
 
     async def _handle_ready(self) -> None:
-        data = await self.http.get_user(self.user.id64)
-        assert data is not None
-        self.http.user = self.__class__._ClientUserCls(self._state, data)
+        (us,) = await self.ws.fetch_users((self.user.id64,))
+        self.http.user = self.__class__._ClientUserCls(self._state, us)
         await super()._handle_ready()
 
     async def wait_for_gc_ready(self) -> None:

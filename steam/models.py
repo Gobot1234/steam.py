@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 __all__ = (
     "PriceOverview",
     "Ban",
+    "Avatar",
 )
 
 F = TypeVar("F", bound="Callable[..., Any]")
@@ -266,3 +267,27 @@ class _IOMixin(metaclass=abc.ABCMeta):
         """Return this file as an image for uploading."""
         async with self.open(**kwargs) as file:
             return Image(file, spoiler=spoiler)
+
+
+class Avatar(_IOMixin):
+    __slots__ = (
+        "sha",
+        "_state",
+    )
+
+    def __init__(self, state: ConnectionState, sha: bytes):
+        sha = bytes(sha)
+        self.sha = (
+            sha
+            if sha != "\x00" * 20
+            else b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\x8f\xf8\xdc\x1c\xdf\xeb"
+        )
+        self._state = state
+
+    @property
+    def url(self):
+        """The URL of the avatar. Uses the large (184x184 px) image url."""
+        return f"https://avatars.cloudflare.steamstatic.com/{self.sha.hex()}_full.jpg"
+
+    def __eq__(self, other: object) -> bool:
+        return self.sha == other.sha if isinstance(other, self.__class__) else NotImplemented

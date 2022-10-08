@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, Final, Protocol, cast
+from typing import TYPE_CHECKING, Final, Protocol, cast, overload
 
 from yarl import URL
 
@@ -43,15 +43,15 @@ class ReactionProtocol(Protocol):
     count: int
 
 
-@dataclass
+@dataclass(slots=True)
 class _Reaction:
-    __slots__ = tuple(ReactionProtocol.__annotations__)
-    __annotations__ = ReactionProtocol.__annotations__
+    reactionid: int
+    count: int
 
 
 BASE_REACTION_URL: Final = "https://store.cloudflare.steamstatic.com/public/images/loyalty/reactions/{type}/{id}.png"
 BASE_ECONOMY_URL: Final = URL("https://community.akamai.steamstatic.com/economy")
-AWARD_ID_TO_NAME: Final = cast("Mapping[int, str]", {
+AWARD_ID_TO_NAME: Final = cast(Mapping[int, str], {
     1: "Deep Thoughts",
     2: "Heartwarming",
     3: "Hilarious",
@@ -145,8 +145,23 @@ class PartialMessageReaction:
     sticker: Sticker | None
     """The sticker that was reacted with."""
 
+    if TYPE_CHECKING:
 
-@dataclass(slots=True)
+        @overload
+        def __init__(self, _state: ConnectionState, message: Message, emoticon: Emoticon, sticker: None) -> None:  # type: ignore
+            ...
+
+        @overload
+        def __init__(self, _state: ConnectionState, message: Message, emoticon: None, sticker: Sticker) -> None:
+            ...
+
+    def __repr__(self) -> str:
+        return (
+            f"<{self.__class__.__name__} message={self.message!r} emoticon={self.emoticon!r} sticker={self.sticker!r}>"
+        )
+
+
+@dataclass(slots=True, eq=False, repr=False)
 class MessageReaction(PartialMessageReaction):
     """Represents a reaction to a message."""
 
@@ -156,6 +171,34 @@ class MessageReaction(PartialMessageReaction):
     """The time the reaction was added to the message."""
     ordinal: int | None = None
     """The ordinal of the the message."""
+
+    if TYPE_CHECKING:
+
+        @overload
+        def __init__(  # type: ignore
+            self,
+            _state: ConnectionState,
+            message: Message,
+            emoticon: Emoticon,
+            sticker: None,
+            user: Authors,
+            created_at: datetime | None = None,
+            ordinal: int | None = None,
+        ) -> None:
+            ...
+
+        @overload
+        def __init__(
+            self,
+            _state: ConnectionState,
+            message: Message,
+            emoticon: None,
+            sticker: Sticker,
+            user: Authors,
+            created_at: datetime | None = None,
+            ordinal: int | None = None,
+        ) -> None:
+            ...
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
@@ -168,6 +211,12 @@ class MessageReaction(PartialMessageReaction):
             and self.user == other.user
         )
 
+    def __hash__(self) -> int:
+        return hash((self.message, self.emoticon, self.sticker, self.user))
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} message={self.message!r} emoticon={self.emoticon!r} sticker={self.sticker!r} user={self.user!r}>"
+
 
 class BaseEmoticon(_IOMixin):
     __slots__ = ("_state", "name")
@@ -175,10 +224,23 @@ class BaseEmoticon(_IOMixin):
 
     def __init__(self, state: ConnectionState, name: str):
         self._state = state
-        self.name = name.strip(":")  # :emoji_name:
+        self.name = name.removeprefix(":").removesuffix(":")  # :emoji_name:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r}>"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BaseEmoticon):
+            return NotImplemented
+        if (isinstance(self, Emoticon) and isinstance(other, Emoticon)) or (
+            isinstance(self, Sticker) and isinstance(other, Sticker)
+        ):
+            return self.name == other.name
+
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.name)
 
 
 class Emoticon(BaseEmoticon):
@@ -186,9 +248,18 @@ class Emoticon(BaseEmoticon):
 
     .. container:: operations
 
+        .. describe:: x == y
+
+            Checks if two emoticons are equal.
+
         .. describe:: str(x)
 
             The string to send this emoticon in chat.
+
+        .. describe:: hash(x)
+
+            Returns the emoticon's hash.
+
 
     Attributes
     ----------
@@ -223,9 +294,17 @@ class Sticker(BaseEmoticon):
 
     .. container:: operations
 
+        .. describe:: x == y
+
+            Checks if two stickers are equal.
+
         .. describe:: str(x)
 
             The way to send this sticker in chat.
+
+        .. describe:: hash(x)
+
+            Returns the stickers's hash.
 
     Note
     ----

@@ -8,22 +8,24 @@ from __future__ import annotations
 
 import abc
 import asyncio
-from collections.abc import AsyncGenerator, Coroutine, Iterable, Sequence
+from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeAlias, TypeVar, cast
 
 from typing_extensions import Self
 
 from . import utils
-from ._const import UNIX_EPOCH
+from ._const import MISSING, UNIX_EPOCH
 from .abc import Channel, Message
 from .app import StatefulApp
 from .enums import ChatMemberRank, Type
 from .errors import WSException
 from .id import ID
+from .models import Avatar
 from .protobufs import chat
 from .reaction import Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .role import Role
+from .types.id import ID32, ID64, ChatGroupID, ChatID, Intable
 from .user import User, WrapsUser
 from .utils import DateTime
 
@@ -34,11 +36,52 @@ if TYPE_CHECKING:
     from .image import Image
     from .message import ClanMessage, GroupMessage
     from .state import ConnectionState
-    from .types.id import ID32, ID64, ChannelID, ChatGroupID
 
 
 ChatT = TypeVar("ChatT", bound="Chat[Any]", covariant=True)
 MemberT = TypeVar("MemberT", bound="Member", covariant=True)
+
+
+class _PartialMemberProto(Protocol):
+    _state: ConnectionState
+    rank: ChatMemberRank
+    _role_ids: tuple[int, ...]
+    kick_expires_at: datetime
+    clan: Clan | None
+    group: Group | None
+
+
+class PartialMember(ID, _PartialMemberProto):
+    __slots__ = (
+        "clan",
+        "group",
+        "rank",
+        "kick_expires_at",
+        "_role_ids",
+        "_state",
+    )
+
+    clan: Clan | None
+    group: Group | None
+
+    def __init__(self, state: ConnectionState, chat_group: ChatGroup[Any, Any], member: chat.Member) -> None:
+        super().__init__(member.accountid, type=Type.Individual)
+        self.clan = None
+        self.group = None
+        self._state = state
+        self._update(member)
+
+    def _update(self: _PartialMemberProto, member: chat.Member) -> None:
+        self.rank = ChatMemberRank.try_value(member.rank)
+        self._role_ids = tuple(member.role_ids)
+        self.kick_expires_at = DateTime.from_timestamp(member.time_kick_expire)
+
+    @property
+    def roles(self: _PartialMemberProto) -> list[Role]:
+        """The member's roles."""
+        chat_group = self.group or self.clan
+        assert chat_group is not None
+        return [chat_group._roles[role_id] for role_id in self._role_ids]
 
 
 class Member(WrapsUser):
@@ -51,28 +94,22 @@ class Member(WrapsUser):
         "kick_expires_at",
         "_role_ids",
     )
-    clan: Clan | None
-    group: Group | None
+
+    rank: ChatMemberRank
+    kick_expires_at: datetime
+    _role_ids: tuple[int, ...]
 
     def __init__(
         self, state: ConnectionState, chat_group: ChatGroup[Any, Any], user: User, member: chat.Member
     ) -> None:
         super().__init__(state, user)
-        self.clan = None
-        self.group = None
+        self.clan: Clan | None = None
+        self.group: Group | None = None
+
         self._update(member)
 
-    def _update(self, member: chat.Member) -> None:
-        self.rank = ChatMemberRank.try_value(member.rank)
-        self._role_ids = tuple(member.role_ids)
-        self.kick_expires_at = DateTime.from_timestamp(member.time_kick_expire)
-
-    @property
-    def roles(self) -> list[Role]:
-        """The member's roles."""
-        chat_group = self.group or self.clan
-        assert chat_group is not None
-        return [chat_group._roles[role_id] for role_id in self._role_ids]
+    _update: Callable[[chat.Member], None] = PartialMember._update  # type: ignore
+    roles = PartialMember.roles
 
     # async def add_role(self, role: Role):
     #     """Add a role to the member."""
@@ -87,24 +124,25 @@ class Member(WrapsUser):
 class ChatMessage(Message):
     channel: GroupChannel | ClanChannel
     mentions: chat.Mentions
-    author: Member | ID
+    author: Member | PartialMember
 
-    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: Authors):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: Member | PartialMember):
         super().__init__(channel, proto)
         self.author = author
         self.created_at = DateTime.from_timestamp(proto.timestamp)
 
+    @property
+    def _chat_group(self) -> Clan | Group:
+        return self.channel._chat_group
+
     async def fetch_reaction(self, emoticon: Emoticon | Sticker) -> list[MessageReaction]:
         """Fetches the reactions to this message with a given emoticon."""
-        chat_group = self.clan or self.group
-        assert chat_group is not None
-        is_emoticon = isinstance(emoticon, Emoticon)
         reactors = await self._state.fetch_message_reactors(
             *self.channel._location,
             server_timestamp=int(self.created_at.timestamp()),
             ordinal=self.ordinal,
-            reaction_name=str(emoticon) if is_emoticon else emoticon.name,
-            reaction_type=1 if is_emoticon else 2,
+            reaction_name=str(emoticon) if isinstance(emoticon, Emoticon) else emoticon.name,
+            reaction_type=emoticon._TYPE,
         )
 
         reaction = utils.find(
@@ -115,9 +153,9 @@ class ChatMessage(Message):
             MessageReaction(
                 self._state,
                 self,
-                reaction.emoticon,
-                reaction.sticker,
-                user=chat_group._members.get(reactor) or ID(reactor),
+                reaction.emoticon,  # type: ignore
+                reaction.sticker,  # type: ignore  # needs conditional types
+                user=self._chat_group._members.get(reactor) or ID(reactor),
             )
             for reactor in reactors
         ]
@@ -146,7 +184,7 @@ class ChatMessage(Message):
             int(self.created_at.timestamp()),
             self.ordinal,
             str(emoticon),
-            reaction_type=1,
+            reaction_type=emoticon._TYPE,
             is_add=True,
         )
         self._state.dispatch(
@@ -160,7 +198,7 @@ class ChatMessage(Message):
             int(self.created_at.timestamp()),
             self.ordinal,
             str(emoticon),
-            reaction_type=1,
+            reaction_type=emoticon._TYPE,
             is_add=False,
         )
         self._state.dispatch(
@@ -174,7 +212,7 @@ class ChatMessage(Message):
             int(self.created_at.timestamp()),
             self.ordinal,
             sticker.name,
-            reaction_type=2,
+            reaction_type=sticker._TYPE,
             is_add=True,
         )
         self._state.dispatch(
@@ -188,7 +226,7 @@ class ChatMessage(Message):
             int(self.created_at.timestamp()),
             self.ordinal,
             sticker.name,
-            reaction_type=2,
+            reaction_type=sticker._TYPE,
             is_add=False,
         )
         self._state.dispatch(
@@ -208,7 +246,7 @@ class Chat(Channel[ChatMessageT]):
         self, state: ConnectionState, group: ChatGroup[Any, Self], proto: GroupChannelProtos
     ):  # group is purposely unused
         super().__init__(state)
-        self.id = int(proto.chat_id)
+        self.id = ChatID(proto.chat_id)
         self.name: str | None = None
         self.joined_at: datetime | None = None
         self.position: int | None = None
@@ -224,12 +262,10 @@ class Chat(Channel[ChatMessageT]):
             DateTime.from_timestamp(proto.time_joined) if isinstance(proto, chat.ChatRoomState) else self.joined_at
         )
         self.position = proto.sort_order if isinstance(proto, chat.State) else self.position
-        (message_cls,) = self._type_args
         if isinstance(proto, chat.IncomingChatMessageNotification):
             steam_id = ID(proto.steamid_sender, type=Type.Individual)
-            chat_group = self.clan or self.group
-            assert chat_group is not None
-            self.last_message = message_cls(proto, self, chat_group.get_member(steam_id.id64) or steam_id)
+            (message_cls,) = self._type_args
+            self.last_message = message_cls(proto, self, self._chat_group.get_member(steam_id.id64) or steam_id)
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "group" if self.group is not None else "clan", "position")
@@ -240,12 +276,16 @@ class Chat(Channel[ChatMessageT]):
         return self._location == other._location if isinstance(other, Chat) else NotImplemented
 
     @property
-    def _location(self) -> tuple[ChatGroupID, ChannelID]:
-        chat = self.clan or self.group
-        assert chat is not None
-        chat_id = chat._id
+    def _location(self) -> tuple[ChatGroupID, ChatID]:
+        chat_id = self._chat_group._id
         assert chat_id is not None
         return chat_id, self.id
+
+    @property
+    def _chat_group(self) -> Clan | Group:
+        chat_group = self.clan or self.group
+        assert chat_group is not None
+        return chat_group
 
     @utils.classproperty
     def _type_args(cls: type[Chat]) -> tuple[type[ChatMessageT]]:  # type: ignore
@@ -267,8 +307,7 @@ class Chat(Channel[ChatMessageT]):
         after = after or UNIX_EPOCH
         before = before or DateTime.now()
 
-        chat_group = self.clan or self.group
-        assert chat_group is not None
+        chat_group = self._chat_group
         after_timestamp = int(after.timestamp())
         before_timestamp = int(before.timestamp())
         last_message_timestamp = before_timestamp
@@ -277,7 +316,7 @@ class Chat(Channel[ChatMessageT]):
         (message_cls,) = self._type_args
 
         while True:
-            resp = await self._state.fetch_group_history(
+            resp = await self._state.fetch_chat_group_history(
                 *self._location, start=after_timestamp, last=last_message_timestamp, last_ordinal=last_ordinal
             )
             message = None
@@ -335,10 +374,6 @@ class Chat(Channel[ChatMessageT]):
     #     await self._state.edit_channel(*self._location, name)
 
 
-# class IDMember(ID):  # TODO?
-#     ...
-
-
 class ChatGroup(ID, Generic[MemberT, ChatT]):
     """Base class for :class:`steam.Clan` and :class:`steam.Group`."""
 
@@ -347,7 +382,6 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         "_id",
         "app",
         "tagline",
-        "avatar_url",
         "active_member_count",
         "chunked",
         "_state",
@@ -359,6 +393,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         "_default_channel_id",
         "_roles",
         "_default_role_id",
+        "_avatar_sha",
     )
     name: str
     _id: ChatGroupID
@@ -367,6 +402,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
     avatar_url: str
     active_member_count: int
     chunked: bool
+    _avatar_sha: bytes
     _state: ConnectionState
 
     _members: dict[ID32, MemberT]
@@ -380,8 +416,9 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
     _roles: dict[int, Role]
     _default_role_id: int
 
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
+    def __init__(self, state: ConnectionState, id: Intable, type: Type = MISSING):
+        super().__init__(id, type=type)
+        self._state = state
         self.chunked = False
         self.app: StatefulApp | None = None
         self._members = {}
@@ -395,17 +432,18 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         state: ConnectionState,
         proto: chat.GetChatRoomGroupSummaryResponse,
         *,
-        id: ID32 | ChatGroupID | None = None,
+        id: ChatGroupID | None = None,
         maybe_chunk: bool = True,
     ) -> Self:
         self = cls(state, id if id is not None else proto.chat_group_id)
         self.name = proto.chat_group_name
-        self._id = proto.chat_group_id
+        self._id = ChatGroupID(proto.chat_group_id)
         self.active_member_count = proto.active_member_count
-        self._owner_id = proto.accountid_owner
-        self._top_members = proto.top_members
+        self._owner_id = ID32(proto.accountid_owner)
+        self._top_members = [ID32(id) for id in proto.top_members]
         self.tagline = proto.chat_group_tagline
         self.app = StatefulApp(state, id=proto.appid) if proto.appid else self.app
+        self._avatar_sha = proto.chat_group_avatar_sha
 
         self._default_role_id = proto.default_role_id
         self._update_channels(proto.chat_rooms, default_channel_id=proto.default_chat_id)
@@ -416,12 +454,18 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
             except WSException:
                 pass
             else:
-                self._partial_members = {member.accountid: member for member in group_state.members}
+                self._partial_members = {ID32(member.accountid): member for member in group_state.members}
                 self._roles = {
                     role.role_id: Role(self._state, self, role, permissions)  # type: ignore
                     for role in group_state.header_state.roles
                     for permissions in group_state.header_state.role_actions
                     if permissions.role_id == role.role_id
+                }
+                member_cls, _ = self._type_args
+                self._members = {
+                    self._state.user.id: member_cls(
+                        self._state, self, self._state.user, self._partial_members[self._state.user.id]  # type: ignore
+                    )
                 }
 
             if self._state.auto_chunk_chat_groups:
@@ -430,25 +474,27 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         return self
 
     @utils.classproperty
-    def _type_args(cls: type[ChatGroup]) -> tuple[type[MemberT], type[ChatT]]:  # type: ignore
+    def _type_args(cls: type[Self]) -> tuple[type[MemberT], type[ChatT]]:  # type: ignore
         return cls.__orig_bases__[0].__args__  # type: ignore
 
     async def _add_member(self, member: chat.Member) -> MemberT:
         member_cls, _ = self._type_args
-        user = await self._state._maybe_user(member.accountid)
+        id32 = ID32(member.accountid)
+        user = await self._state._maybe_user(id32)
         assert isinstance(user, User)
         new_member = member_cls(self._state, self, user, member)
         if self.chunked:
-            self._members[member.accountid] = new_member
+            self._members[id32] = new_member
         else:
-            self._partial_members[member.accountid] = member
+            self._partial_members[id32] = member
         return new_member
 
     def _remove_member(self, member: chat.Member) -> MemberT | None:
+        id32 = ID32(member.accountid)
         if self.chunked:
-            return self._members.pop(member.accountid, None)
+            return self._members.pop(id32, None)
         else:
-            self._partial_members.pop(member.accountid, None)
+            self._partial_members.pop(id32, None)
 
     def _update_channels(
         self, channels: list[chat.State] | list[chat.ChatRoomState], *, default_channel_id: int | None = None
@@ -468,10 +514,10 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
 
     def _update_header_state(self, proto: chat.GroupHeaderState) -> None:
         self.name = proto.chat_name
-        self._owner_id = proto.accountid_owner
+        self._owner_id = ID32(proto.accountid_owner)
         self.app = StatefulApp(self._state, id=proto.appid)
         self.tagline = proto.tagline
-        self.avatar_url = utils._get_avatar_url(proto.avatar_sha)
+        self._avatar_sha = proto.avatar_sha
         self._default_role_id = proto.default_role_id or self._default_role_id
         for role in proto.roles:
             for role_action in proto.role_actions:
@@ -480,7 +526,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "universe", "instance")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        resolved = [f"{attr}={getattr(self, attr, MISSING)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __str__(self) -> str:
@@ -503,10 +549,11 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
 
     def _maybe_members(self, ids: Iterable[ID32]) -> list[MemberT | PartialMember]:
         if self.chunked:
-            return [self._members.get(id) or ID(id) for id in ids if id in self._members]
+            return [self._members[id] for id in ids if id in self._members]
         else:
-            return [ID(id) for id in ids]
-            # return [PartialMember(self._partial_members[id]) for id in ids if id in self._partial_members]  # TODO
+            return [
+                PartialMember(self._state, self, self._partial_members[id]) for id in ids if id in self._partial_members
+            ]
 
     @property
     def owner(self):
@@ -562,6 +609,11 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         """The group's default role."""
         return self._roles[self._default_role_id]
 
+    @property
+    def avatar(self) -> Avatar:
+        """The chat group's avatar."""
+        return Avatar(self._state, self._avatar_sha)
+
     @abc.abstractmethod
     async def chunk(self) -> Sequence[MemberT]:
         """Get a list of all members in the group."""
@@ -585,12 +637,10 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         )
 
         if self.chunked:
-            return [self._members[user.accountid] for user in msg.body.matching_members]
+            return [self._members[ID32(user.accountid)] for user in msg.matching_members]
 
         member_cls, _ = self._type_args
-        users = [
-            User(self._state, self._state.patch_user_from_ws({}, user.persona)) for user in msg.body.matching_members
-        ]
+        users = [User(self._state, user.persona) for user in msg.matching_members]
         return [member_cls(self._state, self, user, self._partial_members[user.id]) for user in users]
 
     async def invite(self, user: User) -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import abc
 from collections.abc import Sequence
 from datetime import datetime
+from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, overload
 
 from . import utils
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .game_server import GameServer
     from .state import ConnectionState
+    from .types.http import IPAdress
     from .user import User
 
 __all__ = (
@@ -151,7 +153,9 @@ class Event(BaseEvent[ClanEventT]):
         The event's server password.
     """
 
-    server_address: str
+    __slots__ = ()
+
+    server_address: IPAdress | None
     server_password: str
 
     @property
@@ -162,8 +166,8 @@ class Event(BaseEvent[ClanEventT]):
             "gidfeature": self._feature,
         }
 
-    async def server(self) -> GameServer | None:
-        """The server that the app will be run on, ``None`` if not found.
+    async def server(self) -> GameServer:
+        """The server that the app will be run on.
 
         Note
         ----
@@ -174,9 +178,11 @@ class Event(BaseEvent[ClanEventT]):
             await client.fetch_server(ip=event.server_address)
         """
 
-        if self.server_address == "0":
-            return
-        return await self._state.client.fetch_server(ip=self.server_address)
+        if self.server_address is None:
+            raise ValueError("Event has no server address")
+        server = await self._state.client.fetch_server(ip=self.server_address)
+        assert server is not None
+        return server
 
     @overload
     async def edit(
@@ -221,7 +227,7 @@ class Event(BaseEvent[ClanEventT]):
         type: Literal[EventType.Game] = ...,
         starts_at: datetime | None = ...,
         app: App,
-        server_address: str | None = ...,
+        server_address: IPAdress | str | None = ...,
         server_password: str | None = ...,
     ) -> None:
         ...
@@ -246,7 +252,7 @@ class Event(BaseEvent[ClanEventT]):
         | None = None,
         app: App | None = None,
         starts_at: datetime | None = None,
-        server_address: str | None = None,
+        server_address: IPAdress | str | None = None,
         server_password: str | None = None,
     ) -> None:
         """Edit the event's details.
@@ -275,13 +281,19 @@ class Event(BaseEvent[ClanEventT]):
         type_ = type or self.type
         new_app = app or self.app
         app_id = str(new_app) if new_app is not None else None
+        try:
+            ip_address_ = IPv4Address(server_address)
+        except ValueError:
+            ip_address_ = None
+        server_address = ip_address_ if server_address is not None else self.server_address or ""
+
         await self._state.http.edit_clan_event(
             self.clan.id64,
             name or self.name,
             content or self.content,
             f"{type_.name}Event",
             app_id or "",
-            server_address or self.server_address if self.server_address else "",
+            str(server_address),
             server_password or self.server_password if self.server_password else "",
             starts_at or self.starts_at,
             event_id=self.id,
@@ -289,7 +301,7 @@ class Event(BaseEvent[ClanEventT]):
         self.name = name or self.name
         self.content = content or self.content
         self.type = type_
-        self.server_address = server_address or self.server_address
+        self.server_address = server_address or None
         self.server_password = server_password or self.server_password
         self.app = StatefulApp(self._state, id=app_id) if app_id is not None else None
         self.last_edited_at = DateTime.now()

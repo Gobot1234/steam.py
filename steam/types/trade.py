@@ -3,16 +3,17 @@
 from typing_extensions import NotRequired, Required, TypedDict
 
 
+# str | int keys are cast to int in Asset.__init__
 class AssetToDict(TypedDict):
-    assetid: str
+    assetid: str | int
     amount: int
-    appid: str
-    contextid: str
+    appid: str | int
+    contextid: str | int
 
 
 class Asset(AssetToDict):
-    instanceid: str
-    classid: str
+    instanceid: str | int
+    classid: str | int
     missing: bool
     # rollback_new_assetid: NotRequired[str]
 
@@ -39,12 +40,12 @@ class ItemTag(TypedDict):
 
 
 class Description(TypedDict, total=False):
-    instanceid: Required[str]
-    classid: Required[str]
+    instanceid: Required[str | int]
+    classid: Required[str | int]
     market_name: str
     currency: int
     name: str
-    market_hash_name: str
+    market_hash_name: Required[str]
     name_color: str
     background_color: str  # hex code
     type: str
@@ -66,14 +67,6 @@ class Item(Asset, Description):
     """We combine Assets with their matching Description to form items."""
 
 
-class Inventory(TypedDict):
-    assets: list[Asset]
-    descriptions: list[Description]
-    total_inventory_count: int
-    success: int  # Result
-    rwgrsn: int  # p. much always -2
-
-
 class TradeOffer(TypedDict):
     tradeofferid: str
     tradeid: str  # only used for receipts (it's not the useful one)
@@ -93,7 +86,7 @@ class TradeOffer(TypedDict):
 
 class GetTradeOffer(TypedDict):
     offer: TradeOffer
-    descriptions: Description
+    descriptions: list[Description]
 
 
 class TradeOfferReceiptAsset(Asset):

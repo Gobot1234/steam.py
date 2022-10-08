@@ -7,31 +7,19 @@ from unittest.mock import MagicMock
 
 import steam
 from steam.protobufs.chat import IncomingChatMessageNotification, State
+from steam.protobufs.friends import CMsgClientPersonaStateFriend
 
 from .test_bot import bot
 
-if TYPE_CHECKING:
-    from steam.types.user import User
-
-USER_DATA: User = {
-    "steamid": "1234567890",
-    "personaname": "a user",
-    "realname": "a real name",
-    "avatarfull": (
-        "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/fe/"
-        "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg"
-    ),
-    "profileurl": "https://steamcommunity.com/id/1234567890",
-    "primaryclanid": "103582791443703793",
-    "timecreated": 0,
-    "lastlogoff": 0,
-    "gameextrainfo": "Testing steam.py",
-    "gameid": "1337",
-    "personastate": 1,
-    "communityvisibilitystate": 3,
-    "commentpermission": True,
-    "profilestate": True,
-}  # type: ignore
+USER_DATA = CMsgClientPersonaStateFriend(
+    friendid=1234567890,
+    player_name="a user",
+    avatar_hash=b"\x00" * 20,
+    last_logoff=0,
+    game_name="Testing steam.py",
+    gameid=1337,
+    persona_state=1,
+)
 
 
 class DataclassesMock:

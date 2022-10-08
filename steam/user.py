@@ -4,30 +4,35 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections.abc import Coroutine
+import weakref
+from collections.abc import Coroutine, Sequence
 from datetime import timedelta
+from ipaddress import IPv4Address
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any
+
+from steam.id import ID
 
 from . import utils
 from ._const import URL
 from .abc import BaseUser, Messageable
-from .app import App, StatefulApp
-from .enums import CommunityVisibilityState, Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
+from .app import StatefulApp
+from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
-
-# from .models import Avatar
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
-from .trade import Inventory, TradeOffer
+from .protobufs import player
+from .trade import TradeOffer
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from .app import App
     from .friend import Friend
     from .image import Image
     from .message import UserMessage
+    from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
     from .state import ConnectionState
-    from .types import user
-    from .types.id import ID64
+    from .trade import Inventory
+    from .types.id import ID64, AppID, Intable
 
 __all__ = (
     "User",
@@ -36,58 +41,46 @@ __all__ = (
 
 
 class _BaseUser(BaseUser):
-    __slots__ = ()
+    __slots__ = (
+        "name",
+        "app",
+        "state",
+        "flags",
+        "trade_url",
+        "last_seen_online",
+        "last_logoff",
+        "last_logon",
+        "rich_presence",
+        "game_server_ip",
+        "game_server_port",
+        "_state",
+        "_avatar_sha",
+    )
 
-    def __init__(self, state: ConnectionState, data: user.User):
-        super().__init__(data["steamid"])
+    def __init__(self, state: ConnectionState, proto: UserProto):
+        super().__init__(proto.friendid)
         self._state = state
-        self.real_name = None
-        self.community_url = None
-        self.avatar_url = None
-        self.primary_clan = None
-        self.country = None
-        self.created_at = None
-        self.last_logoff = None
-        self.last_logon = None
-        self.last_seen_online = None
-        self.app = None
-        self.state = None
-        self.flags = None
-        self.privacy_state = None
-        self.comment_permissions = None
-        self.profile_state = None
-        self.rich_presence = None
-        self._update(data)
+        self._update(proto)
 
-    def _update(self, data: user.User) -> None:
-        self.name = data["personaname"]
-        self.real_name = data.get("realname") or self.real_name
-        self.community_url = data.get("profileurl") or super().community_url
-        self.avatar_url = data.get("avatarfull") or self.avatar_url
+    def _update(self, proto: UserProto) -> None:
+        self.name = proto.player_name
+        self._avatar_sha = proto.avatar_hash
         self.trade_url = URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}"
-        from .clan import Clan  # circular import
 
-        self.primary_clan = (
-            Clan(self._state, data["primaryclanid"]) if "primaryclanid" in data else self.primary_clan  # type: ignore
-        )
-        self.country = data.get("loccountrycode") or self.country
-        self.created_at = DateTime.from_timestamp(data["timecreated"]) if "timecreated" in data else self.created_at
-        self.last_logoff = DateTime.from_timestamp(data["lastlogoff"]) if "lastlogoff" in data else self.last_logoff
-        self.last_logon = DateTime.from_timestamp(data["last_logon"]) if "last_logon" in data else self.last_logon
-        self.last_seen_online = (
-            DateTime.from_timestamp(data["last_seen_online"]) if "last_seen_online" in data else self.last_seen_online
-        )
-        self.rich_presence = data["rich_presence"] if "rich_presence" in data else self.rich_presence
+        self.game_server_ip = IPv4Address(proto.game_server_ip) if proto.game_server_ip else None
+        self.game_server_port = proto.game_server_port or None
+
+        self.last_logoff = DateTime.from_timestamp(proto.last_logoff)
+        self.last_logon = DateTime.from_timestamp(proto.last_logon)
+        self.last_seen_online = DateTime.from_timestamp(proto.last_seen_online)
+        self.rich_presence = {message.key: message.value for message in proto.rich_presence}
         self.app = (
-            StatefulApp(self._state, name=data["gameextrainfo"], id=data["gameid"]) if "gameid" in data else self.app
+            StatefulApp(self._state, name=proto.game_name, id=proto.game_played_app_id)
+            if proto.game_played_app_id
+            else None
         )
-        self.state = PersonaState.try_value(data.get("personastate", 0)) or self.state
-        self.flags = PersonaStateFlag.try_value(data.get("personastateflags", 0)) or self.flags
-        self.privacy_state = CommunityVisibilityState.try_value(data.get("communityvisibilitystate", 0))
-        self.comment_permissions = CommunityVisibilityState.try_value(
-            data.get("commentpermission", 0)
-        )  # FIXME CommentPrivacyState
-        self.profile_state = CommunityVisibilityState.try_value(data.get("profilestate", 0))
+        self.state = PersonaState.try_value(proto.persona_state) or self.state
+        self.flags = PersonaStateFlag.try_value(proto.persona_state_flags) or self.flags
 
 
 class User(_BaseUser, Messageable["UserMessage"]):
@@ -278,21 +271,11 @@ class ClientUser(_BaseUser):
     ----------
     name
         The user's username.
-    friends
-        A list of the :class:`ClientUser`'s friends.
     state
         The current persona state of the account (e.g. LookingToTrade).
     app
         The app the user is currently playing. Is ``None`` if the user isn't in an app or one that is recognised by the
         api.
-    avatar_url
-        The avatar url of the user. Uses the large (184x184 px) image url.
-    real_name
-        The user's real name defined by them. Could be ``None``.
-    primary_clan
-        The user's primary clan. Could be ``None``
-    created_at
-        The time at which the user's account was created. Could be ``None``.
     last_logon
         The last time the user logged into steam. This is only ``None`` if user hasn't been updated from the websocket.
     last_logoff
@@ -300,8 +283,6 @@ class ClientUser(_BaseUser):
     last_seen_online
         The last time the user could be seen online. This is only ``None`` if user hasn't been updated from the
         websocket.
-    country
-        The country code of the account. Could be ``None``.
     flags
         The persona state flags of the account.
     """
@@ -310,22 +291,28 @@ class ClientUser(_BaseUser):
 
     __slots__ = ("_friends",)
 
-    def __init__(self, state: ConnectionState, data: user.User):
-        super().__init__(state, data)
+    def __init__(self, state: ConnectionState, proto: UserProto):
+        super().__init__(state, proto)
         self._friends: dict[ID64, Friend] = {}
+        self._inventory_locks = weakref.WeakValueDictionary[AppID, asyncio.Lock]()
 
-    async def friends(self) -> list[Friend]:
-        """Returns a list of the user's friends."""
+    async def friends(self) -> Sequence[Friend]:
+        """A list of the user's friends."""
         return list(self._friends.values())
 
-    def get_friend(self, id: utils.Intable) -> Friend | None:
+    def get_friend(self, id: Intable) -> Friend | None:
         """Get a friend from the client user's friends list."""
         id64 = utils.parse_id64(id, type=Type.Individual)
         return self._friends.get(id64)
 
     async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
-        resp = await self._state.http.get_client_user_inventory(app.id, app.context_id, language)
-        return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
+        try:
+            lock = self._inventory_locks[app.id]
+        except KeyError:
+            lock = self._inventory_locks[app.id] = asyncio.Lock()
+
+        async with lock:  # requires a per-app lock to avoid Result.DuplicateRequest
+            return await super().inventory(app, language=language)
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""
@@ -370,7 +357,7 @@ class ClientUser(_BaseUser):
             *await asyncio.gather(
                 self.equipped_profile_items(language=language),
                 self.profile_info(),
-                self.profile_customisation_info(language=language),
+                self.profile_customisation_info(),
                 self.profile_items(language=language),
             )
         )
@@ -451,10 +438,8 @@ class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"])
     This class does not forward ClientUsers attribute's so things like Clan().me.clear_nicks() will fail.
     """
 
-    __slots__ = ("_user",)
-
     def __init__(self, state: ConnectionState, user: User):
-        super().__init__(user.id64, type=Type.Individual)  # type: ignore
+        ID.__init__(self, user.id64, type=Type.Individual)
         self._user = user
 
     def __init_subclass__(cls) -> None:

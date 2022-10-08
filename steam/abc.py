@@ -1,10 +1,4 @@
-"""
-Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
-
-Contains large portions of:
-https://github.com/ValvePython/steam/blob/master/steam/steamid.py
-The appropriate license is in LICENSE
-"""
+"""Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
 
 from __future__ import annotations
 
@@ -20,14 +14,14 @@ from bs4 import BeautifulSoup
 from typing_extensions import Required, Self
 from yarl import URL as URL_
 
-from ._const import HTML_PARSER, STEAM_EPOCH, UNIX_EPOCH, URL
+from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL
 from .app import App, StatefulApp, UserApp, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
 from .game_server import GameServer
 from .id import ID
-from .models import Ban  # , Avatar
+from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory
@@ -256,29 +250,7 @@ class BaseUser(ID, Commentable):
         The user's rich presence.
     """
 
-    __slots__ = (
-        "name",
-        "app",
-        "state",
-        "flags",
-        "country",
-        "primary_clan",
-        "trade_url",
-        "real_name",
-        "avatar_url",
-        "last_seen_online",
-        "created_at",
-        "last_logoff",
-        "last_logon",
-        "rich_presence",
-        "privacy_state",
-        "community_url",
-        "comment_permissions",
-        "profile_state",
-        "_level",
-        "_state",
-        "__weakref__",
-    )
+    __slots__ = ()
 
     name: str
     last_logoff: datetime | None
@@ -321,7 +293,9 @@ class BaseUser(ID, Commentable):
         """Fetch the game server this user is currently playing on."""
         if self.game_server_ip is None:
             raise ValueError("User is not playing on a game server")
-        server = await self._state.client.fetch_server(ip=self.game_server_ip, port=self.game_server_port)
+        server = await self._state.client.fetch_server(
+            ip=self.game_server_ip, port=self.game_server_port if self.game_server_port is not None else MISSING
+        )
         assert server is not None
         return server
 
@@ -340,7 +314,7 @@ class BaseUser(ID, Commentable):
         :exc:`~steam.Forbidden`
             The user's inventory is private.
         """
-        resp = await self._state.http.get_user_inventory(self.id64, app.id, app.context_id, language)
+        resp = await self._state.fetch_user_inventory(self.id64, app.id, app.context_id, language)
         return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
 
     async def friends(self) -> list[User | ID]:

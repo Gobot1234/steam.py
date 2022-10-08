@@ -17,12 +17,13 @@ import sys
 import time
 import traceback
 from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Sequence
+from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, final, overload
 
 import aiohttp
 
 from . import errors, utils
-from ._const import DOCS_BUILDING, UNIX_EPOCH, URL
+from ._const import DOCS_BUILDING, MISSING, UNIX_EPOCH, URL
 from .app import App, FetchedApp, StatefulApp
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game_server import GameServer, Query
@@ -52,11 +53,13 @@ if TYPE_CHECKING:
     from .protobufs import Message, ProtobufMessage
     from .reaction import MessageReaction
     from .trade import TradeOffer
+    from .types.http import IPAdress
     from .user import ClientUser, User
 
 __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
+
 EventType: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
 E = TypeVar("E", bound=EventType)
 EventDeco: TypeAlias = Callable[[E], E] | E
@@ -519,7 +522,7 @@ class Client:
         id64 = parse_id64(id=id, type=Type.Individual)
         return await self._state.fetch_user(id64)
 
-    async def fetch_users(self, *ids: Intable) -> list[User | None]:
+    async def fetch_users(self, *ids: Intable) -> list[User]:
         """Fetches a list of :class:`~steam.User` or ``None`` if the user was not found, from their IDs.
 
         Note
@@ -675,17 +678,17 @@ class Client:
     async def fetch_server(
         self,
         *,
-        ip: str,
-        port: int | None = ...,
+        ip: IPAdress | str,
+        port: int = ...,
     ) -> GameServer | None:
         ...
 
     async def fetch_server(
         self,
         *,
-        id: Intable | None = None,
-        ip: str | None = None,
-        port: int | str | None = None,
+        id: Intable = MISSING,
+        ip: IPAdress | str = MISSING,
+        port: int | str = MISSING,
     ) -> GameServer | None:
         """Fetch a :class:`.GameServer` from its ip and port or its Steam ID or ``None`` if fetching the server failed.
 
@@ -711,7 +714,8 @@ class Client:
             servers = await self._state.fetch_server_ip_from_steam_id(parse_id64(id, type=Type.GameServer))
             if not servers:
                 raise ValueError(f"The master server didn't find a matching server for {id}")
-            ip, _, port = servers[0].addr.partition(":")
+            ip_, _, port = servers[0].addr.rpartition(":")
+            ip = IPAdress(ip_)
         elif not ip:
             raise TypeError("fetch_server missing argument ip")
 
@@ -830,7 +834,7 @@ class Client:
         .. code-block:: python3
 
             async for trade in client.trade_history(limit=10):
-                items = [getattr(item, "name", str(item.asset_id)) for item in trade.items_to_receive]
+                items = [getattr(item, "name", str(item.id)) for item in trade.items_to_receive]
                 items = ", ".join(items) or "Nothing"
                 print("Partner:", trade.partner)
                 print("Sent:", items)

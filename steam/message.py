@@ -12,8 +12,8 @@ from .utils import DateTime
 
 if TYPE_CHECKING:
     from .channel import ClanChannel, DMChannel, GroupChannel
-    from .clan import Clan
-    from .group import Group
+    from .clan import Clan, ClanMember
+    from .group import Group, GroupMember
     from .protobufs import chat, friend_messages
     from .user import ClientUser, User
 
@@ -98,6 +98,7 @@ class UserMessage(Message):
 class GroupMessage(ChatMessage):
     """Represents a message in a group."""
 
+    author: GroupMember
     channel: GroupChannel
     group: Group
     clan: None
@@ -109,6 +110,7 @@ class GroupMessage(ChatMessage):
 class ClanMessage(ChatMessage):
     """Represents a message in a clan."""
 
+    author: ClanMember
     channel: ClanChannel
     clan: Clan
     group: None

@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Callable
 from datetime import timedelta
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, TypeAlias, TypeVar
 
 from typing_extensions import Unpack
 
@@ -345,7 +345,7 @@ class GameServer(ID):
         super().__init__(server.steamid, type=Type.GameServer)
         self.name = server.name
         self.app = StatefulApp(state, id=server.appid)
-        self.ip = server.addr.split(":")[0]  # TODO change to IPv4Address
+        self.ip = IPv4Address(server.addr.rpartition(":")[0])
         self.port = server.gameport
         self.tags = server.gametype.split(",")
         self.map = server.map
@@ -376,7 +376,7 @@ class GameServer(ID):
         return self._dedicated
 
     async def _query(self, type: EQueryType) -> QueryResponse:
-        return await self._state.query_server(int(IPv4Address(self.ip)), self.port, self.app.id, type)
+        return await self._state.query_server(int(self.ip), self.port, self.app.id, type)
 
     # async def ping(self):  # FIXME not sure how to expose this
     #     proto = await self._query(EQueryType.Ping)

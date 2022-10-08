@@ -16,9 +16,11 @@ from typing_extensions import Self
 from . import utils
 from ._const import URL
 from .app import App, StatefulApp
-from .enums import Language, Result, TradeOfferState
-from .errors import ClientException, ConfirmationError, HTTPException
+from .enums import Language, TradeOfferState
+from .errors import ClientException, ConfirmationError
 from .id import ID
+from .protobufs import econ
+from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -84,15 +86,15 @@ class Asset:
     )
     REPR_ATTRS = ("id", "class_id", "instance_id", "amount", "owner", "app")  # "post_rollback_id"
 
-    def __init__(self, state: ConnectionState, data: trade.Asset, owner: BaseUser):
-        self.id = int(data["assetid"])
-        self.amount = int(data["amount"])
-        self.instance_id = int(data["instanceid"])
-        self.class_id = int(data["classid"])
+    def __init__(self, state: ConnectionState, asset: econ.Asset, owner: BaseUser):
+        self.id = AssetID(asset.assetid)
+        self.amount = asset.amount
+        self.instance_id = InstanceID(asset.instanceid)
+        self.class_id = ClassID(asset.classid)
         # self.post_rollback_id = int(data["rollback_new_assetid"]) if "rollback_new_assetid" in data else None
         self.owner = owner
-        self._app_id = int(data["appid"])
-        self._context_id = int(data["contextid"])
+        self._app_id = AppID(asset.appid)
+        self._context_id = ContextID(asset.contextid)
         self._state = state
 
     def __repr__(self) -> str:
@@ -117,6 +119,16 @@ class Asset:
             "appid": str(self._app_id),
             "contextid": str(self._context_id),
         }
+
+    def to_proto(self) -> econ.Asset:
+        return econ.Asset(
+            assetid=self.id,
+            amount=self.amount,
+            instanceid=self.instance_id,
+            classid=self.class_id,
+            appid=self._app_id,
+            contextid=self._context_id,
+        )
 
     @utils.cached_slot_property
     def app(self) -> StatefulApp:
@@ -143,12 +155,6 @@ class Asset:
 
 class Item(Asset):
     """Represents an item in a User's inventory.
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two items are equal.
 
     Attributes
     -------------
@@ -192,31 +198,29 @@ class Item(Asset):
     )
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
-    def __init__(self, state: ConnectionState, data: trade.Item, owner: BaseUser):
-        super().__init__(state, data, owner)
-        self._from_data(data)
+    def __init__(self, state: ConnectionState, asset: econ.Asset, description: econ.ItemDescription, owner: BaseUser):
+        super().__init__(state, asset, owner)
 
-    def _from_data(self, data: trade.Item) -> None:
-        self.name = data.get("market_name")
-        self.display_name = data.get("name")
-        self.colour = int(data["name_color"], 16) if "name_color" in data else None
-        self.descriptions = data.get("descriptions")
-        self.owner_descriptions = data.get("owner_descriptions", [])
-        self.type = data.get("type")
-        self.tags = data.get("tags")
+        self.name = description.market_name
+        self.display_name = description.name or self.name
+        self.colour = int(description.name_color, 16) if description.name_color else None
+        self.descriptions = description.descriptions
+        self.owner_descriptions = description.owner_descriptions
+        self.type = description.type
+        self.tags = description.tags
         self.icon_url = (
-            f"https://steamcommunity-a.akamaihd.net/economy/image/{data['icon_url_large']}"
-            if "icon_url_large" in data
-            else f"https://steamcommunity-a.akamaihd.net/economy/image/{data['icon_url']}"
-            if "icon_url" in data
+            f"https://steamcommunity-a.akamaihd.net/economy/image/{description.icon_url_large}"
+            if description.icon_url_large
+            else f"https://steamcommunity-a.akamaihd.net/economy/image/{description.icon_url}"
+            if description.icon_url
             else None
         )
-        self.fraud_warnings = data.get("fraudwarnings", [])
-        self.actions = data.get("actions", [])
-        self.owner_actions = data.get("owner_actions")
-        self.market_actions = data.get("market_actions")
-        self._is_tradable = bool(data.get("tradable", False))
-        self._is_marketable = bool(data.get("marketable", False))
+        self.fraud_warnings = description.fraudwarnings
+        self.actions = description.actions
+        self.owner_actions = description.owner_actions
+        self.market_actions = description.market_actions
+        self._is_tradable = description.tradable
+        self._is_marketable = description.marketable
 
     def is_tradable(self) -> bool:
         """Whether the item is tradable."""
@@ -268,7 +272,12 @@ class BaseInventory(Generic[ItemT_co]):
     __orig_class__: InventoryGenericAlias
 
     def __init__(
-        self, state: ConnectionState, data: trade.Inventory, owner: BaseUser, app: App, language: Language | None
+        self,
+        state: ConnectionState,
+        data: econ.GetInventoryItemsWithDescriptionsResponse,
+        owner: BaseUser,
+        app: App,
+        language: Language | None,
     ):
         self._state = state
         self.owner = owner
@@ -318,26 +327,24 @@ class BaseInventory(Generic[ItemT_co]):
             object.__setattr__(generic_alias, "__alias_name__", instruction.argval)
             return generic_alias
 
-    def _update(self, data: trade.Inventory) -> None:
+    def _update(self, data: econ.GetInventoryItemsWithDescriptionsResponse) -> None:
         items: list[ItemT_co] = []
         (ItemClass,) = self.__orig_class__.__args__
-        for asset in data.get("assets", ()):
-            for description in data["descriptions"]:
-                if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]:
-                    items.append(ItemClass(self._state, data=description | asset, owner=self.owner))
+        for asset in data.assets:
+            for description in data.descriptions:
+                if description.instanceid == asset.instanceid and description.classid == asset.classid:
+                    items.append(ItemClass(self._state, asset=asset, description=description, owner=self.owner))
                     break
             else:
-                items.append(Asset(self._state, data=asset, owner=self.owner))  # type: ignore  # should never happen anyway
+                items.append(Asset(self._state, asset=asset, owner=self.owner))  # type: ignore  # should never happen anyway
         self.items: Sequence[ItemT_co] = items
 
     async def update(self) -> None:
         """Re-fetches the inventory and updates it inplace."""
-        if self.owner == self._state.user:
-            data = await self._state.http.get_client_user_inventory(self.app.id, self.app.context_id, self._language)
-        else:
-            data = await self._state.http.get_user_inventory(
-                self.owner.id64, self.app.id, self.app.context_id, self._language
-            )
+        # if self.owner == self._state.user:
+        #     data = await self._state.fetch_client_user_inventory(self.app.id, self.app.context_id, self._language)
+        # else:
+        data = await self._state.fetch_user_inventory(self.owner.id64, self.app.id, self.app.context_id, self._language)
         self._update(data)
 
     def filter_items(self, *names: str, limit: int | None = None) -> list[ItemT_co]:
@@ -397,6 +404,10 @@ Inventory: TypeAlias = BaseInventory[Item]  # necessitated by TypeVar not curren
 
         Iterates over the inventory's items.
 
+    .. describe:: x[i]
+
+        Returns the item at the given index.
+
     .. describe:: y in x
 
         Determines if an item is in the inventory based off of its :attr:`Asset.id`.
@@ -437,8 +448,13 @@ class MovedItem(Item):
     new_id: int
     new_context_id: int
 
-    def _from_data(self, data: trade.TradeOfferReceiptItem):
-        super()._from_data(data)
+    def __init__(self, state: ConnectionState, data: trade.TradeOfferReceiptItem, owner: BaseUser):
+        super().__init__(
+            state,
+            asset=econ.Asset().from_dict(data),  # type: ignore  # TODO waiting on https://github.com/danielgtaylor/python-betterproto/issues/432
+            description=econ.ItemDescription().from_dict(data),  # type: ignore
+            owner=owner,
+        )
         self.new_id = int(data["new_assetid"])
         self.new_context_id = int(data["new_contextid"])
 
@@ -573,8 +589,6 @@ class TradeOffer:
     def _from_history(cls, state: ConnectionState, data: trade.TradeOfferHistoryTrade) -> Self:
         received: list[trade.TradeOfferReceiptItem] = data.get("assets_received", [])  # type: ignore
         sent: list[trade.TradeOfferReceiptItem] = data.get("assets_given", [])  # type: ignore
-        from .abc import ID
-
         partner = ID(data["steamid_other"])
         trade = cls(
             items_to_receive=[MovedItem(state, item, partner) for item in received],
@@ -617,10 +631,22 @@ class TradeOffer:
         self.created_at = DateTime.from_timestamp(created_at) if created_at else None
         self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
         self.items_to_send = [
-            Item(self._state, data=item, owner=self.partner) for item in data.get("items_to_give", [])
+            Item(
+                self._state,
+                asset=econ.Asset().from_dict(item),
+                description=econ.ItemDescription().from_dict(item),
+                owner=self.partner,
+            )
+            for item in data.get("items_to_give", ())
         ]
         self.items_to_receive = [
-            Item(self._state, data=item, owner=self.partner) for item in data.get("items_to_receive", [])
+            Item(
+                self._state,
+                asset=econ.Asset().from_dict(item),
+                description=econ.ItemDescription().from_dict(item),
+                owner=self.partner,
+            )
+            for item in data.get("items_to_receive", ())
         ]
         self._is_our_offer = data.get("is_our_offer", False)
 
