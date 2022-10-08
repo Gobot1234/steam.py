@@ -78,4 +78,9 @@ async def on_user_command_error(ctx: commands.Context, error: commands.CommandEr
     raise error
 
 
-bot.run("discord_token", "username", "password")
+async def main():
+    async with bot:
+        await bot.start("discord_token", "username", "password")
+
+
+asyncio.run(main())
