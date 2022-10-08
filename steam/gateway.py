@@ -34,6 +34,7 @@ from . import utils
 from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, MISSING, READ_U32, SET_PROTO_BIT
 from .enums import *
 from .errors import NoCMsFound, WSException
+from .id import parse_id64
 from .models import Registerable, register, return_true
 from .protobufs import (
     EMsg,
@@ -302,9 +303,7 @@ class SteamWebSocket(Registerable):
         ...
 
     @classmethod
-    async def from_client(
-        cls, client: Client, refresh_token: str = MISSING, user_id64: ID64 = MISSING
-    ) -> SteamWebSocket:
+    async def from_client(cls, client: Client, refresh_token: str = MISSING) -> SteamWebSocket:
         PROTOCOL_VERSION: Final = 65580
         state = client._state
         cm_list = fetch_cm_list(state)
@@ -328,9 +327,7 @@ class SteamWebSocket(Registerable):
                 # steam_id is set in fetch_refresh_token
             else:
                 self.refresh_token = refresh_token
-                if user_id64 is MISSING:
-                    raise TypeError("user_id64 is required when passing a refresh_token")
-                self.steam_id = user_id64
+                self.steam_id = parse_id64(utils.decode_jwt(refresh_token)["sub"])
 
             msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
                 login.CMsgClientLogon(

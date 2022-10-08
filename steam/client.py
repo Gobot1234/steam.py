@@ -411,7 +411,6 @@ class Client:
         self,
         *,
         refresh_token: str,
-        id: Intable,
     ) -> None:
         ...
 
@@ -423,7 +422,6 @@ class Client:
         shared_secret: str = MISSING,
         identity_secret: str = MISSING,
         refresh_token: str = MISSING,
-        id: Intable = MISSING,
     ) -> None:
         """Initialize a connection to a Steam CM and login.
 
@@ -442,9 +440,6 @@ class Client:
 
         Other Parameters
         ----------------
-        id
-            The ID of the account to login to, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
         refresh_token
             The refresh token of the account to login to.
         """
@@ -478,9 +473,7 @@ class Client:
             last_connect = time.monotonic()
 
             try:
-                self.ws = await asyncio.wait_for(
-                    SteamWebSocket.from_client(self, refresh_token, utils.parse_id64(id)), timeout=60
-                )
+                self.ws = await asyncio.wait_for(SteamWebSocket.from_client(self, refresh_token), timeout=60)
             except exceptions:
                 await throttle()
                 continue

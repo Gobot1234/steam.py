@@ -33,7 +33,7 @@ from io import BytesIO
 from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Final, Generic, NamedTuple, ParamSpec, TypeAlias, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar, cast, overload
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -41,7 +41,7 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Self
 
-from ._const import MISSING, URL
+from ._const import JSON_LOADS, MISSING, URL
 from .enums import _is_descriptor, classproperty as classproperty
 from .id import (
     ID,
@@ -458,6 +458,30 @@ class ChainMap(collections.ChainMap[_KT, _VT] if TYPE_CHECKING else collections.
     def clear(self) -> None:
         for map in self.maps:
             map.clear()
+
+
+class JWTToken(TypedDict):
+    iss: Literal["steam"]
+    sub: str  # SteamID
+    aud: list[str]
+    exp: int
+    nbf: int
+    iat: int
+    jti: str
+    oat: int
+    per: int
+    ip_subject: str
+    ip_confirmer: str
+
+
+def decode_jwt(token: str) -> JWTToken:
+    try:
+        _, jwt, _ = token.split(".")
+    except TypeError:
+        raise ValueError("Invalid JWT") from None
+
+    # python doesn't like the lack of padding on the end of the JWT so we need to add it back
+    return JSON_LOADS(base64.b64decode(f"{jwt}==", altchars=b"-_"))
 
 
 # everything below here is directly from discord.py's utils
