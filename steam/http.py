@@ -210,7 +210,7 @@ class HTTPClient:
                 )
                 await self.get(URL.COMMUNITY / "home")
 
-            data = await self.get_user(resp["transfer_parameters"]["steamid"])
+            data = await self.get_user(int(resp["transfer_parameters"]["steamid"]))
             state = self._client._connection
             assert data
             self.user = ClientUser(state=state, data=data)
