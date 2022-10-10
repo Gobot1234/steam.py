@@ -40,7 +40,7 @@ jobs:
       - name: Build
         if: ${{ github.event_name == 'release' }}
         run: |
-          poetry run python scripts/build_docs_for_pages.py --tag={{ github.event.release.tag_name }}
+          poetry run python scripts/build_docs_for_pages.py --tag=${{ github.event.release.tag_name }}
 
       - name: Push
         uses: peaceiris/actions-gh-pages@v3
