@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from operator import attrgetter, methodcaller
-from typing import TYPE_CHECKING, Any, Final, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, cast
 from zipfile import BadZipFile, ZipFile
 from zlib import crc32
 
@@ -25,7 +25,7 @@ from typing_extensions import Never, Self
 from yarl import URL
 
 from . import utils
-from ._const import VDF_LOADS, VDFDict
+from ._const import MISSING, VDF_LOADS, VDFDict
 from .app import StatefulApp
 from .enums import AppFlag, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
 from .id import ID
@@ -66,8 +66,8 @@ def unzip(data: bytes) -> bytes:
     if data[:2] == b"VZ":
         if data[-2:] != b"zv":
             raise RuntimeError(f"VZ: Invalid footer: {data[-2:]!r}")
-        if data[2:3] != b"a":
-            raise RuntimeError(f"VZ: Invalid version: {data[2:3]!r}")
+        if data[2] != b"a":
+            raise RuntimeError(f"VZ: Invalid version: {data[2]!r}")
 
         filters = (lzma._decode_filter_properties(lzma.FILTER_LZMA1, data[7:12]),)  # type: ignore
         decompressor = lzma.LZMADecompressor(lzma.FORMAT_RAW, filters=filters)
@@ -88,35 +88,23 @@ def unzip(data: bytes) -> bytes:
 
 
 @dataclass(slots=True)
-class ManifestPathParents(Sequence["ManifestPath"]):
-    # this class is mostly a copy and paste from pathlib.py
-    path: ManifestPath  # we don't care about reference cycles
+class ManifestPathParents(cast(type[Sequence["ManifestPath"]], type(PurePathBase().parents))):
+    _path_cls: ManifestPath  # names lie
 
-    def __len__(self) -> int:
-        if self.path.drive or self.path.root:  # this should never be True but w/e
-            return len(self.path.parts) - 1
-        else:
-            return len(self.path.parts)
+    @property
+    def _drv(self) -> str:
+        return self._path_cls.drive
 
-    @overload
-    def __getitem__(self, idx: int) -> ManifestPath:
-        ...
+    @property
+    def _root(self) -> str:
+        return self._path_cls.root
 
-    @overload
-    def __getitem__(self, idx: slice) -> tuple[ManifestPath, ...]:
-        ...
-
-    def __getitem__(self, idx: int | slice) -> ManifestPath | tuple[ManifestPath, ...]:
-        if isinstance(idx, slice):
-            return tuple(self[i] for i in range(*idx.indices(len(self))))
-
-        if idx >= len(self) or idx < -len(self):
-            raise IndexError(idx)
-
-        return self.path._from_parsed_parts(self.path.drive, self.path.root, self.path.parts[: -idx - 1])
+    @property
+    def _parts(self) -> tuple[str, ...]:
+        return self._path_cls.parts
 
     def __repr__(self) -> str:
-        return f"<{self.path!r}.parents>"
+        return f"<{self._path_cls!r}.parents>"
 
 
 class ManifestPath(PurePathBase, _IOMixin):
@@ -330,14 +318,17 @@ class ManifestPath(PurePathBase, _IOMixin):
     async def read(self) -> Never:
         raise NotImplementedError("use read_bytes() instead of read()")
 
-    async def read_text(self, encoding: str | None = None) -> str:
+    async def read_text(self, encoding: str = MISSING, errors: str = MISSING) -> str:
         """Read the contents of the file. Similar to :meth:`pathlib.Path.read_text`"""
         contents = await self.read_bytes()
-        return contents.decode() if encoding is None else contents.decode(encoding)
+        if encoding is MISSING:
+            return contents.decode() if errors is MISSING else contents.decode(errors=errors)
 
-    async def read_vdf(self, encoding: str | None = None) -> VDFDict:
+        return contents.decode(encoding) if errors is MISSING else contents.decode(encoding, errors)
+
+    async def read_vdf(self, encoding: str = MISSING, errors: str = MISSING) -> VDFDict:
         """Read the contents of the file into a VDFDict."""
-        return VDF_LOADS(await self.read_text(encoding))
+        return VDF_LOADS(await self.read_text(encoding, errors))
 
 
 PAYLOAD_MAGIC: Final = 0x71F617D0
