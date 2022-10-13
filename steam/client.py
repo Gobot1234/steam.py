@@ -490,6 +490,46 @@ class Client:
                 if not self.is_closed():
                     await throttle()
 
+    async def anonymous_login(self) -> None:
+        """Initialize a connection to a Steam CM and login anonymously."""
+        self._closed = False
+
+        exceptions = (
+            OSError,
+            ConnectionClosed,
+            aiohttp.ClientError,
+            asyncio.TimeoutError,
+            errors.HTTPException,
+        )
+
+        async def throttle() -> None:
+            now = time.monotonic()
+            between = now - last_connect
+            sleep = random.random() * 4 if between > 600 else 100 / between**0.5
+            log.info(f"Attempting to connect to another CM in {sleep}")
+            await asyncio.sleep(sleep)
+
+        self.http.clear()
+        while not self.is_closed():
+            last_connect = time.monotonic()
+
+            try:
+                self.ws = await asyncio.wait_for(SteamWebSocket.anonymous_login_from_client(self), timeout=60)
+            except exceptions:
+                await throttle()
+                continue
+
+            try:
+                while True:
+                    await self.ws.poll_event()
+            except exceptions as exc:
+                if isinstance(exc, ConnectionClosed):
+                    self._state._connected_cm = exc.cm
+                self.dispatch("disconnect")
+            finally:
+                if not self.is_closed():
+                    await throttle()
+
     # state stuff
     # TODO decide on where this should take id32s
     def get_user(self, id: Intable) -> User | None:
