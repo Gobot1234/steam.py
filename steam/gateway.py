@@ -755,13 +755,7 @@ class SteamWebSocket(Registerable):
         user_id64s = tuple(dict.fromkeys(user_id64s))
 
         def callback(msg: friends.CMsgClientPersonaState, user_id64_chunk: list[int]) -> bool:
-            for friend in msg.friends:
-                try:
-                    user_id64_chunk.remove(friend.friendid)
-                    return True
-                except ValueError:
-                    pass
-            return False
+            return any(friend.friendid in user_id64_chunk for friend in msg.friends)
 
         for user_id64_chunk in utils.as_chunks(user_id64s, 100):
             futs.extend(
