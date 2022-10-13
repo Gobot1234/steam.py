@@ -2,9 +2,8 @@
 Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
 
 Contains large portions of:
-https://github.com/ValvePython/steam/blob/master/steam/core/cm.py
 https://github.com/Rapptz/discord.py/tree/master/discord/gateway.py
-The appropriate licenses are in LICENSE
+The appropriate license is in LICENSE
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ import traceback
 from collections.abc import AsyncGenerator, Callable, Iterable
 from dataclasses import dataclass
 from datetime import timedelta
+from functools import partial
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, TypeVar, overload
@@ -752,10 +752,9 @@ class SteamWebSocket(Registerable):
     async def fetch_users(self, user_id64s: Iterable[int]) -> list[friends.CMsgClientPersonaStateFriend]:
         futs: list[asyncio.Future[friends.CMsgClientPersonaState]] = []
         users: list[friends.CMsgClientPersonaStateFriend] = []
-        user_id64s = tuple(user_id64s)
+        user_id64s = tuple(dict.fromkeys(user_id64s))
 
-        def callback(msg: friends.CMsgClientPersonaState) -> bool:
-            nonlocal user_id64_chunk
+        def callback(msg: friends.CMsgClientPersonaState, user_id64_chunk: list[int]) -> bool:
             for friend in msg.friends:
                 try:
                     user_id64_chunk.remove(friend.friendid)
@@ -765,7 +764,10 @@ class SteamWebSocket(Registerable):
             return False
 
         for user_id64_chunk in utils.as_chunks(user_id64s, 100):
-            futs.extend(self.wait_for(friends.CMsgClientPersonaState, check=callback) for _ in user_id64_chunk)
+            futs.extend(
+                self.wait_for(friends.CMsgClientPersonaState, check=partial(callback, user_id64_chunk=user_id64_chunk))
+                for _ in user_id64_chunk
+            )
             await self.send_proto(
                 friends.CMsgClientRequestFriendData(
                     # enum EClientPersonaStateFlag {
