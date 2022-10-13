@@ -237,6 +237,49 @@ class ManifestPath(PurePathBase, _IOMixin):
             if path.parent == self:
                 yield path
 
+    def walk(
+        self, *, top_down: bool = True, follow_symlinks: bool = False
+    ) -> Generator[tuple[Self, list[str], list[str]], None, None]:
+        """Walk this path. Similar to :meth:`pathlib.Path.walk`.
+
+        Parameters
+        ----------
+        top_down
+            Whether to walk top down or bottom up.
+        follow_symlinks
+            Whether to follow symlinks.
+
+        Note
+        ----
+        Unlike :meth:`pathlib.Path.walk`, this method does not have a ``on_error`` parameter as it should never error.
+
+        Yields
+        ------
+        The path currently being traversed, directories and files (``(dirpath, dirnames, filenames)``).
+        """
+        dirnames: list[str] = []
+        filenames: list[str] = []
+        for entry in self.iterdir():
+            if follow_symlinks:
+                is_dir = entry.is_dir()
+            else:
+                is_dir = entry.flags & DepotFileFlag.Directory > 0
+
+            if is_dir:
+                dirnames.append(entry.name)
+            else:
+                filenames.append(entry.name)
+
+        if top_down:
+            yield self, dirnames, filenames
+
+        for dirname in dirnames:
+            dirpath: Self = self._make_child_relpath(dirname)  # type: ignore
+            yield from dirpath.walk(top_down=top_down, follow_symlinks=follow_symlinks)
+
+        if not top_down:
+            yield self, dirnames, filenames
+
     def glob(self, pattern: str) -> Generator[Self, None, None]:
         """Perform a glob operation on this path. Similar to :meth:`pathlib.Path.glob`."""
         if not pattern:
