@@ -109,6 +109,9 @@ class TradeURLInfo:
         url = URL.COMMUNITY / "tradeoffer/new" % {"partner": self.id.id}
         return str(url % {"token": self.token}) if self.token else str(url)
 
+    def __str__(self) -> str:
+        return self.url
+
 
 def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
     """Parses a trade URL for useful information.

@@ -38,7 +38,7 @@ from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker, Emoticon
 from .state import ConnectionState
 from .types.id import Intable
-from .utils import DateTime, parse_id64
+from .utils import DateTime, TradeURLInfo, parse_id64
 
 if TYPE_CHECKING:
     import steam
@@ -988,7 +988,7 @@ class Client:
             apps_.append(app.to_proto())
         await self.ws.change_presence(apps=apps_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
 
-    async def trade_url(self, generate_new: bool = False) -> str:
+    async def trade_url(self, generate_new: bool = False) -> TradeURLInfo:
         """Fetches this account's trade url.
 
         Parameters
@@ -996,7 +996,9 @@ class Client:
         generate_new
             Whether or not to generate a new trade token, defaults to ``False``.
         """
-        return await self._state.fetch_trade_url(generate_new)
+        info = utils.parse_trade_url(await self._state.fetch_trade_url(generate_new))
+        assert info is not None
+        return info
 
     async def wait_until_ready(self) -> None:
         """Waits until the client's internal cache is all ready."""
