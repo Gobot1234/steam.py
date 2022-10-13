@@ -9,7 +9,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from .app import PartialAppPriceOverview, StatefulApp
-from .enums import LicenseFlag, LicenseType, PaymentMethod
+from .enums import Language, LicenseFlag, LicenseType, PaymentMethod
 from .types.id import Intable
 from .utils import DateTime
 
@@ -69,19 +69,19 @@ class StatefulPackage(Package):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
-    async def apps(self) -> list[StatefulApp]:
+    async def apps(self, *, language: Language | None = None) -> list[StatefulApp]:
         """Fetches this package's apps."""
-        fetched = await self.fetch()
+        fetched = await self.fetch(language=language)
         return fetched._apps
 
-    async def fetch(self) -> FetchedPackage:
+    async def fetch(self, *, language: Language | None = None) -> FetchedPackage:
         """Fetches this package's information. Shorthand for:
 
         .. code-block:: python3
 
             package = await client.fetch_package(package)
         """
-        package = await self._state.client.fetch_package(self.id)
+        package = await self._state.client.fetch_package(self.id, language=language)
         if package is None:
             raise ValueError("Fetched package was not valid.")
         return package

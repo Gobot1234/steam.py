@@ -975,5 +975,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
-    async def apps(self) -> list[StatefulApp]:
+    async def apps(self, *, language: Language | None = None) -> list[StatefulApp]:
+        if language is not None:
+            return await super().apps(language=language)
         return self._apps
