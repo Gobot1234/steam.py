@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import re
 from collections.abc import AsyncGenerator, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,8 +15,8 @@ from bs4 import BeautifulSoup
 from typing_extensions import Required, Self
 from yarl import URL as URL_
 
-from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL
-from .app import App, StatefulApp, UserApp, WishlistApp
+from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL
+from .app import App, StatefulApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
@@ -25,6 +26,7 @@ from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory
+from .types.id import ContextID
 from .utils import DateTime, cached_slot_property
 
 if TYPE_CHECKING:
@@ -224,6 +226,23 @@ class Awardable(Protocol):
     #     return [AwardReaction(self._state, reaction) for reaction in reactions]
 
 
+@dataclass(slots=True)
+class UserInventoryInfo:
+    user: BaseUser
+    app: UserInventoryInfoApp
+    total_count: int
+    trade_permissions: str
+    load_failed: bool
+    store_vetted: bool
+    owner_only: bool
+    contexts: list[UserInventoryInfoContext]
+
+    async def all_inventories(self) -> AsyncGenerator[Inventory, None]:
+        """An :term:`async iterator` for accessing a user's full inventory in an app."""
+        for context in self.contexts:
+            yield await self.user.inventory(App(id=self.app.id, context_id=context.id))
+
+
 class BaseUser(ID, Commentable):
     """An ABC that details the common operations on a Steam user.
     The following classes implement this ABC:
@@ -306,6 +325,48 @@ class BaseUser(ID, Commentable):
         )
         assert server is not None
         return server
+
+    async def inventory_info(self) -> list[UserInventoryInfo]:
+        """Fetch the inventory info of the user.
+
+        Returns
+        -------
+        UserInventoryInfo is a dataclass defined as:
+
+        .. source:: UserInventoryInfo
+        """
+        resp = await self._state.http.get(URL.COMMUNITY / f"profiles/{self.id64}/inventory")
+        soup = BeautifulSoup(resp, "html.parser")
+        for script in soup.find_all("script", type="text/javascript"):
+            if match := re.search(r"var g_rgAppContextData\s*=\s*(?P<json>{.*?});\s*", script.text):
+                break
+        else:
+            raise ValueError("Could not find inventory info")
+
+        app_context_data = JSON_LOADS(match["json"])
+
+        return [
+            UserInventoryInfo(
+                user=self,
+                app=UserInventoryInfoApp(
+                    self._state,
+                    id=info["appid"],
+                    name=info["name"],
+                    inventory_logo_url=info["inventory_logo"],
+                    icon_url=info["icon"],
+                ),
+                total_count=info["asset_count"],
+                trade_permissions=info["trade_permissions"],
+                load_failed=bool(info["load_failed"]),
+                store_vetted=bool(info["store_vetted"]),
+                owner_only=info["owner_only"],
+                contexts=[
+                    UserInventoryInfoContext(ContextID(ctx["id"]), ctx["name"], ctx["asset_count"])
+                    for ctx in info["rgContexts"].values()
+                ],
+            )
+            for info in app_context_data.values()
+        ]
 
     async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
         """Fetch a user's :class:`~steam.Inventory` for trading.

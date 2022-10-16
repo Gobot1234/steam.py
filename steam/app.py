@@ -1026,3 +1026,25 @@ class FetchedApp(StatefulApp):
     def is_on_linux(self) -> bool:
         """Whether the app is playable on Linux."""
         return self._on_linux
+
+
+@dataclass(slots=True)
+class UserInventoryInfoContext:
+    """Represents a context ID type."""
+
+    id: ContextID
+    """The ID of the context ID type."""
+    name: str
+    """The name of the context ID type."""
+    count: int
+    """The number of items in the context ID type."""
+
+
+class UserInventoryInfoApp(StatefulApp):
+    name: str
+    __slots__ = ("icon_url", "inventory_logo_url")
+
+    def __init__(self, state: ConnectionState, id: int, name: str, icon_url: str, inventory_logo_url: str):
+        super().__init__(state, id=id, name=name)
+        self.icon_url = icon_url
+        self.inventory_logo_url = inventory_logo_url
