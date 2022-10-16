@@ -17,7 +17,6 @@ import sys
 import time
 import traceback
 from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Sequence
-from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, final, overload
 
 import aiohttp
@@ -35,7 +34,7 @@ from .manifest import AppInfo, PackageInfo
 from .models import PriceOverview, return_true
 from .package import FetchedPackage, License, Package, StatefulPackage
 from .published_file import PublishedFile
-from .reaction import ClientEmoticon, ClientSticker, Emoticon
+from .reaction import ClientEmoticon, ClientSticker
 from .state import ConnectionState
 from .types.id import Intable
 from .utils import DateTime, TradeURLInfo, parse_id64
@@ -332,14 +331,19 @@ class Client:
 
     @overload
     @final
-    def run(  # type: ignore
+    def run(
         self,
         username: str,
         password: str,
         *,
-        shared_secret: str | None = None,
-        identity_secret: str | None = None,
+        shared_secret: str = MISSING,
+        identity_secret: str = MISSING,
     ) -> object:
+        ...
+
+    @overload
+    @final
+    def run(self, *, refresh_token: str) -> object:
         ...
 
     @final
