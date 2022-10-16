@@ -168,7 +168,7 @@ class Commentable(Protocol):
                     content=comment.content,
                     created_at=DateTime.from_timestamp(comment.timestamp),
                     reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
-                    author=comment.author_id64,  # type: ignore
+                    author=ID(comment.author_id64),
                     owner=self,
                 )
                 if after < comment.created_at < before:
@@ -182,12 +182,20 @@ class Commentable(Protocol):
             count -= len(comments)
             return comments
 
-        for comment in await get_comments(min(limit or 100, 100)):
+        comments = await get_comments(min(limit or 100, 100))
+        for comment, author in zip(
+            comments, await self._state._maybe_users(comment.author.id64 for comment in comments)
+        ):
+            comment.author = author
             yield comment
 
         assert count is not None
         while count > 0:
-            for comment in await get_comments(min(count, 100)):
+            comments = await get_comments(min(limit or 100, 100))
+            for comment, author in zip(
+                comments, await self._state._maybe_users(comment.author.id64 for comment in comments)
+            ):
+                comment.author = author
                 yield comment
 
 
