@@ -24,7 +24,6 @@ from .enums import Language
 from .id import ID
 from .models import PriceOverviewDict, api_route
 from .user import ClientUser
-from .utils import cached_property
 
 if TYPE_CHECKING:
     from .client import Client
@@ -57,10 +56,9 @@ class HTTPClient:
         self.user: ClientUser = None  # type: ignore
         self._client = client
 
-        self.username: str
-        self.password: str
         self.api_key: str | None = None
-        self.shared_secret: str | None
+        self.login_event = asyncio.Event()
+        self._logging_in = False
         self.language: Language = options.get("language", Language.English)
 
         self._one_time_code = ""
@@ -108,13 +106,14 @@ class HTTPClient:
 
                 # we are being rate limited
                 elif r.status == 429:
-                    # I haven't been able to get any X-Retry-After headers from the API, but we should probably still
-                    # handle it
-                    log.warning("We are being Rate limited")
                     try:
-                        await asyncio.sleep(float(r.headers["X-Retry-After"]))
+                        # I haven't been able to get any X-Retry-After headers from the API, but we should probably still
+                        # handle it
+                        delay = float(r.headers["X-Retry-After"])
                     except KeyError:  # steam being un-helpful as usual
-                        await asyncio.sleep(2**tries)
+                        delay = 2**tries
+                    log.warning("We are being Rate limited sleeping for %s seconds", delay)
+                    await asyncio.sleep(delay)
                     continue
 
                 # we've received a 500 or 502, an unconditional retry
@@ -123,15 +122,15 @@ class HTTPClient:
                     continue
 
                 elif r.status == 401:
-                    if not data:
-                        raise errors.HTTPException(r, data)
-                    # api key either got revoked or it was never valid
-                    if "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data:
-                        # time to fetch a new key
+                    if "key" in kwargs.get("params", ()) and (
+                        isinstance(data, str)
+                        and "Access is denied. Retrying will not help. Please verify your <pre>key=</pre>" in data
+                    ):  # api key either got revoked or it was never valid, time to fetch a new key
                         key = await self.get_api_key()
                         assert key is not None
-                        kwargs["key"] = key
-                        # retry with our new key
+                        kwargs["params"]["key"] = key
+                        continue  # retry with our new key
+                    raise errors.HTTPException(r, data)
 
                 # the usual error cases
                 elif r.status == 403:
@@ -157,6 +156,12 @@ class HTTPClient:
         )
 
     async def login(self, refresh_token: str) -> None:
+        if self._logging_in:
+            await self.login_event.wait()
+            return
+
+        self._logging_in = True
+
         resp = await self.post(
             URL.LOGIN / "jwt/finalizelogin",
             data={
@@ -194,8 +199,9 @@ class HTTPClient:
             cookie = SimpleCookie[str](cookie)
             for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
                 jar.update_cookies(cookie.copy(), url)
+                jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
 
-        self.logged_in = True
+        self.login_event.set()
 
     async def get_api_key(self) -> str | None:
         if self.api_key is not None:
@@ -221,7 +227,7 @@ class HTTPClient:
         resp = await self.post(URL.COMMUNITY / "dev/registerkey", data=payload)
         return key_re.findall(resp)[0]
 
-    @cached_property
+    @utils.cached_property
     def session_id(self) -> str:
         return randbytes(16).hex()
 
