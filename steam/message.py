@@ -44,7 +44,7 @@ class UserMessage(Message):
             int(self.created_at.timestamp()),
             self.ordinal,
             emoticon.name,
-            reaction_type=1,
+            reaction_type=emoticon._TYPE,
             is_add=True,
         )
         self._state.dispatch(
@@ -58,7 +58,7 @@ class UserMessage(Message):
             int(self.created_at.timestamp()),
             self.ordinal,
             emoticon.name,
-            reaction_type=1,
+            reaction_type=emoticon._TYPE,
             is_add=False,
         )
         self._state.dispatch(
@@ -72,7 +72,7 @@ class UserMessage(Message):
             int(self.created_at.timestamp()),
             self.ordinal,
             sticker.name,
-            reaction_type=2,
+            reaction_type=sticker._TYPE,
             is_add=True,
         )
         self._state.dispatch(
@@ -86,7 +86,7 @@ class UserMessage(Message):
             int(self.created_at.timestamp()),
             self.ordinal,
             sticker.name,
-            reaction_type=2,
+            reaction_type=sticker._TYPE,
             is_add=False,
         )
         self._state.dispatch(

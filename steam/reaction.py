@@ -14,6 +14,7 @@ from yarl import URL
 from .app import StatefulApp
 from .models import _IOMixin
 from .protobufs.chat import EChatRoomMessageReactionType
+from .protobufs.friend_messages import EMessageReactionType
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -243,6 +244,14 @@ class BaseEmoticon(_IOMixin):
         return hash(self.name)
 
 
+EMOTICON_TYPE = EChatRoomMessageReactionType.Emoticon
+STICKER_TYPE = EChatRoomMessageReactionType.Sticker
+
+if TYPE_CHECKING:  # until actual intersection types are added this will have to do
+    assert isinstance(EMOTICON_TYPE, EMessageReactionType)
+    assert isinstance(STICKER_TYPE, EMessageReactionType)
+
+
 class Emoticon(BaseEmoticon):
     """Represents an emoticon in chat.
 
@@ -268,7 +277,7 @@ class Emoticon(BaseEmoticon):
     """
 
     __slots__ = ()
-    _TYPE: Final = EChatRoomMessageReactionType.Emoticon
+    _TYPE: Final = EMOTICON_TYPE
 
     def __str__(self):
         return f":{self.name}:"
@@ -317,7 +326,7 @@ class Sticker(BaseEmoticon):
     """
 
     __slots__ = ()
-    _TYPE: Final = EChatRoomMessageReactionType.Sticker
+    _TYPE: Final = STICKER_TYPE
 
     def __str__(self) -> str:
         return f"/sticker {self.name}"
