@@ -438,6 +438,8 @@ class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"])
     This class does not forward ClientUsers attribute's so things like Clan().me.clear_nicks() will fail.
     """
 
+    __slots__ = ("_user",)
+
     def __init__(self, state: ConnectionState, user: User):
         ID.__init__(self, user.id64, type=Type.Individual)
         self._user = user
@@ -446,8 +448,9 @@ class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"])
         super().__init_subclass__()
 
         for name, function in set(User.__dict__.items()) - set(object.__dict__.items()):
-            setattr(cls, name, function)
-        for name in (*User.__slots__, *BaseUser.__slots__):
+            if not name.startswith("__"):
+                setattr(cls, name, function)
+        for name in _BaseUser.__slots__:
             setattr(cls, name, property(attrgetter(f"_user.{name}")))  # TODO time this with a compiled property
             # probably wont be different than the above
 
