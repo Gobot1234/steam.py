@@ -535,6 +535,16 @@ Package
    :inherited-members:
 
 
+Post
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Post
+
+.. autoclass:: Post()
+    :members:
+    :inherited-members:
+
+
 PriceOverview
 ~~~~~~~~~~~~~~~
 

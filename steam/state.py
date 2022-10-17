@@ -74,7 +74,7 @@ from .reaction import (
 )
 from .role import RolePermissions
 from .trade import TradeOffer
-from .types.id import ID32, ID64, CacheKey, ChatGroupID, ChatID, Intable
+from .types.id import ID32, ID64, AppID, CacheKey, ChatGroupID, ChatID, Intable
 from .user import ClientUser, User
 from .utils import DateTime, cached_property
 
@@ -1466,6 +1466,37 @@ class ConnectionState(Registerable):
     async def parse_new_items(self, msg: client_server_2.CMsgClientItemAnnouncements) -> None:
         if msg.count_new_items:
             await self.poll_trades()
+
+    async def fetch_user_post(self, user_id64: ID64, post_id: int) -> player.GetPostedStatusResponse:
+        msg: player.GetPostedStatusResponse = await self.ws.send_um_and_wait(
+            player.GetPostedStatusRequest(
+                steamid=user_id64,
+                postid=post_id,
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    async def create_user_post(self, content: str, app_id: AppID) -> None:
+        msg: player.PostStatusToFriendsResponse = await self.ws.send_um_and_wait(
+            player.PostStatusToFriendsRequest(appid=app_id, status_text=content)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def delete_user_post(self, post_id: int) -> None:
+        msg: player.DeletePostedStatusResponse = await self.ws.send_um_and_wait(
+            player.DeletePostedStatusRequest(
+                postid=post_id,
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        if msg.result != Result.OK:
+            raise WSException(msg)
 
     async def fetch_user_reviews(self, user_id64: ID64, app_ids: Iterable[int]) -> list[reviews.RecommendationDetails]:
         msg: reviews.GetIndividualRecommendationsResponse = await self.ws.send_um_and_wait(

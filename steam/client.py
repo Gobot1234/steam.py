@@ -20,6 +20,7 @@ from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Seq
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, final, overload
 
 import aiohttp
+from bs4 import BeautifulSoup
 
 from . import errors, utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
@@ -33,10 +34,11 @@ from .id import ID
 from .manifest import AppInfo, PackageInfo
 from .models import PriceOverview, return_true
 from .package import FetchedPackage, License, Package, StatefulPackage
+from .post import Post
 from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker
 from .state import ConnectionState
-from .types.id import Intable
+from .types.id import AppID, Intable
 from .utils import DateTime, TradeURLInfo, parse_id64
 
 if TYPE_CHECKING:
@@ -852,6 +854,32 @@ class Client:
             The language to fetch the published files in. If ``None``, the current language is used.
         """
         return await self._state.fetch_published_files(ids, revision, language)
+
+    async def create_post(self, content: str, app: App | None = None) -> Post:
+        """Create a post.
+
+        Parameters
+        ----------
+        content
+            The content of the post.
+        app
+            The app to create the post for.
+        """
+        await self._state.create_user_post(content, app_id=AppID(0) if app is None else app.id)
+        # TODO if ws ever gives the post id switch to just this
+        # for now steam is broken and thinks I'm logged out even though /my seems to resolve to the right account
+        resp = await self.http.get(URL.COMMUNITY / "my/myactivity")
+        soup = BeautifulSoup(resp, "html.parser")
+        for post in soup.find_all("div", class_="blotter_userstatus"):
+            if (
+                content_element := post.find("div", class_="blotter_userstatus_content responsive_body_text")
+            ) is not None and content_element.text.strip() == content:
+                id, _, _ = post["id"].removeprefix("userstatus_").partition("_")
+                return Post(
+                    self._state, int(id), content, self.user, StatefulApp(self._state, id=app.id) if app else None
+                )
+
+        raise RuntimeError("Post created has no ID, this should be unreachable")
 
     async def trade_history(
         self,

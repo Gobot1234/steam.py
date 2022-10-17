@@ -616,6 +616,14 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "events/ajaxgetpartnerevent", params=params)
 
+    def vote_on_user_post(self, user_id64: ID64, post_id: int, vote: int) -> Coro[None]:
+        data = {
+            "sessionid": self.session_id,
+            "vote": vote,
+        }
+
+        return self.post(URL.COMMUNITY / f"comment/UserStatusPublished/voteup/{user_id64}/{post_id}", data=data)
+
     def post_review(
         self,
         app_id: int,

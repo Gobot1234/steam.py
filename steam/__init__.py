@@ -29,6 +29,7 @@ from .manifest import *
 from .message import *
 from .models import *
 from .package import *
+from .post import *
 from .profile import *
 from .published_file import *
 from .reaction import *
