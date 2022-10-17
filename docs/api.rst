@@ -728,19 +728,19 @@ App
 
 There are some predefined apps which are:
 
-+---------------------------------+-----------------+
-| App Name                        | Accessed via    |
-+=================================+=================+
-| Team Fortress 2                 | ``steam.TF2``   |
-+---------------------------------+-----------------+
-| DOTA2                           | ``steam.DOTA2`` |
-+---------------------------------+-----------------+
-| Counter Strike Global-Offensive | ``steam.CSGO``  |
-+---------------------------------+-----------------+
-| Left for Dead 2                 | ``steam.LFD2``  |
-+---------------------------------+-----------------+
-| Steam                           | ``steam.STEAM`` |
-+---------------------------------+-----------------+
+.. autodata:: TF2
+
+.. autodata:: DOTA2
+
+.. autodata:: CSGO
+
+.. autodata:: LFD2
+
+.. autodata:: STEAM
+
+These are shorthand for ``Client.get_game(440)`` etc. (you need a client to have been constructed and be use to use the
+methods that they inherit from :class:`StatefulApp`), they are also valid as type parameters to :class:`typing.Literal`
+
 
 Apps can be manually constructed using their app ID eg:
 
