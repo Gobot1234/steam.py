@@ -3,7 +3,7 @@ name: Deploy
 on:
   push:
   release:
-    types: [released]
+    types: [created]
 
 jobs:
   job:
@@ -18,16 +18,17 @@ jobs:
         with:
           repository: ${{ env.TARGET }}
           path: steam-py.github.io
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-          # TODO cache
 
       - name: Install
         uses: snok/install-poetry@v1
         with:
-          version: 1.2.0b2
+          version: 1.2.0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+          cache: "poetry"
 
       - name: Install Dependencies
         run: |
