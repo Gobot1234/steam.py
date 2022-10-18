@@ -1,5 +1,4 @@
 import asyncio
-from typing import TYPE_CHECKING
 
 import discord  # pip install discord.py
 from discord.ext import commands
@@ -23,7 +22,7 @@ class DiscordBot(commands.Bot):
     async def start(self, token: str, username: str, password: str) -> None:
         await asyncio.gather(
             super().start(token),
-            self.client.start(username, password),
+            self.client.login(username, password),
         )  # start the client and bot concurrently
 
     async def close(self) -> None:
@@ -39,10 +38,10 @@ class UserNotFound(commands.BadArgument):
         super().__init__(f"User {argument!r} not found.")
 
 
-class UserConverter(commands.Converter):
+class UserConverter(commands.Converter[steam.User]):
     """Simple user converter"""
 
-    async def convert(self, ctx: commands.Context, argument: str) -> steam.User:
+    async def convert(self, ctx: commands.Context[DiscordBot], argument: str) -> steam.User:
         try:
             user = await ctx.bot.client.fetch_user(argument)
         except steam.InvalidID:
@@ -59,10 +58,11 @@ bot = DiscordBot()
 
 
 @bot.command()
-async def user(ctx: commands.Context, user: steam.User = commands.param(converter=UserConverter)):
+async def user(ctx: commands.Context[DiscordBot], user: steam.User = commands.param(converter=UserConverter)):
     """Show some basic info on a steam user"""
-    embed = discord.Embed(description=user.name, timestamp=user.created_at)
-    embed.set_thumbnail(url=user.avatar_url)
+    profile = await user.profile()
+    embed = discord.Embed(description=user.name)
+    embed.set_thumbnail(url=user.avatar.url)
     embed.add_field(name="64 bit ID:", value=str(user.id64))
     embed.add_field(name="Currently playing:", value=f"{user.app or 'Nothing'}")
     embed.add_field(name="Friends:", value=len(await user.friends()))
@@ -72,7 +72,7 @@ async def user(ctx: commands.Context, user: steam.User = commands.param(converte
 
 
 @user.error
-async def on_user_command_error(ctx: commands.Context, error: commands.CommandError):
+async def on_user_command_error(ctx: commands.Context[DiscordBot], error: commands.CommandError):
     if isinstance(error, UserNotFound):
         return await ctx.send(str(error))
     raise error
