@@ -143,15 +143,6 @@ class Asset:
         """
         return f"{URL.COMMUNITY}/profiles/{self.owner.id64}/inventory#{self._app_id}_{self._context_id}_{self.id}"
 
-    @property
-    def asset_id(self) -> int:
-        """The assetid of the item.
-
-        .. deprecated:: 0.9.0:: Use :attr:`id` instead.
-        """
-        warnings.warn("asset_id is deprecated, use id instead", DeprecationWarning)
-        return self.id
-
 
 class Item(Asset):
     """Represents an item in a User's inventory.
@@ -347,49 +338,6 @@ class BaseInventory(Generic[ItemT_co]):
         data = await self._state.fetch_user_inventory(self.owner.id64, self.app.id, self.app.context_id, self._language)
         self._update(data)
 
-    def filter_items(self, *names: str, limit: int | None = None) -> list[ItemT_co]:
-        """A helper function that filters items by name from the inventory.
-
-        .. deprecated:: 0.9
-
-            Use a list comprehension instead of this.
-
-        Parameters
-        ------------
-        names
-            The names of the items to filter for.
-        limit
-            The maximum amount of items to return. Checks from the front of the items.
-
-        Raises
-        -------
-        :exc:`ValueError`
-            You passed a limit and multiple item names.
-
-        Returns
-        ---------
-        The matching items.
-        """
-        if len(names) > 1 and limit:
-            raise ValueError("Cannot pass a limit with multiple items")
-        items = [item for item in self if item.name in names]
-        return items if limit is None else items[:limit]
-
-    def get_item(self, name: str) -> ItemT_co | None:
-        """A helper function that gets an item or ``None`` if no matching item is found by name from the inventory.
-
-        .. deprecated:: 0.9
-
-            Use :func:`steam.utils.get` instead of this.
-
-        Parameters
-        ----------
-        name
-            The item to get from the inventory.
-        """
-        item = self.filter_items(name, limit=1)
-        return item[0] if item else None
-
 
 Inventory: TypeAlias = BaseInventory[Item]  # necessitated by TypeVar not currently supporting defaults
 """Represents a User's inventory.
@@ -457,12 +405,6 @@ class MovedItem(Item):
         )
         self.new_id = int(data["new_assetid"])
         self.new_context_id = int(data["new_contextid"])
-
-    @property
-    def new_asset_id(self) -> int:
-        """The new asset ID of the item in the partner's inventory."""
-        warnings.warn("new_asset_id is deprecated, use new_id instead", DeprecationWarning)
-        return self.new_id
 
 
 class TradeOffer:

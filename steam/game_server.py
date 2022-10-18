@@ -382,18 +382,8 @@ class GameServer(ID):
     #     proto = await self._query(EQueryType.Ping)
     #     proto.ping_data
 
-    async def players(self, *, challenge: Literal[-1, 0] = 0) -> list[ServerPlayer]:
+    async def players(self) -> list[ServerPlayer]:
         """Fetch a server's players.
-
-        Parameters
-        ----------
-        challenge
-            The challenge for the request default is 0 can also be -1. You may need to change if the server doesn't seem
-            to respond.
-
-            .. deprecated:: 0.9.0
-
-                This parameter no longer does anything.
 
         Returns
         -------
@@ -401,9 +391,6 @@ class GameServer(ID):
 
         .. source:: steam.ServerPlayer
         """
-        if challenge:
-            warnings.warn("challenge parameter is deprecated and will be removed in V1", stacklevel=1)
-
         proto = await self._query(EQueryType.Players)
         return [
             ServerPlayer(
@@ -415,22 +402,7 @@ class GameServer(ID):
             for index, player in enumerate(proto.players_data.players)
         ]
 
-    async def rules(self, *, challenge: Literal[-1, 0] = 0) -> dict[str, str]:
-        """Fetch a console variables. e.g. ``sv_gravity`` or ``sv_voiceenable``.
-
-        Parameters
-        ----------
-        challenges
-            The challenge for the request default is 0 can also be -1. You may need to change if the server doesn't seem
-            to respond.
-
-            .. deprecated:: 0.9.0
-
-                This parameter no longer does anything.
-        """
-
-        if challenge:
-            warnings.warn("challenge parameter is deprecated and will be removed in V1", stacklevel=1)
-
+    async def rules(self) -> dict[str, str]:
+        """Fetch a console variables. e.g. ``sv_gravity`` or ``sv_voiceenable``."""
         proto = await self._query(EQueryType.Rules)
         return proto.rules_data.rules
