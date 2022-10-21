@@ -141,7 +141,7 @@ class Client:
         self.http = HTTPClient(client=self, **options)
         self._state = self._get_state(**options)
         STATE.set(self._state)
-        self.ws: SteamWebSocket = None  # type: ignore
+        self.ws: SteamWebSocket | None = None
 
         self.username: str | None = None
         self.password: str | None = None

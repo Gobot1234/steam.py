@@ -90,6 +90,8 @@ class HTTPClient:
         url = url if isinstance(url, URL_) else URL_(url)
 
         if url.host == URL.COMMUNITY.host and not self.logged_in:
+            if self._client.ws is None:
+                raise RuntimeError("Not logged in and not connected to CM")
             await self.login(self._client.ws.refresh_token)
 
         for tries in range(5):
