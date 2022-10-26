@@ -749,19 +749,19 @@ class SteamWebSocket(Registerable):
             log.debug("Sending %r to change UI mode", ui_mode_msg)
             await self.send_proto(ui_mode_msg)
 
-    async def fetch_users(self, user_id64s: Iterable[int]) -> list[friends.CMsgClientPersonaStateFriend]:
+    async def fetch_users(self, user_id64s: Iterable[ID64]) -> list[friends.CMsgClientPersonaStateFriend]:
         futs: list[asyncio.Future[friends.CMsgClientPersonaState]] = []
         users: list[friends.CMsgClientPersonaStateFriend] = []
         user_id64s = tuple(dict.fromkeys(user_id64s))
 
-        def callback(msg: friends.CMsgClientPersonaState, user_id64_chunk: list[int]) -> bool:
-            return any(friend.friendid in user_id64_chunk for friend in msg.friends)
+        def callback(msg: friends.CMsgClientPersonaState, user_id64: ID64) -> bool:
+            return any(friend.friendid == user_id64 for friend in msg.friends)
 
         for user_id64_chunk in utils.as_chunks(user_id64s, 100):
-            futs.extend(
-                self.wait_for(friends.CMsgClientPersonaState, check=partial(callback, user_id64_chunk=user_id64_chunk))
-                for _ in user_id64_chunk
-            )
+            futs += [
+                self.wait_for(friends.CMsgClientPersonaState, check=partial(callback, user_id64=user_id64))
+                for user_id64 in user_id64_chunk
+            ]
             await self.send_proto(
                 friends.CMsgClientRequestFriendData(
                     # enum EClientPersonaStateFlag {
@@ -781,7 +781,7 @@ class SteamWebSocket(Registerable):
                     #     Watching = 16384;
                     # };
                     persona_state_requested=0b1111111011111,  # all except watching and broadcast (for now)
-                    friends=user_id64_chunk,
+                    friends=user_id64_chunk,  # type: ignore
                 ),
             )
 

@@ -239,7 +239,7 @@ class ConnectionState(Registerable):
         (user,) = await self.fetch_users((user_id64,))
         return user
 
-    async def fetch_users(self, user_id64s: Iterable[int]) -> list[User]:
+    async def fetch_users(self, user_id64s: Iterable[ID64]) -> list[User]:
         friends = await self.ws.fetch_users(user_id64s)
         return [self._store_user(user) for user in friends]
 
@@ -1141,77 +1141,89 @@ class ConnectionState(Registerable):
         client_user_friends: list[ID64] = []
         is_load = not msg.bincremental
         for friend in msg.friends:
-            relationship = FriendRelationship.try_value(friend.efriendrelationship)
             steam_id = ID(friend.ulfriendid)
-
-            if relationship == FriendRelationship.Friend:
-                try:
-                    invite = self.invites.pop(steam_id.id64)
-                except KeyError:
-                    if steam_id.type == Type.Individual:
-                        if is_load:
-                            client_user_friends.append(steam_id.id64)
-                        else:
-                            user = await self.fetch_user(steam_id.id64)
-                            assert user is not None
-                            self._add_friend(user)
-                else:
-                    if isinstance(invite, UserInvite):
-                        assert not isinstance(invite.invitee, ID)
-                        self.dispatch("user_invite_accept", invite)
-                        if isinstance(invite.invitee, User):
-                            friend = self._add_friend(invite.invitee)
-                            self.dispatch("friend_add", friend)
-                    else:
-                        self.dispatch("clan_invite_accept", invite)
-                        if isinstance(invite.clan, Clan):
-                            self._clans[invite.clan.id] = invite.clan
-            elif relationship in (
-                FriendRelationship.RequestInitiator,
-                FriendRelationship.RequestRecipient,
-            ):
-                if steam_id.type == Type.Individual:
-                    invitee = await self._maybe_user(steam_id.id64)
-                    invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
-                    self.invites[invitee.id64] = invite
-                    self.dispatch("user_invite", invite)
-                if steam_id.type == Type.Clan:
-                    if elements is None:
-                        resp = await self.http.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
-                        soup = BeautifulSoup(resp, HTML_PARSER)
-                        elements = soup.find_all("a", class_="linkStandard")
-                    invitee_id64 = next(
-                        (
-                            utils.parse_id64(elements[idx + 1]["data-miniprofile"])
-                            for idx, element in enumerate(elements)
-                            if str(steam_id.id64) in str(element)
-                        ),
-                        0,
-                    )
-
-                    invitee = await self._maybe_user(invitee_id64)
+            match relationship := FriendRelationship.try_value(friend.efriendrelationship):
+                case FriendRelationship.Friend:
                     try:
-                        clan = await self.fetch_clan(steam_id.id64) or steam_id
-                    except WSException:
-                        clan = steam_id
-                    invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
-                    self.invites[clan.id64] = invite
-                    self.dispatch("clan_invite", invite)
+                        invite = self.invites.pop(steam_id.id64)
+                    except KeyError:
+                        print("Not in invites", steam_id)
+                        if steam_id.type == Type.Individual:
+                            if is_load:
+                                client_user_friends.append(steam_id.id64)
+                            else:
+                                user = await self.fetch_user(steam_id.id64)
+                                assert user is not None
+                                self._add_friend(user)
+                    else:
+                        if isinstance(invite, UserInvite):
+                            self.dispatch("user_invite_accept", invite)
+                            if isinstance(invite.invitee, User):
+                                friend = self._add_friend(invite.invitee)
+                                self.dispatch("friend_add", friend)
+                        else:
+                            self.dispatch("clan_invite_accept", invite)
+                            if isinstance(invite.clan, Clan):
+                                self._clans[invite.clan.id] = invite.clan
 
-            elif relationship == FriendRelationship.NONE and steam_id.type == Type.Individual:
-                try:
-                    invite = self.invites.pop(steam_id.id64)
-                except KeyError:
-                    friend = self.user._friends.pop(steam_id.id64, None)
-                    if friend is None:
-                        return log.debug("Unknown friend %s removed", steam_id)
-                    self.dispatch("user_remove", friend)  # TODO remove
-                    self.dispatch("friend_remove", friend)
-                else:
-                    self.dispatch(f"{'user'if steam_id.type == Type.Individual else 'clan'}_invite_decline", invite)
+                case FriendRelationship.RequestInitiator | FriendRelationship.RequestRecipient:
+                    match steam_id.type:
+                        case Type.Individual:
+                            invitee = await self._maybe_user(steam_id.id64)
+                            invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
+                            self.invites[invitee.id64] = invite
+                            self.dispatch("user_invite", invite)
+
+                        case Type.Clan:
+                            if elements is None:
+                                resp = await self.http.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
+                                soup = BeautifulSoup(resp, HTML_PARSER)
+                                elements = soup.find_all("a", class_="linkStandard")
+                            invitee_id64 = next(
+                                (
+                                    utils.parse_id64(elements[idx + 1]["data-miniprofile"])
+                                    for idx, element in enumerate(elements)
+                                    if str(steam_id.id64) in str(element)
+                                ),
+                                0,
+                            )
+
+                            invitee = await self._maybe_user(invitee_id64)
+                            try:
+                                clan = await self.fetch_clan(steam_id.id64) or steam_id
+                            except WSException:
+                                clan = steam_id
+                            invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
+                            self.invites[clan.id64] = invite
+                            self.dispatch("clan_invite", invite)
+
+                case FriendRelationship.NONE:
+                    match steam_id.type:
+                        case Type.Individual:
+                            try:
+                                invite = self.invites.pop(steam_id.id64)
+                            except KeyError:
+                                friend = self.user._friends.pop(steam_id.id64, None)
+                                if friend is None:
+                                    return log.debug("Unknown friend %s removed", steam_id)
+                                self.dispatch("friend_remove", friend)
+                            else:
+                                self.dispatch("user_invite_decline", invite)
+
+                        case Type.Clan:
+                            try:
+                                invite = self.invites.pop(steam_id.id64)
+                            except KeyError:
+                                clan = self._clans.pop(steam_id.id, None)
+                                if clan is None:
+                                    return log.debug("Unknown clan %s removed", steam_id)
+                                self.dispatch("clean_leave", clan)
+                            else:
+                                self.dispatch("clan_invite_decline", invite)
+
         if is_load:
             await self.login_complete.wait()
-            self.user._friends = {user.id64: Friend(self, user) for user in await self._maybe_users(client_user_friends)}  # type: ignore
+            self.user._friends = {user.id64: Friend(self, user) for user in await self.fetch_users(client_user_friends)}
             self.handled_friends.set()
 
     async def set_chat_group_active(self, chat_group_id: ChatGroupID) -> chat.GroupState:
