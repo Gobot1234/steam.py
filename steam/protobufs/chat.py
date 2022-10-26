@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 import betterproto
 
-from .emsg import EMsg
 from .friends import CMsgClientPersonaStateFriend
 from .msg import UnifiedMessage
 
