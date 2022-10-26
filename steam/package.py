@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from .app import PartialAppPriceOverview, StatefulApp
 from .enums import Language, LicenseFlag, LicenseType, PaymentMethod
-from .types.id import Intable
+from .types.id import Intable, PackageID
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ __all__ = (
 
 
 class Package:
-    """Represents information on a package which is a collection of one or more applications and depots.
+    """Represents a package, a collection of one or more apps and depots.
 
     Read more on `steamworks <https://partner.steamgames.com/doc/store/application/packages>`_.
     """
@@ -42,7 +42,7 @@ class Package:
     )
 
     def __init__(self, id: Intable, name: str | None = None):
-        self.id = int(id)
+        self.id = PackageID(int(id))
         """The package's ID."""
         self.name = name
         """The package's name."""
