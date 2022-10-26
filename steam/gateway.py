@@ -258,6 +258,7 @@ class SteamWebSocket(Registerable):
         self.steam_id = 0
         self._current_job_id = 0
         self._gc_current_job_id = 0
+        self.server_offset = timedelta()
         self.refresh_token: str
         self.access_token: str
         self.client_id: int
