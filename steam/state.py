@@ -1071,7 +1071,7 @@ class ConnectionState(Registerable):
         match msg.change:
             case chat.EChatRoomMemberStateChange.Joined:
                 member = await chat_group._add_member(msg.member)
-                self.dispatch("member_join", chat_group, member)
+                self.dispatch("member_join", member)
             case chat.EChatRoomMemberStateChange.Parted:
                 member = chat_group._remove_member(msg.member)
                 if member is None:
