@@ -28,7 +28,7 @@ jobs:
         run: poetry check
 
       - name: Install dependencies
-        run: poetry install --only main, speedups
+        run: poetry install --with speedups
 
       - name: Publish to PyPI
         run: poetry publish --build --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
