@@ -1141,18 +1141,17 @@ class ConnectionState(Registerable):
         client_user_friends: list[ID64] = []
         is_load = not msg.bincremental
         for friend in msg.friends:
-            steam_id = ID(friend.ulfriendid)
+            id = ID(friend.ulfriendid)
             match relationship := FriendRelationship.try_value(friend.efriendrelationship):
                 case FriendRelationship.Friend:
                     try:
-                        invite = self.invites.pop(steam_id.id64)
+                        invite = self.invites.pop(id.id64)
                     except KeyError:
-                        print("Not in invites", steam_id)
-                        if steam_id.type == Type.Individual:
+                        if id.type == Type.Individual:
                             if is_load:
-                                client_user_friends.append(steam_id.id64)
+                                client_user_friends.append(id.id64)
                             else:
-                                user = await self.fetch_user(steam_id.id64)
+                                user = await self.fetch_user(id.id64)
                                 assert user is not None
                                 self._add_friend(user)
                     else:
@@ -1167,9 +1166,9 @@ class ConnectionState(Registerable):
                                 self._clans[invite.clan.id] = invite.clan
 
                 case FriendRelationship.RequestInitiator | FriendRelationship.RequestRecipient:
-                    match steam_id.type:
+                    match id.type:
                         case Type.Individual:
-                            invitee = await self._maybe_user(steam_id.id64)
+                            invitee = await self._maybe_user(id.id64)
                             invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
                             self.invites[invitee.id64] = invite
                             self.dispatch("user_invite", invite)
@@ -1183,40 +1182,42 @@ class ConnectionState(Registerable):
                                 (
                                     utils.parse_id64(elements[idx + 1]["data-miniprofile"])
                                     for idx, element in enumerate(elements)
-                                    if str(steam_id.id64) in str(element)
+                                    if str(id.id64) in str(element)
                                 ),
                                 0,
                             )
 
                             invitee = await self._maybe_user(invitee_id64)
                             try:
-                                clan = await self.fetch_clan(steam_id.id64) or steam_id
+                                clan = await self.fetch_clan(id.id64) or id
                             except WSException:
-                                clan = steam_id
+                                clan = id
                             invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
                             self.invites[clan.id64] = invite
                             self.dispatch("clan_invite", invite)
 
                 case FriendRelationship.NONE:
-                    match steam_id.type:
+                    match id.type:
                         case Type.Individual:
                             try:
-                                invite = self.invites.pop(steam_id.id64)
+                                invite = self.invites.pop(id.id64)
                             except KeyError:
-                                friend = self.user._friends.pop(steam_id.id64, None)
+                                friend = self.user._friends.pop(id.id64, None)
                                 if friend is None:
-                                    return log.debug("Unknown friend %s removed", steam_id)
+                                    return log.debug("Unknown friend %s removed", id)
                                 self.dispatch("friend_remove", friend)
                             else:
-                                self.dispatch("user_invite_decline", invite)
+                                self.dispatch(
+                                    f"{'user' if id.type == Type.Individual else 'clan'}_invite_decline", invite
+                                )
 
                         case Type.Clan:
                             try:
-                                invite = self.invites.pop(steam_id.id64)
+                                invite = self.invites.pop(id.id64)
                             except KeyError:
-                                clan = self._clans.pop(steam_id.id, None)
+                                clan = self._clans.pop(id.id, None)
                                 if clan is None:
-                                    return log.debug("Unknown clan %s removed", steam_id)
+                                    return log.debug("Unknown clan %s removed", id)
                                 self.dispatch("clean_leave", clan)
                             else:
                                 self.dispatch("clan_invite_decline", invite)

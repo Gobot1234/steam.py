@@ -76,7 +76,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
         value_map: dict[Any, Enum] = {}
         member_map: dict[str, Enum] = {}
 
-        new_mcs: type[EnumType] = type(
+        new_mcs: type[Self] = type(
             f"{name}Type",
             tuple(
                 dict.fromkeys([base.__class__ for base in bases if base.__class__ is not type] + [EnumType, type])
@@ -86,8 +86,9 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
 
         members = {name: value for name, value in namespace.items() if not _is_descriptor(value) and name[0] != "_"}
 
-        cls = type.__new__(
-            new_mcs, name, bases, {key: value for key, value in namespace.items() if key not in members}
+        cls = cast(
+            "type[Enum]",
+            type.__new__(new_mcs, name, bases, {key: value for key, value in namespace.items() if key not in members}),
         )  # this allows us to disallow member access from other members as members become proper class variables
 
         for name, value in members.items():

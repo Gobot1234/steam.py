@@ -66,7 +66,7 @@ def unzip(data: bytes) -> bytes:
     if data[:2] == b"VZ":
         if data[-2:] != b"zv":
             raise RuntimeError(f"VZ: Invalid footer: {data[-2:]!r}")
-        if data[2] != b"a":
+        if data[2] != 97:
             raise RuntimeError(f"VZ: Invalid version: {data[2]!r}")
 
         filters = (lzma._decode_filter_properties(lzma.FILTER_LZMA1, data[7:12]),)  # type: ignore
@@ -211,7 +211,7 @@ class ManifestPath(PurePathBase, _IOMixin):
         Raises
         ------
         OSError
-            this path isn't a symlink.
+            This path isn't a symlink.
         """
         if not self.is_symlink():
             raise OSError(errno.EINVAL, f"Invalid argument: {str(self)!r}")

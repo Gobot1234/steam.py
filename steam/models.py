@@ -286,7 +286,7 @@ class Avatar(_IOMixin):
         sha = bytes(sha)
         self.sha = (
             sha
-            if sha != "\x00" * 20
+            if sha != b"\x00" * 20
             else b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\x8f\xf8\xdc\x1c\xdf\xeb"
         )
         self._state = state

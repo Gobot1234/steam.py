@@ -643,18 +643,14 @@ class SteamWebSocket(Registerable):
 
         if flag := data[3]:  # this isn't ever hit, might as well save a few nanos
             if flag & FEXTRA:
-                extra_len = int.from_bytes(data[position:2], byteorder="little")
+                extra_len = int.from_bytes(data[position : position + 2], byteorder="little")
                 position += 2 + extra_len
             if flag & FNAME:
-                for terminator in data[position:]:
+                while data[position:]:
                     position += 1
-                    if not terminator or terminator == b"\000":
-                        break
             if flag & FCOMMENT:
-                for terminator in data[position:]:
+                while data[position:]:
                     position += 1
-                    if not terminator or terminator == b"\000":
-                        break
             if flag & FHCRC:
                 position += 2
 
