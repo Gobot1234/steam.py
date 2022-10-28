@@ -185,7 +185,17 @@ class ManifestPath(PurePathBase, _IOMixin):
         """This path's flags."""
         return DepotFileFlag.try_value(self._mapping.flags)
 
-    def is_dir(self) -> bool:
+    @property
+    def sha_content(self) -> bytes:
+        """This path's SHA1 content hash."""
+        return self._mapping.sha_content
+
+    @property
+    def sha_filename(self) -> bytes:
+        """This path's SHA1 filename hash."""
+        return self._mapping.sha_filename
+
+    def is_dir(self) -> bool:  # TODO do these need to handle symlinks?
         """Whether the path is a directory."""
         return self.flags & DepotFileFlag.Directory > 0
 
