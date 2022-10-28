@@ -24,7 +24,7 @@ from typing import (
 from typing_extensions import Never
 
 from ... import _const, utils
-from ...app import App, StatefulApp
+from ...app import App, PartialApp
 from ...channel import Channel
 from ...clan import Clan
 from ...errors import HTTPException, InvalidID
@@ -443,7 +443,7 @@ class DefaultClan(Default):
 class DefaultApp(Default):
     """Returns the :attr:`.Context.author`'s :attr:`~steam.User.app`"""
 
-    async def default(self, ctx: Context) -> StatefulApp:
+    async def default(self, ctx: Context) -> PartialApp:
         return ctx.author.app
 
 

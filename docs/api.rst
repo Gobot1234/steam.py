@@ -510,9 +510,9 @@ Package
 .. autoclass:: Package()
    :members:
 
-.. attributetable:: steam.package.StatefulPackage
+.. attributetable:: steam.package.PartialPackage
 
-.. autoclass:: steam.package.StatefulPackage()
+.. autoclass:: steam.package.PartialPackage()
    :members:
    :inherited-members:
 
@@ -739,7 +739,7 @@ There are some predefined apps which are:
 .. autodata:: STEAM
 
 These are shorthand for ``Client.get_game(440)`` etc. (you need a client to have been constructed and be use to use the
-methods that they inherit from :class:`StatefulApp`), they are also valid as type parameters to :class:`typing.Literal`
+methods that they inherit from :class:`PartialApp`), they are also valid as type parameters to :class:`typing.Literal`
 
 
 Apps can be manually constructed using their app ID eg:
@@ -751,9 +751,9 @@ Apps can be manually constructed using their app ID eg:
 
 .. autofunction:: CUSTOM_APP
 
-.. attributetable:: steam.app.StatefulApp
+.. attributetable:: steam.app.PartialApp
 
-.. autoclass:: steam.app.StatefulApp()
+.. autoclass:: steam.app.PartialApp()
     :inherited-members:
     :members:
 

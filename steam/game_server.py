@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, TypeAlias, 
 
 from typing_extensions import Unpack
 
-from .app import App, StatefulApp
+from .app import App, PartialApp
 from .enums import Enum, GameServerRegion, Type
 from .id import ID
 from .protobufs.game_servers import EQueryType, GetServerListResponseServer, QueryResponse
@@ -344,7 +344,7 @@ class GameServer(ID):
     def __init__(self, state: ConnectionState, server: GetServerListResponseServer):
         super().__init__(server.steamid, type=Type.GameServer)
         self.name = server.name
-        self.app = StatefulApp(state, id=server.appid)
+        self.app = PartialApp(state, id=server.appid)
         self.ip = IPv4Address(server.addr.rpartition(":")[0])
         self.port = server.gameport
         self.tags = server.gametype.split(",")

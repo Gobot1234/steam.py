@@ -18,7 +18,7 @@ from yarl import URL
 from . import utils
 from ._const import HTML_PARSER, UNIX_EPOCH
 from .abc import Commentable, _CommentableKwargs
-from .app import App, StatefulApp
+from .app import App, PartialApp
 from .channel import ClanChannel
 from .chat import ChatGroup, Member
 from .enums import EventType, Language, Type
@@ -181,7 +181,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                 if (a := entry.a) is not None:
                     href = a.get("href", "")
                     if match := re.findall(r"store.steampowered.com/app/(\d+)", href):
-                        self.app = StatefulApp(self._state, id=match[0])
+                        self.app = PartialApp(self._state, id=match[0])
         stats = soup.find("div", class_="grouppage_resp_stats")
         if stats is None:
             return

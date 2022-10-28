@@ -17,7 +17,7 @@ from typing_extensions import Self
 from . import utils
 from ._const import MISSING, UNIX_EPOCH
 from .abc import Channel, Message
-from .app import StatefulApp
+from .app import PartialApp
 from .enums import ChatMemberRank, Type
 from .errors import WSException
 from .id import ID
@@ -397,7 +397,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
     )
     name: str
     _id: ChatGroupID
-    app: StatefulApp | None
+    app: PartialApp | None
     tagline: str
     avatar_url: str
     active_member_count: int
@@ -420,7 +420,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         super().__init__(id, type=type)
         self._state = state
         self.chunked = False
-        self.app: StatefulApp | None = None
+        self.app: PartialApp | None = None
         self._members = {}
         self._partial_members = {}
         self._channels: dict[int, ChatT] = {}
@@ -442,7 +442,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
         self._owner_id = ID32(proto.accountid_owner)
         self._top_members = [ID32(id) for id in proto.top_members]
         self.tagline = proto.chat_group_tagline
-        self.app = StatefulApp(state, id=proto.appid) if proto.appid else self.app
+        self.app = PartialApp(state, id=proto.appid) if proto.appid else self.app
         self._avatar_sha = proto.chat_group_avatar_sha
 
         self._default_role_id = proto.default_role_id
@@ -515,7 +515,7 @@ class ChatGroup(ID, Generic[MemberT, ChatT]):
     def _update_header_state(self, proto: chat.GroupHeaderState) -> None:
         self.name = proto.chat_name
         self._owner_id = ID32(proto.accountid_owner)
-        self.app = StatefulApp(self._state, id=proto.appid)
+        self.app = PartialApp(self._state, id=proto.appid)
         self.tagline = proto.tagline
         self._avatar_sha = proto.avatar_sha
         self._default_role_id = proto.default_role_id or self._default_role_id

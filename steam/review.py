@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import Self
 
 from .abc import Awardable, Commentable, _CommentableKwargs
-from .app import StatefulApp
+from .app import PartialApp
 from .chat import WrapsUser
 from .enums import Language, ReviewType
 from .reaction import AwardReaction
@@ -66,7 +66,7 @@ class ReviewUser(WrapsUser):
         return review_user
 
 
-class ReviewApp(StatefulApp):
+class ReviewApp(PartialApp):
     __slots__ = ("review_status",)
 
     def __init__(self, state: ConnectionState, id: int, review_status: int):

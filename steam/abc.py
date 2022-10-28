@@ -16,7 +16,7 @@ from typing_extensions import Required, Self
 from yarl import URL as URL_
 
 from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL
-from .app import App, StatefulApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
+from .app import App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
@@ -283,7 +283,7 @@ class BaseUser(ID, Commentable):
     last_logoff: datetime | None
     last_logon: datetime | None
     last_seen_online: datetime | None
-    app: StatefulApp | None
+    app: PartialApp | None
     state: PersonaState | None
     flags: PersonaStateFlag | None
     rich_presence: dict[str, str] | None
@@ -465,7 +465,7 @@ class BaseUser(ID, Commentable):
             community_item_id=badge.communityitemid,
             type=badge.item_type,
             border_colour=badge.border_color,
-            app=StatefulApp(self._state, id=badge.appid) if badge.appid else None,
+            app=PartialApp(self._state, id=badge.appid) if badge.appid else None,
             level=badge.level,
         )
 

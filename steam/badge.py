@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from .app import StatefulApp
+from .app import PartialApp
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ class BaseBadge:
     __slots__ = ()
     id: int
     level: int
-    app: StatefulApp | None
+    app: PartialApp | None
 
     def __repr__(self) -> str:
         attrs = ("id", "level", "app")
@@ -44,7 +44,7 @@ class FavouriteBadge(BaseBadge):
     """The badge's ID."""
     level: int
     """The badge's level."""
-    app: StatefulApp | None
+    app: PartialApp | None
     """The app associated with the badge."""
     community_item_id: int
     """The badge's community item ID."""
@@ -70,7 +70,7 @@ class UserBadge(BaseBadge):
         """The time the badge was completed at."""
         self.scarcity: int = data["scarcity"]
         """The scarcity of the badge."""
-        self.app = StatefulApp(state, id=data["appid"]) if "appid" in data else None
+        self.app = PartialApp(state, id=data["appid"]) if "appid" in data else None
         """The app associated with the badge."""
         self.community_item_id: int | None = data.get("communityitemid")
         """The badge's community item ID."""

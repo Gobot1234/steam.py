@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from yarl import URL as URL_
 
 from .abc import Awardable, Commentable, _CommentableKwargs
-from .app import StatefulApp
+from .app import PartialApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
 from .models import URL, _IOMixin
 from .reaction import AwardReaction
@@ -181,9 +181,9 @@ class PublishedFile(Commentable, Awardable):
         """The file's name."""
         self.author = author
         """The file's author."""
-        self.app = StatefulApp(state, id=proto.consumer_appid, name=proto.app_name)
+        self.app = PartialApp(state, id=proto.consumer_appid, name=proto.app_name)
         """The file's app."""
-        self.created_with = StatefulApp(state, id=proto.creator_appid)
+        self.created_with = PartialApp(state, id=proto.creator_appid)
         """The file's created_with."""
         self.created_at = DateTime.from_timestamp(proto.time_created)
         """The time the file was created at."""

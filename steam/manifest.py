@@ -26,11 +26,11 @@ from yarl import URL
 
 from . import utils
 from ._const import MISSING, VDF_LOADS, VDFDict
-from .app import StatefulApp
+from .app import PartialApp
 from .enums import AppFlag, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
 from .id import ID
 from .models import _IOMixin
-from .package import StatefulPackage
+from .package import PartialPackage
 from .protobufs import app_info
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
 from .utils import DateTime, cached_slot_property
@@ -376,7 +376,7 @@ class Manifest:
     def __init__(self, state: ConnectionState, server: ContentServer, app_id: int, data: bytes):
         self._state = state
         self.name: str | None = None
-        self.app = StatefulApp(state, id=app_id)
+        self.app = PartialApp(state, id=app_id)
         self.server = server
         self._key: bytes | None = None
 
@@ -545,7 +545,7 @@ class Branch:
         return [depot.manifest for depot in self.depots]
 
     async def fetch_manifests(self) -> list[Manifest]:
-        """Fetch this branch's manifests. Similar to :meth:`StatefulApp.manifests`."""
+        """Fetch this branch's manifests. Similar to :meth:`PartialApp.manifests`."""
         return await asyncio.gather(*(manifest.fetch() for manifest in self.manifests))  # type: ignore  # typeshed lies
 
 
@@ -678,7 +678,7 @@ class ProductInfo:
     #     return changes.app_changes[0].change_number
 
 
-class AppInfo(ProductInfo, StatefulApp):
+class AppInfo(ProductInfo, PartialApp):
     """Represents a collection of information on an app.
 
     Attributes
@@ -800,7 +800,7 @@ class AppInfo(ProductInfo, StatefulApp):
         self.review_score = ReviewType.try_value(int(common.get("review_score", 0)))
         self.review_percentage = int(common.get("review_percentage", 0))
         dlc = extended.get("listofdlc", "")
-        self.partial_dlc = [StatefulApp(state, id=int(id)) for id in dlc.split(",")] if dlc else []
+        self.partial_dlc = [PartialApp(state, id=int(id)) for id in dlc.split(",")] if dlc else []
 
         os_list = common.get("oslist", "")
         self._on_windows = "windows" in os_list
@@ -818,7 +818,7 @@ class AppInfo(ProductInfo, StatefulApp):
             else None
         )
         self.website_url = extended.get("homepage")
-        self.parent = StatefulApp(state, id=int(common["parent"])) if "parent" in common else None
+        self.parent = PartialApp(state, id=int(common["parent"])) if "parent" in common else None
 
         depots: manifest.Depot = data.get("depots", {})  # type: ignore
         self._branches: dict[str, Branch] = {}
@@ -925,7 +925,7 @@ class AppInfo(ProductInfo, StatefulApp):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
-class PackageInfo(ProductInfo, StatefulPackage):
+class PackageInfo(ProductInfo, PartialPackage):
     """Represents a collection of information on a package.
 
     Attributes
@@ -963,7 +963,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
         proto: app_info.CMsgClientPicsProductInfoResponsePackageInfo,
     ):
         super().__init__(state, proto, id=proto.packageid)
-        self._apps = [StatefulApp(state, id=id) for id in data["appids"].values()]
+        self._apps = [PartialApp(state, id=id) for id in data["appids"].values()]
         self.billing_type = BillingType.try_value(data["billingtype"])
         self.license_type = LicenseType.try_value(data["licensetype"])
         self.status = PackageStatus.try_value(data["status"])
@@ -975,7 +975,7 @@ class PackageInfo(ProductInfo, StatefulPackage):
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
-    async def apps(self, *, language: Language | None = None) -> list[StatefulApp]:
+    async def apps(self, *, language: Language | None = None) -> list[PartialApp]:
         if language is not None:
             return await super().apps(language=language)
         return self._apps

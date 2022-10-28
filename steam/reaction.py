@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Final, Protocol, cast, overload
 
 from yarl import URL
 
-from .app import StatefulApp
+from .app import PartialApp
 from .models import _IOMixin
 from .protobufs.chat import EChatRoomMessageReactionType
 from .protobufs.friend_messages import EMessageReactionType
@@ -287,7 +287,7 @@ class Emoticon(BaseEmoticon):
         """The URL for this emoticon."""
         return str(BASE_ECONOMY_URL / "emoticonlarge" / self.name)
 
-    async def app(self) -> StatefulApp:
+    async def app(self) -> PartialApp:
         """Fetches this emoticon's associated app.
 
         Note
@@ -295,7 +295,7 @@ class Emoticon(BaseEmoticon):
         This app has its :attr:`~App.name` set unlike :meth:`Sticker.app`.
         """
         data = await self._state.http.get(BASE_ECONOMY_URL / "emoticonhoverjson" / self.name)
-        return StatefulApp(self._state, id=data["appid"], name=data["app_name"])
+        return PartialApp(self._state, id=data["appid"], name=data["app_name"])
 
 
 class Sticker(BaseEmoticon):
@@ -336,10 +336,10 @@ class Sticker(BaseEmoticon):
         """The URL for this sticker."""
         return str(BASE_ECONOMY_URL / "sticker" / self.name)
 
-    async def app(self) -> StatefulApp:
+    async def app(self) -> PartialApp:
         """Fetches this sticker's associated app."""
         data = await self._state.http.get(BASE_ECONOMY_URL / "stickerjson" / self.name)
-        return StatefulApp(self._state, id=data["appid"])
+        return PartialApp(self._state, id=data["appid"])
 
 
 class BaseClientEmoticon(BaseEmoticon):
@@ -371,5 +371,5 @@ class ClientSticker(BaseClientEmoticon, Sticker):
         super().__init__(state, proto)
         self._app_id = proto.appid
 
-    async def app(self) -> StatefulApp:
-        return StatefulApp(self._state, id=self._app_id)  # no point fetching
+    async def app(self) -> PartialApp:
+        return PartialApp(self._state, id=self._app_id)  # no point fetching

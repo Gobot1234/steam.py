@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .abc import Awardable, Commentable, _CommentableKwargs
-from .app import StatefulApp
+from .app import PartialApp
 
 if TYPE_CHECKING:
     from .message import Authors
@@ -25,7 +25,7 @@ class Post(Awardable, Commentable):
     """The content of this post."""
     author: Authors
     """The author of this post."""
-    app: StatefulApp | None
+    app: PartialApp | None
     """The app this post is for, if any."""
 
     def __repr__(self) -> str:

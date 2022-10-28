@@ -24,7 +24,7 @@ from bs4 import BeautifulSoup
 
 from . import errors, utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
-from .app import App, FetchedApp, StatefulApp
+from .app import App, FetchedApp, PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game_server import GameServer, Query
 from .gateway import *
@@ -33,12 +33,11 @@ from .http import HTTPClient
 from .id import ID
 from .manifest import AppInfo, PackageInfo
 from .models import PriceOverview, return_true
-from .package import FetchedPackage, License, Package, StatefulPackage
+from .package import FetchedPackage, License, Package, PartialPackage
 from .post import Post
 from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker
 from .state import ConnectionState
-from .types.id import AppID, Intable
 from .utils import DateTime, TradeURLInfo, parse_id64
 
 if TYPE_CHECKING:
@@ -657,7 +656,7 @@ class Client:
         steam_id = await ID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._state.fetch_clan(steam_id.id64) if steam_id is not None else None
 
-    def get_app(self, id: int | App) -> StatefulApp:
+    def get_app(self, id: int | App) -> PartialApp:
         """Creates a stateful app from its ID.
 
         Parameters
@@ -665,7 +664,7 @@ class Client:
         id
             The app id of the app or a :class:`~steam.App` instance.
         """
-        return StatefulApp(self._state, id=getattr(id, "id", id))
+        return PartialApp(self._state, id=getattr(id, "id", id))
 
     async def fetch_app(self, id: int | App, *, language: Language | None = None) -> FetchedApp | None:
         """Fetch an app from its ID or ``None`` if the app was not found.
@@ -684,7 +683,7 @@ class Client:
         data = resp[str(id)]
         return FetchedApp(self._state, data["data"], language or self._state.language) if data["success"] else None
 
-    def get_package(self, id: int) -> StatefulPackage:
+    def get_package(self, id: int) -> PartialPackage:
         """Creates a package from its ID.
 
         Parameters
@@ -692,7 +691,7 @@ class Client:
         id
             The ID of the package.
         """
-        return StatefulPackage(self._state, id=id)
+        return PartialPackage(self._state, id=id)
 
     async def fetch_package(self, id: int, *, language: Language | None = None) -> FetchedPackage | None:
         """Fetch a package from its ID.
@@ -876,7 +875,7 @@ class Client:
             ) is not None and content_element.text.strip() == content:
                 id, _, _ = post["id"].removeprefix("userstatus_").partition("_")
                 return Post(
-                    self._state, int(id), content, self.user, StatefulApp(self._state, id=app.id) if app else None
+                    self._state, int(id), content, self.user, PartialApp(self._state, id=app.id) if app else None
                 )
 
         raise RuntimeError("Post created has no ID, this should be unreachable")

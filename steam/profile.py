@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
 
 from . import utils
-from .app import StatefulApp
+from .app import PartialApp
 from .badge import UserBadge
 from .enums import Language, ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, PublishedFileRevision, Result
 from .errors import WSException
@@ -105,7 +105,7 @@ class ProfileItem:
         """The item's title."""
         self.description = item.item_description
         """The item's description."""
-        self.app = StatefulApp(state, id=item.appid)
+        self.app = PartialApp(state, id=item.appid)
         """The app the item is from."""
         self.type = ProfileItemType.try_value(item.item_type)
         """The item's type."""
@@ -186,7 +186,7 @@ class ProfileShowcaseSlot:
     """ The slot's description."""
     index: int | None
     """The slot's index."""
-    app: StatefulApp | None
+    app: PartialApp | None
     """The slot's associated app."""
 
     asset: Asset | None
@@ -358,7 +358,7 @@ class ProfileCustomisation:
                         state,
                         owner=user,
                         index=slot.slot or None,
-                        app=StatefulApp(state, id=slot.appid) if slot.appid else None,
+                        app=PartialApp(state, id=slot.appid) if slot.appid else None,
                         published_file_id=slot.publishedfileid or None,
                         name=slot.title or None,
                         content=slot.notes or None,

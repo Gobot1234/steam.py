@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, overload
 
 from . import utils
 from .abc import Commentable, _CommentableKwargs
-from .app import App, StatefulApp
+from .app import App, PartialApp
 from .enums import EventType
 from .id import ID
 from .utils import DateTime
@@ -69,7 +69,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         self.last_edited_by: User | ID | None = ID(edited_by) if edited_by is not None else None
         self.name: str = data["event_name"]
         self.content: str = data["event_notes"]
-        self.app = StatefulApp(state, id=data["appid"]) if data["appid"] else None
+        self.app = PartialApp(state, id=data["appid"]) if data["appid"] else None
         self.type: ClanEventT = EventType.try_value(data["event_type"])
 
         self.starts_at = DateTime.from_timestamp(data["rtime32_start_time"])
@@ -307,7 +307,7 @@ class Event(BaseEvent[ClanEventT]):
         self.type = type_
         self.server_address = server_address or None
         self.server_password = server_password or self.server_password
-        self.app = StatefulApp(self._state, id=app_id) if app_id is not None else None
+        self.app = PartialApp(self._state, id=app_id) if app_id is not None else None
         self.last_edited_at = DateTime.now()
         self.last_edited_by = self._state.user
 

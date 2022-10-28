@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from .app import PartialAppPriceOverview, StatefulApp
+from .app import PartialApp, PartialAppPriceOverview
 from .enums import Language, LicenseFlag, LicenseType, PaymentMethod
 from .types.id import Intable, PackageID
 from .utils import DateTime
@@ -57,7 +57,7 @@ class Package:
         return f"{self.__class__.__name__}(id={self.id}, name={self.name!r})"
 
 
-class StatefulPackage(Package):
+class PartialPackage(Package):
     """A package with state."""
 
     __slots__ = ("_state",)
@@ -69,7 +69,7 @@ class StatefulPackage(Package):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
-    async def apps(self, *, language: Language | None = None) -> list[StatefulApp]:
+    async def apps(self, *, language: Language | None = None) -> list[PartialApp]:
         """Fetches this package's apps."""
         fetched = await self.fetch(language=language)
         return fetched._apps
@@ -135,12 +135,12 @@ class PackagePriceOverview(PartialAppPriceOverview):
     individual: int
 
 
-class FetchedPackage(StatefulPackage):
+class FetchedPackage(PartialPackage):
     name: str
 
     def __init__(self, state: ConnectionState, data: package.FetchedPackage):
         super().__init__(state, name=data["name"], id=data["packageid"])
-        self._apps = [StatefulApp(state, id=app["id"], name=app["name"]) for app in data["apps"]]
+        self._apps = [PartialApp(state, id=app["id"], name=app["name"]) for app in data["apps"]]
         self.description = data["page_content"]
         self.created_at = DateTime.parse_steam_date(data["release_date"]["date"], full_month=False)
         self.logo_url = data["small_logo"]
@@ -174,7 +174,7 @@ class FetchedAppPackagePriceOverview:
     final: int
 
 
-class FetchedAppPackage(StatefulPackage):
+class FetchedAppPackage(PartialPackage):
     __slots__ = (
         "_is_free",
         "price_overview",
@@ -193,7 +193,7 @@ class FetchedAppPackage(StatefulPackage):
         return self._is_free
 
 
-class License(StatefulPackage):
+class License(PartialPackage):
     """Represents a License to a package the client user has access to."""
 
     __slots__ = (
@@ -226,7 +226,7 @@ class License(StatefulPackage):
         """The license's flags."""
         self.created_at = DateTime.from_timestamp(proto.time_created) if proto.time_created else None
         """The license's creation date."""
-        self.master_package = StatefulPackage(state, id=proto.master_package_id) if proto.master_package_id else None
+        self.master_package = PartialPackage(state, id=proto.master_package_id) if proto.master_package_id else None
         """The license's master package."""
         self.next_process_at = DateTime.from_timestamp(proto.time_next_process)
         """The date when the license will be processed."""
@@ -264,32 +264,3 @@ class License(StatefulPackage):
         if self.time_limit is None:
             return
         return self.time_limit - self.time_used
-
-
-# class Transaction:
-#     def __init__(self, state: ConnectionState, proto: PurchaseReceiptInfo):
-#         self.id = proto.transactionid
-#         self.items = [
-#             TransactionItem(
-#                 Package(state, item.packageid), StatefulApp(state, id=item.appid), item.line_item_description
-#             )
-#             for item in proto.line_items
-#         ]
-#
-#         self.package = Package(state, proto.packageid)
-#         self.purchase_status = proto.purchase_status
-#         self.created_at = DateTime.from_timestamp(proto.transaction_time)
-#         self.payment_method = PaymentMethod.try_value(proto.payment_method)
-#         self.base_price = proto.base_price
-#         self.total_discount = proto.total_discount
-#         self.tax = proto.tax
-#         self.shipping = proto.shipping
-#         self.currency_code = proto.currency_code
-#         self.country_code = proto.country_code
-#
-#
-# @dataclass
-# class TransactionItem:
-#     package_id: Package
-#     app: StatefulApp
-#     description: str

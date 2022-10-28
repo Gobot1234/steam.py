@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from . import utils
 from ._const import URL
 from .abc import BaseUser, Messageable
-from .app import StatefulApp
+from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
 from .id import ID
@@ -75,7 +75,7 @@ class _BaseUser(BaseUser):
         self.last_seen_online = DateTime.from_timestamp(proto.last_seen_online)
         self.rich_presence = {message.key: message.value for message in proto.rich_presence}
         self.app = (
-            StatefulApp(self._state, name=proto.game_name, id=proto.game_played_app_id)
+            PartialApp(self._state, name=proto.game_name, id=proto.game_played_app_id)
             if proto.game_played_app_id
             else None
         )

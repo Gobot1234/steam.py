@@ -7,7 +7,7 @@ import re
 from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple, TypeVar, overload
 
 from . import utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
@@ -247,19 +247,13 @@ class Ignore:
     async def fetch_ownership_ticket(self) -> Ticket:
         await self._state.fetch_ownership_ticket(self.id)
 
-    async def create_post(self, content: str) -> Post:
-        return await self._state.user.create_post(self, content)
-
-    async def fetch_using_ws(self):
-        ...
-
 
 class FriendThoughts(NamedTuple):
     recommended: list[Friend]
     not_recommended: list[Friend]
 
 
-class StatefulApp(App):
+class PartialApp(App):
     """Apps that have state."""
 
     __slots__ = ("_state",)
@@ -633,7 +627,7 @@ class StatefulApp(App):
         return licenses
 
 
-class Apps(StatefulApp, Enum):
+class Apps(PartialApp, Enum):
     """This is "enum" to trick type checkers into allowing Literal[TF2] to be valid for overloads in extensions."""
 
     __slots__ = ("_name",)
@@ -694,7 +688,7 @@ class PartialAppPriceOverview:
     discount_percent: int
 
 
-class DLC(StatefulApp):
+class DLC(PartialApp):
     """Represents DLC (downloadable content) for an app.
 
     Attributes
@@ -746,7 +740,7 @@ class DLC(StatefulApp):
         return self._on_linux
 
 
-class UserApp(StatefulApp):
+class UserApp(PartialApp):
     """Represents a Steam app fetched by :meth:`steam.User.apps`
 
     Attributes
@@ -800,7 +794,7 @@ class UserApp(StatefulApp):
         return self._stats_visible
 
 
-class WishlistApp(StatefulApp):
+class WishlistApp(PartialApp):
     """Represents a Steam app fetched by :meth:`steam.User.wishlist`\\.
 
     Attributes
@@ -914,7 +908,7 @@ class AppPriceOverview(PartialAppPriceOverview):
     final_formatted: str
 
 
-class FetchedApp(StatefulApp):
+class FetchedApp(PartialApp):
     """Represents a Steam app fetched by :meth:`steam.Client.fetch_app`\\.
 
     Attributes
@@ -981,7 +975,7 @@ class FetchedApp(StatefulApp):
         self.type = AppFlag.from_str(data["type"])
         self.price_overview = AppPriceOverview(**data["price_overview"])
 
-        self.partial_dlc = [StatefulApp(state, id=dlc_id) for dlc_id in data.get("dlc", [])]
+        self.partial_dlc = [PartialApp(state, id=dlc_id) for dlc_id in data.get("dlc", [])]
 
         from .package import FetchedAppPackage
 
@@ -1040,7 +1034,7 @@ class UserInventoryInfoContext:
     """The number of items in the context ID type."""
 
 
-class UserInventoryInfoApp(StatefulApp):
+class UserInventoryInfoApp(PartialApp):
     name: str
     __slots__ = ("icon_url", "inventory_logo_url")
 

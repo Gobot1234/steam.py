@@ -15,7 +15,7 @@ from typing_extensions import Self
 
 from . import utils
 from ._const import URL
-from .app import App, StatefulApp
+from .app import App, PartialApp
 from .enums import Language, TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .id import ID
@@ -131,9 +131,9 @@ class Asset:
         )
 
     @utils.cached_slot_property
-    def app(self) -> StatefulApp:
+    def app(self) -> PartialApp:
         """The app the item is from."""
-        return StatefulApp(self._state, id=self._app_id, context_id=self._context_id)
+        return PartialApp(self._state, id=self._app_id, context_id=self._context_id)
 
     @property
     def url(self) -> str:
@@ -272,7 +272,7 @@ class BaseInventory(Generic[ItemT_co]):
     ):
         self._state = state
         self.owner = owner
-        self.app = StatefulApp(state, id=app.id, name=app.name)
+        self.app = PartialApp(state, id=app.id, name=app.name)
         self._language = language
         self._update(data)
 
