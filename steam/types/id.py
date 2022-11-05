@@ -13,6 +13,7 @@ ID64 = NewType("ID64", int)  # u64
 AppID = NewType("AppID", int)  # u32
 ContextID = NewType("ContextID", int)  # u64
 PackageID = NewType("PackageID", int)  # u32
+BundleID = NewType("BundleID", int)  # u32
 
 AssetID = NewType("AssetID", int)  # u64
 ClassID = NewType("ClassID", int)

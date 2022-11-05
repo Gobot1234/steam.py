@@ -38,6 +38,7 @@ from .post import Post
 from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker
 from .state import ConnectionState
+from .types.id import AppID, BundleID, Intable, PackageID
 from .utils import DateTime, TradeURLInfo, parse_id64
 
 if TYPE_CHECKING:
@@ -693,7 +694,7 @@ class Client:
         """
         return PartialPackage(self._state, id=id)
 
-    async def fetch_package(self, id: int, *, language: Language | None = None) -> FetchedPackage | None:
+    async def fetch_package(self, id: int | Package, *, language: Language | None = None) -> FetchedPackage | None:
         """Fetch a package from its ID.
 
         Parameters
@@ -703,6 +704,7 @@ class Client:
         language
             The language to fetch the package in. If ``None`` uses the current language.
         """
+        id = PackageID(id) if isinstance(id, int) else id.id
         resp = await self.http.get_package(id, language)
         if resp is None:
             return None
