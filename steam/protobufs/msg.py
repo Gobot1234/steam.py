@@ -5,10 +5,12 @@ from __future__ import annotations
 import dataclasses
 import functools
 import importlib
+import importlib.util
 import logging
 import struct
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, TypeVar, get_type_hints
 
@@ -214,15 +216,20 @@ class UnifiedMessage(ProtobufMessage):
 
 @functools.lru_cache()
 def get_app_id(module: str) -> int:
-    ext_name, _, _ = module.rpartition("protobufs")
-    ext = importlib.import_module(ext_name)
-    return ext.Client.APP_ID
+    ext_name, _, _ = module.rpartition(".protobufs")
+    spec = importlib.util.find_spec(ext_name)
+    assert spec is not None
+    assert spec.origin is not None
+    root = Path(spec.origin).parent
+    return int((root / "app_id.txt").read_text().strip())
 
 
 class GCMessageBase:
     __slots__ = ()
 
-    APP_ID: ClassVar[int]
+    if TYPE_CHECKING:
+        APP_ID: ClassVar[int]
+        MSG: ClassVar[int]
 
     def __init_subclass__(cls, msg: IntEnum = MISSING) -> None:
         if cls.__module__ == __name__:
@@ -236,7 +243,8 @@ class GCMessageBase:
             GC_PROTOBUFS[cls.APP_ID][msg] = cls  # type: ignore
         except KeyError:
             GC_PROTOBUFS[cls.APP_ID] = {msg: cls}  # type: ignore
-        return super().__init_subclass__()
+        super().__init_subclass__()
+        cls.MSG = msg
 
 
 @dataclass_transform()
@@ -270,7 +278,7 @@ class GCMessage(GCMessageBase, StructMessage, MessageBase):
 
 
 @dataclass_transform()
-class GCProtobufMessage(ProtobufWrappedMessage, GCMessageBase):
+class GCProtobufMessage(GCMessageBase, ProtobufWrappedMessage):
     """A wrapper around received GC protobuf messages, mainly for extensions."""
 
     __slots__ = ("header",)

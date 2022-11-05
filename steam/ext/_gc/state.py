@@ -88,25 +88,43 @@ class GCState(ConnectionState):
             del self.gc_listeners[idx]
 
     @overload
-    def gc_wait_for(self, emsg: IntEnum | None, check: Callable[[GCMsgT], bool]) -> asyncio.Future[GCMsgT]:
+    def gc_wait_for(
+        self, *, emsg: IntEnum | None, check: Callable[[GCMsgsT], bool] = return_true
+    ) -> asyncio.Future[GCMsgsT]:
         ...
 
     @overload
-    def gc_wait_for(self, emsg: IntEnum | None, check: Callable[[GCMsgProtoT], bool]) -> asyncio.Future[GCMsgProtoT]:
+    def gc_wait_for(
+        self, msg: type[GCMsgT], *, check: Callable[[GCMsgT], bool] = return_true
+    ) -> asyncio.Future[GCMsgT]:
+        ...
+
+    @overload
+    def gc_wait_for(
+        self, msg: type[GCMsgProtoT], *, check: Callable[[GCMsgProtoT], bool] = return_true
+    ) -> asyncio.Future[GCMsgProtoT]:
         ...
 
     def gc_wait_for(
-        self, emsg: IntEnum | None, check: Callable[[GCMsgsT], bool] = return_true
+        self,
+        msg: type[GCMsgsT] | None = None,
+        *,
+        emsg: IntEnum | None = None,
+        check: Callable[[GCMsgsT], bool] = return_true,
     ) -> asyncio.Future[GCMsgsT]:
         future: asyncio.Future[GCMsgsT] = self.loop.create_future()
-        entry = EventListener(msg=emsg, check=check, future=future)
+        entry = EventListener(msg=msg.MSG if msg else emsg, check=check, future=future)
         self.gc_listeners.append(entry)
         return future
 
     async def fetch_backpack(self, backpack_cls: type[Inv]) -> Inv:
-        resp = await self.http.get_client_user_inventory(
-            self.client._APP.id, self.client._APP.context_id, self.http.language
-        )
-        return backpack_cls(
-            state=self, data=resp, owner=self.client.user, app=self.client._APP, language=self.http.language
-        )
+        try:
+            lock = self.user._inventory_locks[self.client._APP.id]
+        except KeyError:
+            lock = self.user._inventory_locks[self.client._APP.id] = asyncio.Lock()
+
+        async with lock:  # requires a per-app lock to avoid Result.DuplicateRequest
+            resp = await self.fetch_user_inventory(
+                self.user.id64, self.client._APP.id, self.client._APP.context_id, self.language
+            )
+        return backpack_cls(state=self, data=resp, owner=self.user, app=self.client._APP, language=self.language)

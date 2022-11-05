@@ -55,6 +55,7 @@ from . import (
     leaderboards as leaderboards,
     login as login,
     loyalty_rewards as loyalty_rewards,
+    notifications as notifications,
     parental as parental,
     player as player,
     published_file as published_file,
