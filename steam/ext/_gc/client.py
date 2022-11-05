@@ -55,24 +55,24 @@ class Client(Client_):
     def _get_state(self, **options: Any) -> Never:
         raise NotImplementedError("cannot instantiate Client without a state")
 
-    async def connect(self) -> None:
+    async def login(self) -> None:
         if self._get_gc_message():
 
             async def ping_gc() -> None:
-                await self.wait_until_ready()
+                await self._state.login_complete.wait()
                 while not self.is_closed():
-                    await self.ws.send_gc_message(self._get_gc_message())
+                    await self._state.ws.send_gc_message(self._get_gc_message())
                     await asyncio.sleep(self._GC_HEART_BEAT)
 
             await asyncio.gather(
-                super().connect(),
+                super().login(),
                 ping_gc(),
             )
         else:
-            await super().connect()
+            await super().login()
 
     async def _handle_ready(self) -> None:
-        (us,) = await self.ws.fetch_users((self.user.id64,))
+        (us,) = await self._state.ws.fetch_users((self.user.id64,))
         self.http.user = self.__class__._ClientUserCls(self._state, us)
         await super()._handle_ready()
 
