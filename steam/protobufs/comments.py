@@ -12,9 +12,9 @@ from .msg import UnifiedMessage
 
 class GetCommentThreadRequest(UnifiedMessage, um_name="Community.GetCommentThread"):
     id64: int = betterproto.fixed64_field(1)
-    thread_type: int = betterproto.uint32_field(2)
-    gidfeature: int = betterproto.fixed64_field(3)
-    gidfeature2: int = betterproto.fixed64_field(4)
+    type: int = betterproto.uint32_field(2)
+    forum_id: int = betterproto.fixed64_field(3)
+    topic_id: int = betterproto.fixed64_field(4)
     thread_id: int = betterproto.fixed64_field(5)
     start: int = betterproto.int32_field(6)
     count: int = betterproto.int32_field(7)
@@ -63,16 +63,16 @@ class GetCommentThreadResponse(UnifiedMessage, um_name="Community.GetCommentThre
     answer_actor: int = betterproto.uint32_field(13)
     answer_actor_rank: int = betterproto.int32_field(14)
     can_post: bool = betterproto.bool_field(15)
-    thread_type: int = betterproto.uint32_field(16)
-    gidfeature: int = betterproto.fixed64_field(17)
-    gidfeature2: int = betterproto.fixed64_field(18)
+    type: int = betterproto.uint32_field(16)
+    forum_id: int = betterproto.fixed64_field(17)
+    topic_id: int = betterproto.fixed64_field(18)
 
 
 class PostCommentToThreadRequest(UnifiedMessage, um_name="Community.PostCommentToThread"):
     id64: int = betterproto.fixed64_field(1)
-    thread_type: int = betterproto.uint32_field(2)
-    gidfeature: int = betterproto.fixed64_field(3)
-    gidfeature2: int = betterproto.fixed64_field(4)
+    type: int = betterproto.uint32_field(2)
+    forum_id: int = betterproto.fixed64_field(3)
+    topic_id: int = betterproto.fixed64_field(4)
     content: str = betterproto.string_field(6)
     parent_id: int = betterproto.fixed64_field(7)
     suppress_notifications: bool = betterproto.bool_field(8)
@@ -88,9 +88,9 @@ class PostCommentToThreadResponse(UnifiedMessage, um_name="Community.PostComment
 
 class DeleteCommentFromThreadRequest(UnifiedMessage, um_name="Community.DeleteCommentFromThread"):
     id64: int = betterproto.fixed64_field(1)
-    thread_type: int = betterproto.uint32_field(2)
-    gidfeature: int = betterproto.fixed64_field(3)
-    gidfeature2: int = betterproto.fixed64_field(4)
+    type: int = betterproto.uint32_field(2)
+    forum_id: int = betterproto.fixed64_field(3)
+    topic_id: int = betterproto.fixed64_field(4)
     id: int = betterproto.fixed64_field(5)
     undelete: bool = betterproto.bool_field(6)
 
@@ -100,10 +100,10 @@ class DeleteCommentFromThreadResponse(UnifiedMessage, um_name="Community.DeleteC
 
 
 class RateCommentThreadRequest(UnifiedMessage, um_name="Community.RateCommentThread"):
-    thread_type: str = betterproto.string_field(1)
+    type: str = betterproto.string_field(1)
     id64: int = betterproto.fixed64_field(2)
-    gidfeature: int = betterproto.fixed64_field(3)
-    gidfeature2: int = betterproto.fixed64_field(4)
+    forum_id: int = betterproto.fixed64_field(3)
+    topic_id: int = betterproto.fixed64_field(4)
     id: int = betterproto.fixed64_field(5)
     rate_up: bool = betterproto.bool_field(6)
     suppress_notifications: bool = betterproto.bool_field(7)
@@ -118,10 +118,10 @@ class RateCommentThreadResponse(UnifiedMessage, um_name="Community.RateCommentTh
 
 
 class GetCommentThreadRatingsRequest(UnifiedMessage, um_name="Community.GetCommentThreadRatings"):
-    thread_type: str = betterproto.string_field(1)
+    type: str = betterproto.string_field(1)
     id64: int = betterproto.uint64_field(2)
-    gidfeature: int = betterproto.uint64_field(3)
-    gidfeature2: int = betterproto.uint64_field(4)
+    forum_id: int = betterproto.uint64_field(3)
+    topic_id: int = betterproto.uint64_field(4)
     comment_id: int = betterproto.uint64_field(5)
     max_results: int = betterproto.uint32_field(6)
 

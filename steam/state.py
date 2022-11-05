@@ -1316,7 +1316,7 @@ class ConnectionState(Registerable):
 
     async def fetch_comment(self, owner: Commentable, id: int) -> comments.GetCommentThreadResponse.Comment:
         msg: comments.GetCommentThreadResponse = await self.ws.send_um_and_wait(
-            comments.GetCommentThreadRequest(**owner._commentable_kwargs, id=id)
+            comments.GetCommentThreadRequest(**owner._commentable_kwargs, type=owner._commentable_type, id=id)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -1328,6 +1328,7 @@ class ConnectionState(Registerable):
         msg: comments.GetCommentThreadResponse = await self.ws.send_um_and_wait(
             comments.GetCommentThreadRequest(
                 **owner._commentable_kwargs,
+                type=owner._commentable_type,
                 count=count,
                 start=starting_from,
                 oldest_first=oldest_first,
@@ -1342,6 +1343,7 @@ class ConnectionState(Registerable):
         msg: comments.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
             comments.PostCommentToThreadRequest(
                 **owner._commentable_kwargs,
+                type=owner._commentable_type,
                 content=content,
                 suppress_notifications=not subscribe,
             )
@@ -1365,6 +1367,7 @@ class ConnectionState(Registerable):
         msg: comments.DeleteCommentFromThreadResponse = await self.ws.send_um_and_wait(
             comments.DeleteCommentFromThreadRequest(
                 **owner._commentable_kwargs,
+                type=owner._commentable_type,
                 id=comment_id,
             )
         )
@@ -1375,6 +1378,7 @@ class ConnectionState(Registerable):
         msg: comments.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
             comments.PostCommentToThreadRequest(  # some odd api here
                 **owner._commentable_kwargs,
+                type=owner._commentable_type,
                 is_report=True,
                 parent_id=comment_id,
             )

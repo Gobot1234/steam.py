@@ -27,7 +27,7 @@ from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory
 from .types.id import ContextID
-from .utils import DateTime, cached_slot_property
+from .utils import DateTime, cached_slot_property, classproperty
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -52,9 +52,22 @@ M_co = TypeVar("M_co", bound="Message", covariant=True)
 
 class _CommentableKwargs(TypedDict, total=False):
     id64: Required[int]
-    thread_type: Required[int]
-    gidfeature: int
-    gidfeature2: int
+    topic_id: int
+    forum_id: int
+
+
+class _CommentableThreadType(IntEnum):
+    # these just came from bashing the API and seeing what works, although they can now be reliably determined using
+    # ConnectionState.fetch_notifications() and observing body_data["type"] if it's a comment.
+    # AFAIK there aren't any more Commentable types
+    PublishedFile = 5
+    Topic = 7
+    Review = 8
+    User = 10
+    Clan = 12
+    Announcement = 13
+    Event = 14
+    Post = 15
 
 
 class Commentable(Protocol):
@@ -67,6 +80,10 @@ class Commentable(Protocol):
     @abc.abstractmethod
     def _commentable_kwargs(self) -> _CommentableKwargs:
         raise NotImplementedError
+
+    @classproperty
+    def _commentable_type(cls: type[Self]) -> _CommentableThreadType:
+        return _CommentableThreadType[cls.__name__]
 
     async def fetch_comment(self, id: int) -> Comment[Self]:
         """Fetch a comment by its ID.
@@ -304,7 +321,6 @@ class BaseUser(ID, Commentable):
     def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
             "id64": self.id64,
-            "thread_type": 10,
         }
 
     @property

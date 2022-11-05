@@ -298,7 +298,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
             "id64": self.id64,
-            "thread_type": 12,
         }
 
     async def fetch_members(self) -> list[ID]:

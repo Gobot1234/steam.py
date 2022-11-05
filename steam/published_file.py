@@ -332,7 +332,7 @@ class PublishedFile(Commentable, Awardable):
     def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
             "id64": self.author.id64,
-            "thread_type": 9,
+            "forum_id": self.id,
         }
 
     async def manifest(self) -> Manifest:

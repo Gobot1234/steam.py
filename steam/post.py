@@ -58,6 +58,5 @@ class Post(Awardable, Commentable):
     def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
             "id64": self.author.id64,
-            "thread_type": 15,
-            "gidfeature": self.id,
+            "forum_id": self.id,
         }

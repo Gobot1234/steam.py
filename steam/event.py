@@ -165,9 +165,8 @@ class Event(BaseEvent[ClanEventT]):
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
-            "thread_type": 14,
             "id64": self.clan.id64,
-            "gidfeature": self._feature,
+            "forum_id": self._feature,
         }
 
     async def server(self) -> GameServer:
@@ -396,9 +395,8 @@ class Announcement(BaseEvent[EventType]):
         if self.clan.is_app_clan:
             raise NotImplementedError("Fetching an app announcement's comments is not currently supported")
         return {
-            "thread_type": 13,
             "id64": self.clan.id64,
-            "gidfeature": self._feature,
+            "forum_id": self._feature,
         }
 
     async def edit(self, name: str | None = None, content: str | None = None) -> None:

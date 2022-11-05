@@ -151,9 +151,8 @@ class Review(Commentable, Awardable):
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
         return {
-            "thread_type": 8,
             "id64": self.author.id64,
-            "gidfeature": self.app.id,
+            "forum_id": self.app.id,
         }
 
     @classmethod
