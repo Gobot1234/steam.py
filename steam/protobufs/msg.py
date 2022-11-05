@@ -5,12 +5,10 @@ from __future__ import annotations
 import dataclasses
 import functools
 import importlib
-import importlib.util
 import logging
 import struct
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, TypeVar, get_type_hints
 
@@ -19,12 +17,16 @@ from typing_extensions import Self, dataclass_transform
 
 from .._const import MISSING, SET_PROTO_BIT
 from ..enums import IntEnum, Result
+from ..types.id import AppID
 from ..utils import classproperty
 from . import GC_PROTOBUFS, PROTOBUFS, UMS
 from .emsg import *
 from .headers import *
 from .headers import MessageHeader
 from .struct_messages import StructMessage
+
+if TYPE_CHECKING:
+    from ..types.id import AppID
 
 log = logging.getLogger(__name__)
 WRITE_U32: Callable[[int], bytes] = struct.Struct("<I").pack
@@ -215,13 +217,10 @@ class UnifiedMessage(ProtobufMessage):
 
 
 @functools.lru_cache()
-def get_app_id(module: str) -> int:
-    ext_name, _, _ = module.rpartition(".protobufs")
-    spec = importlib.util.find_spec(ext_name)
-    assert spec is not None
-    assert spec.origin is not None
-    root = Path(spec.origin).parent
-    return int((root / "app_id.txt").read_text().strip())
+def get_app_id(module: str) -> AppID:
+    gc_protobuf_locations, _, _ = module.rpartition(".")
+    protobufs_module = importlib.import_module(gc_protobuf_locations)
+    return protobufs_module.APP_ID
 
 
 class GCMessageBase:
