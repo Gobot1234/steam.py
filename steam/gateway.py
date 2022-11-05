@@ -50,6 +50,7 @@ from .protobufs import (
     friends,
     login,
 )
+from .types.id import ID64
 from .user import AnonymousClientUser, ClientUser
 
 if TYPE_CHECKING:
@@ -58,7 +59,6 @@ if TYPE_CHECKING:
     from .protobufs.base import CMsgMulti
     from .state import ConnectionState
     from .types.http import Coro
-    from .types.id import ID64
 
 
 __all__ = (
@@ -255,7 +255,7 @@ class SteamWebSocket(Registerable):
         self.closed = False
 
         self.session_id = 0
-        self.steam_id = 0
+        self.id64 = ID64(0)
         self._current_job_id = 0
         self._gc_current_job_id = 0
         self.server_offset = timedelta()
@@ -321,7 +321,7 @@ class SteamWebSocket(Registerable):
                 # steam_id is set in fetch_refresh_token
             else:
                 self.refresh_token = refresh_token
-                self.steam_id = parse_id64(utils.decode_jwt(refresh_token)["sub"])
+                self.id64 = parse_id64(utils.decode_jwt(refresh_token)["sub"])
 
             msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
                 login.CMsgClientLogon(
@@ -342,7 +342,7 @@ class SteamWebSocket(Registerable):
 
             self.session_id = msg.header.session_id
 
-            (us,) = await self.fetch_users((self.steam_id,))
+            (us,) = await self.fetch_users((self.id64,))
             client.http.user = ClientUser(state, us)
             state._users[client.user.id] = client.user  # type: ignore
             self._state.cell_id = msg.cell_id
@@ -356,7 +356,9 @@ class SteamWebSocket(Registerable):
 
             await self.send_um(chat.GetMyChatRoomGroupsRequest())
             await self.send_proto(friends.CMsgClientGetEmoticonList())
-            await self.send_proto(client_server_2.CMsgClientRequestCommentNotifications())
+            await self.send_proto(
+                client_server_2.CMsgClientRequestCommentNotifications()
+            )  # TODO Use notifications.GetSteamNotificationsRequest() instead (maybe?)
             await self.send_proto(
                 login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
             )
@@ -439,7 +441,7 @@ class SteamWebSocket(Registerable):
         else:
             raise ValueError("No valid auth session guard type was found")
 
-        self.steam_id = begin_resp.steamid
+        self.id64 = ID64(begin_resp.steamid)
         self.client_id = poll_resp.new_client_id or begin_resp.client_id
         self.access_token = poll_resp.access_token
         return poll_resp.refresh_token
@@ -463,7 +465,7 @@ class SteamWebSocket(Registerable):
 
             task = asyncio.create_task(poll())
 
-            self.steam_id = parse_id64(0, type=Type.AnonUser, universe=Universe.Public)
+            self.id64 = parse_id64(0, type=Type.AnonUser, universe=Universe.Public)
 
             msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
                 login.CMsgClientLogon(
@@ -479,7 +481,7 @@ class SteamWebSocket(Registerable):
                 return await self.from_client(client)
 
             self.session_id = msg.header.session_id
-            self.steam_id = msg.header.steam_id
+            self.id64 = msg.header.steam_id
             self._state.cell_id = msg.cell_id
 
             self._keep_alive = KeepAliveHandler(ws=self, interval=msg.heartbeat_seconds)
@@ -488,7 +490,7 @@ class SteamWebSocket(Registerable):
 
             client.ws = self
             state.login_complete.set()
-            state.http.user = AnonymousClientUser(state, self.steam_id)  # type: ignore
+            state.http.user = AnonymousClientUser(state, self.id64)  # type: ignore
 
             await self.send_proto(
                 login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
@@ -578,7 +580,7 @@ class SteamWebSocket(Registerable):
             await self.handle_close()
 
     async def send_proto(self, message: ProtoMsgs) -> None:
-        message.header.steam_id = self.steam_id
+        message.header.steam_id = self.id64
         message.header.session_id = self.session_id
 
         self._dispatch("socket_send", message)
@@ -607,7 +609,7 @@ class SteamWebSocket(Registerable):
 
     async def close(self, code: int = 1000) -> None:
         message = login.CMsgClientLogOff()
-        message.header.steam_id = self.steam_id
+        message.header.steam_id = self.id64
         message.header.session_id = self.session_id
         await self.socket.close(code=code, message=bytes(message))
 
