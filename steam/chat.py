@@ -360,12 +360,12 @@ class Chat(Channel[ChatMessageT]):
             if message is None:
                 return
 
-            for message, author in zip(messages, chat_group._maybe_members(m.author.id for m in messages)):
-                message.author = author
-                yield message
-
             last_message_timestamp = message.server_timestamp
             last_ordinal = message.ordinal
+
+            for message_, author in zip(messages, chat_group._maybe_members(m.author.id for m in messages)):
+                message_.author = author
+                yield message_
 
             if not resp.more_available:
                 return
