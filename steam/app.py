@@ -276,7 +276,7 @@ class PartialApp(App):
 
             clan = await app.clan()
             async for update in clan.announcements():
-                if update.type in (steam.ClanEvent.MajorUpdate, steam.ClanEvent.SmallUpdate):
+                if update.type in (steam.EventType.MajorUpdate, steam.EventType.SmallUpdate):
                     ...  # do something with the update
 
         Raises

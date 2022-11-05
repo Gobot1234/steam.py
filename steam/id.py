@@ -272,6 +272,8 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING)
 
         https://steamcommunity.com/id/johnc
 
+        https://steamcommunity.com/user/r
+
         https://steamcommunity.com/app/570
 
     Parameters
@@ -279,7 +281,7 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING)
     url
         The Steam community url.
     session
-        The session to make the request with. If ``None`` is passed a new one is generated.
+        The session to make the request with. If this parameter is omitted a new one is generated.
 
     Returns
     -------
@@ -521,7 +523,7 @@ class ID(metaclass=abc.ABCMeta):
             - :attr:`type` is in ``(Invalid, AnonUser]``
             - If :attr:`type` is :class:`.Type.Individual`:
                 - :attr:`id` is non-zero
-                - :attr:`instance` is in ``[0, Web]``
+                - :attr:`instance` is in ``[All, Web]``
             - If :attr:`type` is :class:`.Type.Clan`:
                 - :attr:`id` is non-zero
                 - :attr:`instance` is ``All``.

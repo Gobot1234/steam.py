@@ -6,7 +6,9 @@ import abc
 from collections.abc import Sequence
 from datetime import datetime
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, cast, overload
+
+from typing_extensions import TypeVar
 
 from . import utils
 from .abc import Commentable, _CommentableKwargs
@@ -28,10 +30,10 @@ __all__ = (
 )
 
 
-ClanEventT = TypeVar("ClanEventT", bound=EventType, covariant=True)
+EventTypeT = TypeVar("EventTypeT", bound=EventType, default=EventType, covariant=True)
 
 
-class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc.ABCMeta):
+class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT], metaclass=abc.ABCMeta):
     __slots__ = (
         "clan",
         "id",
@@ -70,7 +72,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         self.name: str = data["event_name"]
         self.content: str = data["event_notes"]
         self.app = PartialApp(state, id=data["appid"]) if data["appid"] else None
-        self.type: ClanEventT = EventType.try_value(data["event_type"])
+        self.type = cast(EventTypeT, EventType.try_value(data["event_type"]))
 
         self.starts_at = DateTime.from_timestamp(data["rtime32_start_time"])
         becomes_visible = data.get("rtime32_visibility_start")
@@ -110,7 +112,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[ClanEventT], metaclass=abc
         return self.id == other.id and self.clan == other.clan if isinstance(other, self.__class__) else NotImplemented
 
 
-class Event(BaseEvent[ClanEventT]):
+class Event(BaseEvent[EventTypeT]):
     """Represents an event in a clan.
 
     Attributes
@@ -244,7 +246,7 @@ class Event(BaseEvent[ClanEventT]):
             EventType.Other,
             EventType.Chat,
             EventType.Game,
-            # ClanEvent.Broadcast,  # TODO need to wait until implementing stream support for this
+            # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
             EventType.Party,
             EventType.Meeting,
             EventType.SpecialCause,

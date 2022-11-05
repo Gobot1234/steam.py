@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Generic
 
-from typing_extensions import Never
+from typing_extensions import Never, TypeVar
 
 from .abc import Awardable
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 __all__ = ("Comment",)
 
-OwnerT = TypeVar("OwnerT", bound="Commentable")
+OwnerT = TypeVar("OwnerT", bound="Commentable", default="Commentable", covariant=True)
 
 
 @dataclass(repr=False, slots=True)
