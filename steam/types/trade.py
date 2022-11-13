@@ -70,6 +70,8 @@ class Inventory(TypedDict):
     assets: list[Asset]
     descriptions: list[Description]
     total_inventory_count: int
+    last_assetid: str
+    more_items: bool
     success: int  # Result
     rwgrsn: int  # p. much always -2
 

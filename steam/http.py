@@ -365,14 +365,25 @@ class HTTPClient:
         }
         return self.get(api_route("IPlayerService/GetOwnedGames"), params=params)
 
-    def get_user_inventory(
+    async def get_user_inventory(
         self, user_id64: int, app_id: int, context_id: int, language: Language | None
-    ) -> Coro[trade.Inventory]:
-        params = {
-            "count": 5000,
-            "l": (language or self.language).api_name,
-        }
-        return self.get(URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params)
+    ) -> trade.Inventory:
+        count = 2000
+        ret: trade.Inventory = {"assets": [], "descriptions": [], "last_assetid": 0, "more_items": True}  # type: ignore
+        while ret["more_items"]:
+            params = {
+                "count": count,
+                "l": (language or self.language).api_name,
+                "start_assetid": ret["last_assetid"],
+            }
+            resp: trade.Inventory = await self.get(
+                URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params
+            )
+            ret["assets"].extend(resp["assets"])
+            ret["descriptions"].extend(resp["descriptions"])
+            ret["last_assetid"] = resp.get("last_assetid", 0)
+            ret["more_items"] = resp.get("more_items", False)
+        return ret
 
     async def get_client_user_inventory(
         self, app_id: int, context_id: int, language: Language | None
