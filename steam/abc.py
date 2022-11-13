@@ -791,9 +791,10 @@ class BaseUser(SteamID, Commentable):
             self._state = state
             self.name = data["persona_name"]
             self.avatar_url = data.get("avatar_url") or self.avatar_url
+            self.community_url = super().community_url
+            self.trade_url = URL.COMMUNITY / f"tradeoffer/new?partner={self.id}"
 
             self.real_name = NotImplemented
-            self.trade_url = URL.COMMUNITY / f"tradeoffer/new?partner={self.id}"
             self.primary_clan = NotImplemented
             self.country = NotImplemented
             self.created_at = NotImplemented
@@ -804,7 +805,8 @@ class BaseUser(SteamID, Commentable):
             self.state = NotImplemented
             self.flags = NotImplemented
             self.privacy_state = NotImplemented
-            self._commentable = NotImplemented
+            self.comment_permissions = NotImplemented
+            self.profile_state = NotImplemented
             self._setup_profile = NotImplemented
             self._level = data["level"]
 
@@ -831,12 +833,6 @@ class BaseUser(SteamID, Commentable):
         not_implemented("is_commentable")
         not_implemented("is_private")
         not_implemented("is_banned")
-
-    async def fetch_post(self, id: int) -> Post:
-        ...
-
-    def posts(self) -> AsyncIterator[Post]:
-        ...
 
 
 @runtime_checkable
