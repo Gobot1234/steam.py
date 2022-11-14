@@ -807,7 +807,6 @@ class BaseUser(SteamID, Commentable):
             self.privacy_state = NotImplemented
             self.comment_permissions = NotImplemented
             self.profile_state = NotImplemented
-            self._setup_profile = NotImplemented
             self._level = data["level"]
 
         def __repr__(self) -> str:

@@ -327,9 +327,6 @@ class ClientUser(_BaseUser):
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""
-        if self.has_setup_profile():
-            return
-
         params = {"welcomed": 1}
         await self._state.http.get(URL.COMMUNITY / "my/edit", params=params)
 
