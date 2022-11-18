@@ -339,6 +339,26 @@ Ban
 .. autoclass:: Ban()
     :members:
 
+
+Bundle
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Bundle
+
+.. autoclass:: Bundle()
+    :members:
+
+.. attributetable:: PartialBundle
+
+.. autoclass:: PartialBundle()
+    :members:
+
+.. attributetable:: FetchedBundle
+
+.. autoclass:: FetchedBundle()
+    :members:
+
+
 Channel
 ~~~~~~~~~~~~~~~
 

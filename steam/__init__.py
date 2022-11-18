@@ -12,6 +12,7 @@ from .__metadata__ import *
 from .abc import *
 from .app import *
 from .badge import *
+from .bundle import *
 from .channel import *
 from .clan import *
 from .client import *

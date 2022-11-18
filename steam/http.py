@@ -28,9 +28,9 @@ from .user import ClientUser
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
-    from .types import trade
+    from .types import bundle, trade
     from .types.http import Coro, ResponseDict, StrOrURL
-    from .types.id import ID64
+    from .types.id import ID64, BundleID, ChatGroupID, ChatID, PackageID
     from .types.user import User
 
 
@@ -687,12 +687,20 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "my/recommended", data=data)
 
-    def get_package(self, package_id: int, language: Language | None) -> Coro[dict[str, Any]]:
+    def get_package(self, package_id: PackageID, language: Language | None) -> Coro[dict[str, Any]]:
         params = {
             "packageids": package_id,
             "l": (language or self.language).api_name,
         }
         return self.get(URL.STORE / "api/packagedetails", params=params)
+
+    def get_bundle(self, bundle_id: BundleID, language: Language | None) -> Coro[list[bundle.Bundle]]:
+        params = {
+            "bundleids": bundle_id,
+            "l": (language or self.language).api_name,
+            "cc": "en",
+        }
+        return self.get(URL.STORE / "actions/ajaxresolvebundles", params=params)
 
     async def edit_profile_info(
         self,

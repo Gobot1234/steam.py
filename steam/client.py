@@ -26,6 +26,7 @@ from typing_extensions import Self
 from . import errors, utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
 from .app import App, FetchedApp, PartialApp
+from .bundle import Bundle, FetchedBundle, PartialBundle
 from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game_server import GameServer, Query
 from .gateway import *
@@ -686,6 +687,30 @@ class Client:
             return None
         data = resp[str(id)]
         return FetchedPackage(self._state, data["data"]) if data["success"] else None
+
+    def get_bundle(self, id: int | Bundle) -> PartialBundle:
+        """Creates a bundle from its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the bundle.
+        """
+        return PartialBundle(self._state, id=getattr(id, "id", id))
+
+    async def fetch_bundle(self, id: int | Bundle, *, language: Language | None = None) -> FetchedBundle:
+        """Fetch a bundle from its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the bundle.
+        language
+            The language to fetch the bundle in. If ``None`` uses the current language.
+        """
+        id = BundleID(id) if isinstance(id, int) else id.id
+        (data,) = await self.http.get_bundle(id, language)
+        return FetchedBundle(self._state, data)
 
     @overload
     async def fetch_server(self, *, id: Intable) -> GameServer | None:
