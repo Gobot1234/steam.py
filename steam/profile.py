@@ -12,6 +12,7 @@ from .app import PartialApp
 from .badge import UserBadge
 from .enums import Language, ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, PublishedFileRevision, Result
 from .errors import WSException
+from .models import _IOMixin
 from .protobufs import UnifiedMessage, econ
 from .trade import Asset, Item
 
@@ -59,7 +60,7 @@ class ProfileInfo:
 
 
 @dataclass(slots=True)
-class ProfileMovie:
+class ProfileMovie(_IOMixin):
     url: str  # TODO add more attributes like maybe created_at?
 
 

@@ -13,6 +13,7 @@ from . import utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
 from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
 from .id import ID, id64_from_url
+from .models import CDNAsset, _IOMixin
 from .protobufs import client_server, player
 from .types.id import AppID, ContextID, Intable
 from .utils import DateTime
@@ -767,7 +768,7 @@ class UserApp(PartialApp):
         "playtime_windows",
         "playtime_mac_os",
         "playtime_linux",
-        "icon_url",
+        "icon",
         "last_played_at",
         "_stats_visible",
     )
@@ -781,9 +782,8 @@ class UserApp(PartialApp):
         self.playtime_windows: timedelta = timedelta(minutes=proto.playtime_windows_forever)
         self.playtime_mac_os: timedelta = timedelta(minutes=proto.playtime_mac_forever)
         self.playtime_linux: timedelta = timedelta(minutes=proto.playtime_linux_forever)
-        self.icon_url = (
-            f"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{self.id}/"
-            f"{proto.img_icon_url}.jpg"
+        self.icon = CDNAsset(
+            state, str(URL.CDN / f"steamcommunity/public/images/apps/{self.id}/{proto.img_icon_url}.jpg")
         )
         self.last_played_at = DateTime.from_timestamp(proto.rtime_last_played)
 
@@ -805,8 +805,8 @@ class WishlistApp(PartialApp):
         The time that the app was added to their wishlist.
     created_at
         The time the app was uploaded at.
-    background_url
-        The background URL of the app.
+    background
+        The background of the app.
     rank
         The global rank of the app by popularity.
     review_status
@@ -821,16 +821,16 @@ class WishlistApp(PartialApp):
         The total number reviews for the app.
     type
         The type of the app.
-    logo_url
-        The logo url of the app.
+    logo
+        The logo of the app.
     """
 
     __slots__ = (
         "priority",
         "added_at",
-        "background_url",
+        "background",
         "created_at",
-        "logo_url",
+        "logo",
         "rank",
         "review_status",
         "score",
@@ -848,18 +848,17 @@ class WishlistApp(PartialApp):
 
     def __init__(self, state: ConnectionState, id: int | str, data: app.WishlistApp):
         super().__init__(state, id=id, name=data["name"])
-        self.logo_url = data["capsule"]
+        self.logo = CDNAsset(state, data["capsule"])
         self.score = data["review_score"]
         self.total_reviews = int(data["reviews_total"].replace(",", ""))
         self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
         self.created_at = DateTime.from_timestamp(int(data["release_date"]))
         self.type: str = data["type"]
         self.screenshots = [
-            f"https://cdn.cloudflare.steamstatic.com/steam/apps/{self.id}/{screenshot_url}"
-            for screenshot_url in data["screenshots"]
+            URL.CDN / f"steam/apps/{self.id}/{screenshot_url}" for screenshot_url in data["screenshots"]
         ]
         self.added_at = DateTime.from_timestamp(data["added"])
-        self.background_url = data["background"]
+        self.background = CDNAsset(state, data["background"])
         self.tags = data["tags"]
         self.rank = data["rank"]
         self.priority = int(data["priority"])
@@ -886,7 +885,7 @@ class WishlistApp(PartialApp):
         return self._on_linux
 
 
-class Movie:
+class FetchedAppMovie(_IOMixin):
     __slots__ = ("name", "id", "url", "created_at")
 
     def __init__(self, movie: dict[str, Any]):
@@ -941,8 +940,8 @@ class FetchedApp(PartialApp):
     """
 
     __slots__ = (
-        "logo_url",
-        "background_url",
+        "logo",
+        "background",
         "created_at",
         "type",
         "partial_dlc",
@@ -965,8 +964,8 @@ class FetchedApp(PartialApp):
 
     def __init__(self, state: ConnectionState, data: app.FetchedApp, language: Language):
         super().__init__(state, id=data["steam_appid"], name=data["name"])
-        self.logo_url = data["header_image"]
-        self.background_url = data["background"]
+        self.logo = CDNAsset(state, data["header_image"])
+        self.background = CDNAsset(state, data["background"])
         self.created_at = (
             DateTime.parse_steam_date(data["release_date"]["date"], full_month=False)
             if data["release_date"]["date"]
@@ -1036,9 +1035,9 @@ class UserInventoryInfoContext:
 
 class UserInventoryInfoApp(PartialApp):
     name: str
-    __slots__ = ("icon_url", "inventory_logo_url")
+    __slots__ = ("icon", "inventory_logo")
 
     def __init__(self, state: ConnectionState, id: int, name: str, icon_url: str, inventory_logo_url: str):
         super().__init__(state, id=id, name=name)
-        self.icon_url = icon_url
-        self.inventory_logo_url = inventory_logo_url
+        self.icon = CDNAsset(state, icon_url)
+        self.inventory_logo = CDNAsset(state, inventory_logo_url)

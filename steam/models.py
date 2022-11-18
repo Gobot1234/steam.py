@@ -298,3 +298,14 @@ class Avatar(_IOMixin):
 
     def __eq__(self, other: object) -> bool:
         return self.sha == other.sha if isinstance(other, self.__class__) else NotImplemented
+
+
+class CDNAsset(_IOMixin):
+    __slots__ = ("_state", "url")
+
+    def __init__(self, state: ConnectionState, url: str):
+        self._state = state
+        self.url = url
+
+    def __eq__(self, other: object) -> bool:
+        return self.url == other.url if isinstance(other, self.__class__) else NotImplemented

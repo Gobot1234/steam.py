@@ -22,14 +22,14 @@ from zlib import crc32
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
 from typing_extensions import Never, Self
-from yarl import URL
+from yarl import URL as URL_
 
 from . import utils
-from ._const import MISSING, VDF_LOADS, VDFDict
+from ._const import MISSING, URL, VDF_LOADS, VDFDict
 from .app import PartialApp
 from .enums import AppFlag, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
 from .id import ID
-from .models import _IOMixin
+from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
 from .protobufs import app_info
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
@@ -458,7 +458,7 @@ class Manifest:
 @dataclass(slots=True)
 class ContentServer(ID):  # is there any point having this inherit steamid?
     _state: ConnectionState
-    url: URL
+    url: URL_
     weighted_load: float
 
     async def get(self, path: str) -> bytes:
@@ -757,8 +757,8 @@ class AppInfo(ProductInfo, PartialApp):
         "review_score",
         "review_percentage",
         "partial_dlc",
-        "icon_url",
-        "logo_url",
+        "icon",
+        "logo",
         "website_url",
         "parent",
         "_stats_visible",
@@ -817,15 +817,11 @@ class AppInfo(ProductInfo, PartialApp):
         self._on_mac_os = "macos" in os_list
         self._on_linux = "linux" in os_list
 
-        self.icon_url = (
-            f"https://media.steampowered.com/steamcommunity/public/images/apps/{self.id}/{common['icon']}.jpg"
-            if "icon" in common
-            else None
+        self.icon = (
+            CDNAsset(state, f"{URL.CDN}/steam/apps/{self.id}/{common['icon']}.jpg") if "icon" in common else None
         )
-        self.logo_url = (
-            f"https://media.steampowered.com/steamcommunity/public/images/apps/{self.id}/{common['logo']}.jpg"
-            if "logo" in common
-            else None
+        self.logo = (
+            CDNAsset(state, f"{URL.CDN}/steam/apps/{self.id}/{common['logo']}.jpg") if "logo" in common else None
         )
         self.website_url = extended.get("homepage")
         self.parent = PartialApp(state, id=int(common["parent"])) if "parent" in common else None

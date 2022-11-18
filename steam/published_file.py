@@ -127,9 +127,7 @@ class PublishedFile(Commentable, Awardable):
         "number_of_public_comments",
         "spoiler",
         "children",
-        "filename",
-        "size",
-        "cdn_url",
+        "file",
         "preview",
         "previews",
         "banned",
@@ -148,9 +146,7 @@ class PublishedFile(Commentable, Awardable):
         "lifetime_followers",
         "lifetime_playtime",
         "lifetime_playtime_sessions",
-        "image_width",
-        "image_height",
-        "image_url",
+        "image",
         "shortcut_id",
         "shortcut_name",
         "consumer_shortcut_id",
@@ -229,12 +225,8 @@ class PublishedFile(Commentable, Awardable):
         ]
         """The file's children."""
 
-        self.filename = proto.filename
-        """The file's filename."""
-        self.size = proto.file_size
-        """The file's size."""
-        self.cdn_url = proto.file_url
-        """The file's cdn_url."""
+        self.file = PublishedFileFile(state, proto.filename, proto.file_size, proto.file_url)
+        """The file's main file."""
 
         self.preview = PreviewInfo(state, proto.hcontent_preview, proto.preview_file_size, proto.preview_url)
         """The file's preview."""
@@ -243,6 +235,8 @@ class PublishedFile(Commentable, Awardable):
             for p in proto.previews
         ]
         """All the file's previews."""
+        self.image = PublishedFileImage(state, proto.image_width, proto.image_height, proto.image_url)
+        """The file's image."""
         self.banned = proto.banned
         """Whether the file is banned."""
         self.ban_reason = proto.ban_reason if self.banned else None
@@ -278,13 +272,6 @@ class PublishedFile(Commentable, Awardable):
         """The file's lifetime playtime."""
         self.lifetime_playtime_sessions = proto.lifetime_playtime_sessions
         """The file's lifetime playtime sessions."""
-
-        self.image_width = proto.image_width
-        """The file's image's width."""
-        self.image_height = proto.image_height
-        """The file's image's height."""
-        self.image_url = proto.image_url
-        """The file's image's url."""
 
         self.shortcut_id = proto.shortcutid
         """The file's shortcut ID."""
@@ -341,12 +328,12 @@ class PublishedFile(Commentable, Awardable):
 
     @asynccontextmanager
     async def open(self) -> AsyncGenerator[BytesIO, None]:
-        if self.type not in (PublishedFileType.Art, PublishedFileType.SteamVideo):
+        if self.type not in (PublishedFileType.Art, PublishedFileType.Screenshot, PublishedFileType.SteamVideo):
             raise NotImplementedError(f"Cannot open {self.type}")
 
-        async with self._state.http._session.get(self.cdn_url) as r:
+        async with self._state.http._session.get(self.file.url) as r:
             io = BytesIO(await r.read())
-            io.name = self.filename
+            io.name = self.file.name
             yield io
 
     async def fetch_children(

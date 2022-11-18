@@ -8,8 +8,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from ._const import URL
 from .app import PartialApp, PartialAppPriceOverview
 from .enums import Language, LicenseFlag, LicenseType, PaymentMethod
+from .models import CDNAsset
 from .types.id import Intable, PackageID
 from .utils import DateTime
 
@@ -143,8 +145,7 @@ class FetchedPackage(PartialPackage):
         self._apps = [PartialApp(state, id=app["id"], name=app["name"]) for app in data["apps"]]
         self.description = data["page_content"]
         self.created_at = DateTime.parse_steam_date(data["release_date"]["date"], full_month=False)
-        self.logo_url = data["small_logo"]
-        self.logo_url = data["header_image"]
+        self.logo = CDNAsset(state, data["header_image"])
         platforms = data["platforms"]
         self._on_windows = platforms["windows"]
         self._on_mac_os = platforms["mac"]
