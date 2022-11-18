@@ -78,7 +78,6 @@ class ReviewApp(PartialApp):
 class Review(Commentable, Awardable):
     """Represents a review for an app."""
 
-    _AWARDABLE_TYPE = 1
     __slots__ = (
         "_state",
         "id",

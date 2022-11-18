@@ -52,8 +52,6 @@ class Comment(Awardable, Generic[OwnerT]):
         The comment's reactions.
     """
 
-    _AWARDABLE_TYPE: ClassVar = 5
-
     _state: ConnectionState
     id: int
     content: str

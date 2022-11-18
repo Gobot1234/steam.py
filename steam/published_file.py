@@ -100,7 +100,6 @@ class PublishedFileChange:
 class PublishedFile(Commentable, Awardable):
     """Represents a published file on SteamPipe."""
 
-    _AWARDABLE_TYPE = 2
     __slots__ = (
         "_state",
         "id",

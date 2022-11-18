@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 class Post(Awardable, Commentable):
     """Represents a post on Steam Community."""
 
-    _AWARDABLE_TYPE = 3
     _state: ConnectionState
     id: int
     """The ID of this post."""

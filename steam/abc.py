@@ -82,8 +82,16 @@ class Commentable(Protocol):
         raise NotImplementedError
 
     @classproperty
-    def _commentable_type(cls: type[Self]) -> _CommentableThreadType:
+    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:
         return _CommentableThreadType[cls.__name__]
+
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        if (
+            cls.__dict__["_COMMENTABLE_TYPE"] is Commentable.__dict__["_COMMENTABLE_TYPE"]
+            and cls.__name__ != "BaseEvent"
+        ):
+            assert cls.__name__ in _CommentableThreadType.__members__, f"{cls.__name__} is not a valid commentable type"
 
     async def fetch_comment(self, id: int) -> Comment[Self]:
         """Fetch a comment by its ID.
@@ -218,6 +226,15 @@ class Commentable(Protocol):
                 yield comment
 
 
+class _AwardableType(IntEnum):
+    # these members do have an actual source not that I can find it 8)
+    Review = 1
+    PublishedFile = 2
+    Post = 3
+    Topic = 4
+    Comment = 5
+
+
 class Awardable(Protocol):
     """A mixin that implements award functionality."""
 
@@ -225,7 +242,14 @@ class Awardable(Protocol):
 
     id: int
     _state: ConnectionState
-    _AWARDABLE_TYPE: ClassVar[int]
+
+    @classproperty
+    def _AWARDABLE_TYPE(cls: type[Self]) -> _AwardableType:
+        return _AwardableType[cls.__name__]
+
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        assert cls.__name__ in _AwardableType.__members__, f"{cls.__name__} is not a valid awardable type"
 
     async def award(self, award: Award) -> None:
         """Add an :class:`Award` to this piece of user generated content.
