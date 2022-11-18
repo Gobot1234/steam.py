@@ -7,7 +7,9 @@ import re
 from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, Literal, NamedTuple, overload
+
+from typing_extensions import TypeVar
 
 from . import utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
@@ -44,9 +46,10 @@ __all__ = (
 
 T = TypeVar("T")
 APP_ID_MAX: Final = AppID(1 << 32 - 1)
+NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
 
-class App:
+class App(Generic[NameT]):
     """Represents a Steam app.
 
     Attributes
@@ -65,8 +68,10 @@ class App:
         "context_id",
     )
 
+    # ideally this would have overloads for __new__ but that's not possible without Self working with HKT
+
     @overload
-    def __init__(self, *, id: Intable, name: str | None = ..., context_id: int | None = ...):
+    def __init__(self, *, id: Intable, name: NameT = ..., context_id: int | None = ...):
         ...
 
     @overload
@@ -95,7 +100,7 @@ class App:
         self,
         *,
         id: Intable | None = None,
-        name: str | None = None,
+        name: NameT = None,
         context_id: int | None = None,
     ):
         if name is None and id is None:
@@ -123,7 +128,7 @@ class App:
             context_id = 6
 
         self.id: AppID = AppID(id)
-        self.name: str | None = name
+        self.name = name
         self.context_id: ContextID = ContextID(2 if context_id is None else context_id)
 
     def __str__(self) -> str:
@@ -160,7 +165,7 @@ class App:
 
 def CUSTOM_APP(
     name: str,
-) -> App:  # TODO if actually optimising make this return a different class cause it's a u64 cause haha steam
+) -> App[str]:  # TODO if actually optimising make this return a different class cause it's a u64 cause haha steam
     """Create a custom app instance for :meth:`~steam.Client.change_presence`.
     The :attr:`App.id` will be set to ``15190414816125648896`` and the :attr:`App.context_id` to ``None``.
 
@@ -254,7 +259,7 @@ class FriendThoughts(NamedTuple):
     not_recommended: list[Friend]
 
 
-class PartialApp(App):
+class PartialApp(App[NameT]):
     """Apps that have state."""
 
     __slots__ = ("_state",)
@@ -417,11 +422,10 @@ class PartialApp(App):
         )
 
     # async def fetch(self) -> Self & FetchedApp:  # TODO update signature to this when types.Intersection is done
-    #     fetched = await self._state.client.fetch_app(self)
-    #     return utils.update_class(fetched, copy.copy(self))
-
     async def fetch(self, *, language: Language | None = None) -> FetchedApp:
-        """Shorthand for:
+        """Fetch this app.
+
+        Shorthand for:
 
         .. code-block:: python3
 
@@ -432,7 +436,20 @@ class PartialApp(App):
             raise ValueError("Fetched app was not valid.")
         return app
 
+    async def info(self) -> AppInfo:
+        """Fetches this app's product info.
+
+        Shorthand for:
+
+        .. code-block:: python3
+
+            (info,) = await client.fetch_product_info(apps=[app])
+        """
+        (info,), _ = await self._state.fetch_product_info((self.id,))
+        return info
+
     async def depots(self) -> Sequence[Depot | HeadlessDepot]:
+        """Fetch the depots for this app."""
         info = await self.info()
         return await info.depots()
 
@@ -583,16 +600,6 @@ class PartialApp(App):
                 yield file
                 yielded += 1
 
-    async def info(self) -> AppInfo:
-        """Shorthand for:
-
-        .. code-block:: python3
-
-            (info,) = await client.fetch_product_info(apps=[app])
-        """
-        (info,), _ = await self._state.fetch_product_info((self.id,))
-        return info
-
     async def dlc(self, *, language: Language | None = None) -> list[DLC]:
         """Fetch the app's DLC.
 
@@ -628,7 +635,7 @@ class PartialApp(App):
         return licenses
 
 
-class Apps(PartialApp, Enum):
+class Apps(PartialApp[str], Enum):
     """This is "enum" to trick type checkers into allowing Literal[TF2] to be valid for overloads in extensions."""
 
     __slots__ = ("_name",)
@@ -689,7 +696,7 @@ class PartialAppPriceOverview:
     discount_percent: int
 
 
-class DLC(PartialApp):
+class DLC(PartialApp[str]):
     """Represents DLC (downloadable content) for an app.
 
     Attributes
@@ -701,8 +708,6 @@ class DLC(PartialApp):
     price_overview
         A price overview for the DLC.
     """
-
-    name: str
 
     __slots__ = (
         "created_at",
@@ -741,7 +746,7 @@ class DLC(PartialApp):
         return self._on_linux
 
 
-class UserApp(PartialApp):
+class UserApp(PartialApp[NameT]):
     """Represents a Steam app fetched by :meth:`steam.User.apps`
 
     Attributes
@@ -773,8 +778,6 @@ class UserApp(PartialApp):
         "_stats_visible",
     )
 
-    name: str
-
     def __init__(self, state: ConnectionState, proto: player.GetOwnedGamesResponseGame):
         super().__init__(state=state, id=proto.appid, name=proto.name)
         self.playtime_forever: timedelta = timedelta(minutes=proto.playtime_forever)
@@ -794,7 +797,7 @@ class UserApp(PartialApp):
         return self._stats_visible
 
 
-class WishlistApp(PartialApp):
+class WishlistApp(PartialApp[str]):
     """Represents a Steam app fetched by :meth:`steam.User.wishlist`\\.
 
     Attributes
@@ -907,7 +910,7 @@ class AppPriceOverview(PartialAppPriceOverview):
     final_formatted: str
 
 
-class FetchedApp(PartialApp):
+class FetchedApp(PartialApp[str]):
     """Represents a Steam app fetched by :meth:`steam.Client.fetch_app`\\.
 
     Attributes
@@ -1033,8 +1036,7 @@ class UserInventoryInfoContext:
     """The number of items in the context ID type."""
 
 
-class UserInventoryInfoApp(PartialApp):
-    name: str
+class UserInventoryInfoApp(PartialApp[str]):
     __slots__ = ("icon", "inventory_logo")
 
     def __init__(self, state: ConnectionState, id: int, name: str, icon_url: str, inventory_logo_url: str):

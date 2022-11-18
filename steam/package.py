@@ -6,7 +6,9 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic
+
+from typing_extensions import TypeVar
 
 from ._const import URL
 from .app import PartialApp, PartialAppPriceOverview
@@ -31,8 +33,10 @@ __all__ = (
     "License",
 )
 
+NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
-class Package:
+
+class Package(Generic[NameT]):
     """Represents a package, a collection of one or more apps and depots.
 
     Read more on `steamworks <https://partner.steamgames.com/doc/store/application/packages>`_.
@@ -43,7 +47,7 @@ class Package:
         "name",
     )
 
-    def __init__(self, id: Intable, name: str | None = None):
+    def __init__(self, id: Intable, name: NameT = None):
         self.id = PackageID(int(id))
         """The package's ID."""
         self.name = name
@@ -58,8 +62,13 @@ class Package:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={self.id}, name={self.name!r})"
 
+    @property
+    def url(self) -> str:
+        """The package's store page URL."""
+        return f"{URL.STORE}/sub/{self.id}"
 
-class PartialPackage(Package):
+
+class PartialPackage(Package[NameT]):
     """A package with state."""
 
     __slots__ = ("_state",)
@@ -77,7 +86,9 @@ class PartialPackage(Package):
         return fetched._apps
 
     async def fetch(self, *, language: Language | None = None) -> FetchedPackage:
-        """Fetches this package's information. Shorthand for:
+        """Fetches this package's information.
+
+        Shorthand for:
 
         .. code-block:: python3
 
@@ -89,7 +100,9 @@ class PartialPackage(Package):
         return package
 
     async def info(self) -> PackageInfo:
-        """Shorthand for:
+        """Fetches this package's product info.
+
+        Shorthand for:
 
         .. code-block:: python3
 
@@ -99,7 +112,9 @@ class PartialPackage(Package):
         return info
 
     async def apps_info(self) -> list[AppInfo]:
-        """Shorthand for:
+        """Fetch the product info for all apps in this package.
+
+        Shorthand for:
 
         .. code-block:: python3
 
@@ -137,8 +152,8 @@ class PackagePriceOverview(PartialAppPriceOverview):
     individual: int
 
 
-class FetchedPackage(PartialPackage):
-    name: str
+class FetchedPackage(PartialPackage[str]):
+    """Represents a package that was fetched from steam."""
 
     def __init__(self, state: ConnectionState, data: package.FetchedPackage):
         super().__init__(state, name=data["name"], id=data["packageid"])
@@ -175,7 +190,7 @@ class FetchedAppPackagePriceOverview:
     final: int
 
 
-class FetchedAppPackage(PartialPackage):
+class FetchedAppPackage(PartialPackage[str]):
     __slots__ = (
         "_is_free",
         "price_overview",
@@ -194,7 +209,7 @@ class FetchedAppPackage(PartialPackage):
         return self._is_free
 
 
-class License(PartialPackage):
+class License(PartialPackage[NameT]):
     """Represents a License to a package the client user has access to."""
 
     __slots__ = (

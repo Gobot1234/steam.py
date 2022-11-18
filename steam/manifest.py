@@ -688,7 +688,7 @@ class ProductInfo:
     #     return changes.app_changes[0].change_number
 
 
-class AppInfo(ProductInfo, PartialApp):
+class AppInfo(ProductInfo, PartialApp[str]):
     """Represents a collection of information on an app.
 
     Attributes
@@ -931,7 +931,7 @@ class AppInfo(ProductInfo, PartialApp):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
-class PackageInfo(ProductInfo, PartialPackage):
+class PackageInfo(ProductInfo, PartialPackage[str]):
     """Represents a collection of information on a package.
 
     Attributes
