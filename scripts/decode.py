@@ -6,8 +6,9 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 
 import asyncio
 import logging
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from collections import defaultdict
+from pathlib import Path
 
 import black
 
@@ -15,12 +16,16 @@ import steam
 from steam.gateway import SteamWebSocket
 from steam.protobufs import EMsg, ProtobufMessage, UnifiedMessage
 from steam.protobufs.base import CMsgMulti
+from steam.protobufs.msg import REQUEST_EMSGS, RESPONSE_EMSGS
 
 logging.getLogger("steam").setLevel(logging.DEBUG)
 logging.basicConfig()
 
 
 async def amain(input_message: str) -> None:
+    if (path := Path(input_message)).is_file():
+        input_message = b64encode(path.read_bytes()).decode()
+
     client = steam.Client()
     client.http.user = steam.ID(0)  # type: ignore
     fake_ws = SteamWebSocket(client._state, None, None, None)  # type: ignore
@@ -52,9 +57,9 @@ async def amain(input_message: str) -> None:
 
     fake_ws.parsers = defaultdict(lambda: parser)
     fake_ws.parsers[EMsg.Multi] = handle_multi
-    for msg in (EMsg.ServiceMethod, EMsg.ServiceMethodCallFromClient, EMsg.ServiceMethodCallFromClientNonAuthed):
+    for msg in REQUEST_EMSGS:
         fake_ws.parsers[msg] = handle_um_request
-    for msg in (EMsg.ServiceMethodResponse, EMsg.ServiceMethodSendToClient):
+    for msg in RESPONSE_EMSGS:
         fake_ws.parsers[msg] = handle_um_response
     fake_ws.receive(bytearray(b64decode(input_message)))
     await asyncio.sleep(2)
