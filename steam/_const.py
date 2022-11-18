@@ -138,6 +138,7 @@ class URL:
     STORE: Final = _URL("https://store.steampowered.com")
     HELP: Final = _URL("https://help.steampowered.com")
     LOGIN: Final = _URL("https://login.steampowered.com")
+    CDN: Final = _URL("https://cdn.cloudflare.steamstatic.com")
 
 
 # default CMs if Steam API is down
