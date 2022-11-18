@@ -739,63 +739,37 @@ class HTTPClient:
             )
             await self.post(URL.COMMUNITY / "actions/FileUploader", data=payload)
 
-    async def send_user_image(self, user_id64: int, image: Image) -> None:
+    async def send_image(self, image: Image, **kwargs: int) -> None:
+        payload = {
+            "sessionid": self.session_id,
+            "l": "english",
+            "file_size": image.size,
+            "file_name": image.name,
+            "file_sha": image.hash,
+            "file_image_width": image.width,
+            "file_image_height": image.height,
+            "file_type": f"image/{image.type}",
+        }
+        resp = await self.post(URL.COMMUNITY / "chat/beginfileupload", data=payload)
+
+        result = resp["result"]
+        url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
+        headers = {header["name"]: header["value"] for header in result["request_headers"]}
+        await self.request("PUT", url=url, headers=headers, data=image.read())
+
+        payload |= {
+            "success": 1,
+            "ugcid": result["ugcid"],
+            "timestamp": result["timestamp"],
+            "hmac": result["hmac"],
+            "spoiler": int(image.spoiler),
+        } | kwargs
+        await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
+
+    async def send_user_image(self, user_id64: ID64, image: Image) -> None:
         with image:
-            payload = {
-                "sessionid": self.session_id,
-                "l": "english",
-                "file_size": image.size,
-                "file_name": image.name,
-                "file_sha": image.hash,
-                "file_image_width": image.width,
-                "file_image_height": image.height,
-                "file_type": f"image/{image.type}",
-            }
-            resp = await self.post(URL.COMMUNITY / "chat/beginfileupload", data=payload)
+            await self.send_image(image, friend_steamid=user_id64)
 
-            result = resp["result"]
-            url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
-            headers = {header["name"]: header["value"] for header in result["request_headers"]}
-            await self.request("PUT", url=url, headers=headers, data=image.read())
-
-            payload |= {
-                "success": 1,
-                "ugcid": result["ugcid"],
-                "timestamp": resp["timestamp"],
-                "hmac": resp["hmac"],
-                "friend_steamid": user_id64,
-                "spoiler": int(image.spoiler),
-            }
-
-            await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
-
-    async def send_chat_image(self, chat_id: int, channel_id: int, image: Image) -> None:
+    async def send_chat_image(self, chat_group_id: ChatGroupID, chat_id: ChatID, image: Image) -> None:
         with image:
-            payload = {
-                "sessionid": self.session_id,
-                "l": "english",
-                "file_size": image.size,
-                "file_name": image.name,
-                "file_sha": image.hash,
-                "file_image_width": image.width,
-                "file_image_height": image.height,
-                "file_type": f"image/{image.type}",
-            }
-            resp = await self.post(URL.COMMUNITY / "chat/beginfileupload", data=payload)
-
-            result = resp["result"]
-            url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
-            headers = {header["name"]: header["value"] for header in result["request_headers"]}
-            await self.request("PUT", url=url, headers=headers, data=image.read())
-
-            payload |= {
-                "success": 1,
-                "ugcid": result["ugcid"],
-                "timestamp": resp["timestamp"],
-                "hmac": resp["hmac"],
-                "chat_group_id": channel_id,
-                "chat_id": chat_id,
-                "spoiler": int(image.spoiler),
-            }
-
-            await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
+            await self.send_image(image, chat_group_id=chat_group_id, chat_id=chat_id)
