@@ -129,6 +129,8 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
         return len(cls._member_map_)
 
     def __setattr__(cls, name: str, value: Any) -> Never:
+        if name.startswith("__") and name.endswith("__"):
+            return super().__setattr__(name, value)  # type: ignore
         raise AttributeError(f"{cls.__name__}: cannot reassign Enum members.")
 
     def __delattr__(cls, name: str) -> Never:
@@ -514,9 +516,19 @@ class Language(IntEnum):
         except KeyError:
             return cls.__new__(cls, name=string.title(), value=-1)
 
+    @classmethod
+    def from_web_api_str(cls, string: str) -> Self:
+        try:
+            return _REVERSE_WEB_API_MAP[string]
+        except KeyError:
+            return cls.__new__(cls, name=string, value=-1)
+
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
     Mapping[str, Language], {value: key for key, value in Language.API_LANGUAGE_MAP.items()}
+)
+_REVERSE_WEB_API_MAP: Final = cast(
+    Mapping[str, Language], {value: key for key, value in Language.WEB_API_MAP.items()}
 )
 
 

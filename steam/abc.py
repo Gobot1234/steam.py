@@ -88,7 +88,7 @@ class Commentable(Protocol):
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         if (
-            cls.__dict__["_COMMENTABLE_TYPE"] is Commentable.__dict__["_COMMENTABLE_TYPE"]
+            cls.__dict__.get("_COMMENTABLE_TYPE") is Commentable.__dict__["_COMMENTABLE_TYPE"]
             and cls.__name__ != "BaseEvent"
         ):
             assert cls.__name__ in _CommentableThreadType.__members__, f"{cls.__name__} is not a valid commentable type"
