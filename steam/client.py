@@ -37,9 +37,11 @@ from .manifest import AppInfo, PackageInfo
 from .models import PriceOverview, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .post import Post
+from .protobufs import store
 from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker
 from .state import ConnectionState
+from .store import AppStoreItem, BundleStoreItem, PackageStoreItem, TransactionReceipt
 from .types.id import AppID, BundleID, Intable, PackageID
 from .utils import DateTime, TradeURLInfo, parse_id64
 
@@ -814,6 +816,145 @@ class Client:
             return app_infos, package_infos
 
         return app_infos if apps else package_infos
+
+    @overload
+    async def fetch_store_item(self, *, apps: Sequence[App], language: Language | None = None) -> list[AppStoreItem]:
+        ...
+
+    @overload
+    async def fetch_store_item(
+        self, *, packages: Sequence[Package], language: Language | None = None
+    ) -> list[PackageStoreItem]:
+        ...
+
+    @overload
+    async def fetch_store_item(
+        self, *, bundles: Sequence[Bundle], language: Language | None = None
+    ) -> list[BundleStoreItem]:
+        ...
+
+    @overload
+    async def fetch_store_item(
+        self, *, apps: Sequence[App], packages: Sequence[Package], language: Language | None = None
+    ) -> tuple[list[AppStoreItem], list[PackageStoreItem]]:
+        ...
+
+    @overload
+    async def fetch_store_item(
+        self, *, packages: Sequence[Package], bundles: Sequence[Bundle], language: Language | None = None
+    ) -> tuple[list[PackageStoreItem], list[BundleStoreItem]]:
+        ...
+
+    @overload
+    async def fetch_store_item(
+        self, *, apps: Sequence[App], bundles: Sequence[Bundle], language: Language | None = None
+    ) -> tuple[list[AppStoreItem], list[BundleStoreItem]]:
+        ...
+
+    @overload
+    async def fetch_store_item(
+        self,
+        *,
+        apps: Sequence[App],
+        packages: Sequence[Package],
+        bundles: Sequence[Bundle],
+        language: Language | None = None,
+    ) -> tuple[list[AppStoreItem], list[PackageStoreItem], list[BundleStoreItem]]:
+        ...
+
+    async def fetch_store_item(
+        self,
+        *,
+        apps: Sequence[App] = (),
+        packages: Sequence[Package] = (),
+        bundles: Sequence[Bundle] = (),
+        language: Language | None = None,
+    ) -> Any:
+        """Fetch store items.
+
+        Parameters
+        ----------
+        apps
+            The apps to fetch store items for.
+        packages
+            The packages to fetch store items for.
+        bundles
+            The bundles to fetch store items for.
+        language
+            The language to fetch the store items in. If ``None``, the default language is used.
+        """
+        if not any((apps, packages, bundles)):
+            raise TypeError("fetch_store_info missing arguments apps, packages or bundles")
+        resp = await self._state.fetch_store_info(
+            (app.id for app in apps), (package.id for package in packages), (bundle.id for bundle in bundles), language
+        )
+        match apps, packages, bundles:
+            case [*_], (), ():  # simple cases
+                return [AppStoreItem(self._state, proto, language or self.http.language) for proto in resp]
+            case (), [*_], ():
+                return [PackageStoreItem(self._state, proto, language or self.http.language) for proto in resp]
+            case (), (), [*_]:
+                return [BundleStoreItem(self._state, proto, language or self.http.language) for proto in resp]
+
+            case [*_], [*_], ():  # mixed
+                return [
+                    AppStoreItem(self._state, proto, language or self.http.language)
+                    for proto in resp
+                    if proto.item_type == store.EStoreItemType.App
+                ], [
+                    PackageStoreItem(self._state, proto, language or self.http.language)
+                    for proto in resp
+                    if proto.item_type == store.EStoreItemType.Package
+                ]
+            case (), [*_], [*_]:
+                return [
+                    PackageStoreItem(self._state, proto, language or self.http.language)
+                    for proto in resp
+                    if proto.item_type == store.EStoreItemType.Package
+                ], [
+                    BundleStoreItem(self._state, proto, language or self.http.language)
+                    for proto in resp
+                    if proto.item_type == store.EStoreItemType.Bundle
+                ]
+            case [*_], (), [*_]:
+                return [
+                    AppStoreItem(self._state, proto, language or self.http.language)
+                    for proto in resp
+                    if proto.item_type == store.EStoreItemType.App
+                ], [
+                    BundleStoreItem(self._state, proto, language or self.http.language)
+                    for proto in resp
+                    if proto.item_type == store.EStoreItemType.Bundle
+                ]
+            case _:
+                return (
+                    [
+                        AppStoreItem(self._state, proto, language or self.http.language)
+                        for proto in resp
+                        if proto.item_type == store.EStoreItemType.App
+                    ],
+                    [
+                        PackageStoreItem(self._state, proto, language or self.http.language)
+                        for proto in resp
+                        if proto.item_type == store.EStoreItemType.Package
+                    ],
+                    [
+                        BundleStoreItem(self._state, proto, language or self.http.language)
+                        for proto in resp
+                        if proto.item_type == store.EStoreItemType.Bundle
+                    ],
+                )
+
+    async def register_cd_key(self, key: str) -> TransactionReceipt:
+        """Register a CD key.
+
+        Parameters
+        ----------
+        key
+            The CD key to register.
+        """
+        proto = await self._state.register_cd_key(key)
+        return TransactionReceipt(self._state, proto)
 
     # miscellaneous stuff
 

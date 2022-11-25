@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
+    from .store import AppStoreItem
     from .types import app
 
 __all__ = (
@@ -435,6 +436,18 @@ class PartialApp(App[NameT]):
         if app is None:
             raise ValueError("Fetched app was not valid.")
         return app
+
+    async def store_item(self) -> AppStoreItem:
+        """Fetch the store item for this app.
+
+        Shorthand for:
+
+        .. code-block:: python3
+
+            (item,) = await client.fetch_store_item(apps=[app])
+        """
+        (item,) = await self._state.client.fetch_store_item(apps=(self,))
+        return item
 
     async def info(self) -> AppInfo:
         """Fetches this app's product info.

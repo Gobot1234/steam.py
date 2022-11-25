@@ -21,8 +21,8 @@ if TYPE_CHECKING:
     from .manifest import AppInfo, Depot, HeadlessDepot, PackageInfo
     from .message import Authors
     from .protobufs.client_server import CMsgClientLicenseListLicense
-    from .protobufs.store import PurchaseReceiptInfo
     from .state import ConnectionState
+    from .store import PackageStoreItem
     from .types import app, package
 
 
@@ -110,6 +110,18 @@ class PartialPackage(Package[NameT]):
         """
         _, (info,) = await self._state.fetch_product_info(package_ids=(self.id,))
         return info
+
+    async def store_item(self) -> PackageStoreItem:
+        """Fetches this package's store item.
+
+        Shorthand for:
+
+        .. code-block:: python3
+
+            (item,) = await client.fetch_store_item(apps=[app])
+        """
+        (item,) = await self._state.client.fetch_store_item(packages=(self,))
+        return item
 
     async def apps_info(self) -> list[AppInfo]:
         """Fetch the product info for all apps in this package.

@@ -74,6 +74,18 @@ class PartialBundle(Bundle[NameT]):
         """
         return await self._state.client.fetch_bundle(self.id)
 
+    async def store_item(self) -> BundleStoreItem:
+        """Fetch the store item for this bundle.
+
+        Shorthand for:
+
+        .. code-block:: python3
+
+            (item,) = await client.fetch_store_item(bundles=[bundle])
+        """
+        (item,) = await self._state.client.fetch_store_item(bundles=(self,))
+        return item
+
     async def apps(self) -> list[PartialApp]:
         """Fetch the bundle's apps."""
         fetched = await self.fetch()
