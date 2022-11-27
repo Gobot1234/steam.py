@@ -618,6 +618,40 @@ PublishedFile
     :inherited-members:
 
 
+Store
+~~~~~~~~~~~~~~~
+
+.. attributetable:: StoreItem
+
+.. autoclass:: StoreItem()
+    :members:
+    :inherited-members:
+
+.. attributetable:: AppStoreItem
+
+.. autoclass:: AppStoreItem()
+    :members:
+    :inherited-members:
+
+.. attributetable:: PackageStoreItem
+
+.. autoclass:: PackageStoreItem()
+    :members:
+    :inherited-members:
+
+.. attributetable:: BundleStoreItem
+
+.. autoclass:: BundleStoreItem()
+    :members:
+    :inherited-members:
+
+.. attributetable:: TransactionReceipt
+
+.. autoclass:: TransactionReceipt()
+    :members:
+    :inherited-members:
+
+
 Trading
 ~~~~~~~~~~~~~~~
 

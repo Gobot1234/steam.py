@@ -22,6 +22,14 @@ from .utils import DateTime
 if TYPE_CHECKING:
     from .state import ConnectionState
 
+__all__ = (
+    "StoreItem",
+    "AppStoreItem",
+    "PackageStoreItem",
+    "BundleStoreItem",
+    "TransactionReceipt",
+)
+
 
 @dataclass(slots=True)
 class StoreItemTag:

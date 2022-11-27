@@ -36,6 +36,7 @@ from .published_file import *
 from .reaction import *
 from .review import *
 from .role import *
+from .store import *
 from .trade import *
 from .user import *
 
