@@ -1880,6 +1880,52 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg
 
+    async def register_cd_key(self, key: str) -> store.PurchaseReceiptInfo:
+        msg: store.RegisterCDKeyResponse = await self.ws.send_um_and_wait(
+            store.RegisterCDKeyRequest(activation_code=key)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.purchase_receipt_info
+
+    async def fetch_store_info(
+        self,
+        app_ids: Iterable[AppID],
+        package_ids: Iterable[PackageID],
+        bundle_ids: Iterable[BundleID],
+        language: Language | None,
+    ) -> list[store.StoreItem]:
+        ids = (
+            [store.StoreItemId(appid=app_id) for app_id in app_ids]
+            + [store.StoreItemId(packageid=package_id) for package_id in package_ids]
+            + [store.StoreItemId(bundleid=bundle_id) for bundle_id in bundle_ids]
+        )
+
+        msg: store.GetItemsResponse = await self.ws.send_proto_and_wait(
+            store.GetItemsRequest(
+                ids=ids,
+                context=store.StoreBrowseContext(
+                    country_code=(language or self.language).web_api_name,
+                ),
+                data_request=store.StoreBrowseItemDataRequest(
+                    include_assets=True,
+                    include_release=True,
+                    include_platforms=True,
+                    include_all_purchase_options=True,
+                    # include_screenshots=True,  # steam doesn't like these params for some reason
+                    include_trailers=True,
+                    include_ratings=True,
+                    # include_tag_count=True,
+                    include_reviews=True,
+                    # include_basic_info=True,
+                    # include_supported_languages=True,
+                ),
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.store_items
+
     async def fetch_published_files(
         self,
         published_file_ids: Iterable[int],

@@ -18,7 +18,7 @@ from ._const import URL
 from .app import App, PartialApp
 from .enums import Language, TradeOfferState
 from .errors import ClientException, ConfirmationError
-from .id import ID
+from .models import CDNAsset
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID
 from .utils import DateTime
