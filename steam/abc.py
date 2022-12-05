@@ -9,13 +9,13 @@ from collections.abc import AsyncGenerator, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from ipaddress import IPv4Address, IPv6Address
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypedDict, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypedDict, TypeVar, runtime_checkable
 
 from bs4 import BeautifulSoup
 from typing_extensions import Required, Self
 from yarl import URL as URL_
 
-from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL
+from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH
 from .app import App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
@@ -25,8 +25,9 @@ from .id import ID
 from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
-from .trade import Inventory
-from .types.id import ContextID
+from .trade import Inventory, Item
+from .types.id import CommentID, ContextID, Intable, PostID
+from .types.user import UserT
 from .utils import DateTime, cached_slot_property, classproperty
 
 if TYPE_CHECKING:
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from .comment import Comment
     from .group import Group
     from .image import Image
+    from .post import Post
     from .protobufs.chat import Mentions
     from .published_file import PublishedFile
     from .review import Review
@@ -48,7 +50,7 @@ __all__ = (
 )
 
 C = TypeVar("C", bound="Commentable")
-M_co = TypeVar("M_co", bound="Message", covariant=True)
+M_co = TypeVar("M_co", bound="Message", default="Message", covariant=True)
 
 
 class _CommentableKwargs(TypedDict, total=False):
@@ -107,7 +109,7 @@ class Commentable(Protocol):
         comment = await self._state.fetch_comment(self, id)
         return Comment(
             self._state,
-            id=comment.id,
+            id=CommentID(comment.id),
             content=comment.content,
             created_at=DateTime.from_timestamp(comment.timestamp),
             author=await self._state._maybe_user(comment.author_id64),
@@ -115,7 +117,7 @@ class Commentable(Protocol):
             reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
         )
 
-    async def comment(self, content: str, *, subscribe: bool = True) -> Comment[Self]:
+    async def comment(self, content: str, *, subscribe: bool = True) -> Comment[Self, ClientUser]:
         """Post a comment to a comments section.
 
         Parameters
@@ -192,7 +194,7 @@ class Commentable(Protocol):
             for comment in proto.comments:
                 comment = Comment(
                     self._state,
-                    id=comment.id,
+                    id=CommentID(comment.id),
                     content=comment.content,
                     created_at=DateTime.from_timestamp(comment.timestamp),
                     reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],

@@ -13,8 +13,7 @@ from copy import copy
 from datetime import datetime, timedelta
 from itertools import count
 from operator import attrgetter
-from time import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from bs4 import BeautifulSoup
 from typing_extensions import Self
@@ -74,8 +73,8 @@ from .reaction import (
     _Reaction,
 )
 from .role import RolePermissions
-from .trade import TradeOffer
-from .types.id import ID32, ID64, AppID, CacheKey, ChatGroupID, ChatID, Intable
+from .trade import Item, TradeOffer
+from .types.id import *
 from .types.user import Author
 from .user import ClientUser, User
 from .utils import DateTime, cached_property
@@ -163,7 +162,7 @@ class ConnectionState(Registerable):
         self.chat_group_to_view_id: defaultdict[ChatGroupID, int] = defaultdict(count().__next__)
         self.active_chat_groups: set[ChatGroupID] = set()
 
-        self._confirmations: dict[int, Confirmation] = {}
+        self._confirmations: dict[TradeOfferID, Confirmation] = {}
         self.confirmation_generation_locks: dict[str, tuple[asyncio.Lock, datetime]] = {}
         self._confirmations_to_ignore: list[int] = []
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
@@ -173,15 +172,15 @@ class ConnectionState(Registerable):
 
         self.polling_trades = False
         self.trade_queue = TradeQueue()
-        self._trades_to_watch: set[int] = set()
+        self._trades_to_watch: set[TradeOfferID] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
 
         self.cell_id = 0
         self._connected_cm: CMServer | None = None
 
-        self.licenses: dict[int, License] = {}
-        self._manifest_passwords: dict[int, dict[str, str]] = {}
+        self.licenses: dict[PackageID, License] = {}
+        self._manifest_passwords: dict[AppID, dict[str, str]] = {}
         self.cs_servers: list[ContentServer] = []
 
         self.handled_friends.clear()
@@ -286,10 +285,10 @@ class ConnectionState(Registerable):
     def get_friend(self, id64: ID64) -> Friend:
         return self.user._friends[id64]
 
-    def get_confirmation(self, id: int) -> Confirmation | None:
+    def get_confirmation(self, id: TradeOfferID) -> Confirmation | None:
         return self._confirmations.get(id)
 
-    async def fetch_confirmation(self, id: int) -> Confirmation | None:
+    async def fetch_confirmation(self, id: TradeOfferID) -> Confirmation | None:
         await self._fetch_confirmations()
         return self.get_confirmation(id)
 
@@ -394,7 +393,7 @@ class ConnectionState(Registerable):
             await asyncio.sleep(30)
             log.info("Error while polling trades", exc_info=exc)
 
-    async def wait_for_trade(self, id: int) -> TradeOffer:
+    async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer:
         self.loop.create_task(self.poll_trades())  # start re-polling trades
         return await self.trade_queue.wait_for(id=id)
 
@@ -411,7 +410,7 @@ class ConnectionState(Registerable):
             "tag": tag,
         }
 
-    async def _fetch_confirmations(self) -> dict[int, Confirmation]:
+    async def _fetch_confirmations(self) -> dict[TradeOfferID, Confirmation]:
         params = await self._create_confirmation_params("conf")
         headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
         resp = await self.http.get(URL.COMMUNITY / "mobileconf/conf", params=params, headers=headers)
@@ -425,7 +424,7 @@ class ConnectionState(Registerable):
         for confirmation in soup.select("#mobileconf_list .mobileconf_list_entry"):
             data_conf_id = confirmation["data-confid"]
             key = confirmation["data-key"]
-            trade_id = int(confirmation.get("data-creator", 0))
+            trade_id = TradeOfferID(int(confirmation.get("data-creator", 0)))
             confirmation_id = confirmation["id"].split("conf")[1]
             if trade_id in self._confirmations_to_ignore:
                 continue
@@ -462,7 +461,7 @@ class ConnectionState(Registerable):
                 asyncio.get_running_loop().call_later(next_code_valid_in, lock.release)
             self.confirmation_generation_locks[tag] = lock, steam_time
 
-    async def fetch_and_confirm_confirmation(self, trade_id: int) -> bool:
+    async def fetch_and_confirm_confirmation(self, trade_id: TradeOfferID) -> bool:
         if self.client.identity_secret:
             confirmation = self.get_confirmation(trade_id) or await self.fetch_confirmation(trade_id)
             if confirmation is not None:
@@ -754,7 +753,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-        return msg.reactors
+        return cast("list[ID32]", msg.reactors)
 
     async def fetch_servers(self, query: str, limit: int) -> list[game_servers.GetServerListResponseServer]:
         msg: game_servers.GetServerListResponse = await self.ws.send_um_and_wait(
@@ -782,7 +781,7 @@ class ConnectionState(Registerable):
         return msg.servers
 
     async def query_server(
-        self, ip: int, port: int, app_id: int, type: game_servers.EQueryType
+        self, ip: int, port: int, app_id: AppID, type: game_servers.EQueryType
     ) -> game_servers.QueryResponse:
         msg: game_servers.QueryResponse = await self.ws.send_um_and_wait(
             game_servers.QueryRequest(
@@ -796,7 +795,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg
 
-    async def fetch_app_player_count(self, app_id: int) -> int:
+    async def fetch_app_player_count(self, app_id: AppID) -> int:
         msg: client_server_2.CMsgDpGetNumberOfCurrentPlayersResponse = await self.ws.send_proto_and_wait(
             client_server_2.CMsgDpGetNumberOfCurrentPlayers(appid=app_id)
         )
@@ -961,40 +960,48 @@ class ConnectionState(Registerable):
         )
         if message is None:
             return log.debug("Got a reaction to an unknown message %s %s", created_at, ordinal)
-        if msg.reaction_type == 1:
-            emoticon = Emoticon(self, msg.reaction)
-            sticker = None
-        elif msg.reaction_type == 2:
-            sticker = Sticker(self, msg.reaction)
-            emoticon = None
-        else:
-            return log.debug("Got an unknown reaction_type %s on message %s %s", msg.reaction_type, created_at, ordinal)
+        match msg.reaction_type:
+            case Emoticon._TYPE:
+                emoticon = Emoticon(self, msg.reaction)
+                sticker = None
+            case Sticker._TYPE:
+                sticker = Sticker(self, msg.reaction)
+                emoticon = None
+            case _:
+                return log.debug(
+                    "Got an unknown reaction_type %s on message %s %s", msg.reaction_type, created_at, ordinal
+                )
 
         reaction = MessageReaction(self, message, emoticon, sticker, user, created_at, ordinal)
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
     async def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
         try:
-            destination = self._chat_groups[msg.chat_group_id]
+            destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
         except KeyError:
             return log.debug(f"Got a message for a chat we aren't in {msg.chat_group_id}")
 
-        channel = destination._channels[msg.chat_id]
+        channel = destination._channels[ChatID(msg.chat_id)]
         channel._update(msg)
-        author = await self._maybe_user(msg.steamid_sender)
-        message = (ClanMessage if isinstance(destination, Clan) else GroupMessage)(
+
+        (message_cls,) = channel._type_args
+        message = message_cls(
             proto=msg,
             channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
-            author=author,
+            author=destination._maybe_member(ID64(msg.steamid_sender)),
         )
+        channel.last_message = message
         self._messages.append(message)
         self.dispatch("message", message)
 
     async def handle_chat_message_reaction(self, msg: chat.MessageReactionNotification) -> None:
-        user = await self._maybe_user(msg.reactor)
+        try:
+            destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
+        except KeyError:
+            return log.debug(f"Got a message reaction for a chat we aren't in {msg.chat_group_id}")
         ordinal = msg.ordinal
         created_at = DateTime.from_timestamp(msg.server_timestamp)
-        location = (msg.chat_group_id, msg.chat_id)
+        location = (destination._id, msg.chat_id)
         message = utils.find(
             lambda message: (
                 isinstance(message, (ClanMessage, GroupMessage))
@@ -1027,7 +1034,7 @@ class ConnectionState(Registerable):
 
     async def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
         try:
-            chat_group = self._chat_groups[msg.header_state.chat_group_id]
+            chat_group = self._chat_groups[ChatGroupID(msg.header_state.chat_group_id)]
         except KeyError:
             return log.debug(f"Updating a group that isn't cached {msg.header_state.chat_group_id}")
 
@@ -1050,7 +1057,7 @@ class ConnectionState(Registerable):
                 self.dispatch("group_join", group)
 
         elif msg.user_action == chat.EChatRoomMemberStateChange.Parted:  # leave group
-            left = self._chat_groups.pop(msg.chat_group_id, None)
+            left = self._chat_groups.pop(ChatGroupID(msg.chat_group_id), None)
             if left is None:
                 return
 
@@ -1067,7 +1074,7 @@ class ConnectionState(Registerable):
 
     async def handle_chat_member_update(self, msg: chat.MemberStateChangeNotification) -> None:
         try:
-            chat_group = self._chat_groups[msg.chat_group_id]
+            chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
         except KeyError:
             return log.debug("Got a chat member update for a chat group we aren't in %d", msg.chat_group_id)
 
@@ -1084,7 +1091,7 @@ class ConnectionState(Registerable):
 
     async def handle_chat_update(self, msg: chat.ChatRoomGroupRoomsChangeNotification) -> None:
         try:
-            chat_group = self._chat_groups[msg.chat_group_id]
+            chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
         except KeyError:
             return log.debug("Got an update for a chat group we aren't in %d", msg.chat_group_id)
 
@@ -1210,9 +1217,7 @@ class ConnectionState(Registerable):
                                     return log.debug("Unknown friend %s removed", id)
                                 self.dispatch("friend_remove", friend)
                             else:
-                                self.dispatch(
-                                    f"{'user' if id.type == Type.Individual else 'clan'}_invite_decline", invite
-                                )
+                                self.dispatch(f"user_invite_decline", invite)
 
                         case Type.Clan:
                             try:
@@ -1221,7 +1226,7 @@ class ConnectionState(Registerable):
                                 clan = self._clans.pop(id.id, None)
                                 if clan is None:
                                     return log.debug("Unknown clan %s removed", id)
-                                self.dispatch("clean_leave", clan)
+                                self.dispatch("clan_leave", clan)
                             else:
                                 self.dispatch("clan_invite_decline", invite)
 
@@ -1249,7 +1254,7 @@ class ConnectionState(Registerable):
         return state
 
     async def fetch_user_inventory(
-        self, user_id64: ID64, app_id: int, context_id: int, language: Language | None
+        self, user_id64: ID64, app_id: AppID, context_id: ContextID, language: Language | None
     ) -> econ.GetInventoryItemsWithDescriptionsResponse:
         msg: econ.GetInventoryItemsWithDescriptionsResponse = await self.ws.send_um_and_wait(
             econ.GetInventoryItemsWithDescriptionsRequest(
@@ -1268,7 +1273,7 @@ class ConnectionState(Registerable):
         return msg
 
     async def fetch_item_info(
-        self, app_id: int, items: Iterable[CacheKey], language: Language | None
+        self, app_id: AppID, items: Iterable[CacheKey], language: Language | None
     ) -> dict[CacheKey, econ.ItemDescription]:
         result: dict[CacheKey, econ.ItemDescription] = {}
 
@@ -1319,7 +1324,7 @@ class ConnectionState(Registerable):
 
     async def fetch_comment(self, owner: Commentable, id: int) -> comments.GetCommentThreadResponse.Comment:
         msg: comments.GetCommentThreadResponse = await self.ws.send_um_and_wait(
-            comments.GetCommentThreadRequest(**owner._commentable_kwargs, type=owner._commentable_type, id=id)
+            comments.GetCommentThreadRequest(**owner._commentable_kwargs, type=owner._COMMENTABLE_TYPE, id=id)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -1331,7 +1336,7 @@ class ConnectionState(Registerable):
         msg: comments.GetCommentThreadResponse = await self.ws.send_um_and_wait(
             comments.GetCommentThreadRequest(
                 **owner._commentable_kwargs,
-                type=owner._commentable_type,
+                type=owner._COMMENTABLE_TYPE,
                 count=count,
                 start=starting_from,
                 oldest_first=oldest_first,
@@ -1346,7 +1351,7 @@ class ConnectionState(Registerable):
         msg: comments.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
             comments.PostCommentToThreadRequest(
                 **owner._commentable_kwargs,
-                type=owner._commentable_type,
+                type=owner._COMMENTABLE_TYPE,
                 content=content,
                 suppress_notifications=not subscribe,
             )
@@ -1356,7 +1361,7 @@ class ConnectionState(Registerable):
 
         comment = Comment(
             self,
-            id=msg.id,
+            id=CommentID(msg.id),
             content=content,
             created_at=self.steam_time,
             author=self.user,
@@ -1366,22 +1371,22 @@ class ConnectionState(Registerable):
         self.dispatch("comment", comment)
         return comment
 
-    async def delete_comment(self, owner: Commentable, comment_id: int) -> None:
+    async def delete_comment(self, owner: Commentable, comment_id: CommentID) -> None:
         msg: comments.DeleteCommentFromThreadResponse = await self.ws.send_um_and_wait(
             comments.DeleteCommentFromThreadRequest(
                 **owner._commentable_kwargs,
-                type=owner._commentable_type,
+                type=owner._COMMENTABLE_TYPE,
                 id=comment_id,
             )
         )
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def report_comment(self, owner: Commentable, comment_id: int) -> None:
+    async def report_comment(self, owner: Commentable, comment_id: CommentID) -> None:
         msg: comments.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
             comments.PostCommentToThreadRequest(  # some odd api here
                 **owner._commentable_kwargs,
-                type=owner._commentable_type,
+                type=owner._COMMENTABLE_TYPE,
                 is_report=True,
                 parent_id=comment_id,
             )
@@ -1453,7 +1458,7 @@ class ConnectionState(Registerable):
     async def add_award(self, awardable: Awardable, award: Award) -> None:
         msg = await self.ws.send_um_and_wait(
             loyalty_rewards.AddReactionRequest(
-                target_type=awardable.__class__._AWARDABLE_TYPE,
+                target_type=awardable._AWARDABLE_TYPE,
                 targetid=awardable.id,
                 reactionid=award.id,
             )
@@ -1487,7 +1492,7 @@ class ConnectionState(Registerable):
         if msg.count_new_items:
             await self.poll_trades()
 
-    async def fetch_user_post(self, user_id64: ID64, post_id: int) -> player.GetPostedStatusResponse:
+    async def fetch_user_post(self, user_id64: ID64, post_id: PostID) -> player.GetPostedStatusResponse:
         msg: player.GetPostedStatusResponse = await self.ws.send_um_and_wait(
             player.GetPostedStatusRequest(
                 steamid=user_id64,
@@ -1507,7 +1512,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def delete_user_post(self, post_id: int) -> None:
+    async def delete_user_post(self, post_id: PostID) -> None:
         msg: player.DeletePostedStatusResponse = await self.ws.send_um_and_wait(
             player.DeletePostedStatusRequest(
                 postid=post_id,
@@ -1518,7 +1523,9 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def fetch_user_reviews(self, user_id64: ID64, app_ids: Iterable[int]) -> list[reviews.RecommendationDetails]:
+    async def fetch_user_reviews(
+        self, user_id64: ID64, app_ids: Iterable[AppID]
+    ) -> list[reviews.RecommendationDetails]:
         msg: reviews.GetIndividualRecommendationsResponse = await self.ws.send_um_and_wait(
             reviews.GetIndividualRecommendationsRequest(
                 [
@@ -1556,7 +1563,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def fetch_friend_thoughts(self, app_id: int) -> reviews.GetFriendsRecommendedAppResponse:
+    async def fetch_friend_thoughts(self, app_id: AppID) -> reviews.GetFriendsRecommendedAppResponse:
         msg: reviews.GetFriendsRecommendedAppResponse = await self.ws.send_um_and_wait(
             reviews.GetFriendsRecommendedAppRequest(appid=app_id)
         )
@@ -1572,7 +1579,7 @@ class ConnectionState(Registerable):
             self.user.name = msg.persona_name or self.user.name
             self.dispatch("user_update", before, self.user)
 
-    async def fetch_friends_who_own(self, app_id: int) -> list[ID64]:
+    async def fetch_friends_who_own(self, app_id: AppID) -> list[ID64]:
         msg: friends.ClientGetFriendsWhoPlayGameResponse = await self.ws.send_proto_and_wait(
             friends.ClientGetFriendsWhoPlayGame(app_id=app_id)
         )
@@ -1659,9 +1666,9 @@ class ConnectionState(Registerable):
 
     async def fetch_manifest(
         self,
-        app_id: int,
-        id: int,
-        depot_id: int,
+        app_id: AppID,
+        id: ManifestID,
+        depot_id: DepotID,
         name: str | None = None,
         branch: str = "public",
         password_hash: str = "",
@@ -1671,7 +1678,7 @@ class ConnectionState(Registerable):
                 (
                     ContentServer(
                         self,
-                        URL_.build(scheme=f"http{'s' if server.https_support != 'none' else ''}", host=server.vhost),
+                        URL_.build(scheme=f"http{'s' * (server.https_support != 'none')}", host=server.vhost),
                         server.weighted_load,
                     )
                     for server in await self.fetch_cs_list(limit=20)
@@ -1692,7 +1699,7 @@ class ConnectionState(Registerable):
         return await self.fetch_manifest(app_id, id, depot_id, name, branch, password_hash)
 
     async def fetch_manifests(
-        self, app_id: int, branch_name: str, password: str | None, limit: int | None, password_hash: str = ""
+        self, app_id: AppID, branch_name: str, password: str | None, limit: int | None, password_hash: str = ""
     ) -> list[Coro[Manifest]]:
         (product_info,), _ = await self.fetch_product_info((app_id,))
 
@@ -1737,9 +1744,9 @@ class ConnectionState(Registerable):
 
     async def fetch_manifest_request_code(
         self,
-        manifest_id: int,
-        depot_id: int,
-        app_id: int,
+        manifest_id: ManifestID,
+        depot_id: DepotID,
+        app_id: AppID,
         branch: str = "",
         password_hash: str = "",
     ) -> int:
@@ -1760,20 +1767,12 @@ class ConnectionState(Registerable):
         raise ValueError
 
     async def fetch_product_info(
-        self, app_ids: Iterable[int] = (), package_ids: Iterable[int] = ()
+        self, app_ids: Iterable[AppID] = (), package_ids: Iterable[PackageID] = ()
     ) -> tuple[list[AppInfo], list[PackageInfo]]:
         apps_to_fetch: list[app_info.CMsgClientPicsProductInfoRequestAppInfo] = []
         packages_to_fetch: list[app_info.CMsgClientPicsProductInfoRequestPackageInfo] = []
-        app_access_tokens_to_collect: list[int] = []
-        package_access_tokens_to_collect: list[int] = []
-
-        for app_id in app_ids:
-            try:
-                apps_to_fetch.append(
-                    app_info.CMsgClientPicsProductInfoRequestAppInfo(app_id, self.licenses[app_id].access_token)
-                )
-            except KeyError:
-                app_access_tokens_to_collect.append(app_id)
+        app_access_tokens_to_collect = list(app_ids)
+        package_access_tokens_to_collect: list[PackageID] = []
 
         for package_id in package_ids:
             try:
@@ -1842,7 +1841,7 @@ class ConnectionState(Registerable):
 
         return apps, packages
 
-    async def fetch_depot_key(self, app_id: int, depot_id: int) -> bytes:
+    async def fetch_depot_key(self, app_id: AppID, depot_id: DepotID) -> bytes:
         msg: client_server_2.CMsgClientGetDepotDecryptionKeyResponse = await self.ws.send_proto_and_wait(
             client_server_2.CMsgClientGetDepotDecryptionKey(app_id=app_id, depot_id=depot_id)
         )
@@ -1852,15 +1851,15 @@ class ConnectionState(Registerable):
 
     async def fetch_manifest_access_tokens(
         self,
-        app_ids: list[int] | None = None,
-        package_ids: list[int] | None = None,
+        app_ids: list[AppID] | None = None,
+        package_ids: list[PackageID] | None = None,
     ) -> app_info.CMsgClientPicsAccessTokenResponse:
 
-        app_ids = [] if app_ids is None else app_ids
-        package_ids = [] if package_ids is None else package_ids
-
         msg: app_info.CMsgClientPicsAccessTokenResponse = await self.ws.send_proto_and_wait(
-            app_info.CMsgClientPicsAccessTokenRequest(appids=app_ids, packageids=package_ids)
+            app_info.CMsgClientPicsAccessTokenRequest(
+                appids=cast(list[int], [] if app_ids is None else app_ids),
+                packageids=cast(list[int], [] if package_ids is None else package_ids),
+            )
         )
         if msg.result not in (
             Result.OK,
@@ -1931,7 +1930,7 @@ class ConnectionState(Registerable):
 
     async def fetch_published_files(
         self,
-        published_file_ids: Iterable[int],
+        published_file_ids: Iterable[PublishedFileID],
         revision: PublishedFileRevision,
         language: Language | None,
     ) -> list[PublishedFile[Author] | None]:
@@ -1949,7 +1948,7 @@ class ConnectionState(Registerable):
                 strip_description_bbcode=True,
                 includereactions=True,
                 return_playtime_stats=True,
-                desired_revision=revision,
+                desired_revision=revision,  # type: ignore
             )
         )
 
@@ -1966,7 +1965,7 @@ class ConnectionState(Registerable):
     async def fetch_user_published_files(
         self,
         user_id64: ID64,
-        app_id: int,
+        app_id: AppID,
         page: int,
         file_type: PublishedFileType,
         revision: PublishedFileRevision,
@@ -1999,7 +1998,7 @@ class ConnectionState(Registerable):
 
     async def fetch_app_published_files(
         self,
-        app_id: int,
+        app_id: AppID,
         file_type: PublishedFileQueryFileType,
         revision: PublishedFileRevision,
         language: Language | None,
@@ -2032,7 +2031,7 @@ class ConnectionState(Registerable):
 
     async def fetch_published_file_parents(
         self,
-        published_file_id: int,
+        published_file_id: PublishedFileID,
         revision: PublishedFileRevision,
         language: Language | None,
         cursor: str = "*",
@@ -2061,7 +2060,7 @@ class ConnectionState(Registerable):
         return msg
 
     async def fetch_published_file_history(
-        self, published_file_id: int, language: Language | None
+        self, published_file_id: PublishedFileID, language: Language | None
     ) -> list[published_file.GetChangeHistoryResponseChangeLog]:
         msg: published_file.GetChangeHistoryResponse = await self.ws.send_um_and_wait(
             published_file.GetChangeHistoryRequest(
@@ -2074,7 +2073,7 @@ class ConnectionState(Registerable):
         return msg.changes
 
     async def fetch_published_file_history_entry(
-        self, published_file_id: int, dt: datetime, language: Language | None
+        self, published_file_id: PublishedFileID, dt: datetime, language: Language | None
     ) -> published_file.GetChangeHistoryEntryResponse:
         msg: published_file.GetChangeHistoryEntryResponse = await self.ws.send_um_and_wait(
             published_file.GetChangeHistoryEntryRequest(
@@ -2087,21 +2086,21 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg
 
-    async def subscribe_to_published_file(self, published_file_id: int) -> None:
+    async def subscribe_to_published_file(self, published_file_id: PublishedFileID) -> None:
         msg = await self.ws.send_um_and_wait(
-            published_file.SubscribeRequest(publishedfileid=published_file_id, notifyclient=True)
+            published_file.SubscribeRequest(publishedfileid=published_file_id, notify_client=True)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def unsubscribe_from_published_file(self, published_file_id: int) -> None:
+    async def unsubscribe_from_published_file(self, published_file_id: PublishedFileID) -> None:
         msg = await self.ws.send_um_and_wait(
-            published_file.UnsubscribeRequest(publishedfileid=published_file_id, notifyclient=True)
+            published_file.UnsubscribeRequest(publishedfileid=published_file_id, notify_client=True)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def is_subscribed_to_published_file(self, published_file_id: int) -> bool:
+    async def is_subscribed_to_published_file(self, published_file_id: PublishedFileID) -> bool:
         msg: published_file.CanSubscribeResponse = await self.ws.send_um_and_wait(
             published_file.CanSubscribeRequest(publishedfileid=published_file_id)
         )
@@ -2110,7 +2109,9 @@ class ConnectionState(Registerable):
 
         return msg.can_subscribe
 
-    async def add_published_file_child(self, published_file_id: int, child_published_file_id: int) -> None:
+    async def add_published_file_child(
+        self, published_file_id: PublishedFileID, child_published_file_id: PublishedFileID
+    ) -> None:
         msg = await self.ws.send_um_and_wait(
             published_file.AddChildRequest(
                 publishedfileid=published_file_id, child_publishedfileid=child_published_file_id
@@ -2119,7 +2120,9 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def remove_published_file_child(self, published_file_id: int, child_published_file_id: int) -> None:
+    async def remove_published_file_child(
+        self, published_file_id: PublishedFileID, child_published_file_id: PublishedFileID
+    ) -> None:
         msg = await self.ws.send_um_and_wait(
             published_file.RemoveChildRequest(
                 publishedfileid=published_file_id,
@@ -2129,7 +2132,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def upvote_published_file(self, published_file_id: int, vote_up: bool) -> None:
+    async def upvote_published_file(self, published_file_id: PublishedFileID, vote_up: bool) -> None:
         msg = await self.ws.send_um_and_wait(
             published_file.VoteRequest(
                 publishedfileid=published_file_id,
@@ -2141,15 +2144,15 @@ class ConnectionState(Registerable):
 
     async def edit_published_file(
         self,
-        published_file_id: int,
-        app_id: int,
+        published_file_id: PublishedFileID,
+        app_id: AppID,
         name: str,
         content: str,
         visibility: int,
-        tags: Sequence[str],
+        tags: list[str],
         filename: str,
         preview_filename: str,
-    ):
+    ) -> None:
         msg = await self.ws.send_um_and_wait(
             published_file.UpdateRequest(
                 appid=app_id,

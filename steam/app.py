@@ -17,7 +17,7 @@ from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, Publishe
 from .id import ID, id64_from_url
 from .models import CDNAsset, _IOMixin
 from .protobufs import client_server, player
-from .types.id import AppID, ContextID, Intable
+from .types.id import ID64, AppID, ContextID, DepotID, Intable, ManifestID
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -398,7 +398,7 @@ class PartialApp(App[NameT]):
 
             for review, user in zip(
                 reviews,
-                await self._state.fetch_users(int(review["author"]["steamid"]) for review in reviews),
+                await self._state.fetch_users(ID64(int(review["author"]["steamid"])) for review in reviews),
             ):
                 if user is None:
                     continue
@@ -483,7 +483,7 @@ class PartialApp(App[NameT]):
             The hashed password for the manifest.
         """
         return await self._state.fetch_manifest(
-            self.id, id, depot_id, name=None, branch=branch, password_hash=password_hash
+            self.id, ManifestID(id), DepotID(depot_id), name=None, branch=branch, password_hash=password_hash
         )
 
     async def manifests(

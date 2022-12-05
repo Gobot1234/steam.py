@@ -138,7 +138,7 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
                         self.participant if reactor == self.participant.id else self._state.user,
                     )
                     for r in message.reactions
-                    if r.reaction_type == 1
+                    if r.reaction_type == Emoticon._TYPE
                     for reactor in r.reactors
                 ]
                 sticker_reactions = [
@@ -150,7 +150,7 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
                         self.participant if reactor == self.participant.id else self._state.user,
                     )
                     for r in message.reactions
-                    if r.reaction_type == 2
+                    if r.reaction_type == Sticker._TYPE
                     for reactor in r.reactors
                 ]
                 new_message.reactions = emoticon_reactions + sticker_reactions
@@ -193,12 +193,6 @@ class GroupChannel(Chat[GroupMessage]):
         super().__init__(state, group, proto)
         self.group: Group = group
 
-    def _message_func(self, content: str) -> Coroutine[Any, Any, GroupMessage]:
-        return self._state.send_chat_message(*self._location, content)  # type: ignore
-
-    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_chat_image(*self._location, image)
-
 
 class ClanChannel(Chat[ClanMessage]):
     """Represents a group channel.
@@ -224,9 +218,3 @@ class ClanChannel(Chat[ClanMessage]):
     def __init__(self, state: ConnectionState, clan: Clan, proto: GroupChannelProtos):
         super().__init__(state, clan, proto)
         self.clan: Clan = clan
-
-    def _message_func(self, content: str) -> Coroutine[Any, Any, ClanMessage]:
-        return self._state.send_chat_message(*self._location, content)  # type: ignore
-
-    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_chat_image(*self._location, image)

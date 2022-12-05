@@ -441,7 +441,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         "_is_our_offer",
     )
 
-    id: int
+    id: TradeOfferID
     partner: OwnerT
 
     @overload
@@ -515,7 +515,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
     def _update_from_send(
         self, state: ConnectionState, data: trade.TradeOfferCreateResponse, partner: OwnerT, active: bool = True  # type: ignore
     ) -> None:
-        self.id = int(data["tradeofferid"])
+        self.id = TradeOfferID(int(data["tradeofferid"]))
         self._state = state
         self.partner = partner
         self.state = TradeOfferState.Active if active else TradeOfferState.ConfirmationNeed
@@ -529,7 +529,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
 
     def _update(self: TradeOffer[Asset[OwnerT], OwnerT], data: trade.TradeOffer) -> TradeOffer[Item[OwnerT], OwnerT]:
         self.message = data.get("message") or None
-        self.id = int(data["tradeofferid"])
+        self.id = TradeOfferID(int(data["tradeofferid"]))
         self._id = int(data["tradeid"]) if "tradeid" in data else None
         expires = data.get("expiration_time")
         escrow = data.get("escrow_end_date")
@@ -706,7 +706,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
             self.partner, to_send, to_receive, trade.token, trade.message or "", trade_id=self.id
         )
         if resp.get("needs_mobile_confirmation", False):
-            await self._state.fetch_and_confirm_confirmation(int(resp["tradeofferid"]))
+            await self._state.fetch_and_confirm_confirmation(TradeOfferID(int(resp["tradeofferid"])))
 
     @property
     def url(self) -> str:

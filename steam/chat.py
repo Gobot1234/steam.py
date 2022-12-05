@@ -172,6 +172,12 @@ class ChatMessage(Message[AuthorT]):
     def _chat_group(self) -> Clan | Group:
         return self.channel._chat_group
 
+    async def delete(self) -> None:
+        """Deletes the message."""
+        await self._state.delete_chat_message(
+            self._chat_group._id, self.channel.id, int(self.created_at.timestamp()), self.ordinal
+        )
+
     async def fetch_reaction(self, emoticon: Emoticon | Sticker) -> list[MessageReaction]:
         """Fetches the reactions to this message with a given emoticon."""
         reactors = await self._state.fetch_message_reactors(
@@ -373,7 +379,7 @@ class Chat(Channel[ChatMessageT]):
                         None,
                     )
                     for r in message.reactions
-                    if r.reaction_type == 1
+                    if r.reaction_type == Emoticon._TYPE
                 ]
                 sticker_reactions = [
                     PartialMessageReaction(
@@ -383,7 +389,7 @@ class Chat(Channel[ChatMessageT]):
                         Sticker(self._state, r.reaction),
                     )
                     for r in message.reactions
-                    if r.reaction_type == 2
+                    if r.reaction_type == Sticker._TYPE
                 ]
                 new_message.partial_reactions = emoticon_reactions + sticker_reactions
 
@@ -434,32 +440,26 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     _id: ChatGroupID
     app: PartialApp | None
     tagline: str
-    avatar_url: str
     active_member_count: int
     chunked: bool
     _avatar_sha: bytes
     _state: ConnectionState
 
-    _members: dict[ID32, MemberT]
     _owner_id: ID32
     _top_members: list[ID32]
-    _partial_members: dict[ID32, chat.Member]  # deleted after _members is populated (if chunked)
 
-    _channels: dict[int, ChatT]
-    _default_channel_id: int
+    _default_channel_id: ChatID
+    _default_role_id: RoleID
 
-    _roles: dict[int, Role]
-    _default_role_id: int
-
-    def __init__(self, state: ConnectionState, id: Intable, type: Type = MISSING):
+    def __init__(self, state: ConnectionState, id: Intable, type: Literal[Type.Clan, Type.Chat] = MISSING):
         super().__init__(id, type=type)
         self._state = state
         self.chunked = False
         self.app: PartialApp | None = None
-        self._members = {}
-        self._partial_members = {}
-        self._channels: dict[int, ChatT] = {}
-        self._roles: dict[int, Role] = {}
+        self._members: dict[ID32, MemberT] = {}
+        self._partial_members: dict[ID32, chat.Member] = {}  # deleted after _members is populated (if chunked)
+        self._channels: dict[ChatID, ChatT] = {}
+        self._roles: dict[RoleID, Role] = {}
 
     @classmethod
     async def _from_proto(
@@ -480,7 +480,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         self.app = PartialApp(state, id=proto.appid) if proto.appid else self.app
         self._avatar_sha = proto.chat_group_avatar_sha
 
-        self._default_role_id = proto.default_role_id
+        self._default_role_id = RoleID(proto.default_role_id)
         self._update_channels(proto.chat_rooms, default_channel_id=proto.default_chat_id)
 
         if maybe_chunk:
@@ -491,7 +491,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
             else:
                 self._partial_members = {ID32(member.accountid): member for member in group_state.members}
                 self._roles = {
-                    role.role_id: Role(self._state, self, role, permissions)  # type: ignore
+                    RoleID(role.role_id): Role(self._state, self, role, permissions)  # type: ignore
                     for role in group_state.header_state.roles
                     for permissions in group_state.header_state.role_actions
                     if permissions.role_id == role.role_id
@@ -537,7 +537,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         _, channel_cls = self._type_args
         for channel in channels:
             try:
-                new_channel = self._channels[channel.chat_id]
+                new_channel = self._channels[ChatID(channel.chat_id)]
             except KeyError:
                 new_channel = channel_cls(self._state, self, channel)
                 self._channels[new_channel.id] = new_channel
@@ -545,7 +545,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
                 new_channel._update(channel)
 
         if default_channel_id is not None:
-            self._default_channel_id = default_channel_id
+            self._default_channel_id = ChatID(default_channel_id)
 
     def _update_header_state(self, proto: chat.GroupHeaderState) -> None:
         self.name = proto.chat_name
@@ -553,7 +553,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         self.app = PartialApp(self._state, id=proto.appid)
         self.tagline = proto.tagline
         self._avatar_sha = proto.avatar_sha
-        self._default_role_id = proto.default_role_id or self._default_role_id
+        self._default_role_id = RoleID(proto.default_role_id) or self._default_role_id
         for role in proto.roles:
             for role_action in proto.role_actions:
                 if role.role_id == role_action.role_id:
@@ -624,7 +624,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         id
             The ID of the channel.
         """
-        return self._channels.get(id)
+        return self._channels.get(ChatID(id))
 
     @property
     def default_channel(self) -> ChatT:
@@ -644,7 +644,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         id
             The ID of the role.
         """
-        return self._roles.get(id)
+        return self._roles.get(RoleID(id))
 
     @property
     def default_role(self) -> Role:

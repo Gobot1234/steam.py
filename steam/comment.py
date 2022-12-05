@@ -12,8 +12,10 @@ from .abc import Awardable, Commentable
 from .types.user import AuthorT
 
 if TYPE_CHECKING:
+    from .forum import Topic
     from .reaction import Award, AwardReaction
     from .state import ConnectionState
+    from .types.id import CommentID
 
 
 __all__ = ("Comment",)
@@ -52,7 +54,7 @@ class Comment(Awardable, Generic[OwnerT, AuthorT]):
     """
 
     _state: ConnectionState
-    id: int
+    id: CommentID
     content: str
     created_at: datetime
     reactions: list[AwardReaction]

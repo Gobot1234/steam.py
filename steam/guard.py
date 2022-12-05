@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from ._const import URL
 from .errors import ConfirmationError
-from .types.id import Intable
+from .types.id import Intable, TradeOfferID
 
 if TYPE_CHECKING:
     from .state import ConnectionState
@@ -95,7 +95,7 @@ class Confirmation:
     id: str
     data_conf_id: int
     data_key: str
-    trade_id: int  # this isn't really always the trade ID, but for our purposes this is fine
+    trade_id: TradeOfferID  # this isn't really always the trade ID, but for our purposes this is fine
 
     def __repr__(self) -> str:
         return f"<Confirmation id={self.id!r} trade_id={self.trade_id}>"
@@ -124,10 +124,7 @@ class Confirmation:
             raise ConfirmationError
 
     async def _perform_op(self, op: str) -> None:
-        params = await self._confirm_params(op)
-        params["op"] = op
-        params["cid"] = self.data_conf_id
-        params["ck"] = self.data_key
+        params = await self._confirm_params(op) | {"op": op, "cid": self.data_conf_id, "ck": self.data_key}
         resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
         self._assert_valid(resp)
 

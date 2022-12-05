@@ -23,6 +23,7 @@ from ._const import JSON_DUMPS, JSON_LOADS, URL
 from .enums import Language
 from .id import ID
 from .models import PriceOverviewDict, api_route
+from .types.id import AppID, PostID, TradeOfferID
 from .user import ClientUser
 
 if TYPE_CHECKING:
@@ -342,7 +343,9 @@ class HTTPClient:
         }
         return await self.get(api_route("IEconService/GetTradeHistory"), params=params)
 
-    async def get_trade(self, trade_id: int, language: Language | None = None) -> ResponseDict[trade.GetTradeOffer]:
+    async def get_trade(
+        self, trade_id: TradeOfferID, language: Language | None = None
+    ) -> ResponseDict[trade.GetTradeOffer]:
         params = {
             "key": await self.get_api_key(),
             "tradeofferid": trade_id,
@@ -351,7 +354,7 @@ class HTTPClient:
         }
         return await self.get(api_route("IEconService/GetTradeOffer"), params=params)
 
-    def accept_user_trade(self, user_id64: int, trade_id: int) -> Coro[dict[str, Any]]:
+    def accept_user_trade(self, user_id64: int, trade_id: TradeOfferID) -> Coro[dict[str, Any]]:
         payload = {
             "sessionid": self.session_id,
             "tradeofferid": trade_id,
@@ -362,14 +365,14 @@ class HTTPClient:
         headers = {"Referer": str(URL.COMMUNITY / f"tradeoffer/{trade_id}")}
         return self.post(URL.COMMUNITY / f"tradeoffer/{trade_id}/accept", data=payload, headers=headers)
 
-    def _cancel_user_trade(self, trade_id: int, option: str) -> Coro[None]:
+    def _cancel_user_trade(self, trade_id: TradeOfferID, option: str) -> Coro[None]:
         payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / f"tradeoffer/{trade_id}/{option}", data=payload)
 
-    def decline_user_trade(self, trade_id: int) -> Coro[None]:
+    def decline_user_trade(self, trade_id: TradeOfferID) -> Coro[None]:
         return self._cancel_user_trade(trade_id, "decline")
 
-    def cancel_user_trade(self, trade_id: int) -> Coro[None]:
+    def cancel_user_trade(self, trade_id: TradeOfferID) -> Coro[None]:
         return self._cancel_user_trade(trade_id, "cancel")
 
     def send_trade_offer(
@@ -464,25 +467,27 @@ class HTTPClient:
         payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
 
-    def get_price(self, app_id: int, item_name: str, currency: int) -> Coro[PriceOverviewDict]:
+    def get_price(self, app_id: AppID, item_name: str, currency: int) -> Coro[PriceOverviewDict]:
         payload = {
             "appid": app_id,
             "market_hash_name": item_name,
-        } | ({"currency": currency} if currency is not None else {})
+        }
+        if currency is not None:
+            payload |= {"currency": currency}
 
         return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
 
     def get_wishlist(self, user_id64: int) -> Coro[dict[str, Any]]:
         return self.get(URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata")
 
-    def get_app(self, app_id: int, language: Language | None) -> Coro[dict[str, Any]]:
+    def get_app(self, app_id: AppID, language: Language | None) -> Coro[dict[str, Any]]:
         params = {
             "appids": app_id,
             "l": (language or self.language).api_name,
         }
         return self.get(URL.STORE / "api/appdetails", params=params)
 
-    def get_app_dlc(self, app_id: int, language: Language | None) -> Coro[dict[str, Any]]:
+    def get_app_dlc(self, app_id: AppID, language: Language | None) -> Coro[dict[str, Any]]:
         params = {
             "appid": app_id,
             "l": (language or self.language).api_name,
@@ -618,7 +623,7 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "events/ajaxgetpartnerevent", params=params)
 
-    def vote_on_user_post(self, user_id64: ID64, post_id: int, vote: int) -> Coro[None]:
+    def vote_on_user_post(self, user_id64: ID64, post_id: PostID, vote: int) -> Coro[None]:
         data = {
             "sessionid": self.session_id,
             "vote": vote,
@@ -628,7 +633,7 @@ class HTTPClient:
 
     def post_review(
         self,
-        app_id: int,
+        app_id: AppID,
         content: str,
         upvoted: bool,
         public: bool,
@@ -651,7 +656,7 @@ class HTTPClient:
         return self.post(URL.STORE / "friends/recommendgame", data=data)
 
     def get_reviews(
-        self, app_id: int, filter: str, review_type: str, purchase_type: str, cursor: str = "*"
+        self, app_id: AppID, filter: str, review_type: str, purchase_type: str, cursor: str = "*"
     ) -> Coro[dict[str, Any]]:
         params = {
             "json": 1,
@@ -679,7 +684,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"userreviews/votetag/{review_id}", data=data)
 
-    def delete_review(self, app_id: int) -> Coro[None]:
+    def delete_review(self, app_id: AppID) -> Coro[None]:
         data = {
             "action": "delete",
             "appid": app_id,
