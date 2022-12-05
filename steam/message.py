@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias
 
-from .abc import Message
-from .chat import ChatMessage
-from .id import ID
+from typing_extensions import TypeVar
+
+from .abc import Message, PartialUser
+from .chat import ChatMessage, PartialMember
 from .reaction import Emoticon, MessageReaction, Sticker
 from .utils import DateTime
 
@@ -15,7 +16,6 @@ if TYPE_CHECKING:
     from .clan import Clan, ClanMember
     from .group import Group, GroupMember
     from .protobufs import chat, friend_messages
-    from .user import ClientUser, User
 
 
 __all__ = (
@@ -24,19 +24,24 @@ __all__ = (
     "ClanMessage",
 )
 
-Authors: TypeAlias = "User | ClientUser | ID"
+
+UserMessageAuthorT = TypeVar(
+    "UserMessageAuthorT", bound=PartialUser, default="PartialUser | User | ClientUser", covariant=True
+)
 
 
-class UserMessage(Message):
+class UserMessage(Message[UserMessageAuthorT]):
     """Represents a message from a user."""
 
     channel: DMChannel
     mentions: None
 
-    def __init__(self, proto: friend_messages.IncomingMessageNotification, channel: DMChannel):
+    def __init__(
+        self, proto: friend_messages.IncomingMessageNotification, channel: DMChannel, author: UserMessageAuthorT
+    ):
         super().__init__(channel, proto)
-        self.author = channel.participant
         self.created_at = DateTime.from_timestamp(proto.rtime32_server_timestamp)
+        self.author = author
 
     async def add_emoticon(self, emoticon: Emoticon) -> None:
         await self._state.react_to_user_message(
@@ -95,7 +100,12 @@ class UserMessage(Message):
         )
 
 
-class GroupMessage(ChatMessage):
+GroupMessageAuthorT = TypeVar(
+    "GroupMessageAuthorT", bound="PartialMember", default="PartialMember | GroupMember", covariant=True
+)
+
+
+class GroupMessage(ChatMessage[GroupMessageAuthorT]):
     """Represents a message in a group."""
 
     author: GroupMember
@@ -103,11 +113,16 @@ class GroupMessage(ChatMessage):
     group: Group
     clan: None
 
-    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: GroupChannel, author: Authors):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: GroupChannel, author: GroupMessageAuthorT):
         super().__init__(proto, channel, author)
 
 
-class ClanMessage(ChatMessage):
+ClanMessageAuthorT = TypeVar(
+    "ClanMessageAuthorT", bound="PartialMember", default="PartialMember | ClanMember", covariant=True
+)
+
+
+class ClanMessage(ChatMessage[ClanMessageAuthorT]):
     """Represents a message in a clan."""
 
     author: ClanMember
@@ -115,5 +130,5 @@ class ClanMessage(ChatMessage):
     clan: Clan
     group: None
 
-    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: ClanChannel, author: Authors):
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: ClanChannel, author: ClanMessageAuthorT):
         super().__init__(proto, channel, author)

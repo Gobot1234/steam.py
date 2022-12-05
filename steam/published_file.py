@@ -7,21 +7,23 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic
 
+from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
-from .abc import Awardable, Commentable, _CommentableKwargs
+from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
 from .app import PartialApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
 from .models import URL, _IOMixin
 from .reaction import AwardReaction
-from .types.id import ID64
-from .utils import DateTime
+from .types.id import PublishedFileID
+from .types.user import Author, UserT
+from .utils import DateTime, get
 
 if TYPE_CHECKING:
+    from .friend import Friend
     from .manifest import Manifest
-    from .message import Authors
     from .protobufs.published_file import PublishedFileDetails
     from .state import ConnectionState
 
@@ -61,10 +63,10 @@ class PreviewInfo(_IOMixin):
 @dataclass(slots=True)
 class PublishedFileChild:
     _state: ConnectionState
-    id: int
+    id: PublishedFileID
     position: int
-    type: int
-    parent: PublishedFile
+    type: PublishedFileType
+    parent: PublishedFile[PartialUser]
 
     async def fetch(
         self,
@@ -97,7 +99,29 @@ class PublishedFileChange:
     created_at: datetime
 
 
-class PublishedFile(Commentable, Awardable):
+@dataclass(slots=True)
+class PublishedFileFile(_IOMixin):
+    _state: ConnectionState
+    name: str
+    """The file's filename."""
+    size: int
+    """The file's size."""
+    url: str
+    """The file's cdn_url."""
+
+
+@dataclass(slots=True)
+class PublishedFileImage(_IOMixin):
+    _state: ConnectionState
+    width: int
+    """The file's image's width."""
+    height: int
+    """The file's image's height."""
+    url: str
+    """The file's image's url."""
+
+
+class PublishedFile(Commentable, Awardable, Generic[UserT]):
     """Represents a published file on SteamPipe."""
 
     __slots__ = (
@@ -109,7 +133,6 @@ class PublishedFile(Commentable, Awardable):
         "created_with",
         "created_at",
         "updated_at",
-        "url",
         "manifest_id",
         "revision",
         "available_revisions",
@@ -168,9 +191,9 @@ class PublishedFile(Commentable, Awardable):
     # Client.create_published_file() -> PublishedFile
     # although this needs steammessages_cloud.proto to be compiled and an api around that
 
-    def __init__(self, state: ConnectionState, proto: PublishedFileDetails, author: Authors):
+    def __init__(self, state: ConnectionState, proto: PublishedFileDetails, author: UserT):
         self._state = state
-        self.id = proto.publishedfileid
+        self.id: PublishedFileID = PublishedFileID(proto.publishedfileid)
         """The file's id."""
         self.name = proto.title
         """The file's name."""
@@ -184,10 +207,6 @@ class PublishedFile(Commentable, Awardable):
         """The time the file was created at."""
         self.updated_at = DateTime.from_timestamp(proto.time_updated)
         """The time the file was last updated at."""
-        self.url = str(
-            URL.COMMUNITY / "sharedfiles/filedetails" % {"id": self.id}
-        )  # proto.url is seemingly always empty
-        """The file's url."""
         self.manifest_id = proto.hcontent_file
         """The file's manifest id."""
         self.revision = PublishedFileRevision.try_value(proto.revision)
@@ -219,7 +238,9 @@ class PublishedFile(Commentable, Awardable):
         self.spoiler = proto.spoiler_tag
         """Whether the file is marked as a spoiler."""
         self.children = [
-            PublishedFileChild(state, p.publishedfileid, p.sortorder, PublishedFileType.try_value(p.file_type), self)
+            PublishedFileChild(
+                state, PublishedFileID(p.publishedfileid), p.sortorder, PublishedFileType.try_value(p.file_type), self
+            )
             for p in proto.children
         ]
         """The file's children."""
@@ -321,6 +342,11 @@ class PublishedFile(Commentable, Awardable):
             "forum_id": self.id,
         }
 
+    @property
+    def url(self) -> str:
+        """The file's url."""
+        return str(URL.COMMUNITY / "sharedfiles/filedetails" % {"id": self.id})
+
     async def manifest(self) -> Manifest:
         """The manifest associated with this published file."""
         return await self._state.fetch_manifest(self.app.id, self.manifest_id, self.app.id, self.name)
@@ -356,7 +382,7 @@ class PublishedFile(Commentable, Awardable):
         *,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         language: Language | None = None,
-    ) -> list[PublishedFile]:
+    ) -> list[PublishedFile[Author]]:
         """Fetches this published file's parents.
 
         Parameters
@@ -368,21 +394,21 @@ class PublishedFile(Commentable, Awardable):
         """
         cursor = "*"
         more = True
-        parents: list[PublishedFile] = []
-        authors = set[ID64]()
+        parents: list[PublishedFile[Author]] = []
+        authors = set[PartialUser]()
 
         while more:
             proto = await self._state.fetch_published_file_parents(self.id, revision, language, cursor)
             more = len(parents) < proto.total
 
             for file in proto.publishedfiledetails:
-                author = ID64(file.creator)
-                parents.append(PublishedFile(self._state, file, author))  # type: ignore
+                author = PartialUser(self._state, file.creator)
+                parents.append(PublishedFile(self._state, file, author))
                 authors.add(author)
 
-        for author in await self._state._maybe_users(authors):
+        for author in await self._state._maybe_users(a.id64 for a in authors):
             for parent in parents:
-                if parent.author == author.id64:
+                if parent.author == author:
                     parent.author = author
 
         return parents
@@ -457,9 +483,23 @@ class PublishedFile(Commentable, Awardable):
     # async def relationship(self):
     #     ...  # literally no clue what this does
 
-    # async def friends_who_favourited(self):
-    #     "https://steamcommunity.com/sharedfiles/friendswhofavoritedfile?id=2120834324&appid=440"
-    #     # requires avatar hash property might wait till v1
+    async def friends_who_favourited(self) -> list[Friend]:
+        """Fetches a list of the :class:`ClientUser`\'s friends who favourited this published file.
+
+        Note
+        ----
+        Due to a Steam limitation, this will only your friends with avatars.
+        """
+        resp = await self._state.http.get(
+            URL.COMMUNITY / "sharedfiles/friendswhofavoritedfile", params={"id": self.id, "appid": self.app.id}
+        )
+        soup = BeautifulSoup(resp, "html.parser")
+        return [
+            get(self._state.user._friends.values(), avatar__sha=sha)
+            for friend_url in soup.find_all("div", class_="iconHolder_default")
+            if (sha := bytes.fromhex(URL_(friend_url.img["src"]).name.removesuffix(".jpg")))
+            != b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\x8f\xf8\xdc\x1c\xdf\xeb"
+        ]  # type: ignore
 
     async def edit(
         self,
@@ -498,7 +538,7 @@ class PublishedFile(Commentable, Awardable):
             name if name is not None else self.name,
             description if description is not None else self.description,
             visibility or self.visibility,
-            tags if tags is not None else [t.display_name for t in self.tags],
-            filename if filename is not None else self.filename,
+            list(tags) if tags is not None else [t.display_name for t in self.tags],
+            filename if filename is not None else self.file.name,
             preview_filename if preview_filename is not None else preview_filename,
         )

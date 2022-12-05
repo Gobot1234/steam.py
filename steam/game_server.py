@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Callable
 from datetime import timedelta
 from ipaddress import IPv4Address
@@ -294,7 +293,7 @@ class ServerPlayer(NamedTuple):
     play_time: timedelta
 
 
-class GameServer(ID):
+class GameServer(ID[Literal[Type.GameServer]]):
     """Represents a game server.
 
     Attributes

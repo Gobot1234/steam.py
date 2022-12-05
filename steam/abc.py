@@ -34,16 +34,17 @@ if TYPE_CHECKING:
     from .comment import Comment
     from .group import Group
     from .image import Image
-    from .message import Authors
     from .protobufs.chat import Mentions
     from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
-    from .user import User
+    from .user import ClientUser, User
 
 __all__ = (
     "Message",
     "Channel",
+    "PartialUser",
+    "UserInventoryInfo",
 )
 
 C = TypeVar("C", bound="Commentable")
@@ -195,7 +196,7 @@ class Commentable(Protocol):
                     content=comment.content,
                     created_at=DateTime.from_timestamp(comment.timestamp),
                     reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
-                    author=ID(comment.author_id64),
+                    author=PartialUser(self._state, comment.author_id64),
                     owner=self,
                 )
                 if after < comment.created_at < before:
@@ -268,8 +269,8 @@ class Awardable(Protocol):
 
 
 @dataclass(slots=True)
-class UserInventoryInfo:
-    user: BaseUser
+class UserInventoryInfo(Generic[UserT]):
+    user: UserT
     app: UserInventoryInfoApp
     total_count: int
     trade_permissions: str
@@ -278,68 +279,16 @@ class UserInventoryInfo:
     owner_only: bool
     contexts: list[UserInventoryInfoContext]
 
-    async def all_inventories(self) -> AsyncGenerator[Inventory, None]:
+    async def all_inventories(self) -> AsyncGenerator[Inventory[Item[UserT], UserT], None]:
         """An :term:`async iterator` for accessing a user's full inventory in an app."""
         for context in self.contexts:
             yield await self.user.inventory(App(id=self.app.id, context_id=context.id))
 
 
-class BaseUser(ID, Commentable):
-    """An ABC that details the common operations on a Steam user.
-    The following classes implement this ABC:
-
-        - :class:`~steam.User`
-        - :class:`~steam.ClientUser`
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two users are equal.
-
-        .. describe:: str(x)
-
-            Returns the user's name.
-
-    Attributes
-    ----------
-    name
-        The user's username.
-    state
-        The current persona state of the account (e.g. LookingToTrade).
-    app
-        The App instance attached to the user. Is ``None`` if the user isn't in an app or one that is recognised by the
-        api.
-    last_logoff
-        The last time the user logged into steam. Could be None (e.g. if they are currently online).
-    flags
-        The persona state flags of the account.
-    rich_presence
-        The user's rich presence.
-    """
-
-    __slots__ = ()
-
-    name: str
-    last_logoff: datetime | None
-    last_logon: datetime | None
-    last_seen_online: datetime | None
-    app: PartialApp | None
-    state: PersonaState | None
-    flags: PersonaStateFlag | None
-    rich_presence: dict[str, str] | None
-    game_server_ip: IPv4Address | IPv6Address | None
-    game_server_port: int | None
-    _avatar_sha: bytes
-    _state: ConnectionState
-
-    def __repr__(self) -> str:
-        attrs = ("name", "state", "id", "universe", "instance")
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
-
-    def __str__(self) -> str:
-        return self.name
+class PartialUser(ID[Literal[Type.Individual]], Commentable):
+    def __init__(self, state: ConnectionState, id: Intable):
+        super().__init__(id, type=Type.Individual)
+        self._state = state
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
@@ -347,26 +296,11 @@ class BaseUser(ID, Commentable):
             "id64": self.id64,
         }
 
-    @property
-    def mention(self) -> str:
-        """The string used to mention the user in chat."""
-        return f"[mention={self.id}]@{self.name}[/mention]"
+    @classproperty
+    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:  # type: ignore
+        return _CommentableThreadType[cls.__name__]
 
-    @property
-    def avatar(self) -> Avatar:
-        return Avatar(self._state, self._avatar_sha)
-
-    async def server(self) -> GameServer:
-        """Fetch the game server this user is currently playing on."""
-        if self.game_server_ip is None:
-            raise ValueError("User is not playing on a game server")
-        server = await self._state.client.fetch_server(
-            ip=self.game_server_ip, port=self.game_server_port if self.game_server_port is not None else MISSING
-        )
-        assert server is not None
-        return server
-
-    async def inventory_info(self) -> list[UserInventoryInfo]:
+    async def inventory_info(self) -> list[UserInventoryInfo[Self]]:
         """Fetch the inventory info of the user.
 
         Returns
@@ -375,7 +309,7 @@ class BaseUser(ID, Commentable):
 
         .. source:: UserInventoryInfo
         """
-        resp = await self._state.http.get(URL.COMMUNITY / f"profiles/{self.id64}/inventory")
+        resp = await self._state.http.get(f"{self.community_url}/inventory")
         soup = BeautifulSoup(resp, "html.parser")
         for script in soup.find_all("script", type="text/javascript"):
             if match := re.search(r"var g_rgAppContextData\s*=\s*(?P<json>{.*?});\s*", script.text):
@@ -408,7 +342,7 @@ class BaseUser(ID, Commentable):
             for info in app_context_data.values()
         ]
 
-    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
+    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
         """Fetch a user's :class:`~steam.Inventory` for trading.
 
         Parameters
@@ -426,7 +360,7 @@ class BaseUser(ID, Commentable):
         resp = await self._state.fetch_user_inventory(self.id64, app.id, app.context_id, language)
         return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
 
-    async def friends(self) -> list[User | ID]:
+    async def friends(self) -> list[User | PartialUser]:
         """Fetch the list of the users friends."""
         friends = await self._state.http.get_friends_ids(self.id64)
         return await self._state._maybe_users(friends)
@@ -489,7 +423,7 @@ class BaseUser(ID, Commentable):
         badges = await self.badges()
         return badges.level
 
-    async def badges(self) -> UserBadges:
+    async def badges(self) -> UserBadges[Self]:
         r"""Fetches the user's :class:`.UserBadges`\s."""
         resp = await self._state.http.get_user_badges(self.id64)
         return UserBadges(self._state, self, data=resp["response"])
@@ -509,7 +443,7 @@ class BaseUser(ID, Commentable):
             level=badge.level,
         )
 
-    async def equipped_profile_items(self, *, language: Language | None = None) -> EquippedProfileItems:
+    async def equipped_profile_items(self, *, language: Language | None = None) -> EquippedProfileItems[Self]:
         """The user's equipped profile items.
 
         Parameters
@@ -528,12 +462,12 @@ class BaseUser(ID, Commentable):
             modifier=ProfileItem(self._state, self, items.profile_modifier) if items.profile_modifier else None,
         )
 
-    async def profile_customisation_info(self) -> ProfileCustomisation:
+    async def profile_customisation_info(self) -> ProfileCustomisation[Self]:
         """Fetch a user's profile customisation information."""
         info = await self._state.fetch_user_profile_customisation(self.id64)
         return ProfileCustomisation(self._state, self, info)
 
-    async def profile(self, *, language: Language | None = None) -> Profile:
+    async def profile(self, *, language: Language | None = None) -> Profile[Self]:
         """Fetch a user's entire profile information.
 
         Parameters
@@ -598,9 +532,7 @@ class BaseUser(ID, Commentable):
             nonlocal yielded, pages
 
             # ideally I'd like to find an actual api for these
-            page = await self._state.http.get(
-                URL.COMMUNITY / f"profiles/{self.id64}/recommended", params={"p": page_number}
-            )
+            page = await self._state.http.get(f"{self.community_url}/recommended", params={"p": page_number})
             soup = BeautifulSoup(page, HTML_PARSER)
             if pages == 1:
                 *_, pages = [1] + [int(a["href"].removeprefix("?p=")) for a in soup.find_all("a", class_="pagelink")]
@@ -660,7 +592,7 @@ class BaseUser(ID, Commentable):
         limit: int | None = None,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> AsyncGenerator[PublishedFile, None]:
+    ) -> AsyncGenerator[PublishedFile[Self], None]:
         """An :term:`async iterator` for accessing a user's :class:`~steam.PublishedFile`\\s.
 
         Examples
@@ -720,11 +652,89 @@ class BaseUser(ID, Commentable):
                 yield file
                 yielded += 1
 
-    async def fetch_post(self, id: int) -> Post:
-        ...
+    async def fetch_post(self, id: int) -> Post[Self]:
+        """Fetch a post by its id.
 
-    def posts(self) -> AsyncIterator[Post]:
-        ...
+        Parameters
+        ----------
+        id
+            The id of the post to fetch.
+        """
+        from .post import Post
+
+        post = await self._state.fetch_user_post(self.id64, PostID(id))
+        return Post(self._state, post.postid, post.status_text, self, PartialApp(self._state, id=post.appid))
+
+
+class BaseUser(PartialUser):
+    """An ABC that details the common operations on a Steam user.
+    The following classes implement this ABC:
+
+        - :class:`~steam.User`
+        - :class:`~steam.ClientUser`
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two users are equal.
+
+        .. describe:: str(x)
+
+            Returns the user's name.
+    """
+
+    __slots__ = ()
+
+    name: str
+    """The user's username."""
+    last_logoff: datetime | None
+    """The last time the user logged off steam. Could be None (e.g. if they are currently online)."""
+    last_logon: datetime | None
+    """The last time the user logged into steam."""
+    last_seen_online: datetime | None
+    """The last time the user was seen online."""
+    app: PartialApp | None
+    """The app the user is currently in. Is ``None`` if the user isn't in an app."""
+    state: PersonaState | None
+    """The current persona state of the account (e.g. LookingToTrade)."""
+    flags: PersonaStateFlag | None
+    """The persona state flags of the account."""
+    rich_presence: dict[str, str] | None
+    """The user's rich presence."""
+    game_server_ip: IPv4Address | IPv6Address | None
+    """The IP address of the game server the user is currently playing on."""
+    game_server_port: int | None
+    """The port of the game server the user is currently playing on."""
+    _avatar_sha: bytes
+    _state: ConnectionState
+
+    def __repr__(self) -> str:
+        attrs = ("name", "state", "id", "universe", "instance")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def mention(self) -> str:
+        """The string used to mention the user in chat."""
+        return f"[mention={self.id}]@{self.name}[/mention]"
+
+    @property
+    def avatar(self) -> Avatar:
+        return Avatar(self._state, self._avatar_sha)
+
+    async def server(self) -> GameServer:
+        """Fetch the game server this user is currently playing on."""
+        if self.game_server_ip is None:
+            raise ValueError("User is not playing on a game server")
+        server = await self._state.client.fetch_server(
+            ip=self.game_server_ip, port=self.game_server_port if self.game_server_port is not None else MISSING
+        )
+        assert server is not None
+        return server
 
 
 @runtime_checkable
@@ -829,7 +839,7 @@ def _clean_up_content(content: str) -> str:  # steam does weird stuff with conte
     return content.replace(r"\[", "[").replace("\\\\", "\\")
 
 
-class Message(metaclass=abc.ABCMeta):
+class Message(Generic[UserT], metaclass=abc.ABCMeta):
     """Represents a message from a :class:`~steam.User`. This is a base class from which all messages inherit.
 
     The following classes implement this:
@@ -866,7 +876,7 @@ class Message(metaclass=abc.ABCMeta):
         "_state",
     )
 
-    author: Authors
+    author: UserT
     """The message's author."""
     channel: Channel[Self]
     """The channel the message was sent in."""
@@ -936,10 +946,6 @@ class Message(metaclass=abc.ABCMeta):
             f"{int((self.created_at - STEAM_EPOCH).total_seconds()):032b}{self.ordinal:032b}",
             base=2,
         )
-
-    # @abc.abstractmethod
-    # async def delete(self) -> None:
-    #     raise NotImplementedError()
 
     @abc.abstractmethod
     async def add_emoticon(self, emoticon: Emoticon) -> None:

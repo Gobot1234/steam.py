@@ -1,10 +1,4 @@
-"""
-Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
-
-Contains large portions of:
-https://github.com/ValvePython/steam/blob/master/steam/steamid.py
-The appropriate licenses are in LICENSE
-"""
+"""Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
 
 from __future__ import annotations
 
@@ -12,11 +6,13 @@ import abc
 import json
 import re
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Final, Literal
+from functools import partial
+from typing import TYPE_CHECKING, Any, Final, Generic, Literal, cast, overload
 
 import aiohttp
+from typing_extensions import TypeVar
 
-from ._const import MISSING
+from ._const import MISSING, URL
 from .enums import InstanceFlag, Type, TypeChar, Universe
 from .errors import InvalidID
 from .types.id import ID32, ID64, Intable
@@ -56,7 +52,7 @@ def parse_id64(
 
         parse_id64(12345)
         parse_id64("12345")  # account ids
-        parse_id64(12345, type=steam.Type.Clan)  # makes the clan id into a clan id64
+        parse_id64(12345, type=steam.Type.Clan)  # makes what would be interpreted as a user id into a clan id64
         parse_id64(103582791429521412)
         parse_id64("103582791429521412")  # id64s
         parse_id64("STEAM_1:0:2")  # id2
@@ -80,10 +76,10 @@ def parse_id64(
     except ValueError:
         # textual input e.g. [g:1:4]
         assert isinstance(id, str)
-        result = parse_id2(id) or parse_id3(id)  # or parse_invite_code(id)  # TODO
+        result = ID.from_id2(id) or ID.from_id3(id)  # or ID.from_invite_code(id)  # TODO
         if result is None:
             raise InvalidID(id, "it cannot be parsed") from None
-        id, type, universe, instance = result
+        return result.id64
     else:
         # numeric input
         if 0 <= id < 2**32:  # 32 bit
@@ -116,36 +112,6 @@ def parse_id64(
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d{1,10})")
 
 
-def parse_id2(value: str) -> tuple[ID32, Literal[Type.Individual], Universe, Literal[InstanceFlag.Desktop]] | None:
-    """Convert an ID2 into its component parts.
-
-    Parameters
-    ----------
-    value
-        The ID2 e.g. ``STEAM_1:0:1234``.
-
-    Note
-    ----
-    The universe will be always set to ``1``. See :attr:`ID.id2_zero`.
-
-    Returns
-    -------
-    A tuple of 32 bit ID, type, universe and instance or ``None``
-
-    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop).
-    """
-    if (match := ID2_REGEX.search(value)) is None:
-        return None
-
-    id = ID32((int(match["id"]) << 1) | int(match["remainder"]))
-    universe = (
-        int(match["universe"])
-        or 1  # games before orange box used to incorrectly display universe as 0, we support that
-    )
-
-    return id, Type.Individual, Universe.try_value(universe), InstanceFlag.Desktop
-
-
 ID3_REGEX = re.compile(
     (
         rf"\[(?P<type>[i{''.join(TypeChar._member_map_)}]):"
@@ -156,96 +122,39 @@ ID3_REGEX = re.compile(
 )
 
 
-def parse_id3(value: str) -> tuple[ID32, Type, Universe, InstanceFlag] | None:
-    """Convert a Steam ID3 into its component parts.
-
-    Parameters
-    ----------
-    value
-        The ID3 e.g. ``[U:1:1234]``.
-
-    Returns
-    -------
-    A tuple of 32 bit ID, type, universe and instance or ``None``
-
-    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop)
-    """
-    if (match := ID3_REGEX.search(value)) is None:
-        return None
-
-    id = ID32(int(match["id"]))
-    universe = Universe.try_value(int(match["universe"]))
-    type_char = match["type"].replace("i", "I")
-    type = Type.try_value(TypeChar[type_char])
-    instance = InstanceFlag.try_value(int(instance_)) if (instance_ := match["instance"]) else InstanceFlag.All
-
-    match type_char:
-        case "g" | "T":
-            instance = InstanceFlag.All
-        case "L":
-            instance |= InstanceFlag.ChatLobby
-        case "c":
-            instance |= InstanceFlag.ChatClan
-        case "G" | "I":
-            instance = InstanceFlag.Desktop
-
-    return id, type, universe, instance
-
-
 _INVITE_HEX = "0123456789abcdef"
 _INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
 _INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
 _URL_START = r"(?:https?://)?(?:www\.)?"
 INVITE_REGEX = re.compile(rf"({_URL_START}s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+))|(?P<code_2>[\-{_INVITE_VALID}]+)")
-_INVITE_CUSTOM_RE = re.compile(f"[{_INVITE_CUSTOM}]")
-_INVITE_HEX_RE = re.compile(f"[{_INVITE_HEX}]")
 
 
-def _invite_custom_sub(s: str, map: Mapping[str, str] = dict(zip(_INVITE_CUSTOM, _INVITE_HEX)), /) -> str:
-    def sub(m: re.Match[str]) -> str:
-        return map[m.group()]
-
-    return _INVITE_CUSTOM_RE.sub(sub, s)
+def _sub(map: Mapping[str, str], m: re.Match[str]) -> str:
+    return map[m.group()]
 
 
-def _invite_hex_sub(s: str, map: Mapping[str, str] = dict(zip(_INVITE_HEX, _INVITE_CUSTOM)), /) -> str:
-    def sub(m: re.Match[str]) -> str:
-        return map[m.group()]
-
-    return _INVITE_HEX_RE.sub(sub, s)
-
-
-def parse_invite_code(
-    code: str,
-) -> tuple[ID32, Literal[Type.Individual], Literal[Universe.Public], Literal[InstanceFlag.Desktop]] | None:
-    """Convert an invitation code into its component parts.
-
-    Parameters
-    ----------
-    code
-        The invite code e.g. ``cv-dgb``
-
-    Returns
-    -------
-    A tuple of 32 bit ID, type, universe and instance or ``None``
-
-    e.g. (100000, Type.Individual, Universe.Public, InstanceFlag.Desktop).
-    """
-    search = INVITE_REGEX.search(code)
-
-    if not search:
-        return None
-
-    code = (search["code_1"] or search["code_2"]).replace("-", "")
-
-    id = ID32(int(_invite_custom_sub(code), 16))
-
-    if 0 < id < 2**32:
-        return id, Type.Individual, Universe.Public, InstanceFlag.Desktop
+def _invite_custom_sub(
+    s: str,
+    repl: partial[str] = partial(_sub, dict(zip(_INVITE_CUSTOM, _INVITE_HEX))),
+    pattern: re.Pattern[str] = re.compile(f"[{_INVITE_CUSTOM}]"),
+    /,
+) -> str:
+    return pattern.sub(repl, s)
 
 
+def _invite_hex_sub(
+    s: str,
+    repl: partial[str] = partial(_sub, dict(zip(_INVITE_HEX, _INVITE_CUSTOM))),
+    pattern: re.Pattern[str] = re.compile(f"[{_INVITE_HEX}]"),
+    /,
+) -> str:
+    return pattern.sub(repl, s)
+
+
+USER_URL_PATHS = frozenset({"id", "profiles", "user"})
+CLAN_URL_PATHS = frozenset({"gid", "groups", "app", "games"})
 URL_REGEX = re.compile(
-    rf"(?P<clean_url>{_URL_START}steamcommunity\.com/(?P<type>profiles|id|user|gid|groups|app|games)/(?P<value>.+))"
+    rf"{_URL_START}(?P<clean_url>steamcommunity\.com/(?P<type>{'|'.join(USER_URL_PATHS | CLAN_URL_PATHS)})/(?P<value>.+))"
 )
 USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*")
 CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
@@ -295,29 +204,25 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING)
     session = session if gave_session else aiohttp.ClientSession()
 
     try:
-        if search["type"] in {"id", "profiles", "user"}:  # user profile
-            r = await session.get(search["clean_url"])
+        async with session.get(f"https://{search['clean_url']}") as r:
             text = await r.text()
-            if not (match := USER_ID64_FROM_URL_REGEX.search(text)):
-                return None
-            data = json.loads(match["json"])
-        else:  # clan profile
-            r = await session.get(search["clean_url"])
-            text = await r.text()
-            data = CLAN_ID64_FROM_URL_REGEX.search(text)
-        return ID64(int(data["steamid"])) if data else None
     finally:
         if not gave_session:
             await session.close()
 
+    if search["type"] in USER_URL_PATHS:
+        if not (match := USER_ID64_FROM_URL_REGEX.search(text)):
+            return None
+        data = json.loads(match["json"])
+    else:
+        data = CLAN_ID64_FROM_URL_REGEX.search(text)
+    return ID64(int(data["steamid"])) if data else None
 
-# TODO when defaults are implemented, make this Generic over Literal[Type] maybe
-# TypeT = typing.TypeVar("TypeT", bound=Type)
-#
-#
-# class ID(typing.Generic[TypeT]):
-#     type TypeT
-class ID(metaclass=abc.ABCMeta):
+
+TypeT = TypeVar("TypeT", bound=Type, default=Type, covariant=True)
+
+
+class ID(Generic[TypeT], metaclass=abc.ABCMeta):
     """Convert a Steam ID between its various representations.
 
     .. container:: operations
@@ -382,7 +287,7 @@ class ID(metaclass=abc.ABCMeta):
         self,
         id: Intable,
         *,
-        type: Type = MISSING,
+        type: TypeT = MISSING,
         universe: Universe = MISSING,
         instance: InstanceFlag = MISSING,
     ):
@@ -402,7 +307,7 @@ class ID(metaclass=abc.ABCMeta):
         return hash(self.id64)
 
     def __repr__(self) -> str:
-        return f"ID(id={self.id}, type={self.type!r}, universe={self.universe!r}, instance={self.instance!r})"
+        return f"{self.__class__.__name__}(id={self.id}, type={self.type!r}, universe={self.universe!r}, instance={self.instance!r})"
 
     def __format__(self, format_spec: str, /) -> str:
         match format_spec[:2]:
@@ -419,9 +324,9 @@ class ID(metaclass=abc.ABCMeta):
         return Universe.try_value((self.id64 >> 56) & 0xFF)
 
     @property
-    def type(self) -> Type:
+    def type(self) -> TypeT:
         """The Steam type of the ID."""
-        return Type.try_value((self.id64 >> 52) & 0xF)
+        return cast(TypeT, Type.try_value((self.id64 >> 52) & 0xF))
 
     @property
     def instance(self) -> InstanceFlag:
@@ -478,6 +383,16 @@ class ID(metaclass=abc.ABCMeta):
 
         return f"[{type_char}:{self.universe.value}:{self.id}{f':{instance.value}' if instance is not None else ''}]"
 
+    # @property
+    # @overload
+    # def invite_code(self: ID[Type.Individual]) -> str:
+    #     ...
+    #
+    # @property
+    # @overload
+    # def invite_code(self: ID[~Type.Individual]) -> None:
+    #     ...
+
     @property
     def invite_code(self) -> str | None:
         """The Steam ID's invite code in the s.team invite code format.
@@ -489,6 +404,17 @@ class ID(metaclass=abc.ABCMeta):
             split_idx = len(invite_code) // 2
             return invite_code if split_idx == 0 else f"{invite_code[:split_idx]}-{invite_code[split_idx:]}"
 
+    # @property
+    # @overload
+    # def invite_url(self: ID[Type.Individual]) -> str:
+    #     ...
+    #
+    # @property
+    # @overload
+    # def invite_url(self: ID[~Type.Individual]) -> None:
+    #     ...
+    #
+
     @property
     def invite_url(self) -> str | None:
         """The Steam ID's full invite code URL.
@@ -498,20 +424,29 @@ class ID(metaclass=abc.ABCMeta):
         code = self.invite_code
         return f"https://s.team/p/{code}" if code else None
 
+    # @property
+    # @overload
+    # def community_url(self: ID[Type.Individual | Type.Clan]) -> str:
+    #     ...
+    #
+    # @property
+    # @overload
+    # def community_url(self: ID[~(Type.Individual | Type.Clan)]) -> None:
+    #     ...
+
     @property
     def community_url(self) -> str | None:
-        """The Steam ID's community url.
+        """The Steam ID's community url if it is a :class:`.Type.Individual` or :class:`.Type.Clan`.
 
-        e.g https://steamcommunity.com/profiles/123456789.
+        e.g ``https://steamcommunity.com/profiles/123456789`` or ``https://steamcommunity.com/gid/123456789``.
         """
-        suffix = {
-            Type.Individual: "profiles",
-            Type.Clan: "gid",
-        }
-        try:
-            return f"https://steamcommunity.com/{suffix[self.type]}/{self.id64}"
-        except KeyError:
-            return None
+        match self.type:
+            case Type.Individual:
+                return str(URL.COMMUNITY / f"profiles/{self.id64}")
+            case Type.Clan:
+                return str(URL.COMMUNITY / f"gid/{self.id64}")
+            case _:
+                return None
 
     def is_valid(self) -> bool:
         """Whether this Steam ID is valid.
@@ -530,6 +465,8 @@ class ID(metaclass=abc.ABCMeta):
             - If :attr:`type` is :class:`.Type.GameServer`:
                 - :attr:`id` is non-zero
         """
+        if not (0 < self.id64 < 2**64):
+            return False  # this shouldn't ever happen unless someone messes around with id64 but w/e
         if not (Universe.Invalid < self.universe <= Universe.Dev):
             return False
         if not (Type.Invalid < self.type <= Type.AnonUser):
@@ -537,7 +474,7 @@ class ID(metaclass=abc.ABCMeta):
 
         match self.type:
             case Type.Individual:
-                return self.id != 0 and 0 <= self.instance <= InstanceFlag.Web
+                return self.id != 0 and InstanceFlag.All <= self.instance <= InstanceFlag.Web
             case Type.Clan:
                 return self.id != 0 and self.instance == InstanceFlag.All
             case Type.GameServer:
@@ -545,7 +482,81 @@ class ID(metaclass=abc.ABCMeta):
         return True
 
     @staticmethod
-    async def from_url(url: StrOrURL, session: ClientSession = MISSING) -> ID | None:
+    def from_id2(value: str, /) -> ID[Literal[Type.Individual]] | None:
+        """Create an ID from a user's :attr:`id2`.
+
+        Parameters
+        ----------
+        value
+            The ID2 e.g. ``STEAM_1:0:1234``.
+
+        Note
+        ----
+        The universe will be set to :attr:`Universe.Public` if it's ``0``. See :attr:`ID.id2_zero`.
+        """
+        if (match := ID2_REGEX.search(value)) is None:
+            return None
+
+        id = (int(match["id"]) << 1) | int(match["remainder"])
+        universe = (
+            int(match["universe"])
+            or 1  # games before orange box used to incorrectly display universe as 0, we support that
+        )
+
+        return ID(id, type=Type.Individual, universe=Universe.try_value(universe), instance=InstanceFlag.Desktop)
+
+    @staticmethod
+    def from_id3(value: str, /) -> ID | None:
+        """Create an ID from an SteamID's :attr:`id3`.
+
+        Parameters
+        ----------
+        value
+            The ID3 e.g. ``[U:1:1234]``.
+        """
+        if (match := ID3_REGEX.search(value)) is None:
+            return None
+
+        id = ID32(int(match["id"]))
+        universe = Universe.try_value(int(match["universe"]))
+        type_char = TypeChar[match["type"].replace("i", "I")]
+        instance = InstanceFlag.try_value(int(instance_)) if (instance_ := match["instance"]) else InstanceFlag.All
+
+        match type_char:
+            case TypeChar.g | TypeChar.T:
+                instance = InstanceFlag.All
+            case TypeChar.L:
+                instance = InstanceFlag.ChatLobby
+            case TypeChar.c:
+                instance = InstanceFlag.ChatClan
+            case TypeChar.G | TypeChar.U:
+                instance = InstanceFlag.Desktop
+
+        return ID(id, type=type_char.value, universe=universe, instance=instance)
+
+    @staticmethod
+    def from_invite_code(value: str, /) -> ID[Literal[Type.Individual]] | None:
+        """Create an ID from a user's :attr:`invite_code`.
+
+        Parameters
+        ----------
+        value
+            The invite code e.g. ``cv-dgb``
+        """
+        if (search := INVITE_REGEX.search(value)) is None:
+            return None
+
+        code = (search["code_1"] or search["code_2"]).replace("-", "")
+
+        id = ID32(int(_invite_custom_sub(code), 16))
+
+        if 0 < id < 2**32:
+            return ID(id, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Desktop)
+
+    @staticmethod
+    async def from_url(
+        url: StrOrURL, session: ClientSession = MISSING
+    ) -> ID[Literal[Type.Individual, Type.Clan]] | None:
         """A helper function creates a Steam ID instance from a Steam community url.
 
         Note

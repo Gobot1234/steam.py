@@ -9,7 +9,9 @@ from collections.abc import Coroutine, Sequence
 from datetime import timedelta
 from ipaddress import IPv4Address
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
+
+from typing_extensions import Self
 
 from . import utils
 from ._const import URL
@@ -20,7 +22,6 @@ from .errors import ClientException, ConfirmationError, HTTPException
 from .id import ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import player
-from .trade import TradeOffer
 from .types.id import ID64, AppID, Intable
 from .utils import DateTime
 
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
     from .message import UserMessage
     from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
     from .state import ConnectionState
-    from .trade import Inventory
+    from .trade import Inventory, Item, TradeOffer
 
 __all__ = (
     "User",
@@ -58,8 +59,7 @@ class _BaseUser(BaseUser):
     )
 
     def __init__(self, state: ConnectionState, proto: UserProto):
-        super().__init__(proto.friendid)
-        self._state = state
+        super().__init__(state, proto.friendid)
         self._update(proto)
 
     def _update(self, proto: UserProto) -> None:
@@ -305,7 +305,7 @@ class ClientUser(_BaseUser):
         id64 = utils.parse_id64(id, type=Type.Individual)
         return self._friends.get(id64)
 
-    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory:
+    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
         try:
             lock = self._inventory_locks[app.id]
         except KeyError:
@@ -441,7 +441,7 @@ class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"])
     __slots__ = ("_user",)
 
     def __init__(self, state: ConnectionState, user: User):
-        ID.__init__(self, user.id64, type=Type.Individual)
+        ID.__init__(self, user.id64, type=Type.Individual)  # type: ignore
         self._user = user
 
     def __init_subclass__(cls) -> None:
@@ -457,7 +457,7 @@ class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"])
         User.register(cls)
 
 
-class AnonymousClientUser(ID):
+class AnonymousClientUser(ID[Literal[Type.AnonUser]]):
     __slots__ = ("_state",)
 
     def __init__(self, state: ConnectionState, id64: int):

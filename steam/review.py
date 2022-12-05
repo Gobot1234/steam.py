@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
-from .abc import Awardable, Commentable, _CommentableKwargs
+from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
 from .app import PartialApp
 from .chat import WrapsUser
 from .enums import Language, ReviewType
@@ -155,7 +155,7 @@ class Review(Commentable, Awardable):
         }
 
     @classmethod
-    def _from_proto(cls, state: ConnectionState, review: ReviewProto, user: User) -> Self:
+    def _from_proto(cls, state: ConnectionState, review: ReviewProto, user: PartialUser) -> Self:
         return cls(
             state,
             id=review.recommendationid,

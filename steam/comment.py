@@ -4,15 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, ClassVar, Generic
+from typing import TYPE_CHECKING, Generic, overload
 
 from typing_extensions import Never, TypeVar
 
-from .abc import Awardable
+from .abc import Awardable, Commentable
+from .types.user import AuthorT
 
 if TYPE_CHECKING:
-    from .abc import Commentable
-    from .message import Authors
     from .reaction import Award, AwardReaction
     from .state import ConnectionState
 
@@ -23,7 +22,7 @@ OwnerT = TypeVar("OwnerT", bound="Commentable", default="Commentable", covariant
 
 
 @dataclass(repr=False, slots=True)
-class Comment(Awardable, Generic[OwnerT]):
+class Comment(Awardable, Generic[OwnerT, AuthorT]):
     """Represents a comment on a Steam profile.
 
     .. container:: operations
@@ -57,7 +56,7 @@ class Comment(Awardable, Generic[OwnerT]):
     content: str
     created_at: datetime
     reactions: list[AwardReaction]
-    author: Authors
+    author: AuthorT
     owner: OwnerT
 
     def __repr__(self) -> str:

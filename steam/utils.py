@@ -44,15 +44,7 @@ from typing_extensions import Self
 
 from ._const import JSON_LOADS, MISSING, URL
 from .enums import _is_descriptor, classproperty as classproperty
-from .id import (
-    _URL_START,
-    ID,
-    id64_from_url as id64_from_url,
-    parse_id2 as parse_id2,
-    parse_id3 as parse_id3,
-    parse_id64 as parse_id64,
-    parse_invite_code as parse_invite_code,
-)
+from .id import _URL_START, ID, id64_from_url as id64_from_url, parse_id64 as parse_id64
 
 if TYPE_CHECKING:
     from .types.http import Coro, StrOrURL

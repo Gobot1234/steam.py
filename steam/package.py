@@ -18,12 +18,13 @@ from .types.id import Intable, PackageID
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from .abc import PartialUser
     from .manifest import AppInfo, Depot, HeadlessDepot, PackageInfo
-    from .message import Authors
     from .protobufs.client_server import CMsgClientLicenseListLicense
     from .state import ConnectionState
     from .store import PackageStoreItem
     from .types import app, package
+    from .user import ClientUser, User
 
 
 __all__ = (
@@ -244,9 +245,12 @@ class License(PartialPackage[NameT]):
         "access_token",
     )
 
-    def __init__(self, state: ConnectionState, proto: CMsgClientLicenseListLicense, owner: Authors):
+    # can owner actually be a PartialUser?
+    def __init__(
+        self, state: ConnectionState, proto: CMsgClientLicenseListLicense, owner: ClientUser | User | PartialUser
+    ):
         super().__init__(state, id=proto.package_id)
-        self.owner: Authors = owner
+        self.owner = owner
         """The license's owner."""
         self.type = LicenseType.try_value(proto.license_type)
         """The license's type."""

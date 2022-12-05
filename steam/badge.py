@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic
 
 from .app import PartialApp
+from .types.user import UserT
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .abc import BaseUser
     from .state import ConnectionState
 
 
@@ -54,12 +54,12 @@ class FavouriteBadge(BaseBadge):
     """The colour of the boarder of the badge."""
 
 
-class UserBadge(BaseBadge):
+class UserBadge(BaseBadge, Generic[UserT]):
     """Represents a Steam badge on a user's profile."""
 
     __slots__ = ("id", "xp", "app", "user", "level", "scarcity", "completion_time", "community_item_id")
 
-    def __init__(self, state: ConnectionState, user: BaseUser, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, user: UserT, data: dict[str, Any]):
         self.id: int = data["badgeid"]
         """The badge's ID."""
         self.level: int = data["level"]
@@ -77,7 +77,7 @@ class UserBadge(BaseBadge):
         self.user = user
 
 
-class UserBadges(Sequence[UserBadge]):
+class UserBadges(Sequence[UserBadge[UserT]]):
     """Represents a Steam :class:`~steam.User`'s badges/level.
 
     .. container:: operations
@@ -108,7 +108,7 @@ class UserBadges(Sequence[UserBadge]):
         "xp_needed_for_current_level",
     )
 
-    def __init__(self, state: ConnectionState, user: BaseUser, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, user: UserT, data: dict[str, Any]):
         self.user = user
         self.level: int = data["player_level"]
         """The user's level."""
@@ -118,7 +118,7 @@ class UserBadges(Sequence[UserBadge]):
         """The amount of XP the user needs to level up."""
         self.xp_needed_for_current_level: int = data["player_xp_needed_current_level"]
         """The amount of XP the user's current level requires to achieve."""
-        self.badges: Sequence[UserBadge] = [UserBadge(state, user, data) for data in data["badges"]]
+        self.badges: Sequence[UserBadge[UserT]] = [UserBadge(state, user, data) for data in data["badges"]]
         """A list of the user's badges."""
 
     def __repr__(self) -> str:

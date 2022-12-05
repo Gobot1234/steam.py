@@ -18,7 +18,7 @@ from .id import ID
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .clan import Clan
+    from .clan import Clan, PartialClan
     from .game_server import GameServer
     from .state import ConnectionState
     from .types.http import IPAdress
@@ -31,9 +31,10 @@ __all__ = (
 
 
 EventTypeT = TypeVar("EventTypeT", bound=EventType, default=EventType, covariant=True)
+ClanT = TypeVar("ClanT", bound="PartialClan", default="Clan", covariant=True)
 
 
-class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT], metaclass=abc.ABCMeta):
+class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metaclass=abc.ABCMeta):
     __slots__ = (
         "clan",
         "id",
@@ -62,7 +63,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT], metaclass=abc
 
     # data here is of type steammessages_base.CClanEventData.to_dict()
     # TODO keep checking if there is a way to get CClanEventData directly from ws
-    def __init__(self, state: ConnectionState, clan: Clan, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, clan: ClanT, data: dict[str, Any]):
         self._state = state
         self.clan = clan
         self.id: int = int(data["gid"])
@@ -112,7 +113,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT], metaclass=abc
         return self.id == other.id and self.clan == other.clan if isinstance(other, self.__class__) else NotImplemented
 
 
-class Event(BaseEvent[EventTypeT]):
+class Event(BaseEvent[EventTypeT, ClanT]):
     """Represents an event in a clan.
 
     Attributes
@@ -317,7 +318,7 @@ class Event(BaseEvent[EventTypeT]):
         await self._state.http.delete_clan_event(self.clan.id64, self.id)
 
 
-class Announcement(BaseEvent[EventType]):
+class Announcement(BaseEvent[EventType, ClanT]):
     """Represents an announcement in a clan.
 
     Attributes
@@ -381,7 +382,7 @@ class Announcement(BaseEvent[EventType]):
     server_ip: None
     server_password: None
 
-    def __init__(self, state: ConnectionState, clan: Clan, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, clan: ClanT, data: dict[str, Any]):
         super().__init__(state, clan, data)
         body: dict[str, Any] = data["announcement_body"]
         self.id: int = int(body["gid"])
@@ -394,7 +395,7 @@ class Announcement(BaseEvent[EventType]):
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
-        if self.clan.is_app_clan:
+        if hasattr(self.clan, "is_app_clan") and self.clan.is_app_clan:  # type: ignore
             raise NotImplementedError("Fetching an app announcement's comments is not currently supported")
         return {
             "id64": self.clan.id64,

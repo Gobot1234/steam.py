@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Generic, Protocol
+
+from typing_extensions import TypeVar
 
 from . import utils
 from .app import PartialApp
@@ -15,14 +17,17 @@ from .errors import WSException
 from .models import _IOMixin
 from .protobufs import UnifiedMessage, econ
 from .trade import Asset, Item
+from .types.id import ID32, AppID, AssetID, PublishedFileID
 
 if TYPE_CHECKING:
-    from .abc import BaseUser
-    from .clan import Clan
+    from .abc import PartialUser
+    from .clan import Clan, PartialClan
+    from .friend import Friend
     from .protobufs import player
     from .published_file import PublishedFile
     from .state import ConnectionState
     from .types import id
+    from .user import ClientUser, User
 
 __all__ = (
     "ProfileInfo",
@@ -69,7 +74,10 @@ class SupportsEquip(Protocol):
         ...
 
 
-class ProfileItem:
+UserT = TypeVar("UserT", bound="PartialUser", default="User", covariant=True)
+
+
+class ProfileItem(Generic[UserT]):
     """Represents an item on/in a user's profile."""
 
     __slots__ = (
@@ -91,12 +99,12 @@ class ProfileItem:
     def __init__(
         self,
         state: ConnectionState,
-        owner: BaseUser,
+        owner: UserT,
         item: player.ProfileItem,
         *,
         um: type[SupportsEquip] | None = None,
     ):
-        self.id = item.communityitemid
+        self.id = AssetID(item.communityitemid)
         """The item's id."""
         self.url = item.image_large
         """The item's url."""
@@ -135,7 +143,7 @@ class ProfileItem:
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def item(self, *, language: Language | None = None) -> Item:
+    async def item(self, *, language: Language | None = None) -> Item[UserT]:
         """Resolve this to an actual item in the owner's inventory."""
         inventory = await self.owner.inventory(self.app, language=language)
         item = utils.get(inventory, id=self.id)
@@ -144,43 +152,43 @@ class ProfileItem:
 
 
 @dataclass
-class OwnedProfileItems:
+class OwnedProfileItems(Generic[UserT]):
     r"""Represents the :class:`ClientUser`\'s owned items."""
 
-    backgrounds: list[ProfileItem]
+    backgrounds: list[ProfileItem[UserT]]
     """The backgrounds the client user owns."""
-    mini_profile_backgrounds: list[ProfileItem]
+    mini_profile_backgrounds: list[ProfileItem[UserT]]
     """The mini profile backgrounds the client user owns."""
-    avatar_frames: list[ProfileItem]
+    avatar_frames: list[ProfileItem[UserT]]
     """The avatar frames the client user owns."""
-    animated_avatars: list[ProfileItem]
+    animated_avatars: list[ProfileItem[UserT]]
     """The animated avatars the client user owns."""
-    modifiers: list[ProfileItem]
+    modifiers: list[ProfileItem[UserT]]
     """The modifiers the client user owns."""
 
 
 @dataclass
-class EquippedProfileItems:
+class EquippedProfileItems(Generic[UserT]):
     """Represents the items the user has equipped."""
 
-    background: ProfileItem | None
+    background: ProfileItem[UserT] | None
     """The equipped background."""
-    mini_profile_background: ProfileItem | None
+    mini_profile_background: ProfileItem[UserT] | None
     """The equipped mini profile background for the user."""
-    avatar_frame: ProfileItem | None
+    avatar_frame: ProfileItem[UserT] | None
     """The equipped avatar frame for the user."""
-    animated_avatar: ProfileItem | None
+    animated_avatar: ProfileItem[UserT] | None
     """The equipped animated avatar for the user."""
-    modifier: ProfileItem | None
+    modifier: ProfileItem[UserT] | None
     """The equipped modifier for the user."""
 
 
 @dataclass(repr=False, slots=True)
-class ProfileShowcaseSlot:
+class ProfileShowcaseSlot(Generic[UserT]):
     """Represents a showcase slot."""
 
     _state: ConnectionState
-    owner: BaseUser
+    owner: UserT
     name: str | None
     """The slot's name."""
     content: str | None
@@ -190,21 +198,21 @@ class ProfileShowcaseSlot:
     app: PartialApp | None
     """The slot's associated app."""
 
-    asset: Asset | None
+    asset: Asset[UserT] | None
     """The :class:`Asset` the slot is associated with."""
-    published_file_id: int | None
+    published_file_id: PublishedFileID | None
     """The ID of the :class:`PublishedFile` the slot is associated with."""
     badge_id: int | None
     """The ID of the :class:`UserBadge` the slot is associated with."""
     border_colour: int | None
     """The border colour of the slot."""
-    clan: Clan | None
+    clan: Clan | PartialClan | None
     """The Steam ID of the clan the slot is associated with."""
 
     def __repr__(self) -> str:
         return f"<ProfileShowcaseSlot name={self.name!r} index={self.index!r} app={self.app!r}>"
 
-    async def item(self, *, language: Language | None = None) -> Item:
+    async def item(self, *, language: Language | None = None) -> Item[UserT]:
         """Fetches the associated :class:`.Item` from :attr:`asset`.
 
         Parameters
@@ -237,7 +245,7 @@ class ProfileShowcaseSlot:
         assert file
         return file
 
-    async def badge(self) -> UserBadge:
+    async def badge(self) -> UserBadge[UserT]:
         """Fetches the associated :class:`.Badge` from :attr:`badge_id`."""
         if self.badge_id is None:
             raise ValueError
@@ -251,9 +259,9 @@ class ProfileShowcaseSlot:
 
 
 @dataclass(repr=False, slots=True)
-class ProfileShowcase:
+class ProfileShowcase(Generic[UserT]):
     _state: ConnectionState
-    owner: BaseUser
+    owner: UserT
     type: ProfileItemType
     """The showcase type."""
     large: bool
@@ -266,13 +274,13 @@ class ProfileShowcase:
     """The level of the the showcase."""
     style: ProfileCustomisationStyle
     """The style of the showcase."""
-    slots: list[ProfileShowcaseSlot]
+    slots: list[ProfileShowcaseSlot[UserT]]
     """The slots in this showcase."""
 
     def __repr__(self) -> str:
         return f"<ProfileShowcase type={self.type!r} active={self.active!r} level={self.level!r} style={self.style!r}>"
 
-    async def items(self, *, language: Language | None = None) -> list[Item]:
+    async def items(self, *, language: Language | None = None) -> list[Item[UserT]]:
         """Fetches the associated :class:`.Item`s for the entire showcase.
 
         Parameters
@@ -280,7 +288,7 @@ class ProfileShowcase:
         language
             The language to fetch the items in. If ``None``, the current language is used.
         """
-        asset_map: defaultdict[int, dict[id.CacheKey, Asset]] = defaultdict(dict)
+        asset_map: defaultdict[AppID, dict[id.CacheKey, Asset[UserT]]] = defaultdict(dict)
 
         for slot in self.slots:
             if slot.asset:
@@ -335,7 +343,7 @@ class PurchasedCustomisation:  # TODO should this be merged into ProfileCustomis
     level: int
 
 
-class ProfileCustomisation:
+class ProfileCustomisation(Generic[UserT]):
     """Represents a user's profile customisations."""
 
     __slots__ = (
@@ -347,8 +355,8 @@ class ProfileCustomisation:
         "_state",
     )
 
-    def __init__(self, state: ConnectionState, user: BaseUser, proto: player.GetProfileCustomizationResponse):
-        from .clan import Clan
+    def __init__(self, state: ConnectionState, user: UserT, proto: player.GetProfileCustomizationResponse):
+        from .clan import PartialClan
 
         self.showcases = [
             ProfileShowcase(
@@ -358,9 +366,9 @@ class ProfileCustomisation:
                     ProfileShowcaseSlot(
                         state,
                         owner=user,
-                        index=slot.slot or None,
+                        index=slot.slot,
                         app=PartialApp(state, id=slot.appid) if slot.appid else None,
-                        published_file_id=slot.publishedfileid or None,
+                        published_file_id=PublishedFileID(slot.publishedfileid) or None,
                         name=slot.title or None,
                         content=slot.notes or None,
                         badge_id=slot.badgeid or None,
@@ -379,7 +387,9 @@ class ProfileCustomisation:
                         )
                         if slot.item_assetid
                         else None,
-                        clan=Clan(state, slot.accountid) if slot.accountid else None,
+                        clan=(state.get_clan(ID32(slot.accountid)) or PartialClan(state, slot.accountid))
+                        if slot.accountid
+                        else None,
                     )
                     for slot in customisation.slots
                 ],
@@ -409,12 +419,12 @@ class ProfileCustomisation:
         return f"<{self.__class__.__name__} owner={self.owner!r}>"
 
 
-class Profile(EquippedProfileItems, ProfileCustomisation):
+class Profile(EquippedProfileItems[UserT], ProfileCustomisation):
     """Represents a user's complete profile."""
 
     __slots__ = ()
 
-    def __init__(self, equipped_items: EquippedProfileItems, customisation_info: ProfileCustomisation):
+    def __init__(self, equipped_items: EquippedProfileItems[UserT], customisation_info: ProfileCustomisation[UserT]):
         utils.update_class(equipped_items, self)
         utils.update_class(customisation_info, self)
 
@@ -422,7 +432,7 @@ class Profile(EquippedProfileItems, ProfileCustomisation):
         return f"<{self.__class__.__name__} owner={self.owner!r}>"
 
 
-class FriendProfile(ProfileInfo, EquippedProfileItems, ProfileCustomisation):
+class FriendProfile(ProfileInfo, EquippedProfileItems["Friend"], ProfileCustomisation["Friend"]):
     """Represents a friend's complete profile."""
 
     def __init__(
@@ -433,10 +443,8 @@ class FriendProfile(ProfileInfo, EquippedProfileItems, ProfileCustomisation):
         utils.update_class(customisation_info, self)
 
 
-class ClientUserProfile(FriendProfile):
+class ClientUserProfile(ProfileInfo, EquippedProfileItems["ClientUser"], ProfileCustomisation["ClientUser"]):
     """Represents a :class:`ClientUser`'s full profile."""
-
-    __slots__ = ("owned_items",)
 
     def __init__(
         self,
@@ -445,7 +453,10 @@ class ClientUserProfile(FriendProfile):
         customisation_info: ProfileCustomisation,
         items: OwnedProfileItems,
     ):
-        super().__init__(equipped_items, info, customisation_info)
+        utils.update_class(equipped_items, self)
+        utils.update_class(info, self)
+        utils.update_class(customisation_info, self)
+
         self.owned_backgrounds = items.backgrounds
         """The backgrounds the client user owns."""
         self.owned_mini_profile_backgrounds = items.mini_profile_backgrounds

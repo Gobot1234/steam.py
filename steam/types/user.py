@@ -1,6 +1,8 @@
 """Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
 
-from typing_extensions import TypedDict
+from typing import TYPE_CHECKING, TypeAlias
+
+from typing_extensions import TypedDict, TypeVar
 
 
 class User(TypedDict):
@@ -34,3 +36,14 @@ class User(TypedDict):
     last_logon: int
     last_seen_online: int
     rich_presence: dict[str, str]
+
+
+if TYPE_CHECKING:
+    from ..abc import BaseUser, PartialUser
+    from ..user import ClientUser, User as User_
+
+UserT = TypeVar("UserT", bound="PartialUser", default="PartialUser", covariant=True)  # for use when just from cache
+Author: TypeAlias = "User_ | ClientUser | PartialUser"
+AuthorT = TypeVar(
+    "AuthorT", bound="PartialUser", default=Author, covariant=True
+)  # for use when something comes from _maybe_user

@@ -21,10 +21,11 @@ from typing_extensions import Self
 from yarl import URL as URL_
 
 from . import utils
-from ._const import HTML_PARSER, URL, VDF_BINARY_LOADS, VDF_LOADS
-from .abc import Awardable, BaseUser, Commentable
+from ._const import HTML_PARSER, JSON_LOADS, URL, VDF_BINARY_LOADS, VDF_LOADS
+from .abc import Awardable, BaseUser, Commentable, PartialUser, _CommentableThreadType
+from .app import App
 from .channel import DMChannel
-from .clan import Clan
+from .clan import Clan, PartialClan
 from .comment import Comment
 from .enums import *
 from .errors import *
@@ -75,6 +76,7 @@ from .reaction import (
 from .role import RolePermissions
 from .trade import TradeOffer
 from .types.id import ID32, ID64, AppID, CacheKey, ChatGroupID, ChatID, Intable
+from .types.user import Author
 from .user import ClientUser, User
 from .utils import DateTime, cached_property
 
@@ -243,16 +245,16 @@ class ConnectionState(Registerable):
         friends = await self.ws.fetch_users(user_id64s)
         return [self._store_user(user) for user in friends]
 
-    async def _maybe_user(self, id: Intable) -> User | ID:
-        steam_id = ID(id)
-        return self.get_user(steam_id.id) or await self.fetch_user(steam_id.id64) or steam_id
+    async def _maybe_user(self, id: Intable) -> User | PartialUser:
+        steam_id = ID(id, type=Type.Individual)
+        return self.get_user(steam_id.id) or await self.fetch_user(steam_id.id64) or PartialUser(self, steam_id.id64)
 
-    async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User | ID]:
-        ret: list[User | ID] = []
+    async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User | PartialUser]:
+        ret: list[User | PartialUser] = []
         to_fetch: dict[ID64, list[int]] = {}
         for idx, id64 in enumerate(id64s):
-            steam_id = ID(id64, type=Type.Individual)
-            user = self.get_user(steam_id.id)
+            partial_user = PartialUser(self, id64)
+            user = self.get_user(partial_user.id)
             if user is not None:
                 ret.append(user)
             else:
@@ -261,7 +263,7 @@ class ConnectionState(Registerable):
                     idxs = to_fetch[id64] = []
 
                 idxs.append(idx)
-                ret.append(steam_id)
+                ret.append(partial_user)
 
         if to_fetch:
             for idxs, user in zip(to_fetch.values(), await self.fetch_users(to_fetch)):
@@ -319,7 +321,7 @@ class ConnectionState(Registerable):
             (trade,) = await self._process_trades((data["offer"],), data.get("descriptions", ()))
             return trade
 
-    async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer:
+    async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer[Item[User | PartialUser], User | PartialUser]:
         try:
             trade = self._trades[int(data["tradeofferid"])]
         except KeyError:
@@ -499,8 +501,7 @@ class ConnectionState(Registerable):
             message_no_bbcode=msg.message_without_bb_code,
         )
         channel = DMChannel(state=self, participant=self.get_user(user_id64 & 0xFFFFFFFF))  # type: ignore
-        message = UserMessage(proto=proto, channel=channel)
-        message.author = self.user
+        message = UserMessage(proto, channel, self.user)
         self._messages.append(message)
         self.dispatch("message", message)
 
@@ -558,17 +559,18 @@ class ConnectionState(Registerable):
             message=content,
             ordinal=msg.ordinal,
             message_no_bbcode=msg.message_without_bb_code,
-            timestamp=int(time()),
+            timestamp=msg.server_timestamp,
         )
         group = self._chat_groups[chat_group_id]
         channel = group._channels[chat_id]
         channel._update(proto)
-
-        message = (ClanMessage if isinstance(group, Clan) else GroupMessage)(
+        (message_cls,) = channel._type_args
+        message = message_cls(
             proto=proto,
             channel=channel,  # type: ignore  # type checkers can't figure out this is ok
-            author=self.user,
+            author=group.me,
         )
+        channel.last_message = message
         self._messages.append(message)
         self.dispatch("message", message)
 
@@ -935,8 +937,7 @@ class ConnectionState(Registerable):
 
         if msg.chat_entry_type == ChatEntryType.Text:
             channel = DMChannel(state=self, participant=partner)  # type: ignore  # remove when above fixme removed
-            message = UserMessage(proto=msg, channel=channel)
-            message.author = author
+            message = UserMessage(msg, channel, author)
             self._messages.append(message)
             self.dispatch("message", message)
 
@@ -1019,7 +1020,9 @@ class ConnectionState(Registerable):
         else:
             return log.debug("Got an unknown reaction_type %s", msg.reaction_type)
 
-        reaction = MessageReaction(self, message, emoticon, sticker, user, created_at, ordinal)
+        reaction = MessageReaction(
+            self, message, emoticon, sticker, destination._maybe_member(ID64(msg.reactor)), created_at, ordinal
+        )
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
     async def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
@@ -1632,14 +1635,14 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientLicenseList)
     async def handle_licenses(self, msg: client_server.CMsgClientLicenseList) -> None:
         await self.login_complete.wait()
-        users: dict[int, User | ID] = {
+        users: dict[int, User | PartialUser] = {
             user.id: user
             for user in await self._maybe_users(
                 parse_id64(license.owner_id, type=Type.Individual) for license in msg.licenses
             )
         }
         for license in msg.licenses:
-            self.licenses[license.package_id] = License(self, license, users[license.owner_id])
+            self.licenses[license_.id] = (license_ := License(self, license, users[license.owner_id]))
 
         self.handled_licenses.set()
 
@@ -1931,7 +1934,7 @@ class ConnectionState(Registerable):
         published_file_ids: Iterable[int],
         revision: PublishedFileRevision,
         language: Language | None,
-    ) -> list[PublishedFile | None]:
+    ) -> list[PublishedFile[Author] | None]:
         msg: published_file.GetDetailsResponse = await self.ws.send_um_and_wait(
             published_file.GetDetailsRequest(
                 publishedfileids=list(published_file_ids),

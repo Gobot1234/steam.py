@@ -12,24 +12,25 @@ from operator import itemgetter
 from typing import TYPE_CHECKING, Literal, TypeVar, overload
 
 from bs4 import BeautifulSoup
-from typing_extensions import Self
+from typing_extensions import Never, Self
 from yarl import URL
 
 from . import utils
 from ._const import HTML_PARSER, UNIX_EPOCH
-from .abc import Commentable, _CommentableKwargs
+from .abc import Commentable, PartialUser, _CommentableKwargs, _CommentableThreadType
 from .app import App, PartialApp
 from .channel import ClanChannel
-from .chat import ChatGroup, Member
+from .chat import ChatGroup, Member, PartialMember
 from .enums import EventType, Language, Type
 from .errors import HTTPException
 from .event import Announcement, Event
-from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
+from .id import ID, parse_id64
 from .protobufs import chat
-from .types.id import ID32, ID64
+from .types.id import ID32, ID64, Intable
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from .role import Role
     from .state import ConnectionState
     from .types.http import IPAdress
     from .user import User
@@ -71,7 +72,213 @@ class ClanMember(Member):
         self.clan = clan
 
 
-class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
+class PartialClan(ID[Literal[Type.Clan]], Commentable):
+    def __init__(self, state: ConnectionState, id: Intable):
+        super().__init__(id, type=Type.Clan)
+        self._state = state
+
+    @property
+    def _commentable_kwargs(self) -> _CommentableKwargs:
+        return {
+            "id64": self.id64,
+        }
+
+    @utils.classproperty
+    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:  # type: ignore
+        return _CommentableThreadType.Clan
+
+    async def fetch_members(self) -> list[PartialUser]:
+        """Fetches a clan's member list.
+
+        Note
+        ----
+        This can be a very slow operation due to the rate limits on this endpoint.
+        """
+
+        async def getter(i: int) -> BeautifulSoup:
+            try:
+                resp = await self._state.http.get(
+                    f"{self.community_url}/members", params={"p": i + 1, "content_only": "true"}
+                )
+            except HTTPException:
+                await asyncio.sleep(20)
+                return await getter(i)
+            else:
+                soup = BeautifulSoup(resp, HTML_PARSER)
+                ret.extend(
+                    PartialUser(self._state, user["data-miniprofile"])
+                    for s in soup.find_all("div", id="memberList")
+                    for user in s.find_all("div", class_="member_block")
+                )
+                return soup
+
+        ret: list[PartialUser] = []
+        soup = await getter(0)
+        number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
+        await asyncio.gather(*(getter(i) for i in range(1, number_of_pages)))
+        return ret
+
+    # event/announcement stuff
+
+    async def fetch_event(self, id: int) -> Event[EventType, Self]:
+        """Fetch an event from its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the event.
+        """
+        data = await self._state.http.get_clan_events(self.id, [id])
+        if events := data["events"]:
+            return await Event(self._state, self, events[0])
+
+        raise ValueError(f"Event {id} not found")
+
+    async def fetch_announcement(self, id: int) -> Announcement[Self]:
+        """Fetch an announcement from its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the announcement.
+        """
+        data = await self._state.http.get_clan_announcement(self.id, id)
+        return await Announcement(self._state, self, data["event"])
+
+    @overload
+    async def create_event(
+        self,
+        name: str,
+        content: str,
+        *,
+        type: Literal[EventType.Game] = ...,
+        starts_at: datetime | None = ...,
+        app: App,
+        server_address: IPAdress | str | None = ...,
+        server_password: str | None = ...,
+    ) -> Event[Literal[EventType.Game], Self]:
+        ...
+
+    @overload
+    async def create_event(
+        self,
+        name: str,
+        content: str,
+        *,
+        type: BoringEventT = EventType.Other,
+        starts_at: datetime | None = None,
+    ) -> Event[BoringEventT, Self]:
+        ...
+
+    async def create_event(
+        self,
+        name: str,
+        content: str,
+        *,
+        type: Literal[
+            EventType.Other,
+            EventType.Chat,
+            EventType.Game,
+            # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
+            EventType.Party,
+            EventType.Meeting,
+            EventType.SpecialCause,
+            EventType.MusicAndArts,
+            EventType.Sports,
+            EventType.Trip,
+        ] = EventType.Other,
+        app: App | None = None,
+        starts_at: datetime | None = None,
+        server_address: IPAdress | str | None = None,
+        server_password: str | None = None,
+    ) -> Event[CreateableEvents, Self]:
+        """Create an event.
+
+        Parameters
+        ----------
+        name
+            The name of the event
+        content
+            The content for the event.
+        type
+            The type of the event, defaults to :attr:`EventType.Other`.
+        app
+            The app that will be played in the event. Required if type is :attr:`EventType.Game`.
+        starts_at
+            The time the event will start at.
+        server_address
+            The address of the server that the event will be played on. This is only allowed if ``type`` is
+            :attr:`EventType.App`.
+        server_password
+            The password for the server that the event will be played on. This is only allowed if ``type`` is
+            :attr:`EventType.App`.
+
+        Note
+        ----
+        It is recommended to use a timezone aware datetime for ``start``.
+
+        Returns
+        -------
+        The created event.
+        """
+        server_address = IPv4Address(server_address) if server_address is not None else ""
+
+        resp = await self._state.http.create_clan_event(
+            self.id64,
+            name,
+            content,
+            f"{type.name}Event",
+            str(app.id) if app is not None else "",
+            str(server_address),
+            server_password or "",
+            starts_at,
+        )
+        soup = BeautifulSoup(resp, HTML_PARSER)
+        for element in soup.find_all("div", class_="eventBlockTitle"):
+            a = element.a
+            if a is not None and a.text == name:  # this is bad?
+                _, _, id = a["href"].rpartition("/")
+                event = await self.fetch_event(int(id))
+                self._state.dispatch("event_create", event)
+                return event
+        raise ValueError
+
+    async def create_announcement(
+        self,
+        name: str,
+        content: str,
+        hidden: bool = False,
+    ) -> Announcement[Self]:
+        """Create an announcement.
+
+        Parameters
+        ----------
+        name
+            The name of the announcement.
+        content
+            The content of the announcement.
+        hidden
+            Whether the announcement should initially be hidden.
+
+        Returns
+        -------
+        The created announcement.
+        """
+        await self._state.http.create_clan_announcement(self.id64, name, content, hidden)
+        resp = await self._state.http.get(f"{self.community_url}/announcements", params={"content_only": "true"})
+        soup = BeautifulSoup(resp, HTML_PARSER)
+        for element in soup.find_all("div", class_="announcement"):
+            a = element.a
+            if a is not None and a.text == name:  # this is bad?
+                _, _, id = a["href"].rpartition("/")
+                announcement = await self.fetch_announcement(int(id))
+                self._state.dispatch("announcement_create", announcement)
+                return announcement
+
+        raise ValueError
+
+
+class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     """Represents a Steam clan.
 
     .. container:: operations
@@ -126,7 +333,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         "online_count",
         "admins",
         "mods",
-        "community_url",
         "is_app_clan",
     )
 
@@ -151,30 +357,31 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
     admins: list[ClanMember]
     is_app_clan: bool
 
-    def __init__(self, state: ConnectionState, id: int):
-        super().__init__(state, id, type=Type.Clan)
-        self._state = state
+    def __init__(self, state: ConnectionState, id: Intable) -> None:
+        PartialClan.__init__(self, state, id)
+        self.chunked = False
+        self.app: PartialApp | None = None
+        self._members = {}
+        self._partial_members = {}
+        self._channels: dict[int, ClanChannel] = {}
+        self._roles: dict[int, Role] = {}
 
-    async def __ainit__(self) -> None:
-        resp = await self._state.http._session.get(super().community_url)  # type: ignore
-        text = await resp.text()  # technically we loose proper request handling here
-        if not self.id64:
-            search = CLAN_ID64_FROM_URL_REGEX.search(text)
-            if search is None:
-                raise ValueError("unreachable code reached")
-            super().__init__(self._state, search["steamid"], type=Type.Clan)
+    async def _load(self, *, from_proto: bool = False) -> Self:
+        community_url = self.community_url
+        assert community_url is not None
+        async with self._state.http._session.get(community_url) as resp:
+            soup = BeautifulSoup(await resp.text(), HTML_PARSER)  # technically we loose proper request handling here
+            self.is_app_clan = "games" in resp.url.parts
 
-        soup = BeautifulSoup(text, HTML_PARSER)
-        if not hasattr(self, "name"):
+        if not from_proto:
             _, _, self.name = soup.title.text.rpartition(" :: ")
-        content = soup.find("meta", property="og:description")
-        self.summary = content["content"] if content is not None else None
-        if not hasattr(self, "_avatar_sha"):
             icon_url = soup.find("link", rel="image_src")
             url = URL(icon_url["href"]) if icon_url else None
             if url:
                 self._avatar_sha = bytes.fromhex(url.path.removesuffix("/").removesuffix("_full.jpg"))
-        self.is_app_clan = "games" in resp.url.parts
+
+        content = soup.find("meta", property="og:description")
+        self.summary = content["content"] if content is not None else None
 
         if self.is_app_clan:
             for entry in soup.find_all("div", class_="actionItem"):
@@ -184,7 +391,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
                         self.app = PartialApp(self._state, id=match[0])
         stats = soup.find("div", class_="grouppage_resp_stats")
         if stats is None:
-            return
+            return self
 
         for stat in stats.find_all("div", class_="groupstat"):
             if "Founded" in stat.text:
@@ -235,6 +442,8 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         self.admins = [user for user in users if user and user.id in admins]
         self.mods = [user for user in users if user and user.id in mods]
 
+        return self
+
     @classmethod
     async def _from_proto(
         cls,
@@ -244,7 +453,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         maybe_chunk: bool = True,
     ) -> Self:
         self = await super()._from_proto(state, proto, id=ID32(proto.clanid), maybe_chunk=maybe_chunk)
-        return await self
+        return await self._load(from_proto=True)
 
     # TODO properties for admins and mods when chunked?
 
@@ -294,42 +503,8 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             self._members[user.id] = ClanMember(self._state, self, user, member)  # type: ignore  # pyright being daft
         return await super().chunk()
 
-    @property
-    def _commentable_kwargs(self) -> _CommentableKwargs:
-        return {
-            "id64": self.id64,
-        }
-
-    async def fetch_members(self) -> list[ID]:
-        """Fetches a clan's member list.
-
-        Note
-        ----
-        This can be a very slow operation due to the rate limits on this endpoint.
-        """
-
-        async def getter(i: int) -> BeautifulSoup:
-            try:
-                resp = await self._state.http.get(
-                    f"{self.community_url}/members", params={"p": i + 1, "content_only": "true"}
-                )
-            except HTTPException:
-                await asyncio.sleep(20)
-                return await getter(i)
-            else:
-                soup = BeautifulSoup(resp, HTML_PARSER)
-                ret.extend(
-                    ID(user["data-miniprofile"])
-                    for s in soup.find_all("div", id="memberList")
-                    for user in s.find_all("div", class_="member_block")
-                )
-                return soup
-
-        ret: list[ID] = []
-        soup = await getter(0)
-        number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
-        await asyncio.gather(*(getter(i) for i in range(1, number_of_pages)))
-        return ret
+    def _get_partial_member(self, id: ID32) -> PartialMember:
+        return PartialMember(self._state, clan=self, member=self._partial_members[id])
 
     async def join(self, *, invite_code: str | None = None) -> None:
         """Joins the clan."""
@@ -341,40 +516,13 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         await super().leave()
         await self._state.http.leave_clan(self.id64)
 
-    # event/announcement stuff
-
-    async def fetch_event(self, id: int) -> Event[EventType]:
-        """Fetch an event from its ID.
-
-        Parameters
-        ----------
-        id
-            The ID of the event.
-        """
-        data = await self._state.http.get_clan_events(self.id, [id])
-        if events := data["events"]:
-            return await Event(self._state, self, events[0])
-
-        raise ValueError(f"Event {id} not found")
-
-    async def fetch_announcement(self, id: int) -> Announcement:
-        """Fetch an announcement from its ID.
-
-        Parameters
-        ----------
-        id
-            The ID of the announcement.
-        """
-        data = await self._state.http.get_clan_announcement(self.id, id)
-        return await Announcement(self._state, self, data["event"])
-
     async def events(
         self,
         *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> AsyncGenerator[Event[EventType], None]:
+    ) -> AsyncGenerator[Event[EventType, Self], None]:
         """An :term:`async iterator` over a clan's :class:`steam.Event`\\s.
 
         Examples
@@ -441,7 +589,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         yielded = 0
 
         for id_chunk in utils.as_chunks(ids, 15):
-            events: list[Event[EventType]] = []
+            events: list[Event[EventType, Self]] = []
             for event in ids:
                 resp = await self._state.http.get_clan_events(self.id, id_chunk)
                 data = resp["events"]
@@ -477,7 +625,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         before: datetime | None = None,
         after: datetime | None = None,
         # hidden: bool = False,
-    ) -> AsyncGenerator[Announcement, None]:
+    ) -> AsyncGenerator[Announcement[Self], None]:
         """An :term:`async iterator` over a clan's :class:`steam.Announcement`\\s.
 
         Examples
@@ -521,7 +669,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
         if not ids:
             return
 
-        announcements: list[Announcement] = []
+        announcements: list[Announcement[Self]] = []
         for announcement_ in itertools.chain.from_iterable(
             map(
                 itemgetter("event"),
@@ -555,135 +703,3 @@ class Clan(ChatGroup[ClanMember, ClanChannel], Commentable, utils.AsyncInit):
             announcement.author = author
             announcement.last_edited_by = last_edited_by if last_edited_by.id != 0 else None
             yield announcement
-
-    @overload
-    async def create_event(
-        self,
-        name: str,
-        content: str,
-        *,
-        type: Literal[EventType.Game] = ...,
-        starts_at: datetime | None = ...,
-        app: App,
-        server_address: IPAdress | str | None = ...,
-        server_password: str | None = ...,
-    ) -> Event[Literal[EventType.Game]]:
-        ...
-
-    @overload
-    async def create_event(
-        self,
-        name: str,
-        content: str,
-        *,
-        type: BoringEventT = EventType.Other,
-        starts_at: datetime | None = None,
-    ) -> Event[BoringEventT]:
-        ...
-
-    async def create_event(
-        self,
-        name: str,
-        content: str,
-        *,
-        type: Literal[
-            EventType.Other,
-            EventType.Chat,
-            EventType.Game,
-            # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
-            EventType.Party,
-            EventType.Meeting,
-            EventType.SpecialCause,
-            EventType.MusicAndArts,
-            EventType.Sports,
-            EventType.Trip,
-        ] = EventType.Other,
-        app: App | None = None,
-        starts_at: datetime | None = None,
-        server_address: IPAdress | str | None = None,
-        server_password: str | None = None,
-    ) -> Event[CreateableEvents]:
-        """Create an event.
-
-        Parameters
-        ----------
-        name
-            The name of the event
-        content
-            The content for the event.
-        type
-            The type of the event, defaults to :attr:`EventType.Other`.
-        app
-            The app that will be played in the event. Required if type is :attr:`EventType.Game`.
-        starts_at
-            The time the event will start at.
-        server_address
-            The address of the server that the event will be played on. This is only allowed if ``type`` is
-            :attr:`EventType.App`.
-        server_password
-            The password for the server that the event will be played on. This is only allowed if ``type`` is
-            :attr:`EventType.App`.
-
-        Note
-        ----
-        It is recommended to use a timezone aware datetime for ``start``.
-
-        Returns
-        -------
-        The created event.
-        """
-        server_address = IPv4Address(server_address) if server_address is not None else ""
-
-        resp = await self._state.http.create_clan_event(
-            self.id64,
-            name,
-            content,
-            f"{type.name}Event",
-            str(app.id) if app is not None else "",
-            str(server_address),
-            server_password or "",
-            starts_at,
-        )
-        soup = BeautifulSoup(resp, HTML_PARSER)
-        for element in soup.find_all("div", class_="eventBlockTitle"):
-            a = element.a
-            if a is not None and a.text == name:  # this is bad?
-                _, _, id = a["href"].rpartition("/")
-                event = await self.fetch_event(int(id))
-                self._state.dispatch("event_create", event)
-                return event
-        raise ValueError
-
-    async def create_announcement(
-        self,
-        name: str,
-        content: str,
-        hidden: bool = False,
-    ) -> Announcement:
-        """Create an announcement.
-
-        Parameters
-        ----------
-        name
-            The name of the announcement.
-        content
-            The content of the announcement.
-        hidden
-            Whether the announcement should initially be hidden.
-
-        Returns
-        -------
-        The created announcement.
-        """
-        await self._state.http.create_clan_announcement(self.id64, name, content, hidden)
-        resp = await self._state.http.get(f"{self.community_url}/announcements", params={"content_only": "true"})
-        soup = BeautifulSoup(resp, HTML_PARSER)
-        for element in soup.find_all("div", class_="announcement"):
-            a = element.a
-            if a is not None and a.text == name:  # this is bad?
-                _, _, id = a["href"].rpartition("/")
-                announcement = await self.fetch_announcement(int(id))
-                self._state.dispatch("announcement_create", announcement)
-                return announcement
-
-        raise ValueError

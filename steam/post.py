@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic
+
+from typing_extensions import TypeVar
 
 from .abc import Awardable, Commentable, _CommentableKwargs
 from .app import PartialApp
+from .types.user import UserT
 
 if TYPE_CHECKING:
-    from .message import Authors
     from .state import ConnectionState
 
 
 @dataclass(repr=False, slots=True, eq=False)
-class Post(Awardable, Commentable):
+class Post(Awardable, Commentable, Generic[UserT]):
     """Represents a post on Steam Community."""
 
     _state: ConnectionState
@@ -22,7 +24,7 @@ class Post(Awardable, Commentable):
     """The ID of this post."""
     content: str
     """The content of this post."""
-    author: Authors
+    author: UserT
     """The author of this post."""
     app: PartialApp | None
     """The app this post is for, if any."""

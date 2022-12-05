@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from .channel import GroupChannel
-from .chat import ChatGroup, Member
+from .chat import ChatGroup, Member, PartialMember
 from .enums import Type
 
 if TYPE_CHECKING:
     from .protobufs import chat
     from .state import ConnectionState
-    from .types.id import ChatGroupID
+    from .types.id import ID32, ChatGroupID
     from .user import User
 
 
@@ -29,14 +29,14 @@ class GroupMember(Member):
         self.group = group
 
 
-class Group(ChatGroup[GroupMember, GroupChannel]):
+class Group(ChatGroup[GroupMember, GroupChannel, Literal[Type.Chat]]):
     """Represents a Steam group."""
 
     __slots__ = ()
 
     def __init__(self, state: ConnectionState, id: ChatGroupID):
         super().__init__(state, id, type=Type.Chat)
-        self._id = id
+        self._id = self.id
 
     async def chunk(self) -> Sequence[GroupMember]:
         self._members = dict.fromkeys(self._partial_members)  # type: ignore
@@ -48,6 +48,9 @@ class Group(ChatGroup[GroupMember, GroupChannel]):
             member = GroupMember(self._state, self, user, member)
             self._members[member.id] = member
         return await super().chunk()
+
+    def _get_partial_member(self, id: ID32) -> PartialMember:
+        return PartialMember(self._state, group=self, member=self._partial_members[id])
 
     # TODO is this possible
     # async def join(self) -> None:

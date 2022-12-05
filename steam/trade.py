@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import dis
-import sys
 import types
-import warnings
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, cast, overload
 
-from typing_extensions import Self
+from typing_extensions import NamedTuple, Self, TypeVar
 
 from . import utils
 from ._const import URL
@@ -20,14 +17,14 @@ from .enums import Language, TradeOfferState
 from .errors import ClientException, ConfirmationError
 from .models import CDNAsset
 from .protobufs import econ
-from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID
+from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .abc import BaseUser
+    from .abc import PartialUser
     from .state import ConnectionState
     from .types import trade
-    from .user import User
+    from .user import ClientUser, User
 
 
 __all__ = (
@@ -39,10 +36,11 @@ __all__ = (
     "TradeOfferReceipt",
 )
 
-ItemT_co = TypeVar("ItemT_co", bound="Item", covariant=True)
+
+OwnerT = TypeVar("OwnerT", bound="PartialUser", default="User", covariant=True)
 
 
-class Asset:
+class Asset(Generic[OwnerT]):
     """Base most version of an item. This class should only be received when Steam fails to find a matching item for
     its class and instance IDs.
 
@@ -86,7 +84,7 @@ class Asset:
     )
     REPR_ATTRS = ("id", "class_id", "instance_id", "amount", "owner", "app")  # "post_rollback_id"
 
-    def __init__(self, state: ConnectionState, asset: econ.Asset, owner: BaseUser):
+    def __init__(self, state: ConnectionState, asset: econ.Asset, owner: OwnerT):
         self.id = AssetID(asset.assetid)
         self.amount = asset.amount
         self.instance_id = InstanceID(asset.instanceid)
@@ -141,10 +139,10 @@ class Asset:
 
         e.g. https://steamcommunity.com/profiles/76561198248053954/inventory/#440_2_8526584188
         """
-        return f"{URL.COMMUNITY}/profiles/{self.owner.id64}/inventory#{self._app_id}_{self._context_id}_{self.id}"
+        return f"{self.owner.community_url}/inventory#{self._app_id}_{self._context_id}_{self.id}"
 
 
-class Item(Asset):
+class Item(Asset[OwnerT]):
     """Represents an item in a User's inventory.
 
     Attributes
@@ -176,7 +174,7 @@ class Item(Asset):
         "type",
         "tags",
         "colour",
-        "icon_url",
+        "icon",
         "display_name",
         "descriptions",
         "owner_descriptions",
@@ -189,7 +187,7 @@ class Item(Asset):
     )
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
-    def __init__(self, state: ConnectionState, asset: econ.Asset, description: econ.ItemDescription, owner: BaseUser):
+    def __init__(self, state: ConnectionState, asset: econ.Asset, description: econ.ItemDescription, owner: OwnerT):
         super().__init__(state, asset, owner)
 
         self.name = description.market_name
@@ -199,11 +197,10 @@ class Item(Asset):
         self.owner_descriptions = description.owner_descriptions
         self.type = description.type
         self.tags = description.tags
-        self.icon_url = (
-            f"https://steamcommunity-a.akamaihd.net/economy/image/{description.icon_url_large}"
-            if description.icon_url_large
-            else f"https://steamcommunity-a.akamaihd.net/economy/image/{description.icon_url}"
-            if description.icon_url
+        icon_url = description.icon_url_large or description.icon_url
+        self.icon = (
+            CDNAsset(state, f"https://community.cloudflare.steamstatic.com/economy/image/{icon_url}")
+            if icon_url
             else None
         )
         self.fraud_warnings = description.fraudwarnings
@@ -223,19 +220,10 @@ class Item(Asset):
 
 
 class InventoryGenericAlias(types.GenericAlias):
-    __alias_name__: str
-    __args__: tuple[type[ItemT_co]]  # type: ignore
-
-    def __repr__(self) -> str:
-        return f"{self.__origin__.__module__}.{object.__getattribute__(self, '__alias_name__')}"
-
     def __call__(self, *args: Any, **kwargs: Any) -> object:
         # this is done cause we need __orig_class__ in __init__
         result = self.__origin__.__new__(self.__origin__, *args, **kwargs)
-        try:
-            result.__orig_class__ = self
-        except AttributeError:
-            pass
+        result.__orig_class__ = self
         result.__init__(*args, **kwargs)
         return result
 
@@ -249,8 +237,39 @@ class InventoryGenericAlias(types.GenericAlias):
         return (BaseInventory,)
 
 
-class BaseInventory(Generic[ItemT_co]):
-    """Base for all inventories."""
+ItemT = TypeVar("ItemT", bound=Asset, default=Item, covariant=True)
+
+
+class Inventory(Generic[ItemT, OwnerT]):
+    """Represents a User's inventory.
+
+    .. container:: operations
+
+        .. describe:: len(x)
+
+            Returns how many items are in the inventory.
+
+        .. describe:: iter(x)
+
+            Iterates over the inventory's items.
+
+        .. describe:: x[i]
+
+            Returns the item at the given index.
+
+        .. describe:: y in x
+
+            Determines if an item is in the inventory based off of its :attr:`Asset.id`.
+
+    Attributes
+    ----------
+    items
+        A list of the inventory's items.
+    owner
+        The owner of the inventory.
+    app
+        The app the inventory the app belongs to.
+    """
 
     __slots__ = (
         "app",
@@ -261,12 +280,13 @@ class BaseInventory(Generic[ItemT_co]):
         "__orig_class__",  # undocumented typing internals more shim to make extensions work
     )
     __orig_class__: InventoryGenericAlias
+    __orig_bases__: tuple[types.GenericAlias, ...]  # "duck typing"
 
     def __init__(
         self,
         state: ConnectionState,
         data: econ.GetInventoryItemsWithDescriptionsResponse,
-        owner: BaseUser,
+        owner: OwnerT,
         app: App,
         language: Language | None,
     ):
@@ -284,7 +304,7 @@ class BaseInventory(Generic[ItemT_co]):
     def __len__(self) -> int:
         return len(self.items)
 
-    def __iter__(self) -> Iterator[ItemT_co]:
+    def __iter__(self) -> Iterator[ItemT]:
         return iter(self.items)
 
     def __contains__(self, item: Asset) -> bool:
@@ -295,32 +315,14 @@ class BaseInventory(Generic[ItemT_co]):
         return item in self.items
 
     if not TYPE_CHECKING:
-
-        def __class_getitem__(cls, params: tuple[type[ItemT_co]]) -> InventoryGenericAlias:
-            # this is more stuff that's needed to make the TypeAliases for extension modules work as we need the
-            # assigned name
-
-            frame = sys._getframe(1)
-            generic_alias = InventoryGenericAlias(cls, params)
-
-            on_line = False
-            return_next = False
-            for instruction in dis.get_instructions(frame.f_code):
-                if return_next and instruction.opname == "STORE_NAME":
-                    break
-                elif instruction.starts_line == frame.f_lineno:
-                    on_line = True
-                elif on_line and instruction.opname == "BINARY_SUBSCR":
-                    return_next = True
-            else:
-                return generic_alias
-
-            object.__setattr__(generic_alias, "__alias_name__", instruction.argval)
-            return generic_alias
+        __class_getitem__ = classmethod(InventoryGenericAlias)
 
     def _update(self, data: econ.GetInventoryItemsWithDescriptionsResponse) -> None:
-        items: list[ItemT_co] = []
-        (ItemClass,) = self.__orig_class__.__args__
+        items: list[ItemT] = []
+        try:  # ideally one day this will just be ItemT.__value__ or something
+            (ItemClass,) = self.__orig_class__.__args__
+        except AttributeError:
+            ItemClass = self.__orig_bases__[0].__args__[0].__default__
         for asset in data.assets:
             for description in data.descriptions:
                 if description.instanceid == asset.instanceid and description.classid == asset.classid:
@@ -328,7 +330,7 @@ class BaseInventory(Generic[ItemT_co]):
                     break
             else:
                 items.append(Asset(self._state, asset=asset, owner=self.owner))  # type: ignore  # should never happen anyway
-        self.items: Sequence[ItemT_co] = items
+        self.items: Sequence[ItemT] = items
 
     async def update(self) -> None:
         """Re-fetches the inventory and updates it inplace."""
@@ -339,45 +341,12 @@ class BaseInventory(Generic[ItemT_co]):
         self._update(data)
 
 
-Inventory: TypeAlias = BaseInventory[Item]  # necessitated by TypeVar not currently supporting defaults
-"""Represents a User's inventory.
-
-.. container:: operations
-
-    .. describe:: len(x)
-
-        Returns how many items are in the inventory.
-
-    .. describe:: iter(x)
-
-        Iterates over the inventory's items.
-
-    .. describe:: x[i]
-
-        Returns the item at the given index.
-
-    .. describe:: y in x
-
-        Determines if an item is in the inventory based off of its :attr:`Asset.id`.
+class TradeOfferReceipt(NamedTuple, Generic[OwnerT]):
+    sent: list[MovedItem[ClientUser]]
+    received: list[MovedItem[OwnerT]]
 
 
-Attributes
-----------
-items
-    A list of the inventory's items.
-owner
-    The owner of the inventory.
-app
-    The app the inventory the app belongs to.
-"""
-
-
-class TradeOfferReceipt(NamedTuple):
-    sent: list[MovedItem]
-    received: list[MovedItem]
-
-
-class MovedItem(Item):
+class MovedItem(Item[OwnerT]):
     """Represents an item that has moved from one inventory to another.
 
     Attributes
@@ -396,7 +365,7 @@ class MovedItem(Item):
     new_id: int
     new_context_id: int
 
-    def __init__(self, state: ConnectionState, data: trade.TradeOfferReceiptItem, owner: BaseUser):
+    def __init__(self, state: ConnectionState, data: trade.TradeOfferReceiptItem, owner: OwnerT):
         super().__init__(
             state,
             asset=econ.Asset().from_dict(data),  # type: ignore  # TODO waiting on https://github.com/danielgtaylor/python-betterproto/issues/432
@@ -407,7 +376,7 @@ class MovedItem(Item):
         self.new_context_id = int(data["new_contextid"])
 
 
-class TradeOffer:
+class TradeOffer(Generic[ItemT, OwnerT]):
     """Represents a trade offer from/to send to a User.
     This can also be used in :meth:`steam.User.send`.
 
@@ -473,7 +442,7 @@ class TradeOffer:
     )
 
     id: int
-    partner: User | ID
+    partner: OwnerT
 
     @overload
     def __init__(
@@ -481,8 +450,8 @@ class TradeOffer:
         *,
         token: str | None = ...,
         message: str | None = ...,
-        item_to_send: Asset = ...,
-        item_to_receive: Asset = ...,
+        item_to_send: ItemT = ...,  # TODO HKT for this would be really nice as could then "ensure" we own the item
+        item_to_receive: ItemT = ...,
     ):
         ...
 
@@ -492,8 +461,8 @@ class TradeOffer:
         *,
         token: str | None = ...,
         message: str | None = ...,
-        items_to_send: Sequence[Asset],
-        items_to_receive: Sequence[Asset],
+        items_to_send: Sequence[ItemT],
+        items_to_receive: Sequence[ItemT],
     ):
         ...
 
@@ -502,13 +471,13 @@ class TradeOffer:
         *,
         message: str | None = None,
         token: str | None = None,
-        item_to_send: Asset | None = None,
-        item_to_receive: Asset | None = None,
-        items_to_send: Sequence[Asset] | None = None,
-        items_to_receive: Sequence[Asset] | None = None,
+        item_to_send: ItemT | None = None,
+        item_to_receive: ItemT | None = None,
+        items_to_send: Sequence[ItemT] | None = None,
+        items_to_receive: Sequence[ItemT] | None = None,
     ):
-        self.items_to_receive: Sequence[Asset] = items_to_receive or ([item_to_receive] if item_to_receive else [])
-        self.items_to_send: Sequence[Asset] = items_to_send or ([item_to_send] if item_to_send else [])
+        self.items_to_receive: Sequence[ItemT] = items_to_receive or ([item_to_receive] if item_to_receive else [])
+        self.items_to_send: Sequence[ItemT] = items_to_send or ([item_to_send] if item_to_send else [])
         self.message: str | None = message or None
         self.token: str | None = token
         self.updated_at: datetime | None = None
@@ -519,19 +488,18 @@ class TradeOffer:
         self._has_been_sent = False
 
     @classmethod
-    def _from_api(cls, state: ConnectionState, data: trade.TradeOffer, partner: User | ID | None = None) -> Self:
+    def _from_api(cls, state: ConnectionState, data: trade.TradeOffer, partner: OwnerT) -> TradeOffer[Item[OwnerT], OwnerT]:  # type: ignore
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
-        trade.partner = ID(data["accountid_other"]) if partner is None else partner
-        trade._update(data)
-        return trade
+        trade.partner = partner
+        return trade._update(data)
 
     @classmethod
-    def _from_history(cls, state: ConnectionState, data: trade.TradeOfferHistoryTrade) -> Self:
-        received: list[trade.TradeOfferReceiptItem] = data.get("assets_received", [])  # type: ignore
+    def _from_history(cls: type[TradeOffer[MovedItem[OwnerT], OwnerT]], state: ConnectionState, data: trade.TradeOfferHistoryTrade) -> TradeOffer[MovedItem[OwnerT], OwnerT]:  # type: ignore
+        received: list[trade.TradeOfferReceiptItem] = data.get("assets_received", [])  # type: ignore  # these are updated in place so this is safe
         sent: list[trade.TradeOfferReceiptItem] = data.get("assets_given", [])  # type: ignore
-        partner = ID(data["steamid_other"])
+        partner = cast("OwnerT", PartialUser(state, data["steamid_other"]))
         trade = cls(
             items_to_receive=[MovedItem(state, item, partner) for item in received],
             items_to_send=[MovedItem(state, item, state.user) for item in sent],
@@ -545,7 +513,7 @@ class TradeOffer:
         return trade
 
     def _update_from_send(
-        self, state: ConnectionState, data: trade.TradeOfferCreateResponse, partner: User, active: bool = True
+        self, state: ConnectionState, data: trade.TradeOfferCreateResponse, partner: OwnerT, active: bool = True  # type: ignore
     ) -> None:
         self.id = int(data["tradeofferid"])
         self._state = state
@@ -559,7 +527,7 @@ class TradeOffer:
         resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
-    def _update(self, data: trade.TradeOffer) -> None:
+    def _update(self: TradeOffer[Asset[OwnerT], OwnerT], data: trade.TradeOffer) -> TradeOffer[Item[OwnerT], OwnerT]:
         self.message = data.get("message") or None
         self.id = int(data["tradeofferid"])
         self._id = int(data["tradeid"]) if "tradeid" in data else None
@@ -577,7 +545,7 @@ class TradeOffer:
                 self._state,
                 asset=econ.Asset().from_dict(item),
                 description=econ.ItemDescription().from_dict(item),
-                owner=self.partner,
+                owner=self._state.user,
             )
             for item in data.get("items_to_give", ())
         ]
@@ -591,6 +559,7 @@ class TradeOffer:
             for item in data.get("items_to_receive", ())
         ]
         self._is_our_offer = data.get("is_our_offer", False)
+        return cast("TradeOffer[Item[OwnerT], OwnerT]", self)
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, TradeOffer):
@@ -679,7 +648,7 @@ class TradeOffer:
         self._check_active()
         await self._state.http.cancel_user_trade(self.id)
 
-    async def receipt(self) -> TradeOfferReceipt:
+    async def receipt(self) -> TradeOfferReceipt[OwnerT]:
         """Get the receipt for a trade offer and the updated asset ids for the trade.
 
         Returns
@@ -697,21 +666,21 @@ class TradeOffer:
         descriptions = data["descriptions"]
         assert self.partner is not None
 
-        received: list[MovedItem] = []
+        received: list[MovedItem[OwnerT]] = []
         for asset in trade.get("assets_received", ()):
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
-                    received.append(MovedItem(self._state, data=item, owner=self.partner))  # type: ignore
+                    received.append(MovedItem(self._state, data=item, owner=self.partner))
 
-        sent: list[MovedItem] = []
+        sent: list[MovedItem[ClientUser]] = []
         for asset in trade.get("assets_given", ()):
             for item in descriptions:
                 if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
                     item.update(asset)
                     sent.append(MovedItem(self._state, data=item, owner=self._state.user))
 
-        return TradeOfferReceipt(sent=sent, received=received)
+        return TradeOfferReceipt(sent=sent, received=received)  # type: ignore  # this might be a bug
 
     async def counter(self, trade: TradeOffer) -> None:
         """Counter a trade offer from an :class:`User`.
