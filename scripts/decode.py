@@ -23,8 +23,11 @@ logging.basicConfig()
 
 
 async def amain(input_message: str) -> None:
-    if (path := Path(input_message)).is_file():
-        input_message = b64encode(path.read_bytes()).decode()
+    try:
+        if (path := Path(input_message)).is_file():
+            input_message = b64encode(path.read_bytes()).decode()
+    except OSError:
+        pass
 
     client = steam.Client()
     client.http.user = steam.ID(0)  # type: ignore
