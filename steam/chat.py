@@ -10,9 +10,9 @@ import abc
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, TypeVar, cast, overload, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, cast, overload, runtime_checkable
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from . import utils
 from ._const import MISSING, UNIX_EPOCH

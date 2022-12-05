@@ -9,10 +9,10 @@ from collections.abc import AsyncGenerator, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from ipaddress import IPv4Address, IPv6Address
-from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypedDict, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypedDict, runtime_checkable
 
 from bs4 import BeautifulSoup
-from typing_extensions import Required, Self
+from typing_extensions import Required, Self, TypeVar
 from yarl import URL as URL_
 
 from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH

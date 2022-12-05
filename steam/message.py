@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from typing_extensions import TypeVar
 
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .clan import Clan, ClanMember
     from .group import Group, GroupMember
     from .protobufs import chat, friend_messages
+    from .user import ClientUser, User
 
 
 __all__ = (
