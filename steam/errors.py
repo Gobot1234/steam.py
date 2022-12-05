@@ -82,10 +82,10 @@ class HTTPException(SteamException):
                 if code := (
                     data.get("eresult")  # try the data if possible
                     or response.headers.get("X-EResult")  # then the headers
-                    or CODE_FINDER.findall(message)  # finally the message
+                    or CODE_FINDER.findall(self.message)  # finally the message
                 ):
                     if isinstance(code, list):
-                        self.message = CODE_FINDER.sub("", message)
+                        self.message = CODE_FINDER.sub("", self.message)
                         code = code[0]
                     self.code = Result.try_value(int(code))
             else:
