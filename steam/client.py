@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from .invite import ClanInvite, UserInvite
     from .protobufs import Message, ProtobufMessage
     from .reaction import MessageReaction
-    from .trade import TradeOffer
+    from .trade import MovedItem, TradeOffer
     from .types.http import IPAdress
     from .user import ClientUser, User
 
@@ -1031,7 +1031,7 @@ class Client:
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,
         language: Language | None = None,
-    ) -> AsyncGenerator[TradeOffer, None]:
+    ) -> AsyncGenerator[TradeOffer[MovedItem], None]:
         """An :term:`async iterator` for accessing a :class:`steam.ClientUser`'s
         :class:`steam.TradeOffer` objects.
 
@@ -1161,6 +1161,8 @@ class Client:
         apps_ = [app.to_proto() for app in apps] if apps is not None else []
         if app is not None:
             apps_.append(app.to_proto())
+        if self.ws is None:
+            raise RuntimeError("Client is not logged in")
         await self.ws.change_presence(apps=apps_, state=state, flags=flags, ui_mode=ui_mode, force_kick=force_kick)
 
     async def trade_url(self, generate_new: bool = False) -> TradeURLInfo:
