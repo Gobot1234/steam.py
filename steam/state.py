@@ -407,7 +407,7 @@ class ConnectionState(Registerable):
         key, timestamp = await self._generate_confirmation_code("list")
         data = await self.http.get(
             URL.COMMUNITY / "mobileconf/getlist",
-            params={"p": self._device_id, "a": self.user.id64, "k": key, "t": timestamp, "m": "react", "tag": "list"}
+            params={"p": self._device_id, "a": self.user.id64, "k": key, "t": timestamp, "m": "react", "tag": "list"},
         )
         if not data.get("success", False):
             raise ConfirmationError(f"{data.get('message', 'Unknown error')}\n{data.get('detail') or ''}".strip())

@@ -356,9 +356,7 @@ class SteamWebSocket(Registerable):
 
             await self.send_um(chat.GetMyChatRoomGroupsRequest())
             await self.send_proto(friends.CMsgClientGetEmoticonList())
-            await self.send_proto(
-                client_server_2.CMsgClientRequestCommentNotifications()
-            )  # TODO Use notifications.GetSteamNotificationsRequest() instead (maybe?)
+            await self._state.fetch_notifications()
             await self.send_proto(
                 login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
             )
