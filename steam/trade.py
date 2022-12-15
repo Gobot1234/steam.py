@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-import asyncio
 import types
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, cast, overload
 
-from typing_extensions import NamedTuple, Self, TypeVar
+from typing_extensions import NamedTuple, TypeVar
 
 from . import utils
 from ._const import URL
 from .app import App, PartialApp
 from .enums import Language, TradeOfferState
-from .errors import ClientException, ConfirmationError
+from .errors import ClientException
 from .models import CDNAsset
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
@@ -540,24 +539,28 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         self.updated_at = DateTime.from_timestamp(updated_at) if updated_at else None
         self.created_at = DateTime.from_timestamp(created_at) if created_at else None
         self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
-        self.items_to_send = [
-            Item(
-                self._state,
-                asset=econ.Asset().from_dict(item),
-                description=econ.ItemDescription().from_dict(item),
-                owner=self._state.user,
-            )
-            for item in data.get("items_to_give", ())
-        ]
-        self.items_to_receive = [
-            Item(
-                self._state,
-                asset=econ.Asset().from_dict(item),
-                description=econ.ItemDescription().from_dict(item),
-                owner=self.partner,
-            )
-            for item in data.get("items_to_receive", ())
-        ]
+        if (
+            self.state != TradeOfferState.Accepted
+        ):  # steam doesn't really send the item data if the offer just got accepted
+            # TODO update this to actually check if the items are different (they shouldn't be)
+            self.items_to_send = [
+                Item(
+                    self._state,
+                    asset=econ.Asset().from_dict(item),
+                    description=econ.ItemDescription().from_dict(item),
+                    owner=self._state.user,
+                )
+                for item in data.get("items_to_give", ())
+            ]
+            self.items_to_receive = [
+                Item(
+                    self._state,
+                    asset=econ.Asset().from_dict(item),
+                    description=econ.ItemDescription().from_dict(item),
+                    owner=self.partner,
+                )
+                for item in data.get("items_to_receive", ())
+            ]
         self._is_our_offer = data.get("is_our_offer", False)
         return cast("TradeOffer[Item[OwnerT], OwnerT]", self)
 
@@ -584,8 +587,8 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         self._check_active()
         if self.is_gift():
             return  # no point trying to confirm it
-        if not await self._state.fetch_and_confirm_confirmation(self.id):
-            raise ConfirmationError("No matching confirmation could be found for this trade")
+        confirmation = await self._state.wait_for_confirmation(self.id)
+        await confirmation.confirm()
         self._state._confirmations.pop(self.id, None)
 
     async def accept(self) -> None:
@@ -610,15 +613,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         assert self.partner is not None
         resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
         if resp.get("needs_mobile_confirmation", False):
-            for tries in range(5):
-                try:
-                    return await self.confirm()
-                except ConfirmationError:
-                    break
-                except ClientException:
-                    if tries == 4:
-                        raise ClientException("Failed to accept trade offer") from None
-                    await asyncio.sleep(tries * 2)
+            await self.confirm()
 
     async def decline(self) -> None:
         """Declines the trade offer.
@@ -703,7 +698,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         to_receive = [item.to_dict() for item in trade.items_to_receive]
         assert self.partner is not None
         resp = await self._state.http.send_trade_offer(
-            self.partner, to_send, to_receive, trade.token, trade.message or "", trade_id=self.id
+            self.partner, to_send, to_receive, trade.token, trade.message or "", tradeofferid_countered=self.id
         )
         if resp.get("needs_mobile_confirmation", False):
             await self._state.fetch_and_confirm_confirmation(TradeOfferID(int(resp["tradeofferid"])))

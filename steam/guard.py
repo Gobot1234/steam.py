@@ -8,7 +8,7 @@ import struct
 from dataclasses import dataclass
 from hashlib import sha1
 from time import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from ._const import URL
 from .errors import ConfirmationError
@@ -92,20 +92,15 @@ def generate_device_id(user_id64: Intable) -> str:
 @dataclass(repr=False, slots=True)
 class Confirmation:
     _state: ConnectionState
-    id: str
-    data_conf_id: int
-    data_key: str
-    trade_id: TradeOfferID  # this isn't really always the trade ID, but for our purposes this is fine
+    id: int
+    nonce: int
+    creator_id: TradeOfferID  # this isn't really always the trade ID, but for our purposes this is fine
 
     def __repr__(self) -> str:
-        return f"<Confirmation id={self.id!r} trade_id={self.trade_id}>"
+        return f"<Confirmation id={self.id} creator_id={self.creator_id}>"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Confirmation) and self.trade_id == other.trade_id and self.id == other.id
-
-    @property
-    def tag(self) -> str:
-        return f"details{self.data_conf_id}"
+        return isinstance(other, Confirmation) and self.creator_id == other.creator_id and self.id == other.id
 
     async def _confirm_params(self, tag: str) -> dict[str, str | int]:
         code, timestamp = await self._state._generate_confirmation_code(tag)
@@ -118,15 +113,11 @@ class Confirmation:
             "tag": tag,
         }
 
-    def _assert_valid(self, resp: dict[str, Any]) -> None:
-        if not resp.get("success", False):
-            self._state._confirmations_to_ignore.append(self.trade_id)
-            raise ConfirmationError
-
     async def _perform_op(self, op: str) -> None:
-        params = await self._confirm_params(op) | {"op": op, "cid": self.data_conf_id, "ck": self.data_key}
+        params = await self._confirm_params(op) | {"op": op, "cid": self.id, "ck": self.nonce}
         resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
-        self._assert_valid(resp)
+        if not resp["success"]:
+            raise ConfirmationError(resp.get("message", "Unknown error"))
 
     async def confirm(self) -> None:
         await self._perform_op("allow")
@@ -135,7 +126,8 @@ class Confirmation:
         await self._perform_op("cancel")
 
     async def details(self) -> str:
-        params = await self._confirm_params(self.tag)
+        params = await self._confirm_params(f"details{self.id}")
         resp = await self._state.http.get(URL.COMMUNITY / f"mobileconf/details/{self.id}", params=params)
-        self._assert_valid(resp)
+        if not resp["success"]:
+            raise ConfirmationError(resp.get("message", "Unknown error"))
         return resp["html"]
