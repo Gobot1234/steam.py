@@ -219,7 +219,8 @@ class HTTPClient:
 
         key_re = re.compile(r"<p>Key: ([0-9A-F]+)</p>")
         if match := key_re.findall(resp):
-            return match[0]
+            self.api_key = match[0]
+            return self.api_key
 
         payload = {
             "domain": "steam.py",
@@ -228,7 +229,8 @@ class HTTPClient:
             "Submit": "Register",
         }
         resp = await self.post(URL.COMMUNITY / "dev/registerkey", data=payload)
-        return key_re.findall(resp)[0]
+        self.api_key = key_re.findall(resp)[0]
+        return self.api_key
 
     @utils.cached_property
     def session_id(self) -> str:
