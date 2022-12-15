@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import imghdr
+import os
 import struct
 from time import time
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -34,6 +35,9 @@ class ImageIO(Protocol):
     def close(self) -> Any:
         ...
 
+    def fileno(self) -> int:
+        ...
+
 
 class Image:
     """A wrapper around common image files. Used for :meth:`steam.User.send`.
@@ -55,7 +59,7 @@ class Image:
 
     # TODO add support for "webm", "mpg", "mp4", "mpeg", "ogv"
 
-    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "hash", "size", "_tell")
+    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "size", "_tell")
     fp: ImageIO
 
     def __init__(self, fp: ImageIO | StrOrBytesPath | int, *, spoiler: bool = False):
@@ -64,8 +68,11 @@ class Image:
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
 
         self._tell = self.fp.tell()
-        contents = self.read()
-        self.size = len(contents)
+        try:
+            self.size = os.stat(self.fp.fileno()).st_size - self._tell
+        except OSError:  # slow fallback
+            self.size = len(self.fp.read())
+            self.fp.seek(self._tell)
         if self.size > 1024 * 1024 * 10:  # 10MiB
             raise ValueError("File is too large to upload")
 
@@ -103,7 +110,6 @@ class Image:
         self.spoiler = spoiler
         self.width = width
         self.height = height
-        self.hash = hashlib.sha1(contents).hexdigest()
         self.name = f'{int(time())}_{getattr(self.fp, "name", f"image.{self.type}")}'
 
     def read(self) -> bytes:
@@ -118,16 +124,20 @@ class Image:
     def __exit__(self, *args: Any) -> None:
         self.fp.close()
 
+    @staticmethod
+    def hash(contents: bytes) -> str:
+        return hashlib.sha1(contents).hexdigest()
+
 
 def test_jpeg(h: bytes, _) -> str | None:  # adds support for more header types
     # SOI APP2 + ICC_PROFILE
-    if h[:4] == "\xff\xd8\xff\xe2" and h[6:17] == b"ICC_PROFILE":
+    if h[:4] == b"\xff\xd8\xff\xe2" and h[6:17] == b"ICC_PROFILE":
         return "jpeg"
     # SOI APP14 + Adobe
-    if h[:4] == "\xff\xd8\xff\xee" and h[6:11] == b"Adobe":
+    if h[:4] == b"\xff\xd8\xff\xee" and h[6:11] == b"Adobe":
         return "jpeg"
     # SOI DQT
-    if h[:4] == "\xff\xd8\xff\xdb":
+    if h[:4] == b"\xff\xd8\xff\xdb":
         return "jpeg"
 
 

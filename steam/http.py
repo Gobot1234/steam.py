@@ -755,12 +755,13 @@ class HTTPClient:
             await self.post(URL.COMMUNITY / "actions/FileUploader", data=payload)
 
     async def send_image(self, image: Image, **kwargs: int) -> None:
+        contents = image.read()
         payload = {
             "sessionid": self.session_id,
             "l": "english",
             "file_size": image.size,
             "file_name": image.name,
-            "file_sha": image.hash,
+            "file_sha": image.hash(contents),
             "file_image_width": image.width,
             "file_image_height": image.height,
             "file_type": f"image/{image.type}",
@@ -770,7 +771,7 @@ class HTTPClient:
         result = resp["result"]
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
         headers = {header["name"]: header["value"] for header in result["request_headers"]}
-        await self.request("PUT", url=url, headers=headers, data=image.read())
+        await self.request("PUT", url=url, headers=headers, data=contents)
 
         payload |= {
             "success": 1,
