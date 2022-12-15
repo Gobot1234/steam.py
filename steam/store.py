@@ -172,7 +172,7 @@ class StoreItem:
             else None
         )
         self.page_background = (
-            CDNAsset(state, base_url.substitute(filename=proto.assets.page_background))
+            CDNAsset(state, base_url.substitute(FILENAME=proto.assets.page_background))
             if proto.assets.page_background
             else None
         )
