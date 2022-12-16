@@ -158,19 +158,26 @@ class Member(_BaseMember):
 AuthorT = TypeVar("AuthorT", bound="PartialMember", default="PartialMember | Member", covariant=True)
 
 
-class ChatMessage(Message[AuthorT]):
+class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
     channel: GroupChannel | ClanChannel
-    mentions: chat.Mentions
     author: AuthorT
 
     def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: AuthorT) -> None:
         super().__init__(channel, proto)
         self.author = author
         self.created_at = DateTime.from_timestamp(proto.timestamp)
+        self._mentions_ids = cast(tuple[ID32, ...], tuple(proto.mentions.ids))
+        self.mentions_all = proto.mentions.mention_all
+        self.mentions_here = proto.mentions.mention_here
 
     @property
     def _chat_group(self) -> Clan | Group:
         return self.channel._chat_group
+
+    @property
+    def mentions(self) -> list[MemberT | PartialMember]:
+        """The members mentioned in the message."""
+        return self._chat_group._maybe_members(self._mentions_ids)
 
     async def delete(self) -> None:
         """Deletes the message."""
@@ -451,7 +458,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     _default_channel_id: ChatID
     _default_role_id: RoleID
 
-    def __init__(self, state: ConnectionState, id: Intable, type: Literal[Type.Clan, Type.Chat] = MISSING):
+    def __init__(self, state: ConnectionState, id: Intable, type: ChatGroupTypeT = MISSING):
         super().__init__(id, type=type)
         self._state = state
         self.chunked = False
@@ -496,7 +503,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
                     for permissions in group_state.header_state.role_actions
                     if permissions.role_id == role.role_id
                 }
-                member_cls, _ = self._type_args
+                member_cls, _, _ = self._type_args
                 self._members = {
                     self._state.user.id: member_cls(
                         self._state, self, self._state.user, self._partial_members[self._state.user.id]  # type: ignore
@@ -509,11 +516,11 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         return self
 
     @utils.classproperty
-    def _type_args(cls: type[Self]) -> tuple[type[MemberT], type[ChatT]]:  # type: ignore
+    def _type_args(cls: type[Self]) -> tuple[type[MemberT], type[ChatT], type[ChatGroupTypeT]]:  # type: ignore
         return cls.__orig_bases__[0].__args__  # type: ignore
 
     async def _add_member(self, member: chat.Member) -> MemberT:
-        member_cls, _ = self._type_args
+        member_cls, _, _ = self._type_args
         id32 = ID32(member.accountid)
         user = await self._state._maybe_user(id32)
         assert isinstance(user, User)
@@ -534,7 +541,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     def _update_channels(
         self, channels: list[chat.State] | list[chat.ChatRoomState], *, default_channel_id: int | None = None
     ) -> None:
-        _, channel_cls = self._type_args
+        _, channel_cls, _ = self._type_args
         for channel in channels:
             try:
                 new_channel = self._channels[ChatID(channel.chat_id)]
@@ -681,7 +688,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         if self.chunked:
             return [self._members[ID32(user.accountid)] for user in msg.matching_members]
 
-        member_cls, _ = self._type_args
+        member_cls, _, _ = self._type_args
         users = [User(self._state, user.persona) for user in msg.matching_members]
         return [member_cls(self._state, self, user, self._partial_members[user.id]) for user in users]
 
