@@ -1168,6 +1168,7 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: friends.CMsgClientFriendsList) -> None:
+        await self.login_complete.wait()
         elements = None
         client_user_friends: list[ID64] = []
         is_load = not msg.bincremental
