@@ -106,10 +106,9 @@ GroupMessageAuthorT = TypeVar(
 )
 
 
-class GroupMessage(ChatMessage[GroupMessageAuthorT]):
+class GroupMessage(ChatMessage[GroupMessageAuthorT, "GroupMember"]):
     """Represents a message in a group."""
 
-    author: GroupMember
     channel: GroupChannel
     group: Group
     clan: None
@@ -123,10 +122,9 @@ ClanMessageAuthorT = TypeVar(
 )
 
 
-class ClanMessage(ChatMessage[ClanMessageAuthorT]):
+class ClanMessage(ChatMessage[ClanMessageAuthorT, "ClanMember"]):
     """Represents a message in a clan."""
 
-    author: ClanMember
     channel: ClanChannel
     clan: Clan
     group: None
