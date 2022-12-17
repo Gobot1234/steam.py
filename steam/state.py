@@ -56,6 +56,7 @@ from .protobufs import (
     game_servers,
     login,
     loyalty_rewards,
+    notifications,
     player,
     published_file,
     reviews,
