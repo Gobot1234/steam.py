@@ -901,8 +901,6 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
     """The message's reactions."""
     ordinal: int
     """A per-channel incremented integer up to ``1000`` for every message sent in a second window."""
-    mentions: Mentions | None
-    """An object representing mentions in this message."""
     reactions: list[MessageReaction]
     """The reactions this message has received."""
     partial_reactions: list[PartialMessageReaction]
@@ -915,7 +913,6 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         self.content = _clean_up_content(proto.message)
         self.ordinal = proto.ordinal
         self.clean_content = getattr(proto, "message_no_bbcode", "") or self.content
-        self.mentions = getattr(proto, "mentions", None)
         self.partial_reactions = []
         self.reactions = []
 
