@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, overload
 
 from typing_extensions import ClassVar, Never
 
+from ..._const import MISSING
 from ...app import App
 from ...client import Client as Client_
 from ...enums import Language
@@ -55,7 +56,28 @@ class Client(Client_):
     def _get_state(self, **options: Any) -> Never:
         raise NotImplementedError("cannot instantiate Client without a state")
 
-    async def login(self) -> None:
+    @overload
+    async def login(
+        self,
+        username: str,
+        password: str,
+        *,
+        shared_secret: str = ...,
+        identity_secret: str = ...,
+    ) -> None:
+        ...
+
+    @overload
+    async def login(
+        self,
+        *,
+        refresh_token: str,
+        shared_secret: str = MISSING,
+        identity_secret: str = MISSING,
+    ) -> None:
+        ...
+
+    async def login(self, *args: Any, **kwargs: Any) -> None:
         if self._get_gc_message():
 
             async def ping_gc() -> None:
@@ -65,11 +87,11 @@ class Client(Client_):
                     await asyncio.sleep(self._GC_HEART_BEAT)
 
             await asyncio.gather(
-                super().login(),
+                super().login(*args, **kwargs),
                 ping_gc(),
             )
         else:
-            await super().login()
+            await super().login(*args, **kwargs)
 
     async def _handle_ready(self) -> None:
         (us,) = await self._state.ws.fetch_users((self.user.id64,))
