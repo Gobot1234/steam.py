@@ -122,7 +122,7 @@ class Message(MessageMessageBase, StructMessage, MessageBase):
 
     def parse(self, data: bytes, msg: int = MISSING) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
-            return StructMessage.parse(self, data)
+            return StructMessage.parse(self, data)  # type: ignore  # pyright's dumb
 
         try:
             new_class: type[Self] = PROTOBUFS[msg]  # type: ignore
@@ -132,7 +132,7 @@ class Message(MessageMessageBase, StructMessage, MessageBase):
 
         self.header.parse(data)
         self.__class__ = new_class
-        return StructMessage.parse(self, data[self.header.length :])
+        return StructMessage.parse(self, data[self.header.length :])  # type: ignore  # pyright's dumb
 
 
 class ProtobufWrappedMessage(MessageBase, betterproto.Message):
@@ -163,7 +163,7 @@ class ProtobufMessage(MessageMessageBase, ProtobufWrappedMessage):
 
     def parse(self, data: bytes, msg: int = MISSING) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
-            return betterproto.Message.parse(self, data)
+            return betterproto.Message.parse(self, data)  # type: ignore  # pyright's dumb
 
         self.header.parse(data)
         if msg in SERVICE_EMSGS:
@@ -185,7 +185,7 @@ class ProtobufMessage(MessageMessageBase, ProtobufWrappedMessage):
             # setting to MISSING
             log.info(f"Received an unknown {EMsg(msg)!r} %r (%s)", data, self.header.job_name_target)
             return self
-        return betterproto.Message.parse(self, data[self.header.length :])  # type: ignore
+        return betterproto.Message.parse(self, data[self.header.length :])  # type: ignore  # pyright's dumb
 
 
 @dataclass_transform()
@@ -262,7 +262,7 @@ class GCMessage(GCMessageBase, StructMessage, MessageBase):
 
     def parse(self, data: bytes, msg: int = MISSING) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
-            return StructMessage.parse(self, data)
+            return StructMessage.parse(self, data)  # type: ignore  # pyright's dumb
 
         cls = self.__class__
         try:
@@ -273,7 +273,7 @@ class GCMessage(GCMessageBase, StructMessage, MessageBase):
 
         self.header = GCMessageHeader().parse(data)
         self.__class__ = new_class
-        return StructMessage.parse(self, data)
+        return StructMessage.parse(self, data)  # type: ignore  # pyright's dumb
 
 
 @dataclass_transform()
@@ -288,7 +288,7 @@ class GCProtobufMessage(GCMessageBase, ProtobufWrappedMessage):
 
     def parse(self, data: bytes, msg: int = MISSING) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
-            return betterproto.Message.parse(self, data)
+            return betterproto.Message.parse(self, data)  # type: ignore  # pyright's dumb
 
         cls = self.__class__
         try:
@@ -300,4 +300,4 @@ class GCProtobufMessage(GCMessageBase, ProtobufWrappedMessage):
         self.header = ProtobufMessageHeader().parse(data)
         # ideally this'd be a __class__ assignment but that doesn't work here
         self.__class__ = new_class
-        return betterproto.Message.parse(self, data[self.header.length :])
+        return betterproto.Message.parse(self, data[self.header.length :])  # type: ignore  # pyright's dumb
