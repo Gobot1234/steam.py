@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import itertools
 import types
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
@@ -20,7 +23,7 @@ from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOffer
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .abc import PartialUser
+    from .abc import BaseUser, PartialUser
     from .state import ConnectionState
     from .types import trade
     from .user import ClientUser, User
@@ -36,7 +39,7 @@ __all__ = (
 )
 
 
-OwnerT = TypeVar("OwnerT", bound="PartialUser", default="User", covariant=True)
+OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
 
 
 class Asset(Generic[OwnerT]):
@@ -52,21 +55,6 @@ class Asset(Generic[OwnerT]):
         .. describe:: hash(x)
 
             Returns the hash of an asset.
-
-    Attributes
-    -------------
-    id
-        The assetid of the item.
-    amount
-        The amount of the same asset there are in the inventory.
-    instance_id
-        The instanceid of the item.
-    class_id
-        The classid of the item.
-    post_rollback_id
-        The assetid of the item after a rollback (cancelled, etc.). ``None`` if not rolled back.
-    owner
-        The owner of the asset
     """
 
     __slots__ = (
@@ -85,18 +73,24 @@ class Asset(Generic[OwnerT]):
 
     def __init__(self, state: ConnectionState, asset: econ.Asset, owner: OwnerT):
         self.id = AssetID(asset.assetid)
+        """The assetid of the item."""
         self.amount = asset.amount
+        """The amount of the same asset there are in the inventory."""
         self.instance_id = InstanceID(asset.instanceid)
+        """The instanceid of the item."""
         self.class_id = ClassID(asset.classid)
+        """The classid of the item."""
         # self.post_rollback_id = int(data["rollback_new_assetid"]) if "rollback_new_assetid" in data else None
+        """The assetid of the item after a rollback (cancelled, etc.). ``None`` if not rolled back."""
         self.owner = owner
+        """The owner of the asset."""
         self._app_id = AppID(asset.appid)
         self._context_id = ContextID(asset.contextid)
         self._state = state
 
     def __repr__(self) -> str:
         cls = self.__class__
-        resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in cls.REPR_ATTRS]
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in cls.REPR_ATTRS]
         return f"<{cls.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: Any) -> bool:
@@ -142,31 +136,7 @@ class Asset(Generic[OwnerT]):
 
 
 class Item(Asset[OwnerT]):
-    """Represents an item in a User's inventory.
-
-    Attributes
-    -------------
-    name
-        The market_name of the item.
-    display_name
-        The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.
-    colour
-        The colour of the item.
-    descriptions
-        The descriptions of the item.
-    owner_descriptions
-        The descriptions of the item which are visible only to the owner of the item.
-    type
-        The type of the item.
-    tags
-        The tags of the item.
-    icon_url
-        The icon url of the item. Uses the large (184x184 px) image url.
-    fraud_warnings
-        The fraud warnings for the item.
-    actions
-        The actions for the item.
-    """
+    """Represents an item in a User's inventory."""
 
     __slots__ = (
         "name",
@@ -190,22 +160,34 @@ class Item(Asset[OwnerT]):
         super().__init__(state, asset, owner)
 
         self.name = description.market_name
+        """The market_name of the item."""
         self.display_name = description.name or self.name
+        """The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable."""
         self.colour = int(description.name_color, 16) if description.name_color else None
+        """The colour of the item."""
         self.descriptions = description.descriptions
+        """The descriptions of the item."""
         self.owner_descriptions = description.owner_descriptions
+        """The descriptions of the item which are visible only to the owner of the item."""
         self.type = description.type
+        """The type of the item."""
         self.tags = description.tags
+        """The tags of the item."""
         icon_url = description.icon_url_large or description.icon_url
         self.icon = (
             CDNAsset(state, f"https://community.cloudflare.steamstatic.com/economy/image/{icon_url}")
             if icon_url
             else None
         )
+        """The icon url of the item. Uses the large image url where possible."""
         self.fraud_warnings = description.fraudwarnings
+        """The fraud warnings for the item."""
         self.actions = description.actions
+        """The actions for the item."""
         self.owner_actions = description.owner_actions
+        """The owner actions for the item."""
         self.market_actions = description.market_actions
+        """The market actions for the item."""
         self._is_tradable = description.tradable
         self._is_marketable = description.marketable
 
@@ -236,7 +218,7 @@ class InventoryGenericAlias(types.GenericAlias):
         return (BaseInventory,)
 
 
-ItemT = TypeVar("ItemT", bound=Asset, default=Item, covariant=True)
+ItemT = TypeVar("ItemT", bound="Asset[PartialUser]", default="Item[BaseUser]", covariant=True)
 
 
 class Inventory(Generic[ItemT, OwnerT]):
@@ -259,15 +241,6 @@ class Inventory(Generic[ItemT, OwnerT]):
         .. describe:: y in x
 
             Determines if an item is in the inventory based off of its :attr:`Asset.id`.
-
-    Attributes
-    ----------
-    items
-        A list of the inventory's items.
-    owner
-        The owner of the inventory.
-    app
-        The app the inventory the app belongs to.
     """
 
     __slots__ = (
@@ -291,7 +264,9 @@ class Inventory(Generic[ItemT, OwnerT]):
     ):
         self._state = state
         self.owner = owner
+        """The owner of the inventory."""
         self.app = PartialApp(state, id=app.id, name=app.name)
+        """The app the inventory belongs to."""
         self._language = language
         self._update(data)
 
@@ -318,6 +293,7 @@ class Inventory(Generic[ItemT, OwnerT]):
 
     def _update(self, data: econ.GetInventoryItemsWithDescriptionsResponse) -> None:
         items: list[ItemT] = []
+        ItemClass: type[ItemT]
         try:  # ideally one day this will just be ItemT.__value__ or something
             (ItemClass,) = self.__orig_class__.__args__
         except AttributeError:
@@ -330,6 +306,7 @@ class Inventory(Generic[ItemT, OwnerT]):
             else:
                 items.append(Asset(self._state, asset=asset, owner=self.owner))  # type: ignore  # should never happen anyway
         self.items: Sequence[ItemT] = items
+        """A list of the inventory's items."""
 
     async def update(self) -> None:
         """Re-fetches the inventory and updates it inplace."""
@@ -346,23 +323,13 @@ class TradeOfferReceipt(NamedTuple, Generic[OwnerT]):
 
 
 class MovedItem(Item[OwnerT]):
-    """Represents an item that has moved from one inventory to another.
-
-    Attributes
-    ----------
-    new_id
-        The new_assetid field, this is the asset ID of the item in the partners inventory.
-    new_context_id
-        The new_contextid field.
-    """
+    """Represents an item that has moved from one inventory to another."""
 
     __slots__ = (
         "new_id",
         "new_context_id",
     )
     REPR_ATTRS = (*Item.REPR_ATTRS, "new_id", "new_context_id")
-    new_id: int
-    new_context_id: int
 
     def __init__(self, state: ConnectionState, data: trade.TradeOfferReceiptItem, owner: OwnerT):
         super().__init__(
@@ -372,7 +339,9 @@ class MovedItem(Item[OwnerT]):
             owner=owner,
         )
         self.new_id = int(data["new_assetid"])
+        """The new_assetid field, this is the asset ID of the item in the partners inventory."""
         self.new_context_id = int(data["new_contextid"])
+        """The new_contextid field."""
 
 
 class TradeOffer(Generic[ItemT, OwnerT]):
@@ -393,33 +362,6 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         The trade token used to send trades to users who aren't on the ClientUser's friend's list.
     message
          The offer message to send with the trade.
-
-    Attributes
-    ----------
-    partner
-        The trade offer partner. This should only ever be a :class:`steam.ID` if the partner's profile is private.
-    items_to_send
-        A list of items to send to the partner.
-    items_to_receive
-        A list of items to receive from the partner.
-    state
-        The offer state of the trade for the possible types see :class:`~steam.TradeOfferState`.
-    message
-        The message included with the trade offer.
-    id
-        The trade's offer ID.
-    created_at
-        The time at which the trade was created.
-    updated_at
-        The time at which the trade was last updated.
-    expires
-        The time at which the trade automatically expires.
-    escrow
-        The time at which the escrow will end. Can be ``None`` if there is no escrow on the trade.
-
-        Warning
-        -------
-        This isn't likely to be accurate, use :meth:`User.escrow` instead if possible.
     """
 
     __slots__ = (
@@ -441,6 +383,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
     )
 
     id: TradeOfferID
+    """The trade offer's ID."""
     partner: OwnerT
 
     @overload
@@ -478,11 +421,23 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         self.items_to_receive: Sequence[ItemT] = items_to_receive or ([item_to_receive] if item_to_receive else [])
         self.items_to_send: Sequence[ItemT] = items_to_send or ([item_to_send] if item_to_send else [])
         self.message: str | None = message or None
+        """The message included with the trade offer."""
         self.token: str | None = token
+        """The trade token used to send trades to users who aren't on the ClientUser's friend's list."""
         self.updated_at: datetime | None = None
+        """The time at which the trade was last updated."""
         self.created_at: datetime | None = None
+        """The time at which the trade was created."""
         self.escrow: timedelta | None = None
+        """
+        The time at which the escrow will end. Can be ``None`` if there is no escrow on the trade.
+
+        Warning
+        -------
+        This isn't likely to be accurate, use :meth:`User.escrow` instead if possible.
+        """
         self.state = TradeOfferState.Invalid
+        """The offer state of the trade for the possible types see :class:`~steam.TradeOfferState`."""
         self._id: int | None = None
         self._has_been_sent = False
 

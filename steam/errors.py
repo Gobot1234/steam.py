@@ -51,24 +51,15 @@ class HTTPException(SteamException):
     """Exception that's thrown for any web API error.
 
     Subclass of :exc:`SteamException`.
-
-    Attributes
-    ------------
-    response
-        The response of the failed HTTP request.
-    message
-        The message associated with the error.
-        Could be an empty string if no message can parsed.
-    status
-        The status code of the HTTP request.
-    code
-        The Steam specific error code for the failure.
     """
 
-    def __init__(self, response: ClientResponse, data: Any | None):
+    def __init__(self, response: ClientResponse, data: dict[str, Any] | Any | None):
         self.response = response
+        """The response of the failed HTTP request."""
         self.status = response.status
+        """The status code of the HTTP request."""
         self.code = Result.Invalid
+        """The Steam specific error code for the failure."""
 
         if data:
             if isinstance(data, dict):
@@ -78,29 +69,34 @@ class HTTPException(SteamException):
                         value for value in data.values() if value and isinstance(value, str)
                     ]:
                         message = str(truthy_str_values[0])
-                self.message = message or ""
-                if code := (
-                    data.get("eresult")  # try the data if possible
-                    or response.headers.get("X-EResult")  # then the headers
-                    or CODE_FINDER.findall(self.message)  # finally the message
-                ):
-                    if isinstance(code, list):
-                        self.message = CODE_FINDER.sub("", self.message)
-                        code = code[0]
-                    self.code = Result.try_value(int(code))
+                message = message or ""
+                code = data.get("eresult")
             else:
                 text = BeautifulSoup(data, HTML_PARSER).get_text("\n")
-                self.message = text or ""
+                message = text or ""
+                code = None
         else:
-            self.message = ""
+            message = ""
+            code = None
 
-        if response.headers.get("X-Error_Message"):
-            self.message = response.headers["X-Error_Message"]
+        if "X-Error_Message" in response.headers:
+            message = response.headers["X-Error_Message"]
 
-        self.message = self.message.replace("  ", " ").strip()
+        self.message = message.replace("  ", " ").strip()
+        """The message associated with the error. Could be an empty string if no message can parsed."""
+
+        if code := (
+            (code if code is not None else False)  # first the code
+            or response.headers.get("X-EResult")  # then the headers
+            or CODE_FINDER.findall(self.message)  # finally the message
+        ):
+            if isinstance(code, list):
+                message = CODE_FINDER.sub("", message)
+                code = code[0]
+            self.code = Result.try_value(int(code))
+
         super().__init__(
-            f"{response.status} {response.reason} (error code: {self.code})"
-            f"{f': {self.message}' if self.message else ''}"
+            f"{response.status} {response.reason} (error code: {self.code}){f': {self.message}' if self.message else ''}"
         )
 
 
@@ -122,24 +118,17 @@ class WSException(SteamException):
     """Exception that's thrown for any websocket error. Similar to :exc:`HTTPException`.
 
     Subclass of :exc:`SteamException`.
-
-    Attributes
-    ------------
-    msg
-        The received protobuf.
-    message
-        The message that Steam sent back with the request, could be ``None``.
-    code
-        The Steam specific error code for the failure.
     """
 
     def __init__(self, msg: Msgs):
         self.msg = msg
+        """The received protobuf."""
         self.code = msg.result
+        """The Steam specific error code for the failure."""
         self.message: str | None = getattr(msg.header, "error_message", None)
+        """The message that Steam sent back with the request, could be ``None``."""
         super().__init__(
-            f"The request {msg.header.job_name_target or msg.MSG} failed. (error code: {self.code!r})"
-            f"{f': {self.message}' if self.message else ''}"
+            f"The request {msg.header.job_name_target or msg.MSG} failed. (error code: {self.code!r}){f': {self.message}' if self.message else ''}"
         )
 
 
@@ -198,13 +187,9 @@ class InvalidID(SteamException):
     """Exception that's thrown when a Steam ID cannot be valid.
 
     Subclass of :exc:`SteamException`.
-
-    Attributes
-    ----------
-    id
-        The invalid id.
     """
 
     def __init__(self, id: Any, msg: str | None = None):
         self.id = id
+        """The invalid id."""
         super().__init__(f"{id!r} cannot be converted to any valid Steam ID{f' as {msg}' if msg is not None else ''}")

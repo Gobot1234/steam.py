@@ -13,7 +13,7 @@ from ._const import URL
 from .app import PartialApp
 from .bundle import PartialBundle
 from .clan import PartialClan
-from .enums import AppFlag, Language, PaymentMethod, ReviewType
+from .enums import AppType, Language, PaymentMethod, ReviewType
 from .models import CDNAsset
 from .package import PartialPackage
 from .protobufs import store
@@ -124,16 +124,16 @@ class StoreItem:
         self.created_at = DateTime.from_timestamp(proto.release.steam_release_date)
         proto.type = store.EStoreAppType(proto.type)  # TODO remove when enum redux pr is merged
         try:
-            self.type = AppFlag[proto.type.name]
+            self.type = AppType[proto.type.name]
         except KeyError:
-            self.type = AppFlag.try_value(proto.type)  # should be good enough
-        self.included_types: list[AppFlag] = []
+            self.type = AppType.try_value(proto.type)  # should be good enough
+        self.included_types: list[AppType] = []
         for included_type in proto.included_types:
             included_type = store.EStoreAppType(included_type)  # TODO remove when enum redux pr is merged
             try:
-                self.included_types.append(AppFlag[included_type.name])
+                self.included_types.append(AppType[included_type.name])
             except KeyError:
-                self.included_types.append(AppFlag.try_value(included_type))
+                self.included_types.append(AppType.try_value(included_type))
 
         self.related_parent_app = PartialApp(state, id=proto.related_items.parent_appid)
         self.tags = [StoreItemTag(tag.tagid, tag.weight) for tag in proto.tags]
@@ -204,7 +204,7 @@ class StoreItem:
         self.trailers = proto.trailers
         self.supported_languages = [Language.try_value(l) for l in proto.supported_languages]
         # self.store_url_path_override
-        self.free_weekend = proto.free_weekend if proto.free_weekend else None
+        self.free_weekend = proto.free_weekend or None
 
         self._free = proto.is_free
         self._early_access = proto.is_early_access

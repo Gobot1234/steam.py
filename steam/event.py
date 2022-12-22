@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, cast, overload
 from typing_extensions import TypeVar
 
 from . import utils
-from .abc import Commentable, _CommentableKwargs
+from .abc import Commentable, PartialUser, _CommentableKwargs
 from .app import App, PartialApp
 from .enums import EventType
 from .id import ID
@@ -40,7 +40,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         "id",
         "author",
         "name",
-        "content",
+        "description",
         "app",
         "starts_at",
         "becomes_visible",
@@ -65,33 +65,56 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
     # TODO keep checking if there is a way to get CClanEventData directly from ws
     def __init__(self, state: ConnectionState, clan: ClanT, data: dict[str, Any]):
         self._state = state
-        self.clan = clan
         self.id: int = int(data["gid"])
-        self.author: User | ID = ID(data["creator_steamid"])
-        edited_by = data.get("last_update_steamid")
-        self.last_edited_by: User | ID | None = ID(edited_by) if edited_by is not None else None
+        """The event's ID."""
         self.name: str = data["event_name"]
-        self.content: str = data["event_notes"]
+        """The event's name."""
+        self.author: User | PartialUser = PartialUser(state, data["creator_steamid"])
+        """The event's author."""
+        self.description: str = data["event_notes"]
+        """The event's description."""
         self.app = PartialApp(state, id=data["appid"]) if data["appid"] else None
+        """The app that the event is going to be played in."""
         self.type = cast(EventTypeT, EventType.try_value(data["event_type"]))
+        """The event's type."""
+        self.clan = clan
+        """The event's clan."""
 
         self.starts_at = DateTime.from_timestamp(data["rtime32_start_time"])
+        """The event's start time."""
         becomes_visible = data.get("rtime32_visibility_start")
         self.becomes_visible = DateTime.from_timestamp(becomes_visible) if becomes_visible else None
+        """The time at which the event becomes publicly visible."""
         stops_being_visible = data.get("rtime32_visibility_end")
         self.stops_being_visible = DateTime.from_timestamp(stops_being_visible) if stops_being_visible else None
+        """The time at which the event stops being publicly visible."""
         ends_at = data.get("rtime32_end_time")
         self.ends_at = DateTime.from_timestamp(ends_at) if ends_at else None
+        """The time at which the event ends."""
+
         last_edited_at = data.get("rtime32_last_modified")
         self.last_edited_at = DateTime.from_timestamp(last_edited_at) if last_edited_at else None
+        """The time the event was last edited at."""
+        edited_by = data.get("last_update_steamid")
+        self.last_edited_by: User | PartialUser | None = (
+            PartialUser(state, edited_by) if edited_by is not None else None
+        )
+        """The user last edited the event."""
 
         self.hidden = bool(data.get("hidden", 0))
+        """Whether the event is currently hidden."""
         self.published = bool(data.get("published", 1))
+        """Whether the event is currently published."""
         self.upvotes: int = data.get("votes_up", 0)
+        """The number of up votes on the event."""
         self.downvotes: int = data.get("votes_down", 0)
+        """The number of down votes on the event."""
         self.comment_count: int = data.get("comment_count", 0)
+        """The number of comments on the event."""
         self.server_address: str | None = data.get("server_address")
+        """The event's server address."""
         self.server_password: str | None = data.get("server_password")
+        """The event's server password."""
 
         self._feature = int(data["gidfeature"])
         self._feature2 = int(data.get("gidfeature2", 0) or 0)
@@ -114,51 +137,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
 
 
 class Event(BaseEvent[EventTypeT, ClanT]):
-    """Represents an event in a clan.
-
-    Attributes
-    ----------
-    id
-        The event's id.
-    author
-        The event's author.
-    name
-        The event's name.
-    content
-        The event's content.
-    app
-        The app that the event is going to play in.
-    clan
-        The event's clan.
-    starts_at
-        The event's start time.
-    becomes_visible
-        The time at which the event becomes visible.
-    stops_being_visible
-        The time at which the event stops being visible.
-    ends_at
-        The time at which the event ends.
-    type
-        The event's type.
-    last_edited_at
-        The time the event was last edited at.
-    last_edited_by
-        The user who made the event last edited.
-    hidden
-        Whether the event is currently hidden.
-    published
-        Whether the event is currently published.
-    upvotes
-        The number of up votes on the event.
-    downvotes
-        The number of down votes on the event.
-    comment_count
-        The number of comments on the event.
-    server_address
-        The event's server address.
-    server_password
-        The event's server password.
-    """
+    """Represents an event in a clan."""
 
     __slots__ = ()
 
@@ -296,7 +275,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         await self._state.http.edit_clan_event(
             self.clan.id64,
             name or self.name,
-            content or self.content,
+            content or self.description,
             f"{type_.name}Event",
             app_id or "",
             str(server_address),
@@ -305,7 +284,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
             event_id=self.id,
         )
         self.name = name or self.name
-        self.content = content or self.content
+        self.description = content or self.description
         self.type = type_
         self.server_address = server_address or None
         self.server_password = server_password or self.server_password
@@ -319,57 +298,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
 
 
 class Announcement(BaseEvent[EventType, ClanT]):
-    """Represents an announcement in a clan.
-
-    Attributes
-    ----------
-    id
-        The announcement's ID.
-    author
-        The announcement's author.
-    name
-        The announcement's name.
-    content
-        The announcement's content.
-    app
-        The app that the announcement is for.
-    clan
-        The announcement's clan.
-    starts_at
-        The announcement's start time.
-    becomes_visible
-        The time at which the announcement becomes visible.
-    stops_being_visible
-        The time at which the announcement stops being visible.
-    ends_at
-        The time at which the announcement ends.
-    type
-        The announcement's type.
-    last_edited_at
-        The time the announcement was last edited at.
-    last_edited_by
-        The user who made the announcement last edited.
-    hidden
-        Whether the announcement is currently hidden.
-    published
-        Whether the announcement is currently published.
-    upvotes
-        The number of up votes on the announcement.
-    downvotes
-        The number of down votes on the announcement.
-    comment_count
-        The number of comments on the announcement.
-    topic_id
-        The id of the forum post comments are sent to.
-    created_at
-        The time at which the announcement was created at.
-    updated_at
-        The time at which the announcement was last updated_at.
-    approved_at
-        The time at which the announcement was approved by a moderator.
-    tags
-        The announcement's tags.
-    """
+    """Represents an announcement in a clan."""
 
     __slots__ = (
         "topic_id",
@@ -387,11 +316,16 @@ class Announcement(BaseEvent[EventType, ClanT]):
         body: dict[str, Any] = data["announcement_body"]
         self.id: int = int(body["gid"])
         self.topic_id = int(data["forum_topic_id"]) if data["forum_topic_id"] else None
+        """The ID of the forum post comments are sent to."""
         self.created_at = DateTime.from_timestamp(body["posttime"])
+        """The time at which the announcement was created at."""
         self.updated_at = DateTime.from_timestamp(body["updatetime"])  # this is different to self.edited_at?
+        """The time at which the announcement was last updated_at."""
         self.approved_at = DateTime.from_timestamp(data["rtime_mod_reviewed"]) if data["rtime_mod_reviewed"] else None
-        self.content: str = body["body"]
+        """The time at which the announcement was approved by a moderator."""
+        self.description: str = body["body"]
         self.tags: Sequence[str] = body["tags"]
+        """The announcement's tags."""
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:

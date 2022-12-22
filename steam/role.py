@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 
 from typing_extensions import Self
 
+from .types.id import RoleID
+
 if TYPE_CHECKING:
     from .chat import Member
     from .clan import Clan
@@ -20,13 +22,22 @@ __all__ = (
 
 
 class Role:
+    """Represents a role in a chat group."""
+
     __slots__ = ("id", "name", "ordinal", "clan", "group", "permissions", "_state")
+    group: Group | None
+    """The group the role belongs to, if any."""
+    clan: Clan | None
+    """The clan the role belongs to, if any."""
 
     def __init__(self, state: ConnectionState, group: Clan | Group, role: chat.Role, permissions: chat.RoleActions):
         self._state = state
-        self.id = int(role.role_id)
+        self.id = RoleID(int(role.role_id))
+        """The ID of the role."""
         self.name = role.name.removeprefix("#ChatRoomRole_")
+        """The name of the role."""
         self.ordinal = role.ordinal
+        """The ordinal of the role."""
 
         from .clan import Clan
 
@@ -37,33 +48,45 @@ class Role:
             self.group = group
             self.clan = None
         self.permissions = RolePermissions(permissions)
+        """The permissions of the role."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
     @property
-    def members(self) -> list[Member]:
+    def _chat_group(self) -> Clan | Group:
         chat_group = self.clan or self.group
         assert chat_group is not None
-        return [m for m in chat_group.members if self in m.roles]
+        return chat_group
+
+    @property
+    def members(self) -> list[Member]:
+        """The members that have this role."""
+        return [m for m in self._chat_group.members if self in m.roles]
 
     async def edit(self, *, name: str | None = None, permissions: RolePermissions | None = None) -> None:
-        chat_group = self.group or self.clan
-        assert chat_group is not None
-        chat_group_id = chat_group._id
+        """Edit this role.
+
+        Parameters
+        ----------
+        name
+            The new name of the role.
+        permissions
+            The new permissions of the role.
+        """
         if name is not None:
-            await self._state.edit_role_name(self.id, chat_group_id, name=name)
+            await self._state.edit_role_name(self._chat_group._id, self.id, name=name)
         if permissions is not None:
-            await self._state.edit_role_permissions(self.id, chat_group_id, permissions=permissions)
+            await self._state.edit_role_permissions(self._chat_group._id, self.id, permissions=permissions)
 
     async def delete(self) -> None:
-        chat_group = self.group or self.clan
-        assert chat_group is not None
-        chat_group_id = chat_group._id
-        await self._state.delete_role(self.id, chat_group_id)
+        """Delete this role."""
+        await self._state.delete_role(self._chat_group._id, self.id)
 
 
 class RolePermissions:
+    """Represents the permissions of a role in a chat group."""
+
     __slots__ = (
         "kick",
         "ban_members",
@@ -79,15 +102,25 @@ class RolePermissions:
 
     def __init__(self, proto: chat.RoleActions):
         self.kick = proto.can_kick
+        """Whether the role can kick members."""
         self.ban_members = proto.can_ban
+        """Whether the role can ban members."""
         self.invite = proto.can_invite
+        """Whether the role can invite members."""
         self.manage_group = proto.can_change_tagline_avatar_name
+        """Whether the role can manage the group."""
         self.send_messages = proto.can_chat
+        """Whether the role can send messages."""
         self.read_message_history = proto.can_view_history
+        """Whether the role can read message history."""
         self.change_group_roles = proto.can_change_group_roles
+        """Whether the role can change group roles."""
         self.change_user_roles = proto.can_change_user_roles
+        """Whether the role can change user roles."""
         self.mention_all = proto.can_mention_all
+        """Whether the role can mention all."""
         self.set_watching_broadcast = proto.can_set_watching_broadcast
+        """Whether the role can set watching broadcast."""
 
     def copy(self) -> Self:
         return self.__class__(self.to_proto())

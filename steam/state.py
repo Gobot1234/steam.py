@@ -675,7 +675,7 @@ class ConnectionState(Registerable):
         msg = await fut
         return [self._store_user(member.persona) for member in msg.members]
 
-    async def edit_role_name(self, chat_group_id: ChatGroupID, role_id: int, name: str) -> None:
+    async def edit_role_name(self, chat_group_id: ChatGroupID, role_id: RoleID, name: str) -> None:
         msg: ProtobufMessage = await self.ws.send_um_and_wait(
             chat.RenameRoleRequest(chat_group_id=chat_group_id, role_id=role_id, name=name)
         )
@@ -685,7 +685,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     async def edit_role_permissions(
-        self, chat_group_id: ChatGroupID, role_id: int, permissions: RolePermissions
+        self, chat_group_id: ChatGroupID, role_id: RoleID, permissions: RolePermissions
     ) -> None:
         msg = await self.ws.send_um_and_wait(
             chat.ReplaceRoleActionsRequest(
@@ -699,7 +699,7 @@ class ConnectionState(Registerable):
         elif msg.result != Result.OK:
             raise WSException(msg)
 
-    async def delete_role(self, chat_group_id: ChatGroupID, role_id: int) -> None:
+    async def delete_role(self, chat_group_id: ChatGroupID, role_id: RoleID) -> None:
         msg = await self.ws.send_um_and_wait(chat.DeleteRoleRequest(chat_group_id=chat_group_id, role_id=role_id))
         if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)

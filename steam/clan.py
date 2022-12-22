@@ -290,37 +290,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         .. describe:: str(x)
 
             Returns the clan's name.
-
-    Attributes
-    ------------
-    name
-        The name of the clan.
-    content
-        The content of the clan.
-    tagline
-        The clan's tagline.
-    member_count
-        The amount of users in the clan.
-    online_count
-        The amount of users currently online.
-    active_member_count
-        The amount of currently users in the clan's chat room.
-    in_game_count
-        The amount of user's currently in game.
-    created_at
-        The time the clan was created_at.
-    language
-        The language set for the clan.
-    location
-        The location set for the clan.
-    app
-        The clan's associated app.
-    owner
-        The clan's owner.
-    admins
-        A list of the clan's administrators.
-    mods
-        A list of the clan's moderators.
     """
 
     __slots__ = (
@@ -347,15 +316,25 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     # or more likely https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L3177
 
     summary: str
+    """The summary of the clan."""
     created_at: datetime | None
+    """The time the clan was created at."""
     member_count: int
+    """The amount of users in the clan."""
     online_count: int
+    """The amount of users currently online."""
     in_game_count: int
+    """The amount of user's currently in game."""
     language: Language
+    """The language set for the clan."""
     location: str
+    """The location set for the clan."""
     mods: list[ClanMember]
+    """A list of the clan's moderators."""
     admins: list[ClanMember]
+    """A list of the clan's administrators."""
     is_app_clan: bool
+    """Whether the clan is an app clan."""
 
     def __init__(self, state: ConnectionState, id: Intable) -> None:
         PartialClan.__init__(self, state, id)

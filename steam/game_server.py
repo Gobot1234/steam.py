@@ -294,33 +294,7 @@ class ServerPlayer(NamedTuple):
 
 
 class GameServer(ID[Literal[Type.GameServer]]):
-    """Represents a game server.
-
-    Attributes
-    ----------
-    name
-        The name of the server.
-    app
-        The app of the server.
-    ip
-        The ip of the server.
-    port
-        The port of the server.
-    tags
-        The tags of the server.
-    map
-        The map the server is running.
-    bot_count
-        The number of bots in the server.
-    player_count
-        The number of players the server.
-    max_player_count
-        The maximum player count of the server.
-    region
-        The region the server is in.
-    version
-        The version of the server.
-    """
+    """Represents a game server."""
 
     __slots__ = (
         "name",
@@ -343,16 +317,27 @@ class GameServer(ID[Literal[Type.GameServer]]):
     def __init__(self, state: ConnectionState, server: GetServerListResponseServer):
         super().__init__(server.steamid, type=Type.GameServer)
         self.name = server.name
+        """The name of the server."""
         self.app = PartialApp(state, id=server.appid)
+        """The app of the server."""
         self.ip = IPv4Address(server.addr.rpartition(":")[0])
+        """The ip of the server."""
         self.port = server.gameport
+        """The port of the server."""
         self.tags = server.gametype.split(",")
+        """The tags of the server."""
         self.map = server.map
+        """The map the server is running."""
         self.bot_count = server.bots
+        """The number of bots in the server."""
         self.player_count = server.players
+        """The number of players the server."""
         self.max_player_count = server.max_players
+        """The maximum player count of the server."""
         self.region = GameServerRegion.try_value(server.region)
+        """The region the server is in."""
         self.version = server.version
+        """The version of the server."""
 
         self._secure = server.secure
         self._dedicated = server.dedicated

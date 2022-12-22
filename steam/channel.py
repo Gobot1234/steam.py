@@ -31,13 +31,7 @@ __all__ = (
 
 
 class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
-    """Represents the channel a DM is sent in.
-
-    Attributes
-    ----------
-    participant
-        The recipient of any messages sent.
-    """
+    """Represents the channel a DM is sent in."""
 
     __slots__ = ("participant",)
     clan: None
@@ -46,6 +40,7 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
     def __init__(self, state: ConnectionState, participant: User):
         super().__init__(state)
         self.participant = participant
+        """The recipient of any messages sent."""
         self.clan = None
         self.group = None
 
@@ -169,23 +164,7 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
 
 
 class GroupChannel(Chat[GroupMessage]):
-    """Represents a group channel.
-
-    Attributes
-    ----------
-    id
-        The ID of the channel.
-    name
-        The name of the channel, this could be the same as the :attr:`~steam.Group.name` if it's the main channel.
-    group
-        The group to which messages are sent.
-    joined_at
-        The time the client joined the chat.
-    position
-        The position of the channel in the channel list.
-    last_message
-        The last message sent in the channel.
-    """
+    """Represents a group channel."""
 
     clan: None
 
@@ -195,23 +174,7 @@ class GroupChannel(Chat[GroupMessage]):
 
 
 class ClanChannel(Chat[ClanMessage]):
-    """Represents a group channel.
-
-    Attributes
-    ----------
-    id
-        The ID of the channel.
-    name
-        The name of the channel, this could be the same as the :attr:`~steam.Clan.name` if it's the main channel.
-    clan
-        The clan to which messages are sent.
-    joined_at
-        The time the client joined the chat.
-    position
-        The position of the channel in the channel list.
-    last_message
-        The last message sent in the channel.
-    """
+    """Represents a clan channel."""
 
     group: None
 

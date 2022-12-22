@@ -20,7 +20,7 @@ __all__ = (
     "Universe",
     "Type",
     "TypeChar",
-    "InstanceFlag",
+    "Instance",
     "FriendRelationship",
     "PersonaState",
     "PersonaStateFlag",
@@ -36,7 +36,7 @@ __all__ = (
     "ProfileCustomisationStyle",
     "ProfileItemClass",
     "DepotFileFlag",
-    "AppFlag",
+    "AppType",
     "LicenseFlag",
     "LicenseType",
     "BillingType",
@@ -233,160 +233,313 @@ class Flags(IntEnum):
 
 # fmt: off
 class Result(IntEnum):
+    """The result of a Steam API call. Read more: :works:`api/steam_api#EResult`
+    """
     # these are a combination of https://partner.steamgames.com/doc/api/steam_api#EResult and https://steamerrors.com
-    Invalid                         = 0  #: Invalid Result.
-    OK                              = 1  #: Success.
-    Fail                            = 2  #: Generic failure.
-    NoConnection                    = 3  #: Your Steam client doesn't have a connection to the back-end.
-    InvalidPassword                 = 5  #: Password/ticket is invalid.
-    LoggedInElsewhere               = 6  #: Same user logged in elsewhere.
-    InvalidProtocolVersion          = 7  #: Protocol version is incorrect.
-    InvalidParameter                = 8  #: A parameter is incorrect.
-    FileNotFound                    = 9  #: File was not found.
-    Busy                            = 10  #: Called method busy - action not taken.
-    InvalidState                    = 11  #: Called object was in an invalid state.
-    InvalidName                     = 12  #: The name was invalid.
-    InvalidEmail                    = 13  #: The email was invalid.
-    DuplicateName                   = 14  #: The name is not unique.
-    AccessDenied                    = 15  #: Access is denied.
-    Timeout                         = 16  #: Operation timed out.
-    Banned                          = 17  #: VAC2 banned.
-    AccountNotFound                 = 18  #: Account not found.
-    InvalidSteamID                  = 19  #: The Steam ID was invalid.
-    ServiceUnavailable              = 20  #: The requested service is currently unavailable.
-    NotLoggedOn                     = 21  #: The user is not logged on.
-    Pending                         = 22  #: Request is pending (may be in process, or waiting on third party).
-    EncryptionFailure               = 23  #: Encryption or decryption failed.
-    InsufficientPrivilege           = 24  #: Insufficient privilege.
-    LimitExceeded                   = 25  #: Too much of a good thing.
-    Revoked                         = 26  #: Access has been revoked (used for revoked guest passes).
-    Expired                         = 27  #: License/Guest pass the user is trying to access is expired.
-    AlreadyRedeemed                 = 28  #: Guest pass has already been redeemed by account, cannot be acknowledged again.
-    DuplicateRequest                = 29  #: The request is a duplicate, ignored this time.
-    AlreadyOwned                    = 30  #: All the games in guest pass redemption request are already owned by the user.
-    IPNotFound                      = 31  #: IP address not found.
-    PersistFailed                   = 32  #: Failed to write change to the data store.
-    LockingFailed                   = 33  #: Failed to acquire access lock for this operation.
-    LogonSessionReplaced            = 34  #: The logon session has been replaced.
-    ConnectFailed                   = 35  #: Failed to connect.
-    HandshakeFailed                 = 36  #: The authentication handshake has failed.
-    IOFailure                       = 37  #: Generic IO failure.
-    RemoteDisconnect                = 38  #: The remote server has disconnected.
-    ShoppingCartNotFound            = 39  #: Failed to find the shopping cart requested.
-    Blocked                         = 40  #: A user blocked the action.
-    Ignored                         = 41  #: The target is ignoring sender.
-    NoMatch                         = 42  #: Nothing matching the request found.
-    AccountDisabled                 = 43  #: The account is disabled.
-    ServiceReadOnly                 = 44  #: This service is not accepting content changes right now.
-    AccountNotFeatured              = 45  #: Account doesn't have value, so this feature isn't available.
-    AdministratorOK                 = 46  #: Allowed to take this action, but only because requester is admin.
-    ContentVersion                  = 47  #: A Version mismatch in content transmitted within the Steam protocol.
-    TryAnotherCM                    = 48  #: The current CM can't service the user making a request, should try another.
-    PasswordRequiredToKickSession   = 49  #: You are already logged in elsewhere, this cached credential login has failed.
-    AlreadyLoggedInElsewhere        = 50  #: You are already logged in elsewhere, you must wait.
-    Suspended                       = 51  #: Long running operation (content download) suspended/paused.
-    Cancelled                       = 52  #: Operation canceled (typically by user content download).
-    DataCorruption                  = 53  #: Operation canceled because data is malformed or unrecoverable.
-    DiskFull                        = 54  #: Operation canceled - not enough disk space.
-    RemoteCallFailed                = 55  #: An remote call or IPC call failed.
-    ExternalAccountUnlinked         = 57  #: External account is not linked to a Steam account.
-    PSNTicketInvalid                = 58  #: PSN ticket was invalid.
-    ExternalAccountAlreadyLinked    = 59  #: External account is already linked to some other account.
-    RemoteFileConflict              = 60  #: The sync cannot resume due to a conflict between the local and remote files.
-    IllegalPassword                 = 61  #: The requested new password is not legal.
-    SameAsPreviousValue             = 62  #: New value is the same as the old one (secret question and answer).
-    AccountLogonDenied              = 63  #: Account login denied due to 2nd factor authentication failure.
-    CannotUseOldPassword            = 64  #: The requested new password is not legal.
-    InvalidLoginAuthCode            = 65  #: Account login denied due to auth code invalid.
-    AccountLogonDeniedNoMail        = 66  #: Account login denied due to 2nd factor authentication failure.
-    HardwareNotCapableOfIPT         = 67  #: The user's hardware does not support Intel's identity protection technology.
-    IPTInitError                    = 68  #: Intel's Identity Protection Technology has failed to initialize.
-    ParentalControlRestricted       = 69  #: Operation failed due to parental control restrictions for current user.
-    FacebookQueryError              = 70  #: Facebook query returned an error.
-    ExpiredLoginAuthCode            = 71  #: Account login denied due to auth code expired.
-    IPLoginRestrictionFailed        = 72  #: The login failed due to an IP restriction.
-    AccountLockedDown               = 73  #: The current users account is currently locked for use.
-    VerifiedEmailRequired           = 74  #: The logon failed because the accounts email is not verified.
-    NoMatchingURL                   = 75  #: There is no url matching the provided values.
-    BadResponse                     = 76  #: Parse failure, missing field, etc.
-    RequirePasswordReEntry          = 77  #: The user cannot complete the action until they re-enter their password.
-    ValueOutOfRange                 = 78  #: The value entered is outside the acceptable range.
-    UnexpectedError                 = 79  #: Something happened that we didn't expect to ever happen.
-    Disabled                        = 80  #: The requested service has been configured to be unavailable.
-    InvalidCEGSubmission            = 81  #: The set of files submitted to the CEG server are not valid.
-    RestrictedDevice                = 82  #: The device being used is not allowed to perform this action.
-    RegionLocked                    = 83  #: The action could not be complete because it is region restricted.
-    RateLimitExceeded               = 84  #: Temporary rate limit exceeded. Different from :attr:`LimitExceeded`.
-    LoginDeniedNeedTwoFactor        = 85  #: Need two-factor code to log in.
-    ItemDeleted                     = 86  #: The thing we're trying to access has been deleted.
-    AccountLoginDeniedThrottle      = 87  #: Login attempt failed, try to throttle response to possible attacker.
-    TwoFactorCodeMismatch           = 88  #: Two-factor code mismatch.
-    TwoFactorActivationCodeMismatch = 89  #: Activation code for two-factor didn't match.
-    NotModified                     = 91  #: Data not modified.
-    TimeNotSynced                   = 93  #: The time presented is out of range or tolerance.
-    SMSCodeFailed                   = 94  #: SMS code failure (no match, none pending, etc.).
-    AccountActivityLimitExceeded    = 96  #: Too many changes to this account.
-    PhoneActivityLimitExceeded      = 97  #: Too many changes to this phone.
-    RefundToWallet                  = 98  #: Cannot refund to payment method, must use wallet.
-    EmailSendFailure                = 99  #: Cannot send an email.
-    NotSettled                      = 100  #: Can't perform operation till payment has settled.
-    NeedCaptcha                     = 101  #: Needs to provide a valid captcha.
-    GSLTDenied                      = 102  #: A game server login token owned by this token's owner has been banned.
-    GSOwnerDenied                   = 103  #: Game server owner is denied for other reason.
-    InvalidItemType                 = 104  #: The type of thing we were requested to act on is invalid.
-    IPBanned                        = 105  #: The IP address has been banned from taking this action.
-    GSLTExpired                     = 106  #: This Game Server Login Token has expired from disuse; can be reset for use.
-    InsufficientFunds               = 107  #: User doesn't have enough wallet funds to complete the action.
-    TooManyPending                  = 108  #: There are too many of this thing pending already.
-    NoSiteLicensesFound             = 109  #: No site licenses found.
-    WGNetworkSendExceeded           = 110  #: The WG couldn't send a response because we exceeded max network send size.
-    AccountNotFriends               = 111  #: Not friends with the relevant account.
-    LimitedUserAccount              = 112  #: The account is limited and cannot perform this action.
-    CantRemoveItem                  = 113  #: Cannot remove the item.
-    AccountHasBeenDeleted           = 114  #: The relevant account has been deleted.
-    AccountHasCancelledLicense      = 115  #: The user has a user cancelled license.
-    DeniedDueToCommunityCooldown    = 116  #: The request was denied due to community cooldown.
-    NoLauncherSpecified             = 117  #: No launcher was specified.
-    MustAgreeToSSA                  = 118  #: User must agree to China SSA or global SSA before login.
-    LauncherMigrated                = 119  #: The specified launcher type is no longer supported.
-    SteamRealmMismatch              = 120  #: The user's realm does not match the realm of the requested resource.
-    InvalidSignature                = 121  #: Signature check did not match.
-    ParseFailure                    = 122  #: Failed to parse input.
-    NoVerifiedPhone                 = 123  #: Account does not have a verified phone number.
-    InsufficientBatteryCharge       = 124  #: The device battery is too low to complete the action.
+    Invalid                         = 0
+    """Invalid Result."""
+    OK                              = 1
+    """Success."""
+    Fail                            = 2
+    """Generic failure."""
+    NoConnection                    = 3
+    """Your Steam client doesn't have a connection to the back-end."""
+    InvalidPassword                 = 5
+    """Password/ticket is invalid."""
+    LoggedInElsewhere               = 6
+    """Same user logged in elsewhere."""
+    InvalidProtocolVersion          = 7
+    """Protocol version is incorrect."""
+    InvalidParameter                = 8
+    """A parameter is incorrect."""
+    FileNotFound                    = 9
+    """File was not found."""
+    Busy                            = 10
+    """Called method busy - action not taken."""
+    InvalidState                    = 11
+    """Called object was in an invalid state."""
+    InvalidName                     = 12
+    """The name was invalid."""
+    InvalidEmail                    = 13
+    """The email was invalid."""
+    DuplicateName                   = 14
+    """The name is not unique."""
+    AccessDenied                    = 15
+    """Access is denied."""
+    Timeout                         = 16
+    """Operation timed out."""
+    Banned                          = 17
+    """VAC2 banned."""
+    AccountNotFound                 = 18
+    """Account not found."""
+    InvalidSteamID                  = 19
+    """The Steam ID was invalid."""
+    ServiceUnavailable              = 20
+    """The requested service is currently unavailable."""
+    NotLoggedOn                     = 21
+    """The user is not logged on."""
+    Pending                         = 22
+    """Request is pending (may be in process, or waiting on third party)."""
+    EncryptionFailure               = 23
+    """Encryption or decryption failed."""
+    InsufficientPrivilege           = 24
+    """Insufficient privilege."""
+    LimitExceeded                   = 25
+    """Too much of a good thing."""
+    Revoked                         = 26
+    """Access has been revoked (used for revoked guest passes)."""
+    Expired                         = 27
+    """License/Guest pass the user is trying to access is expired."""
+    AlreadyRedeemed                 = 28
+    """Guest pass has already been redeemed by account, cannot be acknowledged again."""
+    DuplicateRequest                = 29
+    """The request is a duplicate, ignored this time."""
+    AlreadyOwned                    = 30
+    """All the games in guest pass redemption request are already owned by the user."""
+    IPNotFound                      = 31
+    """IP address not found."""
+    PersistFailed                   = 32
+    """Failed to write change to the data store."""
+    LockingFailed                   = 33
+    """Failed to acquire access lock for this operation."""
+    LogonSessionReplaced            = 34
+    """The logon session has been replaced."""
+    ConnectFailed                   = 35
+    """Failed to connect."""
+    HandshakeFailed                 = 36
+    """The authentication handshake has failed."""
+    IOFailure                       = 37
+    """Generic IO failure."""
+    RemoteDisconnect                = 38
+    """The remote server has disconnected."""
+    ShoppingCartNotFound            = 39
+    """Failed to find the shopping cart requested."""
+    Blocked                         = 40
+    """A user blocked the action."""
+    Ignored                         = 41
+    """The target is ignoring sender."""
+    NoMatch                         = 42
+    """Nothing matching the request found."""
+    AccountDisabled                 = 43
+    """The account is disabled."""
+    ServiceReadOnly                 = 44
+    """This service is not accepting content changes right now."""
+    AccountNotFeatured              = 45
+    """Account doesn't have value, so this feature isn't available."""
+    AdministratorOK                 = 46
+    """Allowed to take this action, but only because requester is admin."""
+    ContentVersion                  = 47
+    """A Version mismatch in content transmitted within the Steam protocol."""
+    TryAnotherCM                    = 48
+    """The current CM can't service the user making a request, should try another."""
+    PasswordRequiredToKickSession   = 49
+    """You are already logged in elsewhere, this cached credential login has failed."""
+    AlreadyLoggedInElsewhere        = 50
+    """You are already logged in elsewhere, you must wait."""
+    Suspended                       = 51
+    """Long running operation (content download) suspended/paused."""
+    Cancelled                       = 52
+    """Operation canceled (typically by user content download)."""
+    DataCorruption                  = 53
+    """Operation canceled because data is malformed or unrecoverable."""
+    DiskFull                        = 54
+    """Operation canceled - not enough disk space."""
+    RemoteCallFailed                = 55
+    """An remote call or IPC call failed."""
+    ExternalAccountUnlinked         = 57
+    """External account is not linked to a Steam account."""
+    PSNTicketInvalid                = 58
+    """PSN ticket was invalid."""
+    ExternalAccountAlreadyLinked    = 59
+    """External account is already linked to some other account."""
+    RemoteFileConflict              = 60
+    """The sync cannot resume due to a conflict between the local and remote files."""
+    IllegalPassword                 = 61
+    """The requested new password is not legal."""
+    SameAsPreviousValue             = 62
+    """New value is the same as the old one (secret question and answer)."""
+    AccountLogonDenied              = 63
+    """Account login denied due to 2nd factor authentication failure."""
+    CannotUseOldPassword            = 64
+    """The requested new password is not legal."""
+    InvalidLoginAuthCode            = 65
+    """Account login denied due to auth code invalid."""
+    AccountLogonDeniedNoMail        = 66
+    """Account login denied due to 2nd factor authentication failure."""
+    HardwareNotCapableOfIPT         = 67
+    """The user's hardware does not support Intel's identity protection technology."""
+    IPTInitError                    = 68
+    """Intel's Identity Protection Technology has failed to initialize."""
+    ParentalControlRestricted       = 69
+    """Operation failed due to parental control restrictions for current user."""
+    FacebookQueryError              = 70
+    """Facebook query returned an error."""
+    ExpiredLoginAuthCode            = 71
+    """Account login denied due to auth code expired."""
+    IPLoginRestrictionFailed        = 72
+    """The login failed due to an IP restriction."""
+    AccountLockedDown               = 73
+    """The current users account is currently locked for use."""
+    VerifiedEmailRequired           = 74
+    """The logon failed because the accounts email is not verified."""
+    NoMatchingURL                   = 75
+    """There is no url matching the provided values."""
+    BadResponse                     = 76
+    """Parse failure, missing field, etc."""
+    RequirePasswordReEntry          = 77
+    """The user cannot complete the action until they re-enter their password."""
+    ValueOutOfRange                 = 78
+    """The value entered is outside the acceptable range."""
+    UnexpectedError                 = 79
+    """Something happened that we didn't expect to ever happen."""
+    Disabled                        = 80
+    """The requested service has been configured to be unavailable."""
+    InvalidCEGSubmission            = 81
+    """The set of files submitted to the CEG server are not valid."""
+    RestrictedDevice                = 82
+    """The device being used is not allowed to perform this action."""
+    RegionLocked                    = 83
+    """The action could not be complete because it is region restricted."""
+    RateLimitExceeded               = 84
+    """Temporary rate limit exceeded. Different from :attr:`LimitExceeded`."""
+    LoginDeniedNeedTwoFactor        = 85
+    """Need two-factor code to log in."""
+    ItemDeleted                     = 86
+    """The thing we're trying to access has been deleted."""
+    AccountLoginDeniedThrottle      = 87
+    """Login attempt failed, try to throttle response to possible attacker."""
+    TwoFactorCodeMismatch           = 88
+    """Two-factor code mismatch."""
+    TwoFactorActivationCodeMismatch = 89
+    """Activation code for two-factor didn't match."""
+    NotModified                     = 91
+    """Data not modified."""
+    TimeNotSynced                   = 93
+    """The time presented is out of range or tolerance."""
+    SMSCodeFailed                   = 94
+    """SMS code failure (no match, none pending, etc.)."""
+    AccountActivityLimitExceeded    = 96
+    """Too many changes to this account."""
+    PhoneActivityLimitExceeded      = 97
+    """Too many changes to this phone."""
+    RefundToWallet                  = 98
+    """Cannot refund to payment method, must use wallet."""
+    EmailSendFailure                = 99
+    """Cannot send an email."""
+    NotSettled                      = 100
+    """Can't perform operation till payment has settled."""
+    NeedCaptcha                     = 101
+    """Needs to provide a valid captcha."""
+    GSLTDenied                      = 102
+    """A game server login token owned by this token's owner has been banned."""
+    GSOwnerDenied                   = 103
+    """Game server owner is denied for other reason."""
+    InvalidItemType                 = 104
+    """The type of thing we were requested to act on is invalid."""
+    IPBanned                        = 105
+    """The IP address has been banned from taking this action."""
+    GSLTExpired                     = 106
+    """This Game Server Login Token has expired from disuse; can be reset for use."""
+    InsufficientFunds               = 107
+    """User doesn't have enough wallet funds to complete the action."""
+    TooManyPending                  = 108
+    """There are too many of this thing pending already."""
+    NoSiteLicensesFound             = 109
+    """No site licenses found."""
+    WGNetworkSendExceeded           = 110
+    """The WG couldn't send a response because we exceeded max network send size."""
+    AccountNotFriends               = 111
+    """Not friends with the relevant account."""
+    LimitedUserAccount              = 112
+    """The account is limited and cannot perform this action."""
+    CantRemoveItem                  = 113
+    """Cannot remove the item."""
+    AccountHasBeenDeleted           = 114
+    """The relevant account has been deleted."""
+    AccountHasCancelledLicense      = 115
+    """The user has a user cancelled license."""
+    DeniedDueToCommunityCooldown    = 116
+    """The request was denied due to community cooldown."""
+    NoLauncherSpecified             = 117
+    """No launcher was specified."""
+    MustAgreeToSSA                  = 118
+    """User must agree to China SSA or global SSA before login."""
+    LauncherMigrated                = 119
+    """The specified launcher type is no longer supported."""
+    SteamRealmMismatch              = 120
+    """The user's realm does not match the realm of the requested resource."""
+    InvalidSignature                = 121
+    """Signature check did not match."""
+    ParseFailure                    = 122
+    """Failed to parse input."""
+    NoVerifiedPhone                 = 123
+    """Account does not have a verified phone number."""
+    InsufficientBatteryCharge       = 124
+    """The device battery is too low to complete the action."""
 
 
 class Language(IntEnum):
+    """The language for a request."""
     NONE                        = -1
+    """No language specified."""
     English                     = 0
+    """English."""
     German                      = 1
+    """German."""
     French                      = 2
+    """French."""
     Italian                     = 3
+    """Italian."""
     Korean                      = 4
+    """Korean."""
     Spanish                     = 5
+    """Spanish."""
     SimplifiedChinese           = 6
+    """Simplified Chinese."""
     TraditionalChinese          = 7
+    """Traditional Chinese."""
     Russian                     = 8
+    """Russian."""
     Thai                        = 9
+    """Thai."""
     Japanese                    = 10
+    """Japanese."""
     Portuguese                  = 11
+    """Portuguese."""
     Polish                      = 12
+    """Polish."""
     Danish                      = 13
+    """Danish."""
     Dutch                       = 14
+    """Dutch."""
     Finnish                     = 15
+    """Finnish."""
     Norwegian                   = 16
+    """Norwegian."""
     Swedish                     = 17
+    """Swedish."""
     Romanian                    = 18
+    """Romanian."""
     Turkish                     = 19
+    """Turkish."""
     Hungarian                   = 20
+    """Hungarian."""
     Czech                       = 21
+    """Czech."""
     PortugueseBrazil            = 22
+    """Brazilian Portuguese."""
     Bulgarian                   = 23
+    """Bulgarian."""
     Greek                       = 24
+    """Greek."""
     Arabic                      = 25
+    """Arabic."""
     Ukrainian                   = 26
+    """Ukrainian."""
     SpanishLatinAmerican        = 27
+    """Latin American Spanish."""
     Vietnamese                  = 28
+    """Vietnamese."""
     # SteamChinaSimplifiedChinese = 29  # not including until this appears on Steamworks
 
     @classproperty
@@ -533,47 +686,83 @@ _REVERSE_WEB_API_MAP: Final = cast(
 
 
 class Universe(IntEnum):
-    Invalid  = 0  #: Invalid.
-    Public   = 1  #: The standard public universe.
-    Beta     = 2  #: Beta universe used inside Valve.
-    Internal = 3  #: Internal universe used inside Valve.
-    Dev      = 4  #: Dev universe used inside Valve.
+    """Steam universes. Each universe is a self-contained Steam instance."""
+    Invalid  = 0
+    """Invalid."""
+    Public   = 1
+    """The standard public universe."""
+    Beta     = 2
+    """Beta universe used inside Valve."""
+    Internal = 3
+    """Internal universe used inside Valve."""
+    Dev      = 4
+    """Dev universe used inside Valve."""
 
 
 class Type(IntEnum):
-    Invalid        = 0   #: Used for invalid Steam IDs.
-    Individual     = 1   #: Single user account.
-    Multiseat      = 2   #: Multiseat (e.g. cybercafe) account.
-    GameServer     = 3   #: Game server account.
-    AnonGameServer = 4   #: Anonymous game server account.
-    Pending        = 5   #: Pending.
-    ContentServer  = 6   #: Valve internal content server account.
-    Clan           = 7   #: Steam clan.
-    Chat           = 8   #: Steam group chat or lobby.
-    ConsoleUser    = 9   #: Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
-    AnonUser       = 10  #: Anonymous user account. (Used to create an account or reset a password)
+    """Steam account types."""
+    Invalid        = 0
+    """Used for invalid Steam IDs."""
+    Individual     = 1
+    """Single user account."""
+    Multiseat      = 2
+    """Multiseat (e.g. cybercafe) account."""
+    GameServer     = 3
+    """Game server account."""
+    AnonGameServer = 4
+    """Anonymous game server account."""
+    Pending        = 5
+    """Pending."""
+    ContentServer  = 6
+    """Valve internal content server account."""
+    Clan           = 7
+    """Steam clan."""
+    Chat           = 8
+    """Steam group chat or lobby."""
+    ConsoleUser    = 9
+    """Fake SteamID for local PSN account on PS3 or Live account on 360, etc."""
+    AnonUser       = 10
+    """Anonymous user account. (Used to create an account or reset a password)"""
 
 
 class TypeChar(IntEnum):
-    I = Type.Invalid         #: The character used for :class:`~steam.Type.Invalid`.
-    U = Type.Individual      #: The character used for :class:`~steam.Type.Individual`.
-    M = Type.Multiseat       #: The character used for :class:`~steam.Type.Multiseat`.
-    G = Type.GameServer      #: The character used for :class:`~steam.Type.GameServer`.
-    A = Type.AnonGameServer  #: The character used for :class:`~steam.Type.AnonGameServer`.
-    P = Type.Pending         #: The character used for :class:`~steam.Type.Pending`.
-    C = Type.ContentServer   #: The character used for :class:`~steam.Type.ContentServer`.
-    g = Type.Clan            #: The character used for :class:`~steam.Type.Clan`.
-    T = Type.Chat            #: The character used for :class:`~steam.Type.Chat` (Lobby/group chat).
-    L = Type.Chat            #: The character used for :class:`~steam.Type.Chat` (Lobby/group chat).
-    c = Type.Clan            #: The character used for :class:`~steam.Type.Clan`.
-    a = Type.AnonUser        #: The character used for :class:`~steam.Type.AnonUser`.
+    """Steam account type characters."""
+    I = Type.Invalid
+    """The character used for :class:`~steam.Type.Invalid`."""
+    U = Type.Individual
+    """The character used for :class:`~steam.Type.Individual`."""
+    M = Type.Multiseat
+    """The character used for :class:`~steam.Type.Multiseat`."""
+    G = Type.GameServer
+    """The character used for :class:`~steam.Type.GameServer`."""
+    A = Type.AnonGameServer
+    """The character used for :class:`~steam.Type.AnonGameServer`."""
+    P = Type.Pending
+    """The character used for :class:`~steam.Type.Pending`."""
+    C = Type.ContentServer
+    """The character used for :class:`~steam.Type.ContentServer`."""
+    g = Type.Clan
+    """The character used for :class:`~steam.Type.Clan`."""
+    T = Type.Chat
+    """The character used for :class:`~steam.Type.Chat` (Lobby/group chat)."""
+    L = Type.Chat
+    """The character used for :class:`~steam.Type.Chat` (Lobby/group chat)."""
+    c = Type.Clan
+    """The character used for :class:`~steam.Type.Clan`."""
+    a = Type.AnonUser
+    """The character used for :class:`~steam.Type.AnonUser`."""
 
 
-class InstanceFlag(Flags):
-    All          = 0         #: The Instance for all Steam IDs
-    Desktop      = 1 << 0    #: The Instance for desktop Steam IDs
-    Console      = 1 << 1    #: The Instance for console  Steam IDs
-    Web          = 1 << 2    #: The Instance for web Steam IDs
+class Instance(Flags):
+    """Steam account instance flags."""
+    All          = 0
+    """The Instance for all Steam IDs"""
+    Desktop      = 1 << 0
+    """The Instance for desktop Steam IDs"""
+    Console      = 1 << 1
+    """The Instance for console  Steam IDs"""
+    Web          = 1 << 2
+    """The Instance for web Steam IDs"""
     # I have observed these flags for game servers, but I don't know what they are
     Unknown1     = 1 << 3
     Unknown2     = 1 << 4
@@ -593,65 +782,114 @@ class InstanceFlag(Flags):
     # 20475 -> 1 | 2 |   | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 16384
     # 20476 ->   |   | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 16384
     # Type.Chat exclusive flags
-    ChatMMSLobby = 1 << 17  #: The Steam ID is for an MMS Lobby.
-    ChatLobby    = 1 << 18  #: The Steam ID is for a Lobby.
-    ChatClan     = 1 << 19  #: The Steam ID is for a Clan.
+    ChatMMSLobby = 1 << 17
+    """The Steam ID is for an MMS Lobby."""
+    ChatLobby    = 1 << 18
+    """The Steam ID is for a Lobby."""
+    ChatClan     = 1 << 19
+    """The Steam ID is for a Clan."""
 
 
 class FriendRelationship(IntEnum):
-    NONE             = 0  #: The user has no relationship to you.
-    Blocked          = 1  #: The user has been blocked.
-    RequestRecipient = 2  #: The user has requested to be friends with you.
-    Friend           = 3  #: The user is friends with you.
-    RequestInitiator = 4  #: You have requested to be friends with the user.
-    Ignored          = 5  #: You have explicitly blocked this other user from comments/chat/etc.
-    IgnoredFriend    = 6  #: The user has ignored the current user.
+    """The relationship between a user and another user."""
+    NONE             = 0
+    """The user has no relationship to you."""
+    Blocked          = 1
+    """The user has been blocked."""
+    RequestRecipient = 2
+    """The user has requested to be friends with you."""
+    Friend           = 3
+    """The user is friends with you."""
+    RequestInitiator = 4
+    """You have requested to be friends with the user."""
+    Ignored          = 5
+    """You have explicitly blocked this other user from comments/chat/etc."""
+    IgnoredFriend    = 6
+    """The user has ignored the current user."""
 
 
 class PersonaState(IntEnum):
-    Offline        = 0  #: The user is not currently logged on.
-    Online         = 1  #: The user is logged on.
-    Busy           = 2  #: The user is on, but busy.
-    Away           = 3  #: The user has been marked as AFK for a short period of time.
-    Snooze         = 4  #: The user has been marked as AFK for a long period of time.
-    LookingToTrade = 5  #: The user is online and wanting to trade.
-    LookingToPlay  = 6  #: The user is online and wanting to play.
-    Invisible      = 7  #: The user is invisible.
+    """The status of a user."""
+    Offline        = 0
+    """The user is not currently logged on."""
+    Online         = 1
+    """The user is logged on."""
+    Busy           = 2
+    """The user is on, but busy."""
+    Away           = 3
+    """The user has been marked as AFK for a short period of time."""
+    Snooze         = 4
+    """The user has been marked as AFK for a long period of time."""
+    LookingToTrade = 5
+    """The user is online and wanting to trade."""
+    LookingToPlay  = 6
+    """The user is online and wanting to play."""
+    Invisible      = 7
+    """The user is invisible."""
 
 
 class PersonaStateFlag(Flags):
+    """The persona state flags for a user."""
     NONE                 = 0
+    """The user has no persona state flags."""
     HasRichPresence      = 1 << 0
+    """The user has a rich presence string."""
     InJoinableGame       = 1 << 1
+    """The user is in a game and the game has a joinable lobby."""
     Golden               = 1 << 2
+    """The user has a golden username and "avatar frame" (this was before avatar frames)."""
     RemotePlayTogether   = 1 << 3
+    """The user is playing a game that supports remote play together."""
     ClientTypeWeb        = 1 << 4
+    """The user is using the Steam Web App."""
     ClientTypeMobile     = 1 << 8
+    """The user is using the Steam Mobile App."""
     ClientTypeTenfoot    = 1 << 10
+    """The user is using Steam Big Picture."""
     ClientTypeVR         = 1 << 11
+    """The user is using the Steam VR App."""
     LaunchTypeGamepad    = 1 << 12
+    """The user is using a gamepad."""
     LaunchTypeCompatTool = 1 << 13
+    """The user is using a compatibility tool."""
 
 
 class CommunityVisibilityState(IntEnum):
-    NONE        = 0  #: The user has no community state.
-    Private     = 1  #: The user has a private profile.
-    FriendsOnly = 2  #: The user has a friends only profile.
-    Public      = 3  #: The user has a public profile.
+    """The visibility of a user's community profile."""
+    NONE        = 0
+    """The user has no community state."""
+    Private     = 1
+    """The user has a private profile."""
+    FriendsOnly = 2
+    """The user has a friends only profile."""
+    Public      = 3
+    """The user has a public profile."""
 
 
 class TradeOfferState(IntEnum):
-    Invalid                   = 1   #: The trade offer's state is invalid.
-    Active                    = 2   #: The trade offer is active.
-    Accepted                  = 3   #: The trade offer has been accepted.
-    Countered                 = 4   #: The trade offer has been countered.
-    Expired                   = 5   #: The trade offer has expired.
-    Canceled                  = 6   #: The trade offer has been cancelled.
-    Declined                  = 7   #: The trade offer has be declined by the partner.
-    InvalidItems              = 8   #: The trade offer has invalid items and has been cancelled.
-    ConfirmationNeed          = 9   #: The trade offer needs confirmation.
-    CanceledBySecondaryFactor = 10  #: The trade offer was cancelled by second factor.
-    StateInEscrow             = 11  #: The trade offer is in escrow.
+    """The state of a trade offer."""
+    Invalid                   = 1
+    """The trade offer's state is invalid."""
+    Active                    = 2
+    """The trade offer is active."""
+    Accepted                  = 3
+    """The trade offer has been accepted."""
+    Countered                 = 4
+    """The trade offer has been countered."""
+    Expired                   = 5
+    """The trade offer has expired."""
+    Canceled                  = 6
+    """The trade offer has been cancelled."""
+    Declined                  = 7
+    """The trade offer has be declined by the partner."""
+    InvalidItems              = 8
+    """The trade offer has invalid items and has been cancelled."""
+    ConfirmationNeed          = 9
+    """The trade offer needs confirmation."""
+    CanceledBySecondaryFactor = 10
+    """The trade offer was cancelled by second factor."""
+    StateInEscrow             = 11
+    """The trade offer is in escrow."""
 
     @property
     def event_name(self) -> str | None:
@@ -669,126 +907,233 @@ class TradeOfferState(IntEnum):
 
 
 class ChatMemberRank(IntEnum):
+    """The rank of a chat member."""
     Default = 0
+    """Default rank for a chat member."""
     Viewer = 10
+    """Viewer rank for a chat member."""
     Guest = 15
+    """Guest rank for a chat member."""
     Member = 20
+    """Member rank for a chat member."""
     Moderator = 30
+    """Moderator rank for a chat member."""
     Officer = 40
+    """Officer rank for a chat member."""
     Owner = 50
-    TestInvalid = 99
+    """Owner rank for a chat member."""
 
 
 class ChatEntryType(IntEnum):
-    Invalid          = 0   #: An Invalid Chat entry.
-    Text             = 1   #: A Normal text message from another user.
-    Typing           = 2   #: Another user is typing (not used in multi-user chat).
-    InviteGame       = 3   #: An Invite from other user into that users current game.
-    LeftConversation = 6   #: A user has left the conversation.
-    Entered          = 7   #: A user has entered the conversation (used in multi-user chat and group chat).
-    WasKicked        = 8   #: A user was kicked.
-    WasBanned        = 9   #: A user was banned.
-    Disconnected     = 10  #: A user disconnected.
-    HistoricalChat   = 11  #: A chat message from user's chat history or offline message.
-    LinkBlocked      = 14  #: A link was removed by the chat filter.
+    """The type of chat entry."""
+    Invalid          = 0
+    """An Invalid Chat entry."""
+    Text             = 1
+    """A Normal text message from another user."""
+    Typing           = 2
+    """Another user is typing (not used in multi-user chat)."""
+    InviteGame       = 3
+    """An Invite from other user into that users current game."""
+    LeftConversation = 6
+    """A user has left the conversation."""
+    Entered          = 7
+    """A user has entered the conversation (used in multi-user chat and group chat)."""
+    WasKicked        = 8
+    """A user was kicked."""
+    WasBanned        = 9
+    """A user was banned."""
+    Disconnected     = 10
+    """A user disconnected."""
+    HistoricalChat   = 11
+    """A chat message from user's chat history or offline message."""
+    LinkBlocked      = 14
+    """A link was removed by the chat filter."""
 
 
 class UIMode(IntEnum):
-    Desktop    = 0  #: The UI mode for the desktop client.
-    BigPicture = 1  #: The UI mode for big picture mode.
-    Mobile     = 2  #: The UI mode for mobile.
-    Web        = 3  #: The UI mode for the web client.
+    """The UI mode for a client."""
+    Desktop    = 0
+    """The UI mode for the desktop client."""
+    BigPicture = 1
+    """The UI mode for big picture mode."""
+    Mobile     = 2
+    """The UI mode for mobile."""
+    Web        = 3
+    """The UI mode for the web client."""
 
 
 class ReviewType(IntEnum):
-    NONE                   = 0  #: No reviews.
-    OverwhelminglyNegative = 1  #: 0 - 19% positive reviews and few of them.
-    VeryNegative           = 2  #: 0 - 19% positive reviews.
-    Negative               = 3  #: 0 - 39% positive reviews.
-    MostlyNegative         = 4  #: 20 - 39% positive reviews but few of them.
-    Mixed                  = 5  #: 40 - 69% positive reviews.
-    MostlyPositive         = 6  #: 70 - 79% positive reviews.
-    Positive               = 7  #: 80 - 100% positive reviews but few of them.
-    VeryPositive           = 8  #: 94 - 80% positive reviews.
-    OverwhelminglyPositive = 9  #: 95 - 100% positive reviews.
+    """The type of review."""
+    NONE                   = 0
+    """No reviews."""
+    OverwhelminglyNegative = 1
+    """0 - 19% positive reviews and few of them."""
+    VeryNegative           = 2
+    """0 - 19% positive reviews."""
+    Negative               = 3
+    """0 - 39% positive reviews."""
+    MostlyNegative         = 4
+    """20 - 39% positive reviews but few of them."""
+    Mixed                  = 5
+    """40 - 69% positive reviews."""
+    MostlyPositive         = 6
+    """70 - 79% positive reviews."""
+    Positive               = 7
+    """80 - 100% positive reviews but few of them."""
+    VeryPositive           = 8
+    """94 - 80% positive reviews."""
+    OverwhelminglyPositive = 9
+    """95 - 100% positive reviews."""
 
 
 class GameServerRegion(IntEnum):
-    NONE         = -1   #: No set game region.
-    USEastCoast  = 0    #: A server on the USA's East Coast.
-    USWestCoast  = 1    #: A server on the USA's West Coast.
-    SouthAmerica = 2    #: A server in South America.
-    Europe       = 3    #: A server in Europe.
-    Asia         = 4    #: A server in Asia.
-    Australia    = 5    #: A server in Australia.
-    MiddleEast   = 6    #: A server in the Middle East.
-    Africa       = 7    #: A server in Africa.
-    World        = 255  #: A server somewhere in the world.
+    """The region of a game server."""
+    NONE         = -1
+    """No set game region."""
+    USEastCoast  = 0
+    """A server on the USA's East Coast."""
+    USWestCoast  = 1
+    """A server on the USA's West Coast."""
+    SouthAmerica = 2
+    """A server in South America."""
+    Europe       = 3
+    """A server in Europe."""
+    Asia         = 4
+    """A server in Asia."""
+    Australia    = 5
+    """A server in Australia."""
+    MiddleEast   = 6
+    """A server in the Middle East."""
+    Africa       = 7
+    """A server in Africa."""
+    World        = 255
+    """A server somewhere in the world."""
 
 
 class EventType(IntEnum):
-    Other                  = 1  #: An unspecified event.
-    Game                   = 2  #: A game event.
-    Party                  = 3  #: A party event.
-    Meeting                = 4  #: An important meeting.
-    SpecialCause           = 5  #: An event for a special cause.
-    MusicAndArts           = 6  #: A music or art event.
-    Sports                 = 7  #: A sporting event.
-    Trip                   = 8  #: A clan trip.
-    Chat                   = 9  #: A chat event.
-    GameRelease            = 10  #: A game release event.
-    Broadcast              = 11  #: A broadcast event.
-    SmallUpdate            = 12  #: A small update event.
-    PreAnnounceMajorUpdate = 13  #: A pre-announcement for a major update event.
-    MajorUpdate            = 14  #: A major update event.
-    DLCRelease             = 15  #: A dlc release event.
-    FutureRelease          = 16  #: A future release event.
-    ESportTournamentStream = 17  #: An e-sport tournament stream event.
-    DevStream              = 18  #: A developer stream event.
-    FamousStream           = 19  #: A famous stream event.
-    GameSales              = 20  #: A game sales event.
-    GameItemSales          = 21  #: A game item sales event.
-    InGameBonusXP          = 22  #: An in game bonus xp event.
-    InGameLoot             = 23  #: An in game loot event.
-    InGamePerks            = 24  #: An in game perks event.
-    InGameChallenge        = 25  #: An in game challenge event.
-    InGameContest          = 26  #: An in game contest event.
-    IRL                    = 27  #: An in real life event.
-    News                   = 28  #: A news event.
-    BetaRelease            = 29  #: A beta release event.
-    InGameContentRelease   = 30  #: An in game content release event.
-    FreeTrial              = 31  #: A free trial event.
-    SeasonRelease          = 32  #: A season release event.
-    SeasonUpdate           = 33  #: A season update event.
-    Crosspost              = 34  #: A cross post event.
-    InGameGeneral          = 35  #: An in game general event.
+    """The type of an event."""
+    Other                  = 1
+    """An unspecified event."""
+    Game                   = 2
+    """A game event."""
+    Party                  = 3
+    """A party event."""
+    Meeting                = 4
+    """An important meeting."""
+    SpecialCause           = 5
+    """An event for a special cause."""
+    MusicAndArts           = 6
+    """A music or art event."""
+    Sports                 = 7
+    """A sporting event."""
+    Trip                   = 8
+    """A clan trip."""
+    Chat                   = 9
+    """A chat event."""
+    GameRelease            = 10
+    """A game release event."""
+    Broadcast              = 11
+    """A broadcast event."""
+    SmallUpdate            = 12
+    """A small update event."""
+    PreAnnounceMajorUpdate = 13
+    """A pre-announcement for a major update event."""
+    MajorUpdate            = 14
+    """A major update event."""
+    DLCRelease             = 15
+    """A dlc release event."""
+    FutureRelease          = 16
+    """A future release event."""
+    ESportTournamentStream = 17
+    """An e-sport tournament stream event."""
+    DevStream              = 18
+    """A developer stream event."""
+    FamousStream           = 19
+    """A famous stream event."""
+    GameSales              = 20
+    """A game sales event."""
+    GameItemSales          = 21
+    """A game item sales event."""
+    InGameBonusXP          = 22
+    """An in game bonus xp event."""
+    InGameLoot             = 23
+    """An in game loot event."""
+    InGamePerks            = 24
+    """An in game perks event."""
+    InGameChallenge        = 25
+    """An in game challenge event."""
+    InGameContest          = 26
+    """An in game contest event."""
+    IRL                    = 27
+    """An in real life event."""
+    News                   = 28
+    """A news event."""
+    BetaRelease            = 29
+    """A beta release event."""
+    InGameContentRelease   = 30
+    """An in game content release event."""
+    FreeTrial              = 31
+    """A free trial event."""
+    SeasonRelease          = 32
+    """A season release event."""
+    SeasonUpdate           = 33
+    """A season update event."""
+    Crosspost              = 34
+    """A cross post event."""
+    InGameGeneral          = 35
+    """An in game general event."""
 
 
 class ProfileItemType(IntEnum):
-    Invalid                   = 0   #: An invalid item type.
-    RareAchievementShowcase   = 1   #: A rare achievements showcase.
-    GameCollector             = 2   #: A game collector section.
-    ItemShowcase              = 3   #: An item showcase.
-    TradeShowcase             = 4   #: A trade info showcase.
-    Badges                    = 5   #: A badges showcase.
-    FavouriteGame             = 6   #: A favourite game section.
-    ScreenshotShowcase        = 7   #: A screenshot showcase.
-    CustomText                = 8   #: A custom text section.
-    FavouriteGroup            = 9   #: A favourite game showcase.
-    Recommendation            = 10  #: A review showcase.
-    WorkshopItem              = 11  #: A workshop item showcase.
-    MyWorkshop                = 12  #: A showcase of a workshop item made by profile's owner.
-    ArtworkShowcase           = 13  #: An artwork showcase.
-    VideoShowcase             = 14  #: A video showcase.
-    Guides                    = 15  #: A guide showcase.
-    MyGuides                  = 16  #: A showcase of the profile's owner's guides.
-    Achievements              = 17  #: The owner's profile's achievements.
-    Greenlight                = 18  #: A greenlight showcase.
-    MyGreenlight              = 19  #: A showcase of a greenlight game the profiles' owner has made.
-    Salien                    = 20  #: A salien showcase.
-    LoyaltyRewardReactions    = 21  #: A loyalty reward showcase.
-    SingleArtworkShowcase     = 22  #: A single artwork showcase.
-    AchievementsCompletionist = 23  #: An achievements completeionist showcase.
+    """The type of profile item."""
+    Invalid                   = 0
+    """An invalid item type."""
+    RareAchievementShowcase   = 1
+    """A rare achievements showcase."""
+    GameCollector             = 2
+    """A game collector section."""
+    ItemShowcase              = 3
+    """An item showcase."""
+    TradeShowcase             = 4
+    """A trade info showcase."""
+    Badges                    = 5
+    """A badges showcase."""
+    FavouriteGame             = 6
+    """A favourite game section."""
+    ScreenshotShowcase        = 7
+    """A screenshot showcase."""
+    CustomText                = 8
+    """A custom text section."""
+    FavouriteGroup            = 9
+    """A favourite game showcase."""
+    Recommendation            = 10
+    """A review showcase."""
+    WorkshopItem              = 11
+    """A workshop item showcase."""
+    MyWorkshop                = 12
+    """A showcase of a workshop item made by profile's owner."""
+    ArtworkShowcase           = 13
+    """An artwork showcase."""
+    VideoShowcase             = 14
+    """A video showcase."""
+    Guides                    = 15
+    """A guide showcase."""
+    MyGuides                  = 16
+    """A showcase of the profile's owner's guides."""
+    Achievements              = 17
+    """The owner's profile's achievements."""
+    Greenlight                = 18
+    """A greenlight showcase."""
+    MyGreenlight              = 19
+    """A showcase of a greenlight game the profiles' owner has made."""
+    Salien                    = 20
+    """A salien showcase."""
+    LoyaltyRewardReactions    = 21
+    """A loyalty reward showcase."""
+    SingleArtworkShowcase     = 22
+    """A single artwork showcase."""
+    AchievementsCompletionist = 23
+    """An achievements completeionist showcase."""
 
 
 class ProfileCustomisationStyle(IntEnum):
@@ -801,37 +1146,67 @@ class ProfileCustomisationStyle(IntEnum):
 
 
 class ProfileItemClass(IntEnum):
+    """An item class."""
     Invalid               = 0
+    """An invalid item class."""
     Badge                 = 1
+    """A badge."""
     GameCard              = 2
+    """A game card."""
     ProfileBackground     = 3
+    """A profile background."""
     Emoticon              = 4
+    """An emoticon."""
     BoosterPack           = 5
+    """A booster pack."""
     Consumable            = 6
+    """A consumable."""
     GameGoo               = 7
+    """Fame goo."""
     ProfileModifier       = 8
+    """A profile modifier."""
     Scene                 = 9
+    """A scene."""
     SalienItem            = 10
+    """A salien item."""
     Sticker               = 11
+    """A sticker."""
     ChatEffect            = 12
+    """A chat effect."""
     MiniProfileBackground = 13
+    """A mini profile background."""
     AvatarFrame           = 14
+    """An avatar frame."""
     AnimatedAvatar        = 15
+    """An animated avatar."""
     SteamDeckKeyboardSkin = 16
+    """A Steam Deck keyboard skin."""
 
 
 class DepotFileFlag(Flags):
+    """Flags for a depot file."""
     File                = 0
+    """A file."""
     UserConfig          = 1 << 0
+    """A user configuration file."""
     VersionedUserConfig = 1 << 1
+    """A versioned user configuration file."""
     Encrypted           = 1 << 2
+    """An encrypted file."""
     ReadOnly            = 1 << 3
+    """A read only file."""
     Hidden              = 1 << 4
+    """A hidden file."""
     Executable          = 1 << 5
+    """An executable file."""
     Directory           = 1 << 6
+    """A directory."""
     CustomExecutable    = 1 << 7
+    """A custom executable file."""
     InstallScript       = 1 << 8
+    """An install script file."""
     Symlink             = 1 << 9
+    """A symlink file."""
 
 
 TYPE_TRANSFORM_MAP: Final = cast(Mapping[str, str], {
@@ -839,27 +1214,45 @@ TYPE_TRANSFORM_MAP: Final = cast(Mapping[str, str], {
 })
 
 
-class AppFlag(Flags):
+class AppType(Flags):
+    """App type."""
     Game        = 1 << 0
+    """A playable game, default type."""
     Application = 1 << 1
+    """A software application."""
     Tool        = 1 << 2
+    """An SDK, editor or dedicated server."""
     Demo        = 1 << 3
-    Deprecated  = 1 << 4
+    """A game demo."""
     DLC         = 1 << 5
+    """A piece of downloadable content."""
     Guide       = 1 << 6
+    """A game guide or PDF etc."""
     Driver      = 1 << 7
+    """A hardware driver updater (ATI, Razor etc.)"""
     Config      = 1 << 8
+    """A hidden app used to config Steam features (backpack, sales, etc.)."""
     Hardware    = 1 << 9
+    """A hardware device (Steam Machine, Steam Controller, Steam Link, etc.)."""
     Franchise   = 1 << 10
+    """A hub for collections of multiple apps, e.g. films, series, games.."""
     Video       = 1 << 11
+    """A video component of either a Film or TVSeries (may be the feature, an episode, preview, making-of, etc.)"""
     Plugin      = 1 << 12
+    """A plug-in type for another App."""
     Music       = 1 << 13
+    """A piece of music."""
     Series      = 1 << 14
+    """A container app for video series."""
     Comic       = 1 << 15
+    """A comic."""
     Beta        = 1 << 16
+    """A beta for a game."""
 
     Shortcut    = 1 << 30
+    """A shortcut to another app, client side only."""
     DepotOnly   = -1 << 31
+    """A placeholder since depots and apps share the same namespace."""
 
     @classmethod
     def from_str(cls, name: str) -> Self:
@@ -873,233 +1266,444 @@ class AppFlag(Flags):
 
 
 class LicenseFlag(Flags):
+    """Flags for a license."""
     NONE                         = 0
+    """No flags."""
     Renew                        = 1 << 0
+    """License needs renewing."""
     RenewalFailed                = 1 << 1
+    """License renewal failed."""
     Pending                      = 1 << 2
+    """Owns license, but transaction is still pending. Can't install or play yet."""
     Expired                      = 1 << 3
+    """License is expired."""
     CancelledByUser              = 1 << 4
+    """License is cancelled by user."""
     CancelledByAdmin             = 1 << 5
+    """License is cancelled by an admin."""
     LowViolenceContent           = 1 << 6
+    """License is only for a low violence version."""
     ImportedFromSteam2           = 1 << 7
+    """License was imported from Steam 2."""
     ForceRunRestriction          = 1 << 8
+    """License has a force run restriction."""
     RegionRestrictionExpired     = 1 << 9
+    """License has a region restriction that has expired."""
     CancelledByFriendlyFraudLock = 1 << 10
+    """License is cancelled by a friendly fraud lock."""
     NotActivated                 = 1 << 11
+    """License is not activated."""
 
 
 class LicenseType(IntEnum):
+    """Types of licenses."""
     NoLicense                             = 0
+    """No license."""
     SinglePurchase                        = 1
+    """A single purchase license."""
     SinglePurchaseLimitedUse              = 2
+    """A single purchase limited use license."""
     RecurringCharge                       = 3
+    """A subscription based license."""
     RecurringChargeLimitedUse             = 4
-    RecurringChargeLimitedUseWithOverages = 5
+    """A subscription based limited use license."""
+    RecurringChargeLimitedUseWithOverAges = 5
+    """A subscription based limited use license with over ages."""
     RecurringOption                       = 6
+    """A subscription based option license."""
     LimitedUseDelayedActivation           = 7
+    """A limited use delayed activation license."""
 
 
 class BillingType(IntEnum):
+    """Types of billing ."""
     NoCost                 = 0
+    """No cost."""
     BillOnceOnly           = 1
+    """Bill once only."""
     BillMonthly            = 2
+    """Bill monthly."""
     ProofOfPrepurchaseOnly = 3
+    """Proof of pre-purchase only."""
     GuestPass              = 4
+    """Guest pass."""
     HardwarePromo          = 5
+    """Hardware promotion."""
     Gift                   = 6
+    """Gift."""
     AutoGrant              = 7
+    """Automatic grant."""
     OEMTicket              = 8
+    """Original Equipment Manufacturer ticket."""
     RecurringOption        = 9
+    """Recurring option."""
     BillOnceOrCDKey        = 10
-    Repurchaseable         = 11
+    """Bill once or CD key."""
+    Repurchasable          = 11
+    """Re-purchasable."""
     FreeOnDemand           = 12
+    """Free on demand."""
     Rental                 = 13
+    """Rental."""
     CommercialLicense      = 14
+    """Commercial license."""
     FreeCommercialLicense  = 15
+    """Free commercial license."""
     NumBillingTypes        = 16
+    """Number of billing types."""
 
 
 class PaymentMethod(IntEnum):
+    """The payment method used for a purchase."""
     NONE                   = 0
+    """No payment method."""
     ActivationCode         = 1
+    """Activation code."""
     CreditCard             = 2
+    """Credit card."""
     Giropay                = 3
+    """Giropay."""
     PayPal                 = 4
+    """PayPal."""
     Ideal                  = 5
+    """iDEAL."""
     PaySafeCard            = 6
+    """PaySafeCard."""
     Sofort                 = 7
+    """Sofort."""
     GuestPass              = 8
+    """Guest pass."""
     WebMoney               = 9
+    """WebMoney."""
     MoneyBookers           = 10
+    """MoneyBookers."""
     AliPay                 = 11
+    """AliPay."""
     Yandex                 = 12
+    """Yandex."""
     Kiosk                  = 13
+    """Kiosk."""
     Qiwi                   = 14
+    """Qiwi."""
     GameStop               = 15
+    """GameStop."""
     HardwarePromo          = 16
+    """Hardware promotion."""
     MoPay                  = 17
+    """MoPay."""
     BoletoBancario         = 18
+    """Boleto Bancario."""
     BoaCompraGold          = 19
+    """BoaCompra Gold."""
     BancoDoBrasilOnline    = 20
+    """Banco do Brasil Online."""
     ItauOnline             = 21
+    """Itau Online."""
     BradescoOnline         = 22
+    """Bradesco Online."""
     Pagseguro              = 23
+    """Pagseguro."""
     VisaBrazil             = 24
+    """Visa Brazil."""
     AmexBrazil             = 25
+    """American Express Brazil."""
     Aura                   = 26
+    """Aura."""
     Hipercard              = 27
+    """Hipercard."""
     MastercardBrazil       = 28
+    """Mastercard Brazil."""
     DinersCardBrazil       = 29
+    """Diners Card Brazil."""
     AuthorizedDevice       = 30
+    """Authorized device."""
     MOLPoints              = 31
+    """MOLPoints."""
     ClickAndBuy            = 32
+    """Click and Buy."""
     Beeline                = 33
+    """Beeline."""
     Konbini                = 34
+    """Konbini."""
     EClubPoints            = 35
+    """E-Club Points."""
     CreditCardJapan        = 36
+    """Credit card Japan."""
     BankTransferJapan      = 37
+    """Bank transfer Japan."""
     PayEasy                = 38
+    """PayEasy."""
     Zong                   = 39
+    """Zong."""
     CultureVoucher         = 40
+    """Culture voucher."""
     BookVoucher            = 41
+    """Book voucher."""
     HappymoneyVoucher      = 42
+    """Happy money voucher."""
     ConvenientStoreVoucher = 43
+    """Convenient store voucher."""
     GameVoucher            = 44
+    """Game voucher."""
     Multibanco             = 45
+    """Multibanco."""
     Payshop                = 46
+    """Payshop."""
     MaestroBoaCompra       = 47
+    """Maestro BoaCompra."""
     OXXO                   = 48
+    """OXXO."""
     ToditoCash             = 49
+    """Todito Cash."""
     Carnet                 = 50
+    """Carnet."""
     SPEI                   = 51
+    """SPEI."""
     ThreePay               = 52
+    """Three Pay."""
     IsBank                 = 53
+    """Is Bank."""
     Garanti                = 54
+    """Garanti."""
     Akbank                 = 55
+    """Akbank."""
     YapiKredi              = 56
+    """Yapi"""
     Halkbank               = 57
+    """Halkbank."""
     BankAsya               = 58
+    """Bank Asya."""
     Finansbank             = 59
+    """Finansbank."""
     DenizBank              = 60
+    """DenizBank."""
     PTT                    = 61
+    """PTT."""
     CashU                  = 62
+    """CashU."""
     AutoGrant              = 64
+    """Automatic grant."""
     WebMoneyJapan          = 65
+    """WebMoney Japan."""
     OneCard                = 66
+    """OneCard."""
     PSE                    = 67
+    """PSE."""
     Exito                  = 68
+    """Exito."""
     Efecty                 = 69
+    """Efecty."""
     Paloto                 = 70
+    """Paloto."""
     PinValidda             = 71
+    """Pin Validda."""
     MangirKart             = 72
+    """Mangir Kart."""
     BancoCreditoDePeru     = 73
+    """Banco Credito de Peru."""
     BBVAContinental        = 74
+    """BBVA Continental."""
     SafetyPay              = 75
+    """SafetyPay."""
     PagoEfectivo           = 76
+    """Pago Efectivo."""
     Trustly                = 77
+    """Trustly."""
     UnionPay               = 78
+    """UnionPay."""
     BitCoin                = 79
+    """BitCoin."""
     Wallet                 = 128
+    """Wallet."""
     Valve                  = 129
+    """Valve."""
     MasterComp             = 130
+    """Master Comp."""
     Promotional            = 131
+    """Promotional."""
     MasterSubscription     = 134
+    """Master Subscription."""
     Payco                  = 135
+    """Payco."""
     MobileWalletJapan      = 136
+    """Mobile Wallet Japan."""
     OEMTicket              = 256
+    """Original Equipment Manufacturer Ticket."""
     Split                  = 512
+    """Split."""
     Complimentary          = 1024
+    """Complimentary."""
 
 
 class PackageStatus(IntEnum):
+    """Package status."""
     Available   = 0
+    """Available."""
     Preorder    = 1
+    """Pre-order."""
     Unavailable = 2
+    """Unavailable."""
     Invalid     = 3
+    """Invalid."""
 
 
 class PublishedFileRevision(IntEnum):
+    """Published file revisions."""
     Default               = 0
+    """The default revision."""
     Latest                = 1
+    """The latest revision."""
     ApprovedSnapshot      = 2
+    """The approved snapshot."""
     ApprovedSnapshotChina = 3
+    """The approved snapshot for China."""
     RejectedSnapshot      = 4
+    """The rejected snapshot."""
     RejectedSnapshotChina = 5
+    """The rejected snapshot for China."""
 
 
 class PublishedFileQueryType(IntEnum):
+    """Ways you can query for UGC items (published files)."""
     RankedByVote                                  = 0
+    """Ranked by vote."""
     RankedByPublicationDate                       = 1
+    """Ranked by publication date."""
     AcceptedForGameRankedByAcceptanceDate         = 2
+    """Accepted for game ranked by acceptance date."""
     RankedByTrend                                 = 3
+    """Ranked by trend."""
     FavouritedByFriendsRankedByPublicationDate    = 4
+    """Favourited by friends ranked by publication date."""
     CreatedByFriendsRankedByPublicationDate       = 5
+    """Created by friends ranked by publication date."""
     RankedByNumTimesReported                      = 6
+    """Ranked by number of times reported."""
     CreatedByFollowedUsersRankedByPublicationDate = 7
+    """Created by followed users ranked by publication date."""
     NotYetRated                                   = 8
+    """Not yet rated."""
     RankedByTotalUniqueSubscriptions              = 9
+    """Ranked by total unique subscriptions."""
     RankedByTotalVotesAsc                         = 10
+    """Ranked by total votes ascending."""
     RankedByVotesUp                               = 11
+    """Ranked by votes up."""
     RankedByTextSearch                            = 12
+    """Ranked by text search."""
     RankedByPlaytimeTrend                         = 13
+    """Ranked by playtime trend."""
     RankedByTotalPlaytime                         = 14
+    """Ranked by total playtime."""
     RankedByAveragePlaytimeTrend                  = 15
+    """Ranked by average playtime trend."""
     RankedByLifetimeAveragePlaytime               = 16
+    """Ranked by lifetime average playtime."""
     RankedByPlaytimeSessionsTrend                 = 17
+    """Ranked by playtime sessions trend."""
     RankedByLifetimePlaytimeSessions              = 18
+    """Ranked by lifetime playtime sessions."""
     RankedByInappropriateContentRating            = 19
+    """Ranked by inappropriate content rating."""
     RankedByBanContentCheck                       = 20
+    """Ranked by ban content check."""
     RankedByLastUpdatedDate                       = 21
+    """Ranked by last updated date."""
 
 
 class PublishedFileType(IntEnum):
-    Community              = 0   #: Normal Workshop item that can be subscribed to
-    Microtransaction       = 1   #: Workshop item that is meant to be voted on for the purpose of selling in-game
-    Collection             = 2   #: A collection of Workshop or Greenlight items
-    Art                    = 3   #: Artwork
-    Video                  = 4   #: External video
-    Screenshot             = 5   #: Screenshot
-    Game                   = 6   #: Greenlight game entry
-    Software               = 7   #: Greenlight software entry
-    Concept                = 8   #: Greenlight concept
-    WebGuide               = 9   #: Steam web guide
-    IntegratedGuide        = 10  #: Application integrated guide
-    Merch                  = 11  #: Workshop merchandise meant to be voted on for the purpose of being sold
-    ControllerBinding      = 12  #: Steam Controller bindings
-    SteamworksAccessInvite = 13  #: Internal
-    SteamVideo             = 14  #: Steam video
-    GameManagedItem        = 15  #: Managed completely by the game, not the user, and not shown on the web
+    """Published file types."""
+    Community              = 0
+    """Normal Workshop item that can be subscribed to"""
+    Microtransaction       = 1
+    """Workshop item that is meant to be voted on for the purpose of selling in-game"""
+    Collection             = 2
+    """A collection of Workshop or Greenlight items"""
+    Art                    = 3
+    """Artwork"""
+    Video                  = 4
+    """External video"""
+    Screenshot             = 5
+    """Screenshot"""
+    Game                   = 6
+    """Greenlight game entry"""
+    Software               = 7
+    """Greenlight software entry"""
+    Concept                = 8
+    """Greenlight concept"""
+    WebGuide               = 9
+    """Steam web guide"""
+    IntegratedGuide        = 10
+    """Application integrated guide"""
+    Merch                  = 11
+    """Workshop merchandise meant to be voted on for the purpose of being sold"""
+    ControllerBinding      = 12
+    """Steam Controller bindings"""
+    SteamworksAccessInvite = 13
+    """Internal"""
+    SteamVideo             = 14
+    """Steam video"""
+    GameManagedItem        = 15
+    """Managed completely by the game, not the user, and not shown on the web"""
 
 
 class PublishedFileVisibility(IntEnum):
+    """Published file visibility."""
     Public      = 0
+    """Public."""
     FriendsOnly = 1
+    """Friends only."""
     Private     = 2
+    """Private."""
     Unlisted    = 3
+    """Unlisted."""
 
 
 class PublishedFileQueryFileType(IntEnum):
-    Items                   = 0   #: Items.
-    Collections             = 1   #: A collection of Workshop items.
-    Art                     = 2   #: Artwork.
-    Videos                  = 3   #: Videos.
-    Screenshots             = 4   #: Screenshots.
-    CollectionEligible      = 5   #: Items that can be put inside a collection.
-    Games                   = 6   #: Unused.
-    Software                = 7   #: Unused.
-    Concepts                = 8   #: Unused.
-    GreenlightItems         = 9   #: Unused.
-    AllGuides               = 10  #: Guides.
-    WebGuides               = 11  #: Steam web guide.
-    IntegratedGuides        = 12  #: Application integrated guide.
-    UsableInGame            = 13  #:
-    Merch                   = 14  #: Workshop merchandise meant to be voted on for the purpose of being sold.
-    ControllerBindings      = 15  #: Steam Controller bindings.
-    SteamworksAccessInvites = 16  #: Used internally.
-    ForSaleInGame           = 17  #: Workshop items that can be sold in-game.
-    ReadyToUseItems         = 18  #: Workshop items that can be used right away by the user.
-    WorkshopShowcases       = 19  #:
-    GameManagedItems        = 20  #: Managed completely by the game, not the user, and not shown on the web.
+    """The way that a shared file can be queried by QueryFile."""
+    Items                   = 0
+    """Items."""
+    Collections             = 1
+    """A collection of Workshop items."""
+    Art                     = 2
+    """Artwork."""
+    Videos                  = 3
+    """Videos."""
+    Screenshots             = 4
+    """Screenshots."""
+    CollectionEligible      = 5
+    """Items that can be put inside a collection."""
+    Games                   = 6
+    """Unused."""
+    Software                = 7
+    """Unused."""
+    Concepts                = 8
+    """Unused."""
+    GreenlightItems         = 9
+    """Unused."""
+    AllGuides               = 10
+    """Guides."""
+    WebGuides               = 11
+    """Steam web guide."""
+    IntegratedGuides        = 12
+    """Application integrated guide."""
+    UsableInGame            = 13
+    """Workshop items that can be used right away by the user."""
+    Merch                   = 14
+    """Workshop merchandise meant to be voted on for the purpose of being sold."""
+    ControllerBindings      = 15
+    """Steam Controller bindings."""
+    SteamworksAccessInvites = 16
+    """Used internally."""
+    ForSaleInGame           = 17
+    """Workshop items that can be sold in-game."""
+    ReadyToUseItems         = 18
+    """Workshop items that can be used right away by the user."""
+    WorkshopShowcases       = 19
+    """Workshop showcases."""
+    GameManagedItems        = 20
+    """Managed completely by the game, not the user, and not shown on the web."""
+
 # fmt: on
 
 

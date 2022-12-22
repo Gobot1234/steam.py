@@ -27,7 +27,7 @@ from yarl import URL as URL_
 from . import utils
 from ._const import MISSING, URL, VDF_LOADS, VDFDict
 from .app import PartialApp
-from .enums import AppFlag, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
+from .enums import AppType, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
 from .id import ID
 from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
@@ -124,7 +124,7 @@ class ManifestPath(PurePathBase, _IOMixin):
 
         .. describe:: x < y
 
-            Checks if one path is less than the other.
+            Checks if one path's parts is less than the other.
     """
 
     __slots__ = ("_manifest", "_mapping", "_flags_cs")
@@ -360,15 +360,6 @@ class Manifest:
         .. describe:: len(x)
 
             Returns the number of files this manifest holds.
-
-    Attributes
-    ----------
-    name
-        The name of the manifest.
-    app
-        The app that this manifest was fetched from.
-    created_at
-        The time at which the depot was created at.
     """
 
     __slots__ = (
@@ -387,8 +378,11 @@ class Manifest:
     def __init__(self, state: ConnectionState, server: ContentServer, app_id: AppID, data: bytes):
         self._state = state
         self.name: str | None = None
+        """The name of the manifest."""
         self.app = PartialApp(state, id=app_id)
+        """The app that this manifest was fetched from."""
         self.server = server
+        """The content server that this manifest was fetched from."""
         self._key: bytes | None = None
 
         with utils.StructIO(unzip(data)) as io:
@@ -411,6 +405,7 @@ class Manifest:
                 raise RuntimeError("Expecting end of manifest")
 
         self.created_at = DateTime.from_timestamp(self._metadata.creation_time)
+        """The time at which the depot was created at."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id} depot_id={self.depot_id}>"
@@ -436,9 +431,9 @@ class Manifest:
         return ManifestID(self._metadata.gid_manifest)
 
     @property
-    def depot_id(self) -> int:
+    def depot_id(self) -> DepotID:
         """The ID of this manifest's depot."""
-        return self._metadata.depot_id
+        return DepotID(self._metadata.depot_id)
 
     @property
     def size_original(self) -> int:
@@ -500,25 +495,6 @@ class Branch:
     publicly or privately through Steam.
 
     Read more on `steamworks <https://partner.steamgames.com/doc/store/application/branches>`_.
-
-    Attributes
-    ----------
-    name
-        The name of the branch.
-    build_id
-        The branch's build ID. This is a globally incrementing number. Build IDs are updated when a new build of an
-        application is pushed.
-    password_required
-        Whether a password is required to access this branch.
-    updated_at
-        The time this branch was last updated. This can be ``None`` if the branch is ancient and hasn't been updated
-        in ages.
-    description
-        This branch's description.
-    depots
-        This branch's depots.
-    password
-        This branch's password.
     """
 
     __slots__ = (
@@ -540,12 +516,22 @@ class Branch:
         description: str | None,
     ):
         self.name = name
+        """The name of the branch."""
         self.build_id = build_id
+        """
+        The branch's build ID. This is a globally incrementing number. Build IDs are updated when a new build of an
+        application is pushed.
+        """
         self.password_required = password_required
+        """Whether a password is required to access this branch."""
         self.updated_at = updated_at
+        """The time this branch was last updated."""
         self.description = description
+        """This branch's description."""
         self.depots: list[Depot] = []
+        """This branch's depots."""
         self.password: str | None = None
+        """This branch's password."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} build_id={self.build_id}>"
@@ -561,20 +547,11 @@ class Branch:
 
 
 class ManifestInfo:
-    """Represents information about a manifest.
-
-    Attributes
-    ----------
-    id
-        The manifest's ID.
-    branch
-        The branch this manifest is for.
-    depot
-        The depot this manifest is for.
-    """
+    """Represents information about a manifest."""
 
     __slots__ = ("_state", "id", "branch", "depot")
     depot: Depot
+    """The depot this manifest is for."""
 
     def __init__(
         self,
@@ -584,7 +561,9 @@ class ManifestInfo:
     ):
         self._state = state
         self.id = id
+        """The manifest's ID."""
         self.branch = branch
+        """The branch this manifest is for."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
@@ -667,8 +646,11 @@ class ProductInfo:
     __slots__ = ()
     _state: ConnectionState
     sha: str
+    """The product info's SHA."""
     size: int
+    """The product info's size."""
     change_number: int
+    """The product info's change number."""
 
     def __init__(
         self,
@@ -690,53 +672,7 @@ class ProductInfo:
 
 
 class AppInfo(ProductInfo, PartialApp[str]):
-    """Represents a collection of information on an app.
-
-    Attributes
-    ----------
-    type
-        The app's type.
-    has_adult_content
-        Whether this app has adult content according to Steam.
-    has_adult_content_violence
-        Whether this app has adult violence according to Steam.
-    market_presence
-        Whether this app has a market presence.
-    workshop_visible
-        Whether this app has a market presence.
-    community_hub_visible
-        Whether this app has a content hub visible.
-    controller_support
-        This app's level of controller support.
-    publishers
-        This app's publishers.
-    developers
-        This app's developers.
-    supported_languages
-        This app's supported languages.
-    created_at
-        The time this app was created.
-    review_score
-        This app's review score.
-    review_percentage
-        This app's review percentage.
-    partial_dlc
-        This app's downloadable content.
-    icon_url
-        This app's icon URL.
-    logo_url
-        This app's logo URL.
-    website_url
-        This app's URL.
-    headless_depots
-        The depots for this app without a branch.
-    sha
-        The app's SHA for this product info.
-    size
-        The product info's size.
-    change_number
-        The product info's change number.
-    """
+    """Represents a collection of information on an app."""
 
     __slots__ = (
         "sha",
@@ -779,39 +715,53 @@ class AppInfo(ProductInfo, PartialApp[str]):
         common = data["common"]
         extended = data.get("extended", {})
         super().__init__(state, proto, id=proto.appid, name=common["name"])
-        self.type = AppFlag.from_str(common["type"])
+        self.type = AppType.from_str(common["type"])
+        """The app's type."""
         self.has_adult_content = common.get("has_adult_content", "0") == "1"
+        """Whether this app has adult content according to Steam."""
         self.has_adult_content_violence = common.get("has_adult_content_violence", "0") == "1"
+        """Whether this app has adult violence according to Steam."""
         self.market_presence = common.get("market_presence", "0") == "1"
+        """Whether this app has a market presence."""
         self.workshop_visible = common.get("workshop_visible", "0") == "1"
+        """Whether this app has a workshop visible."""
         self.community_hub_visible = common.get("community_hub_visible", "0") == "1"
+        """Whether this app has a content hub visible."""
         self._stats_visible = common.get("community_visible_stats", "0") == "1"
         self._free = extended.get("isfreeapp", "0") == "1"
 
         self.controller_support = common.get("controller_support", "none")
+        """This app's level of controller support."""
 
         self.publishers: list[str] = [
             publisher["name"]
             for publisher in common.get("associations", {}).values()
             if publisher["type"] == "publisher"
         ]
+        """This app's publishers."""
         self.developers: list[str] = [
             developer["name"]
             for developer in common.get("associations", {}).values()
             if developer["type"] == "developer"
         ]
+        """This app's developers."""
         self.supported_languages: list[Language] = [
             Language.from_str(language) for language, value in common.get("languages", {}).items() if value == "1"
         ]
+        """This app's supported languages."""
 
         # TODO categories/genres
         self.created_at = (
             DateTime.from_timestamp(int(common["steam_release_date"])) if "steam_release_date" in common else None
         )
+        """The time this app was created."""
         self.review_score = ReviewType.try_value(int(common.get("review_score", 0)))
+        """This app's review score."""
         self.review_percentage = int(common.get("review_percentage", 0))
+        """This app's review percentage."""
         dlc = extended.get("listofdlc", "")
         self.partial_dlc = [PartialApp(state, id=int(id)) for id in dlc.split(",")] if dlc else []
+        """This app's downloadable content."""
 
         os_list = common.get("oslist", "")
         self._on_windows = "windows" in os_list
@@ -821,11 +771,15 @@ class AppInfo(ProductInfo, PartialApp[str]):
         self.icon = (
             CDNAsset(state, f"{URL.CDN}/steam/apps/{self.id}/{common['icon']}.jpg") if "icon" in common else None
         )
+        """This app's icon."""
         self.logo = (
             CDNAsset(state, f"{URL.CDN}/steam/apps/{self.id}/{common['logo']}.jpg") if "logo" in common else None
         )
+        """This app's logo."""
         self.website_url = extended.get("homepage")
+        """This app's website URL."""
         self.parent = PartialApp(state, id=int(common["parent"])) if "parent" in common else None
+        """This app's parent."""
 
         depots: manifest.Depot = data.get("depots", {})  # type: ignore
         self._branches: dict[str, Branch] = {}
@@ -844,6 +798,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
                     description=value.get("description") or None,
                 )
         self.headless_depots: Sequence[HeadlessDepot] = []
+        """This app's headless depots."""
 
         for key, depot in depots.items():  # type: ignore
             try:
@@ -869,7 +824,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
                     for branch_name, manifest_id in manifests.items():
                         branch = self._branches[branch_name]
                         if not branch.password_required:
-                            manifest = ManifestInfo(state, int(manifest_id), branch=branch)
+                            manifest = ManifestInfo(state, ManifestID(int(manifest_id)), branch=branch)
                         else:
                             encrypted_id = PrivateManifestInfo._get_id(depot, branch)
                             if encrypted_id is not None:
@@ -877,7 +832,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
                             else:  # fall back to the public version
                                 manifest = ManifestInfo(
                                     state,
-                                    int(manifests["public"]),
+                                    ManifestID(int(manifests["public"])),
                                     branch=self.public_branch,
                                 )
                         depot_ = Depot(**kwargs, branch=branch, manifest=manifest)  # type: ignore
@@ -932,24 +887,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
-class PackageInfo(ProductInfo, PartialPackage[str]):
-    """Represents a collection of information on a package.
-
-    Attributes
-    ----------
-    apps
-        The apps included in the package.
-    billing_type
-        The billing type for the package.
-    license_type
-        The license type for the package.
-    status
-        The status for the package.
-    depot_ids
-        The depot IDs in of the depots in the package.
-    app_items
-        The app items in the package.
-    """
+class PackageInfo(ProductInfo, PartialPackage):
+    """Represents a collection of information on a package."""
 
     __slots__ = (
         "sha",
@@ -972,10 +911,15 @@ class PackageInfo(ProductInfo, PartialPackage[str]):
         super().__init__(state, proto, id=proto.packageid)
         self._apps = [PartialApp(state, id=id) for id in data["appids"].values()]
         self.billing_type = BillingType.try_value(data["billingtype"])
+        """The billing type for the package."""
         self.license_type = LicenseType.try_value(data["licensetype"])
+        """The license type for the package."""
         self.status = PackageStatus.try_value(data["status"])
+        """The status for the package."""
         self.depot_ids = cast("list[DepotID]", list(data["depotids"].values()))
+        """The depot IDs in of the depots in the package."""
         self.app_items = list(data["appitems"].values())
+        """The app items in the package."""
 
     def __repr__(self) -> str:
         attrs = ("id", "sha", "change_number")

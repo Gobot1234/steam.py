@@ -537,11 +537,10 @@ def as_chunks(iterator: _Iter[_T], /, max_size: int) -> _Iter[list[_T]]:
 
     Parameters
     ----------
-    iterator: Union[:class:`collections.abc.Iterable`, :class:`collections.abc.AsyncIterable`]
+    iterator
         The iterator to chunk, can be sync or async.
-    max_size: :class:`int`
+    max_size
         The maximum chunk size.
-
 
     Warning
     -------

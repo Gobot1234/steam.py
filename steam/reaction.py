@@ -80,20 +80,14 @@ AWARD_ID_TO_NAME: Final = cast(Mapping[int, str], {
 
 
 class Award(_IOMixin):
-    """Represents an award.
-
-    Attributes
-    ----------
-    id
-        The ID of the award.
-    name
-        The english localised name of the award.
-    """
+    """Represents an award."""
 
     def __init__(self, state: ConnectionState, id: int):
         self._state = state
         self.id = id
+        """The ID of the award."""
         self.name = AWARD_ID_TO_NAME.get(self.id, f"Unknown Award {self.id}")
+        """The english localised name of the award."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
@@ -115,20 +109,14 @@ class Award(_IOMixin):
 
 
 class AwardReaction:
-    """Represents an award on user generated content.
-
-    Attributes
-    ----------
-    award
-        The award given to the user generated content.
-    count
-        The reactions count on the post.
-    """
+    """Represents an award on user generated content."""
 
     def __init__(self, state: ConnectionState, proto: ReactionProtocol):
         self._state = state
         self.award = Award(state, proto.reactionid)
+        """The award given to the user generated content."""
         self.count = proto.count
+        """The reactions count on the post."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} award={self.award!r} count={self.count}>"
@@ -226,6 +214,7 @@ class BaseEmoticon(_IOMixin):
     def __init__(self, state: ConnectionState, name: str):
         self._state = state
         self.name = name.removeprefix(":").removesuffix(":")  # :emoji_name:
+        """The name of this emoticon."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r}>"
@@ -268,12 +257,6 @@ class Emoticon(BaseEmoticon):
         .. describe:: hash(x)
 
             Returns the emoticon's hash.
-
-
-    Attributes
-    ----------
-    name
-        The name of this emoticon.
     """
 
     __slots__ = ()
@@ -318,11 +301,6 @@ class Sticker(BaseEmoticon):
     Note
     ----
     Unlike :class:`Emoticon` this can only be sent in a message by itself.
-
-    Attributes
-    ----------
-    name
-        The name of this sticker.
     """
 
     __slots__ = ()
@@ -348,9 +326,13 @@ class BaseClientEmoticon(BaseEmoticon):
     def __init__(self, state: ConnectionState, proto: ClientEmoticonProto | ClientStickerProto):
         super().__init__(state, proto.name)
         self.count = proto.count
+        """The number of times this emoticon can be used."""
         self.use_count = proto.use_count
+        """The number of times this emoticon has been used."""
         self.last_used = DateTime.from_timestamp(proto.time_last_used)
+        """The last time this emoticon was used."""
         self.received_at = DateTime.from_timestamp(proto.time_received)
+        """The time this emoticon was received."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} count={self.count!r} use_count={self.use_count!r}>"

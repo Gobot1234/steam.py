@@ -297,10 +297,18 @@ class Chat(Channel[ChatMessageT]):
     ):  # group is purposely unused
         super().__init__(state)
         self.id = ChatID(proto.chat_id)
+        """The ID of the channel."""
         self.name: str | None = None
+        """
+        The name of the channel, this could be the same as the :attr:`~steam.Clan.name`/:attr:`~steam.Group.name`,
+        if it's the main channel.
+        """
         self.joined_at: datetime | None = None
+        """The time the client joined the chat."""
         self.position: int | None = None
+        """The position of the channel in the channel list."""
         self.last_message: ChatMessageT | None = None
+        """The last message sent in the channel."""
         self._update(proto)
 
     def _update(self, proto: GroupChannelProtos) -> None:
@@ -444,11 +452,16 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         "_avatar_sha",
     )
     name: str
+    """The name of the chat group."""
     _id: ChatGroupID
     app: PartialApp | None
+    """The :class:`steam.PartialApp` that the chat group is associated with."""
     tagline: str
+    """The tagline of the chat group."""
     active_member_count: int
+    """The number of users in the clan."""
     chunked: bool
+    """Whether the chat group has been chunked."""
     _avatar_sha: bytes
     _state: ConnectionState
 
@@ -606,6 +619,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
 
     @property
     def owner(self) -> MemberT | PartialMember:
+        """The chat group's owner."""
         return self._members.get(self._owner_id) or self._get_partial_member(self._owner_id)
 
     @property

@@ -17,7 +17,7 @@ from .app import PartialApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
 from .models import URL, _IOMixin
 from .reaction import AwardReaction
-from .types.id import PublishedFileID
+from .types.id import DepotID, ManifestID, PublishedFileID
 from .types.user import Author, UserT
 from .utils import DateTime, get
 
@@ -207,7 +207,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         """The time the file was created at."""
         self.updated_at = DateTime.from_timestamp(proto.time_updated)
         """The time the file was last updated at."""
-        self.manifest_id = proto.hcontent_file
+        self.manifest_id = ManifestID(proto.hcontent_file)
         """The file's manifest id."""
         self.revision = PublishedFileRevision.try_value(proto.revision)
         """The file's revision."""
@@ -349,7 +349,12 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
 
     async def manifest(self) -> Manifest:
         """The manifest associated with this published file."""
-        return await self._state.fetch_manifest(self.app.id, self.manifest_id, self.app.id, self.name)
+        return await self._state.fetch_manifest(
+            self.app.id,
+            self.manifest_id,
+            DepotID(self.app.id),  # lol
+            self.name,
+        )
 
     @asynccontextmanager
     async def open(self) -> AsyncGenerator[BytesIO, None]:

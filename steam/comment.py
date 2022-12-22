@@ -36,30 +36,21 @@ class Comment(Awardable, Generic[OwnerT, AuthorT]):
         .. describe:: hash(x)
 
             Returns the comment's hash.
-
-    Attributes
-    ----------
-    id
-        The comment's ID.
-    content
-        The comment's content.
-    author
-        The author of the comment.
-    created_at
-        The time the comment was posted at.
-    owner
-        The comment sections owner.
-    reactions
-        The comment's reactions.
     """
 
     _state: ConnectionState
     id: CommentID
+    """The comment's ID."""
     content: str
+    """The comment's content."""
     created_at: datetime
+    """The time the comment was posted at."""
     reactions: list[AwardReaction]
+    """The comment's reactions."""
     author: AuthorT
+    """The author of the comment."""
     owner: OwnerT
+    """The comment sections owner."""
 
     def __repr__(self) -> str:
         attrs = ("id", "author")

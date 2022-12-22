@@ -8,7 +8,7 @@ from typing_extensions import TypeVar
 
 from ._const import URL
 from .app import PartialApp
-from .clan import Clan
+from .clan import PartialClan
 from .enums import Language
 from .package import PartialPackage
 from .types.id import BundleID, Intable
@@ -18,27 +18,25 @@ if TYPE_CHECKING:
     from .store import BundleStoreItem
     from .types import bundle
 
-__all__ = ("Bundle", "PartialBundle", "FetchedBundle")
+__all__ = (
+    "Bundle",
+    "PartialBundle",
+    "FetchedBundle",
+)
 
 NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
 
 class Bundle(Generic[NameT]):
-    """Represents a bundle of games and packages
-
-    Attributes
-    ----------
-    id
-        The bundle's ID.
-    name
-        The bundle's name.
-    """
+    """Represents a bundle of games and packages."""
 
     __slots__ = ("id", "name")
 
     def __init__(self, *, id: Intable, name: NameT = None) -> None:
         self.id = BundleID(int(id))
+        """The bundle's ID."""
         self.name = name
+        """The bundle's name."""
 
     def __repr__(self) -> str:
         return f"Bundle(id={self.id}, name={self.name!r})"
@@ -110,7 +108,7 @@ class FetchedBundle(PartialBundle[str]):
         self._on_linux = data["available_linux"]
         self._vrhmod = data.get("support_vrhmod", False)
         self._vrhmod_only = data.get("support_vrhmod_only", False)
-        self.creator_clans = [Clan(state, id) for id in data["creator_clan_ids"]]
+        self.creator_clans = [PartialClan(state, id) for id in data["creator_clan_ids"]]
         """The clans of the creators that created this bundle."""
         self.supported_languages = [Language.try_value(lang) for lang in data["localized_langs"]]
         """The languages that this bundle is supported in."""

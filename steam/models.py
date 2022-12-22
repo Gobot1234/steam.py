@@ -109,7 +109,6 @@ class Registerable:
             except Exception:
                 self._logger.debug("Ignoring event with %r", msg.__class__)
         else:
-
             try:
                 result = event_parser(msg)
             except Exception:
@@ -143,24 +142,14 @@ class PriceOverviewDict(TypedDict):
 
 
 class PriceOverview:
-    """Represents the data received from https://steamcommunity.com/market/priceoverview.
-
-    Attributes
-    -------------
-    currency
-        The currency identifier for the item e.g. "$" or "£".
-    volume
-        The amount of items that sold in the last 24 hours.
-    lowest_price
-        The lowest price observed by the market.
-    median_price
-        The median price observed by the market.
-    """
+    """Represents the data received from https://steamcommunity.com/market/priceoverview."""
 
     __slots__ = ("currency", "volume", "lowest_price", "median_price")
 
     lowest_price: float | str
+    """The lowest price observed by the market."""
     median_price: float | str
+    """The median price observed by the market."""
 
     def __init__(self, data: PriceOverviewDict):
         lowest_price = PRICE_RE.search(data["lowest_price"])["price"]
@@ -174,7 +163,9 @@ class PriceOverview:
             self.median_price = median_price
 
         self.volume: int = int(data["volume"].replace(",", ""))
+        """The number of items sold in the last 24 hours."""
         self.currency: str = data["lowest_price"].replace(lowest_price, "").strip()
+        """The currency identifier for the item e.g. "$" or "£"."""
 
     def __repr__(self) -> str:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]
@@ -182,15 +173,7 @@ class PriceOverview:
 
 
 class Ban:
-    """Represents a Steam ban.
-
-    Attributes
-    ----------
-    since_last_ban
-        How many days since the user was last banned
-    number_of_game_bans
-        The number of game bans the user has.
-    """
+    """Represents a Steam ban."""
 
     __slots__ = (
         "since_last_ban",
@@ -205,7 +188,9 @@ class Ban:
         self._community_banned: bool = data["CommunityBanned"]
         self._market_banned: bool = data["EconomyBan"]
         self.since_last_ban = timedelta(days=data["DaysSinceLastBan"])
+        """The amount of time that has passed since user was last banned"""
         self.number_of_game_bans: int = data["NumberOfGameBans"]
+        """The number of game bans the user has."""
 
     def __repr__(self) -> str:
         attrs = [
@@ -292,7 +277,7 @@ class Avatar(_IOMixin):
         self._state = state
 
     @property
-    def url(self):
+    def url(self) -> str:
         """The URL of the avatar. Uses the large (184x184 px) image url."""
         return f"https://avatars.cloudflare.steamstatic.com/{self.sha.hex()}_full.jpg"
 
@@ -300,12 +285,11 @@ class Avatar(_IOMixin):
         return self.sha == other.sha if isinstance(other, self.__class__) else NotImplemented
 
 
+@dataclass(slots=True)
 class CDNAsset(_IOMixin):
-    __slots__ = ("_state", "url")
-
-    def __init__(self, state: ConnectionState, url: str):
-        self._state = state
-        self.url = url
+    _state: ConnectionState
+    url: str
+    """The URL of the asset."""
 
     def __eq__(self, other: object) -> bool:
         return self.url == other.url if isinstance(other, self.__class__) else NotImplemented

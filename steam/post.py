@@ -9,6 +9,7 @@ from typing_extensions import TypeVar
 
 from .abc import Awardable, Commentable, _CommentableKwargs
 from .app import PartialApp
+from .types.id import PostID
 from .types.user import UserT
 
 if TYPE_CHECKING:
@@ -20,7 +21,7 @@ class Post(Awardable, Commentable, Generic[UserT]):
     """Represents a post on Steam Community."""
 
     _state: ConnectionState
-    id: int
+    id: PostID
     """The ID of this post."""
     content: str
     """The content of this post."""

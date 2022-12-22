@@ -64,23 +64,34 @@ class _BaseUser(BaseUser):
 
     def _update(self, proto: UserProto) -> None:
         self.name = proto.player_name
+        """The user's username."""
         self._avatar_sha = proto.avatar_hash
         self.trade_url = URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}"
+        """The trade url of the user."""
 
         self.game_server_ip = IPv4Address(proto.game_server_ip) if proto.game_server_ip else None
+        """The IP address of the game server the user is currently playing on."""
         self.game_server_port = proto.game_server_port or None
+        """The port of the game server the user is currently playing on."""
 
         self.last_logoff = DateTime.from_timestamp(proto.last_logoff)
+        """The last time the user logged off from steam."""
         self.last_logon = DateTime.from_timestamp(proto.last_logon)
+        """The last time the user logged into steam."""
         self.last_seen_online = DateTime.from_timestamp(proto.last_seen_online)
+        """The last time the user could be seen online."""
         self.rich_presence = {message.key: message.value for message in proto.rich_presence}
+        """The rich presence of the user."""
         self.app = (
             PartialApp(self._state, name=proto.game_name, id=proto.game_played_app_id)
             if proto.game_played_app_id
             else None
         )
+        """The app the user is playing. Is ``None`` if the user isn't in a app or one that is recognised by the API."""
         self.state = PersonaState.try_value(proto.persona_state) or self.state
+        """The current persona state of the account (e.g. LookingToTrade)."""
         self.flags = PersonaStateFlag.try_value(proto.persona_state_flags) or self.flags
+        """The persona state flags of the account."""
 
 
 class User(_BaseUser, Messageable["UserMessage"]):
@@ -95,35 +106,6 @@ class User(_BaseUser, Messageable["UserMessage"]):
         .. describe:: str(x)
 
             Returns the user's name.
-
-    Attributes
-    ----------
-    name
-        The user's username.
-    state
-        The current persona state of the account (e.g. LookingToTrade).
-    app
-        The app the user is playing. Is ``None`` if the user isn't in a app or one that is recognised by the
-        api.
-    avatar_url
-        The avatar url of the user. Uses the large (184x184 px) image url.
-    real_name
-        The user's real name defined by them. Could be ``None``.
-    primary_clan
-        The user's primary clan.
-    created_at
-        The time at which the user's account was created. Could be ``None``.
-    last_logon
-        The last time the user logged into steam. This is only ``None`` if user hasn't been updated from the websocket.
-    last_logoff
-        The last time the user logged off from steam. Could be ``None`` (e.g. if they are currently online).
-    last_seen_online
-        The last time the user could be seen online. This is only ``None`` if user hasn't been updated from the
-        websocket.
-    country
-        The country code of the account. Could be ``None``.
-    flags
-        The persona state flags of the account.
     """
 
     __slots__ = ()
@@ -266,25 +248,6 @@ class ClientUser(_BaseUser):
         .. describe:: str(x)
 
             Returns the user's name.
-
-    Attributes
-    ----------
-    name
-        The user's username.
-    state
-        The current persona state of the account (e.g. LookingToTrade).
-    app
-        The app the user is currently playing. Is ``None`` if the user isn't in an app or one that is recognised by the
-        api.
-    last_logon
-        The last time the user logged into steam. This is only ``None`` if user hasn't been updated from the websocket.
-    last_logoff
-        The last time the user logged off from steam. Could be ``None`` (e.g. if they are currently online).
-    last_seen_online
-        The last time the user could be seen online. This is only ``None`` if user hasn't been updated from the
-        websocket.
-    flags
-        The persona state flags of the account.
     """
 
     # TODO more stuff to add https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/profile.js

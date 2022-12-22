@@ -13,7 +13,7 @@ import aiohttp
 from typing_extensions import TypeVar
 
 from ._const import MISSING, URL
-from .enums import InstanceFlag, Type, TypeChar, Universe
+from .enums import Instance, Type, TypeChar, Universe
 from .errors import InvalidID
 from .types.id import ID32, ID64, Intable
 
@@ -31,7 +31,7 @@ def parse_id64(
     *,
     type: Type = MISSING,
     universe: Universe = MISSING,
-    instance: InstanceFlag = MISSING,
+    instance: Instance = MISSING,
 ) -> ID64:
     """Convert various representations of Steam IDs to its Steam 64-bit ID.
 
@@ -90,7 +90,7 @@ def parse_id64(
                 raise InvalidID(id, e.args[0]) from None
 
             if instance is MISSING:
-                instance = InstanceFlag.Desktop if type in (Type.Individual, Type.GameServer) else InstanceFlag.All
+                instance = Instance.Desktop if type in (Type.Individual, Type.GameServer) else Instance.All
 
             if not (0 <= universe < 1 << 8):
                 raise InvalidID(id, "universe is bigger than 8 bits")
@@ -101,8 +101,8 @@ def parse_id64(
         elif 0 <= id < 2**64:  # 64 bit
             universe = Universe.try_value((id >> 56) & 0xFF)
             type = Type.try_value((id >> 52) & 0xF)
-            instance = InstanceFlag.try_value((id >> 32) & 0xFFFFF)
-            id = id & 0xFFFFFFFF
+            instance = Instance.try_value((id >> 32) & 0xFFFFF)
+            id &= 0xFFFFFFFF
         else:
             raise InvalidID(id, f"it is too {'large' if id >= 2**64 else 'small'}")
 
@@ -289,7 +289,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         *,
         type: TypeT = MISSING,
         universe: Universe = MISSING,
-        instance: InstanceFlag = MISSING,
+        instance: Instance = MISSING,
     ):
         self.id64: Final = parse_id64(id, type=type, universe=universe, instance=instance)
         """The Steam ID's 64-bit ID."""
@@ -329,9 +329,9 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         return cast(TypeT, Type.try_value((self.id64 >> 52) & 0xF))
 
     @property
-    def instance(self) -> InstanceFlag:
+    def instance(self) -> Instance:
         """The instance of the ID."""
-        return InstanceFlag.try_value((self.id64 >> 32) & 0xFFFFF)
+        return Instance.try_value((self.id64 >> 32) & 0xFFFFF)
 
     @property
     def id(self) -> ID32:
@@ -368,18 +368,19 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         type_char = TypeChar(self.type).name
         instance = None
 
-        if self.type in (Type.AnonGameServer, Type.Multiseat):
-            instance = self.instance
-        elif self.type == Type.Individual:
-            if self.instance != InstanceFlag.Desktop:
+        match self.type:
+            case Type.AnonGameServer | Type.Multiseat:
                 instance = self.instance
-        elif self.type == Type.Chat:
-            if self.instance & InstanceFlag.ChatClan > 0:
-                type_char = "c"
-            elif self.instance & InstanceFlag.ChatLobby > 0:
-                type_char = "L"
-            else:
-                type_char = "T"
+            case Type.Individual:
+                if self.instance != Instance.Desktop:
+                    instance = self.instance
+            case Type.Chat:
+                if self.instance & Instance.ChatClan > 0:
+                    type_char = "c"
+                elif self.instance & Instance.ChatLobby > 0:
+                    type_char = "L"
+                else:
+                    type_char = "T"
 
         return f"[{type_char}:{self.universe.value}:{self.id}{f':{instance.value}' if instance is not None else ''}]"
 
@@ -474,9 +475,9 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
 
         match self.type:
             case Type.Individual:
-                return self.id != 0 and InstanceFlag.All <= self.instance <= InstanceFlag.Web
+                return self.id != 0 and Instance.All <= self.instance <= Instance.Web
             case Type.Clan:
-                return self.id != 0 and self.instance == InstanceFlag.All
+                return self.id != 0 and self.instance == Instance.All
             case Type.GameServer:
                 return self.id != 0
         return True
@@ -503,7 +504,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
             or 1  # games before orange box used to incorrectly display universe as 0, we support that
         )
 
-        return ID(id, type=Type.Individual, universe=Universe.try_value(universe), instance=InstanceFlag.Desktop)
+        return ID(id, type=Type.Individual, universe=Universe.try_value(universe), instance=Instance.Desktop)
 
     @staticmethod
     def from_id3(value: str, /) -> ID | None:
@@ -517,20 +518,20 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         if (match := ID3_REGEX.search(value)) is None:
             return None
 
-        id = ID32(int(match["id"]))
+        id = ID32(match["id"])
         universe = Universe.try_value(int(match["universe"]))
         type_char = TypeChar[match["type"].replace("i", "I")]
-        instance = InstanceFlag.try_value(int(instance_)) if (instance_ := match["instance"]) else InstanceFlag.All
+        instance = Instance.try_value(int(instance_)) if (instance_ := match["instance"]) else Instance.All
 
         match type_char:
             case TypeChar.g | TypeChar.T:
-                instance = InstanceFlag.All
+                instance = Instance.All
             case TypeChar.L:
-                instance = InstanceFlag.ChatLobby
+                instance = Instance.ChatLobby
             case TypeChar.c:
-                instance = InstanceFlag.ChatClan
+                instance = Instance.ChatClan
             case TypeChar.G | TypeChar.U:
-                instance = InstanceFlag.Desktop
+                instance = Instance.Desktop
 
         return ID(id, type=type_char.value, universe=universe, instance=instance)
 
@@ -548,10 +549,10 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
 
         code = (search["code_1"] or search["code_2"]).replace("-", "")
 
-        id = ID32(int(_invite_custom_sub(code), 16))
+        id = ID32(_invite_custom_sub(code), 16)
 
         if 0 < id < 2**32:
-            return ID(id, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Desktop)
+            return ID(id, type=Type.Individual, universe=Universe.Public, instance=Instance.Desktop)
 
     @staticmethod
     async def from_url(
@@ -564,4 +565,4 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         See :func:`id64_from_url` for the full parameter list.
         """
         id64 = await id64_from_url(url, session)
-        return ID(id64) if id64 else None
+        return ID(id64) if id64 else None  # type: ignore

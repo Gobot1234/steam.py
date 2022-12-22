@@ -13,11 +13,12 @@ from typing_extensions import TypeVar
 
 from . import utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
-from .enums import AppFlag, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
+from .enums import AppType, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
 from .id import ID, id64_from_url
 from .models import CDNAsset, _IOMixin
 from .protobufs import client_server, player
-from .types.id import ID64, AppID, ContextID, DepotID, Intable, ManifestID
+from .protobufs.encrypted_app_ticket import EncryptedAppTicket as EncryptedAppTicketProto
+from .types.id import ID64, AppID, ContextID, DepotID, Intable, LeaderboardID, ManifestID
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -51,17 +52,7 @@ NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
 
 class App(Generic[NameT]):
-    """Represents a Steam app.
-
-    Attributes
-    ----------
-    name
-        The app's name.
-    id
-        The app's app ID.
-    context_id
-        The context id of the app normally ``2``.
-    """
+    """Represents a Steam app."""
 
     __slots__ = (
         "id",
@@ -129,8 +120,11 @@ class App(Generic[NameT]):
             context_id = 6
 
         self.id: AppID = AppID(id)
+        """The app's app ID."""
         self.name = name
+        """The app's name."""
         self.context_id: ContextID = ContextID(2 if context_id is None else context_id)
+        """The context id of the app normally ``2``."""
 
     def __str__(self) -> str:
         return self.name or ""
@@ -694,11 +688,23 @@ class Apps(PartialApp[str], Enum):
         return state
 
 
-TF2 = Apps.TF2  #: The Team Fortress 2 app.
-DOTA2 = Apps.DOTA2  #: The DOTA 2 app.
-CSGO = Apps.CSGO  #: The Counter Strike Global-Offensive app.
-LFD2 = Apps.LFD2  #: The Left 4 Dead 2 app.
-STEAM = Apps.STEAM  #: The Steam app with context ID 6 (gifts).
+TF2 = Apps.TF2
+"""The Team Fortress 2 app."""
+DOTA2 = Apps.DOTA2
+"""The DOTA 2 app."""
+CSGO = Apps.CSGO
+"""The Counter Strike Global-Offensive app."""
+LFD2 = Apps.LFD2
+"""The Left 4 Dead 2 app."""
+STEAM = Apps.STEAM
+"""The Steam app with context ID 6 (gifts)."""
+
+
+class OwnershipDLC(PartialApp):
+    def __init__(self, state: ConnectionState, *, id: int, owned_packages: list[PartialPackage]):
+        super().__init__(state, id=id)
+        self.owned_packages = owned_packages
+        """The packages that the ticket owner owns which grant them this DLC."""
 
 
 @dataclass(slots=True)
@@ -710,17 +716,7 @@ class PartialAppPriceOverview:
 
 
 class DLC(PartialApp[str]):
-    """Represents DLC (downloadable content) for an app.
-
-    Attributes
-    ----------
-    created_at
-        The time the DLC was released at.
-    logo_url
-        The logo url of the DLC.
-    price_overview
-        A price overview for the DLC.
-    """
+    """Represents DLC (downloadable content) for an app."""
 
     __slots__ = (
         "created_at",
@@ -734,8 +730,11 @@ class DLC(PartialApp[str]):
     def __init__(self, state: ConnectionState, data: app.DLC):
         super().__init__(state, id=data["id"], name=data["name"])
         self.created_at = DateTime.from_timestamp(int(data["release_date"]["steam"]))
+        """The time the DLC was released at."""
         self.logo_url: str = data["header_image"]
+        """The logo url of the DLC."""
         self.price_overview = PartialAppPriceOverview(**data["price_overview"])
+        """A price overview for the DLC."""
 
         platforms = data["platforms"]
         self._on_windows: bool = platforms["windows"]
@@ -760,25 +759,7 @@ class DLC(PartialApp[str]):
 
 
 class UserApp(PartialApp[NameT]):
-    """Represents a Steam app fetched by :meth:`steam.User.apps`
-
-    Attributes
-    ----------
-    playtime_forever
-        The total time the app has been played for.
-    icon_url
-        The icon url of the app.
-    playtime_two_weeks
-        The amount of time the user has played the app in the last two weeks.
-    playtime_windows
-        The total amount of time the user has played the app on Windows.
-    playtime_mac_os
-        The total amount of time the user has played the app on macOS.
-    playtime_linux
-        The total amount of time the user has played the app on Linux.
-    last_played_at
-        The time the user last played this app at.
-    """
+    """Represents a Steam app fetched by :meth:`steam.User.apps`."""
 
     __slots__ = (
         "playtime_forever",
@@ -794,14 +775,21 @@ class UserApp(PartialApp[NameT]):
     def __init__(self, state: ConnectionState, proto: player.GetOwnedGamesResponseGame):
         super().__init__(state=state, id=proto.appid, name=proto.name)
         self.playtime_forever: timedelta = timedelta(minutes=proto.playtime_forever)
+        """The total time the app has been played for."""
         self.playtime_two_weeks: timedelta = timedelta(minutes=proto.playtime_2_weeks)
+        """The amount of time the user has played the app in the last two weeks."""
         self.playtime_windows: timedelta = timedelta(minutes=proto.playtime_windows_forever)
+        """The total amount of time the user has played the app on Windows."""
         self.playtime_mac_os: timedelta = timedelta(minutes=proto.playtime_mac_forever)
+        """The total amount of time the user has played the app on macOS."""
         self.playtime_linux: timedelta = timedelta(minutes=proto.playtime_linux_forever)
+        """The total amount of time the user has played the app on Linux."""
         self.icon = CDNAsset(
             state, str(URL.CDN / f"steamcommunity/public/images/apps/{self.id}/{proto.img_icon_url}.jpg")
         )
+        """The icon of the app."""
         self.last_played_at = DateTime.from_timestamp(proto.rtime_last_played)
+        """The time the user last played this app at."""
 
         self._stats_visible = proto.has_community_visible_stats
 
@@ -811,35 +799,7 @@ class UserApp(PartialApp[NameT]):
 
 
 class WishlistApp(PartialApp[str]):
-    """Represents a Steam app fetched by :meth:`steam.User.wishlist`\\.
-
-    Attributes
-    ----------
-    priority
-        The priority of the app in the wishlist.
-    added_at
-        The time that the app was added to their wishlist.
-    created_at
-        The time the app was uploaded at.
-    background
-        The background of the app.
-    rank
-        The global rank of the app by popularity.
-    review_status
-        The review status of the app.
-    score
-        The score of the app out of ten.
-    screenshots
-        The screenshots of the app.
-    tags
-        The tags of the app.
-    total_reviews
-        The total number reviews for the app.
-    type
-        The type of the app.
-    logo
-        The logo of the app.
-    """
+    """Represents a Steam app fetched by :meth:`steam.User.wishlist`\\."""
 
     __slots__ = (
         "priority",
@@ -860,24 +820,35 @@ class WishlistApp(PartialApp[str]):
         "_on_windows",
     )
 
-    name: str
-
     def __init__(self, state: ConnectionState, id: int | str, data: app.WishlistApp):
         super().__init__(state, id=id, name=data["name"])
-        self.logo = CDNAsset(state, data["capsule"])
-        self.score = data["review_score"]
-        self.total_reviews = int(data["reviews_total"].replace(",", ""))
-        self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
-        self.created_at = DateTime.from_timestamp(int(data["release_date"]))
-        self.type: str = data["type"]
-        self.screenshots = [
-            URL.CDN / f"steam/apps/{self.id}/{screenshot_url}" for screenshot_url in data["screenshots"]
-        ]
-        self.added_at = DateTime.from_timestamp(data["added"])
-        self.background = CDNAsset(state, data["background"])
-        self.tags = data["tags"]
-        self.rank = data["rank"]
         self.priority = int(data["priority"])
+        """The priority of the app in the wishlist."""
+        self.type = AppType.from_str(data["type"])
+        """The type of the app."""
+        self.logo = CDNAsset(state, data["capsule"])
+        """The logo of the app."""
+        self.score = data["review_score"]
+        """The score of the app out of ten."""
+        self.total_reviews = int(data["reviews_total"].replace(",", ""))
+        """The total number reviews for the app."""
+        self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
+        """The review status of the app."""
+        self.created_at = DateTime.from_timestamp(int(data["release_date"]))
+        """The time the app was uploaded at."""
+        self.screenshots = [
+            CDNAsset(state, f"{URL.CDN}/steam/apps/{self.id}/{screenshot_url}")
+            for screenshot_url in data["screenshots"]
+        ]
+        """The screenshots of the app."""
+        self.added_at = DateTime.from_timestamp(data["added"])
+        """The time that the app was added to their wishlist."""
+        self.background = CDNAsset(state, data["background"])
+        """The background of the app."""
+        self.tags = data["tags"]
+        """The tags of the app."""
+        self.rank = data["rank"]
+        """The global rank of the app by popularity."""
 
         self._free = data["is_free_game"]
         self._on_windows = bool(data.get("win", False))
@@ -902,9 +873,10 @@ class WishlistApp(PartialApp[str]):
 
 
 class FetchedAppMovie(_IOMixin):
-    __slots__ = ("name", "id", "url", "created_at")
+    __slots__ = ("name", "id", "url", "created_at", "_state")
 
-    def __init__(self, movie: dict[str, Any]):
+    def __init__(self, state: ConnectionState, movie: dict[str, Any]):
+        self._state = state
         self.name: str = movie["name"]
         self.id: int = movie["id"]
         self.url: str = movie["mp4"]["max"]
@@ -914,7 +886,7 @@ class FetchedAppMovie(_IOMixin):
     def __repr__(self) -> str:
         attrs = ("name", "id", "url", "created_at")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<Movie {' '.join(resolved)}>"
+        return f"<FetchedAppMovie {' '.join(resolved)}>"
 
 
 @dataclass(slots=True)
@@ -924,36 +896,7 @@ class AppPriceOverview(PartialAppPriceOverview):
 
 
 class FetchedApp(PartialApp[str]):
-    """Represents a Steam app fetched by :meth:`steam.Client.fetch_app`\\.
-
-    Attributes
-    ----------
-    created_at
-        The time the app was uploaded at.
-    background_url
-        The background URL of the app.
-    type
-        The type of the app.
-    logo_url
-        The logo URL of the app.
-    partial_dlc
-        The app's downloadable content.
-    website_url
-        The website URL of the app.
-    developers
-        The developers of the app.
-    publishers
-        The publishers of the app.
-    description
-        The short description of the app.
-    full_description
-        The full description of the app.
-    movies
-        A list of the app's movies, each of which has ``name``\\, ``id``\\, ``url`` and optional
-        ``created_at`` attributes.
-    price_overview
-        The price overview of the app.
-    """
+    """Represents a Steam app fetched by :meth:`steam.Client.fetch_app`\\."""
 
     __slots__ = (
         "logo",
@@ -976,21 +919,25 @@ class FetchedApp(PartialApp[str]):
         "_language",
     )
 
-    name: str
-
     def __init__(self, state: ConnectionState, data: app.FetchedApp, language: Language):
         super().__init__(state, id=data["steam_appid"], name=data["name"])
         self.logo = CDNAsset(state, data["header_image"])
+        """The logo of the app."""
         self.background = CDNAsset(state, data["background"])
+        """The background of the app."""
         self.created_at = (
             DateTime.parse_steam_date(data["release_date"]["date"], full_month=False)
             if data["release_date"]["date"]
             else None
         )
-        self.type = AppFlag.from_str(data["type"])
+        """The time the app was uploaded at."""
+        self.type = AppType.from_str(data["type"])
+        """The type of the app."""
         self.price_overview = AppPriceOverview(**data["price_overview"])
+        """The price overview of the app."""
 
         self.partial_dlc = [PartialApp(state, id=dlc_id) for dlc_id in data.get("dlc", [])]
+        """The app's downloadable content."""
 
         from .package import FetchedAppPackage
 
@@ -1001,12 +948,21 @@ class FetchedApp(PartialApp[str]):
         ]
 
         self.website_url = data.get("website")
+        """The website URL of the app."""
         self.developers = data["developers"]
+        """The developers of the app."""
         self.publishers = data["publishers"]
+        """The publishers of the app."""
         self.description = data["short_description"]
+        """The short description of the app."""
         self.full_description = data["detailed_description"]
+        """The full description of the app."""
 
-        self.movies = [Movie(movie) for movie in data["movies"]] if "movies" in data else None
+        self.movies = [FetchedAppMovie(state, movie) for movie in data["movies"]] if "movies" in data else None
+        """
+        A list of the app's movies, each of which has ``name``\\, ``id``\\, ``url`` and optional ``created_at``
+        attributes.
+        """
 
         self._free = data["is_free"]
         self._on_windows = bool(data["platforms"].get("windows", False))
@@ -1055,4 +1011,6 @@ class UserInventoryInfoApp(PartialApp[str]):
     def __init__(self, state: ConnectionState, id: int, name: str, icon_url: str, inventory_logo_url: str):
         super().__init__(state, id=id, name=name)
         self.icon = CDNAsset(state, icon_url)
+        """The icon of the app."""
         self.inventory_logo = CDNAsset(state, inventory_logo_url)
+        """The inventory logo of the app."""
