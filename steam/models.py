@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import itertools
 import logging
 import re
 import traceback
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import timedelta
 from io import BytesIO
 from types import CoroutineType
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Protocol, TypedDict, TypeVar
 
+from aiohttp import StreamReader
+from aiohttp.streams import AsyncStreamIterator, ChunkTupleAsyncStreamIterator
 from typing_extensions import Self
 from yarl import URL as _URL
 
@@ -219,25 +223,63 @@ class Ban:
         return self._market_banned
 
 
-class _IOMixin(metaclass=abc.ABCMeta):
+class StreamReaderProto(Protocol):
+    def __aiter__(self) -> AsyncStreamIterator[bytes]:
+        ...
+
+    def iter_chunked(self, n: int) -> AsyncStreamIterator[bytes]:
+        ...
+
+    def iter_any(self) -> AsyncStreamIterator[bytes]:
+        ...
+
+    def iter_chunks(self) -> ChunkTupleAsyncStreamIterator:
+        ...
+
+    async def readline(self) -> bytes:
+        ...
+
+    async def readuntil(self, separator: bytes = b"\n", /) -> bytes:
+        ...
+
+    async def read(self, n: int = -1, /) -> bytes:
+        ...
+
+    async def readany(self) -> bytes:
+        ...
+
+    async def readchunk(self) -> tuple[bytes, bool]:
+        ...
+
+    async def readexactly(self, n: int, /) -> bytes:
+        ...
+
+    def read_nowait(self, n: int = -1, /) -> bytes:
+        ...
+
+
+class _IOMixin:
     __slots__ = ()
 
+    if __debug__:
+
+        def __init_subclass__(cls) -> None:
+            if cls.open is _IOMixin.open and not getattr(cls, "url", None) and not getattr(cls, "_state", None):
+                raise NotImplementedError("Missing required attributes for implicit _IOMixin.open()")
+
     @asynccontextmanager
-    async def open(self, **kwargs: Any) -> AsyncGenerator[BytesIO, None]:
-        """Open this file as and returns its contents as an in memory buffer."""
-        try:
-            url: str = self.url  # type: ignore
-            state: ConnectionState = self._state  # type: ignore
-        except AttributeError:
-            raise NotImplementedError() from None
+    async def open(self, **kwargs: Any) -> AsyncGenerator[StreamReaderProto, None]:
+        """Open this file as and returns its contents as an :class:`aiohttp.StreamReader`."""
+        url: str = self.url  # type: ignore
+        state: ConnectionState = self._state  # type: ignore
 
         async with state.http._session.get(url) as r:
-            yield BytesIO(await r.read())
+            yield r.content
 
     async def read(self, **kwargs: Any) -> bytes:
         """Read the whole contents of this file."""
         async with self.open(**kwargs) as io:
-            return io.getvalue()
+            return await io.read()
 
     async def save(self, filename: StrOrBytesPath, **kwargs: Any) -> int:
         """Save the file to a path.
@@ -251,14 +293,16 @@ class _IOMixin(metaclass=abc.ABCMeta):
         -------
         The number of bytes written.
         """
+        total = 0
         async with self.open(**kwargs) as file:
-            with file, open(filename, "wb") as actual_fp:
-                return actual_fp.write(file.getvalue())
+            with open(filename, "wb") as actual_fp:
+                async for chunk in file.iter_chunked(2048):
+                    total += actual_fp.write(chunk)
+        return total
 
     async def image(self, *, spoiler: bool = False, **kwargs: Any) -> Image:
         """Return this file as an image for uploading."""
-        async with self.open(**kwargs) as file:
-            return Image(file, spoiler=spoiler)
+        return Image(BytesIO(await self.read()), spoiler=spoiler)
 
 
 class Avatar(_IOMixin):
@@ -285,8 +329,12 @@ class Avatar(_IOMixin):
         return self.sha == other.sha if isinstance(other, self.__class__) else NotImplemented
 
 
-@dataclass(slots=True)
+@dataclass
 class CDNAsset(_IOMixin):
+    __slots__ = (
+        "url",
+        "_state",
+    )
     _state: ConnectionState
     url: str
     """The URL of the asset."""

@@ -64,8 +64,10 @@ class ProfileInfo:
         return f"<{self.__class__.__name__} real_name={self.real_name!r}>"
 
 
-@dataclass(slots=True)
+@dataclass
 class ProfileMovie(_IOMixin):
+    __slots__ = ("url", "_state")
+    _state: ConnectionState
     url: str  # TODO add more attributes like maybe created_at?
 
 
@@ -120,7 +122,7 @@ class ProfileItem(Generic[UserT]):
         """The item's type."""
         self.class_ = ProfileItemClass.try_value(item.item_class)
         """The item's class."""
-        self.movie = ProfileMovie(item.movie_mp4)
+        self.movie = ProfileMovie(state, item.movie_mp4)
         """The movie associated with the item."""
         self.equipped_flags = item.equipped_flags  # TODO might be useful for item show case?
         """The item's equipped flags."""

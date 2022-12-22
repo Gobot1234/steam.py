@@ -18,6 +18,8 @@ from .protobufs.friend_messages import EMessageReactionType
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from aiohttp import StreamReader
+
     from .message import Authors, Message
     from .protobufs.friends import (
         CMsgClientEmoticonListEffect as ClientEffectProto,
@@ -103,9 +105,9 @@ class Award(_IOMixin):
         return BASE_REACTION_URL.format(type="animated", id=self.id)
 
     @asynccontextmanager
-    async def open(self, *, animated: bool = False) -> AsyncGenerator[BytesIO, None]:
+    async def open(self, *, animated: bool = False) -> AsyncGenerator[StreamReader, None]:
         async with self._state.http._session.get(self.animated_url if animated else self.url) as r:
-            yield BytesIO(await r.read())
+            yield r.content
 
 
 class AwardReaction:
@@ -209,7 +211,6 @@ class MessageReaction(PartialMessageReaction):
 
 class BaseEmoticon(_IOMixin):
     __slots__ = ("_state", "name")
-    url: str
 
     def __init__(self, state: ConnectionState, name: str):
         self._state = state
@@ -231,6 +232,10 @@ class BaseEmoticon(_IOMixin):
 
     def __hash__(self) -> int:
         return hash(self.name)
+
+    @property
+    def url(self) -> str:
+        raise NotImplementedError
 
 
 EMOTICON_TYPE = EChatRoomMessageReactionType.Emoticon
@@ -262,7 +267,7 @@ class Emoticon(BaseEmoticon):
     __slots__ = ()
     _TYPE: Final = EMOTICON_TYPE
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f":{self.name}:"
 
     @property

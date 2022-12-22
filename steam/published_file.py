@@ -6,9 +6,9 @@ from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from io import BytesIO
 from typing import TYPE_CHECKING, Generic
 
+from aiohttp import StreamReader
 from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
@@ -37,8 +37,9 @@ __all__ = (
 )
 
 
-@dataclass(slots=True)
+@dataclass
 class DetailsPreview(_IOMixin):
+    __slots__ = ("_state", "id", "position", "url", "size", "filename", "type")
     _state: ConnectionState
     id: int
     position: int
@@ -52,8 +53,9 @@ class DetailsPreview(_IOMixin):
         return int(URL_(self.url).parts[2])
 
 
-@dataclass(slots=True)
+@dataclass
 class PreviewInfo(_IOMixin):
+    __slots__ = ("_state", "ugc_id", "size", "url")
     _state: ConnectionState
     ugc_id: int
     size: int
@@ -99,8 +101,9 @@ class PublishedFileChange:
     created_at: datetime
 
 
-@dataclass(slots=True)
+@dataclass
 class PublishedFileFile(_IOMixin):
+    __slots__ = ("_state", "name", "size", "url")
     _state: ConnectionState
     name: str
     """The file's filename."""
@@ -110,8 +113,9 @@ class PublishedFileFile(_IOMixin):
     """The file's cdn_url."""
 
 
-@dataclass(slots=True)
+@dataclass
 class PublishedFileImage(_IOMixin):
+    __slots__ = ("_state", "width", "height", "url")
     _state: ConnectionState
     width: int
     """The file's image's width."""
@@ -357,14 +361,12 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         )
 
     @asynccontextmanager
-    async def open(self) -> AsyncGenerator[BytesIO, None]:
+    async def open(self) -> AsyncGenerator[StreamReader, None]:
         if self.type not in (PublishedFileType.Art, PublishedFileType.Screenshot, PublishedFileType.SteamVideo):
             raise NotImplementedError(f"Cannot open {self.type}")
 
         async with self._state.http._session.get(self.file.url) as r:
-            io = BytesIO(await r.read())
-            io.name = self.file.name
-            yield io
+            yield r.content
 
     async def fetch_children(
         self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None

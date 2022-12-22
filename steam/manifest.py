@@ -11,14 +11,15 @@ import sys
 from base64 import b64decode
 from collections.abc import AsyncGenerator, Generator, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
 from operator import attrgetter, methodcaller
-from typing import TYPE_CHECKING, Any, Final, cast
+from typing import TYPE_CHECKING, Any, Final, Literal, cast
 from zipfile import BadZipFile, ZipFile
 from zlib import crc32
 
+from aiohttp.streams import AsyncStreamReaderMixin
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
 from typing_extensions import Never, Self
@@ -106,6 +107,85 @@ class ManifestPathParents(cast(type[Sequence["ManifestPath"]], type(PurePathBase
 
     def __repr__(self) -> str:
         return f"<{self._path_cls!r}.parents>"
+
+
+@dataclass(slots=True)
+class ManifestPathIO(AsyncStreamReaderMixin):
+    _path: ManifestPath
+    _key: bytes
+    _chunk_idx: int = 0
+    _buffer: bytearray = field(default_factory=bytearray)
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        self._buffer.clear()
+        self._chunk_idx = len(self._path.chunks)
+
+    async def _get(self, chunk: PayloadFileMappingChunkData) -> None:
+        data = await self._path._manifest.server.get(f"depot/{self._path._manifest.depot_id}/chunk/{chunk.sha.hex()}")
+        self._chunk_idx += 1
+        self._buffer += unzip(utils.symmetric_decrypt(data, self._key))
+
+    async def read(self, n: int = -1, /) -> bytes:
+        if n == -1:
+            async with self:
+                self._buffer += b"".join(
+                    unzip(utils.symmetric_decrypt(data, self._key))
+                    for data in await asyncio.gather(
+                        *(
+                            self._path._manifest.server.get(
+                                f"depot/{self._path._manifest.depot_id}/chunk/{chunk.sha.hex()}"
+                            )
+                            for chunk in self._path.chunks[self._chunk_idx :]
+                        )
+                    )
+                )
+                return bytes(self._buffer)
+
+        for chunk in self._path.chunks[self._chunk_idx :]:
+            if len(self._buffer) >= n:
+                break
+            await self._get(chunk)
+
+        found = bytes(self._buffer[:n])
+        self._buffer = self._buffer[n:]
+        return found
+
+    async def read1(self, n: int = -1, /) -> bytes:
+        if len(self._buffer) < n or n == -1:
+            await self._get(self._path.chunks[self._chunk_idx])
+
+        found = bytes(self._buffer[:n])
+        self._buffer = self._buffer[n:]
+        return found
+
+    async def readuntil(self, separator: bytes = b"\n", /) -> bytes:
+        while (idx := self._buffer.find(separator)) == -1 and self._chunk_idx != len(self._path.chunks):
+            await self._get(self._path.chunks[self._chunk_idx])
+
+        found = bytes(self._buffer[: idx + len(separator)])
+        self._buffer = self._buffer[idx + len(separator) :]
+        return found
+
+    readline = readuntil
+
+    async def readany(self) -> bytes:
+        return bytes(self._buffer) or await self.read1()
+
+    async def readchunk(self) -> tuple[bytes, Literal[True]]:
+        return await self.read1(), True
+
+    async def readexactly(self, n: int, /) -> bytes:
+        data = await self.read(n)
+        if len(data) != n:
+            raise asyncio.IncompleteReadError(data, n)
+
+        return data
+
+    def read_nowait(self, n: int = -1, /) -> bytes:
+        return bytes(self._buffer[:n]) if n != -1 else bytes(self._buffer)
 
 
 class ManifestPath(PurePathBase, _IOMixin):
@@ -293,8 +373,8 @@ class ManifestPath(PurePathBase, _IOMixin):
         yield from self.glob(f"**/{pattern}")
 
     @asynccontextmanager
-    async def open(self) -> AsyncGenerator[BytesIO, None]:
-        """Reads the entire contents of the file into a :class:`io.BytesIO` object.
+    async def open(self) -> AsyncGenerator[ManifestPathIO, None]:
+        """Reads the contents of the file.
 
         Raises
         ------
@@ -310,18 +390,8 @@ class ManifestPath(PurePathBase, _IOMixin):
         if key is None:
             raise RuntimeError("Cannot decrypt this depot as we have no key.")
 
-        with BytesIO() as buffer:
-            for resp in await asyncio.gather(
-                *(
-                    self._manifest.server.get(f"depot/{self._manifest.depot_id}/chunk/{chunk.sha.hex()}")
-                    for chunk in self.chunks
-                )
-            ):
-                data = utils.symmetric_decrypt(resp, key)
-                buffer.write(unzip(data))
-
-            buffer.seek(0)
-            yield buffer
+        async with ManifestPathIO(self, key) as file:
+            yield file
 
     read_bytes = _IOMixin.read
     """Read the contents of the file. Similar to :meth:`pathlib.Path.read_bytes`"""
