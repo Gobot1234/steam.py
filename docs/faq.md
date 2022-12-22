@@ -112,8 +112,8 @@ async def trade(ctx: commands.Context):
         await ctx.send("You took too long to send the offer")
     else:
         await ctx.send(
-            f"You were going to send {len(offer.items_to_receive)} items\n"
-            f"You were going to receive {len(offer.items_to_send)} items"
+            f"You were going to send {len(offer.receiving)} items\n"
+            f"You were going to receive {len(offer.sending)} items"
         )
         await offer.decline()
 ```
@@ -146,7 +146,7 @@ keys = my_inventory.filter_items("Mann Co. Supply Crate Key", limit=3)
 earbuds = their_inventory.get_item("Earbuds")
 
 # finally construct the trade
-trade = steam.TradeOffer(items_to_send=keys, item_to_receive=earbuds, message="This trade was made using steam.py")
+trade = steam.TradeOffer(sending=keys, item_to_receive=earbuds, message="This trade was made using steam.py")
 await user.send(trade=trade)
 # you don't need to confirm the trade manually, the client will handle that for you
 ```

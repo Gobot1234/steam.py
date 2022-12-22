@@ -231,7 +231,7 @@ Converters
 
 .. autoclass:: GroupConverter()
 
-.. autoclass:: GameConverter()
+.. autoclass:: AppConverter()
 
 
 Default Values
