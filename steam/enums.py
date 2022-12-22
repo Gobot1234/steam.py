@@ -162,6 +162,10 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
         )
         super_.__setattr__(self, "name", name)
         super_.__setattr__(self, "value", value)
+
+        if DOCS_BUILDING:  # dumb enum shim
+            super_.__setattr__(self, "_name_", name)
+            super_.__setattr__(self, "_value_", value)
         return self
 
     def __setattr__(self, key: str, value: Any) -> Never:
@@ -196,7 +200,7 @@ if cast(Literal[False], DOCS_BUILDING):
     for key in ("__new__", "__setattr__"):
         del enum_dict[key]
 
-    Enum = new_class("Enum", (_Enum,), {}, lambda ns: ns.update(enum_dict))  # type: ignore
+    Enum = new_class("Enum", (_Enum,), {}, lambda ns: dict.update(ns, enum_dict))  # type: ignore
     IntEnum = new_class("IntEnum", (Enum, _IntEnum))  # type: ignore
 
 

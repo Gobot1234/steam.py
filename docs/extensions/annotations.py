@@ -120,7 +120,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
         return Union[self.collect_types(t.items)]
 
     def visit_type_alias_type(self, t: types.TypeAliasType) -> Any:
-        return t.alias.target.accept(self)
+        return t.expand_all_if_possible().accept(self) if not t.is_recursive else self.get(t.alias.fullname)
 
 
 @contextlib.contextmanager
