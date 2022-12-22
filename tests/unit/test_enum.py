@@ -1,6 +1,6 @@
 import pytest
 
-from steam import AppFlag, Enum, InstanceFlag, Language, Result
+from steam import AppType, Enum, Instance, Language, Result
 
 
 def is_unknown(enum: Enum) -> bool:
@@ -34,42 +34,42 @@ def test_enum_try_value() -> None:
 
 
 def test_flag_behaviour() -> None:
-    assert isinstance(InstanceFlag.Desktop, InstanceFlag)
-    assert isinstance(InstanceFlag.Desktop, int)
-    assert InstanceFlag.Desktop.name == "Desktop"
-    assert InstanceFlag.Desktop.value == 1
-    assert InstanceFlag["Desktop"] is InstanceFlag.Desktop
-    assert InstanceFlag(1) is InstanceFlag.Desktop
+    assert isinstance(Instance.Desktop, Instance)
+    assert isinstance(Instance.Desktop, int)
+    assert Instance.Desktop.name == "Desktop"
+    assert Instance.Desktop.value == 1
+    assert Instance["Desktop"] is Instance.Desktop
+    assert Instance(1) is Instance.Desktop
 
-    value = InstanceFlag.Desktop | InstanceFlag.Web
-    assert isinstance(value, InstanceFlag)
+    value = Instance.Desktop | Instance.Web
+    assert isinstance(value, Instance)
     assert isinstance(value, int)
     assert value.name == "Desktop | Web"
     assert value.value == 1 | 4
 
-    assert isinstance(value & InstanceFlag.Desktop, InstanceFlag)
-    assert isinstance(value & InstanceFlag.Desktop, int)
+    assert isinstance(value & Instance.Desktop, Instance)
+    assert isinstance(value & Instance.Desktop, int)
 
-    assert (value & InstanceFlag.Desktop).name == "Desktop"
-    assert (value & InstanceFlag.Desktop).value == 1
-    assert value & InstanceFlag.Desktop is InstanceFlag.Desktop
+    assert (value & Instance.Desktop).name == "Desktop"
+    assert (value & Instance.Desktop).value == 1
+    assert value & Instance.Desktop is Instance.Desktop
 
-    assert isinstance(AppFlag.Game, AppFlag)
-    assert isinstance(AppFlag.Game, int)
-    assert AppFlag.Game.name == "Game"
-    assert AppFlag.Game.value == 1
-    assert AppFlag["Game"] is AppFlag.Game
-    assert AppFlag(1) is AppFlag.Game
+    assert isinstance(AppType.Game, AppType)
+    assert isinstance(AppType.Game, int)
+    assert AppType.Game.name == "Game"
+    assert AppType.Game.value == 1
+    assert AppType["Game"] is AppType.Game
+    assert AppType(1) is AppType.Game
 
 
 def test_flag_try_value() -> None:
-    assert InstanceFlag.try_value(1) == InstanceFlag.Desktop
-    assert InstanceFlag.try_value(1 << 17 | 1 << 18) == InstanceFlag.ChatMMSLobby | InstanceFlag.ChatLobby
-    assert InstanceFlag.try_value(100).value == 100
+    assert Instance.try_value(1) == Instance.Desktop
+    assert Instance.try_value(1 << 17 | 1 << 18) == Instance.ChatMMSLobby | Instance.ChatLobby
+    assert Instance.try_value(100).value == 100
 
-    assert InstanceFlag.try_value(0) == InstanceFlag.All
+    assert Instance.try_value(0) == Instance.All
 
-    instance_flag_20 = InstanceFlag.try_value(1 << 20)
+    instance_flag_20 = Instance.try_value(1 << 20)
     assert is_unknown(instance_flag_20)
     assert instance_flag_20.value == 1 << 20
 
@@ -82,5 +82,5 @@ def test_language_from_str() -> None:
 
 
 def test_app_flag_from_str() -> None:
-    assert AppFlag.from_str("game,dlc") == AppFlag.Game | AppFlag.DLC
-    assert AppFlag.from_str("SERIES ") == AppFlag.Series
+    assert AppType.from_str("game,dlc") == AppType.Game | AppType.DLC
+    assert AppType.from_str("SERIES ") == AppType.Series

@@ -31,7 +31,7 @@ from typing import Optional, Union
 
 import pytest
 
-from steam import ID, InstanceFlag, InvalidID, Type, Universe
+from steam import ID, Instance, InvalidID, Type, Universe
 
 
 def test_hash() -> None:
@@ -42,38 +42,38 @@ def test_hash() -> None:
 @pytest.mark.parametrize(
     "steam_id, components",
     [
-        (ID(1), [1, Type.Individual, Universe.Public, InstanceFlag.Desktop]),
-        [ID("1"), [1, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [ID(12), [12, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [ID("12"), [12, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [ID(123), [123, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [ID("123"), [123, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [ID(12345678), [12345678, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [ID("12345678"), [12345678, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [ID(0xFFFFFFFF), [0xFFFFFFFF, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
-        [ID(str(0xFFFFFFFF)), [0xFFFFFFFF, Type.Individual, Universe.Public, InstanceFlag.Desktop]],
+        (ID(1), [1, Type.Individual, Universe.Public, Instance.Desktop]),
+        [ID("1"), [1, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID(12), [12, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID("12"), [12, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID(123), [123, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID("123"), [123, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID(12345678), [12345678, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID("12345678"), [12345678, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID(0xFFFFFFFF), [0xFFFFFFFF, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID(str(0xFFFFFFFF)), [0xFFFFFFFF, Type.Individual, Universe.Public, Instance.Desktop]],
         [ID(76580280500085312), [123456, Type.Individual, Universe.Public, 4444]],
         [ID("76580280500085312"), [123456, Type.Individual, Universe.Public, 4444]],
-        [ID(103582791429521412), [4, Type.Clan, Universe.Public, InstanceFlag.All]],
-        [ID("103582791429521412"), [4, Type.Clan, Universe.Public, InstanceFlag.All]],
-        [ID(0), [0, Type.Invalid, Universe.Invalid, InstanceFlag.All]],
+        [ID(103582791429521412), [4, Type.Clan, Universe.Public, Instance.All]],
+        [ID("103582791429521412"), [4, Type.Clan, Universe.Public, Instance.All]],
+        [ID(0), [0, Type.Invalid, Universe.Invalid, Instance.All]],
         [
-            ID(0, type=Type.Invalid, universe=Universe.Invalid, instance=InstanceFlag.All),
-            [0, Type.Invalid, Universe.Invalid, InstanceFlag.All],
+            ID(0, type=Type.Invalid, universe=Universe.Invalid, instance=Instance.All),
+            [0, Type.Invalid, Universe.Invalid, Instance.All],
         ],
         [
-            ID(0, type=Type.Invalid, universe=Universe.Invalid, instance=InstanceFlag.All),
-            [0, Type.Invalid, Universe.Invalid, InstanceFlag.All],
+            ID(0, type=Type.Invalid, universe=Universe.Invalid, instance=Instance.All),
+            [0, Type.Invalid, Universe.Invalid, Instance.All],
         ],
         [
-            ID(0, type=Type.Invalid, universe=Universe.Invalid, instance=InstanceFlag.All),
-            [0, Type.Invalid, Universe.Invalid, InstanceFlag.All],
+            ID(0, type=Type.Invalid, universe=Universe.Invalid, instance=Instance.All),
+            [0, Type.Invalid, Universe.Invalid, Instance.All],
         ],
         [ID(1, type=Type.Multiseat), [1, Type.Multiseat, 1, 0]],
         [ID(1, type=Type.Multiseat, universe=Universe.Internal), [1, Type.Multiseat, Universe.Internal, 0]],
         [
-            ID(1, type=Type.Multiseat, universe=Universe.Internal, instance=InstanceFlag.Web),
-            [1, Type.Multiseat, Universe.Internal, InstanceFlag.Web],
+            ID(1, type=Type.Multiseat, universe=Universe.Internal, instance=Instance.Web),
+            [1, Type.Multiseat, Universe.Internal, Instance.Web],
         ],
     ],
 )
@@ -114,13 +114,13 @@ def test_kwarg_universe() -> None:
 
 
 def test_kwarg_instance() -> None:
-    assert ID(5, instance=InstanceFlag.Console).instance == InstanceFlag.Console
+    assert ID(5, instance=Instance.Console).instance == Instance.Console
 
     for type in Type:
         assert (
-            ID(5, type=type).instance == InstanceFlag.Desktop
+            ID(5, type=type).instance == Instance.Desktop
             if type in (Type.Individual, Type.GameServer)
-            else ID(5, type=type).instance == InstanceFlag.All
+            else ID(5, type=type).instance == Instance.All
         )
 
 
@@ -130,7 +130,7 @@ def test_out_of_current_bounds() -> None:
     with pytest.raises(InvalidID):
         ID(5, universe=Universe.try_value(1 << 8 + 1))
     with pytest.raises(InvalidID):
-        ID(5, instance=InstanceFlag.try_value(1 << 20 + 1))
+        ID(5, instance=Instance.try_value(1 << 20 + 1))
 
 
 @pytest.mark.parametrize(
@@ -144,13 +144,13 @@ def test_out_of_current_bounds() -> None:
         [ID(1, universe=Universe.try_value(16)), False],  # universe out of bound
         [ID(5), True],
         # individual
-        [ID(123, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Desktop), True],
-        [ID(123, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.All), True],
-        [ID(123, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Console), True],
-        [ID(123, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Web), True],
+        [ID(123, type=Type.Individual, universe=Universe.Public, instance=Instance.Desktop), True],
+        [ID(123, type=Type.Individual, universe=Universe.Public, instance=Instance.All), True],
+        [ID(123, type=Type.Individual, universe=Universe.Public, instance=Instance.Console), True],
+        [ID(123, type=Type.Individual, universe=Universe.Public, instance=Instance.Web), True],
         # clan
-        [ID(1, type=Type.Clan, universe=Universe.Public, instance=InstanceFlag.Desktop), False],
-        [ID(1, type=Type.Clan, universe=Universe.Public, instance=InstanceFlag.All), True],
+        [ID(1, type=Type.Clan, universe=Universe.Public, instance=Instance.Desktop), False],
+        [ID(1, type=Type.Clan, universe=Universe.Public, instance=Instance.All), True],
     ],
 )
 def test_is_valid(steam_id: ID, valid: bool) -> None:
@@ -196,14 +196,13 @@ def test_as_id2_zero(steam_id: ID, id2_zero: str) -> None:
 @pytest.mark.parametrize(
     "steam_id, id3",
     [
-        [ID("[U:1:1234]"), "[U:1:1234:0]"],
-        [ID("[U:1:1234]"), "[U:1:1234:0]"],
+        [ID("[U:1:1234]"), "[U:1:1234]"],
         [ID("[U:1:1234:56]"), "[U:1:1234:56]"],
         [ID("[g:1:4]"), "[g:1:4]"],
         [ID("[A:1:1234:567]"), "[A:1:1234:567]"],
         [ID("[G:1:1234:567]"), "[G:1:1234]"],
         [ID("[T:1:1234]"), "[T:1:1234]"],
-        [ID("[c:1:1234]"), "[g:1:1234]"],
+        [ID("[c:1:1234]"), "[g:1:1234]"],  # this doesn't round trip
         [ID("[L:1:1234]"), "[L:1:1234]"],
     ],
 )
@@ -226,11 +225,11 @@ def test_community_url(steam_id: ID, community_url: Optional[str]) -> None:
 @pytest.mark.parametrize(
     "steam_id, invite_code",
     [
-        [ID(0, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Desktop), None],
-        [ID(123456, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Desktop), "cv-dgb"],
-        [ID(123456, type=Type.Individual, universe=Universe.Beta, instance=InstanceFlag.Desktop), "cv-dgb"],
-        [ID(123456, type=Type.Invalid, universe=Universe.Public, instance=InstanceFlag.Desktop), None],
-        [ID(123456, type=Type.Clan, universe=Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(0, type=Type.Individual, universe=Universe.Public, instance=Instance.Desktop), None],
+        [ID(123456, type=Type.Individual, universe=Universe.Public, instance=Instance.Desktop), "cv-dgb"],
+        [ID(123456, type=Type.Individual, universe=Universe.Beta, instance=Instance.Desktop), "cv-dgb"],
+        [ID(123456, type=Type.Invalid, universe=Universe.Public, instance=Instance.Desktop), None],
+        [ID(123456, type=Type.Clan, universe=Universe.Public, instance=Instance.Desktop), None],
     ],
 )
 def test_as_invite_code(steam_id: ID, invite_code: Optional[str]) -> None:
@@ -240,17 +239,17 @@ def test_as_invite_code(steam_id: ID, invite_code: Optional[str]) -> None:
 @pytest.mark.parametrize(
     "steam_id, invite_url",
     [
-        [ID(0, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(0, type=Type.Individual, universe=Universe.Public, instance=Instance.Desktop), None],
         [
-            ID(123456, type=Type.Individual, universe=Universe.Public, instance=InstanceFlag.Desktop),
+            ID(123456, type=Type.Individual, universe=Universe.Public, instance=Instance.Desktop),
             "https://s.team/p/cv-dgb",
         ],
         [
-            ID(123456, type=Type.Individual, universe=Universe.Beta, instance=InstanceFlag.Desktop),
+            ID(123456, type=Type.Individual, universe=Universe.Beta, instance=Instance.Desktop),
             "https://s.team/p/cv-dgb",
         ],
-        [ID(123456, type=Type.Invalid, universe=Universe.Public, instance=InstanceFlag.Desktop), None],
-        [ID(123456, type=Type.Clan, universe=Universe.Public, instance=InstanceFlag.Desktop), None],
+        [ID(123456, type=Type.Invalid, universe=Universe.Public, instance=Instance.Desktop), None],
+        [ID(123456, type=Type.Clan, universe=Universe.Public, instance=Instance.Desktop), None],
     ],
 )
 def test_as_invite_url(steam_id: ID, invite_url: Optional[str]) -> None:
