@@ -40,3 +40,5 @@ PublishedFileID = _NewType("PublishedFileID", int)  # u64
 
 ManifestID = _NewType("ManifestID", int)
 DepotID = _NewType("DepotID", int)
+
+LeaderboardID = _NewType("LeaderboardID", int)
