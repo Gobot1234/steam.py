@@ -16,7 +16,7 @@ import random
 import sys
 import time
 import traceback
-from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Sequence
+from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Concatenate, Literal, ParamSpec, TypeAlias, TypeVar, final, overload
 
 import aiohttp
@@ -343,14 +343,20 @@ class Client:
         username: str,
         password: str,
         *,
-        shared_secret: str = MISSING,
-        identity_secret: str = MISSING,
+        shared_secret: str = ...,
+        identity_secret: str = ...,
     ) -> object:
         ...
 
     @overload
     @final
-    def run(self, *, refresh_token: str) -> object:
+    def run(
+        self,
+        *,
+        refresh_token: str,
+        shared_secret: str = ...,
+        identity_secret: str = ...,
+    ) -> object:
         ...
 
     @final
@@ -467,6 +473,8 @@ class Client:
         self,
         *,
         refresh_token: str,
+        shared_secret: str = ...,
+        identity_secret: str = ...,
     ) -> None:
         ...
 
@@ -1129,7 +1137,7 @@ class Client:
         self,
         *,
         app: App | None = None,
-        apps: list[App] | None = None,
+        apps: Iterable[App] | None = None,
         state: PersonaState | None = None,
         ui_mode: UIMode | None = None,
         flags: PersonaStateFlag | None = None,

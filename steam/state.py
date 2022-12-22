@@ -1385,7 +1385,7 @@ class ConnectionState(Registerable):
 
         return msg
 
-    async def post_comment(self, owner: Commentable, content: str, subscribe: bool) -> Comment[Commentable]:
+    async def post_comment(self, owner: OwnerT, content: str, subscribe: bool) -> Comment[OwnerT]:
         msg: comments.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
             comments.PostCommentToThreadRequest(
                 **owner._commentable_kwargs,
@@ -1397,7 +1397,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-        comment = Comment(
+        comment = Comment[OwnerT](
             self,
             id=CommentID(msg.id),
             content=content,

@@ -172,7 +172,7 @@ def cached_slot_property(name: str, /) -> Callable[[Callable[[_SelfT], _T_co]], 
     ...
 
 
-def cached_slot_property(function_or_name: Any, /) -> Any:
+def cached_slot_property(function_or_name: Any, /) -> Any:  # required to be a function to appease type checkers
     if isinstance(function_or_name, str):
 
         def wrapper(function: Callable[[_SelfT], _T_co]) -> CachedSlotProperty[_SelfT, _T_co]:

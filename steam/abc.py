@@ -313,7 +313,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         resp = await self._state.http.get(f"{self.community_url}/inventory")
         soup = BeautifulSoup(resp, "html.parser")
         for script in soup.find_all("script", type="text/javascript"):
-            if match := re.search(r"var g_rgAppContextData\s*=\s*(?P<json>{.*?});\s*", script.text):
+            if match := re.search(r"var\s+g_rgAppContextData\s*=\s*(?P<json>{.*?});\s*", script.text):
                 break
         else:
             raise ValueError("Could not find inventory info")
