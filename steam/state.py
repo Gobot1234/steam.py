@@ -907,10 +907,7 @@ class ConnectionState(Registerable):
         )
         if msg.result != Result.OK:
             raise WSException(msg)
-        return (
-            f"https://steamcommunity.com/tradeoffer/new/?partner={self.user.id}"
-            f"&token={msg.trade_offer_access_token}"
-        )
+        return str(URL.COMMUNITY / "tradeoffer/new" % {"partner": self.user.id, "token": msg.trade_offer_access_token})
 
     # parsers
 

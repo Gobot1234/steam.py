@@ -43,7 +43,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Self
 
 from ._const import JSON_LOADS, MISSING, URL
-from .enums import _is_descriptor, classproperty as classproperty
+from .enums import Type, _is_descriptor, classproperty as classproperty
 from .id import _URL_START, ID, id64_from_url as id64_from_url, parse_id64 as parse_id64
 
 if TYPE_CHECKING:
@@ -92,7 +92,7 @@ def verify_signature(data: bytes, signature: bytes) -> bool:
 
 @dataclass(slots=True)
 class TradeURLInfo:
-    id: ID
+    id: ID[Literal[Type.Individual]]
     token: str | None = None
 
     @property
@@ -130,7 +130,7 @@ def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
     ) is None:
         return None
 
-    return TradeURLInfo(ID(match["user_id"]), match["token"] or None)
+    return TradeURLInfo(ID(match["user_id"]), match["token"] or None)  # type: ignore
 
 
 _SelfT = TypeVar("_SelfT")
