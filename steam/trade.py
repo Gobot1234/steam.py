@@ -310,10 +310,14 @@ class Inventory(Generic[ItemT, OwnerT]):
 
     async def update(self) -> None:
         """Re-fetches the inventory and updates it inplace."""
-        # if self.owner == self._state.user:
-        #     data = await self._state.fetch_client_user_inventory(self.app.id, self.app.context_id, self._language)
-        # else:
-        data = await self._state.fetch_user_inventory(self.owner.id64, self.app.id, self.app.context_id, self._language)
+        async with (
+            self._state.user._inventory_locks.setdefault(self.app.id, asyncio.Lock())
+            if self.owner == self._state.user
+            else contextlib.nullcontext()
+        ):
+            data = await self._state.fetch_user_inventory(
+                self.owner.id64, self.app.id, self.app.context_id, self._language
+            )
         self._update(data)
 
 
