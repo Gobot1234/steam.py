@@ -8,7 +8,7 @@ import itertools
 import types
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, cast
 
 from typing_extensions import NamedTuple, TypeVar
 
@@ -350,14 +350,10 @@ class TradeOffer(Generic[ItemT, OwnerT]):
 
     Parameters
     ----------
-    item_to_send
-        The item to send with the trade offer. Mutually exclusive to ``items_to_send``.
-    item_to_receive
-        The item to receive with the trade offer. Mutually exclusive to ``items_to_receive``.
-    items_to_send
-        The items you are sending to the other user. Mutually exclusive to ``item_to_send``.
-    items_to_receive
-        The items you are receiving from the other user. Mutually exclusive to ``item_to_receive``.
+    sending
+        The items you are sending to the other user.
+    receiving
+        The items you are receiving from the other user.
     token
         The trade token used to send trades to users who aren't on the ClientUser's friend's list.
     message
@@ -375,8 +371,8 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         "expires",
         "updated_at",
         "created_at",
-        "items_to_send",
-        "items_to_receive",
+        "sending",
+        "receiving",
         "_has_been_sent",
         "_state",
         "_is_our_offer",
@@ -385,41 +381,23 @@ class TradeOffer(Generic[ItemT, OwnerT]):
     id: TradeOfferID
     """The trade offer's ID."""
     partner: OwnerT
-
-    @overload
-    def __init__(
-        self,
-        *,
-        token: str | None = ...,
-        message: str | None = ...,
-        item_to_send: ItemT = ...,  # TODO HKT for this would be really nice as could then "ensure" we own the item
-        item_to_receive: ItemT = ...,
-    ):
-        ...
-
-    @overload
-    def __init__(
-        self,
-        *,
-        token: str | None = ...,
-        message: str | None = ...,
-        items_to_send: Sequence[ItemT],
-        items_to_receive: Sequence[ItemT],
-    ):
-        ...
+    """The trade offer partner. This should only ever be a :class:`steam.ID` if the partner's profile is private."""
 
     def __init__(
         self,
         *,
         message: str | None = None,
         token: str | None = None,
-        item_to_send: ItemT | None = None,
-        item_to_receive: ItemT | None = None,
-        items_to_send: Sequence[ItemT] | None = None,
-        items_to_receive: Sequence[ItemT] | None = None,
+        sending: Sequence[ItemT] | ItemT | None = None,
+        # TODO HKT for this would be really nice as could then "ensure" we own the item
+        receiving: Sequence[ItemT] | ItemT | None = None,
     ):
-        self.items_to_receive: Sequence[ItemT] = items_to_receive or ([item_to_receive] if item_to_receive else [])
-        self.items_to_send: Sequence[ItemT] = items_to_send or ([item_to_send] if item_to_send else [])
+        self.sending: Sequence[ItemT] = sending if isinstance(sending, Sequence) else [sending] if sending else []
+        """The items you are sending to the partner."""
+        self.receiving: Sequence[ItemT] = (
+            receiving if isinstance(receiving, Sequence) else [receiving] if receiving else []
+        )
+        """The items you are receiving from the partner."""
         self.message: str | None = message or None
         """The message included with the trade offer."""
         self.token: str | None = token
@@ -455,8 +433,8 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         sent: list[trade.TradeOfferReceiptItem] = data.get("assets_given", [])  # type: ignore
         partner = cast("OwnerT", PartialUser(state, data["steamid_other"]))
         trade = cls(
-            items_to_receive=[MovedItem(state, item, partner) for item in received],
-            items_to_send=[MovedItem(state, item, state.user) for item in sent],
+            receiving=[MovedItem(state, item, partner) for item in received],
+            sending=[MovedItem(state, item, state.user) for item in sent],
         )
         trade._state = state
         trade._id = int(data["tradeid"])
@@ -498,7 +476,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
             self.state != TradeOfferState.Accepted
         ):  # steam doesn't really send the item data if the offer just got accepted
             # TODO update this to actually check if the items are different (they shouldn't be)
-            self.items_to_send = [
+            self.sending = [
                 Item(
                     self._state,
                     asset=econ.Asset().from_dict(item),
@@ -507,7 +485,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
                 )
                 for item in data.get("items_to_give", ())
             ]
-            self.items_to_receive = [
+            self.receiving = [
                 Item(
                     self._state,
                     asset=econ.Asset().from_dict(item),
@@ -525,7 +503,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         if self._has_been_sent and other._has_been_sent:
             return self.id == other.id
         elif not (self._has_been_sent and other._has_been_sent):
-            return self.items_to_send == other.items_to_send and self.items_to_receive == other.items_to_receive
+            return self.sending == other.sending and self.receiving == other.receiving
         return NotImplemented
 
     async def confirm(self) -> None:
@@ -616,21 +594,18 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         descriptions = data["descriptions"]
         assert self.partner is not None
 
-        received: list[MovedItem[OwnerT]] = []
-        for asset in trade.get("assets_received", ()):
-            for item in descriptions:
-                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
-                    item.update(asset)
-                    received.append(MovedItem(self._state, data=item, owner=self.partner))
-
-        sent: list[MovedItem[ClientUser]] = []
-        for asset in trade.get("assets_given", ()):
-            for item in descriptions:
-                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]:
-                    item.update(asset)
-                    sent.append(MovedItem(self._state, data=item, owner=self._state.user))
-
-        return TradeOfferReceipt(sent=sent, received=received)  # type: ignore  # this might be a bug
+        return TradeOfferReceipt[OwnerT](
+            sent=[
+                MovedItem(self._state, data=item | asset, owner=self._state.user)
+                for asset, item in itertools.product(trade.get("assets_given", ()), descriptions)
+                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]
+            ],
+            received=[
+                MovedItem(self._state, data=item | asset, owner=self.partner)
+                for asset, item in itertools.product(trade.get("assets_received", ()), descriptions)
+                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]
+            ],
+        )
 
     async def counter(self, trade: TradeOffer) -> None:
         """Counter a trade offer from an :class:`User`.
@@ -649,8 +624,8 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         if self.is_our_offer():
             raise ClientException("You cannot counter an offer the ClientUser has made")
 
-        to_send = [item.to_dict() for item in trade.items_to_send]
-        to_receive = [item.to_dict() for item in trade.items_to_receive]
+        to_send = [item.to_dict() for item in trade.sending]
+        to_receive = [item.to_dict() for item in trade.receiving]
         assert self.partner is not None
         resp = await self._state.http.send_trade_offer(
             self.partner, to_send, to_receive, trade.token, trade.message or "", tradeofferid_countered=self.id
@@ -665,7 +640,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
 
     def is_gift(self) -> bool:
         """Helper method that checks if an offer is a gift to the :class:`~steam.ClientUser`"""
-        return bool(self.items_to_receive and not self.items_to_send)
+        return bool(self.receiving and not self.sending)
 
     def is_our_offer(self) -> bool:
         """Whether the offer was created by the :class:`~steam.ClientUser`."""

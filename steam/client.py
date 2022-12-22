@@ -1043,7 +1043,7 @@ class Client:
         .. code-block:: python3
 
             async for trade in client.trade_history(limit=10):
-                items = [getattr(item, "name", str(item.id)) for item in trade.items_to_receive]
+                items = [getattr(item, "name", str(item.id)) for item in trade.receiving]
                 items = ", ".join(items) or "Nothing"
                 print("Partner:", trade.partner)
                 print("Sent:", items)
@@ -1108,7 +1108,7 @@ class Client:
             return trades
 
         for trade in await get_trades():
-            for item in trade.items_to_receive:
+            for item in trade.receiving:
                 item.owner = trade.partner
             if limit is not None and yielded >= limit:
                 return
@@ -1118,7 +1118,7 @@ class Client:
         if total < 100:
             for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
                 for trade in await get_trades(page):
-                    for item in trade.items_to_receive:
+                    for item in trade.receiving:
                         item.owner = trade.partner
                     if limit is not None and yielded >= limit:
                         return

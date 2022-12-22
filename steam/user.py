@@ -190,16 +190,16 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
         message = await super().send(content, image)
         if trade is not None:
-            to_send = [item.to_dict() for item in trade.items_to_send]
-            to_receive = [item.to_dict() for item in trade.items_to_receive]
+            to_send = [item.to_dict() for item in trade.sending]
+            to_receive = [item.to_dict() for item in trade.receiving]
             try:
                 resp = await self._state.http.send_trade_offer(
                     self, to_send, to_receive, trade.token, trade.message or ""
                 )
             except HTTPException as e:
                 if e.code == Result.Revoked and (
-                    any(item.owner != self for item in trade.items_to_receive)
-                    or any(item.owner != self._state.user for item in trade.items_to_send)
+                    any(item.owner != self for item in trade.receiving)
+                    or any(item.owner != self._state.user for item in trade.sending)
                 ):
                     if sys.version_info >= (3, 11):
                         e.add_note(

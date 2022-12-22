@@ -55,8 +55,8 @@ class MyClient(steam.Client):
         await trade.partner.send("Thank you for your trade")
         print(f"Received trade: #{trade.id}")
         print("Trade partner is:", trade.partner)
-        print("We would send:", len(trade.items_to_send), "items")
-        print("We would receive:", len(trade.items_to_receive), "items")
+        print("We would send:", len(trade.sending), "items")
+        print("We would receive:", len(trade.receiving), "items")
 
         if trade.is_gift():
             print("Accepting the trade as it is a gift")

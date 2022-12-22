@@ -328,7 +328,7 @@ class ConnectionState(Registerable):
             )
             self._trades[trade.id] = trade
             if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
-                trade.items_to_send or trade.items_to_receive  # trade could be glitched
+                trade.sending or trade.receiving  # trade could be glitched
             ):
                 self.dispatch("trade_send" if trade.is_our_offer() else "trade_receive", trade)
                 self._trades_to_watch.add(trade.id)
@@ -338,7 +338,7 @@ class ConnectionState(Registerable):
             if trade.state != before_state:
                 log.info(f"Trade #{trade.id} has updated its trade state to {trade.state}")
                 event_name = trade.state.event_name
-                if event_name and (trade.items_to_send or trade.items_to_receive):
+                if event_name and (trade.sending or trade.receiving):
                     self.dispatch(f"trade_{event_name}", trade)
                     self._trades_to_watch.discard(trade.id)
         return trade
