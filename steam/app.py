@@ -604,6 +604,9 @@ class PartialApp(App[NameT]):
         ------
         :class:`Manifest`
         """
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+
         manifest_coros = await self._state.fetch_manifests(self.id, branch, password, limit, password_hash)
         for chunk in utils.as_chunks(manifest_coros, 100):
             for manifest in await asyncio.gather(*chunk):
