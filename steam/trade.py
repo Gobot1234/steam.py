@@ -218,7 +218,7 @@ class InventoryGenericAlias(types.GenericAlias):
         return (BaseInventory,)
 
 
-ItemT = TypeVar("ItemT", bound="Asset[PartialUser]", default="Item[BaseUser]", covariant=True)
+ItemT = TypeVar("ItemT", bound="Asset[PartialUser]", default=Item["BaseUser"], covariant=True)
 
 
 class Inventory(Generic[ItemT, OwnerT]):
@@ -273,7 +273,7 @@ class Inventory(Generic[ItemT, OwnerT]):
     def __repr__(self) -> str:
         attrs = ("owner", "app")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{self.__orig_class__} {' '.join(resolved)}>"
+        return f"<{getattr(self, '__orig_class__', self.__class__.__name__)} {' '.join(resolved)}>"
 
     def __len__(self) -> int:
         return len(self.items)

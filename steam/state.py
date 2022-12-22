@@ -1277,21 +1277,38 @@ class ConnectionState(Registerable):
     async def fetch_user_inventory(
         self, user_id64: ID64, app_id: AppID, context_id: ContextID, language: Language | None
     ) -> econ.GetInventoryItemsWithDescriptionsResponse:
-        msg: econ.GetInventoryItemsWithDescriptionsResponse = await self.ws.send_um_and_wait(
-            econ.GetInventoryItemsWithDescriptionsRequest(
-                steamid=user_id64,
-                appid=app_id,
-                contextid=context_id,
-                get_descriptions=True,
-                language=(language or self.language).api_name,
-                count=5000,
+        more_items = True
+        original_msg = None
+        start_asset_id = 0
+        while more_items:
+            msg: econ.GetInventoryItemsWithDescriptionsResponse = await self.ws.send_um_and_wait(
+                econ.GetInventoryItemsWithDescriptionsRequest(
+                    steamid=user_id64,
+                    appid=app_id,
+                    contextid=context_id,
+                    get_descriptions=True,
+                    language=(language or self.language).api_name,
+                    count=5000,
+                    start_assetid=start_asset_id,
+                )
             )
-        )
-        if msg.result == Result.AccessDenied:
-            raise WSForbidden(msg)
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg
+            if msg.result == Result.AccessDenied:
+                raise WSForbidden(msg)
+            if msg.result != Result.OK:
+                raise WSException(msg)
+
+            if original_msg is None:
+                original_msg = msg
+            else:
+                original_msg.assets += msg.assets
+                original_msg.descriptions += msg.descriptions
+            more_items = msg.more_items
+            try:
+                start_asset_id = msg.assets[-1].assetid
+            except IndexError:
+                break
+        assert original_msg is not None
+        return original_msg
 
     async def fetch_item_info(
         self, app_id: AppID, items: Iterable[CacheKey], language: Language | None
