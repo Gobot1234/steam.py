@@ -28,7 +28,7 @@ from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMe
 from .trade import Inventory, Item
 from .types.id import CommentID, ContextID, Intable, PostID
 from .types.user import UserT
-from .utils import DateTime, cached_slot_property, classproperty
+from .utils import DateTime, cached_slot_property, classproperty, parse_bb_code
 
 if TYPE_CHECKING:
     from .clan import Clan
@@ -891,7 +891,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """The group the message was sent in. ``None`` if the message wasn't sent in a :class:`~steam.Group`."""
         self.clan = channel.clan
         """The clan the message was sent in. ``None`` if the message wasn't sent in a :class:`~steam.Clan`."""
-        self.content = _clean_up_content(proto.message)
+        self.content = parse_bb_code(_clean_up_content(proto.message))
         """The message's content.
 
         Note

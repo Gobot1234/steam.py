@@ -496,13 +496,12 @@ class ConnectionState(Registerable):
         return utils.ChainMap(self._clans_by_chat_id, self._groups)  # type: ignore  # needs HKT
 
     async def send_user_message(self, user_id64: ID64, content: str) -> UserMessage:
-        contains_bbcode = utils.contains_bbcode(content)
         msg: friend_messages.SendMessageResponse = await self.ws.send_um_and_wait(
             friend_messages.SendMessageRequest(
                 steamid=user_id64,
-                message=content.replace("[", "\\[") if contains_bbcode else content,
+                message=content.replace("\\", "\\\\").replace("[", "\\["),
                 chat_entry_type=ChatEntryType.Text,
-                contains_bbcode=contains_bbcode,
+                contains_bbcode=utils.contains_chat_command(content),
             )
         )
 
@@ -513,7 +512,7 @@ class ConnectionState(Registerable):
 
         proto = friend_messages.IncomingMessageNotification(
             chat_entry_type=ChatEntryType.Text,
-            message=content,
+            message=msg.modified_message,
             rtime32_server_timestamp=msg.server_timestamp,
             ordinal=msg.ordinal,
             message_no_bbcode=msg.message_without_bb_code,
@@ -560,7 +559,11 @@ class ConnectionState(Registerable):
         self, chat_group_id: ChatGroupID, chat_id: ChatID, content: str
     ) -> ClanMessage | GroupMessage:
         msg: chat.SendChatMessageResponse = await self.ws.send_um_and_wait(
-            chat.SendChatMessageRequest(chat_id=chat_id, chat_group_id=chat_group_id, message=content)
+            chat.SendChatMessageRequest(
+                chat_id=chat_id,
+                chat_group_id=chat_group_id,
+                message=content.replace("\\", "\\\\").replace("[", "\\["),
+            )
         )
 
         if msg.result == Result.LimitExceeded:
@@ -573,8 +576,7 @@ class ConnectionState(Registerable):
         proto = chat.IncomingChatMessageNotification(
             chat_id=chat_id,
             chat_group_id=chat_group_id,
-            steamid_sender=0,
-            message=content,
+            message=msg.modified_message,
             ordinal=msg.ordinal,
             message_no_bbcode=msg.message_without_bb_code,
             timestamp=msg.server_timestamp,

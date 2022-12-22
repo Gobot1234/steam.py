@@ -213,30 +213,6 @@ def ainput(prompt: str = "") -> Coroutine[None, None, str]:
     return asyncio.to_thread(input, prompt)
 
 
-def contains_bbcode(string: str) -> bool:
-    bbcodes = {
-        "me",
-        "code",
-        "pre",
-        "giphy",
-        "spoiler",
-        "quote",
-        "random",
-        "flip",
-        "store",
-        "emoticon",
-        "tradeofferlink",
-        "tradeoffer",
-        "sticker",
-        "gameinvite",
-        "og",
-        "roomeffect",
-        "img",
-        "url",
-    }
-    return any(string.startswith(f"/{bbcode}") for bbcode in bbcodes)
-
-
 def _int_chunks(len: int, size: int) -> Generator[tuple[int, int], None, None]:
     idxs = range(0, len, size)
     second = iter(idxs)
@@ -489,6 +465,86 @@ def decode_jwt(token: str) -> JWTToken:
 
     # python doesn't like the lack of padding on the end of the JWT so we need to add it back
     return JSON_LOADS(base64.b64decode(f"{jwt}==", altchars=b"-_"))
+
+
+@dataclass(slots=True)
+class BBCodeTag:
+    name: str
+    position: tuple[int, int]
+    attributes: dict[str, str]
+    inner: str
+
+
+class BBCodeStr(str):
+    tags: list[BBCodeTag]
+
+    def __new__(cls, string: str, tags: list[BBCodeTag]) -> Self:
+        self = super().__new__(cls, string)
+        self.tags = tags
+        return self
+
+
+BB_CODE_RE: Final = re.compile(
+    r"""
+    \[(?P<name>[\w]+)\s*
+    (?P<attributes>(?:\s*\w*=[^]]+)*)
+    \]
+    (?P<inner>.*?)
+    \[/(?P=name)\]
+    """,
+    re.VERBOSE,
+)
+
+BB_CODE_ATTRIBUTES_RE: Final = re.compile(
+    r"""
+    (?P<key>[\w]*)
+    \s*=\s*
+    (?P<quote>["']?)
+    (?P<value>[^ ]*)
+    (?P=quote)
+    """,
+    re.VERBOSE,
+)
+
+
+def parse_bb_code(string: str) -> BBCodeStr:
+    tags = list[BBCodeTag]()
+    for match in BB_CODE_RE.finditer(string):
+        tag = BBCodeTag(
+            match["name"],
+            match.span(),
+            {key: value for key, _, value in BB_CODE_ATTRIBUTES_RE.findall(match["attributes"])},
+            match["inner"],
+        )
+        tags.append(tag)
+
+        new_start, new_end = tag.position
+        tags += [  # AFAICT steam chat only ever has a maximum of one level of nesting on "inner" so this is fine
+            BBCodeTag(
+                match["name"],
+                match.span(),
+                {key: value for key, _, value in BB_CODE_ATTRIBUTES_RE.findall(match["attributes"])},
+                match["inner"],
+            )
+            for match in BB_CODE_RE.finditer(string, new_start + 1, new_end - 1)
+        ]
+
+    return BBCodeStr(string, tags=tags)
+
+
+def contains_chat_command(string: str) -> bool:
+    command = {
+        "me",
+        "code",
+        "pre",
+        "giphy",
+        "spoiler",
+        "quote",
+        "random",
+        "flip",
+        "store",
+    }
+    return any(string.startswith(f"/{command}") for command in command)
 
 
 # everything below here is directly from discord.py's utils

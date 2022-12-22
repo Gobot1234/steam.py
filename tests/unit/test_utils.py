@@ -154,3 +154,57 @@ def test_steam_time_parse() -> None:
 
     assert utils.DateTime.parse_steam_date("Garbage Date") is None
     assert utils.DateTime.parse_steam_date("Garbage Date", full_month=False) is None
+
+
+@pytest.mark.parametrize(
+    "input, tags",
+    [
+        (
+            '[random min="1" max="23" result="15"][/random]',
+            [utils.BBCodeTag("random", (0, 46), {"min": "1", "max": "23", "result": "15"}, "")],
+        ),
+        (
+            "[code]<UserMessage author=<ClientUser name='Vulcan Steve' state=[url=http://PersonaState.Online]PersonaState.Online[/url] id=1019733507 universe=Universe.Public instance=Instance.Desktop> id=2707242814382538752 channel=<DMChannel participant=<User name='Gobot1234' state=[url=http://PersonaState.Online]PersonaState.Online[/url] id=287788226 universe=Universe.Public instance=Instance.Desktop>>>[/code]",
+            [
+                utils.BBCodeTag(
+                    "code",
+                    (0, 402),
+                    {},
+                    "<UserMessage author=<ClientUser name='Vulcan Steve' state=[url=http://PersonaState.Online]PersonaState.Online[/url] id=1019733507 universe=Universe.Public instance=Instance.Desktop> id=2707242814382538752 channel=<DMChannel participant=<User name='Gobot1234' state=[url=http://PersonaState.Online]PersonaState.Online[/url] id=287788226 universe=Universe.Public instance=Instance.Desktop>>>",
+                ),
+                utils.BBCodeTag(
+                    "url",
+                    (64, 121),
+                    {"": "http://PersonaState.Online"},
+                    "PersonaState.Online",
+                ),
+                utils.BBCodeTag(
+                    "url",
+                    (271, 328),
+                    {"": "http://PersonaState.Online"},
+                    "PersonaState.Online",
+                ),
+            ],
+        ),
+        (
+            "[tradeoffer sender=287788226 id=5554545][/tradeoffer]",
+            [utils.BBCodeTag("tradeoffer", (0, 53), {"sender": "287788226", "id": "5554545"}, "")],
+        ),
+        (
+            '[tradeofferlink url="https://steamcommunity.com/tradeoffer/new?partner=287788226&token=NBewyDB2" partner="287788226"]https://steamcommunity.com/tradeoffer/new?partner=287788226&token=NBewyDB2[/tradeofferlink]',
+            [
+                utils.BBCodeTag(
+                    name="tradeofferlink",
+                    position=(0, 208),
+                    attributes={
+                        "url": "https://steamcommunity.com/tradeoffer/new?partner=287788226&token=NBewyDB2",
+                        "partner": "287788226",
+                    },
+                    inner="https://steamcommunity.com/tradeoffer/new?partner=287788226&token=NBewyDB2",
+                )
+            ],
+        ),
+    ],
+)
+def test_parse_bb_code(input: str, tags: list[utils.BBCodeTag]) -> None:
+    assert utils.parse_bb_code(input).tags == tags
