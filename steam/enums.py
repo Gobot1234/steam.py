@@ -47,6 +47,10 @@ __all__ = (
     "PublishedFileVisibility",
     "PublishedFileQueryType",
     "PublishedFileQueryFileType",
+    "LeaderboardUploadScoreMethod",
+    "LeaderboardSortMethod",
+    "LeaderboardDisplayType",
+    "LeaderboardDataRequest",
 )
 
 T = TypeVar("T")
@@ -1704,6 +1708,31 @@ class PublishedFileQueryFileType(IntEnum):
     GameManagedItems        = 20
     """Managed completely by the game, not the user, and not shown on the web."""
 
+
+class LeaderboardDataRequest(IntEnum):
+    Global = 0
+    GlobalAroundUser = 1
+    Friends = 2
+    Users = 3
+
+
+class LeaderboardSortMethod(IntEnum):
+    NONE = 0
+    Ascending = 1
+    Descending = 2
+
+
+class LeaderboardDisplayType(IntEnum):
+    NONE = 0
+    Numeric = 1
+    TimeSeconds = 2
+    TimeMilliseconds = 3
+
+
+class LeaderboardUploadScoreMethod(IntEnum):
+    NONE = 0
+    KeepBest = 1
+    ForceUpdate = 2
 # fmt: on
 
 

@@ -2237,3 +2237,76 @@ class ConnectionState(Registerable):
             raise ValueError("No licenses granted")
         await self.handled_licenses.wait()
         return msg.granted_appids, [l for l in self.licenses.values() if l.id not in old_licenses]
+
+    async def fetch_or_create_app_leaderboard(
+        self, app_id: AppID, leaderboard_name: str, create: bool = False
+    ) -> leaderboards.CMsgClientLbsFindOrCreateLbResponse:
+        msg: leaderboards.CMsgClientLbsFindOrCreateLbResponse = await self.ws.send_proto_and_wait(
+            leaderboards.CMsgClientLbsFindOrCreateLb(
+                app_id=app_id, leaderboard_name=leaderboard_name, create_if_not_found=create
+            ),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    async def fetch_app_leaderboard_entries(
+        self,
+        app_id: AppID,
+        leaderboard_id: int,
+        start: int,
+        stop: int,
+        leaderboard_data_request: int,
+        id64s: list[ID64],
+    ) -> list[leaderboards.CMsgClientLbsGetLbEntriesResponseEntry]:
+        try:
+            msg: leaderboards.CMsgClientLbsGetLbEntriesResponse = await asyncio.wait_for(
+                self.ws.send_proto_and_wait(
+                    leaderboards.CMsgClientLbsGetLbEntries(
+                        leaderboard_id=leaderboard_id,
+                        app_id=app_id,
+                        range_start=start,
+                        range_end=stop,
+                        leaderboard_data_request=leaderboard_data_request,
+                        steamids=cast("list[int]", id64s),
+                    ),
+                ),
+                timeout=15,
+            )
+        except asyncio.TimeoutError:
+            raise WSNotFound(leaderboards.CMsgClientLbsGetLbEntriesResponse(eresult=Result.NoMatch)) from None
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.entries
+
+    async def set_app_leaderboard_score(
+        self,
+        app_id: AppID,
+        leaderboard_id: LeaderboardID,
+        score: int,
+        details: bytes,
+        method: LeaderboardUploadScoreMethod,
+    ) -> leaderboards.CMsgClientLbsSetScoreResponse:
+        msg: leaderboards.CMsgClientLbsSetScoreResponse = await self.ws.send_proto_and_wait(
+            leaderboards.CMsgClientLbsSetScore(
+                app_id=app_id,
+                leaderboard_id=leaderboard_id,
+                score=score,
+                details=details,
+                upload_score_method=method,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    async def set_app_leaderboard_ugc(self, app_id: AppID, leaderboard_id: LeaderboardID, ugc_id: int) -> None:
+        msg: leaderboards.CMsgClientLbsSetUgcResponse = await self.ws.send_proto_and_wait(
+            leaderboards.CMsgClientLbsSetUgc(
+                app_id=app_id,
+                leaderboard_id=leaderboard_id,
+                ugc_id=ugc_id,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)

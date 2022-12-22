@@ -26,6 +26,7 @@ from .group import *
 from .id import *
 from .image import *
 from .invite import *
+from .leaderboard import *
 from .manifest import *
 from .message import *
 from .models import *

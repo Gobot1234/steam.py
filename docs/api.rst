@@ -449,6 +449,27 @@ Invite
     :members:
     :inherited-members:
 
+Leaderboard
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Leaderboard
+
+.. autoclass:: Leaderboard()
+    :members:
+    :inherited-members:
+
+.. attributetable:: LeaderboardUser
+
+.. autoclass:: LeaderboardUser()
+    :members:
+    :inherited-members:
+
+.. attributetable:: LeaderboardScoreUpdate
+
+.. autoclass:: LeaderboardScoreUpdate()
+    :members:
+    :inherited-members:
+
 Manifests
 ~~~~~~~~~~~~~~~
 

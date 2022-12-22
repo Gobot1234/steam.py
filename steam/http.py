@@ -709,6 +709,13 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "actions/ajaxresolvebundles", params=params)
 
+    def get_app_leaderboards(self, app_id: AppID, language: Language | None) -> Coro[str]:
+        params = {
+            "xml": 1,
+            "l": (language or self.language).api_name,
+        }
+        return self.get(URL.COMMUNITY / f"stats/{app_id}/leaderboards", params=params)
+
     async def edit_profile_info(
         self,
         name: str | None,

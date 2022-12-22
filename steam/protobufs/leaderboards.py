@@ -11,8 +11,7 @@ from .emsg import EMsg
 from .msg import ProtobufMessage
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLbsSetScore(betterproto.Message):
+class CMsgClientLbsSetScore(ProtobufMessage, msg=EMsg.ClientLBSSetScore):
     app_id: int = betterproto.uint32_field(1)
     leaderboard_id: int = betterproto.int32_field(2)
     score: int = betterproto.int32_field(3)
@@ -20,8 +19,7 @@ class CMsgClientLbsSetScore(betterproto.Message):
     upload_score_method: int = betterproto.int32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLbsSetScoreResponse(betterproto.Message):
+class CMsgClientLbsSetScoreResponse(ProtobufMessage, msg=EMsg.ClientLBSSetScoreResponse):
     eresult: int = betterproto.int32_field(1)
     leaderboard_entry_count: int = betterproto.int32_field(2)
     score_changed: bool = betterproto.bool_field(3)
@@ -29,15 +27,13 @@ class CMsgClientLbsSetScoreResponse(betterproto.Message):
     global_rank_new: int = betterproto.int32_field(5)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLbsSetUgc(betterproto.Message):
+class CMsgClientLbsSetUgc(ProtobufMessage, msg=EMsg.ClientLBSSetUGC):
     app_id: int = betterproto.uint32_field(1)
     leaderboard_id: int = betterproto.int32_field(2)
     ugc_id: int = betterproto.fixed64_field(3)
 
 
-@dataclass(eq=False, repr=False)
-class CMsgClientLbsSetUgcResponse(betterproto.Message):
+class CMsgClientLbsSetUgcResponse(ProtobufMessage, msg=EMsg.ClientLBSSetUGCResponse):
     eresult: int = betterproto.int32_field(1)
 
 

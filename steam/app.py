@@ -9,11 +9,22 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, NamedTuple, overload
 
+from bs4 import BeautifulSoup
 from typing_extensions import TypeVar
 
 from . import utils
-from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
-from .enums import AppType, Enum, Language, PublishedFileQueryFileType, PublishedFileRevision, ReviewType
+from ._const import DOCS_BUILDING, HTML_PARSER, MISSING, STATE, UNIX_EPOCH, URL
+from .enums import (
+    AppType,
+    Enum,
+    Language,
+    LeaderboardDataRequest,
+    LeaderboardDisplayType,
+    LeaderboardSortMethod,
+    PublishedFileQueryFileType,
+    PublishedFileRevision,
+    ReviewType,
+)
 from .id import ID, id64_from_url
 from .models import CDNAsset, _IOMixin
 from .protobufs import client_server, player
@@ -24,6 +35,7 @@ from .utils import DateTime
 if TYPE_CHECKING:
     from .clan import Clan
     from .friend import Friend
+    from .leaderboard import Leaderboard
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest
     from .package import FetchedAppPackage, License
     from .published_file import PublishedFile
@@ -297,6 +309,73 @@ class PartialApp(App[NameT]):
     async def player_count(self) -> int:
         """The apps current player count."""
         return await self._state.fetch_app_player_count(self.id)
+
+    async def leaderboards(self, *, language: Language | None = None) -> list[Leaderboard[str]]:
+        """The leaderboards for this app."""
+        from .leaderboard import Leaderboard
+
+        xml = await self._state.http.get_app_leaderboards(self.id, language)
+        soup = BeautifulSoup(xml, HTML_PARSER)
+        return [
+            Leaderboard(
+                self._state,
+                id=LeaderboardID(int(board.lbid.text)),
+                app=self,
+                name=board.find("name").text,
+                display_name=str(board.display_name.text),
+                entry_count=int(board.entries.text),
+                sort_method=LeaderboardSortMethod.try_value(int(board.sortmethod.text)),
+                display_type=LeaderboardDisplayType.try_value(int(board.displaytype.text)),
+            )
+            for board in soup.response.find_all("leaderboard")  # type: ignore
+        ]
+
+    async def fetch_leaderboard(self, name: str) -> Leaderboard[None] | None:
+        """Fetch a leaderboard by name.
+
+        Parameters
+        ----------
+        name
+            The name of the leaderboard to fetch.
+
+            Note
+            ----
+            This is not the name of the leaderboard shown in the app's stat page, you can find the name of the leaderboard
+            from :meth:`leaderboards`.
+        """
+        from .leaderboard import Leaderboard
+
+        leaderboard = await self._state.fetch_or_create_app_leaderboard(self.id, name)
+        return Leaderboard(
+            self._state,
+            id=LeaderboardID(int(leaderboard.leaderboard_id)),
+            app=self,
+            name=leaderboard.leaderboard_name,
+            entry_count=leaderboard.leaderboard_entry_count,
+            sort_method=LeaderboardSortMethod.try_value(leaderboard.leaderboard_sort_method),
+            display_type=LeaderboardDisplayType.try_value(leaderboard.leaderboard_display_type),
+        )
+
+    async def create_leaderboard(self, name: str) -> Leaderboard[None]:
+        """Create a leaderboard with a given name.
+
+        Parameters
+        ----------
+        name
+            The name of the leaderboard to create.
+        """
+        from .leaderboard import Leaderboard
+
+        leaderboard = await self._state.fetch_or_create_app_leaderboard(self.id, name, create=True)
+        return Leaderboard(
+            self._state,
+            id=LeaderboardID(int(leaderboard.leaderboard_id)),
+            app=self,
+            name=leaderboard.leaderboard_name,
+            entry_count=leaderboard.leaderboard_entry_count,
+            sort_method=LeaderboardSortMethod.try_value(leaderboard.leaderboard_sort_method),
+            display_type=LeaderboardDisplayType.try_value(leaderboard.leaderboard_display_type),
+        )
 
     async def friends_who_own(self) -> list[Friend]:
         """Fetch the users in your friend list who own this app."""
