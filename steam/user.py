@@ -240,10 +240,11 @@ class User(_BaseUser, Messageable["UserMessage"]):
                 for tries in range(5):
                     try:
                         await trade.confirm()
-                    except ConfirmationError:
                         break
-                    except ClientException:
+                    except ConfirmationError:
                         await asyncio.sleep(tries * 2)
+                else:
+                    raise ConfirmationError("Failed to confirm trade offer")
                 trade.state = TradeOfferState.Active
 
             # make sure the trade is updated before this function returns

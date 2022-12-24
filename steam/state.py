@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from itertools import count
 from operator import attrgetter
 from time import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from bs4 import BeautifulSoup
 from typing_extensions import Self
@@ -87,34 +87,39 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class TradeQueue:
-    def __init__(self):
-        self.queue: list[TradeOffer] = []
-        self._waiting_for: dict[int, asyncio.Future[TradeOffer]] = {}
+T = TypeVar("T")
 
-    async def wait_for(self, id: int) -> TradeOffer:
-        for trade in reversed(self.queue):  # check if it's already here
-            if trade.id == id:
-                self.queue.remove(trade)
-                return trade
+
+class Queue(Generic[T]):
+    def __init__(self, attr: attrgetter[int] = attrgetter("id")) -> None:
+        self.queue: list[T] = []
+        self.attr = attr
+        self._waiting_for: dict[int, asyncio.Future[T]] = {}
+
+    async def wait_for(self, id: int) -> T:
+        for item in reversed(self.queue):  # check if it's already here
+            if self.attr(item) == id:
+                self.queue.remove(item)
+                return item
 
         self._waiting_for[id] = future = asyncio.get_running_loop().create_future()
-        trade = await future
-        self.queue.remove(trade)
-        return trade
+        item = await future
+        self.queue.remove(item)
+        return item
 
     def __len__(self) -> int:
         return len(self.queue)
 
-    def __iadd__(self, other: list[TradeOffer]) -> Self:
-        for trade in other:
+    def __iadd__(self, other: Iterable[T]) -> Self:
+        for item in other:
+            attr = self.attr(item)
             try:
-                future = self._waiting_for[trade.id]
+                future = self._waiting_for[attr]
             except KeyError:
                 pass
             else:
-                future.set_result(trade)
-                del self._waiting_for[trade.id]
+                future.set_result(item)
+                del self._waiting_for[attr]
 
         self.queue += other
         return self
@@ -169,10 +174,12 @@ class ConnectionState(Registerable):
         self.stickers: list[ClientSticker] = []
 
         self.polling_trades = False
-        self.trade_queue = TradeQueue()
+        self.trade_queue = Queue[TradeOffer]()
         self._trades_to_watch: set[int] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
+        self.polling_confirmations = False
+        self.confirmation_queue = Queue[Confirmation](attr=attrgetter("creator_id"))
 
         self.licenses: dict[int, License] = {}
         self._manifest_passwords: dict[int, dict[str, str]] = {}
@@ -291,13 +298,6 @@ class ConnectionState(Registerable):
     def get_friend(self, id64: ID64) -> Friend:
         return self.user._friends[id64]
 
-    def get_confirmation(self, id: int) -> Confirmation | None:
-        return self._confirmations.get(id)
-
-    async def fetch_confirmation(self, id: int) -> Confirmation | None:
-        await self._fetch_confirmations()
-        return self.get_confirmation(id)
-
     def get_group(self, id: ChatGroupID) -> Group | None:
         return self._groups.get(id)
 
@@ -406,6 +406,31 @@ class ConnectionState(Registerable):
 
     # confirmations
 
+    def get_confirmation(self, id: int) -> Confirmation | None:
+        return self._confirmations.get(id)
+
+    async def fetch_confirmation(self, id: int) -> Confirmation | None:
+        await self.fill_confirmations()
+        return self._confirmations.get(id)
+
+    async def fill_confirmations(self) -> None:
+        key, timestamp = await self._generate_confirmation_code("list")
+        data = await self.http.get(
+            URL.COMMUNITY / "mobileconf/getlist",
+            params={"p": self._device_id, "a": self.user.id64, "k": key, "t": timestamp, "m": "react", "tag": "list"},
+        )
+        if not data.get("success", False):
+            raise ConfirmationError(f"{data.get('message', 'Unknown error')}\n{data.get('detail') or ''}".strip())
+
+        confirmations: list[Confirmation] = []
+        for confirmation in data["conf"]:
+            confirmation_ = Confirmation(
+                self, int(confirmation["id"]), int(confirmation["nonce"]), int(confirmation["creator_id"])
+            )
+            self._confirmations[confirmation_.creator_id] = confirmation_
+            confirmations.append(confirmation_)
+        self.confirmation_queue += confirmations
+
     async def _create_confirmation_params(self, tag: str) -> dict[str, Any]:
         code, timestamp = await self._generate_confirmation_code(tag)
         return {
@@ -416,28 +441,6 @@ class ConnectionState(Registerable):
             "m": "android",
             "tag": tag,
         }
-
-    async def _fetch_confirmations(self) -> dict[int, Confirmation]:
-        params = await self._create_confirmation_params("conf")
-        headers = {"X-Requested-With": "com.valvesoftware.android.steam.community"}
-        resp = await self.http.get(URL.COMMUNITY / "mobileconf/conf", params=params, headers=headers)
-
-        if "incorrect Steam Guard codes." in resp:
-            raise InvalidCredentials("identity_secret is incorrect")
-
-        soup = BeautifulSoup(resp, HTML_PARSER)
-        if soup.select("#mobileconf_empty"):
-            return self._confirmations
-        for confirmation in soup.select("#mobileconf_list .mobileconf_list_entry"):
-            data_conf_id = confirmation["data-confid"]
-            key = confirmation["data-key"]
-            trade_id = int(confirmation.get("data-creator", 0))
-            confirmation_id = confirmation["id"].split("conf")[1]
-            if trade_id in self._confirmations_to_ignore:
-                continue
-            self._confirmations[trade_id] = Confirmation(self, confirmation_id, data_conf_id, key, trade_id)
-
-        return self._confirmations
 
     async def _generate_confirmation_code(self, tag: str) -> tuple[str, int]:
         # generate a confirmation code for a given tag at this instant.
@@ -453,7 +456,7 @@ class ConnectionState(Registerable):
             lock, last_confirmation_time = self.confirmation_generation_locks[tag]
         except KeyError:
             lock = asyncio.Lock()
-            last_confirmation_time = DateTime.now() - timedelta(seconds=2)
+            last_confirmation_time = steam_time - timedelta(seconds=2)
             self.confirmation_generation_locks[tag] = lock, last_confirmation_time
 
         await lock.acquire()
@@ -468,9 +471,27 @@ class ConnectionState(Registerable):
                 asyncio.get_running_loop().call_later(next_code_valid_in, lock.release)
             self.confirmation_generation_locks[tag] = lock, steam_time
 
+    async def poll_confirmations(self) -> None:
+        if self.polling_confirmations:
+            return
+
+        self.polling_confirmations = True
+        try:
+            await self.fill_confirmations()
+
+            while self.confirmation_queue.queue:
+                await asyncio.sleep(10)
+                await self.fill_confirmations()
+        finally:
+            self.polling_confirmations = False
+
+    async def wait_for_confirmation(self, id: int) -> Confirmation:
+        self.loop.create_task(self.poll_confirmations())
+        return await self.confirmation_queue.wait_for(id=id)
+
     async def fetch_and_confirm_confirmation(self, trade_id: int) -> bool:
         if self.client.identity_secret:
-            confirmation = self.get_confirmation(trade_id) or await self.fetch_confirmation(trade_id)
+            confirmation = await self.wait_for_confirmation(id=trade_id)
             if confirmation is not None:
                 await confirmation.confirm()
                 return True
