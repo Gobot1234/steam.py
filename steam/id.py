@@ -48,7 +48,7 @@ def parse_id64(
 
     Examples
     --------
-    .. code-block:: python3
+    .. code:: python
 
         parse_id64(12345)
         parse_id64("12345")  # account ids

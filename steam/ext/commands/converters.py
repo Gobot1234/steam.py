@@ -86,7 +86,7 @@ def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], Basi
 
     Examples
     --------
-    .. code-block:: python3
+    .. code:: python
 
         @commands.converter_for(commands.Command)  # this is the type hint used
         def command_converter(argument: str) -> commands.Command:
@@ -162,7 +162,7 @@ class Converter(ConverterBase[T_co], ABC):
 
     Builtin:
 
-    .. code-block:: python3
+    .. code:: python
 
         @bot.command
         async def command(ctx, user: steam.User):
@@ -175,7 +175,7 @@ class Converter(ConverterBase[T_co], ABC):
 
     A custom converter:
 
-    .. code-block:: python3
+    .. code:: python
 
         class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
             async def convert(self, ctx: commands.Context, argument: str) -> steam.Image:
@@ -216,7 +216,7 @@ class Converter(ConverterBase[T_co], ABC):
 
         Examples
         --------
-        .. code-block:: python3
+        .. code:: python
 
             class CustomUserConverter(commands.Converter[steam.User]):
                 async def convert(self, ctx: commands.Context, argument: str) -> steam.User:
@@ -383,7 +383,7 @@ class Default(Protocol):
     --------
     Builtin:
 
-    .. code-block:: python3
+    .. code:: python
 
         @bot.command()
         async def info(ctx, user=DefaultAuthor):
@@ -391,7 +391,7 @@ class Default(Protocol):
 
     A custom default:
 
-    .. code-block:: python3
+    .. code:: python
 
         class CurrentCommand(commands.Default):
             async def default(self, ctx: commands.Context) -> commands.Command:
@@ -470,7 +470,7 @@ class Greedy(Generic[T]):
 
     Example
     -------
-    .. code-block:: python3
+    .. code:: python
 
         @bot.command()
         async def test(ctx, numbers: commands.Greedy[int], reason: str):

@@ -397,6 +397,7 @@ class ManifestPath(PurePathBase, _IOMixin):
     """Read the contents of the file. Similar to :meth:`pathlib.Path.read_bytes`"""
 
     async def read(self) -> Never:
+        """This method is not implemented. Use :meth:`read_bytes` instead."""
         raise NotImplementedError("use read_bytes() instead of read()")
 
     async def read_text(self, encoding: str = MISSING, errors: str = MISSING) -> str:
@@ -922,7 +923,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
     def public_branch(self) -> Branch:
         """The public branch. Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             app.get_branch("public")
         """

@@ -28,7 +28,7 @@ class Cog:
     qualified_name
         The name of the cog. Can be set in a subclass e.g.
 
-        .. code-block:: python3
+        .. code:: python
 
             class MyCog(commands.Cog, name="SpecialCogName"):
                 ...
@@ -39,7 +39,7 @@ class Cog:
         Attributes to pass to every command registered in the cog.
         Can be set in subclass e.g.
 
-        .. code-block:: python3
+        .. code:: python
 
             class MyBrokenCog(commands.Cog, command_attrs=dict(enabled=False)):
                 # all the commands by default would be disabled

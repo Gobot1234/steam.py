@@ -253,7 +253,7 @@ class Client:
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             @client.event
             async def on_ready():
@@ -1040,7 +1040,7 @@ class Client:
         after: datetime.datetime | None = None,
         language: Language | None = None,
     ) -> AsyncGenerator[TradeOffer[MovedItem], None]:
-        """An :term:`async iterator` for accessing a :class:`steam.ClientUser`'s
+        """An :term:`asynchronous iterator` for accessing a :class:`steam.ClientUser`'s
         :class:`steam.TradeOffer` objects.
 
         Examples
@@ -1048,7 +1048,7 @@ class Client:
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for trade in client.trade_history(limit=10):
                 items = [getattr(item, "name", str(item.id)) for item in trade.receiving]

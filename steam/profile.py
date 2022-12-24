@@ -262,8 +262,11 @@ class ProfileShowcaseSlot(Generic[UserT]):
 
 @dataclass(repr=False, slots=True)
 class ProfileShowcase(Generic[UserT]):
+    """Represents a user's profile showcase."""
+
     _state: ConnectionState
     owner: UserT
+    """The showcase's owner."""
     type: ProfileItemType
     """The showcase type."""
     large: bool
@@ -283,7 +286,7 @@ class ProfileShowcase(Generic[UserT]):
         return f"<ProfileShowcase type={self.type!r} active={self.active!r} level={self.level!r} style={self.style!r}>"
 
     async def items(self, *, language: Language | None = None) -> list[Item[UserT]]:
-        """Fetches the associated :class:`.Item`s for the entire showcase.
+        """Fetches the associated :class:`.Item`\\s for the entire showcase.
 
         Parameters
         ----------
@@ -305,7 +308,7 @@ class ProfileShowcase(Generic[UserT]):
     async def published_files(
         self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None
     ) -> list[PublishedFile]:
-        r"""Fetches the associated :class:`.PublishedFile` for the entire showcase.
+        """Fetches the associated :class:`.PublishedFile` for the entire showcase.
 
         Parameters
         ----------
@@ -321,7 +324,7 @@ class ProfileShowcase(Generic[UserT]):
         return published_files  # type: ignore  # needs HKT to be fixed
 
     async def badges(self) -> list[UserBadge]:
-        """Fetches the associated :class:`.Badge`s for the entire showcase."""
+        """Fetches the associated :class:`.Badge`\\s for the entire showcase."""
         all_badges = await self.owner.badges()
         badges = [
             utils.get(all_badges, id=slot.badge_id, app__id=slot.app.id)

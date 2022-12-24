@@ -1714,29 +1714,47 @@ class PublishedFileQueryFileType(IntEnum):
 
 
 class LeaderboardDataRequest(IntEnum):
+    """The way that a leaderboard can be queried."""
     Global = 0
+    """Global leaderboard."""
     GlobalAroundUser = 1
+    """Global leaderboard around user."""
     Friends = 2
+    """Friends leaderboard."""
     Users = 3
+    """Users leaderboard."""
 
 
 class LeaderboardSortMethod(IntEnum):
+    """The way that a leaderboard can be sorted."""
     NONE = 0
+    """Default sort method."""
     Ascending = 1
+    """Ascending sort method."""
     Descending = 2
+    """Descending sort method."""
 
 
 class LeaderboardDisplayType(IntEnum):
+    """The way that a leaderboard can be displayed."""
     NONE = 0
+    """Default display type."""
     Numeric = 1
+    """Numeric display type."""
     TimeSeconds = 2
+    """Time in seconds display type."""
     TimeMilliseconds = 3
+    """Time in milliseconds display type."""
 
 
 class LeaderboardUploadScoreMethod(IntEnum):
+    """The way that a leaderboard can be uploaded to."""
     NONE = 0
+    """Default upload method."""
     KeepBest = 1
+    """Keep best upload method."""
     ForceUpdate = 2
+    """Force update upload method."""
 # fmt: on
 
 

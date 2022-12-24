@@ -140,14 +140,14 @@ class Commentable(Protocol):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> AsyncGenerator[Comment[Self], None]:
-        """An :term:`async iterator` for accessing a comment section's :class:`~steam.Comment` objects.
+        """An :term:`asynchronous iterator` for accessing a comment section's :class:`~steam.Comment` objects.
 
         Examples
         --------
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python3
 
             async for comment in commentable.comments(limit=10):
                 print("Author:", comment.author, "Said:", comment.content)
@@ -281,7 +281,7 @@ class UserInventoryInfo(Generic[UserT]):
     contexts: list[UserInventoryInfoContext]
 
     async def all_inventories(self) -> AsyncGenerator[Inventory[Item[UserT], UserT], None]:
-        """An :term:`async iterator` for accessing a user's full inventory in an app."""
+        """An :term:`asynchronous iterator` for accessing a user's full inventory in an app."""
         for context in self.contexts:
             yield await self.user.inventory(App(id=self.app.id, context_id=context.id))
 
@@ -303,10 +303,6 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
     async def inventory_info(self) -> list[UserInventoryInfo[Self]]:
         """Fetch the inventory info of the user.
-
-        Returns
-        -------
-        UserInventoryInfo is a dataclass defined as:
 
         .. source:: UserInventoryInfo
         """
@@ -411,7 +407,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             bans = await user.bans()
             bans.is_banned()
@@ -495,16 +491,17 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> AsyncGenerator[Review, None]:
-        """An :term:`async iterator` for accessing a user's :class:`~steam.Review`\\s.
+        """An :term:`asynchronous iterator` for accessing a user's :class:`~steam.Review`\\s.
 
         Examples
         --------
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for review in user.reviews(limit=10):
-                print(f"Author: {review.author} {'recommended' if review.recommend 'doesn\\'t recommend'} {review.app}")
+                recommended = "recommended" if review.recommend else "doesn't recommend"
+                print(f"Author: {review.author} {recommended} {review.app}")
 
         All parameters are optional.
 
@@ -594,14 +591,14 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> AsyncGenerator[PublishedFile[Self], None]:
-        """An :term:`async iterator` for accessing a user's :class:`~steam.PublishedFile`\\s.
+        """An :term:`asynchronous iterator` for accessing a user's :class:`~steam.PublishedFile`\\s.
 
         Examples
         --------
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for file in user.published_files(limit=10):
                 print("Author:", file.author, "Published:", file.name)
@@ -673,6 +670,8 @@ class BaseUser(PartialUser):
 
         - :class:`~steam.User`
         - :class:`~steam.ClientUser`
+        - :class:`~steam.Friend`
+        - :class:`~steam.Member`
 
     .. container:: operations
 
@@ -807,14 +806,14 @@ class Channel(Messageable[M_co]):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> AsyncGenerator[M_co, None]:
-        """An :term:`async iterator` for accessing a channel's :class:`steam.Message`\\s.
+        """An :term:`asynchronous iterator` for accessing a channel's :class:`steam.Message`\\s.
 
         Examples
         --------
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for message in channel.history(limit=10):
                 print("Author:", message.author, "Said:", message.content)

@@ -6,7 +6,6 @@ from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from io import BytesIO
 from typing import TYPE_CHECKING, Final, Protocol, cast, overload
 
 from yarl import URL
@@ -20,13 +19,14 @@ from .utils import DateTime
 if TYPE_CHECKING:
     from aiohttp import StreamReader
 
-    from .message import Authors, Message
+    from .message import Message
     from .protobufs.friends import (
         CMsgClientEmoticonListEffect as ClientEffectProto,
         CMsgClientEmoticonListEmoticon as ClientEmoticonProto,
         CMsgClientEmoticonListSticker as ClientStickerProto,
     )
     from .state import ConnectionState
+    from .types.user import Author
 
 
 __all__ = (
@@ -156,7 +156,7 @@ class PartialMessageReaction:
 class MessageReaction(PartialMessageReaction):
     """Represents a reaction to a message."""
 
-    user: Authors
+    user: Author
     """The user that reacted to the message."""
     created_at: datetime | None = None
     """The time the reaction was added to the message."""
@@ -172,7 +172,7 @@ class MessageReaction(PartialMessageReaction):
             message: Message,
             emoticon: Emoticon,
             sticker: None,
-            user: Authors,
+            user: Author,
             created_at: datetime | None = None,
             ordinal: int | None = None,
         ) -> None:
@@ -185,7 +185,7 @@ class MessageReaction(PartialMessageReaction):
             message: Message,
             emoticon: None,
             sticker: Sticker,
-            user: Authors,
+            user: Author,
             created_at: datetime | None = None,
             ordinal: int | None = None,
         ) -> None:

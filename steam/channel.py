@@ -66,7 +66,7 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async with channel.typing():
                 ...  # do your expensive operations

@@ -81,7 +81,7 @@ class Context(Messageable["Message"]):
 
         Equivalent to
 
-        .. code-block:: python3
+        .. code:: python
 
             await ctx.command.invoke(ctx)
         """
@@ -97,7 +97,7 @@ class Context(Messageable["Message"]):
 
         Equivalent to
 
-        .. code-block:: python3
+        .. code:: python
 
             ctx.channel.history(**kwargs)
         """

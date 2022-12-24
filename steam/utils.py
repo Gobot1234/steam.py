@@ -627,7 +627,7 @@ def find(predicate: Callable[[_T], bool], iterable: _Iter[_T], /) -> _T | Coro[_
 
     Examples
     --------
-    .. code-block:: python3
+    .. code:: python
 
         first_active_offer = steam.utils.find(
             lambda trade: trade.state == TradeOfferState.Active,
@@ -706,7 +706,7 @@ def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | Coro[_T | None] | None:
 
     Examples
     --------
-    .. code-block:: python3
+    .. code:: python
 
         bff = steam.utils.get(client.users, name="Gobot1234")
         trade = steam.utils.get(client.trades, state=TradeOfferState.Active, partner=message.author)

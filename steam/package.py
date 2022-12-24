@@ -91,7 +91,7 @@ class PartialPackage(Package[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             package = await client.fetch_package(package)
         """
@@ -105,7 +105,7 @@ class PartialPackage(Package[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             (info,) = await client.fetch_product_info(packages=[package])
         """
@@ -117,7 +117,7 @@ class PartialPackage(Package[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             (item,) = await client.fetch_store_item(apps=[app])
         """
@@ -129,7 +129,7 @@ class PartialPackage(Package[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             infos = await client.fetch_product_info(apps=await package.apps())
         """

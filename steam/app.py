@@ -285,7 +285,7 @@ class PartialApp(App[NameT]):
 
         This can be useful to get an App's updates.
 
-        .. code-block:: python3
+        .. code:: python
 
             clan = await app.clan()
             async for update in clan.announcements():
@@ -422,7 +422,7 @@ class PartialApp(App[NameT]):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> AsyncGenerator[Review, None]:
-        """An :term:`async iterator` for accessing a :class:`steam.App`'s
+        """An :term:`asynchronous iterator` for accessing a :class:`steam.App`'s
         :class:`steam.Review`\\s.
 
         Examples
@@ -430,7 +430,7 @@ class PartialApp(App[NameT]):
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for review in app.reviews(limit=10):
                 print("Reviewer:", review.author)
@@ -501,7 +501,7 @@ class PartialApp(App[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             app = await client.fetch_app(app)
         """
@@ -515,7 +515,7 @@ class PartialApp(App[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             (item,) = await client.fetch_store_item(apps=[app])
         """
@@ -527,7 +527,7 @@ class PartialApp(App[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             (info,) = await client.fetch_product_info(apps=[app])
         """
@@ -569,7 +569,7 @@ class PartialApp(App[NameT]):
         password: str | None = None,
         password_hash: str = "",
     ) -> AsyncGenerator[Manifest, None]:
-        """An :term:`async iterator` for accessing a :class:`steam.App`'s
+        """An :term:`asynchronous iterator` for accessing a :class:`steam.App`'s
         :class:`steam.Manifest`\\s.
 
         Examples
@@ -577,7 +577,7 @@ class PartialApp(App[NameT]):
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for manifest in app.manifests(limit=10):
                 print("Manifest:", manifest.name)
@@ -623,14 +623,14 @@ class PartialApp(App[NameT]):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> AsyncGenerator[PublishedFile, None]:
-        """An :term:`async iterator` for accessing an app's :class:`steam.PublishedFile`\\s.
+        """An :term:`asynchronous iterator` for accessing an app's :class:`steam.PublishedFile`\\s.
 
         Examples
         --------
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for published_file in app.published_files(limit=10):
                 print("Published file:", published_file.name)

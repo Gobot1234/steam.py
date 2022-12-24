@@ -293,7 +293,7 @@ class Command(Generic[P]):
 
         Example:
 
-        .. code-block:: python3
+        .. code:: python
 
             @bot.command
             async def raise_an_error(ctx: commands.Context) -> None:
@@ -1008,7 +1008,7 @@ def check(predicate: CheckType) -> CheckReturnType:
 
     Examples
     --------
-    .. code-block:: python3
+    .. code:: python
 
         def is_mod(ctx: commands.Context) -> bool:
             return ctx.clan and ctx.author in ctx.clan.mods
@@ -1124,10 +1124,10 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
     --------
     Usage
 
-    .. code-block:: python3
+    .. code:: python
 
         @bot.command
-        @commands.cooldown(rate=1, per=10, commands.BucketType.User)
+        @commands.cooldown(rate=1, per=10, type=commands.BucketType.User)
         async def once_every_ten_seconds(ctx: commands.Context) -> None:
             ...  # this can only be invoked a user every ten seconds.
     """

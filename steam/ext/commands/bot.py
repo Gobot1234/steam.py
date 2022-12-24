@@ -68,7 +68,7 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
 
     Example
     -------
-    .. code-block:: python3
+    .. code:: python
 
         bot = commands.Bot(command_prefix=commands.when_mentioned_or("!"))
 
@@ -77,7 +77,7 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
     This callable returns another callable, so if this is done inside a custom callable, you must call the
     returned callable, for example:
 
-    .. code-block:: python3
+    .. code:: python
 
         async def get_prefix(bot: commands.Bot, message: steam.Message) -> list[str]:
             extras = await prefixes_for(message.clan)  # a user defined function that returns a list
@@ -122,7 +122,7 @@ class Bot(GroupMixin, Client):
         ensure that no prefix matches a longer prefix later in the sequence.
         e.g.
 
-        .. code-block:: python3
+        .. code:: python
 
             bot = commands.Bot(command_prefix=("!", "!?"))
             # the "!?" prefix will never be matched as the previous

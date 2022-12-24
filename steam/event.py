@@ -158,7 +158,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         ----
         This is shorthand for
 
-        .. code-block:: python3
+        .. code:: python
 
             await client.fetch_server(ip=event.server_address)
         """

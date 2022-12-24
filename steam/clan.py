@@ -502,14 +502,14 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         before: datetime | None = None,
         after: datetime | None = None,
     ) -> AsyncGenerator[Event[EventType, Self], None]:
-        """An :term:`async iterator` over a clan's :class:`steam.Event`\\s.
+        """An :term:`asynchronous iterator` over a clan's :class:`steam.Event`\\s.
 
         Examples
         --------
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for event in clan.events(limit=10):
                 print(event.author, "made an event", event.name, "starting at", event.starts_at)
@@ -605,14 +605,14 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         after: datetime | None = None,
         # hidden: bool = False,
     ) -> AsyncGenerator[Announcement[Self], None]:
-        """An :term:`async iterator` over a clan's :class:`steam.Announcement`\\s.
+        """An :term:`asynchronous iterator` over a clan's :class:`steam.Announcement`\\s.
 
         Examples
         --------
 
         Usage:
 
-        .. code-block:: python3
+        .. code:: python
 
             async for announcement in clan.announcements(limit=10):
                 print(announcement.author, "made an announcement", announcement.name, "at", announcement.created_at)

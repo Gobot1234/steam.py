@@ -180,7 +180,7 @@ Enumerations
     :members:
     :undoc-members:
 
-.. autoclass:: InstanceFlag()
+.. autoclass:: Instance()
     :members:
     :undoc-members:
 
@@ -236,7 +236,7 @@ Enumerations
    :members:
    :undoc-members:
 
-.. autoclass:: AppFlag()
+.. autoclass:: AppType()
    :members:
    :undoc-members:
 
@@ -264,6 +264,22 @@ Enumerations
    :members:
    :undoc-members:
 
+.. autoclass:: LeaderboardDataRequest()
+    :members:
+    :undoc-members:
+
+.. autoclass:: LeaderboardSortMethod()
+    :members:
+    :undoc-members:
+
+.. autoclass:: LeaderboardDisplayType()
+    :members:
+    :undoc-members:
+
+.. autoclass:: LeaderboardUploadScoreMethod()
+    :members:
+    :undoc-members:
+
 
 Guard
 ---------------
@@ -284,6 +300,7 @@ An :term:`abstract base class` (also known as an ``abc``) is a class that models
 
 .. autoclass:: steam.abc.BaseUser()
     :members:
+    :undoc-members:
     :inherited-members:
 
 .. attributetable:: steam.abc.Channel
@@ -291,6 +308,13 @@ An :term:`abstract base class` (also known as an ``abc``) is a class that models
 .. autoclass:: steam.abc.Channel()
     :members:
     :inherited-members:
+
+.. attributetable:: steam.abc.Commentable
+
+.. autoclass:: steam.abc.Commentable()
+    :members:
+    :inherited-members:
+
 
 .. attributetable:: steam.abc.Messageable
 
@@ -315,11 +339,6 @@ Announcements
 
 Badge
 ~~~~~~~~~~~~~~~
-
-.. attributetable:: Badge
-
-.. autoclass:: Badge()
-    :members:
 
 .. attributetable:: UserBadges
 
@@ -405,7 +424,7 @@ Events
 
 .. attributetable:: Event
 
-.. autoclass:: Event
+.. autoclass:: Event()
     :members:
     :inherited-members:
 
@@ -462,13 +481,13 @@ Leaderboard
 
 .. autoclass:: LeaderboardUser()
     :members:
+    :undoc-members:
     :inherited-members:
 
 .. attributetable:: LeaderboardScoreUpdate
 
 .. autoclass:: LeaderboardScoreUpdate()
     :members:
-    :inherited-members:
 
 Manifests
 ~~~~~~~~~~~~~~~
@@ -758,6 +777,13 @@ Reviews
     :members:
     :inherited-members:
 
+.. attributetable:: ReviewUser
+
+.. autoclass:: ReviewUser()
+    :members:
+    :undoc-members:
+    :inherited-members:
+
 Roles
 ~~~~~~~~~~~~~~~
 
@@ -766,26 +792,40 @@ Roles
 .. autoclass:: Role()
     :members:
 
+.. attributetable:: RolePermissions
+
+.. autoclass:: RolePermissions()
+    :members:
 
 Users
 ~~~~~~~~~~~~~~~
+
+.. attributetable:: PartialUser
+
+.. autoclass:: PartialUser()
+    :members:
+    :undoc-members:
+    :inherited-members:
 
 .. attributetable:: ClientUser
 
 .. autoclass:: ClientUser()
     :members:
+    :undoc-members:
     :inherited-members:
 
 .. attributetable:: User
 
 .. autoclass:: User()
     :members:
+    :undoc-members:
     :inherited-members:
 
 .. attributetable:: Friend
 
 .. autoclass:: Friend()
     :members:
+    :undoc-members:
     :inherited-members:
 
 Data-Classes

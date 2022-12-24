@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from typing_extensions import Self
 
 from . import utils
-from ._const import URL
+from ._const import DOCS_BUILDING, URL
 from .abc import BaseUser, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
@@ -389,7 +389,7 @@ class ClientUser(_BaseUser):
         # TODO privacy stuff
 
 
-class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"]):
+class WrapsUser(User if TYPE_CHECKING or DOCS_BUILDING else BaseUser, Messageable["UserMessage"]):
     """Internal class used for creating a User subclass optimised for memory. Composes the original user and forwards
     all of its attributes.
 
@@ -399,6 +399,9 @@ class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"])
     Note
     ----
     This class does not forward ClientUsers attribute's so things like Clan().me.clear_nicks() will fail.
+
+    If DOCS_BUILDING is True then this class behaves like a normal User because we need to be able to access the
+    doc-strings reliably and memory usage isn't a concern.
     """
 
     __slots__ = ("_user",)
@@ -413,9 +416,11 @@ class WrapsUser(User if TYPE_CHECKING else BaseUser, Messageable["UserMessage"])
         for name, function in set(User.__dict__.items()) - set(object.__dict__.items()):
             if not name.startswith("__"):
                 setattr(cls, name, function)
-        for name in _BaseUser.__slots__:
-            setattr(cls, name, property(attrgetter(f"_user.{name}")))  # TODO time this with a compiled property
-            # probably wont be different than the above
+
+        if not DOCS_BUILDING:
+            for name in _BaseUser.__slots__:
+                setattr(cls, name, property(attrgetter(f"_user.{name}")))  # TODO time this with a compiled property
+                # probably wont be different than the above
 
         User.register(cls)
 

@@ -66,7 +66,7 @@ class PartialBundle(Bundle[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             bundle = await client.fetch_bundle(bundle)
         """
@@ -77,7 +77,7 @@ class PartialBundle(Bundle[NameT]):
 
         Shorthand for:
 
-        .. code-block:: python3
+        .. code:: python
 
             (item,) = await client.fetch_store_item(bundles=[bundle])
         """

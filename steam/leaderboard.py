@@ -35,12 +35,19 @@ __all__ = (
 
 @dataclass(slots=True)
 class LeaderboardScoreUpdate:
+    """Represents a score update on a leaderboard."""
+
     global_rank_before: int
+    """The global rank of the user before the score update."""
     global_rank_after: int
+    """The global rank of the user after the score update."""
     score_changed: bool
+    """Whether the score changed."""
 
 
 class LeaderboardUser(WrapsUser):
+    """Represents a user on an app's leaderboard."""
+
     __slots__ = ("global_rank", "score", "details", "ugc_id")
 
     def __init__(
@@ -54,9 +61,13 @@ class LeaderboardUser(WrapsUser):
     ):
         super().__init__(state, user)
         self.global_rank = global_rank
+        """The global rank of the user."""
         self.score = score
+        """The score of the user."""
         self.details = details
+        """The details of the user."""
         self.ugc_id = ugc_id
+        """The UGC ID of the user."""
 
 
 DisplayNameT = TypeVar("DisplayNameT", bound=str | None, default=None, covariant=True)
@@ -64,6 +75,8 @@ DisplayNameT = TypeVar("DisplayNameT", bound=str | None, default=None, covariant
 
 @dataclass(slots=True)
 class Leaderboard(Generic[DisplayNameT]):
+    """Represents a leaderboard for an app."""
+
     _state: ConnectionState
     id: LeaderboardID
     """The leaderboard's id."""
