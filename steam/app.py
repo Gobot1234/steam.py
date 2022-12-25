@@ -754,6 +754,7 @@ class PartialApp(App[NameT]):
         ------
         :class:`~steam.PublishedFile`
         """
+        from .abc import PartialUser
         from .published_file import PublishedFile
 
         before = before or DateTime.now()
@@ -771,7 +772,7 @@ class PartialApp(App[NameT]):
 
             files: list[PublishedFile] = []
             for file in protos.publishedfiledetails:
-                file = PublishedFile(self._state, file, ID(file.creator))
+                file = PublishedFile(self._state, file, PartialUser(self._state, file.creator))
                 if not after < file.created_at < before:
                     remaining = 0
                     break
