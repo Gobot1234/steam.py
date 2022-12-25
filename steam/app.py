@@ -837,6 +837,10 @@ class PartialApp(App[NameT]):
             badges.append(badge)
         return badges
 
+    async def legacy_game_key(self) -> str:
+        """Fetch the legacy game key for this app."""
+        return await self._state.fetch_legacy_game_key(self.id)
+
 
 
 class Apps(PartialApp[str], Enum):
