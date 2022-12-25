@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import re
 from collections.abc import AsyncGenerator, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, NamedTuple, overload
+from zlib import crc32
 
 from bs4 import BeautifulSoup
 from typing_extensions import Self, TypeVar
@@ -44,6 +48,11 @@ __all__ = (
     "CSGO",
     "STEAM",
     "CUSTOM_APP",
+    "OwnershipTicket",
+    "AuthenticationTicket",
+    "EncryptedTicket",
+    "FriendThoughts",
+    "AppAchievement",
     "DLC",
     "UserApp",
     "WishlistApp",
@@ -182,75 +191,145 @@ def CUSTOM_APP(
     return App(name=name, id=15190414816125648896, context_id=None)
 
 
-import hashlib
-from contextlib import asynccontextmanager
-from datetime import timezone
-from ipaddress import IPv4Address
-from zlib import crc32
+class BaseOwnershipTicket:
+    def __init__(self, state: ConnectionState, ticket: utils.StructIO) -> None:
+        from .abc import PartialUser
+        from .package import PartialPackage
 
+        self._ticket = ticket
+        self._start = ticket.position
+        self._end = ticket.read_u32()  # including itself, for some reason
+        if self._start + self._end != len(ticket) and self._start + self._end + 128 != len(ticket):
+            return None
 
-class Ignore:
-    async def changes_since(self, change_number: int) -> tuple[list[AppInfo], list[PackageInfo]]:
-        ...
+        self.version = ticket.read_u32()
+        self.user = PartialUser(state, ticket.read_u64())
+        self.app = PartialApp(state, id=ticket.read_u32())
+        self.external_ip = IPv4Address(ticket.read_u32())
+        self.internal_ip = IPv4Address(ticket.read_u32())
+        self.flags = ticket.read_u32()
+        self.created_at = DateTime.from_timestamp(ticket.read_u32())
+        self._expires = DateTime.from_timestamp(ticket.read_u32())
+        self.licenses = [PartialPackage(state, id=ticket.read_u32()) for _ in range(ticket.read_u16())]
+        self.dlc = [
+            OwnershipDLC(
+                state,
+                id=ticket.read_u32(),
+                owned_packages=[PartialPackage(state, id=ticket.read_u32()) for _ in range(ticket.read_u16())],
+            )
+            for _ in range(ticket.read_u16())
+        ]
 
-    async def fetch_encrypted_ticket(self, key: bytes, *, user_data: bytes = b"") -> GameTicket:
-        encrypted_ticket = await self._state.fetch_encrypted_app_ticket(self.id, user_data)
-        decrypted = utils.StructIO(utils.symmetric_decrypt(encrypted_ticket.encrypted_ticket, key))
-        if crc32(decrypted.buffer, encrypted_ticket.crc_encryptedticket):
-            raise ValueError
+        ticket.read_u16()  # reserved
+        signature = ticket.read(128)
+        self.signature = signature if len(signature) == 128 else None
 
-        user_data = decrypted.buffer[: encrypted_ticket.cb_encrypteduserdata]
-        decrypted.seek(encrypted_ticket.cb_encrypteduserdata)
-        ticket_length = decrypted.read_u32()
-        ticket = GameTicket(
-            decrypted.buffer[
-                encrypted_ticket.encrypted_app_ticket.cb_encrypteduserdata
-                + ticket_length : encrypted_ticket.encrypted_app_ticket.cb_encrypteduserdata
-            ],
-            encrypted=True,
+    def __repr__(self) -> str:
+        attrs = (
+            "user",
+            "app",
+            "version",
         )
-        remainder = decrypted.buffer[encrypted_ticket.cb_encrypteduserdata + ticket_length :]
-        if len(remainder) >= 8 + 20:
-            to_hash = decrypted.buffer[: encrypted_ticket.cb_encrypteduserdata + ticket_length]
-            salt = remainder[:8]
-            hash = remainder[8:28]
-            remainder = remainder[28:]
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
-            hasher = hashlib.sha1(to_hash + salt)
-            digested = hasher.digest()
-            assert digested == hash, f"Oh no {digested} {hash}"
 
-        return ticket
+class OwnershipTicket(BaseOwnershipTicket):
+    """Represents an ownership ticket. This is used to verify ownership of an app."""
 
-    @asynccontextmanager
-    async def create_auth_ticket(self) -> AsyncGenerator[GameTicket, None]:
-        """Create an authentication ticket for this game.
+    def is_signature_valid(self) -> bool:
+        if self.signature is not None:
+            return utils.verify_signature(
+                self._ticket.getbuffer()[self._start : self._start + self._end],
+                self.signature,
+            )
+        return False
 
-        Examples
-        --------
+    @property
+    def expires(self) -> datetime:
+        """The time at which the ticket expires."""
+        return self._expires
 
-        .. code-block:: python3
+    def is_expired(self) -> bool:
+        """Whether the ticket has expired."""
+        return self._expires < DateTime.now()
 
-            async with game.create_auth_ticket() as ticket:
-                ...  # send the ticket to a user or server
-        """
-        # for the ticket to be valid we have to be playing the game
-        to_dict = self.to_dict()
-        state = self._state
-        games = state._games.copy()  # keep a copy of the old list
-        if to_dict not in games:
-            await state.ws.change_presence(games=[*games, to_dict])
+    def is_valid(self) -> bool:
+        return not self.is_expired() and (not self.signature or self.is_signature_valid())
 
-        ticket = await state.create_ticket(self.id)
-        try:
-            yield GameTicket(ticket, encrypted=False)
-        finally:
-            await state.cancel_ticket(self.id)
-            if to_dict not in games:
-                await state.ws.change_presence(games=games)
 
-    async def fetch_ownership_ticket(self) -> Ticket:
-        await self._state.fetch_ownership_ticket(self.id)
+class AuthenticationTicket(OwnershipTicket):
+    def __init__(self, state: ConnectionState, ticket: utils.StructIO) -> None:
+        self.auth_ticket = bytes(ticket.getbuffer()[ticket.position - 4 : ticket.position - 4 + 52])
+        # this is the part that's passed back to Steam for validation
+
+        self.gc_token = ticket.read_u64()
+        """The Game Connect token for the app."""
+        ticket.position += 8
+        self.gc_token_created_at = DateTime.from_timestamp(ticket.read_u32())
+        """When the Game Connect token was created."""
+
+        if ticket.read_u32() != 24:
+            raise ValueError("Invalid session header")
+
+        ticket.position += 8
+        # unknown 1 and unknown 2
+        self.client_ip = IPv4Address(ticket.read_u32())
+        ticket.position += 4
+        # filler
+        self.client_connected_at = timedelta(milliseconds=ticket.read_u32())
+        """The time the client has been connected to Steam"""
+        self.client_connection_count = ticket.read_u32()  # how many servers the client has connected to
+
+        if ticket.read_u32() + ticket.position != len(ticket):
+            raise ValueError("Invalid ownership section")
+        super().__init__(state, ticket)
+
+    async def verify(self) -> bool:
+        """Verify the ticket."""  # TODO needs a publisher api key (oh no)
+        raise NotImplementedError
+        return await self._state.http.verify_app_ticket(self.auth_ticket, self.app.id)
+
+    async def activate(self) -> bool:
+        """Activate the ticket."""  # https://github.com/DoctorMcKay/node-steam-gameserver/commit/82cdac939ebc7109f4eb0e1bca8230efb84f880d
+        raise NotImplementedError
+        return await self._state.client.activate_app_ticket(self.auth_ticket, self.app.id)
+
+    # def is_valid(self) -> bool:  # TODO is it worth having an opinion on this?
+    #     return
+
+
+class EncryptedTicket(BaseOwnershipTicket):
+    def __init__(self, state: ConnectionState, ticket: EncryptedAppTicketProto, key: bytes) -> None:
+        decrypted = utils.StructIO(utils.symmetric_decrypt(ticket.encrypted_ticket, key))
+        if crc32(decrypted.getbuffer()) != ticket.crc_encryptedticket:
+            raise ValueError("Invalid CRC")
+        self.user_data = decrypted.read(ticket.cb_encrypteduserdata)
+
+        (length,) = decrypted.read_struct(">I")
+
+        super().__init__(state, utils.StructIO(decrypted.read(length)))
+        remaining = decrypted.read()
+        if len(remaining) >= 8 + 20:
+            to_hash = decrypted.buffer[: ticket.cb_encrypteduserdata + length]
+            salt = remaining[:8]
+            hash = remaining[8:28]
+
+            if hashlib.sha1(to_hash + salt).digest() != hash:
+                raise ValueError("Invalid hash")
+
+
+async def parse_app_ticket(state: ConnectionState, ticket: utils.StructIO) -> OwnershipTicket | AuthenticationTicket:
+    if ticket.read_u32() == 20:
+        app_ticket = AuthenticationTicket(state, ticket)
+    else:
+        ticket.position -= 4
+        app_ticket = OwnershipTicket(state, ticket)
+
+    if not app_ticket.is_valid():
+        raise ValueError("Invalid ticket")
+    app_ticket.user = await state._maybe_user(app_ticket.user.id64)
+    return app_ticket
 
 
 class FriendThoughts(NamedTuple):
@@ -841,6 +920,38 @@ class PartialApp(App[NameT]):
         """Fetch the legacy game key for this app."""
         return await self._state.fetch_legacy_game_key(self.id)
 
+    async def encrypted_ticket(self, key: bytes, *, user_data: bytes = b"") -> EncryptedTicket:
+        """Fetch an encrypted ticket for this app."""
+        encrypted_ticket = await self._state.fetch_encrypted_app_ticket(self.id, user_data)
+        return EncryptedTicket(self._state, encrypted_ticket, key)
+
+    async def ownership_ticket(self) -> OwnershipTicket:
+        """Fetch an ownership ticket for this app."""
+        ticket = await self._state.fetch_app_ownership_ticket(self.id)
+        return await parse_app_ticket(self._state, utils.StructIO(ticket))
+
+    @asynccontextmanager
+    async def create_auth_ticket(self) -> AsyncGenerator[AuthenticationTicket, None]:
+        """Create an authentication ticket for this app.
+
+        Examples
+        --------
+
+        .. code:: python
+
+            async with app.create_auth_ticket() as ticket:
+                ...  # send the ticket to a user or server
+                # ticket will only be valid inside this block
+        """
+        # for the ticket to be valid we have to be playing the game
+        async with self._state.temporarily_play(self):
+            ticket = await self._state.create_ticket(self.id)
+            try:
+                parsed_ticket = await parse_app_ticket(self._state, utils.StructIO(ticket))
+                assert isinstance(parsed_ticket, AuthenticationTicket)
+                yield parsed_ticket
+            finally:
+                await self._state.cancel_ticket(self.id)
 
 
 class Apps(PartialApp[str], Enum):

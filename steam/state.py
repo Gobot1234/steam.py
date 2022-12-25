@@ -5,10 +5,10 @@ from __future__ import annotations
 import asyncio
 import collections
 import logging
-import re
 import weakref
 from collections import defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import AsyncGenerator, Callable, Collection, Iterable, Sequence
+from contextlib import asynccontextmanager
 from copy import copy
 from datetime import datetime, timedelta
 from itertools import count
@@ -490,6 +490,20 @@ class ConnectionState(Registerable):
                 return True
 
         return False
+
+    @asynccontextmanager
+    async def temporarily_play(self, *apps: App) -> AsyncGenerator[None, None]:
+        old_apps = self._apps
+        to_proto_apps = [app.to_proto() for app in apps]
+        if all(app in old_apps for app in to_proto_apps):
+            yield
+            return
+
+        try:
+            await self.ws.change_presence(apps=[*self._apps, *to_proto_apps])
+            yield
+        finally:
+            await self.ws.change_presence(apps=old_apps)
 
     # ws stuff
 
@@ -2239,6 +2253,45 @@ class ConnectionState(Registerable):
             raise ValueError("No licenses granted")
         await self.handled_licenses.wait()
         return msg.granted_appids, [l for l in self.licenses.values() if l.id not in old_licenses]
+
+    async def fetch_encrypted_app_ticket(
+        self, app_id: AppID, user_data: bytes
+    ) -> encrypted_app_ticket.EncryptedAppTicket:
+        msg: client_server.CMsgClientRequestEncryptedAppTicketResponse = await self.ws.send_proto_and_wait(
+            client_server.CMsgClientRequestEncryptedAppTicket(app_id=app_id, userdata=user_data),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.encrypted_app_ticket
+
+    async def fetch_app_ownership_ticket(self, app_id: AppID) -> bytes:
+        msg: client_server.CMsgClientGetAppOwnershipTicketResponse = await self.ws.send_proto_and_wait(
+            client_server.CMsgClientGetAppOwnershipTicket(app_id=app_id),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.ticket
+
+    async def create_ticket(self, app_id: AppID) -> AuthTicket:
+        ticket = await self.fetch_app_ownership_ticket(app_id)
+        gc_token = self._gc_tokens.pop()
+        io = utils.StructIO()
+        io.write_u32(len(gc_token))
+        io.write(gc_token)
+        io.write_u32(24)
+        io.write_u32(1)
+        io.write_u32(2)
+        io.write_u32(int(self.public_ip))
+        io.write_u32(0)
+        io.write_u32(self.steam_time.timestamp() - self.connect_time.timestamp())
+        self.connection_count += 1
+        io.write_u32(self.connection_count)
+        io.write_u32(len(ticket))
+        io.write(ticket)
+
+        await self.activate_auth_session_ticket(io)
+
+        return io
 
     async def fetch_or_create_app_leaderboard(
         self, app_id: AppID, leaderboard_name: str, create: bool = False

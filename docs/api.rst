@@ -704,6 +704,29 @@ Store
     :members:
     :inherited-members:
 
+App Tickets
+~~~~~~~~~~~~~~~
+
+.. attributetable:: EncryptedTicket
+
+.. autoclass:: EncryptedTicket()
+    :members:
+    :inherited-members:
+    :undoc-members:
+
+.. attributetable:: OwnershipTicket
+
+.. autoclass:: OwnershipTicket()
+    :members:
+    :inherited-members:
+    :undoc-members:
+
+.. attributetable:: AuthenticationTicket
+
+.. autoclass:: AuthenticationTicket()
+    :members:
+    :inherited-members:
+    :undoc-members:
 
 Trading
 ~~~~~~~~~~~~~~~
