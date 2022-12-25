@@ -54,6 +54,7 @@ from .protobufs import (
     friend_messages,
     friends,
     game_servers,
+    leaderboards,
     login,
     loyalty_rewards,
     notifications,

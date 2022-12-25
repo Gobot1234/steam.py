@@ -20,7 +20,7 @@ from .enums import (
 from .user import User, WrapsUser
 
 if TYPE_CHECKING:
-    from .app import PartialApp
+    from .app import App
     from .id import ID
     from .state import ConnectionState
     from .types.id import ID64, LeaderboardID
@@ -70,11 +70,12 @@ class LeaderboardUser(WrapsUser):
         """The UGC ID of the user."""
 
 
+AppT = TypeVar("AppT", bound="App", covariant=True)
 DisplayNameT = TypeVar("DisplayNameT", bound=str | None, default=None, covariant=True)
 
 
 @dataclass(slots=True)
-class Leaderboard(Generic[DisplayNameT]):
+class Leaderboard(Generic[AppT, DisplayNameT]):
     """Represents a leaderboard for an app."""
 
     _state: ConnectionState
@@ -82,7 +83,7 @@ class Leaderboard(Generic[DisplayNameT]):
     """The leaderboard's id."""
     name: str
     """The name of the leaderboard."""
-    app: PartialApp
+    app: AppT
     """The app this leaderboard is for."""
     sort_method: LeaderboardSortMethod
     """The sort method of the leaderboard."""
@@ -154,8 +155,20 @@ class Leaderboard(Generic[DisplayNameT]):
     async def set_score(
         self, score: int, *, details: bytes, method: LeaderboardUploadScoreMethod = LeaderboardUploadScoreMethod.NONE
     ) -> LeaderboardScoreUpdate:
+        """Set the score of the current user on the leaderboard.
+
+        Parameters
+        ----------
+        score
+            The score to set.
+        details
+            The details to set.
+        method
+            The method to use to upload the score.
+        """
         update = await self._state.set_app_leaderboard_score(self.app.id, self.id, score, details, method)
         return LeaderboardScoreUpdate(update.global_rank_previous, update.global_rank_new, update.score_changed)
 
     async def set_ugc_id(self, ugc_id: int) -> None:
+        """Set the UGC ID of the current user on the leaderboard."""
         await self._state.set_app_leaderboard_ugc(self.app.id, self.id, ugc_id)

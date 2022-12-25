@@ -326,7 +326,7 @@ class PartialApp(App[NameT]):
         """The apps current player count."""
         return await self._state.fetch_app_player_count(self.id)
 
-    async def leaderboards(self, *, language: Language | None = None) -> list[Leaderboard[str]]:
+    async def leaderboards(self, *, language: Language | None = None) -> list[Leaderboard[Self, str]]:
         """The leaderboards for this app."""
         from .leaderboard import Leaderboard
 
@@ -346,7 +346,7 @@ class PartialApp(App[NameT]):
             for board in soup.response.find_all("leaderboard")  # type: ignore
         ]
 
-    async def fetch_leaderboard(self, name: str) -> Leaderboard[None] | None:
+    async def fetch_leaderboard(self, name: str) -> Leaderboard[Self, None] | None:
         """Fetch a leaderboard by name.
 
         Parameters
@@ -372,7 +372,7 @@ class PartialApp(App[NameT]):
             display_type=LeaderboardDisplayType.try_value(leaderboard.leaderboard_display_type),
         )
 
-    async def create_leaderboard(self, name: str) -> Leaderboard[None]:
+    async def create_leaderboard(self, name: str) -> Leaderboard[Self, None]:
         """Create a leaderboard with a given name.
 
         Parameters
