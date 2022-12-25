@@ -34,7 +34,7 @@ __all__ = (
     "EventType",
     "ProfileItemType",
     "ProfileCustomisationStyle",
-    "ProfileItemClass",
+    "CommunityItemClass",
     "DepotFileFlag",
     "AppType",
     "LicenseFlag",
@@ -51,6 +51,7 @@ __all__ = (
     "LeaderboardSortMethod",
     "LeaderboardDisplayType",
     "LeaderboardDataRequest",
+    "CommunityDefinitionItemType",
 )
 
 T = TypeVar("T")
@@ -1153,7 +1154,7 @@ class ProfileCustomisationStyle(IntEnum):
     HighestRated = 5
 
 
-class ProfileItemClass(IntEnum):
+class CommunityItemClass(IntEnum):
     """An item class."""
     Invalid               = 0
     """An invalid item class."""
@@ -1755,6 +1756,11 @@ class LeaderboardUploadScoreMethod(IntEnum):
     """Keep best upload method."""
     ForceUpdate = 2
     """Force update upload method."""
+
+class CommunityDefinitionItemType(IntEnum):
+    """The type of a community item."""
+    NONE = 0
+
 # fmt: on
 
 

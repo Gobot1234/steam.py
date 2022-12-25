@@ -232,6 +232,10 @@ Enumerations
    :members:
    :undoc-members:
 
+.. autoclass:: CommunityItemClass()
+   :members:
+   :undoc-members:
+
 .. autoclass:: DepotFileFlag()
    :members:
    :undoc-members:
@@ -315,7 +319,6 @@ An :term:`abstract base class` (also known as an ``abc``) is a class that models
     :members:
     :inherited-members:
 
-
 .. attributetable:: steam.abc.Messageable
 
 .. autoclass:: steam.abc.Messageable()
@@ -339,6 +342,16 @@ Announcements
 
 Badge
 ~~~~~~~~~~~~~~~
+
+.. attributetable:: AppBadge
+
+.. autoclass:: AppBadge()
+    :members:
+
+.. attributetable:: UserBadge
+
+.. autoclass:: UserBadge()
+    :members:
 
 .. attributetable:: UserBadges
 

@@ -10,26 +10,18 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, NamedTuple, overload
 
 from bs4 import BeautifulSoup
-from typing_extensions import TypeVar
+from typing_extensions import Self, TypeVar
 
 from . import utils
-from ._const import DOCS_BUILDING, HTML_PARSER, MISSING, STATE, UNIX_EPOCH, URL
-from .enums import (
-    AppType,
-    Enum,
-    Language,
-    LeaderboardDataRequest,
-    LeaderboardDisplayType,
-    LeaderboardSortMethod,
-    PublishedFileQueryFileType,
-    PublishedFileRevision,
-    ReviewType,
-)
-from .id import ID, id64_from_url
+from ._const import DOCS_BUILDING, HTML_PARSER, JSON_LOADS, MISSING, STATE, STEAM_BADGES, UNIX_EPOCH, URL
+from .badge import AppBadge
+from .enums import *
+from .id import id64_from_url
 from .models import CDNAsset, _IOMixin
 from .protobufs import client_server, player
 from .protobufs.encrypted_app_ticket import EncryptedAppTicket as EncryptedAppTicketProto
 from .types.id import ID64, AppID, ContextID, DepotID, Intable, LeaderboardID, ManifestID
+from .types.user import Author
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -37,7 +29,7 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .leaderboard import Leaderboard
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest
-    from .package import FetchedAppPackage, License
+    from .package import FetchedAppPackage, License, PartialPackage
     from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
@@ -178,7 +170,7 @@ def CUSTOM_APP(
 
     Example:
 
-    .. code-block:: python3
+    .. code:: python
 
         await client.change_presence(app=steam.CUSTOM_APP("my cool game"))
 
@@ -264,6 +256,30 @@ class Ignore:
 class FriendThoughts(NamedTuple):
     recommended: list[Friend]
     not_recommended: list[Friend]
+
+
+AppT = TypeVar("AppT", bound=App, covariant=True)
+
+
+@dataclass(slots=True)
+class CommunityItemDefinition(Generic[AppT]):
+    type: int
+    app: AppT
+    name: str
+    title: str
+    description: str
+    image: CDNAsset | None
+    data: dict[str, Any] | None
+    series: int
+    class_: CommunityItemClass
+    editor: Author | None
+    active: bool
+    image_composed: CDNAsset | None
+    image_composed_foil: CDNAsset | None
+    deleted: bool
+    edited_at: datetime | None
+    # broadcast_channel_id: int = betterproto.uint64_field(17)
+    movie: CDNAsset | None
 
 
 class PartialApp(App[NameT]):
@@ -722,6 +738,105 @@ class PartialApp(App[NameT]):
         """
         _, licenses = await self._state.request_free_license(self.id)
         return licenses
+
+
+    async def community_item_definitions(
+        self, *, type: CommunityDefinitionItemType = CommunityDefinitionItemType.NONE, language: Language | None = None
+    ) -> list[CommunityItemDefinition[Self]]:
+        """Fetch the app's community item definitions.
+
+        Parameters
+        ----------
+        type
+            The type of community item definitions to fetch.
+        language
+            The language to fetch the community item definitions in. If ``None``, the current language will be used.
+        """
+        defs = await self._state.fetch_community_item_definitions(self.id, type, language)
+        return [
+            CommunityItemDefinition(
+                def_.item_type,
+                self,
+                def_.item_name,
+                def_.item_title,
+                def_.item_description,
+                CDNAsset(
+                    self._state,
+                    f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_image_large or def_.item_image_small}",
+                )
+                if def_.item_image_large or def_.item_image_small
+                else None,
+                JSON_LOADS(def_.item_key_values) if def_.item_key_values else None,
+                def_.item_series,
+                CommunityItemClass.try_value(def_.item_class),
+                await self._state._maybe_user(def_.editor_accountid) if def_.editor_accountid else None,
+                def_.active,
+                CDNAsset(
+                    self._state,
+                    f"https://community.cloudflare.steamstatic.com/economy/image/{def_.item_image_composed}",
+                )
+                if def_.item_image_composed
+                else None,
+                CDNAsset(
+                    self._state,
+                    f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_image_composed_foil}",
+                )
+                if def_.item_image_composed_foil
+                else None,
+                def_.deleted,
+                DateTime.from_timestamp(def_.item_last_changed) if def_.item_last_changed else None,
+                CDNAsset(
+                    self._state,
+                    f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_movie_mp4 or def_.item_movie_mp4_small}",
+                )
+                if def_.item_movie_mp4 or def_.item_movie_mp4_small
+                else None,
+            )
+            for def_ in defs
+        ]
+
+    async def badges(self, *, language: Language | None = None) -> list[AppBadge[Self]]:
+        """Fetch this app's badges.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the badges in. If ``None``, the current language will be used.
+        """
+        if self.id == STEAM.id:
+            # 753 doesn't have a community item definition, so we just have the badges hardcoded
+            return [
+                AppBadge(self._state, badge.id, badge.name, self, CDNAsset(self._state, badge.url), level=badge.level)
+                for badge in STEAM_BADGES
+            ]
+
+        badge_def = utils.get(await self.community_item_definitions(language=language), class_=CommunityItemClass.Badge)
+        if badge_def is None:
+            return []
+
+        assert badge_def.data is not None
+        badges: list[AppBadge[Self]] = []
+        previous_name: str | None = None
+        for id, (name, image) in enumerate(
+            zip(badge_def.data["level_images"].values(), badge_def.data["level_names"].values()), start=1
+        ):
+            if not name:
+                assert previous_name is not None
+                name = previous_name
+            badge = AppBadge(
+                self._state,
+                id,
+                name,
+                self,
+                CDNAsset(
+                    self._state,
+                    f"{URL.CDN}/steamcommunity/public/images/items/{self.id}/{image})",
+                ),
+            )
+            previous_name = name
+            badges.append(badge)
+        return badges
+
 
 
 class Apps(PartialApp[str], Enum):

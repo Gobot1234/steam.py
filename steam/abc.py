@@ -16,7 +16,7 @@ from typing_extensions import Required, Self, TypeVar
 from yarl import URL as URL_
 
 from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH
-from .app import App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
+from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
@@ -26,7 +26,7 @@ from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory, Item
-from .types.id import CommentID, ContextID, Intable, PostID
+from .types.id import AssetID, CommentID, ContextID, Intable, PostID
 from .types.user import UserT
 from .utils import DateTime, cached_slot_property, classproperty, parse_bb_code
 
@@ -432,12 +432,14 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             return
 
         return FavouriteBadge(
+            self._state,
             id=badge.badgeid,
-            community_item_id=badge.communityitemid,
+            app=PartialApp(self._state, id=badge.appid) if badge.appid else STEAM,
+            owner=self,
+            level=badge.level,
+            community_item_id=AssetID(badge.communityitemid),
             type=badge.item_type,
             border_colour=badge.border_color,
-            app=PartialApp(self._state, id=badge.appid) if badge.appid else None,
-            level=badge.level,
         )
 
     async def equipped_profile_items(self, *, language: Language | None = None) -> EquippedProfileItems[Self]:

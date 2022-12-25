@@ -12,7 +12,7 @@ from typing_extensions import TypeVar
 from . import utils
 from .app import PartialApp
 from .badge import UserBadge
-from .enums import Language, ProfileCustomisationStyle, ProfileItemClass, ProfileItemType, PublishedFileRevision, Result
+from .enums import *
 from .errors import WSException
 from .models import _IOMixin
 from .protobufs import UnifiedMessage, econ
@@ -120,7 +120,7 @@ class ProfileItem(Generic[UserT]):
         """The app the item is from."""
         self.type = ProfileItemType.try_value(item.item_type)
         """The item's type."""
-        self.class_ = ProfileItemClass.try_value(item.item_class)
+        self.class_ = CommunityItemClass.try_value(item.item_class)
         """The item's class."""
         self.movie = ProfileMovie(state, item.movie_mp4)
         """The movie associated with the item."""

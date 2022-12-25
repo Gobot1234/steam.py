@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, runtime_checkable
 
-from .app import PartialApp
+from .models import CDNAsset
+from .types.id import AssetID
 from .types.user import UserT
-from .utils import DateTime
+from .utils import DateTime, get
 
 if TYPE_CHECKING:
+    from .app import PartialApp
     from .state import ConnectionState
+    from .trade import Item
 
 
 __all__ = (
@@ -20,12 +22,25 @@ __all__ = (
     "UserBadges",
 )
 
+AppT = TypeVar("AppT", bound="PartialApp", default="PartialApp", covariant=True)
 
-class BaseBadge:
-    __slots__ = ()
+
+@runtime_checkable
+class BaseBadge(Protocol[AppT]):  # type: ignore  # this is safe
+    __slots__ = ("id", "level", "app", "_state")
+    _state: ConnectionState
     id: int
-    level: int
-    app: PartialApp | None
+    """The badge's ID."""
+    level: float
+    """The badge's level. :class:`int` or ``float("inf")``"""
+    app: AppT
+    """The app associated with the badge."""
+
+    def __init__(self, state: ConnectionState, id: int, level: float, app: AppT) -> None:
+        self._state = state
+        self.id = id
+        self.level = level
+        self.app = app
 
     def __repr__(self) -> str:
         attrs = ("id", "level", "app")
@@ -35,46 +50,116 @@ class BaseBadge:
     def __eq__(self, other: object) -> bool:
         return self.id == other.id and self.app == other.app if isinstance(other, BaseBadge) else NotImplemented
 
+    def __hash__(self) -> int:
+        return hash((self.id, self.app))
 
-@dataclass(repr=False, slots=True)
-class FavouriteBadge(BaseBadge):
+    async def name(self) -> str:
+        """Fetches the name of this badge."""
+        badges = await self.app.badges()
+        badge = get(badges, id=self.id)
+        assert badge is not None
+        return await badge.name()
+
+    async def icon(self) -> CDNAsset:
+        """Fetches the URL of this badge."""
+        badges = await self.app.badges()
+        badge = get(badges, id=self.id)
+        assert badge is not None
+        return await badge.icon()
+
+
+class AppBadge(BaseBadge[AppT]):
+    """Represents a badge on an app."""
+
+    __slots__ = ("_name", "_icon")
+
+    def __init__(self, state: ConnectionState, id: int, name: str, app: AppT, icon: CDNAsset, level: float = 1):
+        super().__init__(state, id, level, app)
+        self._name = name
+        self._icon = icon
+
+    async def name(self) -> str:
+        return self._name
+
+    async def icon(self) -> CDNAsset:
+        return self._icon
+
+
+@runtime_checkable
+class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
+    __slots__ = ("owner", "community_item_id")
+    owner: UserT
+    """The user who owns this badge."""
+    community_item_id: AssetID | None
+    """The badge's community item ID."""
+
+    def __init__(
+        self, state: ConnectionState, id: int, level: int, app: AppT, owner: UserT, community_item_id: int | str | None
+    ):
+        super().__init__(state, id, level, app)
+        self.owner = owner
+        self.community_item_id = AssetID(int(community_item_id)) if community_item_id else None
+
+    async def item(self) -> Item[UserT]:
+        from .app import STEAM
+
+        if self.community_item_id is None:
+            raise ValueError("This badge doesn't have an associated item.")
+
+        inventory = await self.owner.inventory(STEAM)
+        item = get(inventory, id=self.community_item_id)
+        assert item is not None
+        return item
+
+
+class FavouriteBadge(BaseOwnedBadge["PartialApp", UserT]):
     """Represents a User's favourite badge."""
 
-    id: int
-    """The badge's ID."""
-    level: int
-    """The badge's level."""
-    app: PartialApp | None
-    """The app associated with the badge."""
-    community_item_id: int
-    """The badge's community item ID."""
+    __slots__ = ("border_colour", "type")
+
     type: int
     """The badge's type."""
     border_colour: int
     """The colour of the boarder of the badge."""
 
+    def __init__(
+        self,
+        state: ConnectionState,
+        id: int,
+        level: int,
+        app: PartialApp,
+        owner: UserT,
+        community_item_id: int,
+        type: int,
+        border_colour: int,
+    ):
+        super().__init__(state, id, level, app, owner, community_item_id)
+        self.type = type
+        self.border_colour = border_colour
 
-class UserBadge(BaseBadge, Generic[UserT]):
+
+class UserBadge(BaseOwnedBadge["PartialApp", UserT]):
     """Represents a Steam badge on a user's profile."""
 
-    __slots__ = ("id", "xp", "app", "user", "level", "scarcity", "completion_time", "community_item_id")
+    __slots__ = ("xp", "scarcity", "completion_time")
 
-    def __init__(self, state: ConnectionState, user: UserT, data: dict[str, Any]):
-        self.id: int = data["badgeid"]
-        """The badge's ID."""
-        self.level: int = data["level"]
-        """The badge's level."""
+    def __init__(self, state: ConnectionState, owner: UserT, data: dict[str, Any]):
+        from .app import STEAM, PartialApp
+
+        super().__init__(
+            state,
+            data["badgeid"],
+            data["level"],
+            PartialApp(state, id=data["appid"]) if "appid" in data else STEAM,
+            owner,
+            data.get("communityitemid"),
+        )
         self.xp: int = data["xp"]
         """The badge's XP."""
         self.completion_time = DateTime.from_timestamp(data["completion_time"])
         """The time the badge was completed at."""
         self.scarcity: int = data["scarcity"]
         """The scarcity of the badge."""
-        self.app = PartialApp(state, id=data["appid"]) if "appid" in data else None
-        """The app associated with the badge."""
-        self.community_item_id: int | None = data.get("communityitemid")
-        """The badge's community item ID."""
-        self.user = user
 
 
 class UserBadges(Sequence[UserBadge[UserT]]):

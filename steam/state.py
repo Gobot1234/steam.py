@@ -59,6 +59,7 @@ from .protobufs import (
     notifications,
     player,
     published_file,
+    quest,
     reviews,
     store,
 )
@@ -2310,3 +2311,15 @@ class ConnectionState(Registerable):
         )
         if msg.result != Result.OK:
             raise WSException(msg)
+
+    async def fetch_community_item_definitions(
+        self, app_id: AppID, item_type: CommunityDefinitionItemType, language: Language | None
+    ) -> list[quest.GetCommunityItemDefinitionsResponseItemDefinition]:
+        msg: quest.GetCommunityItemDefinitionsResponse = await self.ws.send_um_and_wait(
+            quest.GetCommunityItemDefinitionsRequest(
+                appid=app_id, item_type=item_type, language=(language or self.language).name, keyvalues_as_json=True
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.item_definitions
