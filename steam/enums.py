@@ -164,16 +164,15 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
         super_.__setattr__(self, "name", name)
         super_.__setattr__(self, "value", value)
 
-        if DOCS_BUILDING:  # dumb enum shim
-            super_.__setattr__(self, "_name_", name)
-            super_.__setattr__(self, "_value_", value)
         return self
 
-    def __setattr__(self, key: str, value: Any) -> Never:
-        raise AttributeError(f"{self.__class__.__name__} Cannot reassign an Enum members attribute's.")
+    if not DOCS_BUILDING:
 
-    def __delattr__(self, item: Any) -> Never:
-        raise AttributeError(f"{self.__class__.__name__} Cannot delete an Enum members attribute's.")
+        def __setattr__(self, key: str, value: Any) -> Never:
+            raise AttributeError(f"{self.__class__.__name__} Cannot reassign an Enum members attribute's.")
+
+        def __delattr__(self, item: Any) -> Never:
+            raise AttributeError(f"{self.__class__.__name__} Cannot delete an Enum members attribute's.")
 
     def __bool__(self) -> Literal[True]:
         return True  # an enum member with a zero value would return False otherwise
@@ -198,7 +197,7 @@ class IntEnum(Enum, int):
 
 if cast(Literal[False], DOCS_BUILDING):
     enum_dict = Enum.__dict__.copy()
-    for key in ("__new__", "__setattr__"):
+    for key in ("__new__",):
         del enum_dict[key]
 
     Enum = new_class("Enum", (_Enum,), {}, lambda ns: dict.update(ns, enum_dict))  # type: ignore

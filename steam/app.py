@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Final, Generic, Literal, NamedTuple, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, Literal, NamedTuple, cast, overload
 from zlib import crc32
 
 from bs4 import BeautifulSoup
@@ -405,9 +405,18 @@ class PartialApp(App[NameT]):
 
     __slots__ = ("_state",)
 
-    def __init__(self, state: ConnectionState, **kwargs: Any):
-        super().__init__(**kwargs)
-        self._state = state
+    if cast(Literal[False], DOCS_BUILDING):
+
+        def __init__(self, name: str, id: AppID, context_id: ContextID):  # type: ignore
+            self.name = name
+            self.id = id
+            self.context_id = context_id
+
+    else:
+
+        def __init__(self, state: ConnectionState, **kwargs: Any):
+            super().__init__(**kwargs)
+            self._state = state
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "context_id")
