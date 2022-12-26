@@ -490,6 +490,11 @@ STEAM_BADGES = (
         "https://community.cloudflare.steamstatic.com/public/images/badges/63_steamawardnominations/level04_80.png",
         4,
     ),
+    SteamBadge(
+        "Steam Replay 2022",
+        64,
+        "https://community.akamai.steamstatic.com/public/images/badges/generic/Replay2022_80.png",
+    ),
 )
 
 
