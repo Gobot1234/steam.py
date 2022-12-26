@@ -93,6 +93,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 T = TypeVar("T")
+OwnerT = TypeVar("OwnerT", bound=Commentable)
 
 
 class Queue(Generic[T]):

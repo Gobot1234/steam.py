@@ -26,7 +26,7 @@ from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory, Item
-from .types.id import AssetID, CommentID, ContextID, Intable, PostID
+from .types.id import AppID, AssetID, CommentID, ContextID, Intable, PostID
 from .types.user import UserT
 from .utils import DateTime, cached_slot_property, classproperty, parse_bb_code
 
@@ -537,7 +537,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             if pages == 1:
                 *_, pages = [1] + [int(a["href"].removeprefix("?p=")) for a in soup.find_all("a", class_="pagelink")]
             app_ids = [
-                int(URL_(review.find("div", class_="leftcol").a["href"]).parts[-1])
+                AppID(int(URL_(review.find("div", class_="leftcol").a["href"]).parts[-1]))
                 for review in soup.find_all("div", class_="review_box_content")
             ]
 
@@ -663,7 +663,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         from .post import Post
 
         post = await self._state.fetch_user_post(self.id64, PostID(id))
-        return Post(self._state, post.postid, post.status_text, self, PartialApp(self._state, id=post.appid))
+        return Post(self._state, PostID(post.postid), post.status_text, self, PartialApp(self._state, id=post.appid))
 
 
 class BaseUser(PartialUser):

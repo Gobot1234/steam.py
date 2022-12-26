@@ -464,7 +464,7 @@ class PartialApp(App[NameT]):
             for board in soup.response.find_all("leaderboard")  # type: ignore
         ]
 
-    async def fetch_leaderboard(self, name: str) -> Leaderboard[Self, None] | None:
+    async def fetch_leaderboard(self, name: str) -> Leaderboard[Self, None]:
         """Fetch a leaderboard by name.
 
         Parameters
