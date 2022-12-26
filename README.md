@@ -1,8 +1,7 @@
 # steam.py
 
 A modern, easy to use, and async ready package to interact with the Steam API. Heavily inspired by
-[discord.py](https://github.com/Rapptz/discord.py) and borrowing functionality from
-[ValvePython/steam](https://github.com/ValvePython/steam).
+[discord.py](https://github.com/Rapptz/discord.py).
 
 ![Supports](https://img.shields.io/pypi/pyversions/steamio)
 ![Version](https://img.shields.io/pypi/v/steamio?color=%2366c0f4)
@@ -85,5 +84,5 @@ bot.run("username", "password")
 
 ## Links
 
-- [Documentation](https://steam-py.github.io/docs/latest/)
+- [Documentation](https://steam-py.github.io/docs/latest)
 - [Official Discord Server](https://discord.gg/MQ68WUS)
