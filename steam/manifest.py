@@ -489,12 +489,19 @@ class Manifest:
 
     @cached_slot_property("_cs_paths")
     def _paths(self) -> dict[tuple[str, ...], ManifestPath]:
-        return {(path := ManifestPath(self, mapping)).parts: path for mapping in self._payload.mappings}
+        return {("/",): ManifestPath(self, PayloadFileMapping("/", flags=DepotFileFlag.Directory))} | {
+            (path := ManifestPath(self, mapping)).parts: path for mapping in self._payload.mappings
+        }
 
     @property
     def paths(self) -> Sequence[ManifestPath]:
         """The depot's files."""
         return list(self._paths.values())
+
+    @property
+    def root(self) -> ManifestPath:
+        """The depot's root directory."""
+        return self._paths[("/",)]
 
     @property
     def id(self) -> ManifestID:
