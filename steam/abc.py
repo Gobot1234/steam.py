@@ -21,7 +21,7 @@ from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
 from .game_server import GameServer
-from .id import ID
+from .id import ID, parse_id64
 from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
@@ -378,12 +378,18 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         data = await self._state.http.get_wishlist(self.id64)
         return [WishlistApp(self._state, id=id, data=app_info) for id, app_info in data.items()]
 
-    async def clans(self) -> list[Clan]:
-        r"""Fetches a list of :class:`~steam.Clan`\s the user is in."""
+    async def clans(self, *, auto_chunk: bool = False) -> list[Clan]:
+        r"""Fetches a list of :class:`~steam.Clan`\s the user is in.
+
+        Parameters
+        ----------
+        auto_chunk
+            Whether to automatically chunk the clans that are fetched. Defaults to ``False``.
+        """
 
         async def getter(gid: int) -> Clan:
             try:
-                clan = await self._state.client.fetch_clan(gid)
+                clan = await self._state.fetch_clan(parse_id64(gid, type=Type.Clan), maybe_chunk=auto_chunk)
                 assert clan is not None
                 return clan
             except WSException as exc:
@@ -393,7 +399,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
                 raise
 
         resp = await self._state.http.get_user_clans(self.id64)
-        return await asyncio.gather(*(getter(int(clan["gid"])) for clan in resp["response"]["groups"]))  # type: ignore
+        return await asyncio.gather(*(getter(clan["gid"]) for clan in resp["response"]["groups"]))  # type: ignore
 
     async def bans(self) -> Ban:
         r"""Fetches the user's :class:`.Ban`\s."""
