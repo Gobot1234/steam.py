@@ -192,10 +192,29 @@ def CUSTOM_APP(
 
 
 class BaseOwnershipTicket:
+    __slots__ = (
+        "_state",
+        "_ticket",
+        "_start",
+        "_end",
+        "version",
+        "user",
+        "app",
+        "external_ip",
+        "internal_ip",
+        "flags",
+        "created_at",
+        "_expires",
+        "licenses",
+        "dlc",
+        "signature",
+    )
+
     def __init__(self, state: ConnectionState, ticket: utils.StructIO) -> None:
         from .abc import PartialUser
         from .package import PartialPackage
 
+        self._state = state
         self._ticket = ticket
         self._start = ticket.position
         self._end = ticket.read_u32()  # including itself, for some reason
@@ -237,6 +256,11 @@ class BaseOwnershipTicket:
 class OwnershipTicket(BaseOwnershipTicket):
     """Represents an ownership ticket. This is used to verify ownership of an app."""
 
+    __slots__ = ()
+
+    def __bytes__(self) -> bytes:
+        return self._ticket.buffer
+
     def is_signature_valid(self) -> bool:
         if self.signature is not None:
             return utils.verify_signature(
@@ -259,6 +283,15 @@ class OwnershipTicket(BaseOwnershipTicket):
 
 
 class AuthenticationTicket(OwnershipTicket):
+    __slots__ = (
+        "auth_ticket",
+        "gc_token",
+        "gc_token_created_at",
+        "client_ip",
+        "client_connected_at",
+        "client_connection_count",
+    )
+
     def __init__(self, state: ConnectionState, ticket: utils.StructIO) -> None:
         self.auth_ticket = bytes(ticket.getbuffer()[ticket.position - 4 : ticket.position - 4 + 52])
         # this is the part that's passed back to Steam for validation
@@ -285,6 +318,9 @@ class AuthenticationTicket(OwnershipTicket):
             raise ValueError("Invalid ownership section")
         super().__init__(state, ticket)
 
+    def __bytes__(self, _header: bytearray = bytearray(WRITE_U32(20))) -> bytes:
+        return bytes(_header + self._ticket.getbuffer())
+
     async def verify(self) -> bool:
         """Verify the ticket."""  # TODO needs a publisher api key (oh no)
         raise NotImplementedError
@@ -292,8 +328,11 @@ class AuthenticationTicket(OwnershipTicket):
 
     async def activate(self) -> bool:
         """Activate the ticket."""  # https://github.com/DoctorMcKay/node-steam-gameserver/commit/82cdac939ebc7109f4eb0e1bca8230efb84f880d
-        raise NotImplementedError
-        return await self._state.client.activate_app_ticket(self.auth_ticket, self.app.id)
+        await self._state.activate_auth_session_ticket(self)
+
+    async def deactivate(self) -> bool:
+        """Deactivate the ticket."""
+        await self._state.deactivate_auth_session_ticket(self)
 
     # def is_valid(self) -> bool:  # TODO is it worth having an opinion on this?
     #     return
@@ -932,7 +971,7 @@ class PartialApp(App[NameT]):
         return await parse_app_ticket(self._state, utils.StructIO(ticket))
 
     @asynccontextmanager
-    async def create_auth_ticket(self) -> AsyncGenerator[AuthenticationTicket, None]:
+    async def create_authentication_ticket(self) -> AsyncGenerator[AuthenticationTicket, None]:
         """Create an authentication ticket for this app.
 
         Examples
@@ -940,19 +979,35 @@ class PartialApp(App[NameT]):
 
         .. code:: python
 
-            async with app.create_auth_ticket() as ticket:
+            async with app.create_authentication_ticket() as ticket:
                 ...  # send the ticket to a user or server
                 # ticket will only be valid inside this block
         """
         # for the ticket to be valid we have to be playing the game
         async with self._state.temporarily_play(self):
-            ticket = await self._state.create_ticket(self.id)
-            try:
-                parsed_ticket = await parse_app_ticket(self._state, utils.StructIO(ticket))
-                assert isinstance(parsed_ticket, AuthenticationTicket)
-                yield parsed_ticket
-            finally:
-                await self._state.cancel_ticket(self.id)
+            ownership_ticket = await self._state.ownership_ticket()
+            with utils.StructIO() as io:
+                gc_token = self._state._gc_tokens.pop()
+                io.write_u32(len(gc_token))
+                io.write(gc_token)
+                io.write_u32(24)
+                io.write_u32(1)
+                io.write_u32(2)
+                io.write_u32(int(self._state.ws.public_ip))
+                io.write_u32(0)
+                io.write_u32(int(self._state.steam_time.timestamp() - self._state.ws.connect_time.timestamp()))
+                self._state.connection_count += 1
+                io.write_u32(self._state.connection_count)
+                io.write_u32(len(ownership_ticket))
+                io.write(ownership_ticket)
+                io.seek(0)
+                ticket = await parse_app_ticket(self._state, io)
+                try:
+                    assert isinstance(ticket, AuthenticationTicket)
+                    await ticket.activate()
+                    yield ticket
+                finally:
+                    await ticket.cancel()
 
 
 class Apps(PartialApp[str], Enum):

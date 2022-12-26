@@ -19,9 +19,10 @@ import time
 import traceback
 from collections.abc import AsyncGenerator, Callable, Iterable
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import partial
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
+from ipaddress import IPv4Address
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, TypeVar, overload
 from zlib import MAX_WBITS, decompress
@@ -50,6 +51,7 @@ from .protobufs import (
     friends,
     login,
 )
+from .types.http import IPAdress
 from .types.id import ID64
 from .user import AnonymousClientUser, ClientUser
 
@@ -263,6 +265,9 @@ class SteamWebSocket(Registerable):
         self.access_token: str
         self.client_id: int
 
+        self.public_ip: IPAdress
+        self.connect_time: datetime
+
     @property
     def latency(self) -> float:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
@@ -340,6 +345,8 @@ class SteamWebSocket(Registerable):
                 await self.handle_close()
                 return await self.from_client(client)
 
+            self.public_ip = IPv4Address(msg.public_ip.v4)
+            self.connect_time = utils.DateTime.now()
             self.session_id = msg.header.session_id
 
             (us,) = await self.fetch_users((self.id64,))

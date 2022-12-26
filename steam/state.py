@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from itertools import count
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from zlib import crc32
 
 from bs4 import BeautifulSoup
 from typing_extensions import Self
@@ -22,7 +23,7 @@ from yarl import URL as URL_
 from . import utils
 from ._const import HTML_PARSER, JSON_LOADS, URL, VDF_BINARY_LOADS, VDF_LOADS
 from .abc import Awardable, BaseUser, Commentable, PartialUser, _CommentableThreadType
-from .app import App
+from .app import App, AuthenticationTicket, parse_app_ticket
 from .channel import DMChannel
 from .clan import Clan, PartialClan
 from .comment import Comment
@@ -190,6 +191,9 @@ class ConnectionState(Registerable):
         self.licenses: dict[PackageID, License] = {}
         self._manifest_passwords: dict[AppID, dict[str, str]] = {}
         self.cs_servers: list[ContentServer] = []
+
+        self._gc_tokens: list[bytes] = []
+        self.connection_count = 0
 
         self.handled_friends.clear()
         self.handled_emoticons.clear()
@@ -2280,26 +2284,46 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.ticket
 
-    async def create_ticket(self, app_id: AppID) -> AuthTicket:
-        ticket = await self.fetch_app_ownership_ticket(app_id)
-        gc_token = self._gc_tokens.pop()
-        io = utils.StructIO()
-        io.write_u32(len(gc_token))
-        io.write(gc_token)
-        io.write_u32(24)
-        io.write_u32(1)
-        io.write_u32(2)
-        io.write_u32(int(self.public_ip))
-        io.write_u32(0)
-        io.write_u32(self.steam_time.timestamp() - self.connect_time.timestamp())
-        self.connection_count += 1
-        io.write_u32(self.connection_count)
-        io.write_u32(len(ticket))
-        io.write(ticket)
+    @register(EMsg.ClientGameConnectTokens)
+    def handle_game_connect_tokens(self, msg: client_server.CMsgClientGameConnectTokens) -> None:
+        self._gc_tokens.extend(msg.tokens)
 
+    async def create_ticket(self, app_id: AppID) -> AuthTicket:
         await self.activate_auth_session_ticket(io)
 
         return io
+
+    # async def activate_auth_session_ticket(self, ticket: AuthenticationTicket):
+    #     isOurTicket = ticket.user == self.user
+    #     thisTicket = {
+    #         "estate": int(isOurTicket),
+    #         "steamid": 0 if isOurTicket else ticket.user.id64,
+    #         "gameid": ticket.app.id,
+    #         "h_steam_pipe": self._hSteamPipe,
+    #         "ticket_crc": crc32(ticket.auth_ticket),
+    #         "ticket": ticket.auth_ticket,
+    #     };
+
+    #     # check if this ticket is already active
+    #     if (this._activeAuthTickets.find(tkt => tkt.steamid == thisTicket.steamid && tkt.ticket_crc == thisTicket.ticket_crc)) {
+    #         return log.debug("Ticket {thisTicket.ticket_crc} for {thisTicket.gameid}/{thisTicket.steamid} is already active");
+    #     }
+
+    #     // If we already have an active ticket for this appid/steamid combo, remove it, but not if it's our own
+    #     if (!isOurTicket) {
+    #         let existingTicketIdx = this._activeAuthTickets.findIndex(tkt => tkt.steamid == thisTicket.steamid && tkt.gameid == thisTicket.gameid);
+    #         if (existingTicketIdx != -1) {
+    #             let existingTicket = this._activeAuthTickets[existingTicketIdx];
+    #             this.emit('debug', `Canceling existing ticket ${existingTicket.ticket_crc} for ${existingTicket.gameid}/${existingTicket.steamid}`);
+    #             this._activeAuthTickets.splice(existingTicketIdx, 1);
+    #         }
+    #     }
+
+    #     this._activeAuthTickets.push(thisTicket);
+    # });
+
+    # await this._sendAuthList();
+    # resolve();
 
     async def fetch_or_create_app_leaderboard(
         self, app_id: AppID, leaderboard_name: str, create: bool = False
