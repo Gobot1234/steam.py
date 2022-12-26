@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 
 __all__ = (
+    "AppBadge",
     "FavouriteBadge",
     "UserBadge",
     "UserBadges",
@@ -36,7 +37,7 @@ class BaseBadge(Protocol[AppT]):  # type: ignore  # this is safe
     app: AppT
     """The app associated with the badge."""
 
-    def __init__(self, state: ConnectionState, id: int, level: float, app: AppT) -> None:
+    def __init__(self, state: ConnectionState, id: int, level: float, app: AppT) -> None:  # type: ignore
         self._state = state
         self.id = id
         self.level = level
@@ -48,10 +49,14 @@ class BaseBadge(Protocol[AppT]):  # type: ignore  # this is safe
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: object) -> bool:
-        return self.id == other.id and self.app == other.app if isinstance(other, BaseBadge) else NotImplemented
+        return (
+            self.id == other.id and self.app == other.app and self.level == other.level
+            if isinstance(other, BaseBadge)
+            else NotImplemented
+        )
 
     def __hash__(self) -> int:
-        return hash((self.id, self.app))
+        return hash((self.id, self.app, self.level))
 
     async def name(self) -> str:
         """Fetches the name of this badge."""
@@ -69,7 +74,7 @@ class BaseBadge(Protocol[AppT]):  # type: ignore  # this is safe
 
 
 class AppBadge(BaseBadge[AppT]):
-    """Represents a badge on an app."""
+    """Represents a badge for an app."""
 
     __slots__ = ("_name", "_icon")
 
@@ -83,6 +88,9 @@ class AppBadge(BaseBadge[AppT]):
 
     async def icon(self) -> CDNAsset:
         return self._icon
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} id={self.id} name()={self._name!r} level={self.level} app={self.app!r}>"
 
 
 @runtime_checkable
@@ -117,11 +125,6 @@ class FavouriteBadge(BaseOwnedBadge["PartialApp", UserT]):
 
     __slots__ = ("border_colour", "type")
 
-    type: int
-    """The badge's type."""
-    border_colour: int
-    """The colour of the boarder of the badge."""
-
     def __init__(
         self,
         state: ConnectionState,
@@ -135,7 +138,9 @@ class FavouriteBadge(BaseOwnedBadge["PartialApp", UserT]):
     ):
         super().__init__(state, id, level, app, owner, community_item_id)
         self.type = type
+        """The badge's type."""
         self.border_colour = border_colour
+        """The badge's border colour."""
 
 
 class UserBadge(BaseOwnedBadge["PartialApp", UserT]):

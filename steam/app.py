@@ -858,7 +858,6 @@ class PartialApp(App[NameT]):
         _, licenses = await self._state.request_free_license(self.id)
         return licenses
 
-
     async def community_item_definitions(
         self, *, type: CommunityDefinitionItemType = CommunityDefinitionItemType.NONE, language: Language | None = None
     ) -> list[CommunityItemDefinition[Self]]:
@@ -937,7 +936,7 @@ class PartialApp(App[NameT]):
         badges: list[AppBadge[Self]] = []
         previous_name: str | None = None
         for id, (name, image) in enumerate(
-            zip(badge_def.data["level_images"].values(), badge_def.data["level_names"].values()), start=1
+            zip(badge_def.data["level_names"].values(), badge_def.data["level_images"].values()), start=1
         ):
             if not name:
                 assert previous_name is not None
