@@ -542,9 +542,10 @@ def contains_chat_command(string: str) -> bool:
         "quote",
         "random",
         "flip",
+        "sticker",
         "store",
     }
-    return any(string.startswith(f"/{command}") for command in command)
+    return any(string.startswith(f"/{command} ") for command in command)
 
 
 # everything below here is directly from discord.py's utils
