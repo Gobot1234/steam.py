@@ -103,7 +103,9 @@ def READ_U32(s: bytes, unpacker: Callable[[bytes], tuple[int]] = struct.Struct("
     return u32
 
 
-_PROTOBUF_MASK = 0x80000000
+WRITE_U32: Final[Callable[[int], bytes]] = struct.Struct("<I").pack
+
+_PROTOBUF_MASK: Final = 0x80000000
 # inlined as these are some of the most called functions in the library
 IS_PROTO: Final[Callable[[int], bool]] = _PROTOBUF_MASK.__and__  # type: ignore  # this is boolean like for a bit of extra speed
 SET_PROTO_BIT: Final = _PROTOBUF_MASK.__or__

@@ -6,16 +6,15 @@ import dataclasses
 import functools
 import importlib
 import logging
-import struct
 import sys
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Final, TypeVar, get_type_hints
+from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, get_type_hints
 
 import betterproto
 from typing_extensions import Self, dataclass_transform
 
-from .._const import MISSING, SET_PROTO_BIT
+from .._const import MISSING, SET_PROTO_BIT, WRITE_U32
 from ..enums import IntEnum, Result
 from ..types.id import AppID
 from ..utils import classproperty
@@ -29,7 +28,6 @@ if TYPE_CHECKING:
     from ..types.id import AppID
 
 log = logging.getLogger(__name__)
-WRITE_U32: Callable[[int], bytes] = struct.Struct("<I").pack
 
 __all__ = (
     "Message",

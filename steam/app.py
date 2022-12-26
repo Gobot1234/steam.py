@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 from typing_extensions import Self, TypeVar
 
 from . import utils
-from ._const import DOCS_BUILDING, HTML_PARSER, JSON_LOADS, MISSING, STATE, STEAM_BADGES, UNIX_EPOCH, URL
+from ._const import DOCS_BUILDING, HTML_PARSER, JSON_LOADS, MISSING, STATE, STEAM_BADGES, UNIX_EPOCH, URL, WRITE_U32
 from .badge import AppBadge
 from .enums import *
 from .id import id64_from_url
@@ -52,7 +52,7 @@ __all__ = (
     "AuthenticationTicket",
     "EncryptedTicket",
     "FriendThoughts",
-    "AppAchievement",
+    # "AppAchievement",
     "DLC",
     "UserApp",
     "WishlistApp",
@@ -917,9 +917,9 @@ class PartialApp(App[NameT]):
             badges.append(badge)
         return badges
 
-    async def legacy_game_key(self) -> str:
-        """Fetch the legacy game key for this app."""
-        return await self._state.fetch_legacy_game_key(self.id)
+    async def legacy_cd_key(self) -> str:
+        """Fetch the legacy CD key for this app."""
+        return await self._state.fetch_legacy_cd_key(self.id)
 
     async def encrypted_ticket(self, key: bytes, *, user_data: bytes = b"") -> EncryptedTicket:
         """Fetch an encrypted ticket for this app."""

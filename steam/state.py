@@ -2254,6 +2254,14 @@ class ConnectionState(Registerable):
         await self.handled_licenses.wait()
         return msg.granted_appids, [l for l in self.licenses.values() if l.id not in old_licenses]
 
+    async def fetch_legacy_cd_key(self, app_id: AppID) -> str:
+        msg: client_server_2.ClientGetLegacyGameKeyResponse = await self.ws.send_proto_and_wait(
+            client_server_2.ClientGetLegacyGameKeyRequest(app_id=app_id),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.legacy_game_key
+
     async def fetch_encrypted_app_ticket(
         self, app_id: AppID, user_data: bytes
     ) -> encrypted_app_ticket.EncryptedAppTicket:

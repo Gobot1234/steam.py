@@ -4,9 +4,13 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import betterproto
+from typing_extensions import Self
 
+from .._const import WRITE_U32
+from ..types.id import AppID
 from ..utils import StructIO
 from .emsg import EMsg
 from .msg import Message, ProtobufMessage
@@ -23,6 +27,30 @@ class ClientMicroTxnAuthorize(Message, msg=EMsg.ClientMicroTxnAuthorize, init=Fa
             io.write_u64(self.order_id)
             io.write_i32(self.code)
             return io.buffer
+
+
+class ClientGetLegacyGameKeyRequest(Message, msg=EMsg.ClientGetLegacyGameKey):
+    app_id: AppID
+
+    def __bytes__(self) -> bytes:
+        return WRITE_U32(self.app_id)
+
+
+class ClientGetLegacyGameKeyResponse(Message, msg=EMsg.ClientGetLegacyGameKeyResponse):
+    app_id: AppID
+    eresult: int
+
+    def parse(self, data: bytes) -> Self:
+        with StructIO(data) as io:
+            self.app_id = AppID(io.read_u32())
+            self.eresult = io.read_i32()
+
+            length = io.read_u32()
+            self.legacy_game_key = io.read(length - 1).decode("UTF-8")
+            if len(self.legacy_game_key) != length - 1:
+                raise RuntimeError("Legacy game key is not the expected length")
+
+            return self
 
 
 class CMsgClientUpdateUserGameInfo(ProtobufMessage, msg=EMsg.ClientUpdateUserGameInfo):
