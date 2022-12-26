@@ -617,6 +617,19 @@ class ConnectionState(Registerable):
 
         return message
 
+    async def delete_chat_message(
+        self, chat_group_id: ChatGroupID, chat_id: ChatID, timestamp: int, ordinal: int
+    ) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.DeleteChatMessagesRequest(
+                chat_id=chat_id,
+                chat_group_id=chat_group_id,
+                messages=[chat.DeleteChatMessagesRequestMessage(server_timestamp=timestamp, ordinal=ordinal)],
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
     async def react_to_chat_message(
         self,
         chat_group_id: ChatGroupID,
