@@ -173,7 +173,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
     async def edit(
         self: Event[Literal[EventType.Game]],
         name: str,
-        content: str,
+        description: str,
         *,
         app: App | None = None,
         starts_at: datetime | None = ...,
@@ -186,7 +186,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
     async def edit(
         self,
         name: str,
-        content: str,
+        description: str,
         *,
         type: Literal[
             EventType.Other,
@@ -207,7 +207,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
     async def edit(
         self,
         name: str,
-        content: str,
+        description: str,
         *,
         type: Literal[EventType.Game] = ...,
         starts_at: datetime | None = ...,
@@ -220,7 +220,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
     async def edit(
         self,
         name: str,
-        content: str,
+        description: str,
         *,
         type: Literal[
             EventType.Other,
@@ -250,8 +250,8 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         ----------
         name
             The event's name.
-        content
-            The event's content.
+        description
+            The event's description.
         type
             The event's type.
         app
@@ -275,7 +275,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         await self._state.http.edit_clan_event(
             self.clan.id64,
             name or self.name,
-            content or self.description,
+            description or self.description,
             f"{type_.name}Event",
             app_id or "",
             str(server_address),
@@ -284,7 +284,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
             event_id=self.id,
         )
         self.name = name or self.name
-        self.description = content or self.description
+        self.description = description or self.description
         self.type = type_
         self.server_address = server_address or None
         self.server_password = server_password or self.server_password
@@ -336,7 +336,7 @@ class Announcement(BaseEvent[EventType, ClanT]):
             "forum_id": self._feature,
         }
 
-    async def edit(self, name: str | None = None, content: str | None = None) -> None:
+    async def edit(self, name: str | None = None, description: str | None = None) -> None:
         """Edit the announcement's details.
 
         Note
@@ -347,14 +347,14 @@ class Announcement(BaseEvent[EventType, ClanT]):
         ----------
         name
             The announcement's name.
-        content
-            The announcement's content.
+        description
+            The announcement's description.
         """
         name = name or self.name
-        content = content or self.content
-        await self._state.http.edit_clan_announcement(self.clan.id64, self.id, name, content)
+        description = description or self.description
+        await self._state.http.edit_clan_announcement(self.clan.id64, self.id, name, description)
         self.name = name
-        self.content = content
+        self.description = description
         self.last_edited_at = DateTime.now()
         self.last_edited_by = self._state.user
 
