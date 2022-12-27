@@ -375,9 +375,9 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
                 if self.instance != Instance.Desktop:
                     instance = self.instance
             case Type.Chat:
-                if self.instance & Instance.ChatClan > 0:
+                if self.instance & Instance.ChatClan == Instance.ChatClan:
                     type_char = "c"
-                elif self.instance & Instance.ChatLobby > 0:
+                elif self.instance & Instance.ChatLobby == Instance.ChatLobby:
                     type_char = "L"
                 else:
                     type_char = "T"
@@ -521,17 +521,20 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         id = ID32(match["id"])
         universe = Universe.try_value(int(match["universe"]))
         type_char = TypeChar[match["type"].replace("i", "I")]
-        instance = Instance.try_value(int(instance_)) if (instance_ := match["instance"]) else Instance.All
-
-        match type_char:
-            case TypeChar.g | TypeChar.T:
-                instance = Instance.All
-            case TypeChar.L:
-                instance = Instance.ChatLobby
-            case TypeChar.c:
-                instance = Instance.ChatClan
-            case TypeChar.G | TypeChar.U:
-                instance = Instance.Desktop
+        if instance_ := match["instance"]:
+            instance = Instance.try_value(int(instance_))
+        else:
+            instance = Instance.All
+            # we can't use simple match because that uses the int.__eq__ which won't work for L, c and T
+            match type_char.name:
+                case TypeChar.g.name | TypeChar.T.name:
+                    instance = Instance.All
+                case TypeChar.L.name:
+                    instance = Instance.ChatLobby
+                case TypeChar.c.name:
+                    instance = Instance.ChatClan
+                case TypeChar.G.name | TypeChar.U.name:
+                    instance = Instance.Desktop
 
         return ID(id, type=type_char.value, universe=universe, instance=instance)
 

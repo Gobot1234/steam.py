@@ -73,11 +73,25 @@ def _is_descriptor(obj: object) -> bool:
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
+class EnumDict(dict[str, Any]):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.aliases: set[str] = set()
+
+    def __getitem__(self, key: str) -> Any:
+        self.aliases.add(key)
+        return super().__getitem__(key)
+
+
 class EnumType(_EnumMeta if TYPE_CHECKING else type):
     _value_map_: Mapping[Any, Enum]
     _member_map_: Mapping[str, Enum]
 
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> type[Enum]:
+    @staticmethod
+    def __prepare__(name: str, bases: tuple[type, ...]) -> EnumDict:
+        return EnumDict()
+
+    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: EnumDict) -> type[Enum]:
         value_map: dict[Any, Enum] = {}
         member_map: dict[str, Enum] = {}
 
@@ -97,7 +111,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
         )  # this allows us to disallow member access from other members as members become proper class variables
 
         for name, value in members.items():
-            if (member := value_map.get(value)) is None:
+            if (member := value_map.get(value)) is None or member.name not in namespace.aliases:
                 member = cls.__new__(cls, name=name, value=value)
                 value_map[value] = member
 
@@ -752,11 +766,11 @@ class TypeChar(IntEnum):
     g = Type.Clan
     """The character used for :class:`~steam.Type.Clan`."""
     T = Type.Chat
-    """The character used for :class:`~steam.Type.Chat` (Lobby/group chat)."""
+    """The character used for :class:`~steam.Type.Chat`."""
     L = Type.Chat
-    """The character used for :class:`~steam.Type.Chat` (Lobby/group chat)."""
-    c = Type.Clan
-    """The character used for :class:`~steam.Type.Clan`."""
+    """The character used for :class:`~steam.Type.Chat` (Chat lobby)."""
+    c = Type.Chat
+    """The character used for :class:`~steam.Type.Clan` (Chat group)."""
     a = Type.AnonUser
     """The character used for :class:`~steam.Type.AnonUser`."""
 
