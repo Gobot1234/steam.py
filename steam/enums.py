@@ -74,8 +74,16 @@ def _is_descriptor(obj: object) -> bool:
 
 
 class EnumDict(dict[str, Any]):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    """Required to detect the difference between:
+
+    class MyEnum(steam.Enum):
+        A = 1
+        B = 2
+        C = A  # this is an alias for A and not a new member
+        D = 2  # this is a distinct member
+    """
+
+    def __init__(self):
         self.aliases: set[str] = set()
 
     def __getitem__(self, key: str) -> Any:
