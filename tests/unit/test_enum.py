@@ -1,6 +1,6 @@
 import pytest
 
-from steam import AppType, Enum, Instance, Language, Result
+from steam import AppType, Enum, Instance, Language, Result, TypeChar
 
 
 def is_unknown(enum: Enum) -> bool:
@@ -84,3 +84,10 @@ def test_language_from_str() -> None:
 def test_app_flag_from_str() -> None:
     assert AppType.from_str("game,dlc") == AppType.Game | AppType.DLC
     assert AppType.from_str("SERIES ") == AppType.Series
+
+
+def test_aliasing() -> None:
+    assert TypeChar.T == TypeChar.L == TypeChar.c
+    assert TypeChar.T is not TypeChar.L
+    assert TypeChar.T is not TypeChar.c
+    assert TypeChar.L is not TypeChar.c
