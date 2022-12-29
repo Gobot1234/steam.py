@@ -532,8 +532,9 @@ def parse_bb_code(string: str) -> BBCodeStr:
     return BBCodeStr(string, tags=tags)
 
 
-def contains_chat_command(string: str) -> bool:
-    command = {
+CHAT_COMMANDS = "|".join(
+    rf"{command_name}\s*"
+    for command_name in (
         "me",
         "code",
         "pre",
@@ -544,8 +545,13 @@ def contains_chat_command(string: str) -> bool:
         "flip",
         "sticker",
         "store",
-    }
-    return any(string.startswith(f"/{command} ") for command in command)
+    )
+)
+CHAT_COMMANDS_RE: Final = re.compile(rf"""/(?:{CHAT_COMMANDS})""")
+
+
+def contains_chat_command(string: str) -> bool:
+    return bool(CHAT_COMMANDS_RE.match(string))
 
 
 # everything below here is directly from discord.py's utils
