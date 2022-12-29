@@ -1014,7 +1014,7 @@ class PartialApp(App[NameT]):
         async with self._state.temporarily_play(self):
             ownership_ticket = await self._state.fetch_app_ownership_ticket(self.id)
             with utils.StructIO() as io:
-                bytes = self._state._game_connect_bytes.pop()
+                bytes = self._state._game_connect_bytes.pop(0)
                 io.write_u32(len(bytes))
                 io.write(bytes)
                 io.write_u32(24)
@@ -1022,7 +1022,7 @@ class PartialApp(App[NameT]):
                 io.write_u32(2)
                 io.write_u32(int(self._state.ws.public_ip))
                 io.write_u32(0)
-                io.write_u32(int(self._state.steam_time.timestamp() - self._state.ws.connect_time.timestamp()))
+                io.write_u32(int((self._state.steam_time.timestamp() - self._state.ws.connect_time.timestamp()) * 1000))
                 self._state.connection_count += 1
                 io.write_u32(self._state.connection_count)
                 io.write_u32(len(ownership_ticket))

@@ -2311,19 +2311,16 @@ class ConnectionState(Registerable):
 
     async def activate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
         for ticket in tickets:
-            is_our_ticket = ticket.user == self.user
+            if not ticket.is_valid():
+                raise ValueError(f"Ticket {ticket!r} is not valid")
 
-            try:
-                active_ticket = self._active_auth_tickets[ticket.app.id, ticket.user.id64]
-            except KeyError:
-                return log.debug(f"Ticket {ticket.auth_ticket} for {ticket.app.id} / {ticket.user} is already active")
+            if (ticket.app.id, ticket.user.id64) in self._active_auth_tickets:
+                return log.debug("Ticket %r is already active", ticket)
 
-            if not is_our_ticket:
-                log.info(f"Canceling existing ticket {ticket.auth_ticket} for {ticket.app.id} / {ticket.user.id64}")
+            if ticket.user != self.user:
+                log.info("Canceling existing ticket %r", ticket)
                 del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
-
-            self._active_auth_tickets[ticket.app.id, ticket.user.id64] = active_ticket
-
+            self._active_auth_tickets[ticket.app.id, ticket.user.id64] = ticket
         await self.send_auth_list()
 
     async def deactivate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
@@ -2331,7 +2328,7 @@ class ConnectionState(Registerable):
             try:
                 del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
             except KeyError:
-                log.debug(f"Ticket {ticket.auth_ticket} for {ticket.app.id} / {ticket.user} is not active")
+                log.debug("Ticket %r is not active", ticket)
 
         await self.send_auth_list()
 
@@ -2339,7 +2336,7 @@ class ConnectionState(Registerable):
         unique_app_ids = {app_id for app_id, _ in self._active_auth_tickets}
         if force_app_id is not None:
             unique_app_ids.add(force_app_id)
-        log.info(f"Sending authentication list with {len(self._active_auth_tickets)} active tickets")
+        log.info("Sending authentication list with %s active tickets", len(self._active_auth_tickets))
 
         msg: client_server.CMsgClientAuthListAck = await self.ws.send_proto_and_wait(
             client_server.CMsgClientAuthList(
@@ -2350,7 +2347,7 @@ class ConnectionState(Registerable):
                 message_sequence=self._auth_seq_me + 1,
                 tickets=[
                     client_server.CMsgAuthTicket(
-                        estate=int(self.user == ticket.user),
+                        estate=int(self.user != ticket.user),
                         steamid=0 if self.user == ticket.user else ticket.user.id64,
                         gameid=ticket.app.id,
                         h_steam_pipe=self._h_steam_pipe,
@@ -2359,10 +2356,11 @@ class ConnectionState(Registerable):
                     )
                     for ticket in self._active_auth_tickets.values()
                 ],
-            )
+            ),
+            check=lambda msg: (
+                isinstance(msg, client_server.CMsgClientAuthListAck) and msg.message_sequence == self._auth_seq_me + 1
+            ),
         )
-        if msg.result != Result.OK:
-            raise WSException(msg)
         self._auth_seq_me += 1
         self._auth_seq_them = msg.message_sequence
 
@@ -2372,15 +2370,15 @@ class ConnectionState(Registerable):
             lambda ticket: crc32(ticket.auth_ticket) == msg.ticket_crc, self._active_auth_tickets.values()
         )
         if ticket is None:
-            return log.info(f"Got auth complete for unknown ticket {msg.ticket_crc} disgaurding")
+            return log.info("Got auth complete for unknown ticket %r disgaurding", msg.ticket_crc)
 
         if msg.eauth_session_response != AuthSessionResponse.OK:
             del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
             log.info(
-                (
-                    f"Removed canceled ticket {ticket.auth_ticket} with state {msg.eauth_session_response}. Now have "
-                    f"{len(self._active_auth_tickets)} active tickets."
-                )
+                "Removed canceled ticket %r with state %s. Now have %s active tickets.",
+                ticket,
+                msg.eauth_session_response,
+                len(self._active_auth_tickets),
             )
 
         self.dispatch(
