@@ -426,7 +426,13 @@ class SteamWebSocket(Registerable):
                             code_type=allowed_confirmation.confirmation_type,
                         )
                     )
-                    if code_msg.result != Result.OK:
+                    if code_msg.result == Result.DuplicateRequest and any(
+                        allowed_confirmation.confirmation_type
+                        in (auth.EAuthSessionGuardType.DeviceCode, auth.EAuthSessionGuardType.EmailCode)
+                        for allowed_confirmation in begin_resp.allowed_confirmations
+                    ):  # not actually sure how to deal with this properly currently, but this works
+                        log.debug("Duplicate request, may have been confirmed by login request")
+                    elif code_msg.result != Result.OK:
                         raise WSException(code_msg)
                     poll_resp: auth.PollAuthSessionStatusResponse = await self.send_um_and_wait(
                         auth.PollAuthSessionStatusRequest(
