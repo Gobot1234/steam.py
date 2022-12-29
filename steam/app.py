@@ -222,14 +222,23 @@ class BaseOwnershipTicket:
             return None
 
         self.version = ticket.read_u32()
+        """The version of the ticket."""
         self.user = PartialUser(state, ticket.read_u64())
+        """The user who owns the ticket."""
         self.app = PartialApp(state, id=ticket.read_u32())
+        """The app the ticket is for."""
         self.external_ip = IPv4Address(ticket.read_u32())
+        """The external IP address of the user."""
         self.internal_ip = IPv4Address(ticket.read_u32())
+        """The internal IP address of the user."""
         self.flags = ticket.read_u32()
+        """The flags of the ticket."""
         self.created_at = DateTime.from_timestamp(ticket.read_u32())
+        """The time the ticket was created."""
         self._expires = DateTime.from_timestamp(ticket.read_u32())
+        """The time the ticket expires."""
         self.licenses = [PartialPackage(state, id=ticket.read_u32()) for _ in range(ticket.read_u16())]
+        """The licenses the user owns."""
         self.dlc = [
             OwnershipDLC(
                 state,
@@ -238,10 +247,12 @@ class BaseOwnershipTicket:
             )
             for _ in range(ticket.read_u16())
         ]
+        """The DLC the user owns."""
 
         ticket.read_u16()  # reserved
         signature = ticket.read(128)
         self.signature = signature if len(signature) == 128 else None
+        """The signature of the ticket."""
 
     def __repr__(self) -> str:
         attrs = (
@@ -283,6 +294,8 @@ class OwnershipTicket(BaseOwnershipTicket):
 
 
 class AuthenticationTicket(OwnershipTicket):
+    """Represents an authentication ticket. This is used to verify ownership of an app and to connect to the game server."""
+
     __slots__ = (
         "auth_ticket",
         "gc_token",
@@ -294,6 +307,7 @@ class AuthenticationTicket(OwnershipTicket):
 
     def __init__(self, state: ConnectionState, ticket: utils.StructIO) -> None:
         self.auth_ticket = bytes(ticket.getbuffer()[ticket.position - 4 : ticket.position - 4 + 52])
+        """The authentication ticket for the app. The first 52 bytes of the ticket."""
         # this is the part that's passed back to Steam for validation
 
         self.gc_token = ticket.read_u64()
@@ -308,11 +322,13 @@ class AuthenticationTicket(OwnershipTicket):
         ticket.position += 8
         # unknown 1 and unknown 2
         self.client_ip = IPv4Address(ticket.read_u32())
+        """The IP address of the client."""
         ticket.position += 4
         # filler
         self.client_connected_at = timedelta(milliseconds=ticket.read_u32())
         """The time the client has been connected to Steam"""
-        self.client_connection_count = ticket.read_u32()  # how many servers the client has connected to
+        self.client_connection_count = ticket.read_u32()
+        """How many servers the client has connected to"""
 
         if ticket.read_u32() + ticket.position != len(ticket):
             raise ValueError("Invalid ownership section")
@@ -326,24 +342,27 @@ class AuthenticationTicket(OwnershipTicket):
         raise NotImplementedError
         return await self._state.http.verify_app_ticket(self.auth_ticket, self.app.id)
 
-    async def activate(self) -> bool:
-        """Activate the ticket."""  # https://github.com/DoctorMcKay/node-steam-gameserver/commit/82cdac939ebc7109f4eb0e1bca8230efb84f880d
-        await self._state.activate_auth_session_ticket(self)
+    async def activate(self) -> None:
+        """Activate the ticket."""
+        await self._state.activate_auth_session_tickets(self)
 
-    async def deactivate(self) -> bool:
+    async def deactivate(self) -> None:
         """Deactivate the ticket."""
-        await self._state.deactivate_auth_session_ticket(self)
+        await self._state.deactivate_auth_session_tickets(self)
 
     # def is_valid(self) -> bool:  # TODO is it worth having an opinion on this?
     #     return
 
 
 class EncryptedTicket(BaseOwnershipTicket):
+    """Represents an encrypted ticket."""
+
     def __init__(self, state: ConnectionState, ticket: EncryptedAppTicketProto, key: bytes) -> None:
         decrypted = utils.StructIO(utils.symmetric_decrypt(ticket.encrypted_ticket, key))
         if crc32(decrypted.getbuffer()) != ticket.crc_encryptedticket:
             raise ValueError("Invalid CRC")
         self.user_data = decrypted.read(ticket.cb_encrypteduserdata)
+        """The user's given data for the ticket."""
 
         (length,) = decrypted.read_struct(">I")
 
@@ -993,11 +1012,11 @@ class PartialApp(App[NameT]):
         """
         # for the ticket to be valid we have to be playing the game
         async with self._state.temporarily_play(self):
-            ownership_ticket = await self._state.ownership_ticket()
+            ownership_ticket = await self._state.fetch_app_ownership_ticket(self.id)
             with utils.StructIO() as io:
-                gc_token = self._state._gc_tokens.pop()
-                io.write_u32(len(gc_token))
-                io.write(gc_token)
+                bytes = self._state._game_connect_bytes.pop()
+                io.write_u32(len(bytes))
+                io.write(bytes)
                 io.write_u32(24)
                 io.write_u32(1)
                 io.write_u32(2)
@@ -1010,12 +1029,12 @@ class PartialApp(App[NameT]):
                 io.write(ownership_ticket)
                 io.seek(0)
                 ticket = await parse_app_ticket(self._state, io)
+                assert isinstance(ticket, AuthenticationTicket)
                 try:
-                    assert isinstance(ticket, AuthenticationTicket)
                     await ticket.activate()
                     yield ticket
                 finally:
-                    await ticket.cancel()
+                    await ticket.deactivate()
 
 
 class Apps(PartialApp[str], Enum):

@@ -284,6 +284,10 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: AuthSessionResponse()
+    :members:
+    :undoc-members:
+
 
 Guard
 ---------------
@@ -931,6 +935,25 @@ Apps can be manually constructed using their app ID eg:
 .. autoclass:: DLC()
     :inherited-members:
     :members:
+
+.. attributetable:: OwnershipTicket
+
+.. autoclass:: OwnershipTicket()
+    :inherited-members:
+    :members:
+
+.. attributetable:: AuthenticationTicket
+
+.. autoclass:: AuthenticationTicket()
+    :inherited-members:
+    :members:
+
+.. attributetable:: EncryptedTicket
+
+.. autoclass:: EncryptedTicket()
+    :inherited-members:
+    :members:
+
 
 Steam IDs
 ~~~~~~~~~~~~~~~

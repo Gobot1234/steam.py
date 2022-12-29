@@ -52,6 +52,7 @@ __all__ = (
     "LeaderboardDisplayType",
     "LeaderboardDataRequest",
     "CommunityDefinitionItemType",
+    "AuthSessionResponse",
 )
 
 T = TypeVar("T")
@@ -1778,10 +1779,26 @@ class LeaderboardUploadScoreMethod(IntEnum):
     ForceUpdate = 2
     """Force update upload method."""
 
+
 class CommunityDefinitionItemType(IntEnum):
     """The type of a community item."""
     NONE = 0
 
+
+class AuthSessionResponse(IntEnum):
+    """The response from an app ticket authentication."""
+    NotSent                      = -1
+    """Not sent. Not a valid response from Steam."""
+    OK                           = 0
+    UserNotConnectedToSteam      = 1
+    NoLicenseOrExpired           = 2
+    VACBanned                    = 3
+    LoggedInElseWhere            = 4
+    VACCheckTimedOut             = 5
+    AuthTicketCanceled           = 6
+    AuthTicketInvalidAlreadyUsed = 7
+    AuthTicketInvalid            = 8
+    PublisherIssuedBan           = 9
 # fmt: on
 
 

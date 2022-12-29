@@ -25,9 +25,9 @@ from typing_extensions import Self
 
 from . import errors, utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
-from .app import App, FetchedApp, PartialApp
+from .app import App, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
-from .enums import Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
+from .enums import AuthSessionResponse, Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
@@ -1555,6 +1555,21 @@ class Client:
                 The announcement that was created.
             """
 
+        async def on_authentication_ticket_update(
+            self, ticket: "steam.AuthenticationTicket", response: "steam.AuthSessionResponse", state: int
+        ) -> None:
+            """Called when the client's authentication ticket is updated.
+
+            Parameters
+            ----------
+            ticket
+                The updated ticket.
+            response
+                The response code from the CM.
+            state
+                The state of the ticket.
+            """
+
         async def on_socket_receive(self, msg: "Message | ProtobufMessage") -> None:
             """Called when the connected CM parses a received a message.
 
@@ -1762,6 +1777,16 @@ class Client:
         check: Callable[[Announcement], bool] = ...,
         timeout: float | None = ...,
     ) -> Announcement:
+        ...
+
+    @overload
+    async def wait_for(
+        self,
+        event: Literal["authentication_ticket_update"],
+        *,
+        check: Callable[[AuthenticationTicket, AuthSessionResponse, int], bool] = ...,
+        timeout: float | None = ...,
+    ) -> tuple[AuthenticationTicket, AuthSessionResponse, int]:
         ...
 
     @overload

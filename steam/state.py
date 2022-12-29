@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import logging
+import random
 import weakref
 from collections import defaultdict, deque
 from collections.abc import AsyncGenerator, Callable, Collection, Iterable, Sequence
@@ -193,8 +194,14 @@ class ConnectionState(Registerable):
         self._manifest_passwords: dict[AppID, dict[str, str]] = {}
         self.cs_servers: list[ContentServer] = []
 
-        self._gc_tokens: list[bytes] = []
+        self._game_connect_bytes: list[
+            bytes
+        ] = []  # this is a bad name but it's a combination of gc_token, steam id, and time
         self.connection_count = 0
+        self._h_steam_pipe = random.randint(1, 1000001)
+        self._active_auth_tickets: dict[tuple[AppID, ID64], AuthenticationTicket] = {}
+        self._auth_seq_me = 0
+        self._auth_seq_them = 0
 
         self.handled_friends.clear()
         self.handled_emoticons.clear()
@@ -2300,44 +2307,88 @@ class ConnectionState(Registerable):
 
     @register(EMsg.ClientGameConnectTokens)
     def handle_game_connect_tokens(self, msg: client_server.CMsgClientGameConnectTokens) -> None:
-        self._gc_tokens.extend(msg.tokens)
+        self._game_connect_bytes.extend(msg.tokens)
 
-    async def create_ticket(self, app_id: AppID) -> AuthTicket:
-        await self.activate_auth_session_ticket(io)
+    async def activate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
+        for ticket in tickets:
+            is_our_ticket = ticket.user == self.user
 
-        return io
+            try:
+                active_ticket = self._active_auth_tickets[ticket.app.id, ticket.user.id64]
+            except KeyError:
+                return log.debug(f"Ticket {ticket.auth_ticket} for {ticket.app.id} / {ticket.user} is already active")
 
-    # async def activate_auth_session_ticket(self, ticket: AuthenticationTicket):
-    #     isOurTicket = ticket.user == self.user
-    #     thisTicket = {
-    #         "estate": int(isOurTicket),
-    #         "steamid": 0 if isOurTicket else ticket.user.id64,
-    #         "gameid": ticket.app.id,
-    #         "h_steam_pipe": self._hSteamPipe,
-    #         "ticket_crc": crc32(ticket.auth_ticket),
-    #         "ticket": ticket.auth_ticket,
-    #     };
+            if not is_our_ticket:
+                log.info(f"Canceling existing ticket {ticket.auth_ticket} for {ticket.app.id} / {ticket.user.id64}")
+                del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
 
-    #     # check if this ticket is already active
-    #     if (this._activeAuthTickets.find(tkt => tkt.steamid == thisTicket.steamid && tkt.ticket_crc == thisTicket.ticket_crc)) {
-    #         return log.debug("Ticket {thisTicket.ticket_crc} for {thisTicket.gameid}/{thisTicket.steamid} is already active");
-    #     }
+            self._active_auth_tickets[ticket.app.id, ticket.user.id64] = active_ticket
 
-    #     // If we already have an active ticket for this appid/steamid combo, remove it, but not if it's our own
-    #     if (!isOurTicket) {
-    #         let existingTicketIdx = this._activeAuthTickets.findIndex(tkt => tkt.steamid == thisTicket.steamid && tkt.gameid == thisTicket.gameid);
-    #         if (existingTicketIdx != -1) {
-    #             let existingTicket = this._activeAuthTickets[existingTicketIdx];
-    #             this.emit('debug', `Canceling existing ticket ${existingTicket.ticket_crc} for ${existingTicket.gameid}/${existingTicket.steamid}`);
-    #             this._activeAuthTickets.splice(existingTicketIdx, 1);
-    #         }
-    #     }
+        await self.send_auth_list()
 
-    #     this._activeAuthTickets.push(thisTicket);
-    # });
+    async def deactivate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
+        for ticket in tickets:
+            try:
+                del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
+            except KeyError:
+                log.debug(f"Ticket {ticket.auth_ticket} for {ticket.app.id} / {ticket.user} is not active")
 
-    # await this._sendAuthList();
-    # resolve();
+        await self.send_auth_list()
+
+    async def send_auth_list(self, force_app_id: AppID | None = None) -> None:
+        unique_app_ids = {app_id for app_id, _ in self._active_auth_tickets}
+        if force_app_id is not None:
+            unique_app_ids.add(force_app_id)
+        log.info(f"Sending authentication list with {len(self._active_auth_tickets)} active tickets")
+
+        msg: client_server.CMsgClientAuthListAck = await self.ws.send_proto_and_wait(
+            client_server.CMsgClientAuthList(
+                tokens_left=len(self._game_connect_bytes),
+                last_request_seq=self._auth_seq_me,
+                last_request_seq_from_server=self._auth_seq_them,
+                app_ids=list(unique_app_ids),
+                message_sequence=self._auth_seq_me + 1,
+                tickets=[
+                    client_server.CMsgAuthTicket(
+                        estate=int(self.user == ticket.user),
+                        steamid=0 if self.user == ticket.user else ticket.user.id64,
+                        gameid=ticket.app.id,
+                        h_steam_pipe=self._h_steam_pipe,
+                        ticket_crc=crc32(ticket.auth_ticket),
+                        ticket=ticket.auth_ticket,
+                    )
+                    for ticket in self._active_auth_tickets.values()
+                ],
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        self._auth_seq_me += 1
+        self._auth_seq_them = msg.message_sequence
+
+    @register(EMsg.ClientTicketAuthComplete)
+    def handle_ticket_auth_complete(self, msg: client_server.CMsgClientTicketAuthComplete) -> None:
+        ticket = utils.find(
+            lambda ticket: crc32(ticket.auth_ticket) == msg.ticket_crc, self._active_auth_tickets.values()
+        )
+        if ticket is None:
+            return log.info(f"Got auth complete for unknown ticket {msg.ticket_crc} disgaurding")
+
+        if msg.eauth_session_response != AuthSessionResponse.OK:
+            del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
+            log.info(
+                (
+                    f"Removed canceled ticket {ticket.auth_ticket} with state {msg.eauth_session_response}. Now have "
+                    f"{len(self._active_auth_tickets)} active tickets."
+                )
+            )
+
+        self.dispatch(
+            "authentication_ticket_update",
+            ticket,
+            AuthSessionResponse.try_value(msg.eauth_session_response),
+            msg.estate,
+        )
 
     async def fetch_or_create_app_leaderboard(
         self, app_id: AppID, leaderboard_name: str, create: bool = False
