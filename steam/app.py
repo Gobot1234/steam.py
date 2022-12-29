@@ -60,7 +60,7 @@ __all__ = (
 )
 
 T = TypeVar("T")
-APP_ID_MAX: Final = AppID(1 << 32 - 1)
+APP_ID_MAX: Final = AppID((1 << 32) - 1)
 NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
 
@@ -1153,7 +1153,7 @@ class DLC(PartialApp[str]):
         return self._on_linux
 
 
-class UserApp(PartialApp[NameT]):
+class UserApp(PartialApp[str]):
     """Represents a Steam app fetched by :meth:`steam.User.apps`."""
 
     __slots__ = (

@@ -126,11 +126,11 @@ def test_kwarg_instance() -> None:
 
 def test_out_of_current_bounds() -> None:
     with pytest.raises(InvalidID):
-        ID(5, type=Type.try_value(1 << 4 + 1))
+        ID(5, type=Type.try_value((1 << 4) + 1))
     with pytest.raises(InvalidID):
-        ID(5, universe=Universe.try_value(1 << 8 + 1))
+        ID(5, universe=Universe.try_value((1 << 8) + 1))
     with pytest.raises(InvalidID):
-        ID(5, instance=Instance.try_value(1 << 20 + 1))
+        ID(5, instance=Instance.try_value((1 << 20) + 1))
 
 
 @pytest.mark.parametrize(
