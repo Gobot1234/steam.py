@@ -265,7 +265,7 @@ class Inventory(Generic[ItemT, OwnerT]):
         self._state = state
         self.owner = owner
         """The owner of the inventory."""
-        self.app = PartialApp(state, id=app.id, name=app.name)
+        self.app = PartialApp(state, id=app.id, name=app.name, context_id=app.context_id)
         """The app the inventory belongs to."""
         self._language = language
         self._update(data)
