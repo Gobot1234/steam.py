@@ -284,6 +284,10 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: CommunityDefinitionItemType()
+    :members:
+    :undoc-members:
+
 .. autoclass:: AuthSessionResponse()
     :members:
     :undoc-members:
