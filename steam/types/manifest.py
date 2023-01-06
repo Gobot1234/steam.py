@@ -7,7 +7,7 @@ from typing import Any
 from multidict import MultiDict
 from typing_extensions import Literal, NotRequired, Required
 
-from .vdf import TypedVDFDict, VDFDict, VDFInt, VDFList
+from .vdf import TypedVDFDict, VDFBool, VDFDict, VDFInt, VDFList
 
 
 class AppInfo(TypedVDFDict):
@@ -21,21 +21,18 @@ class AppInfo(TypedVDFDict):
     localization: MultiDict[MultiDict[VDFDict]]
 
 
-Bools = Literal["0", "1"]
-
-
 class Common(TypedVDFDict, total=False):
     name: Required[str]
     type: Required[str]
-    has_adult_content: Bools
-    has_adult_content_violence: Bools
-    market_presence: Bools
-    workshop_visible: Bools
-    community_hub_visible: Bools
-    community_visible_stats: Bools
+    has_adult_content: VDFBool
+    has_adult_content_violence: VDFBool
+    market_presence: VDFBool
+    workshop_visible: VDFBool
+    community_hub_visible: VDFBool
+    community_visible_stats: VDFBool
     controller_support: Literal["full", "partial", "none"]
     associations: VDFList[CommonAssociations]
-    languages: MultiDict[Bools]
+    languages: MultiDict[VDFBool]
     steam_release_date: str
     review_score: str
     review_percentage: str
@@ -51,7 +48,7 @@ class CommonAssociations(TypedVDFDict):
 
 
 class Extended(TypedVDFDict, total=False):
-    isfreeapp: Bools
+    isfreeapp: VDFBool
     listofdlc: str
     homepage: str
 

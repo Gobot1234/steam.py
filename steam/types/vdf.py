@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from multidict import MultiDict
 from typing_extensions import Never, TypeAlias, TypedDict
@@ -20,6 +20,7 @@ else:
 
 T = TypeVar("T")
 VDFInt: TypeAlias = str
+VDFBool: TypeAlias = Literal["0", "1"]
 
 
 class VDFList(MultiDict[T]):
