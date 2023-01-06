@@ -24,9 +24,10 @@ from .utils import DateTime
 
 if TYPE_CHECKING:
     from .abc import BaseUser, PartialUser
+    from .friend import Friend
     from .state import ConnectionState
     from .types import trade
-    from .user import ClientUser, User
+    from .user import ClientUser
 
 
 __all__ = (
@@ -133,6 +134,39 @@ class Asset(Generic[OwnerT]):
         e.g. https://steamcommunity.com/profiles/76561198248053954/inventory/#440_2_8526584188
         """
         return f"{self.owner.community_url}/inventory#{self._app_id}_{self._context_id}_{self.id}"
+
+    async def gift_to(
+        self: Asset[ClientUser],
+        recipient: Friend,
+        *,
+        name: str | None = None,
+        message: str,
+        closing_note: str,
+        signature: str,
+    ) -> None:
+        """Gifts the asset to the recipient.
+
+        Parameters
+        ------------
+        recipient
+            The recipient to gift the asset to.
+        name
+            The name to give the asset. If not provided, the recipient's :attr:`name` will be used.
+        message
+            The message to send with the gift.
+        closing_note
+            The closing note to send with the gift.
+        signature
+            The signature to send with the gift.
+        """
+        await self._state.http.send_user_gift(
+            recipient.id,
+            self.id,
+            name=name if name is not None else recipient.name,
+            message=message,
+            closing_note=closing_note,
+            signature=signature,
+        )
 
 
 class Item(Asset[OwnerT]):

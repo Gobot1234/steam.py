@@ -23,7 +23,7 @@ from ._const import JSON_DUMPS, JSON_LOADS, URL
 from .enums import Language
 from .id import ID
 from .models import PriceOverviewDict, api_route
-from .types.id import AppID, PostID, TradeOfferID
+from .types.id import ID32, AppID, AssetID, PostID, TradeOfferID
 from .user import ClientUser
 
 if TYPE_CHECKING:
@@ -464,6 +464,22 @@ class HTTPClient:
     async def get_user_badges(self, user_id64: int) -> dict[str, Any]:
         params = {"key": await self.get_api_key(), "steamid": user_id64}
         return await self.get(api_route("IPlayerService/GetBadges"), params=params)
+
+    def send_user_gift(
+        self, user_id: ID32, asset_id: AssetID, name: str, message: str, closing_note: str, signature: str
+    ) -> Coro[None]:
+        payload = {
+            "GifteeAccountID": user_id,
+            "GifteeEmail": "",
+            "GifteeName": name,
+            "GiftMessage": message,
+            "GiftSentiment": closing_note,
+            "GiftSignature": signature,
+            "GiftGID": asset_id,
+            "SessionID": self.session_id,
+        }
+        headers = {"Referer": f"{URL.STORE}/checkout/sendgift/{asset_id}"}
+        return self.post(URL.STORE / "checkout/sendgiftsubmit", data=payload, headers=headers)
 
     def clear_nickname_history(self) -> Coro[None]:
         payload = {"sessionid": self.session_id}
