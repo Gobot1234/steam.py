@@ -118,6 +118,11 @@ class GetOwnedGamesResponseGame(betterproto.Message):
     rtime_last_played: int = betterproto.uint32_field(11)
     capsule_filename: str = betterproto.string_field(12)
     sort_as: str = betterproto.string_field(13)
+    has_workshop: bool = betterproto.bool_field(14)
+    has_market: bool = betterproto.bool_field(15)
+    has_dlc: bool = betterproto.bool_field(16)
+    has_leaderboards: bool = betterproto.bool_field(17)
+    content_descriptorids: list[int] = betterproto.uint32_field(18)
 
 
 class GetPlayNextRequest(UnifiedMessage, um_name="Player.GetPlayNext"):

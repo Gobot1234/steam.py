@@ -53,6 +53,7 @@ __all__ = (
     "LeaderboardDataRequest",
     "CommunityDefinitionItemType",
     "AuthSessionResponse",
+    "ContentDescriptor",
 )
 
 T = TypeVar("T")
@@ -1799,6 +1800,13 @@ class AuthSessionResponse(IntEnum):
     AuthTicketInvalidAlreadyUsed = 7
     AuthTicketInvalid            = 8
     PublisherIssuedBan           = 9
+
+
+class ContentDescriptor(IntEnum):
+	FrequentNudityOrSexualContent = 1
+	FrequentViolenceOrGore = 2
+	StrongSexualContent = 3
+	AnyMatureContent = 5
 # fmt: on
 
 

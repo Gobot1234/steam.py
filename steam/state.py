@@ -870,6 +870,7 @@ class ConnectionState(Registerable):
             player.GetOwnedGamesRequest(
                 steamid=user_id64,
                 include_appinfo=True,
+                include_free_sub=True,
                 include_played_free_games=include_free,
             )
         )

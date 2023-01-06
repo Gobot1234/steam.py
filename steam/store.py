@@ -13,7 +13,7 @@ from ._const import URL
 from .app import PartialApp
 from .bundle import PartialBundle
 from .clan import PartialClan
-from .enums import AppType, Language, PaymentMethod, ReviewType
+from .enums import AppType, ContentDescriptor, Language, PaymentMethod, ReviewType
 from .models import CDNAsset
 from .package import PartialPackage
 from .protobufs import store
@@ -205,6 +205,8 @@ class StoreItem:
         self.supported_languages = [Language.try_value(l) for l in proto.supported_languages]
         # self.store_url_path_override
         self.free_weekend = proto.free_weekend or None
+
+        self.content_descriptors = [ContentDescriptor.try_value(d) for d in proto.content_descriptorids]
 
         self._free = proto.is_free
         self._early_access = proto.is_early_access

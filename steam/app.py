@@ -1208,7 +1208,12 @@ class UserApp(PartialApp[str]):
         "playtime_linux",
         "icon",
         "last_played_at",
+        "content_descriptors",
         "_stats_visible",
+        "_workshop",
+        "_market",
+        "_dlc",
+        "_leaderboards",
     )
 
     def __init__(self, state: ConnectionState, proto: player.GetOwnedGamesResponseGame):
@@ -1230,11 +1235,36 @@ class UserApp(PartialApp[str]):
         self.last_played_at = DateTime.from_timestamp(proto.rtime_last_played)
         """The time the user last played this app at."""
 
+        self.content_descriptors = [
+            ContentDescriptor.try_value(descriptor) for descriptor in proto.content_descriptorids
+        ]
+        """The content descriptors of the app."""
+
         self._stats_visible = proto.has_community_visible_stats
+        self._workshop = proto.has_workshop
+        self._market = proto.has_market
+        self._dlc = proto.has_dlc
+        self._leaderboards = proto.has_leaderboards
 
     def has_visible_stats(self) -> bool:
         """Whether the app has publicly visible stats."""
         return self._stats_visible
+
+    def has_workshop(self) -> bool:
+        """Whether the app has a workshop."""
+        return self._workshop
+
+    def has_market(self) -> bool:
+        """Whether the app has a market."""
+        return self._market
+
+    def has_dlc(self) -> bool:
+        """Whether the app has DLC."""
+        return self._dlc
+
+    def has_leaderboards(self) -> bool:
+        """Whether the app has leaderboards."""
+        return self._leaderboards
 
 
 class WishlistApp(PartialApp[str]):
