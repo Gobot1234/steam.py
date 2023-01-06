@@ -424,9 +424,9 @@ class PartialApp(App[NameT]):
 
     __slots__ = ("_state",)
 
-    if cast(Literal[False], DOCS_BUILDING):
+    if not TYPE_CHECKING and DOCS_BUILDING:
 
-        def __init__(self, name: str, id: AppID, context_id: ContextID):  # type: ignore
+        def __init__(self, name: str, id: AppID, context_id: ContextID):
             self.name = name
             self.id = id
             self.context_id = context_id

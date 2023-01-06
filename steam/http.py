@@ -249,7 +249,7 @@ class HTTPClient:
         self.user = None  # type: ignore
         self._client.dispatch("logout")
 
-    async def get_user(self, user_id64: int) -> User | None:
+    async def get_user(self, user_id64: ID64) -> User | None:
         params = {"key": await self.get_api_key(), "steamids": user_id64}
         resp = await self.get(api_route("ISteamUser/GetPlayerSummaries", version=2), params=params)
         return resp["response"]["players"][0] if resp["response"]["players"] else None
@@ -269,7 +269,7 @@ class HTTPClient:
             ret.extend(resp["response"]["players"])
         return ret
 
-    async def get_user_escrow(self, user_id64: int, token: str | None) -> ResponseDict[dict[str, Any]]:
+    async def get_user_escrow(self, user_id64: ID64, token: str | None) -> ResponseDict[dict[str, Any]]:
         params = {
             "key": await self.get_api_key(),
             "steamid_target": user_id64,
@@ -277,7 +277,7 @@ class HTTPClient:
         }
         return await self.get(api_route("IEconService/GetTradeHoldDurations"), params=params)
 
-    async def get_friends_ids(self, user_id64: int) -> list[ID64]:
+    async def get_friends_ids(self, user_id64: ID64) -> list[ID64]:
         params = {
             "key": await self.get_api_key(),
             "steamid": user_id64,
@@ -356,7 +356,7 @@ class HTTPClient:
         }
         return await self.get(api_route("IEconService/GetTradeOffer"), params=params)
 
-    def accept_user_trade(self, user_id64: int, trade_id: TradeOfferID) -> Coro[dict[str, Any]]:
+    def accept_user_trade(self, user_id64: ID64, trade_id: TradeOfferID) -> Coro[dict[str, Any]]:
         payload = {
             "sessionid": self.session_id,
             "tradeofferid": trade_id,
@@ -425,14 +425,14 @@ class HTTPClient:
         }
         return self.get(api_route("ISteamDirectory/GetCMListForConnect"), params=params)
 
-    async def join_clan(self, clan_id64: int) -> Coro[None]:
+    async def join_clan(self, clan_id64: ID64) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "action": "join",
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}", data=payload)
 
-    def leave_clan(self, clan_id64: int) -> Coro[None]:
+    def leave_clan(self, clan_id64: ID64) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "action": "leaveGroup",
@@ -440,7 +440,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "my/home_process", data=payload)
 
-    def invite_user_to_clan(self, user_id64: int, clan_id64: int) -> Coro[None]:
+    def invite_user_to_clan(self, user_id64: ID64, clan_id64: ID64) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "group": clan_id64,
@@ -449,19 +449,19 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "actions/GroupInvite", data=payload)
 
-    async def get_user_clans(self, user_id64: int) -> dict[str, Any]:
+    async def get_user_clans(self, user_id64: ID64) -> dict[str, Any]:
         params = {"key": await self.get_api_key(), "steamid": user_id64}
         return await self.get(api_route("ISteamUser/GetUserGroupList"), params=params)
 
-    async def get_user_bans(self, user_id64: int) -> dict[str, Any]:
+    async def get_user_bans(self, user_id64: ID64) -> dict[str, Any]:
         params = {"key": await self.get_api_key(), "steamids": user_id64}
         return await self.get(api_route("ISteamUser/GetPlayerBans"), params=params)
 
-    async def get_user_level(self, user_id64: int) -> dict[str, Any]:
+    async def get_user_level(self, user_id64: ID64) -> dict[str, Any]:
         params = {"key": await self.get_api_key(), "steamid": user_id64}
         return await self.get(api_route("IPlayerService/GetSteamLevel"), params=params)
 
-    async def get_user_badges(self, user_id64: int) -> dict[str, Any]:
+    async def get_user_badges(self, user_id64: ID64) -> dict[str, Any]:
         params = {"key": await self.get_api_key(), "steamid": user_id64}
         return await self.get(api_route("IPlayerService/GetBadges"), params=params)
 
@@ -495,7 +495,7 @@ class HTTPClient:
 
         return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
 
-    def get_wishlist(self, user_id64: int) -> Coro[dict[str, Any]]:
+    def get_wishlist(self, user_id64: ID64) -> Coro[dict[str, Any]]:
         return self.get(URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata")
 
     def get_app(self, app_id: AppID, language: Language | None) -> Coro[dict[str, Any]]:
@@ -512,7 +512,7 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/dlcforapp", params=params)
 
-    def get_clan_rss(self, clan_id64: int) -> Coro[str]:
+    def get_clan_rss(self, clan_id64: ID64) -> Coro[str]:
         return self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
 
     def get_clan_events_for(self, clan_id64: ID64, date: date) -> Coro[str]:
@@ -524,7 +524,7 @@ class HTTPClient:
     def _edit_clan_event(
         self,
         action: str,
-        clan_id64: int,
+        clan_id64: ID64,
         name: str,
         description: str,
         event_type: str,
@@ -583,7 +583,7 @@ class HTTPClient:
     def edit_clan_event(self, *args: Any, **kwargs: Any) -> Coro[str]:
         return self._edit_clan_event("updateEvent", *args, **kwargs)
 
-    def delete_clan_event(self, clan_id64: int, event_id: int) -> Coro[None]:
+    def delete_clan_event(self, clan_id64: ID64, event_id: int) -> Coro[None]:
         data = {
             "sessionid": self.session_id,
             "action": "deleteEvent",
@@ -598,7 +598,9 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "events/ajaxgeteventdetails", params=params)
 
-    def create_clan_announcement(self, clan_id64: int, name: str, description: str, hidden: bool = False) -> Coro[None]:
+    def create_clan_announcement(
+        self, clan_id64: ID64, name: str, description: str, hidden: bool = False
+    ) -> Coro[None]:
         data = {
             "sessionID": self.session_id,
             "action": "post",
@@ -611,7 +613,7 @@ class HTTPClient:
             data["is_hidden"] = "is_hidden"
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements", data=data)
 
-    def edit_clan_announcement(self, clan_id64: int, announcement_id: int, name: str, description: str) -> Coro[None]:
+    def edit_clan_announcement(self, clan_id64: ID64, announcement_id: int, name: str, description: str) -> Coro[None]:
         data = {
             "sessionID": self.session_id,
             "gid": announcement_id,
@@ -624,7 +626,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements", data=data)
 
-    def delete_clan_announcement(self, clan_id64: int, announcement_id: int) -> Coro[None]:
+    def delete_clan_announcement(self, clan_id64: ID64, announcement_id: int) -> Coro[None]:
         params = {
             "sessionID": self.session_id,
         }

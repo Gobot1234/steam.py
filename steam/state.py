@@ -1426,7 +1426,7 @@ class ConnectionState(Registerable):
 
         return msg
 
-    async def post_comment(self, owner: OwnerT, content: str, subscribe: bool) -> Comment[OwnerT]:
+    async def post_comment(self, owner: OwnerT, content: str, subscribe: bool) -> Comment[OwnerT, ClientUser]:
         msg: comments.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
             comments.PostCommentToThreadRequest(
                 **owner._commentable_kwargs,
@@ -1438,7 +1438,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-        comment = Comment[OwnerT](
+        comment = Comment(
             self,
             id=CommentID(msg.id),
             content=content,
@@ -1681,7 +1681,7 @@ class ConnectionState(Registerable):
         )
         if msg.result != Result.OK:
             raise WSException(msg)
-        return msg.friends  # type: ignore
+        return cast(list[ID64], msg.friends)
 
     async def rate_clan_announcement(self, clan_id: ID32, announcement_id: int, upvoted: bool) -> None:
         msg = await self.ws.send_um_and_wait(

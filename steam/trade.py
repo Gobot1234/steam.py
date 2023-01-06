@@ -463,10 +463,12 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         trade._has_been_sent = True
         trade._state = state
         trade.partner = partner
-        return trade._update(data)
+        return cast(TradeOffer[Item[OwnerT], OwnerT], trade._update(data))
 
     @classmethod
-    def _from_history(cls: type[TradeOffer[MovedItem[OwnerT], OwnerT]], state: ConnectionState, data: trade.TradeOfferHistoryTrade) -> TradeOffer[MovedItem[OwnerT], OwnerT]:  # type: ignore
+    def _from_history(
+        cls: type[TradeOffer[MovedItem[OwnerT], OwnerT]], state: ConnectionState, data: trade.TradeOfferHistoryTrade
+    ) -> TradeOffer[MovedItem[OwnerT], OwnerT]:
         received: list[trade.TradeOfferReceiptItem] = data.get("assets_received", [])  # type: ignore  # these are updated in place so this is safe
         sent: list[trade.TradeOfferReceiptItem] = data.get("assets_given", [])  # type: ignore
         partner = cast("OwnerT", PartialUser(state, data["steamid_other"]))
@@ -632,7 +634,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
         descriptions = data["descriptions"]
         assert self.partner is not None
 
-        return TradeOfferReceipt[OwnerT](
+        return TradeOfferReceipt(
             sent=[
                 MovedItem(self._state, data=item | asset, owner=self._state.user)
                 for asset, item in itertools.product(trade.get("assets_given", ()), descriptions)
@@ -645,7 +647,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
             ],
         )
 
-    async def counter(self, trade: TradeOffer) -> None:
+    async def counter(self: TradeOffer[Asset[OwnerT], OwnerT], trade: TradeOffer[Asset[OwnerT], Any]) -> None:
         """Counter a trade offer from an :class:`User`.
 
         Parameters

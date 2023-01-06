@@ -477,9 +477,9 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
                 user = users[id]
             except KeyError:
                 user = await self._state._maybe_user(parse_id64(id))
-                if type(user) is ID:
+                if not isinstance(user, User):
                     continue
-            self._members[user.id] = ClanMember(self._state, self, user, member)  # type: ignore  # pyright being daft
+            self._members[user.id] = ClanMember(self._state, self, user, member)
         return await super().chunk()
 
     def _get_partial_member(self, id: ID32) -> PartialMember:

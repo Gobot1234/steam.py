@@ -63,20 +63,22 @@ except ModuleNotFoundError:
     def loads(
         s: str,
         __func: Callable[..., Any] = vdf.parse,
-        __mapper: type[MultiDict[Any]] = MultiDict,
+        __mapper: type[vdf.VDFDict] = vdf.VDFDict,
+        __multi_dict: type[MultiDict[Any]] = MultiDict,
         __string_io: type[StringIO] = StringIO,
         /,
     ) -> VDFDict:
-        return __func(__string_io(s), mapper=__mapper)
+        return __multi_dict(__func(__string_io(s), mapper=__mapper))
 
     def binary_loads(
         s: bytes,
         __func: Callable[..., Any] = vdf.binary_load,
-        __mapper: type[MultiDict[Any]] = MultiDict,
+        __mapper: type[vdf.VDFDict] = vdf.VDFDict,
+        __multi_dict: type[MultiDict[Any]] = MultiDict,
         __bytes_io: type[BytesIO] = BytesIO,
         /,
     ) -> BinaryVDFDict:
-        return __func(__bytes_io(s), mapper=__mapper)
+        return __multi_dict(__func(__bytes_io(s), mapper=__mapper))
 
     VDF_LOADS: Final = cast(Callable[[str], VDFDict], loads)
     VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], binary_loads)
@@ -95,7 +97,7 @@ else:
 
 
 UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)
-STEAM_EPOCH = datetime(2003, 1, 1, tzinfo=timezone.utc)
+STEAM_EPOCH: Final = datetime(2003, 1, 1, tzinfo=timezone.utc)
 
 
 def READ_U32(s: bytes, unpacker: Callable[[bytes], tuple[int]] = struct.Struct("<I").unpack_from, /) -> int:

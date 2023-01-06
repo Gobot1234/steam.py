@@ -218,13 +218,13 @@ class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
 
-if cast(Literal[False], DOCS_BUILDING):
+if not TYPE_CHECKING and DOCS_BUILDING:
     enum_dict = Enum.__dict__.copy()
     for key in ("__new__",):
         del enum_dict[key]
 
     Enum = new_class("Enum", (_Enum,), {}, lambda ns: dict.update(ns, enum_dict))  # type: ignore
-    IntEnum = new_class("IntEnum", (Enum, _IntEnum))  # type: ignore
+    IntEnum = new_class("IntEnum", (Enum, _IntEnum))
 
 
 class Flags(IntEnum):

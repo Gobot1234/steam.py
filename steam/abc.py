@@ -639,7 +639,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
         before = before or DateTime.now()
         after = after or UNIX_EPOCH
-        app_id = app.id if app else 0
+        app_id = app.id if app else AppID(0)
         total = 30
         yielded = 0
 

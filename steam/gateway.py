@@ -24,12 +24,13 @@ from functools import partial
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
 from ipaddress import IPv4Address
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, overload
 from zlib import MAX_WBITS, decompress
 
 import aiohttp
 import async_timeout
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from typing_extensions import TypeVar
 
 from . import utils
 from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, MISSING, READ_U32, SET_PROTO_BIT
@@ -73,15 +74,18 @@ __all__ = (
 log = logging.getLogger(__name__)
 ProtoMsgs: TypeAlias = ProtobufMessage | Message
 GCMsgs: TypeAlias = GCProtobufMessage | GCMessage
-GCMsgsT = TypeVar("GCMsgsT", GCProtobufMessage, GCMessage)
-ProtoMsgsT = TypeVar("ProtoMsgsT", ProtobufMessage, Message)
-Msgs: TypeAlias = "ProtoMsgs | GCMsgs"
-MsgsT = TypeVar("MsgsT", ProtobufMessage, Message, GCProtobufMessage, GCMessage)
-ProtoMsgT = TypeVar("ProtoMsgT", bound=ProtobufMessage)
-UnifiedMsgT = TypeVar("UnifiedMsgT", bound=UnifiedMessage)
-MsgT = TypeVar("MsgT", bound=Message)
-GCMsgT = TypeVar("GCMsgT", bound=GCMessage)
-GCMsgProtoT = TypeVar("GCMsgProtoT", bound=GCProtobufMessage)
+
+GCMsgsT = TypeVar("GCMsgsT", bound=GCMsgs, default=GCMsgs)
+ProtoMsgsT = TypeVar("ProtoMsgsT", bound=ProtoMsgs, default=ProtoMsgs)
+
+Msgs: TypeAlias = ProtoMsgs | GCMsgs
+MsgsT = TypeVar("MsgsT", bound=Msgs, default=Msgs)
+
+ProtoMsgT = TypeVar("ProtoMsgT", bound=ProtobufMessage, default=ProtobufMessage)
+UnifiedMsgT = TypeVar("UnifiedMsgT", bound=UnifiedMessage, default=UnifiedMessage)
+MsgT = TypeVar("MsgT", bound=Message, default=Message)
+GCMsgT = TypeVar("GCMsgT", bound=GCMessage, default=GCMessage)
+GCMsgProtoT = TypeVar("GCMsgProtoT", bound=GCProtobufMessage, default=GCProtobufMessage)
 
 
 @dataclass(slots=True)
@@ -698,28 +702,21 @@ class SteamWebSocket(Registerable):
         await self.send_proto(um)
         return job_id
 
-    # desperately needs TypeVar defaults
     async def send_um_and_wait(
         self,
         um: UnifiedMessage,
-        check: Callable[[UnifiedMsgT], bool] = MISSING,
+        check: Callable[[UnifiedMsgT], bool] = ...,  # type: ignore  # we rely on this not being solvable.
+        # I won't tell Eric if you won't. (This isn't part of PEP 696)
     ) -> UnifiedMsgT:
         job_id = await self.send_um(um)
-        check = check or (lambda um: um.header.job_id_target == job_id)
+        check = check if check is not ... else (lambda um: um.header.job_id_target == job_id)
         return await self.wait_for(emsg=EMsg.ServiceMethodSendToClient, check=check)
 
-    # TypeVar defaults would be nice here too
-    @overload
-    async def send_proto_and_wait(self, msg: Message, check: Callable[[MsgT], bool] = ...) -> MsgT:
-        ...
-
-    @overload
-    async def send_proto_and_wait(self, msg: ProtobufMessage, check: Callable[[ProtoMsgT], bool] = ...) -> ProtoMsgT:
-        ...
-
-    async def send_proto_and_wait(self, msg: ProtoMsgs, check: Callable[[ProtoMsgsT], bool] = MISSING) -> ProtoMsgsT:
+    async def send_proto_and_wait(self, msg: ProtoMsgs, check: Callable[[ProtoMsgsT], bool] = ...) -> ProtoMsgsT:  # type: ignore
         msg.header.job_id_source = job_id = self.next_job_id
-        future = self.wait_for(emsg=None, check=check or (lambda msg: msg.header.job_id_target == job_id))
+        future = self.wait_for(
+            emsg=None, check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id)
+        )
         await self.send_proto(msg)
         return await future
 
@@ -741,7 +738,7 @@ class SteamWebSocket(Registerable):
         if force_kick:
             log.debug("Kicking any currently playing sessions")
             await self.send_proto(client_server_2.CMsgClientKickPlayingSession())
-        if apps:
+        if apps is not None:
             apps_msg = client_server.CMsgClientGamesPlayed(games_played=apps)
             log.debug("Sending %r to change activity", apps_msg)
             await self.send_proto(apps_msg)
@@ -793,6 +790,7 @@ class SteamWebSocket(Registerable):
             )
 
         for msg in await asyncio.wait_for(asyncio.gather(*futs), timeout=60):
+            msg: friends.CMsgClientPersonaState
             if msg.result not in (Result.OK, Result.Invalid):  # not sure if checking this is even useful
                 raise WSException(msg)
 

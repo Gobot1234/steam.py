@@ -39,7 +39,7 @@ class BaseBadge(Protocol[AppT]):  # type: ignore  # this is safe
     app: AppT
     """The app associated with the badge."""
 
-    def __init__(self, state: ConnectionState, id: int, level: float, app: AppT) -> None:  # type: ignore
+    def __init__(self, state: ConnectionState, id: int, level: float, app: AppT) -> None:
         self._state = state
         self.id = id
         self.level = level
