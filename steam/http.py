@@ -734,6 +734,16 @@ class HTTPClient:
         }
         return self.get(URL.COMMUNITY / f"stats/{app_id}/leaderboards", params=params)
 
+    def verify_app_ticket(self, app_id: AppID, ticket: str, publisher_key: str | None) -> Coro[dict[str, Any]]:
+        params = {
+            "key": publisher_key or self.api_key,
+            "appid": app_id,
+            "ticket": ticket,
+        }
+        return self.get(
+            api_route("ISteamUserAuth/AuthenticateUserTicket", publisher=publisher_key is not None), params=params
+        )
+
     async def edit_profile_info(
         self,
         name: str | None,

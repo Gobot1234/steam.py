@@ -144,6 +144,7 @@ class URL:
     HELP: Final = _URL("https://help.steampowered.com")
     LOGIN: Final = _URL("https://login.steampowered.com")
     CDN: Final = _URL("https://cdn.cloudflare.steamstatic.com")
+    PUBLISHER_API: Final = _URL("https://partner.steam-api.com")
 
 
 @dataclass(frozen=True, slots=True)

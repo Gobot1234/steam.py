@@ -44,8 +44,8 @@ F = TypeVar("F", bound="Callable[..., Any]")
 P = ParamSpec("P")
 
 
-def api_route(path: str, version: int = 1) -> _URL:
-    return URL.API / f"{path}/v{version}"
+def api_route(path: str, version: int = 1, *, publisher: bool = False) -> _URL:
+    return (URL.PUBLISHER_API if publisher else URL.API) / f"{path}/v{version}"
 
 
 class _ReturnTrue:

@@ -357,6 +357,9 @@ class StructIO(
     def position(self, value: int) -> None:
         self.seek(value)
 
+    def __len__(self) -> int:
+        return len(self.getbuffer())
+
     def read_struct(self, format: str, position: int | None = None) -> tuple[Any, ...]:
         buffer = self.read(position or struct.calcsize(format))
         return struct.unpack(format, buffer)
@@ -373,6 +376,10 @@ class StructIO(
                 return result
 
         raise RuntimeError("Reached end of buffer")
+
+    def write_cstring(self, string: bytes, terminator: bytes = b"\x00") -> None:
+        self.write(string)
+        self.write(terminator)
 
     if TYPE_CHECKING:
         # added by the metaclass

@@ -29,6 +29,7 @@ from .types.user import Author
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from .abc import PartialUser
     from .clan import Clan
     from .friend import Friend
     from .leaderboard import Leaderboard
@@ -49,6 +50,7 @@ __all__ = (
     "STEAM",
     "CUSTOM_APP",
     "OwnershipTicket",
+    "AuthenticationTicketVerificationResult",
     "AuthenticationTicket",
     "EncryptedTicket",
     "FriendThoughts",
@@ -293,6 +295,32 @@ class OwnershipTicket(BaseOwnershipTicket):
         return not self.is_expired() and (not self.signature or self.is_signature_valid())
 
 
+@dataclass(slots=True)
+class AuthenticationTicketVerificationResult:
+    """Represents the result of an authentication ticket verification.
+
+    .. container:: operations
+
+        .. describe:: bool(x)
+
+            Checks if the result is :attr:`Result.OK`.
+    """
+
+    result: Result
+    """The result of the verification."""
+    user: PartialUser
+    """The user who sent the ticket."""
+    owner: PartialUser
+    """The user who owns the ticket."""
+    vac_banned: bool
+    """Whether the user is VAC banned."""
+    publisher_banned: bool
+    """Whether the user is publisher banned."""
+
+    def __bool__(self) -> bool:
+        return self.result is Result.OK
+
+
 class AuthenticationTicket(OwnershipTicket):
     """Represents an authentication ticket. This is used to verify ownership of an app and to connect to the game server."""
 
@@ -337,17 +365,34 @@ class AuthenticationTicket(OwnershipTicket):
     def __bytes__(self, _header: bytearray = bytearray(WRITE_U32(20))) -> bytes:
         return bytes(_header + self._ticket.getbuffer())
 
-    async def verify(self) -> bool:
-        """Verify the ticket."""  # TODO needs a publisher api key (oh no)
-        raise NotImplementedError
-        return await self._state.http.verify_app_ticket(self.auth_ticket, self.app.id)
+    async def verify(self, *, publisher_api_key: str | None = None) -> AuthenticationTicketVerificationResult:
+        """Verify the ticket with the web API.
+
+        Parameters
+        ----------
+        publisher_api_key
+            The publisher API key to use for verification. If not provided, will use the standard (rate limited) API.
+
+        .. source:: AuthenticationTicketVerificationResult
+        """
+        from .abc import PartialUser
+
+        data = await self._state.http.verify_app_ticket(self.app.id, self._ticket.buffer.hex(), publisher_api_key)
+        response = data["response"]["params"]
+        return AuthenticationTicketVerificationResult(
+            Result[response["result"]],
+            PartialUser(self._state, id=response["steamid"]),
+            PartialUser(self._state, id=response["ownersteamid"]),
+            response["vacbanned"],
+            response["publisherbanned"],
+        )
 
     async def activate(self) -> None:
         """Activate the ticket."""
         await self._state.activate_auth_session_tickets(self)
 
     async def deactivate(self) -> None:
-        """Deactivate the ticket."""
+        """Deactivate the ticket. Ends our sessions with other users meaning we can't get events from them anymore."""
         await self._state.deactivate_auth_session_tickets(self)
 
     # def is_valid(self) -> bool:  # TODO is it worth having an opinion on this?

@@ -1950,7 +1950,6 @@ class ConnectionState(Registerable):
         app_ids: list[AppID] | None = None,
         package_ids: list[PackageID] | None = None,
     ) -> app_info.CMsgClientPicsAccessTokenResponse:
-
         msg: app_info.CMsgClientPicsAccessTokenResponse = await self.ws.send_proto_and_wait(
             app_info.CMsgClientPicsAccessTokenRequest(
                 appids=cast(list[int], [] if app_ids is None else app_ids),
@@ -2315,21 +2314,23 @@ class ConnectionState(Registerable):
                 raise ValueError(f"Ticket {ticket!r} is not valid")
 
             if (ticket.app.id, ticket.user.id64) in self._active_auth_tickets:
-                return log.debug("Ticket %r is already active", ticket)
+                log.debug("Ticket %r is already active", ticket)
 
-            if ticket.user != self.user:
-                log.info("Canceling existing ticket %r", ticket)
-                del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
+                if ticket.user != self.user:
+                    log.info("Canceling existing ticket %r", ticket)
             self._active_auth_tickets[ticket.app.id, ticket.user.id64] = ticket
         await self.send_auth_list()
 
     async def deactivate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
+        assert tickets
         for ticket in tickets:
             try:
                 del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
             except KeyError:
                 log.debug("Ticket %r is not active", ticket)
 
+        if ticket.user == self.user:  # type: ignore
+            return  # can't deactivate our own ticket?
         await self.send_auth_list()
 
     async def send_auth_list(self, force_app_id: AppID | None = None) -> None:
