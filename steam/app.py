@@ -1002,10 +1002,9 @@ class PartialApp(App[NameT]):
             ]
 
         badge_def = utils.get(await self.community_item_definitions(language=language), class_=CommunityItemClass.Badge)
-        if badge_def is None:
+        if badge_def is None or not badge_def.data:
             return []
 
-        assert badge_def.data is not None
         badges: list[AppBadge[Self]] = []
         previous_name: str | None = None
         for id, (name, image) in enumerate(
