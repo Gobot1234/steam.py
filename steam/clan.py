@@ -391,8 +391,8 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             if "ONLINE" in count.text:
                 self.online_count = int(count.text.split("ONLINE")[0].strip().replace(",", ""))
 
-        admins = []
-        mods = []
+        admins: list[ID64] = []
+        mods: list[ID64] = []
         is_admins = None
         for fields in soup.find_all("div", class_="membergrid"):
             for field in fields.find_all("div"):
@@ -406,18 +406,18 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
                     break
 
                 try:
-                    account_id = int(field["data-miniprofile"])
+                    id64 = parse_id64(int(field["data-miniprofile"]), type=Type.Individual)
                 except KeyError:
                     continue
                 else:
                     if is_admins is None:
                         continue
                     if is_admins:
-                        admins.append(account_id)
+                        admins.append(id64)
                     else:
-                        mods.append(account_id)
+                        mods.append(id64)
 
-        users = await self._state.client.fetch_users(*admins, *mods)
+        users = await self._state._maybe_users(itertools.chain(admins, mods))
         self.admins = [user for user in users if user and user.id in admins]
         self.mods = [user for user in users if user and user.id in mods]
 
