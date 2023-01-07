@@ -5,8 +5,8 @@ from __future__ import annotations
 import abc
 import json
 import re
-from collections.abc import Mapping
-from functools import partial
+from collections.abc import Callable, Mapping
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, cast, overload
 
 import aiohttp
@@ -126,7 +126,7 @@ _INVITE_HEX = "0123456789abcdef"
 _INVITE_CUSTOM = "bcdfghjkmnpqrtvw"
 _INVITE_VALID = f"{_INVITE_HEX}{_INVITE_CUSTOM}"
 _URL_START = r"(?:https?://)?(?:www\.)?"
-INVITE_REGEX = re.compile(rf"({_URL_START}s\.team/p/(?P<code_1>[\-{_INVITE_VALID}]+))|(?P<code_2>[\-{_INVITE_VALID}]+)")
+INVITE_REGEX = re.compile(rf"(?:{_URL_START}(?:s\.team/p/))?(?P<code>[\-{_INVITE_VALID}]{{1,8}})")
 
 
 def _sub(map: Mapping[str, str], m: re.Match[str]) -> str:
@@ -135,7 +135,7 @@ def _sub(map: Mapping[str, str], m: re.Match[str]) -> str:
 
 def _invite_custom_sub(
     s: str,
-    repl: partial[str] = partial(_sub, dict(zip(_INVITE_CUSTOM, _INVITE_HEX))),
+    repl: Callable[[re.Match[str]], str] = lambda m, map=dict(zip(_INVITE_CUSTOM, _INVITE_HEX)): _sub(map, m),
     pattern: re.Pattern[str] = re.compile(f"[{_INVITE_CUSTOM}]"),
     /,
 ) -> str:
@@ -144,7 +144,7 @@ def _invite_custom_sub(
 
 def _invite_hex_sub(
     s: str,
-    repl: partial[str] = partial(_sub, dict(zip(_INVITE_HEX, _INVITE_CUSTOM))),
+    repl: Callable[[re.Match[str]], str] = lambda m, map=dict(zip(_INVITE_HEX, _INVITE_CUSTOM)): _sub(map, m),
     pattern: re.Pattern[str] = re.compile(f"[{_INVITE_HEX}]"),
     /,
 ) -> str:
@@ -197,18 +197,12 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING)
     The found 64-bit ID or ``None`` if ``https://steamcommunity.com`` is down or no matching account is found.
     """
 
-    if not (search := URL_REGEX.search(str(url))):
+    if not (search := URL_REGEX.match(str(url))):
         return None
 
-    gave_session = session is not MISSING
-    session = session if gave_session else aiohttp.ClientSession()
-
-    try:
+    async with aiohttp.ClientSession() if session is MISSING else nullcontext(session) as session:
         async with session.get(f"https://{search['clean_url']}") as r:
             text = await r.text()
-    finally:
-        if not gave_session:
-            await session.close()
 
     if search["type"] in USER_URL_PATHS:
         if not (match := USER_ID64_FROM_URL_REGEX.search(text)):
@@ -495,7 +489,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         ----
         The universe will be set to :attr:`Universe.Public` if it's ``0``. See :attr:`ID.id2_zero`.
         """
-        if (match := ID2_REGEX.search(value)) is None:
+        if (match := ID2_REGEX.fullmatch(value)) is None:
             return None
 
         id = (int(match["id"]) << 1) | int(match["remainder"])
@@ -515,7 +509,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         value
             The ID3 e.g. ``[U:1:1234]``.
         """
-        if (match := ID3_REGEX.search(value)) is None:
+        if (match := ID3_REGEX.fullmatch(value)) is None:
             return None
 
         id = ID32(match["id"])
@@ -547,10 +541,10 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         value
             The invite code e.g. ``cv-dgb``
         """
-        if (search := INVITE_REGEX.search(value)) is None:
+        if (search := INVITE_REGEX.fullmatch(value)) is None:
             return None
 
-        code = (search["code_1"] or search["code_2"]).replace("-", "")
+        code = search["code"].replace("-", "")
 
         id = ID32(_invite_custom_sub(code), 16)
 
@@ -568,4 +562,4 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         See :func:`id64_from_url` for the full parameter list.
         """
         id64 = await id64_from_url(url, session)
-        return ID(id64) if id64 else None  # type: ignore
+        return ID(id64) if id64 else None
