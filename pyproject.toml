@@ -147,6 +147,7 @@ reportUnknownReturnType = "error"
 reportUnknownMemberType = "error"
 reportUnnecessaryComparison = true
 reportUnnecessaryContains = true
+reportShadowedImports = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
