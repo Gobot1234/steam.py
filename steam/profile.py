@@ -124,7 +124,7 @@ class ProfileItem(Generic[UserT]):
         """The item's class."""
         self.movie = ProfileMovie(state, item.movie_mp4)
         """The movie associated with the item."""
-        self.equipped_flags = item.equipped_flags  # TODO might be useful for item show case?
+        self.equipped_flags = ProfileItemEquippedFlag.try_value(item.equipped_flags)
         """The item's equipped flags."""
 
         self.owner = owner

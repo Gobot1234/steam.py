@@ -35,6 +35,7 @@ __all__ = (
     "ProfileItemType",
     "ProfileCustomisationStyle",
     "CommunityItemClass",
+    "ProfileItemEquippedFlag",
     "DepotFileFlag",
     "AppType",
     "LicenseFlag",
@@ -1213,6 +1214,12 @@ class CommunityItemClass(IntEnum):
     """An animated avatar."""
     SteamDeckKeyboardSkin = 16
     """A Steam Deck keyboard skin."""
+
+
+class ProfileItemEquippedFlag(Flags):
+    """Flags for a profile item."""
+    FullScreen = 1
+    """The item is equipped in full screen mode."""
 
 
 class DepotFileFlag(Flags):
