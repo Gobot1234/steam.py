@@ -396,7 +396,10 @@ class Client:
 
         if self.ws is not None:
             try:
-                await self.change_presence(app=App(id=0))  # disconnect from games
+                if self._state._active_auth_tickets:
+                    self._state._active_auth_tickets.clear()
+                    await self._state.deactivate_auth_session_tickets()
+                await self.change_presence(apps=[])  # disconnect from games
                 await self.ws.handle_close()
             except ConnectionClosed:
                 pass
