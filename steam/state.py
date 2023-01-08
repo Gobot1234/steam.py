@@ -65,6 +65,7 @@ from .protobufs import (
     quest,
     reviews,
     store,
+    user_stats,
 )
 from .published_file import PublishedFile
 from .reaction import (
@@ -2389,6 +2390,41 @@ class ConnectionState(Registerable):
             AuthSessionResponse.try_value(msg.eauth_session_response),
             msg.estate,
         )
+
+    async def fetch_user_app_stats(self, user_id64: ID64, app_id: AppID) -> user_stats.CMsgClientGetUserStatsResponse:
+        msg: user_stats.CMsgClientGetUserStatsResponse = await self.ws.send_proto_and_wait(
+            user_stats.CMsgClientGetUserStats(steam_id_for_user=user_id64, game_id=app_id),
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    async def fetch_app_achievements(
+        self, app_id: AppID, language: Language | None
+    ) -> list[player.GetGameAchievementsResponseAchievement]:
+        msg: player.GetGameAchievementsResponse = await self.ws.send_proto_and_wait(
+            player.GetGameAchievementsRequest(appid=app_id, language=(self.language or language).api_name)
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.achievements
+
+    # async def fetch_user_achievements(
+    #     self, user_id64: ID64, *app_ids: AppID, language: Language | None
+    # ) -> list[player.GetGameAchievementsRequest]:
+    #     msg: player.GetAchievementsProgressResponse = await self.ws.send_proto_and_wait(
+    #         player.GetAchievementsProgressRequest(
+    #             steamid=user_id64,
+    #             appids=cast(list[int], list(app_ids)),
+    #             language=(self.language or language).api_name,
+    #         )
+    #     )
+
+    #     if msg.result != Result.OK:
+    #         raise WSException(msg)
+    #     return
 
     async def fetch_or_create_app_leaderboard(
         self, app_id: AppID, leaderboard_name: str, create: bool = False

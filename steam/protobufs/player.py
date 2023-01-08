@@ -351,6 +351,36 @@ class GetEmoticonListResponseEmoticon(betterproto.Message):
     appid: int = betterproto.uint32_field(6)
 
 
+class GetTopAchievementsForGamesRequest(UnifiedMessage, um_name="Player.GetTopAchievementsForGames"):
+    steamid: int = betterproto.uint64_field(1)
+    language: str = betterproto.string_field(2)
+    max_achievements: int = betterproto.uint32_field(3)
+    appids: list[int] = betterproto.uint32_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class GetTopAchievementsForGamesResponseGameAchievement(betterproto.Message):
+    statid: int = betterproto.uint32_field(1)
+    bit: int = betterproto.uint32_field(2)
+    name: str = betterproto.string_field(3)
+    desc: str = betterproto.string_field(4)
+    icon: str = betterproto.string_field(5)
+    icon_gray: str = betterproto.string_field(6)
+    hidden: bool = betterproto.bool_field(7)
+    player_percent_unlocked: str = betterproto.string_field(8)
+
+
+@dataclass(eq=False, repr=False)
+class GetTopAchievementsForGamesResponseGame(betterproto.Message):
+    appid: int = betterproto.uint32_field(1)
+    total_achievements: int = betterproto.uint32_field(2)
+    achievements: list[GetTopAchievementsForGamesResponseGameAchievement] = betterproto.message_field(3)
+
+
+class GetTopAchievementsForGamesResponse(UnifiedMessage, um_name="Player.GetTopAchievementsForGames"):
+    games: "list[GetTopAchievementsForGamesResponseGame]" = betterproto.message_field(1)
+
+
 class GetAchievementsProgressRequest(UnifiedMessage, um_name="Player.GetAchievementsProgress"):
     steamid: int = betterproto.uint64_field(1)
     language: str = betterproto.string_field(2)
@@ -369,6 +399,26 @@ class GetAchievementsProgressResponseAchievementProgress(betterproto.Message):
     percentage: float = betterproto.float_field(4)
     all_unlocked: bool = betterproto.bool_field(5)
     cache_time: int = betterproto.uint32_field(6)
+
+
+class GetGameAchievementsRequest(UnifiedMessage, um_name="Player.GetGameAchievements"):
+    appid: int = betterproto.uint32_field(1)
+    language: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class GetGameAchievementsResponseAchievement(betterproto.Message):
+    internal_name: str = betterproto.string_field(1)
+    localized_name: str = betterproto.string_field(2)
+    localized_desc: str = betterproto.string_field(3)
+    icon: str = betterproto.string_field(4)
+    icon_gray: str = betterproto.string_field(5)
+    hidden: bool = betterproto.bool_field(6)
+    player_percent_unlocked: str = betterproto.string_field(7)
+
+
+class GetGameAchievementsResponse(UnifiedMessage, um_name="Player.GetGameAchievements"):
+    achievements: list[GetGameAchievementsResponseAchievement] = betterproto.message_field(1)
 
 
 class GetFavoriteBadgeRequest(UnifiedMessage, um_name="Player.GetFavoriteBadge"):

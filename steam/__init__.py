@@ -10,6 +10,7 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 from . import abc as abc, guard as guard, utils as utils
 from .__metadata__ import *
 from .abc import *
+from .achievement import *
 from .app import *
 from .badge import *
 from .bundle import *

@@ -18,6 +18,7 @@ from typing_extensions import Self, TypeVar
 
 from . import utils
 from ._const import DOCS_BUILDING, HTML_PARSER, JSON_LOADS, MISSING, STATE, STEAM_BADGES, UNIX_EPOCH, URL, WRITE_U32
+from .achievement import AppAchievement, AppStats
 from .badge import AppBadge
 from .enums import *
 from .id import id64_from_url
@@ -54,7 +55,6 @@ __all__ = (
     "AuthenticationTicket",
     "EncryptedTicket",
     "FriendThoughts",
-    # "AppAchievement",
     "DLC",
     "UserApp",
     "WishlistApp",
@@ -347,12 +347,10 @@ class AuthenticationTicket(OwnershipTicket):
         if ticket.read_u32() != 24:
             raise ValueError("Invalid session header")
 
-        ticket.position += 8
-        # unknown 1 and unknown 2
+        ticket.position += 8  # unknown 1 and unknown 2
         self.client_ip = IPv4Address(ticket.read_u32())
         """The IP address of the client."""
-        ticket.position += 4
-        # filler
+        ticket.position += 4  # filler
         self.client_connected_at = timedelta(milliseconds=ticket.read_u32())
         """The time the client has been connected to Steam"""
         self.client_connection_count = ticket.read_u32()
@@ -517,8 +515,55 @@ class PartialApp(App[NameT]):
         """The apps current player count."""
         return await self._state.fetch_app_player_count(self.id)
 
+    async def stats(self, *, language: Language | None = None) -> AppStats:
+        """The stats for this app.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the stats in. If ``None``, the current language will be used.
+
+        See Also
+        --------
+        :meth:`achievements` if you want a faster way to fetch just achievements.
+        """
+        data = await self._state.http.get_app_stats(self.id, language)
+        return AppStats(self._state, self, data["game"])
+
+    async def achievements(self, *, language: Language | None = None) -> list[AppAchievement]:
+        """The achievements for this app.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the achievements in. If ``None``, the current language will be used.
+        """
+        achievements = await self._state.fetch_app_achievements(self.id, language)
+        return [
+            AppAchievement(
+                achievement.internal_name,
+                self,
+                achievement.localized_name,
+                achievement.localized_desc,
+                CDNAsset(
+                    self._state,
+                    f"{URL.CDN}/steamcommunity/public/images/apps/{self.id}/{achievement.icon}",
+                ),
+                CDNAsset(self._state, f"{URL.CDN}/steamcommunity/public/images/apps/{self.id}/{achievement.icon_gray}"),
+                achievement.hidden,
+                float(achievement.player_percent_unlocked),
+            )
+            for achievement in achievements
+        ]
+
     async def leaderboards(self, *, language: Language | None = None) -> list[Leaderboard[Self, str]]:
-        """The leaderboards for this app."""
+        """The leaderboards for this app.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the leaderboards in. If ``None``, the current language will be used.
+        """
         from .leaderboard import Leaderboard
 
         xml = await self._state.http.get_app_leaderboards(self.id, language)

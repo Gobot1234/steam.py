@@ -60,25 +60,30 @@ try:
 except ModuleNotFoundError:
     import vdf
 
+    def multi_dict_ify(x: Any, __multi_dict: type[MultiDict[Any]] = MultiDict, /):
+        if isinstance(x, dict):
+            return __multi_dict({k: multi_dict_ify(v) for k, v in x.items()})
+        return x
+
     def loads(
         s: str,
         __func: Callable[..., Any] = vdf.parse,
         __mapper: type[vdf.VDFDict] = vdf.VDFDict,
-        __multi_dict: type[MultiDict[Any]] = MultiDict,
+        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = multi_dict_ify,
         __string_io: type[StringIO] = StringIO,
         /,
     ) -> VDFDict:
-        return __multi_dict(__func(__string_io(s), mapper=__mapper))
+        return __multi_dict_ify(__func(__string_io(s), mapper=__mapper))
 
     def binary_loads(
         s: bytes,
         __func: Callable[..., Any] = vdf.binary_load,
         __mapper: type[vdf.VDFDict] = vdf.VDFDict,
-        __multi_dict: type[MultiDict[Any]] = MultiDict,
+        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = multi_dict_ify,
         __bytes_io: type[BytesIO] = BytesIO,
         /,
     ) -> BinaryVDFDict:
-        return __multi_dict(__func(__bytes_io(s), mapper=__mapper))
+        return __multi_dict_ify(__func(__bytes_io(s), mapper=__mapper))
 
     VDF_LOADS: Final = cast(Callable[[str], VDFDict], loads)
     VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], binary_loads)

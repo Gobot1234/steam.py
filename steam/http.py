@@ -12,7 +12,7 @@ from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import aiohttp
 from yarl import URL as URL_
@@ -29,7 +29,7 @@ from .user import ClientUser
 if TYPE_CHECKING:
     from .client import Client
     from .image import Image
-    from .types import bundle, trade
+    from .types import achievement, bundle, trade
     from .types.http import Coro, ResponseDict, StrOrURL
     from .types.id import ID64, BundleID, ChatGroupID, ChatID, PackageID
     from .types.user import User
@@ -726,6 +726,16 @@ class HTTPClient:
             "cc": "en",
         }
         return self.get(URL.STORE / "actions/ajaxresolvebundles", params=params)
+
+    async def get_app_stats(
+        self, app_id: AppID, language: Language | None
+    ) -> dict[Literal["game"], achievement.AppAppStats]:
+        params = {
+            "key": await self.get_api_key(),
+            "appid": app_id,
+            "l": (language or self.language).api_name,
+        }
+        return await self.get(api_route("ISteamUserStats/GetSchemaForGame", 2), params=params)
 
     def get_app_leaderboards(self, app_id: AppID, language: Language | None) -> Coro[str]:
         params = {

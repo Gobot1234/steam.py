@@ -1,5 +1,7 @@
 """Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, TypeAlias
 
 from typing_extensions import TypedDict, TypeVar

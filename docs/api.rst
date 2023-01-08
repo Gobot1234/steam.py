@@ -338,6 +338,51 @@ Steam Models
 steam.py provides wrappers around common Steam API objects.
 These are not meant to be constructed by the user instead you receive them from methods/events.
 
+Achievements
+~~~~~~~~~~~~~~~
+
+.. attributetable:: AppStat
+
+.. autoclass:: AppStat()
+    :members:
+    :inherited-members:
+
+.. attributetable:: UserAppStat
+
+.. autoclass:: UserAppStat()
+    :members:
+    :inherited-members:
+
+.. attributetable:: AppAchievement
+
+.. autoclass:: AppAchievement()
+    :members:
+    :inherited-members:
+
+.. attributetable:: AppStatAchievement
+
+.. autoclass:: AppStatAchievement()
+    :members:
+    :inherited-members:
+
+.. attributetable:: UserAppAchievement
+
+.. autoclass:: UserAppAchievement()
+    :members:
+    :inherited-members:
+
+.. attributetable:: AppStats
+
+.. autoclass:: AppStats()
+    :members:
+    :inherited-members:
+
+.. attributetable:: UserAppStats
+
+.. autoclass:: UserAppStats()
+    :members:
+    :inherited-members:
+
 Announcements
 ~~~~~~~~~~~~~~~
 

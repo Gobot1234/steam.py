@@ -9,13 +9,14 @@ from collections.abc import AsyncGenerator, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from ipaddress import IPv4Address, IPv6Address
-from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypedDict, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypedDict, cast, runtime_checkable
 
 from bs4 import BeautifulSoup
 from typing_extensions import Required, Self, TypeVar
 from yarl import URL as URL_
 
-from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH
+from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH, VDF_BINARY_LOADS
+from .achievement import UserAppStats
 from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
+    from .types import achievement
     from .user import ClientUser, User
 
 __all__ = (
@@ -372,6 +374,25 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         """
         apps = await self._state.fetch_user_apps(self.id64, include_free)
         return [UserApp(self._state, app) for app in apps]
+
+    async def app_stats(self, app: App, *, language: Language | None = None) -> UserAppStats:
+        """Fetch the stats for the user in the app.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the stats in. If ``None`` will default to the current language.
+
+        See Also
+        --------
+        :meth:`achievements` for a faster way to fetch achievements.
+        """
+        msg = await self._state.fetch_user_app_stats(self.id64, app.id)
+        schema = VDF_BINARY_LOADS(msg.schema)
+        data = cast("achievement.UserAppStats", schema[str(app.id)])
+        return UserAppStats(self._state, app, msg, data, language or self._state.language)
+
+    # TODO find a way to just get achievements
 
     async def wishlist(self) -> list[WishlistApp]:
         r"""Get the :class:`.WishlistApp`\s the user has on their wishlist."""
