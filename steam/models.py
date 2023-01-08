@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 
-import abc
 import asyncio
-import itertools
 import logging
 import re
 import traceback
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
 from types import CoroutineType
 from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Protocol, TypedDict, TypeVar
 
-from aiohttp import StreamReader
 from aiohttp.streams import AsyncStreamIterator, ChunkTupleAsyncStreamIterator
 from typing_extensions import Self
 from yarl import URL as _URL
@@ -329,14 +326,10 @@ class Avatar(_IOMixin):
         return self.sha == other.sha if isinstance(other, self.__class__) else NotImplemented
 
 
-@dataclass
+@dataclass(slots=True)
 class CDNAsset(_IOMixin):
-    __slots__ = (
-        "url",
-        "_state",
-    )
-    _state: ConnectionState
-    url: str
+    _state: ConnectionState = field(repr=False)
+    url: str = field()
     """The URL of the asset."""
 
     def __eq__(self, other: object) -> bool:
