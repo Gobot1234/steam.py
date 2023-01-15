@@ -356,7 +356,7 @@ def command_converter(argument: str) -> None:
     called_command_converter = True
 
 
-class ImageConverter(commands.Converter[steam.Image]):
+class MediaConverter(commands.Converter[steam.Media]):
     async def convert(self, ctx: commands.Context, argument: str) -> None:
         global called_image_converter
         called_image_converter = True
@@ -376,11 +376,11 @@ async def test_converters() -> None:
     assert called_command_converter
 
     @bot.command
-    async def set_avatar(_, image: steam.Image):
+    async def set_avatar(_, image: steam.Media):
         ...
 
-    assert ImageConverter.converter_for is steam.Image
-    assert steam.Image in bot.converters
+    assert MediaConverter.converter_for is steam.Media
+    assert steam.Media in bot.converters
     await bot.process_commands("https://not_an_image.com", None)
     assert called_image_converter
 

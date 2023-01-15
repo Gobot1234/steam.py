@@ -177,20 +177,20 @@ class Converter(ConverterBase[T_co], ABC):
 
     .. code:: python
 
-        class ImageConverter(commands.Converter[steam.Image]):  # the annotation to typehint to
-            async def convert(self, ctx: commands.Context, argument: str) -> steam.Image:
+        class MediaConverter(commands.Converter[steam.Media]):  # the annotation to typehint to
+            async def convert(self, ctx: commands.Context, argument: str) -> steam.Media:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(argument) as r:
-                        image_bytes = BytesIO(await r.read())
+                        media_bytes = BytesIO(await r.read())
                 try:
-                    return steam.Image(image_bytes)
-                except (TypeError, ValueError):  # failed to convert to an image
-                    raise commands.BadArgument("Cannot convert image") from None
+                    return steam.Media(media_bytes)
+                except (TypeError, ValueError):  # failed to convert to an media
+                    raise commands.BadArgument("Cannot convert media") from None
 
 
         # then later
         @bot.command
-        async def set_avatar(ctx: commands.Context, avatar: steam.Image) -> None:
+        async def set_avatar(ctx: commands.Context, avatar: steam.Media) -> None:
             await bot.user.edit(avatar=avatar)
             await ctx.send("👌")
 
