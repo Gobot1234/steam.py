@@ -790,7 +790,7 @@ class SteamWebSocket(Registerable):
                     #     Watching = 16384;
                     # };
                     persona_state_requested=0b1111111011111,  # all except watching and broadcast (for now)
-                    friends=user_id64_chunk,  # type: ignore
+                    friends=list(user_id64_chunk),
                 ),
             )
 
