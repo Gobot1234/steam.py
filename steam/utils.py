@@ -14,8 +14,10 @@ import base64
 import collections
 import functools
 import html
+import itertools
 import re
 import struct
+import sys
 from collections.abc import (
     AsyncGenerator,
     AsyncIterable,
@@ -564,43 +566,45 @@ def contains_chat_command(string: str) -> bool:
 _Iter: TypeAlias = Iterable[_T] | AsyncIterable[_T]
 
 
-def _chunk(
-    iterator: Iterable[_T], max_size: int, len: Callable[[Sized], int] = len, /
-) -> Generator[list[_T], None, None]:
-    ret: list[_T] = []
-    for item in iterator:
-        ret.append(item)
-        if len(ret) == max_size:
-            yield ret
-            ret = []
-    if ret:
-        yield ret
+if sys.version_info >= (3, 12):
+    _chunk = itertools.batched
+else:
+
+    def _chunk(
+        iterator: Iterable[_T],
+        max_size: int,
+        tuple: type[tuple[_T, ...]] = tuple,
+        islice: type[itertools.islice[_T]] = itertools.islice,
+        /,
+    ) -> Generator[tuple[_T, ...], None, None]:
+        while batch := tuple(islice(iterator, max_size)):
+            yield batch
 
 
 async def _achunk(
     iterator: AsyncIterable[_T], max_size: int, len: Callable[[Sized], int] = len, /
-) -> AsyncGenerator[list[_T], None]:
+) -> AsyncGenerator[tuple[_T, ...], None]:
     ret: list[_T] = []
     async for item in iterator:
         ret.append(item)
         if len(ret) == max_size:
-            yield ret
+            yield tuple(ret)
             ret = []
     if ret:
-        yield ret
+        yield tuple(ret)
 
 
 @overload
-def as_chunks(iterator: AsyncIterable[_T], /, max_size: int) -> AsyncGenerator[list[_T], None]:
+def as_chunks(iterator: AsyncIterable[_T], /, max_size: int) -> AsyncGenerator[tuple[_T, ...], None]:
     ...
 
 
 @overload
-def as_chunks(iterator: Iterable[_T], /, max_size: int) -> Generator[list[_T], None, None]:
+def as_chunks(iterator: Iterable[_T], /, max_size: int) -> Generator[tuple[_T, ...], None, None]:
     ...
 
 
-def as_chunks(iterator: _Iter[_T], /, max_size: int) -> _Iter[list[_T]]:
+def as_chunks(iterator: _Iter[_T], /, max_size: int) -> _Iter[tuple[_T, ...]]:
     """A helper function that collects an iterator into chunks of a given size.
 
     Parameters
