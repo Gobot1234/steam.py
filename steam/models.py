@@ -83,10 +83,6 @@ class Registerable:
         return self
 
     @utils.cached_property
-    def loop(self) -> asyncio.AbstractEventLoop:
-        return asyncio.get_running_loop()
-
-    @utils.cached_property
     def _logger(self) -> logging.Logger:
         return logging.getLogger(self.__class__.__module__)
 

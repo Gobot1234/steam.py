@@ -310,7 +310,6 @@ class GameServer(ID[Literal[Type.GameServer]]):
         "version",
         "_secure",
         "_dedicated",
-        "_loop",
         "_state",
     )
 

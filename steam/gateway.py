@@ -162,9 +162,10 @@ class WebSocketClosure(Exception):
 
 
 class KeepAliveHandler(threading.Thread):
-    def __init__(self, ws: SteamWebSocket, interval: int):
+    def __init__(self, ws: SteamWebSocket, interval: int, loop: asyncio.AbstractEventLoop):
         super().__init__()
         self.ws = ws
+        self.loop = loop
         self.interval = interval
         self._main_thread_id = self.ws.thread_id
         self.heartbeat = login.CMsgClientHeartBeat(send_reply=True)
@@ -182,7 +183,7 @@ class KeepAliveHandler(threading.Thread):
             if self._last_recv + 60 < time.perf_counter():
                 log.warning("CM %r has stopped responding to the gateway. Closing and restarting.", self.ws.cm)
                 coro = self.ws.close(4000)
-                f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
+                f = asyncio.run_coroutine_threadsafe(coro, loop=self.loop)
 
                 try:
                     f.result()
@@ -192,11 +193,11 @@ class KeepAliveHandler(threading.Thread):
                     return self.stop()
 
             log.debug(self.msg, self.heartbeat)
-            if self.ws.loop.is_closed():
+            if self.loop.is_closed():
                 return self.stop()
 
             coro = self.ws.send_proto(self.heartbeat)
-            f = asyncio.run_coroutine_threadsafe(coro, loop=self.ws.loop)
+            f = asyncio.run_coroutine_threadsafe(coro, loop=self.loop)
             # block until sending is complete
             total = 0
             try:
@@ -300,7 +301,7 @@ class SteamWebSocket(Registerable):
         emsg: EMsg | None = None,
         check: Callable[[ProtoMsgsT], bool] = return_true,
     ) -> asyncio.Future[ProtoMsgsT]:
-        future: asyncio.Future[ProtoMsgsT] = self.loop.create_future()
+        future: asyncio.Future[ProtoMsgsT] = asyncio.get_running_loop().create_future()
         entry = EventListener(msg=msg.MSG if msg else emsg, check=check, future=future)
         self.listeners.append(entry)
         return future
@@ -358,7 +359,9 @@ class SteamWebSocket(Registerable):
             state._users[client.user.id] = client.user  # type: ignore
             self._state.cell_id = msg.cell_id
 
-            self._keep_alive = KeepAliveHandler(ws=self, interval=msg.heartbeat_seconds)
+            self._keep_alive = KeepAliveHandler(
+                ws=self, interval=msg.heartbeat_seconds, loop=asyncio.get_running_loop()
+            )
             self._keep_alive.start()
             log.debug("Heartbeat started.")
 
@@ -499,7 +502,9 @@ class SteamWebSocket(Registerable):
             self.id64 = msg.header.steam_id
             self._state.cell_id = msg.cell_id
 
-            self._keep_alive = KeepAliveHandler(ws=self, interval=msg.heartbeat_seconds)
+            self._keep_alive = KeepAliveHandler(
+                ws=self, interval=msg.heartbeat_seconds, loop=asyncio.get_running_loop()
+            )
             self._keep_alive.start()
             log.debug("Heartbeat started.")
 

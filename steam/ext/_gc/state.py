@@ -14,7 +14,7 @@ from ...gateway import EventListener, GCMsgProtoT, GCMsgsT, GCMsgT
 from ...models import register, return_true
 from ...protobufs import EMsg, GCMessage, GCProtobufMessage
 from ...state import ConnectionState
-from ...trade import BaseInventory, Inventory
+from ...trade import Inventory
 
 if TYPE_CHECKING:
     from ...app import App
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from .client import Client
 
 log = logging.getLogger(__name__)
-Inv = TypeVar("Inv", bound=BaseInventory[Any])
+Inv = TypeVar("Inv", bound=Inventory)
 
 
 class GCState(ConnectionState):
@@ -112,7 +112,7 @@ class GCState(ConnectionState):
         emsg: IntEnum | None = None,
         check: Callable[[GCMsgsT], bool] = return_true,
     ) -> asyncio.Future[GCMsgsT]:
-        future: asyncio.Future[GCMsgsT] = self.loop.create_future()
+        future: asyncio.Future[GCMsgsT] = asyncio.get_running_loop().create_future()
         entry = EventListener(msg=msg.MSG if msg else emsg, check=check, future=future)
         self.gc_listeners.append(entry)
         return future

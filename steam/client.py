@@ -132,20 +132,8 @@ class Client:
         ...
 
     def __init__(self, **options: Any):
-        loop = options.get("loop")
-        if loop:
-            import inspect
-            import warnings
-
-            warnings.warn(
-                "The loop argument is deprecated and scheduled for removal in V.1",
-                stacklevel=len(inspect.stack())
-                + 1,  # make sure its always at the top of the stack most likely where the Client was created
-            )
-        self.loop = asyncio.get_event_loop()
         self.http = HTTPClient(client=self, **options)
         self._state = self._get_state(**options)
-        STATE.set(self._state)
         self.ws: SteamWebSocket | None = None
 
         self.username: str | None = None
@@ -336,6 +324,13 @@ class Client:
         self._ready.set()
         self.dispatch("ready")
 
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        if not self.is_closed():
+            await self.close()
+
     @overload
     @final
     def run(
@@ -345,6 +340,7 @@ class Client:
         *,
         shared_secret: str = ...,
         identity_secret: str = ...,
+        debug: bool = ...,
     ) -> object:
         ...
 
@@ -356,34 +352,39 @@ class Client:
         refresh_token: str,
         shared_secret: str = ...,
         identity_secret: str = ...,
+        debug: bool = ...,
     ) -> object:
         ...
 
     @final
-    def run(self, *args: Any, **kwargs: Any) -> object:
-        """A blocking call that abstracts away the event loop initialisation from you.
+    def run(self, *args: Any, debug: bool = False, **kwargs: Any) -> object:
+        """A blocking method to start and run the client.
 
-        It is not recommended to subclass this method, it is normally favourable to subclass :meth:`start` as it is a
+        Shorthand for:
+
+        .. code:: python
+
+            async def main():
+                async with client:
+                    await client.login(...)
+
+
+            asyncio.run(main())
+
+        It is not recommended to subclass this method, it is normally favourable to subclass :meth:`login` as it is a
         :ref:`coroutine <coroutine>`.
 
         Note
         ----
-        This takes the same arguments as :meth:`start`.
+        This takes the same arguments as :meth:`login`.
         """
 
         async def runner() -> None:
-            asyncio.events.new_event_loop = old_new_event_loop
-            try:
+            async with self:
                 await self.login(*args, **kwargs)
-            finally:
-                if not self.is_closed():
-                    await self.close()
 
-        # we just have to monkey patch in support for using get_event_loop
-        old_new_event_loop = asyncio.new_event_loop
-        asyncio.events.new_event_loop = asyncio.get_event_loop
         try:
-            asyncio.run(runner())
+            asyncio.run(runner(), debug=debug)
         except KeyboardInterrupt:
             log.info("Closing the event loop")
 
@@ -422,6 +423,7 @@ class Client:
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
+        STATE.set(self._state)
         self._closed = False
 
         exceptions = (
@@ -1837,7 +1839,7 @@ class Client:
         Returns ``None``, a single argument or a :class:`tuple` of multiple arguments that mirrors the parameters for
         the ``event`` parameter from the :ref:`event reference <event-reference>`.
         """
-        future = self.loop.create_future()
+        future = asyncio.get_running_loop().create_future()
 
         event_lower = event.lower()
         try:

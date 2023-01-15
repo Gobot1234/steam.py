@@ -78,7 +78,7 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
                 await self.trigger_typing()
 
         await self.trigger_typing()
-        task = self._state.loop.create_task(inner())
+        task = asyncio.create_task(inner())
         yield
         task.cancel()
 

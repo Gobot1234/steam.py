@@ -406,8 +406,8 @@ class ConnectionState(Registerable):
             await asyncio.sleep(30)
             log.info("Error while polling trades", exc_info=exc)
 
-    async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer:
-        self.loop.create_task(self.poll_trades())  # start re-polling trades
+    async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User | PartialUser], User | PartialUser]:
+        asyncio.create_task(self.poll_trades())  # start re-polling trades
         return await self.trade_queue.wait_for(id=id)
 
     # confirmations
@@ -492,7 +492,7 @@ class ConnectionState(Registerable):
             self.polling_confirmations = False
 
     async def wait_for_confirmation(self, id: TradeOfferID) -> Confirmation:
-        self.loop.create_task(self.poll_confirmations())
+        asyncio.create_task(self.poll_confirmations())
         return await self.confirmation_queue.wait_for(id=id)
 
     async def fetch_and_confirm_confirmation(self, trade_id: TradeOfferID) -> bool:
