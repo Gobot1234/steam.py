@@ -2,20 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Coroutine
+from collections.abc import AsyncGenerator, Coroutine
 from typing import TYPE_CHECKING, Any
 
-from ...abc import Channel, Message, Messageable
+from ...abc import Message, Messageable, PartialUser
 
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from ...clan import Clan
-    from ...group import Group
-    from ...image import Image
-    from ...iterators import AsyncIterator
-    from ...state import ConnectionState
-    from ...user import User
+    from ...media import Media
     from .bot import Bot
     from .cog import Cog
     from .commands import Command
@@ -60,11 +55,11 @@ class Context(Messageable["Message"]):
         self.cog: Cog | None = self.command.cog if self.command is not None else None
         self.invoked_with: str | None = attrs.get("invoked_with")
 
-        self.author: User = self.message.author
-        self.channel: Channel[Message] = self.message.channel
-        self.clan: Clan | None = self.message.clan
-        self.group: Group | None = self.message.group
-        self._state: ConnectionState = self.message._state
+        self.author = self.message.author
+        self.channel = self.message.channel
+        self.clan = self.message.clan
+        self.group = self.message.group
+        self._state = self.message._state
 
         self.args: tuple[Any, ...] | None = None
         self.kwargs: dict[str, Any] | None = None
@@ -73,8 +68,8 @@ class Context(Messageable["Message"]):
     def _message_func(self, content: str) -> Coroutine[Any, Any, Message]:
         return self.channel._message_func(content)
 
-    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self.channel._image_func(image)
+    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
+        return self.channel._media_func(media)
 
     async def invoke(self) -> None:
         """A shortcut method that invokes the current context using :meth:`~steam.ext.commands.Command.invoke`.
@@ -92,7 +87,7 @@ class Context(Messageable["Message"]):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> AsyncIterator[Message]:
+    ) -> AsyncGenerator[Message[PartialUser], None]:
         """A shortcut method that gets the current channel's history.
 
         Equivalent to

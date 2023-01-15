@@ -571,21 +571,22 @@ if sys.version_info >= (3, 12):
 else:
 
     def _chunk(
-        iterator: Iterable[_T],
+        iterable: Iterable[_T],
         max_size: int,
         tuple: type[tuple[_T, ...]] = tuple,
         islice: type[itertools.islice[_T]] = itertools.islice,
         /,
     ) -> Generator[tuple[_T, ...], None, None]:
-        while batch := tuple(islice(iterator, max_size)):
+        it = iter(iterable)
+        while batch := tuple(islice(it, max_size)):
             yield batch
 
 
 async def _achunk(
-    iterator: AsyncIterable[_T], max_size: int, len: Callable[[Sized], int] = len, /
+    iterable: AsyncIterable[_T], max_size: int, len: Callable[[Sized], int] = len, /
 ) -> AsyncGenerator[tuple[_T, ...], None]:
     ret: list[_T] = []
-    async for item in iterator:
+    async for item in iterable:
         ret.append(item)
         if len(ret) == max_size:
             yield tuple(ret)
@@ -595,22 +596,22 @@ async def _achunk(
 
 
 @overload
-def as_chunks(iterator: AsyncIterable[_T], /, max_size: int) -> AsyncGenerator[tuple[_T, ...], None]:
+def as_chunks(iterable: AsyncIterable[_T], /, max_size: int) -> AsyncGenerator[tuple[_T, ...], None]:
     ...
 
 
 @overload
-def as_chunks(iterator: Iterable[_T], /, max_size: int) -> Generator[tuple[_T, ...], None, None]:
+def as_chunks(iterable: Iterable[_T], /, max_size: int) -> Generator[tuple[_T, ...], None, None]:
     ...
 
 
-def as_chunks(iterator: _Iter[_T], /, max_size: int) -> _Iter[tuple[_T, ...]]:
-    """A helper function that collects an iterator into chunks of a given size.
+def as_chunks(iterable: _Iter[_T], /, max_size: int) -> _Iter[tuple[_T, ...]]:
+    """A helper function that collects an iterable into chunks of a given size.
 
     Parameters
     ----------
-    iterator
-        The iterator to chunk, can be sync or async.
+    iterable
+        The iterable to chunk, can be sync or async.
     max_size
         The maximum chunk size.
 
@@ -625,7 +626,7 @@ def as_chunks(iterator: _Iter[_T], /, max_size: int) -> _Iter[tuple[_T, ...]]:
     if max_size <= 0:
         raise ValueError("max_size must be greater than 0")
 
-    return _achunk(iterator, max_size) if hasattr(iterator, "__aiter__") else _chunk(iterator, max_size)  # type: ignore
+    return _achunk(iterable, max_size) if hasattr(iterable, "__aiter__") else _chunk(iterable, max_size)  # type: ignore
 
 
 @overload

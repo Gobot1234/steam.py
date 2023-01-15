@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Final, Generic, Literal, cast, overload
 import aiohttp
 from typing_extensions import TypeVar
 
-from ._const import MISSING, URL
+from ._const import MISSING, URL, MissingSentinel
 from .enums import Instance, Type, TypeChar, Universe
 from .errors import InvalidID
 from .types.id import ID32, ID64, Intable
@@ -70,6 +70,13 @@ def parse_id64(
 
     if not id and type is MISSING and universe is MISSING and instance is MISSING:
         return ID64(0)
+
+    if not isinstance(type, (Type, MissingSentinel)):
+        raise InvalidID(id, "type is not a valid Type") from None
+    if not isinstance(universe, (Universe, MissingSentinel)):
+        raise InvalidID(id, "universe is not a valid Universe") from None
+    if not isinstance(instance, (Instance, MissingSentinel)):
+        raise InvalidID(id, "instance is not a valid Instance") from None
 
     try:
         id = int(id)
