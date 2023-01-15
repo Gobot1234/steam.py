@@ -21,7 +21,7 @@ from yarl import URL as _URL
 from . import utils
 from ._const import URL
 from .enums import IntEnum
-from .image import Image
+from .media import Media
 from .protobufs import EMsg
 
 if TYPE_CHECKING:
@@ -293,9 +293,9 @@ class _IOMixin:
                     total += actual_fp.write(chunk)
         return total
 
-    async def image(self, *, spoiler: bool = False, **kwargs: Any) -> Image:
-        """Return this file as an image for uploading."""
-        return Image(BytesIO(await self.read()), spoiler=spoiler)
+    async def media(self, *, spoiler: bool = False, **kwargs: Any) -> Media:
+        """Return this file as :class:`Media` for uploading."""
+        return Media(BytesIO(await self.read()), spoiler=spoiler)
 
 
 class Avatar(_IOMixin):

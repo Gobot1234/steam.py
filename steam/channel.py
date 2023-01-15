@@ -18,7 +18,7 @@ from .utils import DateTime
 if TYPE_CHECKING:
     from .clan import Clan
     from .group import Group
-    from .image import Image
+    from .media import Media
     from .protobufs import friend_messages
     from .state import ConnectionState
     from .user import User
@@ -53,8 +53,8 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
     def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
         return self.participant._message_func(content)
 
-    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self.participant._image_func(image)
+    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
+        return self.participant._media_func(media)
 
     @asynccontextmanager
     async def typing(self) -> AsyncGenerator[None, None]:

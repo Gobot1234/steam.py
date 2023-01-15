@@ -25,10 +25,10 @@ from .friend import *
 from .game_server import *
 from .group import *
 from .id import *
-from .image import *
 from .invite import *
 from .leaderboard import *
 from .manifest import *
+from .media import *
 from .message import *
 from .models import *
 from .package import *

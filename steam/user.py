@@ -28,7 +28,7 @@ from .utils import DateTime
 if TYPE_CHECKING:
     from .app import App
     from .friend import Friend
-    from .image import Image
+    from .media import Media
     from .message import UserMessage
     from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
     from .state import ConnectionState
@@ -150,15 +150,15 @@ class User(_BaseUser, Messageable["UserMessage"]):
     def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
         return self._state.send_user_message(self.id64, content)
 
-    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_user_image(self.id64, image)
+    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
+        return self._state.http.send_user_media(self.id64, media)
 
     async def send(
         self,
         content: Any = None,
         *,
         trade: TradeOffer | None = None,
-        image: Image | None = None,
+        image: Media | None = None,
     ) -> UserMessage | None:
         """Send a message, trade or image to an :class:`User`.
 
@@ -345,7 +345,7 @@ class ClientUser(_BaseUser):
         country: str | None = None,
         state: str | None = None,
         city: str | None = None,
-        avatar: Image | None = None,
+        avatar: Media | None = None,
         # TODO privacy params, use ums
     ) -> None:
         """Edit the client user's profile. Any values that aren't set will use their defaults.

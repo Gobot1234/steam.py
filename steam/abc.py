@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from .clan import Clan
     from .comment import Comment
     from .group import Group
-    from .image import Image
+    from .media import Media
     from .post import Post
     from .published_file import PublishedFile
     from .review import Review
@@ -788,18 +788,18 @@ class Messageable(Protocol[M_co]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
+    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
         raise NotImplementedError
 
-    async def send(self, content: Any = None, image: Image | None = None) -> M_co | None:
+    async def send(self, content: Any = None, media: Media | None = None) -> M_co | None:
         """Send a message to a certain destination.
 
         Parameters
         ----------
         content
             The content of the message to send.
-        image
-            The image to send to the user.
+        media
+            The media to send to the user.
 
         Note
         ----
@@ -817,8 +817,8 @@ class Messageable(Protocol[M_co]):
         The sent message, only applicable if ``content`` is passed.
         """
         message = None if content is None else await self._message_func(str(content))
-        if image is not None:
-            await self._image_func(image)
+        if media is not None:
+            await self._media_func(media)
 
         return message
 

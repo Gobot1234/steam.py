@@ -28,7 +28,7 @@ from .user import ClientUser
 
 if TYPE_CHECKING:
     from .client import Client
-    from .image import Image
+    from .media import Media
     from .types import achievement, bundle, trade
     from .types.http import Coro, ResponseDict, StrOrURL
     from .types.id import ID64, BundleID, ChatGroupID, ChatID, PackageID
@@ -786,7 +786,7 @@ class HTTPClient:
 
         await self.post(URL.COMMUNITY / "my/edit", data=payload)
 
-    async def update_avatar(self, avatar: Image) -> None:
+    async def update_avatar(self, avatar: Media) -> None:
         with avatar:
             payload = aiohttp.FormData()
             payload.add_field("MAX_FILE_SIZE", str(avatar.size))
@@ -799,17 +799,17 @@ class HTTPClient:
             )
             await self.post(URL.COMMUNITY / "actions/FileUploader", data=payload)
 
-    async def send_image(self, image: Image, **kwargs: int) -> None:
-        contents = image.read()
+    async def send_media(self, media: Media, **kwargs: int) -> None:
+        contents = media.read()
         payload = {
             "sessionid": self.session_id,
             "l": "english",
-            "file_size": image.size,
-            "file_name": image.name,
-            "file_sha": image.hash(contents),
-            "file_image_width": image.width,
-            "file_image_height": image.height,
-            "file_type": f"image/{image.type}",
+            "file_size": media.size,
+            "file_name": media.name,
+            "file_sha": media.hash(contents),
+            "file_image_width": media.width,
+            "file_image_height": media.height,
+            "file_type": f"image/{media.type}",
         }
         resp = await self.post(URL.COMMUNITY / "chat/beginfileupload", data=payload)
 
@@ -823,14 +823,14 @@ class HTTPClient:
             "ugcid": result["ugcid"],
             "timestamp": result["timestamp"],
             "hmac": result["hmac"],
-            "spoiler": int(image.spoiler),
+            "spoiler": int(media.spoiler),
         } | kwargs
         await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
 
-    async def send_user_image(self, user_id64: ID64, image: Image) -> None:
-        with image:
-            await self.send_image(image, friend_steamid=user_id64)
+    async def send_user_media(self, user_id64: ID64, media: Media) -> None:
+        with media:
+            await self.send_media(media, friend_steamid=user_id64)
 
-    async def send_chat_image(self, chat_group_id: ChatGroupID, chat_id: ChatID, image: Image) -> None:
-        with image:
-            await self.send_image(image, chat_group_id=chat_group_id, chat_id=chat_id)
+    async def send_chat_media(self, chat_group_id: ChatGroupID, chat_id: ChatID, media: Media) -> None:
+        with media:
+            await self.send_media(media, chat_group_id=chat_group_id, chat_id=chat_id)

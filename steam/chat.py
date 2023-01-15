@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from .channel import ClanChannel, GroupChannel
     from .clan import Clan
     from .group import Group
-    from .image import Image
+    from .media import Media
     from .message import ClanMessage, GroupMessage
     from .state import ConnectionState
 
@@ -348,8 +348,8 @@ class Chat(Channel[ChatMessageT]):
     def _message_func(self, content: str) -> Coroutine[Any, Any, ChatMessageT]:
         return self._state.send_chat_message(*self._location, content)  # type: ignore
 
-    def _image_func(self, image: Image) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_chat_image(*self._location, image)
+    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
+        return self._state.http.send_chat_media(*self._location, media)
 
     async def history(
         self,
