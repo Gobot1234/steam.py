@@ -13,7 +13,7 @@ from ._const import URL
 from .app import PartialApp
 from .bundle import PartialBundle
 from .clan import PartialClan
-from .enums import AppType, ContentDescriptor, Language, PaymentMethod, ReviewType
+from .enums import AppType, ContentDescriptor, CurrencyCode, Language, PaymentMethod, ReviewType
 from .models import CDNAsset
 from .package import PartialPackage
 from .protobufs import store
@@ -286,7 +286,7 @@ class TransactionReceipt:
         """The tax of the transaction."""
         self.shipping = proto.shipping
         """The shipping cost of the transaction."""
-        self.currency_code = proto.currency_code
+        self.currency = CurrencyCode.try_value(proto.currency_code)
         """The currency code of the transaction."""
-        self.country_code = Language.from_web_api_str(proto.country_code)
+        self.language = Language.from_web_api_str(proto.country_code)
         """The country code of the transaction."""

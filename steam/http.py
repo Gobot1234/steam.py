@@ -20,7 +20,7 @@ from yarl import URL as URL_
 from . import errors, utils
 from .__metadata__ import __version__
 from ._const import JSON_DUMPS, JSON_LOADS, URL
-from .enums import Language
+from .enums import CurrencyCode, Language
 from .id import ID
 from .models import PriceOverviewDict, api_route
 from .types.id import ID32, AppID, AssetID, PostID, TradeOfferID
@@ -485,7 +485,7 @@ class HTTPClient:
         payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
 
-    def get_price(self, app_id: AppID, item_name: str, currency: int) -> Coro[PriceOverviewDict]:
+    def get_price(self, app_id: AppID, item_name: str, currency: CurrencyCode | None) -> Coro[PriceOverviewDict]:
         payload = {
             "appid": app_id,
             "market_hash_name": item_name,

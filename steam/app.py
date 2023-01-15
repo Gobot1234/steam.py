@@ -1193,7 +1193,7 @@ class OwnershipDLC(PartialApp):
 
 @dataclass(slots=True)
 class PartialAppPriceOverview:
-    currency: str
+    currency: CurrencyCode
     initial: int
     final: int
     discount_percent: int
@@ -1204,7 +1204,7 @@ class DLC(PartialApp[str]):
 
     __slots__ = (
         "created_at",
-        "logo_url",
+        "logo",
         "price_overview",
         "_on_windows",
         "_on_mac_os",
@@ -1215,9 +1215,10 @@ class DLC(PartialApp[str]):
         super().__init__(state, id=data["id"], name=data["name"])
         self.created_at = DateTime.from_timestamp(int(data["release_date"]["steam"]))
         """The time the DLC was released at."""
-        self.logo_url: str = data["header_image"]
+        self.logo = CDNAsset(state, data["header_image"])
         """The logo url of the DLC."""
-        self.price_overview = PartialAppPriceOverview(**data["price_overview"])
+        currency_code = CurrencyCode[data["price_overview"].pop("currency")]  # type: ignore  # TypedDict is immutable
+        self.price_overview = PartialAppPriceOverview(currency=currency_code, **data["price_overview"])  # type: ignore
         """A price overview for the DLC."""
 
         platforms = data["platforms"]
@@ -1447,7 +1448,8 @@ class FetchedApp(PartialApp[str]):
         """The time the app was uploaded at."""
         self.type = AppType.from_str(data["type"])
         """The type of the app."""
-        self.price_overview = AppPriceOverview(**data["price_overview"])
+        currency = CurrencyCode[data["price_overview"].pop("currency")]  # type: ignore
+        self.price_overview = AppPriceOverview(currency=currency, **data["price_overview"])  # type: ignore
         """The price overview of the app."""
 
         self.partial_dlc = [PartialApp(state, id=dlc_id) for dlc_id in data.get("dlc", [])]

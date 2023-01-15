@@ -17,6 +17,8 @@ __all__ = (
     "Flags",
     "Result",
     "Language",
+    "CurrencyCode",
+    "Realm",
     "Universe",
     "Type",
     "TypeChar",
@@ -719,6 +721,112 @@ _REVERSE_API_LANGUAGE_MAP: Final = cast(
 _REVERSE_WEB_API_MAP: Final = cast(
     Mapping[str, Language], {value: key for key, value in Language.WEB_API_MAP.items()}
 )
+
+class CurrencyCode(IntEnum):
+    """All currencies currently supported by Steam."""
+    USD = 1
+    """The United States Dollar."""
+    GBP = 2
+    """The British Pound."""
+    EUR = 3
+    """The Euro."""
+    CHF = 4
+    """The Swiss Franc."""
+    RUB = 5
+    """The Russian Ruble."""
+    PLN = 6
+    """The Polish Zloty."""
+    BRL = 7
+    """The Brazilian Real."""
+    JPY = 8
+    """The Japanese Yen."""
+    NOK = 9
+    """The Norwegian Krone."""
+    IDR = 10
+    """The Indonesian Rupiah."""
+    MYR = 11
+    """The Malaysian Ringgit."""
+    PHP = 12
+    """The Philippine Peso."""
+    SGD = 13
+    """The Singapore Dollar."""
+    THB = 14
+    """The Thai Baht."""
+    VND = 15
+    """The Vietnamese Dong."""
+    KRW = 16
+    """The South Korean Won."""
+    TRY = 17
+    """The Turkish Lira."""
+    UAH = 18
+    """The Ukrainian Hryvnia."""
+    MXN = 19
+    """The Mexican Peso."""
+    CAD = 20
+    """The Canadian Dollar."""
+    AUD = 21
+    """The Australian Dollar."""
+    NZD = 22
+    """The New Zealand Dollar."""
+    CNY = 23
+    """The Chinese Yuan."""
+    INR = 24
+    """The Indian Rupee."""
+    CLP = 25
+    """The Chilean Peso."""
+    PEN = 26
+    """The Peruvian Sol."""
+    COP = 27
+    """The Columbian Peso."""
+    ZAR = 28
+    """The South African Rand."""
+    HKD = 29
+    """The Hong Kong Dollar."""
+    TWD = 30
+    """The Taiwanese New Taiwan Dollar."""
+    SAR = 31
+    """The Saudi Arabian Saudi Riyal."""
+    AED = 32
+    """The United Arab Emirates Dirham."""
+    SEK = 33
+    """The Swedish Krona."""
+    ARS = 34
+    """The Argentinian Argentine Peso."""
+    ILS = 35
+    """The Israeli New Shekel."""
+    BYN = 36
+    """The Belarusian Ruble."""
+    KZT = 37
+    """The Kazakhstani Tenge."""
+    KWD = 38
+    """The Kuwaiti Dinar."""
+    QAR = 39
+    """The Qatari Riyal."""
+    CRC = 40
+    """The Costa Rican Colón."""
+    UYU = 41
+    """The Uruguayan Peso."""
+    BGN = 42
+    """The Bulgarian Lev."""
+    HRK = 43
+    """The Croatian Kuna."""
+    CZK = 44
+    """The Czech Koruna."""
+    DKK = 45
+    """The Danish Krone."""
+    HUF = 46
+    """The Hungarian Forint."""
+    RON = 47
+    """The Romanian Leu."""
+
+
+class Realm(IntEnum):
+    Unknown = 0
+    """Unknown."""
+    Global  = 1
+    """Global realm."""
+    China   = 2
+    """China realm."""
 
 
 class Universe(IntEnum):

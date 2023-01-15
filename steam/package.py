@@ -178,7 +178,8 @@ class FetchedPackage(PartialPackage[str]):
         self._on_windows = platforms["windows"]
         self._on_mac_os = platforms["mac"]
         self._on_linux = platforms["linux"]
-        self.price_overview = PackagePriceOverview(**data["price"])
+        currency = CurrencyCode[data["price"].pop("currency")]  # type: ignore
+        self.price_overview = PackagePriceOverview(currency=currency, **data["price"])  # type: ignore
 
     def is_free(self) -> bool:
         """Whether the package is free."""

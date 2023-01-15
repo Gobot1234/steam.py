@@ -20,7 +20,7 @@ from yarl import URL as _URL
 
 from . import utils
 from ._const import URL
-from .enums import IntEnum
+from .enums import CurrencyCode, IntEnum
 from .media import Media
 from .protobufs import EMsg
 
@@ -148,7 +148,7 @@ class PriceOverview:
     median_price: float | str
     """The median price observed by the market."""
 
-    def __init__(self, data: PriceOverviewDict):
+    def __init__(self, data: PriceOverviewDict, currency: CurrencyCode) -> None:
         lowest_price = PRICE_RE.search(data["lowest_price"])["price"]
         median_price = PRICE_RE.search(data["median_price"])["price"]
 
@@ -161,8 +161,7 @@ class PriceOverview:
 
         self.volume: int = int(data["volume"].replace(",", ""))
         """The number of items sold in the last 24 hours."""
-        self.currency: str = data["lowest_price"].replace(lowest_price, "").strip()
-        """The currency identifier for the item e.g. "$" or "£"."""
+        self.currency = currency
 
     def __repr__(self) -> str:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]

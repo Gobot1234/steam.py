@@ -27,7 +27,16 @@ from . import errors, utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
 from .app import App, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
-from .enums import AuthSessionResponse, Language, PersonaState, PersonaStateFlag, PublishedFileRevision, Type, UIMode
+from .enums import (
+    AuthSessionResponse,
+    CurrencyCode,
+    Language,
+    PersonaState,
+    PersonaStateFlag,
+    PublishedFileRevision,
+    Type,
+    UIMode,
+)
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
@@ -1200,7 +1209,7 @@ class Client:
         """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
-    async def fetch_price(self, name: str, app: App, currency: int | None = None) -> PriceOverview:
+    async def fetch_price(self, name: str, app: App, currency: CurrencyCode | None = None) -> PriceOverview:
         """Fetch the :class:`PriceOverview` for an item.
 
         Parameters
@@ -1213,7 +1222,7 @@ class Client:
             The currency to fetch the price in.
         """
         price = await self.http.get_price(app.id, name, currency)
-        return PriceOverview(price)
+        return PriceOverview(price, currency or CurrencyCode.USD)
 
     # events to be subclassed
 
