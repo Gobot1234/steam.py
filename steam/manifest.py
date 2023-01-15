@@ -437,13 +437,13 @@ class Manifest:
         "name",
         "app",
         "server",
-        "created_at",
         "_key",
         "_metadata",
         "_payload",
         "_signature",
         "_state",
         "_cs_paths",
+        "_cs_created_at",
     )
 
     def __init__(self, state: ConnectionState, server: ContentServer, app_id: AppID, data: bytes):
@@ -474,9 +474,6 @@ class Manifest:
 
             if io.read_u32() != END_OF_MANIFEST_MAGIC:
                 raise RuntimeError("Expecting end of manifest")
-
-        self.created_at = DateTime.from_timestamp(self._metadata.creation_time)
-        """The time at which the depot was created at."""
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id} depot_id={self.depot_id}>"
@@ -512,6 +509,11 @@ class Manifest:
     def depot_id(self) -> DepotID:
         """The ID of this manifest's depot."""
         return DepotID(self._metadata.depot_id)
+
+    @cached_slot_property
+    def created_at(self) -> datetime:
+        """The time at which the depot was created at."""
+        return DateTime.from_timestamp(self._metadata.creation_time)
 
     @property
     def size_original(self) -> int:
@@ -657,14 +659,14 @@ class ManifestInfo:
 
 
 class PrivateManifestInfo(ManifestInfo):
-    __slots__ = ("encrypted_id",)
+    __slots__ = ("encrypted_id", "_cs_id")
 
     def __init__(self, state: ConnectionState, encrypted_id: str, branch: Branch):
         self._state = state
         self.encrypted_id = encrypted_id
         self.branch = branch
 
-    @property
+    @cached_slot_property
     def id(self) -> int:
         if self.branch.password is None:
             raise ValueError("Cannot access the id of this depot as the password is not set.")
@@ -700,7 +702,7 @@ class HeadlessDepot:
     system_defined: bool
     """Whether this depot is system defined."""
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id} app={self.app!r}>"
 
     def __eq__(self, other: object) -> bool:
@@ -813,18 +815,20 @@ class AppInfo(ProductInfo, PartialApp[str]):
 
         self.publishers: list[str] = [
             publisher["name"]
-            for publisher in common.get("associations", {}).values()
+            for publisher in common.get("associations", MultiDict()).values()
             if publisher["type"] == "publisher"
         ]
         """This app's publishers."""
         self.developers: list[str] = [
             developer["name"]
-            for developer in common.get("associations", {}).values()
+            for developer in common.get("associations", MultiDict()).values()
             if developer["type"] == "developer"
         ]
         """This app's developers."""
         self.supported_languages: list[Language] = [
-            Language.from_str(language) for language, value in common.get("languages", {}).items() if value == "1"
+            Language.from_str(language)
+            for language, value in common.get("languages", MultiDict()).items()
+            if value == "1"
         ]
         """This app's supported languages."""
 
@@ -859,10 +863,10 @@ class AppInfo(ProductInfo, PartialApp[str]):
         self.parent = PartialApp(state, id=int(common["parent"])) if "parent" in common else None
         """This app's parent."""
 
-        depots: manifest.Depot = data.get("depots", {})  # type: ignore
+        depots: manifest.Depot = data.get("depots", MultiDict())  # type: ignore
         self._branches: dict[str, Branch] = {}
 
-        for name, value in depots.get("branches", {}).items():
+        for name, value in depots.get("branches", MultiDict()).items():
             try:
                 build_id = int(value["buildid"])
             except KeyError:

@@ -252,7 +252,7 @@ class InventoryGenericAlias(types.GenericAlias):
         return (BaseInventory,)
 
 
-ItemT = TypeVar("ItemT", bound="Asset[PartialUser]", default=Item["BaseUser"], covariant=True)
+ItemT = TypeVar("ItemT", bound="Item[PartialUser]", default="Item[BaseUser]", covariant=True)
 
 
 class Inventory(Generic[ItemT, OwnerT]):
@@ -333,12 +333,10 @@ class Inventory(Generic[ItemT, OwnerT]):
         except AttributeError:
             ItemClass = self.__orig_bases__[0].__args__[0].__default__
         for asset in data.assets:
-            for description in data.descriptions:
-                if description.instanceid == asset.instanceid and description.classid == asset.classid:
-                    items.append(ItemClass(self._state, asset=asset, description=description, owner=self.owner))
-                    break
-            else:
-                items.append(Asset(self._state, asset=asset, owner=self.owner))  # type: ignore  # should never happen anyway
+            description = utils.get(data.descriptions, instanceid=asset.instanceid, classid=asset.classid)
+            if description is None:
+                raise RuntimeError(f"Associated description for {asset} not found")
+            items.append(ItemClass(self._state, asset=asset, description=description, owner=self.owner))
         self.items: Sequence[ItemT] = items
         """A list of the inventory's items."""
 
@@ -382,7 +380,10 @@ class MovedItem(Item[OwnerT]):
         """The new_contextid field."""
 
 
-class TradeOffer(Generic[ItemT, OwnerT]):
+AssetT = TypeVar("AssetT", bound="Asset[PartialUser]", default="Item[BaseUser]", covariant=True)
+
+
+class TradeOffer(Generic[AssetT, OwnerT]):
     """Represents a trade offer from/to send to a User.
     This can also be used in :meth:`steam.User.send`.
 
@@ -419,7 +420,7 @@ class TradeOffer(Generic[ItemT, OwnerT]):
     id: TradeOfferID
     """The trade offer's ID."""
     partner: OwnerT
-    """The trade offer partner. This should only ever be a :class:`steam.ID` if the partner's profile is private."""
+    """The trade offer partner."""
 
     def __init__(
         self,

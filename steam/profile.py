@@ -453,10 +453,10 @@ class ClientUserProfile(ProfileInfo, EquippedProfileItems["ClientUser"], Profile
 
     def __init__(
         self,
-        equipped_items: EquippedProfileItems,
+        equipped_items: EquippedProfileItems[ClientUser],
         info: ProfileInfo,
-        customisation_info: ProfileCustomisation,
-        items: OwnedProfileItems,
+        customisation_info: ProfileCustomisation[ClientUser],
+        items: OwnedProfileItems[ClientUser],
     ):
         utils.update_class(equipped_items, self)
         utils.update_class(info, self)

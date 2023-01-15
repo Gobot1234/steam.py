@@ -692,6 +692,10 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         post = await self._state.fetch_user_post(self.id64, PostID(id))
         return Post(self._state, PostID(post.postid), post.status_text, self, PartialApp(self._state, id=post.appid))
 
+    def is_friend(self) -> bool:
+        """Whether the user is in the :class:`ClientUser`'s friends."""
+        return self.id64 in self._state.user._friends
+
 
 class BaseUser(PartialUser):
     """An ABC that details the common operations on a Steam user.

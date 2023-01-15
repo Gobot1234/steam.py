@@ -37,7 +37,7 @@ class VDFList(MultiDict[T]):
 
 if TYPE_CHECKING:
 
-    class TypedVDFDict(MultiDict[Any], TypedDict):  # type: ignore  # this obviously doesn't work at runtime
+    class TypedVDFDict(MultiDict[Any], TypedDict):  # this obviously doesn't work at runtime
         pass
 
 else:

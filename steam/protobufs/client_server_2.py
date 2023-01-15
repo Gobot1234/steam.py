@@ -4,7 +4,6 @@
 # Last updated 09/09/2021
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import betterproto
 from typing_extensions import Self

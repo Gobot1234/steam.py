@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Generator, Mapping
 from enum import Enum as _Enum, EnumMeta as _EnumMeta, IntEnum as _IntEnum
 from types import MappingProxyType, new_class
-from typing import TYPE_CHECKING, Any, Final, Generic, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Final, Generic, Literal, SupportsInt, TypeVar, cast
 
 from typing_extensions import Never, Self
 
@@ -177,6 +177,9 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
 class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     """A general enumeration, emulates `enum.Enum`."""
 
+    _member_map_: Mapping[str, Self]
+    _value_map_: Mapping[Any, Self]
+
     def __new__(cls, *, name: str, value: Any) -> Self:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
         # for creating Enum members
@@ -244,7 +247,7 @@ class Flags(IntEnum):
                 return returning_flag
         return cls.__new__(cls, name=f"{cls.__name__}UnknownValue", value=value)
 
-    def __or__(self, other: Self | int) -> Self:
+    def __or__(self, other: SupportsInt) -> Self:
         cls = self.__class__
         value = self.value | int(other)
         try:
@@ -252,7 +255,7 @@ class Flags(IntEnum):
         except KeyError:
             return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=value)
 
-    def __and__(self, other: Self | int) -> Self:
+    def __and__(self, other: SupportsInt) -> Self:
         cls = self.__class__
         value = self.value & int(other)
         try:

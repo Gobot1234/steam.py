@@ -75,19 +75,17 @@ def parse_id64(
         id = int(id)
     except ValueError:
         # textual input e.g. [g:1:4]
-        assert isinstance(id, str)
-        result = ID.from_id2(id) or ID.from_id3(id)  # or ID.from_invite_code(id)  # TODO
+        if not isinstance(id, str):
+            raise InvalidID(id, "it cannot be parsed as an int or str") from None
+        result = ID.from_id2(id) or ID.from_id3(id) or ID.from_invite_code(id)
         if result is None:
             raise InvalidID(id, "it cannot be parsed") from None
         return result.id64
     else:
         # numeric input
         if 0 <= id < 2**32:  # 32 bit
-            try:
-                type = Type.try_value(type) if type is not MISSING else Type.Individual
-                universe = Universe.try_value(universe) if universe is not MISSING else Universe.Public
-            except ValueError as e:
-                raise InvalidID(id, e.args[0]) from None
+            type = type or Type.Individual
+            universe = universe or Universe.Public
 
             if instance is MISSING:
                 instance = Instance.Desktop if type in (Type.Individual, Type.GameServer) else Instance.All
@@ -160,7 +158,7 @@ USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s
 CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
 
 
-async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING) -> ID64 | None:
+async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> ID64 | None:
     """Takes a Steam Community url and returns 64-bit Steam ID or ``None``.
 
     Notes
@@ -200,14 +198,12 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession = MISSING)
     if not (search := URL_REGEX.match(str(url))):
         return None
 
-    async with aiohttp.ClientSession() if session is MISSING else nullcontext(session) as session:
+    async with aiohttp.ClientSession() if session is None else nullcontext(session) as session:
         async with session.get(f"https://{search['clean_url']}") as r:
             text = await r.text()
 
     if search["type"] in USER_URL_PATHS:
-        if not (match := USER_ID64_FROM_URL_REGEX.search(text)):
-            return None
-        data = json.loads(match["json"])
+        data = json.loads(match["json"]) if (match := USER_ID64_FROM_URL_REGEX.search(text)) else None
     else:
         data = CLAN_ID64_FROM_URL_REGEX.search(text)
     return ID64(int(data["steamid"])) if data else None
@@ -553,7 +549,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
 
     @staticmethod
     async def from_url(
-        url: StrOrURL, session: ClientSession = MISSING
+        url: StrOrURL, session: ClientSession | None = None
     ) -> ID[Literal[Type.Individual, Type.Clan]] | None:
         """A helper function creates a Steam ID instance from a Steam community url.
 

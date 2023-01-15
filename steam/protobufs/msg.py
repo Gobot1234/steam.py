@@ -225,8 +225,8 @@ class GCMessageBase:
     __slots__ = ()
 
     if TYPE_CHECKING:
-        APP_ID: ClassVar[int]
-        MSG: ClassVar[int]
+        APP_ID: ClassVar[AppID]
+        MSG: ClassVar[IntEnum]
 
     def __init_subclass__(cls, msg: IntEnum = MISSING) -> None:
         if cls.__module__ == __name__:

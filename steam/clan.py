@@ -338,12 +338,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
 
     def __init__(self, state: ConnectionState, id: Intable) -> None:
         PartialClan.__init__(self, state, id)
-        self.chunked = False
-        self.app: PartialApp | None = None
-        self._members = {}
-        self._partial_members = {}
-        self._channels: dict[int, ClanChannel] = {}
-        self._roles: dict[int, Role] = {}
+        self._init()
 
     async def _load(self, *, from_proto: bool = False) -> Self:
         community_url = self.community_url

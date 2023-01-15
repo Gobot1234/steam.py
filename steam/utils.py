@@ -115,8 +115,6 @@ def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
 
     Returns
     -------
-    TradeURLInfo is a :func:`~dataclasses.dataclass` defined as:
-
     .. source:: TradeURLInfo
     """
     if (

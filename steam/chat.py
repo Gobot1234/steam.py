@@ -427,7 +427,9 @@ class Chat(Channel[ChatMessageT]):
     #     await self._state.edit_channel(*self._location, name)
 
 
-ChatGroupTypeT = TypeVar("ChatGroupTypeT", bound=Type, default=Literal[Type.Clan, Type.Chat], covariant=True)
+ChatGroupTypeT = TypeVar(
+    "ChatGroupTypeT", bound=Literal[Type.Clan, Type.Chat], default=Literal[Type.Clan, Type.Chat], covariant=True
+)
 
 
 class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
@@ -474,6 +476,9 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     def __init__(self, state: ConnectionState, id: Intable, type: ChatGroupTypeT = MISSING):
         super().__init__(id, type=type)
         self._state = state
+        self._init()
+
+    def _init(self) -> None:
         self.chunked = False
         self.app: PartialApp | None = None
         self._members: dict[ID32, MemberT] = {}

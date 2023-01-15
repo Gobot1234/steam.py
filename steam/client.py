@@ -542,8 +542,8 @@ class Client:
         steam_id = ID(id=id, type=Type.Individual)
         return self._state.get_user(steam_id.id)
 
-    async def fetch_user(self, id: Intable) -> User | None:
-        """Fetches a user with a matching ID or ``None`` if the user was not found.
+    async def fetch_user(self, id: Intable) -> User:
+        """Fetches a user with a matching ID.
 
         Parameters
         ----------
@@ -555,7 +555,7 @@ class Client:
         return await self._state.fetch_user(id64)
 
     async def fetch_users(self, *ids: Intable) -> list[User]:
-        """Fetches a list of :class:`~steam.User` or ``None`` if the user was not found, from their IDs.
+        """Fetches a list of :class:`~steam.User.
 
         Note
         ----
@@ -764,7 +764,7 @@ class Client:
         Passing an ``ip``, ``port`` and ``id`` to this function will raise an :exc:`TypeError`.
         """
 
-        if all((id, ip, port)):
+        if all(arg is MISSING for arg in (id, ip, port)):
             raise TypeError("Too many arguments passed to fetch_server")
         if id:
             # we need to fetch the ip and port
@@ -1044,7 +1044,7 @@ class Client:
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,
         language: Language | None = None,
-    ) -> AsyncGenerator[TradeOffer[MovedItem], None]:
+    ) -> AsyncGenerator[TradeOffer[MovedItem[PartialUser | User], PartialUser | User], None]:
         """An :term:`asynchronous iterator` for accessing a :class:`steam.ClientUser`'s
         :class:`steam.TradeOffer` objects.
 
@@ -1089,7 +1089,7 @@ class Client:
         before_timestamp = before.timestamp()
         yielded = 0
 
-        async def get_trades(page: int = 100) -> list[TradeOffer]:
+        async def get_trades(page: int = 100) -> list[TradeOffer[MovedItem[PartialUser | User], PartialUser | User]]:
             nonlocal total, previous_time
             resp = await self._state.http.get_trade_history(page, previous_time, language)
             data = resp["response"]
@@ -1098,19 +1098,25 @@ class Client:
             if not total:
                 return []
 
-            trades: list[TradeOffer] = []
+            trades: list[TradeOffer[MovedItem[PartialUser | User], PartialUser | User]] = []
             descriptions = data.get("descriptions", ())
             trade = None
             for trade in data.get("trades", []):
                 if not after_timestamp < trade["time_init"] < before_timestamp:
                     break
-                for item in descriptions:
+                for description in descriptions:
                     for asset in trade.get("assets_received", []):
-                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                            asset.update(item)
+                        if (
+                            description["classid"] == asset["classid"]
+                            and description["instanceid"] == asset["instanceid"]
+                        ):
+                            asset |= description
                     for asset in trade.get("assets_given", []):
-                        if item["classid"] == asset["classid"] and item["instanceid"] == asset["instanceid"]:
-                            asset.update(item)
+                        if (
+                            description["classid"] == asset["classid"]
+                            and description["instanceid"] == asset["instanceid"]
+                        ):
+                            asset |= description
 
                 trades.append(TradeOffer._from_history(state=self._state, data=trade))
 

@@ -181,7 +181,7 @@ class ConnectionState(Registerable):
         self.stickers: list[ClientSticker] = []
 
         self.polling_trades = False
-        self.trade_queue = Queue[TradeOffer]()
+        self.trade_queue = Queue[TradeOffer[Item[User | PartialUser], User | PartialUser]]()
         self._trades_to_watch: set[TradeOfferID] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
@@ -256,7 +256,7 @@ class ConnectionState(Registerable):
     def get_user(self, id: ID32) -> User | None:
         return self._users.get(id)
 
-    async def fetch_user(self, user_id64: ID64) -> User | None:
+    async def fetch_user(self, user_id64: ID64) -> User:
         (user,) = await self.fetch_users((user_id64,))
         return user
 
@@ -327,7 +327,9 @@ class ConnectionState(Registerable):
     def get_trade(self, id: TradeOfferID) -> TradeOffer | None:
         return self._trades.get(id)
 
-    async def fetch_trade(self, id: TradeOfferID, language: Language | None) -> TradeOffer | None:
+    async def fetch_trade(
+        self, id: TradeOfferID, language: Language | None
+    ) -> TradeOffer[Item[User | PartialUser], User | PartialUser] | None:
         resp = await self.http.get_trade(id, language)
         if data := resp.get("response"):
             (trade,) = await self._process_trades((data["offer"],), data.get("descriptions", ()))
@@ -360,16 +362,16 @@ class ConnectionState(Registerable):
 
     async def _process_trades(
         self, trades: Iterable[trade.TradeOffer], descriptions: Collection[trade.Description]
-    ) -> list[TradeOffer]:
-        ret: list[TradeOffer] = []
+    ) -> list[TradeOffer[Item[User | PartialUser], User | PartialUser]]:
+        ret: list[TradeOffer[Item[User | PartialUser], User | PartialUser]] = []
         for trade in trades:
             for description in descriptions:
                 for asset in trade.get("items_to_receive", ()):
                     if description["classid"] == asset["classid"] and description["instanceid"] == asset["instanceid"]:
-                        asset.update(description)
+                        asset |= description
                 for asset in trade.get("items_to_give", ()):
                     if description["classid"] == asset["classid"] and description["instanceid"] == asset["instanceid"]:
-                        asset.update(description)
+                        asset |= description
             ret.append(await self._store_trade(trade))
         return ret
 
@@ -573,7 +575,7 @@ class ConnectionState(Registerable):
         reaction_type: friend_messages.EMessageReactionType,
         is_add: bool,
     ) -> None:
-        await self.ws.send_um_and_wait(
+        msg = await self.ws.send_um_and_wait(
             friend_messages.UpdateMessageReactionRequest(
                 steamid=user_id64,
                 server_timestamp=server_timestamp,
@@ -583,6 +585,8 @@ class ConnectionState(Registerable):
                 is_add=is_add,
             )
         )
+        if msg.result != Result.OK:
+            raise WSException(msg)
 
     async def send_chat_message(
         self, chat_group_id: ChatGroupID, chat_id: ChatID, content: str
@@ -619,7 +623,7 @@ class ConnectionState(Registerable):
             channel=channel,  # type: ignore  # type checkers can't figure out this is ok
             author=group.me,
         )
-        channel.last_message = message
+        channel.last_message = message  # type: ignore  # same as above
         self._messages.append(message)
         self.dispatch("message", message)
 
@@ -1025,17 +1029,14 @@ class ConnectionState(Registerable):
             return log.debug("Got a reaction to an unknown message %s %s", created_at, ordinal)
         match msg.reaction_type:
             case Emoticon._TYPE:
-                emoticon = Emoticon(self, msg.reaction)
-                sticker = None
+                reaction = MessageReaction(self, message, Emoticon(self, msg.reaction), None, user, created_at, ordinal)
             case Sticker._TYPE:
-                sticker = Sticker(self, msg.reaction)
-                emoticon = None
+                reaction = MessageReaction(self, message, None, Sticker(self, msg.reaction), user, created_at, ordinal)
             case _:
                 return log.debug(
                     "Got an unknown reaction_type %s on message %s %s", msg.reaction_type, created_at, ordinal
                 )
 
-        reaction = MessageReaction(self, message, emoticon, sticker, user, created_at, ordinal)
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
     async def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
@@ -1053,7 +1054,7 @@ class ConnectionState(Registerable):
             channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
             author=destination._maybe_member(ID64(msg.steamid_sender)),
         )
-        channel.last_message = message
+        channel.last_message = message  # type: ignore  # same as above
         self._messages.append(message)
         self.dispatch("message", message)
 
@@ -1081,18 +1082,30 @@ class ConnectionState(Registerable):
                 ordinal,
                 location,
             )
-        if msg.reaction_type == 1:
-            emoticon = Emoticon(self, msg.reaction)
-            sticker = None
-        elif msg.reaction_type == 2:
-            sticker = Sticker(self, msg.reaction)
-            emoticon = None
-        else:
-            return log.debug("Got an unknown reaction_type %s", msg.reaction_type)
+        match msg.reaction_type:
+            case Emoticon._TYPE:
+                reaction = MessageReaction(
+                    self,
+                    message,
+                    Emoticon(self, msg.reaction),
+                    None,
+                    destination._maybe_member(ID64(msg.reactor)),
+                    created_at,
+                    ordinal,
+                )
+            case Sticker._TYPE:
+                reaction = MessageReaction(
+                    self,
+                    message,
+                    None,
+                    Sticker(self, msg.reaction),
+                    destination._maybe_member(ID64(msg.reactor)),
+                    created_at,
+                    ordinal,
+                )
+            case _:
+                return log.debug("Got an unknown reaction_type %s", msg.reaction_type)
 
-        reaction = MessageReaction(
-            self, message, emoticon, sticker, destination._maybe_member(ID64(msg.reactor)), created_at, ordinal
-        )
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
     async def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
@@ -1159,7 +1172,7 @@ class ConnectionState(Registerable):
             return log.debug("Got an update for a chat group we aren't in %d", msg.chat_group_id)
 
         before = copy(chat_group)
-        before._channels = {c_id: copy(c) for c_id, c in before._channels.items()}
+        before._channels = {c_id: copy(c) for c_id, c in before._channels.items()}  # type: ignore  # needs conditional types
         chat_group._update_channels(msg.chat_rooms)
         self.dispatch(f"{chat_group.__class__.__name__}_update", before, chat_group)
 
@@ -1281,7 +1294,7 @@ class ConnectionState(Registerable):
                                     return log.debug("Unknown friend %s removed", id)
                                 self.dispatch("friend_remove", friend)
                             else:
-                                self.dispatch(f"user_invite_decline", invite)
+                                self.dispatch("user_invite_decline", invite)
 
                         case Type.Clan:
                             try:
@@ -2458,7 +2471,7 @@ class ConnectionState(Registerable):
                         leaderboard_data_request=leaderboard_data_request,
                         steamids=cast("list[int]", id64s),
                     ),
-                ),
+                ),  # type: ignore  # bug from function TypeVar defaults
                 timeout=15,
             )
         except asyncio.TimeoutError:

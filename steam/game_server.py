@@ -370,8 +370,6 @@ class GameServer(ID[Literal[Type.GameServer]]):
 
         Returns
         -------
-        ServerPlayer is a :class:`typing.NamedTuple` defined as:
-
         .. source:: steam.ServerPlayer
         """
         proto = await self._query(EQueryType.Players)

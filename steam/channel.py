@@ -95,8 +95,8 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
         self,
         *,
         limit: int | None = 100,
-        before: datetime = MISSING,
-        after: datetime = MISSING,
+        before: datetime | None = None,
+        after: datetime | None = None,
     ) -> AsyncGenerator[UserMessage, None]:
         after = after or UNIX_EPOCH
         before = before or DateTime.now()

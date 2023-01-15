@@ -231,10 +231,6 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
         return message
 
-    def is_friend(self) -> bool:
-        """Whether the user is in the :class:`ClientUser`'s friends."""
-        return self.id64 in self._state.user._friends
-
 
 class ClientUser(_BaseUser):
     """Represents your account.
@@ -286,7 +282,7 @@ class ClientUser(_BaseUser):
         """Clears the client user's nickname/alias history."""
         await self._state.http.clear_nickname_history()
 
-    async def profile_items(self, *, language: Language | None = None) -> OwnedProfileItems:
+    async def profile_items(self, *, language: Language | None = None) -> OwnedProfileItems[Self]:
         """Fetch all the client user's profile items.
 
         Parameters
