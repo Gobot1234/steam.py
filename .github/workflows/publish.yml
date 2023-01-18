@@ -12,7 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -20,7 +23,7 @@ jobs:
 
       - uses: snok/install-poetry@v1
         with:
-          version: 1.2.0a2
+          version: "latest"
           virtualenvs-create: true
           virtualenvs-in-project: true
 
