@@ -3,23 +3,25 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+import sys
+from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic
 
 from typing_extensions import TypeVar
 
 from ._const import URL
-from .app import PartialApp, PartialAppPriceOverview
+from .app import App, PartialApp, PartialAppPriceOverview
 from .enums import Language, LicenseFlag, LicenseType, PaymentMethod
+from .errors import HTTPException
 from .models import CDNAsset
-from .types.id import Intable, PackageID
+from .types.id import DepotID, Intable, PackageID
 from .utils import DateTime
 
 if TYPE_CHECKING:
     from .abc import PartialUser
-    from .manifest import AppInfo, Depot, HeadlessDepot, PackageInfo
+    from .manifest import AppInfo, Depot, HeadlessDepot, Manifest, PackageInfo
     from .protobufs.client_server import CMsgClientLicenseListLicense
     from .state import ConnectionState
     from .store import PackageStoreItem
@@ -35,6 +37,7 @@ __all__ = (
 )
 
 NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
+AppT = TypeVar("AppT", bound=App, covariant=True)
 
 
 class Package(Generic[NameT]):
@@ -139,10 +142,10 @@ class PartialPackage(Package[NameT]):
         infos, _ = await self._state.fetch_product_info(app.id for app in apps)
         return infos
 
-    async def depots(self) -> Sequence[Depot | HeadlessDepot]:
+    async def depots(self) -> list[Depot | HeadlessDepot]:
         """Fetches this package's depots."""
         try:
-            depot_ids = self.depot_ids  # type: ignore
+            depot_ids: list[DepotID] = self.depot_ids  # type: ignore
         except AttributeError:
             info = await self.info()
             depot_ids = info.depot_ids
@@ -157,7 +160,107 @@ class PartialPackage(Package[NameT]):
             if depot.id in depot_ids
         ] + [depot for app_info in apps_info for depot in app_info.headless_depots if depot.id in depot_ids]
 
-    # TODO .manifests, fetch_manifest
+    async def manifests(
+        self,
+        limit: int | None = 100,
+        before: datetime | None = None,
+        after: datetime | None = None,
+        branch: str = "public",
+        passwords: Mapping[
+            AppT, str | None
+        ] = {},  # workaround for no covariant in the key mapping. Shouldn't fall victim to https://github.com/python/typing/pull/273
+        password_hashes: Mapping[AppT, str] = {},
+    ) -> AsyncGenerator[Manifest, None]:
+        """An :term:`asynchronous iterator` for accessing this package's :class:`steam.Manifest`\\s.
+
+        Examples
+        --------
+
+        Usage:
+
+        .. code:: python
+
+            async for manifest in package.manifests(limit=10):
+                print("Manifest:", manifest.name)
+                print(f"Contains {len(manifest.paths)} manifests")
+
+        All parameters are optional.
+
+        Parameters
+        ----------
+        limit
+            The maximum number of :class:`.Manifests` to return.
+        before
+            The time to get manifests before.
+        after
+            The time to get manifests after.
+        branch
+            The name of the branch to fetch manifests from.
+        passwords
+            A mapping of the password for a branch by its app, if any.
+        password_hashes
+            A mapping of the hashed password for a branch by its app, if any.
+
+        Yields
+        ------
+        :class:`Manifest`
+        """
+        try:
+            depot_ids: list[DepotID] = self.depot_ids  # type: ignore
+        except AttributeError:
+            info = await self.info()
+            depot_ids = info.depot_ids
+
+        for app in await self.apps():
+            async for manifest in app.manifests(
+                limit=limit,
+                before=before,
+                after=after,
+                branch=branch,
+                password=passwords.get(app),  # type: ignore
+                password_hash=password_hashes.get(app, ""),  # type: ignore
+            ):
+                if manifest.depot_id not in depot_ids:
+                    continue
+
+                yield manifest
+
+                if limit is not None:
+                    limit -= 1
+                if limit == 0:
+                    return
+
+    async def fetch_manifest(
+        self, *, id: int, depot_id: int, branch: str = "public", password_hash: str = ""
+    ) -> Manifest:
+        """Fetch a manifest from one of the :meth:`apps` manifests.
+
+        Parameters
+        ----------
+        id
+            The ID of the manifest to fetch.
+        depot_id
+            The ID of the depot the manifest is from.
+        branch
+            The name of the branch the manifest is from.
+        password_hash
+            The hashed password for the manifest.
+        """
+        err = RuntimeError("There are no apps in this package")
+        if sys.version_info >= (3, 11):
+            errs: list[HTTPException] = []
+        for app in await self.apps():
+            try:
+                return await app.fetch_manifest(id=id, depot_id=depot_id, branch=branch, password_hash=password_hash)
+            except HTTPException as e:
+                if sys.version_info >= (3, 11):
+                    errs.append(e)
+                else:
+                    err = e
+        if sys.version_info >= (3, 11):
+            raise ExceptionGroup("No manifest found with id and depot_id supplied", errs)
+        else:
+            raise err
 
 
 @dataclass(slots=True)
@@ -215,7 +318,7 @@ class FetchedAppPackage(PartialPackage[str]):
         super().__init__(state, name=name, id=data["packageid"])
         self._is_free = data["is_free_license"]
         self.price_overview = FetchedAppPackagePriceOverview(
-            int(re.search(r"-?(\d)", data["percent_savings_text"])[0]),
+            int(re.search(r"-?(\d)", savings)[0]) if (savings := data["percent_savings_text"].strip()) else 0,
             data["price_in_cents_with_discount"],  # this isn't always in cents
         )
 
