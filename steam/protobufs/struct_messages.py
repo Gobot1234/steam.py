@@ -30,10 +30,14 @@ class StructMessage:
             annotations = {}
         with StructIO() as io:
             for key, annotation in annotations.items():
+                if isinstance(annotation, type):
+                    raise RuntimeError("annotations shouldn't be types")
                 if annotation == "int":
                     io.write_u64(getattr(self, key))
                 elif annotation == "bool":
                     io.write_u8(getattr(self, key))
+                else:
+                    raise RuntimeError(f"Unknown field {annotation}")
 
             return io.buffer
 

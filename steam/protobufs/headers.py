@@ -76,8 +76,21 @@ class MessageHeader:
         self.steam_id = -1
         self.session_id = -1
 
+    def __repr__(self) -> str:
+        attrs = (
+            "header_size",
+            "header_version",
+            "job_id_target",
+            "job_id_source",
+            "header_canary",
+            "steam_id",
+            "session_id",
+        )
+        return f"<{self.__class__.__name__} {' '.join(f'{attr}={getattr(self, attr)!r}' for attr in attrs)}>"
+
     def parse(self, data: bytes) -> Self:
         (
+            self.header_size,
             self.header_version,
             self.job_id_target,
             self.job_id_source,
@@ -89,6 +102,7 @@ class MessageHeader:
 
     def __bytes__(self) -> bytes:
         return self.STRUCT.pack(
+            self.header_size,
             self.header_version,
             self.job_id_target,
             self.job_id_source,

@@ -7,6 +7,7 @@ import functools
 import importlib
 import logging
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, get_type_hints
@@ -104,33 +105,50 @@ class MessageMessageBase:
         return super().__init_subclass__(**kwargs)
 
 
-@dataclass_transform()
-class Message(MessageMessageBase, StructMessage, MessageBase):
-    __slots__ = ("header",)
+class NotProtobufWrapped(MessageBase, StructMessage):
+    __slots__ = ()
+    header: MessageHeader | GCMessageHeader
 
-    def __init__(self, **kwargs: Any):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        if cls.MSG is not NoMsg.NONE:
+
+            def __bytes__(
+                self: Self,
+                starting_header: bytes = WRITE_U32(cls.MSG),
+                bytes_method: Callable[[Self], bytes] = (
+                    StructMessage.__bytes__ if cls.__bytes__ is NotProtobufWrapped.__bytes__ else cls.__bytes__
+                ),
+                /,
+            ) -> bytes:
+                return bytes(bytearray(starting_header) + bytes(self.header) + bytes_method(self))
+
+            cls.__bytes__ = __bytes__
+        super().__init_subclass__(**kwargs)
+
+    def __bytes__(self, /) -> bytes:
+        raise NotImplementedError
+
+
+@dataclass_transform()
+class Message(MessageMessageBase, NotProtobufWrapped):
+    def __post_init__(self) -> None:
         self.header: MessageHeader = MessageHeader()
-        super().__init__(**kwargs)
+
+    __init__ = __post_init__
 
     def __init_subclass__(cls, msg: EMsg = MISSING, **kwargs: bool) -> object:
         return super().__init_subclass__(msg, repr=True, eq=True, **kwargs)
 
-    def __bytes__(self) -> bytes:
-        return WRITE_U32(SET_PROTO_BIT(self.__class__.MSG)) + bytes(self.header) + super().__bytes__()
-
-    def parse(self, data: bytes, msg: int = MISSING) -> Self:
-        if msg is MISSING:  # case CMsgMulti().parse(data)
-            return StructMessage.parse(self, data)  # type: ignore  # pyright's dumb
-
+    def parse(self, data: bytes, msg: int) -> Self:  # type: ignore
         try:
             new_class: type[Self] = PROTOBUFS[msg]  # type: ignore
         except KeyError:
-            log.debug(f"Received an unknown {EMsg(msg)!r} (%s)", data)
+            log.debug("Received an unknown %r (%s)", EMsg(msg), data)
             return self
 
         self.header.parse(data)
         self.__class__ = new_class
-        return StructMessage.parse(self, data[self.header.length :])  # type: ignore  # pyright's dumb
+        return self.parse(data[self.header.length :])  # type: ignore  # this will then call the new parse method
 
 
 class ProtobufWrappedMessage(MessageBase, betterproto.Message):
@@ -140,6 +158,8 @@ class ProtobufWrappedMessage(MessageBase, betterproto.Message):
     def __post_init__(self) -> None:
         self.header = ProtobufMessageHeader(job_name_target=getattr(self.__class__, "UM_NAME", ""))
         return super().__post_init__()
+
+    __init__ = __post_init__
 
     def __bytes__(self) -> bytes:
         return WRITE_U32(SET_PROTO_BIT(self.__class__.MSG)) + bytes(self.header) + betterproto.Message.__bytes__(self)
@@ -154,11 +174,6 @@ SERVICE_EMSGS: Final = frozenset({*REQUEST_EMSGS, *RESPONSE_EMSGS})
 
 @dataclass_transform()
 class ProtobufMessage(MessageMessageBase, ProtobufWrappedMessage):
-    def __init__(self, **kwargs: Any) -> None:
-        self.header = ProtobufMessageHeader()
-        super().__init__(**kwargs)
-        self.__post_init__()
-
     def parse(self, data: bytes, msg: int = MISSING) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
             return betterproto.Message.parse(self, data)  # type: ignore  # pyright's dumb
@@ -168,20 +183,20 @@ class ProtobufMessage(MessageMessageBase, ProtobufWrappedMessage):
             try:
                 new_class = UMS[self.header.job_name_target][msg in RESPONSE_EMSGS]
             except KeyError:
-                log.debug(f"Received an unknown UM {self.header.job_name_target} (%s)", data)
+                log.debug("Received an unknown UM %r (%s)", self.header.job_name_target, data)
                 return self
         else:
             try:
                 new_class: type[Self] = PROTOBUFS[msg]  # type: ignore  # save the extra lookup when casting to EMsg
             except KeyError:
-                log.debug(f"Received an unknown {EMsg(msg)!r} (%s)", data)
+                log.debug("Received an unknown %r (%s)", EMsg(msg), data)
                 return self
 
         try:
             self.__class__ = new_class
         except TypeError:
             # setting to MISSING
-            log.info(f"Received an unknown {EMsg(msg)!r} %r (%s)", data, self.header.job_name_target)
+            log.info("Received an unknown %r %r (%s)", EMsg(msg), data, self.header.job_name_target)
             return self
         return betterproto.Message.parse(self, data[self.header.length :])  # type: ignore  # pyright's dumb
 
@@ -189,10 +204,6 @@ class ProtobufMessage(MessageMessageBase, ProtobufWrappedMessage):
 @dataclass_transform()
 class UnifiedMessage(ProtobufMessage):
     UM_NAME: ClassVar[str]
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.header = ProtobufMessageHeader(job_name_target=self.__class__.UM_NAME)
 
     def __init_subclass__(cls, um_name: str, msg: EMsg = MISSING) -> None:
         cls.UM_NAME = sys.intern(f"{um_name}#1")
@@ -245,44 +256,36 @@ class GCMessageBase:
 
 
 @dataclass_transform()
-class GCMessage(GCMessageBase, StructMessage, MessageBase):
+class GCMessage(GCMessageBase, NotProtobufWrapped):
     """A wrapper around received GC messages, mainly for extensions."""
 
-    __slots__ = ("header",)
-    header: GCMessageHeader
-
-    def __init__(self, **kwargs: Any):
+    def __post_init__(self) -> None:
         self.header = GCMessageHeader()
-        super().__init__(**kwargs)
+
+    __init__ = __post_init__
 
     def __bytes__(self) -> bytes:
         return bytes(self.header) + super().__bytes__()
 
-    def parse(self, data: bytes, msg: int = MISSING) -> Self:
-        if msg is MISSING:  # case CMsgMulti().parse(data)
-            return StructMessage.parse(self, data)  # type: ignore  # pyright's dumb
-
+    def parse(self, data: bytes, msg: int) -> Self:  # type: ignore
         cls = self.__class__
         try:
-            new_class: type[Self] = GC_PROTOBUFS[cls.APP_ID][msg]  # type: ignore  # save the extra lookup when casting to IntEnum
+            new_class: type[Self] = GC_PROTOBUFS[self.__class__.APP_ID][msg]  # type: ignore  # save the extra lookup when casting to IntEnum
         except KeyError:
-            log.debug(f"Received an unknown Language {msg!r} (%s)", data)
+            log.debug("Received an unknown Language %r %s (%s)", msg, cls.APP_ID, data)
             return self
 
         self.header = GCMessageHeader().parse(data)
         self.__class__ = new_class
-        return StructMessage.parse(self, data)  # type: ignore  # pyright's dumb
+        return self.parse(data[self.header.length :])  # type: ignore
 
 
 @dataclass_transform()
 class GCProtobufMessage(GCMessageBase, ProtobufWrappedMessage):
     """A wrapper around received GC protobuf messages, mainly for extensions."""
 
-    __slots__ = ("header",)
-
-    def __init__(self, **kwargs: Any):
+    def __post_init__(self) -> None:
         self.header = ProtobufMessageHeader()
-        super().__init__(**kwargs)
 
     def parse(self, data: bytes, msg: int = MISSING) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
@@ -292,7 +295,7 @@ class GCProtobufMessage(GCMessageBase, ProtobufWrappedMessage):
         try:
             new_class: type[Self] = GC_PROTOBUFS[cls.APP_ID][msg]  # type: ignore  # save the extra lookup when casting to IntEnum
         except KeyError:
-            log.debug(f"Received an unknown Language {msg!r} {cls.APP_ID} (%s)", data)
+            log.debug("Received an unknown Language %r %s (%s)", msg, cls.APP_ID, data)
             return self
 
         self.header = ProtobufMessageHeader().parse(data)
