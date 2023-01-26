@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
 from .enums import Language
@@ -64,5 +63,11 @@ class Friend(WrapsUser):
         """
         await self._state.http.invite_user_to_clan(self.id64, clan.id64)
 
+    # TODO, probably needs client.friends_activity or something
+    # async def posts(self):
+    #     ...
+
     if TYPE_CHECKING:
-        is_friend: Callable[[], Literal[True]]
+
+        def is_friend(self) -> Literal[True]:
+            ...

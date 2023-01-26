@@ -882,7 +882,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         self.headless_depots: Sequence[HeadlessDepot] = []
         """This app's headless depots."""
 
-        for key, depot in depots.items():  # type: ignore
+        for key, depot in cast("ItemsView[str, Any]", depots.items()):
             try:
                 id = int(key)
             except ValueError:
@@ -982,6 +982,7 @@ class PackageInfo(ProductInfo, PartialPackage):
         "status",
         "depot_ids",
         "app_items",
+        "_language",
     )
 
     def __init__(
@@ -989,6 +990,7 @@ class PackageInfo(ProductInfo, PartialPackage):
         state: ConnectionState,
         data: manifest.PackageInfo,
         proto: app_info.CMsgClientPicsProductInfoResponsePackageInfo,
+        language: Language,
     ):
         super().__init__(state, proto, id=proto.packageid)
         self._apps = [PartialApp(state, id=id) for id in data["appids"].values()]
@@ -1002,6 +1004,7 @@ class PackageInfo(ProductInfo, PartialPackage):
         """The depot IDs in of the depots in the package."""
         self.app_items = list(data["appitems"].values())
         """The app items in the package."""
+        self._language = language
 
     def __repr__(self) -> str:
         attrs = ("id", "sha", "change_number")
@@ -1009,6 +1012,7 @@ class PackageInfo(ProductInfo, PartialPackage):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     async def apps(self, *, language: Language | None = None) -> list[PartialApp]:
-        if language is not None:
+        language = language or self._state.language
+        if language is not self._language:
             return await super().apps(language=language)
         return self._apps

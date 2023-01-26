@@ -202,7 +202,7 @@ class MessageReaction(PartialMessageReaction):
             and self.user == other.user
         )
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore  # superclass cannot be hashable but this can
         return hash((self.message, self.emoticon, self.sticker, self.user))
 
     def __repr__(self) -> str:

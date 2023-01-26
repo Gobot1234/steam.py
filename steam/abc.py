@@ -5,7 +5,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import re
-from collections.abc import AsyncGenerator, Coroutine
+from collections.abc import AsyncGenerator, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from ipaddress import IPv4Address, IPv6Address
@@ -359,7 +359,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         resp = await self._state.fetch_user_inventory(self.id64, app.id, app.context_id, language)
         return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
 
-    async def friends(self) -> list[User | PartialUser]:
+    async def friends(self) -> Sequence[User | PartialUser]:
         """Fetch the list of the users friends."""
         friends = await self._state.http.get_friends_ids(self.id64)
         return await self._state._maybe_users(friends)
@@ -791,7 +791,7 @@ class Messageable(Protocol[M_co]):
     def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
         raise NotImplementedError
 
-    async def send(self, content: Any = None, media: Media | None = None) -> M_co | None:
+    async def send(self, content: Any = None, *, media: Media | None = None) -> M_co | None:
         """Send a message to a certain destination.
 
         Parameters

@@ -124,7 +124,6 @@ pretty = true
 typeCheckingMode = "basic"
 pythonVersion = "3.10"
 useLibraryCodeForTypes = true
-exclude = ["tests", "steam/ext/commands"]
 reportSelfClsParameterName = "none"
 reportUntypedFunctionDecorator = "error"
 reportUntypedClassDecorator = "error"
@@ -147,6 +146,8 @@ reportUnknownReturnType = "error"
 reportUnknownMemberType = "error"
 reportUnnecessaryComparison = true
 reportUnnecessaryContains = true
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
 reportShadowedImports = "none"
 
 [tool.pytest.ini_options]

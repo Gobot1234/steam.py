@@ -147,16 +147,7 @@ tests: list[Callable[[bytes], str | None]] = []
 def test_jpeg(h: bytes) -> Literal["jpeg"] | None:
     if h[6:10] in {b"JFIF", b"Exif"}:
         return "jpeg"
-    elif h[:4] == b"\xff\xd8\xff\xdb":
-        return "jpeg"
-    # SOI APP2 + ICC_PROFILE
-    elif h[:4] == b"\xff\xd8\xff\xe2" and h[6:17] == b"ICC_PROFILE":
-        return "jpeg"
-    # SOI APP14 + Adobe
-    if h[:4] == b"\xff\xd8\xff\xee" and h[6:11] == b"Adobe":
-        return "jpeg"
-    # SOI DQT
-    if h[:4] == b"\xff\xd8\xff\xdb":
+    elif h[:3] == b"\xff\xd8\xff":
         return "jpeg"
 
 

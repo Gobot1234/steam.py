@@ -424,7 +424,7 @@ class ProfileCustomisation(Generic[UserT]):
         return f"<{self.__class__.__name__} owner={self.owner!r}>"
 
 
-class Profile(EquippedProfileItems[UserT], ProfileCustomisation):
+class Profile(EquippedProfileItems[UserT], ProfileCustomisation[UserT]):
     """Represents a user's complete profile."""
 
     __slots__ = ()
@@ -437,7 +437,7 @@ class Profile(EquippedProfileItems[UserT], ProfileCustomisation):
         return f"<{self.__class__.__name__} owner={self.owner!r}>"
 
 
-class FriendProfile(ProfileInfo, EquippedProfileItems["Friend"], ProfileCustomisation["Friend"]):
+class FriendProfile(ProfileInfo, Profile["Friend"]):
     """Represents a friend's complete profile."""
 
     def __init__(
@@ -448,7 +448,7 @@ class FriendProfile(ProfileInfo, EquippedProfileItems["Friend"], ProfileCustomis
         utils.update_class(customisation_info, self)
 
 
-class ClientUserProfile(ProfileInfo, EquippedProfileItems["ClientUser"], ProfileCustomisation["ClientUser"]):
+class ClientUserProfile(ProfileInfo, Profile["ClientUser"]):
     """Represents a :class:`ClientUser`'s full profile."""
 
     def __init__(

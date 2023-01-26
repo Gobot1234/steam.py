@@ -158,7 +158,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
         content: Any = None,
         *,
         trade: TradeOffer | None = None,
-        image: Media | None = None,
+        media: Media | None = None,
     ) -> UserMessage | None:
         """Send a message, trade or image to an :class:`User`.
 
@@ -173,8 +173,8 @@ class User(_BaseUser, Messageable["UserMessage"]):
             ----
             This will have its :attr:`~steam.TradeOffer.id` attribute updated after being sent.
 
-        image
-            The image to send to the user.
+        media
+            The media to send to the user.
 
         Raises
         ------
@@ -188,7 +188,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
         The sent message only applicable if ``content`` is passed.
         """
 
-        message = await super().send(content, image)
+        message = await super().send(content, media=media)
         if trade is not None:
             to_send = [item.to_dict() for item in trade.sending]
             to_receive = [item.to_dict() for item in trade.receiving]
@@ -321,7 +321,7 @@ class ClientUser(_BaseUser):
             )
         )
 
-    async def profile_info(self) -> ProfileInfo:
+    async def profile_info(self: ClientUser | Friend) -> ProfileInfo:
         """The friend's profile info."""
         info = await self._state.fetch_friend_profile_info(self.id64)
         # why this is friend only I'm not really sure considering it's available through the API
