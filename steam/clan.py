@@ -27,7 +27,7 @@ from .event import Announcement, Event
 from .id import ID, parse_id64
 from .protobufs import chat
 from .types.id import ID32, ID64, Intable
-from .utils import DateTime
+from .utils import BBCodeStr, DateTime, parse_bb_code
 
 if TYPE_CHECKING:
     from .role import Role
@@ -315,7 +315,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     # Clan.flags https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L526
     # or more likely https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L3177
 
-    summary: str
+    summary: BBCodeStr
     """The summary of the clan."""
     created_at: datetime | None
     """The time the clan was created at."""
@@ -355,7 +355,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
                 self._avatar_sha = bytes.fromhex(url.path.removesuffix("/").removesuffix("_full.jpg"))
 
         content = soup.find("meta", property="og:description")
-        self.summary = content["content"] if content is not None else None
+        self.summary = parse_bb_code(content["content"]) if content is not None else None
 
         if self.is_app_clan:
             for entry in soup.find_all("div", class_="actionItem"):

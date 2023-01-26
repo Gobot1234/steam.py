@@ -23,7 +23,7 @@ from .id import ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import player
 from .types.id import ID64, AppID, Intable
-from .utils import DateTime
+from .utils import DateTime, parse_bb_code
 
 if TYPE_CHECKING:
     from .app import App
@@ -332,7 +332,7 @@ class ClientUser(_BaseUser):
             state_name=info.state_name or None,
             country_name=info.country_name or None,
             headline=info.headline or None,
-            summary=info.summary,
+            summary=parse_bb_code(info.summary),
         )
 
     async def edit(
