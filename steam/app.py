@@ -1427,6 +1427,7 @@ class FetchedApp(PartialApp[str]):
         "full_description",
         "movies",
         "price_overview",
+        "content_descriptors",
         "_free",
         "_on_windows",
         "_on_mac_os",
@@ -1479,6 +1480,9 @@ class FetchedApp(PartialApp[str]):
         A list of the app's movies, each of which has ``name``\\, ``id``\\, ``url`` and optional ``created_at``
         attributes.
         """
+        self.content_descriptors = [
+            ContentDescriptor.try_value(descriptor) for descriptor in data.get("content_descriptors", {}).get("ids", [])
+        ]
 
         self._free = data["is_free"]
         self._on_windows = bool(data["platforms"].get("windows", False))

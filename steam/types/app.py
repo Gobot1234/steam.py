@@ -98,6 +98,7 @@ class FetchedApp(TypedDict):
     background: str
     website: str
     movies: list[dict[str, Any]]
+    content_descriptors: dict[str, list[int]]  # a lie but who cares the "notes" key isn't useful
 
 
 class DLCPriceOverview(TypedDict):
