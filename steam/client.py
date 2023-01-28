@@ -910,58 +910,59 @@ class Client:
         resp = await self._state.fetch_store_info(
             (app.id for app in apps), (package.id for package in packages), (bundle.id for bundle in bundles), language
         )
+        language = language or self.http.language
         match apps, packages, bundles:
             case [*_], (), ():  # simple cases
-                return [AppStoreItem(self._state, proto, language or self.http.language) for proto in resp]
+                return [AppStoreItem(self._state, proto, language) for proto in resp]
             case (), [*_], ():
-                return [PackageStoreItem(self._state, proto, language or self.http.language) for proto in resp]
+                return [PackageStoreItem(self._state, proto, language) for proto in resp]
             case (), (), [*_]:
-                return [BundleStoreItem(self._state, proto, language or self.http.language) for proto in resp]
+                return [BundleStoreItem(self._state, proto, language) for proto in resp]
 
             case [*_], [*_], ():  # mixed
                 return [
-                    AppStoreItem(self._state, proto, language or self.http.language)
+                    AppStoreItem(self._state, proto, language)
                     for proto in resp
                     if proto.item_type == store.EStoreItemType.App
                 ], [
-                    PackageStoreItem(self._state, proto, language or self.http.language)
+                    PackageStoreItem(self._state, proto, language)
                     for proto in resp
                     if proto.item_type == store.EStoreItemType.Package
                 ]
             case (), [*_], [*_]:
                 return [
-                    PackageStoreItem(self._state, proto, language or self.http.language)
+                    PackageStoreItem(self._state, proto, language)
                     for proto in resp
                     if proto.item_type == store.EStoreItemType.Package
                 ], [
-                    BundleStoreItem(self._state, proto, language or self.http.language)
+                    BundleStoreItem(self._state, proto, language)
                     for proto in resp
                     if proto.item_type == store.EStoreItemType.Bundle
                 ]
             case [*_], (), [*_]:
                 return [
-                    AppStoreItem(self._state, proto, language or self.http.language)
+                    AppStoreItem(self._state, proto, language)
                     for proto in resp
                     if proto.item_type == store.EStoreItemType.App
                 ], [
-                    BundleStoreItem(self._state, proto, language or self.http.language)
+                    BundleStoreItem(self._state, proto, language)
                     for proto in resp
                     if proto.item_type == store.EStoreItemType.Bundle
                 ]
             case _:
                 return (
                     [
-                        AppStoreItem(self._state, proto, language or self.http.language)
+                        AppStoreItem(self._state, proto, language)
                         for proto in resp
                         if proto.item_type == store.EStoreItemType.App
                     ],
                     [
-                        PackageStoreItem(self._state, proto, language or self.http.language)
+                        PackageStoreItem(self._state, proto, language)
                         for proto in resp
                         if proto.item_type == store.EStoreItemType.Package
                     ],
                     [
-                        BundleStoreItem(self._state, proto, language or self.http.language)
+                        BundleStoreItem(self._state, proto, language)
                         for proto in resp
                         if proto.item_type == store.EStoreItemType.Bundle
                     ],
