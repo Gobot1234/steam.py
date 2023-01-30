@@ -1448,9 +1448,13 @@ class FetchedApp(PartialApp[str]):
         """The time the app was uploaded at."""
         self.type = AppType.from_str(data["type"])
         """The type of the app."""
-        currency = CurrencyCode[data["price_overview"].pop("currency")]  # type: ignore
-        self.price_overview = AppPriceOverview(currency=currency, **data["price_overview"])  # type: ignore
-        """The price overview of the app."""
+
+        try:
+            currency = CurrencyCode[data["price_overview"].pop("currency")]  # type: ignore
+            self.price_overview = AppPriceOverview(currency=currency, **data["price_overview"])  # type: ignore
+            """The price overview of the app."""
+        except KeyError:
+            self.price_overview = None
 
         self.partial_dlc = [PartialApp(state, id=dlc_id) for dlc_id in data.get("dlc", [])]
         """The app's downloadable content."""
