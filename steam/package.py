@@ -262,6 +262,10 @@ class PartialPackage(Package[NameT]):
         else:
             raise err
 
+    async def redeem(self) -> License:
+        """Redeem this package if it's a free-on-demand package."""
+        return await self._state.client.redeem_package(self.id)
+
 
 @dataclass(slots=True)
 class PackagePriceOverview(PartialAppPriceOverview):
@@ -400,3 +404,7 @@ class License(PartialPackage[NameT]):
         if self.time_limit is None:
             return
         return self.time_limit - self.time_used
+
+    async def remove(self) -> None:
+        """Remove the license from the client user's account."""
+        await self._state.http.remove_license(self.id)

@@ -973,8 +973,8 @@ class PartialApp(App[NameT]):
         ValueError
             No licenses were granted.
         """
-        _, licenses = await self._state.request_free_license(self.id)
-        return licenses
+        info = await self._state.request_free_licenses(self.id)
+        return info[self.id]
 
     async def community_item_definitions(
         self, *, type: CommunityDefinitionItemType = CommunityDefinitionItemType.NONE, language: Language | None = None
@@ -1462,6 +1462,12 @@ class FetchedApp(PartialApp[str]):
             FetchedAppPackage(state, package)
             for package_group in data["package_groups"]
             for package in package_group["subs"]
+        ]
+        current_package_ids = {package.id for package in self._packages}
+        self._packages += [
+            PartialPackage(state, id=package_id)
+            for package_id in data.get("packages", [])
+            if package_id not in current_package_ids
         ]
 
         self.website_url = data.get("website")

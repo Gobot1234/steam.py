@@ -24,8 +24,8 @@ from yarl import URL as URL_
 from . import utils
 from ._const import HTML_PARSER, JSON_LOADS, URL, VDF_BINARY_LOADS, VDF_LOADS
 from .abc import Awardable, BaseUser, Commentable, PartialUser, _CommentableThreadType
-from .app import App, AuthenticationTicket, parse_app_ticket
 from .channel import DMChannel
+from .app import App, AuthenticationTicket, FetchedApp
 from .clan import Clan, PartialClan
 from .comment import Comment
 from .enums import *
@@ -39,7 +39,7 @@ from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
 from .message import *
 from .message import ClanMessage
 from .models import Registerable, register
-from .package import License
+from .package import FetchedPackage, License
 from .protobufs import (
     EMsg,
     ProtobufMessage,
@@ -192,6 +192,8 @@ class ConnectionState(Registerable):
         self._connected_cm: CMServer | None = None
 
         self.licenses: dict[PackageID, License] = {}
+        self._license_lock = asyncio.Lock()
+        self.licenses_being_waited_for = weakref.WeakValueDictionary[PackageID, asyncio.Future[License]]()
         self._manifest_passwords: dict[AppID, dict[str, str]] = {}
         self.cs_servers: list[ContentServer] = []
 
@@ -1761,6 +1763,8 @@ class ConnectionState(Registerable):
         }
         for license in msg.licenses:
             self.licenses[license_.id] = (license_ := License(self, license, users[license.owner_id]))
+            if future := self.licenses_being_waited_for.get(license_.id):
+                future.set_result(license_)
 
         self.handled_licenses.set()
 
@@ -2278,20 +2282,32 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def request_free_license(self, *app_ids: int) -> tuple[list[int], list[License]]:
-        old_licenses = self.licenses.copy()
-        self.handled_licenses.clear()
-        msg: client_server_2.CMsgClientRequestFreeLicenseResponse = await self.ws.send_proto_and_wait(
-            client_server_2.CMsgClientRequestFreeLicense(appids=list(app_ids)),
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        if any(app_id not in msg.granted_appids for app_id in app_ids):
-            raise WSNotFound(msg)
-        if not msg.granted_packageids:
-            raise ValueError("No licenses granted")
-        await self.handled_licenses.wait()
-        return msg.granted_appids, [l for l in self.licenses.values() if l.id not in old_licenses]
+    async def request_free_licenses(self, *app_ids: AppID) -> dict[AppID, list[License]]:
+        fetched_apps: Sequence[FetchedApp] = await asyncio.gather(*(self.fetch_app(app_id, None) for app_id in app_ids))
+
+        async with self._license_lock:
+            old_licenses = self.licenses.copy()
+            self.handled_licenses.clear()
+            msg: client_server_2.CMsgClientRequestFreeLicenseResponse = await self.ws.send_proto_and_wait(
+                client_server_2.CMsgClientRequestFreeLicense(appids=list(app_ids)),
+            )
+            if msg.result != Result.OK:
+                raise WSException(msg)
+            if any(app_id not in msg.granted_appids for app_id in app_ids):
+                raise WSNotFound(msg)
+            if not msg.granted_packageids:
+                raise ValueError("No licenses granted")
+            await self.handled_licenses.wait()
+
+        ret: dict[AppID, list[License]] = dict.fromkeys(msg.granted_appids)  # type: ignore
+        for app_id in ret:
+            fetched_app = utils.get(fetched_apps, id=app_id)
+            assert fetched_app is not None
+            possible_package_ids = {package.id for package in fetched_app._packages if package.is_free()}
+            ret[app_id] = [
+                l for l in self.licenses.values() if l.id not in old_licenses and l.id in possible_package_ids
+            ]
+        return ret
 
     async def fetch_legacy_cd_key(self, app_id: AppID) -> str:
         msg: client_server_2.ClientGetLegacyGameKeyResponse = await self.ws.send_proto_and_wait(

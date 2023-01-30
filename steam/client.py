@@ -658,32 +658,32 @@ class Client:
         steam_id = await ID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._state.fetch_clan(steam_id.id64) if steam_id is not None else None
 
-    def get_app(self, id: int | App) -> PartialApp:
+    def get_app(self, id: int) -> PartialApp:
         """Creates a stateful app from its ID.
 
         Parameters
         ----------
         id
-            The app id of the app or a :class:`~steam.App` instance.
+            The app id of the app.
         """
-        return PartialApp(self._state, id=getattr(id, "id", id))
+        return PartialApp(self._state, id=id)
 
-    async def fetch_app(self, id: int | App, *, language: Language | None = None) -> FetchedApp | None:
-        """Fetch an app from its ID or ``None`` if the app was not found.
+    async def fetch_app(self, id: int, *, language: Language | None = None) -> FetchedApp:
+        """Fetch an app from its ID.
 
         Parameters
         ----------
         id
-            The app id of the app or a :class:`~steam.App` instance.
+            The app id of the app.
         language
             The language to fetch the app in. If ``None`` uses the current language.
+
+        Raises
+        ------
+        ValueError
+            Passed `id` isn't for a valid app.
         """
-        id = id if isinstance(id, int) else id.id
-        resp = await self.http.get_app(id, language)
-        if resp is None:
-            return None
-        data = resp[str(id)]
-        return FetchedApp(self._state, data["data"], language or self._state.language) if data["success"] else None
+        return await self._state.fetch_app(AppID(id), language)
 
     def get_package(self, id: int) -> PartialPackage:
         """Creates a package from its ID.
@@ -695,7 +695,7 @@ class Client:
         """
         return PartialPackage(self._state, id=id)
 
-    async def fetch_package(self, id: int | Package, *, language: Language | None = None) -> FetchedPackage | None:
+    async def fetch_package(self, id: int, *, language: Language | None = None) -> FetchedPackage:
         """Fetch a package from its ID.
 
         Parameters
@@ -704,15 +704,30 @@ class Client:
             The ID of the package.
         language
             The language to fetch the package in. If ``None`` uses the current language.
-        """
-        id = PackageID(id) if isinstance(id, int) else id.id
-        resp = await self.http.get_package(id, language)
-        if resp is None:
-            return None
-        data = resp[str(id)]
-        return FetchedPackage(self._state, data["data"]) if data["success"] else None
 
-    def get_bundle(self, id: int | Bundle) -> PartialBundle:
+        Raises
+        ------
+        ValueError
+            Passed `id` isn't for a valid package.
+        """
+        return await self._state.fetch_package(PackageID(id), language)
+
+    async def redeem_package(self, id: int) -> License:
+        """Redeem a promotional free licenses package from its ID.
+
+        Parameters
+        ----------
+        id
+            The ID of the package to redeem.
+        """
+        id = PackageID(id)
+        future: asyncio.Future[License] = asyncio.get_running_loop().create_future()
+        async with self._state._license_lock:
+            self._state.licenses_being_waited_for[id] = future
+            await self.http.redeem_package(id)
+            return await future
+
+    def get_bundle(self, id: int) -> PartialBundle:
         """Creates a bundle from its ID.
 
         Parameters
@@ -720,9 +735,9 @@ class Client:
         id
             The ID of the bundle.
         """
-        return PartialBundle(self._state, id=getattr(id, "id", id))
+        return PartialBundle(self._state, id=id)
 
-    async def fetch_bundle(self, id: int | Bundle, *, language: Language | None = None) -> FetchedBundle:
+    async def fetch_bundle(self, id: int, *, language: Language | None = None) -> FetchedBundle:
         """Fetch a bundle from its ID.
 
         Parameters
@@ -732,8 +747,7 @@ class Client:
         language
             The language to fetch the bundle in. If ``None`` uses the current language.
         """
-        id = BundleID(id) if isinstance(id, int) else id.id
-        (data,) = await self.http.get_bundle(id, language)
+        (data,) = await self.http.get_bundle(BundleID(id), language)
         return FetchedBundle(self._state, data)
 
     @overload

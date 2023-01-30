@@ -721,6 +721,20 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/packagedetails", params=params)
 
+    def redeem_package(self, package_id: PackageID) -> Coro[dict[str, Any]]:
+        data = {
+            "ajax": "true",
+            "sessionid": self.session_id,
+        }
+        return self.post(URL.STORE / f"checkout/addfreelicense/{package_id}", data=data)
+
+    def remove_license(self, license_id: PackageID) -> Coro[None]:
+        data = {
+            "sessionid": self.session_id,
+            "packageid": license_id,
+        }
+        return self.post(URL.STORE / "account/removelicense", data=data)
+
     def get_bundle(self, bundle_id: BundleID, language: Language | None) -> Coro[list[bundle.Bundle]]:
         params = {
             "bundleids": bundle_id,
