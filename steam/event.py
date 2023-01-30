@@ -14,7 +14,7 @@ from . import utils
 from .abc import Commentable, PartialUser, _CommentableKwargs
 from .app import App, PartialApp
 from .enums import EventType
-from .id import ID
+from .id import ID_ZERO
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -120,12 +120,13 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         self._feature2 = int(data.get("gidfeature2", 0) or 0)
 
     async def __ainit__(self) -> None:
-        if self.last_edited_by:
+        if self.last_edited_by and self.last_edited_by != ID_ZERO:
             self.author, self.last_edited_by = await self._state._maybe_users(
                 (self.author.id64, self.last_edited_by.id64)
             )
         else:
             self.author = await self._state._maybe_user(self.author.id64)
+            self.last_edited_by = None
 
     def __repr__(self) -> str:
         attrs = ("id", "name", "type", "author", "clan")
