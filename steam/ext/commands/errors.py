@@ -119,7 +119,7 @@ class NotOwner(CheckFailure):
         super().__init__("You do not own this bot")
 
 
-class DMChannelOnly(CheckFailure):
+class UserChannelOnly(CheckFailure):
     """Exception raised the user does not own the bot.
 
     Subclass of :exc:`CheckFailure`.

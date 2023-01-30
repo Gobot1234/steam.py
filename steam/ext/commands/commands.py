@@ -32,7 +32,7 @@ from typing import (
 
 from typing_extensions import Self
 
-from ...channel import DMChannel
+from ...channel import UserChannel
 from ...errors import ClientException
 from ...utils import cached_property, maybe_coroutine
 from . import converters
@@ -41,11 +41,11 @@ from .errors import (
     BadArgument,
     CheckFailure,
     CommandDisabled,
-    DMChannelOnly,
     DuplicateKeywordArgument,
     MissingRequiredArgument,
     NotOwner,
     UnmatchedKeyValuePair,
+    UserChannelOnly,
 )
 from .utils import CaseInsensitiveDict
 
@@ -84,7 +84,7 @@ class CommandDeco(Protocol):
         ...
 
 
-class CheckReturnType(CommandDeco):
+class CheckReturnType(CommandDeco, Protocol):
     predicate: CheckType
 
 
@@ -146,7 +146,7 @@ class Command(Generic[P]):
 
     def __new__(cls: type[C], *args: Any, **kwargs: Any) -> C:
         self = super().__new__(cls)
-        self.__original_kwargs__: dict[str, Any] = kwargs.copy()
+        self.__original_kwargs__ = kwargs.copy()
         return self
 
     def __init__(self, func: CallbackType[P], **kwargs: Any):
@@ -364,10 +364,6 @@ class Command(Generic[P]):
             The invocation context.
         """
         try:
-            try:  # we mess with mentions in UserConverter.convert, so we need to copy them for later
-                mentions = ctx.message.mentions.ids.copy()
-            except AttributeError:
-                pass
             if not self.enabled:
                 raise CommandDisabled(self)
             for check in ctx.bot.checks:
@@ -387,10 +383,6 @@ class Command(Generic[P]):
             ctx.command_failed = True
             raise
         finally:
-            try:
-                ctx.message.mentions.ids = mentions
-            except (UnboundLocalError, AttributeError):
-                pass
             await self._call_after_invoke(ctx)
 
     async def can_run(self, ctx: Context) -> bool:
@@ -1094,14 +1086,14 @@ def dm_only(command: MCD) -> MCD:
 
 def dm_only(command: MCD | None = None) -> MCD:
     """|maybecallabledeco|
-    A decorator that will make a command only invokable in a :class:`steam.DMChannel`.
+    A decorator that will make a command only invokable in a :class:`steam.UserChannel`.
     """
 
     def predicate(ctx: Context) -> bool:
-        if isinstance(ctx.channel, DMChannel):
+        if isinstance(ctx.channel, UserChannel):
             return True
 
-        raise DMChannelOnly()
+        raise UserChannelOnly()
 
     decorator = check(predicate)
     return decorator(command) if command is not None else decorator
