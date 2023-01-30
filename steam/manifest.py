@@ -6,10 +6,12 @@ import asyncio
 import errno
 import logging
 import lzma
+import os
+import os.path
 import struct
 import sys
 from base64 import b64decode
-from collections.abc import AsyncGenerator, Generator, Sequence
+from collections.abc import AsyncGenerator, Generator, ItemsView, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -90,26 +92,6 @@ def unzip(data: bytes) -> bytes:
 
 
 @dataclass(slots=True)
-class ManifestPathParents(cast(type[Sequence["ManifestPath"]], type(PurePathBase().parents))):
-    _path_cls: ManifestPath  # names lie
-
-    @property
-    def _drv(self) -> str:
-        return self._path_cls.drive
-
-    @property
-    def _root(self) -> str:
-        return self._path_cls.root
-
-    @property
-    def _parts(self) -> tuple[str, ...]:
-        return self._path_cls.parts
-
-    def __repr__(self) -> str:
-        return f"<{self._path_cls!r}.parents>"
-
-
-@dataclass(slots=True)
 class ManifestPathIO(AsyncStreamReaderMixin):
     _path: ManifestPath
     _key: bytes
@@ -185,7 +167,9 @@ class ManifestPathIO(AsyncStreamReaderMixin):
         return data
 
     def read_nowait(self, n: int = -1, /) -> bytes:
-        return bytes(self._buffer[:n]) if n != -1 else bytes(self._buffer)
+        content = bytes(self._buffer[:n]) if n != -1 else bytes(self._buffer)
+        self._buffer = self._buffer[n:]
+        return content
 
 
 class ManifestPath(PurePathBase, _IOMixin):
@@ -247,9 +231,15 @@ class ManifestPath(PurePathBase, _IOMixin):
         return self._select_from_manifest(new_self)
 
     @property
-    def parents(self) -> ManifestPathParents:
-        # cannot use the default implementation as it calls _from_parsed_parts as a classmethod
-        return ManifestPathParents(self)
+    def parents(self) -> tuple[Self, ...]:
+        """A tuple of this path's logical parents."""
+        path = self
+        parent = self.parent
+        parents: list[Self] = []
+        while path != parent:
+            parents.append(parent)
+            path, parent = parent, parent.parent
+        return tuple(parents)
 
     @property
     def size(self) -> int:
@@ -336,28 +326,25 @@ class ManifestPath(PurePathBase, _IOMixin):
         ------
         The path currently being traversed, directories and files (``(dirpath, dirnames, filenames)``).
         """
-        dirnames: list[str] = []
-        filenames: list[str] = []
-        for entry in self.iterdir():
-            if follow_symlinks:
-                is_dir = entry.is_dir()
+
+        stack: list[Self | tuple[Self, list[str], list[str]]] = [self]
+        while stack:
+            top = stack.pop()
+            if isinstance(top, tuple):
+                yield top
+                continue
+            dirnames: list[str] = []
+            filenames: list[str] = []
+            for entry in self.iterdir():
+                is_dir = entry.is_dir() if follow_symlinks else entry.flags & DepotFileFlag.Directory > 0
+                (dirnames if is_dir else filenames).append(entry.name)
+
+            if top_down:
+                yield self, dirnames, filenames
             else:
-                is_dir = entry.flags & DepotFileFlag.Directory > 0
+                stack.append((self, dirnames, filenames))
 
-            if is_dir:
-                dirnames.append(entry.name)
-            else:
-                filenames.append(entry.name)
-
-        if top_down:
-            yield self, dirnames, filenames
-
-        for dirname in dirnames:
-            dirpath: Self = self._make_child_relpath(dirname)  # type: ignore
-            yield from dirpath.walk(top_down=top_down, follow_symlinks=follow_symlinks)
-
-        if not top_down:
-            yield self, dirnames, filenames
+            stack += [path._make_child_relpath(d) for d in reversed(dirnames)]  # type: ignore
 
     def glob(self, pattern: str) -> Generator[Self, None, None]:
         """Perform a glob operation on this path. Similar to :meth:`pathlib.Path.glob`."""
