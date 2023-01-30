@@ -525,7 +525,7 @@ class TradeOffer(Generic[AssetT, OwnerT]):
                     owner=self._state.user,
                 )
                 for item in data.get("items_to_give", ())
-            ]
+            ]  # type: ignore
             self.receiving = [
                 Item(
                     self._state,
@@ -534,18 +534,18 @@ class TradeOffer(Generic[AssetT, OwnerT]):
                     owner=self.partner,
                 )
                 for item in data.get("items_to_receive", ())
-            ]
+            ]  # type: ignore
         self._is_our_offer = data.get("is_our_offer", False)
         return cast("TradeOffer[Item[OwnerT], OwnerT]", self)
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, TradeOffer):
             return NotImplemented
-        if self._has_been_sent and other._has_been_sent:
-            return self.id == other.id
-        elif not (self._has_been_sent and other._has_been_sent):
-            return self.sending == other.sending and self.receiving == other.receiving
-        return NotImplemented
+        return (
+            self.id == other.id
+            if self._has_been_sent and other._has_been_sent
+            else self.sending == other.sending and self.receiving == other.receiving
+        )
 
     async def confirm(self) -> None:
         """Confirms the trade offer.

@@ -26,6 +26,7 @@ from collections.abc import (
     Coroutine,
     Generator,
     Iterable,
+    Iterator,
     Mapping,
     Sized,
 )
@@ -130,7 +131,7 @@ def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
     ) is None:
         return None
 
-    return TradeURLInfo(ID(match["user_id"]), match["token"] or None)  # type: ignore
+    return TradeURLInfo(ID(match["user_id"], type=Type.Individual), match["token"] or None)
 
 
 _SelfT = TypeVar("_SelfT")
@@ -364,6 +365,10 @@ class StructIO(
         buffer = self.read(position or struct.calcsize(format))
         return struct.unpack(format, buffer)
 
+    @overload
+    def write_struct(self, format: str, to_write_1: Any, /, *to_write: Any) -> None:  # type: ignore
+        ...
+
     def write_struct(self, format: str, *to_write: Any) -> None:
         self.write(struct.pack(format, *to_write))
 
@@ -573,6 +578,7 @@ else:
     def _chunk(
         iterable: Iterable[_T],
         max_size: int,
+        iter: Callable[[Iterable[_T]], Iterator[_T]] = iter,
         tuple: type[tuple[_T, ...]] = tuple,
         islice: type[itertools.islice[_T]] = itertools.islice,
         /,
@@ -617,7 +623,7 @@ def as_chunks(iterable: _Iter[_T], /, max_size: int) -> _Iter[tuple[_T, ...]]:
 
     Warning
     -------
-        The last chunk collected may not be as large as ``max_size``.
+    The last chunk collected may not be as large as ``max_size``.
 
     Returns
     --------

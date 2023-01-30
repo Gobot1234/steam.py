@@ -216,6 +216,9 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = N
     return ID64(int(data["steamid"])) if data else None
 
 
+_ID64_TO_ID32: Final = cast(Callable[[int], ID32], 0xFFFFFFFF.__and__)
+
+
 TypeT = TypeVar("TypeT", bound=Type, default=Type, covariant=True)
 
 
@@ -331,9 +334,9 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         return Instance.try_value((self.id64 >> 32) & 0xFFFFF)
 
     @property
-    def id(self) -> ID32:
+    def id(self, _ID64_TO_ID32: Callable[[ID64], ID32] = _ID64_TO_ID32, /) -> ID32:
         """The Steam ID's 32-bit ID."""
-        return ID32(self.id64 & 0xFFFFFFFF)
+        return _ID64_TO_ID32(self.id64)
 
     @property
     def id2(self) -> str:
@@ -566,3 +569,6 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         """
         id64 = await id64_from_url(url, session)
         return ID(id64) if id64 else None
+
+
+ID_ZERO: Final = ID(0, type=Type.Individual)

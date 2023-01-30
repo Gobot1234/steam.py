@@ -821,8 +821,7 @@ class PartialApp(App[NameT]):
         password: str | None = None,
         password_hash: str = "",
     ) -> AsyncGenerator[Manifest, None]:
-        """An :term:`asynchronous iterator` for accessing a :class:`steam.App`'s
-        :class:`steam.Manifest`\\s.
+        """An :term:`asynchronous iterator` for accessing a this app's :class:`steam.Manifest`\\s.
 
         Examples
         --------

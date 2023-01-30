@@ -353,7 +353,7 @@ class License(PartialPackage[NameT]):
         "access_token",
     )
 
-    # can owner actually be a PartialUser?
+    # TODO can owner actually be a PartialUser?
     def __init__(
         self, state: ConnectionState, proto: CMsgClientLicenseListLicense, owner: ClientUser | User | PartialUser
     ):

@@ -57,7 +57,7 @@ class ProfileInfo:
     """The name of the country the user is located in."""
     headline: str | None
     """The profile's headline."""
-    summary: BBCodeStr
+    summary: utils.BBCodeStr
     """The user's summary."""
 
     def __repr__(self) -> str:

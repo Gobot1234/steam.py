@@ -20,7 +20,7 @@ from .abc import Channel, Message, PartialUser
 from .app import PartialApp
 from .enums import ChatMemberRank, Type
 from .errors import WSException
-from .id import ID
+from .id import _ID64_TO_ID32, ID
 from .models import Avatar
 from .protobufs import chat
 from .reaction import Emoticon, MessageReaction, PartialMessageReaction, Sticker
@@ -38,8 +38,10 @@ if TYPE_CHECKING:
     from .state import ConnectionState
 
 
-ChatT = TypeVar("ChatT", bound="Chat[Any]", covariant=True)
-MemberT = TypeVar("MemberT", bound="Member", covariant=True)
+ChatT = TypeVar(
+    "ChatT", bound="Chat[ClanMessage | GroupMessage]", default="Chat[ClanMessage | GroupMessage]", covariant=True
+)
+MemberT = TypeVar("MemberT", bound="Member", default="Member", covariant=True)
 
 
 @runtime_checkable
@@ -52,13 +54,13 @@ class _PartialMemberProto(Protocol):
     clan: Clan | None
     group: Group | None
 
-    def _update(self: _PartialMemberProto, member: chat.Member) -> None:
+    def _update(self, member: chat.Member) -> None:
         self.rank = ChatMemberRank.try_value(member.rank)
         self._role_ids = cast("tuple[RoleID, ...]", tuple(member.role_ids))
         self.kick_expires = DateTime.from_timestamp(member.time_kick_expire)
 
     @property
-    def roles(self: _PartialMemberProto) -> list[Role]:
+    def roles(self) -> list[Role]:
         """The member's roles."""
         chat_group = self.group or self.clan
         assert chat_group is not None
@@ -110,7 +112,7 @@ class PartialMember(PartialUser, _PartialMemberProto):
 
 if TYPE_CHECKING:
 
-    class _BaseMember(WrapsUser, PartialMember, _PartialMemberProto):
+    class _BaseMember(WrapsUser, PartialMember, _PartialMemberProto):  # type: ignore
         pass
 
 else:
@@ -605,15 +607,15 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         id64
             The 64 bit ID of the member to get.
         """
-        return self._members.get(id64 & 0xFFFFFFFF)  # TODO consider just passing ID32
+        return self._members.get(_ID64_TO_ID32(id64))
 
     @abc.abstractmethod
     def _get_partial_member(self, id: ID32) -> PartialMember:
         raise NotImplementedError
 
-    def _maybe_member(self, id64: ID64) -> MemberT | PartialMember:  # TODO consider just passing ID32
-        # TODO also consider using cached users even if auto_chunk is off
-        id = ID32(id64 & 0xFFFFFFFF)
+    def _maybe_member(self, id64: ID64) -> MemberT | PartialMember:
+        # TODO consider using cached users even if auto_chunk is off
+        id = _ID64_TO_ID32(id64)
         return self._members.get(id) or self._get_partial_member(id)
 
     def _maybe_members(self, ids: Iterable[ID32]) -> list[MemberT | PartialMember]:

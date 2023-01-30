@@ -114,7 +114,7 @@ class StoreItemPurchaseOption:
         self.should_suppress_discount_percentage: bool = proto.should_suppress_discount_pct
 
 
-class StoreItem:
+class StoreItem:  # TODO slots
     def __init__(self, state: ConnectionState, proto: store.StoreItem, language: Language) -> None:
         super().__init__(state, id=proto.id, name=proto.name)  # type: ignore  # this is a mixin
         self._language = language

@@ -41,7 +41,7 @@ from .game_server import GameServer, Query
 from .gateway import *
 from .guard import generate_one_time_code
 from .http import HTTPClient
-from .id import ID
+from .id import ID, parse_id64
 from .manifest import AppInfo, PackageInfo
 from .models import PriceOverview, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
@@ -51,13 +51,13 @@ from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker
 from .state import ConnectionState
 from .store import AppStoreItem, BundleStoreItem, PackageStoreItem, TransactionReceipt
-from .types.id import AppID, BundleID, Intable, PackageID
-from .utils import DateTime, TradeURLInfo, parse_id64
+from .types.id import AppID, BundleID, Intable, PackageID, TradeOfferID
+from .utils import DateTime, TradeURLInfo
 
 if TYPE_CHECKING:
     import steam
 
-    from .abc import Message
+    from .abc import Message, PartialUser
     from .clan import Clan
     from .comment import Comment
     from .event import Announcement, Event
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from .invite import ClanInvite, UserInvite
     from .protobufs import Message, ProtobufMessage
     from .reaction import MessageReaction
-    from .trade import MovedItem, TradeOffer
+    from .trade import Item, MovedItem, TradeOffer
     from .types.http import IPAdress
     from .user import ClientUser, User
 
@@ -82,6 +82,12 @@ P = ParamSpec("P")
 
 class Client:
     """Represents a client connection that connects to Steam. This class is used to interact with the Steam API and CMs.
+
+    .. container:: operations
+
+        .. describe:: async with x
+
+            Initialises the client and closes it when the context is exited.
 
     Parameters
     ----------
@@ -597,9 +603,11 @@ class Client:
         id
             The id of the trade to search for from the cache.
         """
-        return self._state.get_trade(id)
+        return self._state.get_trade(TradeOfferID(id))
 
-    async def fetch_trade(self, id: int, *, language: Language | None = None) -> TradeOffer | None:
+    async def fetch_trade(
+        self, id: int, *, language: Language | None = None
+    ) -> TradeOffer[Item[User | PartialUser], User | PartialUser] | None:
         """Fetches a trade with a matching ID or ``None`` if the trade was not found.
 
         Parameters
@@ -609,7 +617,7 @@ class Client:
         language
             The language to fetch the trade in. ``None`` uses the current language.
         """
-        return await self._state.fetch_trade(id, language)
+        return await self._state.fetch_trade(TradeOfferID(id), language)
 
     def get_group(self, id: Intable) -> Group | None:
         """Get a group from cache with a matching ID or ``None`` if the group was not found.
