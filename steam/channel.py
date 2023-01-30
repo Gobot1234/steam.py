@@ -24,13 +24,13 @@ if TYPE_CHECKING:
     from .user import User
 
 __all__ = (
-    "DMChannel",
+    "UserChannel",
     "GroupChannel",
     "ClanChannel",
 )
 
 
-class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
+class UserChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
     """Represents the channel a DM is sent in."""
 
     __slots__ = ("participant",)
@@ -45,10 +45,10 @@ class DMChannel(Channel[UserMessage]):  # TODO cache these to add last_message.
         self.group = None
 
     def __repr__(self) -> str:
-        return f"<DMChannel participant={self.participant!r}>"
+        return f"<UserChannel participant={self.participant!r}>"
 
     def __eq__(self, other: object) -> bool:
-        return self.participant == other.participant if isinstance(other, DMChannel) else NotImplemented
+        return self.participant == other.participant if isinstance(other, UserChannel) else NotImplemented
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
         return self.participant._message_func(content)

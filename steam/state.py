@@ -24,8 +24,8 @@ from yarl import URL as URL_
 from . import utils
 from ._const import HTML_PARSER, JSON_LOADS, URL, VDF_BINARY_LOADS, VDF_LOADS
 from .abc import Awardable, BaseUser, Commentable, PartialUser, _CommentableThreadType
-from .channel import DMChannel
 from .app import App, AuthenticationTicket, FetchedApp
+from .channel import UserChannel
 from .clan import Clan, PartialClan
 from .comment import Comment
 from .enums import *
@@ -33,7 +33,7 @@ from .errors import *
 from .friend import Friend
 from .group import Group
 from .guard import *
-from .id import ID, parse_id64
+from .id import _ID64_TO_ID32, ID, parse_id64
 from .invite import ClanInvite, UserInvite
 from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
 from .message import *
@@ -296,7 +296,7 @@ class ConnectionState(Registerable):
 
     def _store_user(self, proto: friends.CMsgClientPersonaStateFriend) -> User:
         try:
-            user = self._users[proto.friendid & 0xFFFFFFFF]  # type: ignore
+            user = self._users[_ID64_TO_ID32(proto.friendid)]
         except KeyError:
             user = User(state=self, proto=proto)
             self._users[user.id] = user
@@ -532,7 +532,7 @@ class ConnectionState(Registerable):
         msg: friend_messages.SendMessageResponse = await self.ws.send_um_and_wait(
             friend_messages.SendMessageRequest(
                 steamid=user_id64,
-                message=content.replace("\\", "\\\\").replace("[", "\\["),
+                message=content,
                 chat_entry_type=ChatEntryType.Text,
                 contains_bbcode=utils.contains_chat_command(content),
             )
@@ -550,7 +550,9 @@ class ConnectionState(Registerable):
             ordinal=msg.ordinal,
             message_no_bbcode=msg.message_without_bb_code,
         )
-        channel = DMChannel(state=self, participant=self.get_user(user_id64 & 0xFFFFFFFF))  # type: ignore
+        id = _ID64_TO_ID32(user_id64)
+        participant = self.user._friends.get(id) or self._users[id]
+        channel = UserChannel(state=self, participant=participant)
         message = UserMessage(proto, channel, self.user)
         self._messages.append(message)
         self.dispatch("message", message)
@@ -558,7 +560,7 @@ class ConnectionState(Registerable):
         return message
 
     async def send_user_typing(self, user_id64: ID64) -> None:
-        msg = await self.ws.send_um_and_wait(
+        msg: friend_messages.SendMessageResponse = await self.ws.send_um_and_wait(
             friend_messages.SendMessageRequest(
                 steamid=user_id64,
                 chat_entry_type=ChatEntryType.Typing,
@@ -566,7 +568,7 @@ class ConnectionState(Registerable):
         )
         if msg.result != Result.OK:
             raise WSException(msg)
-        self.dispatch("typing", self.user, DateTime.now())
+        self.dispatch("typing", self.user, DateTime.from_timestamp(msg.server_timestamp))
 
     async def react_to_user_message(
         self,
@@ -597,7 +599,7 @@ class ConnectionState(Registerable):
             chat.SendChatMessageRequest(
                 chat_id=chat_id,
                 chat_group_id=chat_group_id,
-                message=content.replace("\\", "\\\\").replace("[", "\\["),
+                message=content.replace("\\", "\\\\"),
             )
         )
 
@@ -1000,11 +1002,14 @@ class ConnectionState(Registerable):
 
     async def handle_user_message(self, msg: friend_messages.IncomingMessageNotification) -> None:
         await self.client.wait_until_ready()
-        partner = await self._maybe_user(msg.steamid_friend)  # FIXME shouldn't ever be out of cache
+        id64 = msg.steamid_friend
+        partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(
+            id64
+        )  # FIXME shouldn't ever be out of cache
         author = self.user if msg.local_echo else partner  # local_echo is always us
 
         if msg.chat_entry_type == ChatEntryType.Text:
-            channel = DMChannel(state=self, participant=partner)  # type: ignore  # remove when above fixme removed
+            channel = UserChannel(state=self, participant=partner)  # type: ignore  # remove when above fixme removed
             message = UserMessage(msg, channel, author)
             self._messages.append(message)
             self.dispatch("message", message)

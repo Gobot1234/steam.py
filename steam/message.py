@@ -12,8 +12,9 @@ from .reaction import Emoticon, MessageReaction, Sticker
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .channel import ClanChannel, DMChannel, GroupChannel
+    from .channel import ClanChannel, GroupChannel, UserChannel
     from .clan import Clan, ClanMember
+    from .friend import Friend
     from .group import Group, GroupMember
     from .protobufs import chat, friend_messages
     from .user import ClientUser, User
@@ -27,18 +28,18 @@ __all__ = (
 
 
 UserMessageAuthorT = TypeVar(
-    "UserMessageAuthorT", bound=PartialUser, default="PartialUser | User | ClientUser", covariant=True
+    "UserMessageAuthorT", bound=PartialUser, default="PartialUser | User | Friend | ClientUser", covariant=True
 )
 
 
 class UserMessage(Message[UserMessageAuthorT]):
     """Represents a message from a user."""
 
-    channel: DMChannel
+    channel: UserChannel
     mentions: None
 
     def __init__(
-        self, proto: friend_messages.IncomingMessageNotification, channel: DMChannel, author: UserMessageAuthorT
+        self, proto: friend_messages.IncomingMessageNotification, channel: UserChannel, author: UserMessageAuthorT
     ):
         super().__init__(channel, proto)
         self.created_at = DateTime.from_timestamp(proto.rtime32_server_timestamp)

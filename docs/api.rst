@@ -447,9 +447,9 @@ Bundle
 Channel
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: DMChannel
+.. attributetable:: UserChannel
 
-.. autoclass:: DMChannel()
+.. autoclass:: UserChannel()
     :members:
     :inherited-members:
 

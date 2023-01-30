@@ -778,7 +778,7 @@ class Messageable(Protocol[M_co]):
         - :class:`~steam.User`
         - :class:`~steam.ClanChannel`
         - :class:`~steam.GroupChannel`
-        - :class:`~steam.DMChannel`
+        - :class:`~steam.UserChannel`
     """
 
     __slots__ = ()
