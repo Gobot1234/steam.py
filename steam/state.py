@@ -866,6 +866,13 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg
 
+    async def fetch_app(self, app_id: AppID, language: Language | None) -> FetchedApp:
+        resp = await self.http.get_app(app_id, language)
+        data = resp[str(app_id)]
+        if data["success"]:
+            return FetchedApp(self, data["data"], language or self.language)
+        raise ValueError("app_id is invalid")
+
     async def fetch_app_player_count(self, app_id: AppID) -> int:
         msg: client_server_2.CMsgDpGetNumberOfCurrentPlayersResponse = await self.ws.send_proto_and_wait(
             client_server_2.CMsgDpGetNumberOfCurrentPlayers(appid=app_id)
@@ -873,6 +880,13 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.player_count
+
+    async def fetch_package(self, package_id: PackageID, language: Language | None) -> FetchedPackage:
+        resp = await self.http.get_package(package_id, language)
+        data = resp[str(package_id)]
+        if data["success"]:
+            return FetchedPackage(self, data["data"])
+        raise ValueError("package_id is invalid")
 
     async def fetch_user_apps(self, user_id64: ID64, include_free: bool) -> list[player.GetOwnedGamesResponseGame]:
         msg: player.GetOwnedGamesResponse = await self.ws.send_um_and_wait(

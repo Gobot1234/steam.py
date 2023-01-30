@@ -757,7 +757,7 @@ class PartialApp(App[NameT]):
 
             app = await client.fetch_app(app)
         """
-        app = await self._state.client.fetch_app(self, language=language)
+        app = await self._state.client.fetch_app(self.id, language=language)
         if app is None:
             raise ValueError("Fetched app was not valid.")
         return app
