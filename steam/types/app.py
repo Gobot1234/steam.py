@@ -127,3 +127,16 @@ class DLC(TypedDict):
     price_overview: DLCPriceOverview
     platforms: DLCPlatforms
     release_date: DLCReleaseDate
+
+
+class GetAppList(TypedDict):
+    apps: list[AppListApp]
+    have_more_results: bool
+    last_appid: int
+
+
+class AppListApp(TypedDict):
+    appid: int
+    name: str
+    last_modified: int
+    price_change_number: int

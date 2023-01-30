@@ -1534,3 +1534,16 @@ class UserInventoryInfoApp(PartialApp[str]):
         """The icon of the app."""
         self.inventory_logo = CDNAsset(state, inventory_logo_url)
         """The inventory logo of the app."""
+
+
+class AppListApp(PartialApp[str]):
+    """Represents an app returned by :class:`~steam.Client.all_apps`."""
+
+    __slots__ = ("last_modified", "price_change_number")
+
+    def __init__(self, state: ConnectionState, data: app.AppListApp):
+        super().__init__(state, id=data["appid"], name=data["name"])
+        self.last_modified = DateTime.from_timestamp(data["last_modified"])
+        """The time the app was last modified at."""
+        self.price_change_number = data["price_change_number"]
+        """The price change number of the app."""

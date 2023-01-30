@@ -25,7 +25,7 @@ from typing_extensions import Self
 
 from . import errors, utils
 from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
-from .app import App, AuthenticationTicket, FetchedApp, PartialApp
+from .app import App, AppListApp, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
 from .enums import (
     AuthSessionResponse,
@@ -1153,6 +1153,64 @@ class Client:
                         return
                     yield trade
                     yielded += 1
+
+    async def all_apps(
+        self,
+        *,
+        limit: int | None = None,
+        modified_after: datetime.datetime | None = None,
+        include_games: bool = True,
+        include_dlc: bool = True,
+        include_software: bool = True,
+        include_videos: bool = True,
+        include_hardware: bool = True,
+    ) -> AsyncGenerator[AppListApp, None]:
+        """An :term:`asynchronous iterator` over all the apps on Steam.
+
+        Parameters
+        ----------
+        limit
+            The maximum number of apps to search through. Default is ``None``. Setting this to ``None`` will fetch all
+            of the apps, but this will be a very slow operation.
+        modified_after
+            A time to search for apps after.
+        include_games
+            Whether to include games.
+        include_dlc
+            Whether to include DLC.
+        include_software
+            Whether to include software.
+        include_videos
+            Whether to include videos.
+        include_hardware
+            Whether to include hardware.
+
+        Yields
+        ------
+        :class:`~steam.AppListApp`
+        """
+        have_more_results = True
+        last_app_id = None
+        while have_more_results:
+            data = await self.http.get_all_apps(
+                include_games,
+                include_dlc,
+                include_software,
+                include_videos,
+                include_hardware,
+                min(limit if limit is not None else 10_000, 50_000),
+                last_app_id,
+                modified_after,
+            )
+            resp = data["response"]
+            for app in resp["apps"]:
+                yield AppListApp(self._state, app)
+                if limit is not None:
+                    limit -= 1
+                    if limit == 0:
+                        return
+            last_app_id = AppID(resp.get("last_appid", 0))
+            have_more_results = resp.get("have_more_results", False)
 
     async def change_presence(
         self,

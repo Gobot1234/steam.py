@@ -12,7 +12,7 @@ from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeVar
 
 import aiohttp
 from yarl import URL as URL_
@@ -29,7 +29,7 @@ from .user import ClientUser
 if TYPE_CHECKING:
     from .client import Client
     from .media import Media
-    from .types import achievement, bundle, trade
+    from .types import achievement, app, bundle, trade
     from .types.http import Coro, ResponseDict, StrOrURL
     from .types.id import ID64, BundleID, ChatGroupID, ChatID, PackageID
     from .types.user import User
@@ -90,7 +90,7 @@ class HTTPClient:
 
         url = url if isinstance(url, URL_) else URL_(url)
 
-        if url.host == URL.COMMUNITY.host and not self.logged_in:
+        if url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host) and not self.logged_in:
             if self._client.ws is None:
                 raise RuntimeError("Not logged in and not connected to CM")
             await self.login(self._client.ws.refresh_token)
@@ -202,7 +202,9 @@ class HTTPClient:
             cookie = SimpleCookie[str](cookie)
             for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
                 jar.update_cookies(cookie.copy(), url)
-                jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
+
+        for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
+            jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
 
         self.login_event.set()
 
@@ -591,7 +593,7 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/events", data=data)
 
-    def get_clan_events(self, clan_id: int, event_ids: list[int]) -> Coro[dict[str, Any]]:
+    def get_clan_events(self, clan_id: int, event_ids: Sequence[int]) -> Coro[dict[str, Any]]:
         params = {
             "clanid_list": ",".join([str(clan_id)] * len(event_ids)),
             "uniqueid_list": ",".join(str(id) for id in event_ids),
@@ -744,15 +746,41 @@ class HTTPClient:
         }
         return self.get(URL.COMMUNITY / f"stats/{app_id}/leaderboards", params=params)
 
-    def verify_app_ticket(self, app_id: AppID, ticket: str, publisher_key: str | None) -> Coro[dict[str, Any]]:
+    async def verify_app_ticket(self, app_id: AppID, ticket: str, publisher_key: str | None) -> dict[str, Any]:
         params = {
-            "key": publisher_key or self.api_key,
+            "key": publisher_key or await self.get_api_key(),
             "appid": app_id,
             "ticket": ticket,
         }
-        return self.get(
+        return await self.get(
             api_route("ISteamUserAuth/AuthenticateUserTicket", publisher=publisher_key is not None), params=params
         )
+
+    async def get_all_apps(
+        self,
+        include_games: bool,
+        include_dlc: bool,
+        include_software: bool,
+        include_videos: bool,
+        include_hardware: bool,
+        limit: int | None,
+        last_app_id: AppID | None = None,
+        modified_after: datetime | None = None,
+    ) -> ResponseDict[app.GetAppList]:
+        params = {
+            "key": await self.get_api_key(),
+            "include_games": str(include_games).lower(),
+            "include_dlc": str(include_dlc).lower(),
+            "include_software": str(include_software).lower(),
+            "include_videos": str(include_videos).lower(),
+            "include_hardware": str(include_hardware).lower(),
+            "max_results": 10_000 if limit is None else limit,
+        }
+        if last_app_id is not None:
+            params["last_appid"] = last_app_id
+        if modified_after is not None:
+            params["if_modified_since"] = int(modified_after.timestamp())
+        return await self.get(api_route("IStoreService/GetAppList"), params=params)
 
     async def edit_profile_info(
         self,

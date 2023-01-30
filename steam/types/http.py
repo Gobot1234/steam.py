@@ -2,7 +2,7 @@
 
 from collections.abc import Coroutine
 from ipaddress import IPv4Address
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, final
 
 from typing_extensions import TypeAlias, TypedDict
 from yarl import URL
@@ -10,6 +10,7 @@ from yarl import URL
 T = TypeVar("T")
 
 
+@final
 class ResponseDict(TypedDict, Generic[T]):
     response: T
 
