@@ -29,6 +29,7 @@ from .channel import UserChannel
 from .clan import Clan, PartialClan
 from .comment import Comment
 from .enums import *
+from .enums import PurchaseResult
 from .errors import *
 from .friend import Friend
 from .group import Group
@@ -38,7 +39,7 @@ from .invite import ClanInvite, UserInvite
 from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
 from .message import *
 from .message import ClanMessage
-from .models import Registerable, register
+from .models import Registerable, Wallet, register
 from .package import FetchedPackage, License
 from .protobufs import (
     EMsg,
@@ -147,6 +148,7 @@ class ConnectionState(Registerable):
         self.handled_group_members = asyncio.Event()
         self.login_complete = asyncio.Event()
         self.handled_licenses = asyncio.Event()
+        self.handled_wallet = asyncio.Event()
         self.max_messages: int | None = kwargs.pop("max_messages", 1000)
 
         app = kwargs.get("app")
@@ -191,6 +193,8 @@ class ConnectionState(Registerable):
         self.cell_id = 0
         self._connected_cm: CMServer | None = None
 
+        self.wallet: Wallet = None  # type: ignore
+
         self.licenses: dict[PackageID, License] = {}
         self._license_lock = asyncio.Lock()
         self.licenses_being_waited_for = weakref.WeakValueDictionary[PackageID, asyncio.Future[License]]()
@@ -210,6 +214,7 @@ class ConnectionState(Registerable):
         self.handled_emoticons.clear()
         self.handled_chat_groups.clear()
         self.handled_licenses.clear()
+        self.handled_wallet.clear()
 
     @utils.cached_property
     def ws(self) -> SteamWebSocket:
@@ -1220,6 +1225,7 @@ class ConnectionState(Registerable):
         await self.handled_friends.wait()  # ensure friend cache is ready
         await self.handled_emoticons.wait()  # ensure emoticon cache is ready
         await self.handled_licenses.wait()  # ensure licenses are ready
+        await self.handled_wallet.wait()  # ensure wallet is ready
         await self.client._handle_ready()
 
     @register(EMsg.ClientPersonaState)
@@ -1786,6 +1792,13 @@ class ConnectionState(Registerable):
                 future.set_result(license_)
 
         self.handled_licenses.set()
+
+    @register(EMsg.ClientWalletInfoUpdate)
+    def handle_wallet(self, msg: client_server.CMsgClientWalletInfoUpdate) -> None:
+        self.wallet = Wallet(
+            self, msg.balance64, CurrencyCode.try_value(msg.currency), msg.balance64_delayed, Realm.try_value(msg.realm)
+        )
+        self.handled_wallet.set()
 
     async def fetch_cs_list(self, limit: int = 20) -> list[content_server.ServerInfo]:
         msg: content_server.GetServersForSteamPipeResponse = await self.ws.send_um_and_wait(

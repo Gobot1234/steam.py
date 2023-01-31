@@ -43,7 +43,7 @@ from .guard import generate_one_time_code
 from .http import HTTPClient
 from .id import ID, parse_id64
 from .manifest import AppInfo, PackageInfo
-from .models import PriceOverview, return_true
+from .models import PriceOverview, Wallet, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .post import Post
 from .protobufs import store
@@ -217,6 +217,11 @@ class Client:
     def refresh_token(self) -> str | None:
         """The refresh token for the logged in account, can be used to login."""
         return None if self.ws is None else self.ws.refresh_token
+
+    @property
+    def wallet(self) -> Wallet:
+        """The wallet info for the logged in account."""
+        return self._state.wallet
 
     async def code(self) -> str:
         """Get the current steam guard code.

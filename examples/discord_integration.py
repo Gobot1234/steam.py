@@ -60,14 +60,12 @@ bot = DiscordBot()
 @bot.command()
 async def user(ctx: commands.Context[DiscordBot], user: steam.User = commands.param(converter=UserConverter)):
     """Show some basic info on a steam user"""
-    profile = await user.profile()
     embed = discord.Embed(description=user.name)
     embed.set_thumbnail(url=user.avatar.url)
     embed.add_field(name="64 bit ID:", value=str(user.id64))
     embed.add_field(name="Currently playing:", value=f"{user.app or 'Nothing'}")
     embed.add_field(name="Friends:", value=len(await user.friends()))
     embed.add_field(name="Apps:", value=len(await user.apps()))
-    embed.set_footer(text="Account created on")  # set timestamp goes after this
     await ctx.send(f"Info on {user.name}", embed=embed)
 
 

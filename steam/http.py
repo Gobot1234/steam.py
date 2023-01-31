@@ -796,6 +796,10 @@ class HTTPClient:
             params["if_modified_since"] = int(modified_after.timestamp())
         return await self.get(api_route("IStoreService/GetAppList"), params=params)
 
+    def add_wallet_code(self, code: str) -> Coro[dict[str, Any]]:
+        data = {"wallet_code": code, "sessionid": self.session_id}
+        return self.post(URL.STORE / "account/ajaxredeemwalletcode", data=data)
+
     async def edit_profile_info(
         self,
         name: str | None,

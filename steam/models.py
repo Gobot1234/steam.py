@@ -20,7 +20,7 @@ from yarl import URL as _URL
 
 from . import utils
 from ._const import URL
-from .enums import CurrencyCode, IntEnum
+from .enums import CurrencyCode, IntEnum, PurchaseResult, Realm, Result
 from .media import Media
 from .protobufs import EMsg
 
@@ -329,3 +329,41 @@ class CDNAsset(_IOMixin):
 
     def __eq__(self, other: object) -> bool:
         return self.url == other.url if isinstance(other, self.__class__) else NotImplemented
+
+
+@dataclass(slots=True)
+class Wallet:
+    _state: ConnectionState
+    balance: int
+    """The balance of your wallet in its base most currency denomination.
+
+    E.g. $3.45 -> 345
+    """
+    currency: CurrencyCode
+    """The currency the balance is in."""
+    balance_delayed: int
+    """Your delayed balance if Steam is refunding something?"""
+    realm: Realm
+    """The realm this wallet is for."""
+
+    async def add(self, code: str) -> int:
+        """Add a wallet code to your wallet.
+
+        Parameters
+        ----------
+        code
+            The wallet code to redeem.
+
+        Returns
+        -------
+        The balance added to your account.
+        """
+        self._state.handled_wallet.clear()
+        resp = await self._state.http.add_wallet_code(code)
+        result = Result.try_value(resp["success"])
+        if result != Result.OK:
+            raise ValueError(
+                f"Activation of code failed with result {result} {PurchaseResult.try_value(resp['detail'])!r}"
+            )
+        await self._state.handled_wallet.wait()
+        return resp["amount"]

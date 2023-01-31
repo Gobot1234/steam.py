@@ -917,6 +917,14 @@ Users
     :undoc-members:
     :inherited-members:
 
+Wallet
+~~~~~~~~~~~~~~~
+
+.. attributetable:: Wallet
+
+.. autoclass:: Wallet()
+
+
 Data-Classes
 ---------------
 
