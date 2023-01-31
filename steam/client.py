@@ -223,8 +223,7 @@ class Client:
 
         Warning
         -------
-        This function will wait for a Steam guard code using :func:`input` in an executor if no shared_secret is passed
-        to :meth:`run` or :meth:`start`, which blocks exiting until one is entered.
+        This will read from :attr:`sys.stdin` if no `shared_secret` was passed to :meth:`login`.
         """
         if self.shared_secret:
             return generate_one_time_code(self.shared_secret)

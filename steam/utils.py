@@ -210,8 +210,17 @@ class CachedSlotProperty(cached_property[_SelfT, _T_co]):
             return value
 
 
-def ainput(prompt: str = "") -> Coroutine[None, None, str]:
-    return asyncio.to_thread(input, prompt)
+async def ainput(prompt: object = MISSING, /) -> str:
+    if prompt is not MISSING:
+        print(prompt, end="", flush=True)  # I'm not implementing aprint lol
+
+    reader = asyncio.StreamReader()
+    await asyncio.get_running_loop().connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), sys.stdin)
+
+    line = await reader.readline()
+    if not line.endswith(b"\n"):
+        raise EOFError
+    return line.removesuffix(b"\n").decode()
 
 
 def _int_chunks(len: int, size: int) -> Generator[tuple[int, int], None, None]:
