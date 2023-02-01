@@ -11,13 +11,13 @@ import os.path
 import struct
 import sys
 from base64 import b64decode
-from collections.abc import AsyncGenerator, Generator, ItemsView, Sequence
+from collections.abc import AsyncGenerator, Generator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
 from operator import attrgetter, methodcaller
-from typing import TYPE_CHECKING, Any, Final, Literal, cast
+from typing import TYPE_CHECKING, Any, Final, Literal, TypeGuard, cast
 from zipfile import BadZipFile, ZipFile
 from zlib import crc32
 
@@ -336,7 +336,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             dirnames: list[str] = []
             filenames: list[str] = []
             for entry in self.iterdir():
-                is_dir = entry.is_dir() if follow_symlinks else entry.flags & DepotFileFlag.Directory > 0
+                is_dir = entry.is_dir() if follow_symlinks else entry.is_dir() and not entry.is_symlink()
                 (dirnames if is_dir else filenames).append(entry.name)
 
             if top_down:
@@ -497,7 +497,7 @@ class Manifest:
         """The ID of this manifest's depot."""
         return DepotID(self._metadata.depot_id)
 
-    @cached_slot_property
+    @cached_slot_property("_cs_created_at")
     def created_at(self) -> datetime:
         """The time at which the depot was created at."""
         return DateTime.from_timestamp(self._metadata.creation_time)
@@ -646,7 +646,7 @@ class ManifestInfo:
 
 
 class PrivateManifestInfo(ManifestInfo):
-    __slots__ = ("encrypted_id", "_cs_id")
+    __slots__ = ("encrypted_id", "_id_cs")
 
     def __init__(self, state: ConnectionState, encrypted_id: str, branch: Branch):
         self._state = state
@@ -676,11 +676,11 @@ class HeadlessDepot:
 
     id: DepotID
     """The depot's ID."""
-    name: str
+    name: str | None
     """The depot's name."""
     app: AppInfo
     """The depot's app."""
-    max_size: int
+    max_size: int | None
     """The depot's maximum size."""
     config: MultiDict[str]
     """The depot's configuration settings."""
@@ -732,10 +732,14 @@ class ProductInfo:
         self.size = proto.size
         self.change_number = proto.change_number
 
-    # async def changes(self) -> ...:
-    #     """A method to fetch the changes to this app since this change number"""
-    #     changes = await self._state.fetch_changes_since(self.change_number, True, True)
-    #     return changes.app_changes[0].change_number
+
+def is_depot(item: tuple[str, Any]) -> TypeGuard[tuple[str, manifest.Depot]]:
+    try:
+        int(item[0])  # only the integer keys are depots
+    except ValueError:
+        return False
+    else:
+        return True
 
 
 class AppInfo(ProductInfo, PartialApp[str]):
@@ -869,44 +873,56 @@ class AppInfo(ProductInfo, PartialApp[str]):
         self.headless_depots: Sequence[HeadlessDepot] = []
         """This app's headless depots."""
 
-        for key, depot in cast("ItemsView[str, Any]", depots.items()):
+        for key, depot in filter(is_depot, depots.items()):
+            id = DepotID(int(key))
+            name = depot.get("name")
+            config = depot.get("config", MultiDict())
+            max_size = int(depot["maxsize"]) if "maxsize" in depot else None
+            shared_install = bool(int(depot.get("sharedinstall", False)))
+            system_defined = bool(int(depot.get("system_defined", False)))
             try:
-                id = int(key)
-            except ValueError:
-                continue
-            else:  # only the int keys have VDFDicts
-                depot: manifest.Depot
-                kwargs = {
-                    "id": id,
-                    "name": depot.get("name"),
-                    "config": depot.get("config", MultiDict()),
-                    "max_size": int(depot["maxsize"]) if "maxsize" in depot else None,
-                    "app": self,
-                    "shared_install": bool(int(depot.get("sharedinstall", False))),
-                    "system_defined": bool(int(depot.get("system_defined", False))),
-                }
-                try:
-                    manifests = depot["manifests"]
-                except KeyError:
-                    self.headless_depots.append(HeadlessDepot(**kwargs))  # type: ignore
-                else:
-                    for branch_name, manifest_id in manifests.items():
-                        branch = self._branches[branch_name]
-                        if not branch.password_required:
-                            manifest = ManifestInfo(state, ManifestID(int(manifest_id)), branch=branch)
-                        else:
-                            encrypted_id = PrivateManifestInfo._get_id(depot, branch)
-                            if encrypted_id is not None:
-                                manifest = PrivateManifestInfo(state, encrypted_id, branch)
-                            else:  # fall back to the public version
-                                manifest = ManifestInfo(
-                                    state,
-                                    ManifestID(int(manifests["public"])),
-                                    branch=self.public_branch,
-                                )
-                        depot_ = Depot(**kwargs, branch=branch, manifest=manifest)  # type: ignore
-                        manifest.depot = depot_
-                        branch.depots.append(depot_)
+                manifests = depot["manifests"]
+            except KeyError:
+                self.headless_depots.append(
+                    HeadlessDepot(
+                        id=id,
+                        name=name,
+                        config=config,
+                        app=self,
+                        max_size=max_size,
+                        shared_install=shared_install,
+                        system_defined=system_defined,
+                    )
+                )
+            else:
+                for branch_name, manifest_id in manifests.items():
+                    branch = self._branches[branch_name]
+                    if not branch.password_required:
+                        manifest = ManifestInfo(state, ManifestID(int(manifest_id)), branch=branch)
+                    else:
+                        encrypted_id = PrivateManifestInfo._get_id(depot, branch)
+                        if encrypted_id is not None:
+                            manifest = PrivateManifestInfo(state, encrypted_id, branch)
+                        else:  # fall back to the public version
+                            manifest = ManifestInfo(
+                                state,
+                                ManifestID(int(manifests["public"])),
+                                branch=self.public_branch,
+                            )
+
+                    depot_ = Depot(
+                        id=id,
+                        name=name,
+                        config=config,
+                        app=self,
+                        max_size=max_size,
+                        shared_install=shared_install,
+                        system_defined=system_defined,
+                        branch=branch,
+                        manifest=manifest,
+                    )
+                    manifest.depot = depot_
+                    branch.depots.append(depot_)
 
     def get_branch(self, name: str) -> Branch | None:
         """Get a branch by its name."""

@@ -200,6 +200,7 @@ class ConnectionState(Registerable):
         self.licenses_being_waited_for = weakref.WeakValueDictionary[PackageID, asyncio.Future[License]]()
         self._manifest_passwords: dict[AppID, dict[str, str]] = {}
         self.cs_servers: list[ContentServer] = []
+        self.cs_servers_lock = asyncio.Lock()
 
         self._game_connect_bytes: list[
             bytes
@@ -1820,19 +1821,20 @@ class ConnectionState(Registerable):
         branch: str = "public",
         password_hash: str = "",
     ) -> Manifest:
-        if not self.cs_servers:
-            self.cs_servers = sorted(
-                (
-                    ContentServer(
-                        self,
-                        URL_.build(scheme=f"http{'s' * (server.https_support != 'none')}", host=server.vhost),
-                        server.weighted_load,
-                    )
-                    for server in await self.fetch_cs_list(limit=20)
-                    if server.type in ("CDN", "SteamCache")
-                ),
-                key=attrgetter("weighted_load"),
-            )
+        async with self.cs_servers_lock:
+            if not self.cs_servers:
+                self.cs_servers = sorted(
+                    (
+                        ContentServer(
+                            self,
+                            URL_.build(scheme=f"http{'s' * (server.https_support != 'none')}", host=server.vhost),
+                            server.weighted_load,
+                        )
+                        for server in await self.fetch_cs_list(limit=20)
+                        if server.type in ("CDN", "SteamCache")
+                    ),
+                    key=attrgetter("weighted_load"),
+                )
 
         for server in tuple(self.cs_servers):
             try:
@@ -1848,9 +1850,9 @@ class ConnectionState(Registerable):
     async def fetch_manifests(
         self, app_id: AppID, branch_name: str, password: str | None, limit: int | None, password_hash: str = ""
     ) -> list[Coro[Manifest]]:
-        (product_info,), _ = await self.fetch_product_info((app_id,))
+        (app_info,), _ = await self.fetch_product_info((app_id,))
 
-        branch = product_info.get_branch(branch_name)
+        branch = app_info.get_branch(branch_name)
         if branch is None:
             raise ValueError(f"No branch named {branch_name!r} for app {app_id}")
 
@@ -2011,20 +2013,6 @@ class ConnectionState(Registerable):
             Result.OK,
             Result.Invalid,
         ):  # invalid is for the case where access tokens are not required
-            raise WSException(msg)
-        return msg
-
-    async def fetch_changes_since(
-        self, change_number: int, app: bool, package: bool
-    ) -> app_info.CMsgClientPicsChangesSinceResponse:
-        msg: app_info.CMsgClientPicsChangesSinceResponse = await self.ws.send_proto_and_wait(
-            app_info.CMsgClientPicsChangesSinceRequest(
-                since_change_number=change_number,
-                send_app_info_changes=app,
-                send_package_info_changes=package,
-            )
-        )
-        if msg.result != Result.OK:
             raise WSException(msg)
         return msg
 
