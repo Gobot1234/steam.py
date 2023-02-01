@@ -382,10 +382,6 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         ----------
         language
             The language to fetch the stats in. If ``None`` will default to the current language.
-
-        See Also
-        --------
-        :meth:`achievements` for a faster way to fetch achievements.
         """
         msg = await self._state.fetch_user_app_stats(self.id64, app.id)
         schema = VDF_BINARY_LOADS(msg.schema)
@@ -832,7 +828,7 @@ class Channel(Messageable[M_co]):
     """The group this channel belongs to."""
 
     @abc.abstractmethod
-    def history(
+    async def history(
         self,
         *,
         limit: int | None = 100,
@@ -868,6 +864,7 @@ class Channel(Messageable[M_co]):
         :class:`~steam.Message`
         """
         raise NotImplementedError
+        yield
 
 
 def _clean_up_content(content: str) -> str:  # steam does weird stuff with content

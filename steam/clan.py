@@ -46,19 +46,13 @@ BoringEvents = Literal[
     EventType.MusicAndArts,
     EventType.Sports,
     EventType.Trip,
+    # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
 ]
 CreateableEvents = Literal[BoringEvents, EventType.Game]
 
 BoringEventT = TypeVar(
     "BoringEventT",
-    Literal[EventType.Other],
-    Literal[EventType.Chat],
-    Literal[EventType.Party],
-    Literal[EventType.Meeting],
-    Literal[EventType.SpecialCause],
-    Literal[EventType.MusicAndArts],
-    Literal[EventType.Sports],
-    Literal[EventType.Trip],
+    bound=BoringEvents,
     covariant=True,
 )
 
@@ -175,18 +169,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         name: str,
         content: str,
         *,
-        type: Literal[
-            EventType.Other,
-            EventType.Chat,
-            EventType.Game,
-            # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
-            EventType.Party,
-            EventType.Meeting,
-            EventType.SpecialCause,
-            EventType.MusicAndArts,
-            EventType.Sports,
-            EventType.Trip,
-        ] = EventType.Other,
+        type: CreateableEvents = EventType.Other,
         app: App | None = None,
         starts_at: datetime | None = None,
         server_address: IPAdress | str | None = None,
