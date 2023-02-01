@@ -168,6 +168,14 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: CurrencyCode()
+    :members:
+    :undoc-members:
+
+.. autoclass:: PurchaseResult()
+    :member:
+    :undoc-members:
+
 .. autoclass:: Universe()
     :members:
     :undoc-members:
