@@ -690,7 +690,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
     def is_friend(self) -> bool:
         """Whether the user is in the :class:`ClientUser`'s friends."""
-        return self.id64 in self._state.user._friends
+        return self.id in self._state.user._friends
 
 
 class BaseUser(PartialUser):

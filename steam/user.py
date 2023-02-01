@@ -19,10 +19,10 @@ from .abc import BaseUser, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
-from .id import ID
+from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import player
-from .types.id import ID64, AppID, Intable
+from .types.id import ID32, ID64, AppID, Intable
 from .utils import DateTime, parse_bb_code
 
 if TYPE_CHECKING:
@@ -117,7 +117,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
     async def remove(self) -> None:
         """Remove the user from your friends list."""
         await self._state.remove_user(self.id64)
-        self._state.user._friends.pop(self.id64, None)
+        self._state.user._friends.pop(self.id, None)
 
     async def cancel_invite(self) -> None:
         """Cancels an invitation sent to the user. This effectively does the same thing as :meth:`remove`."""
@@ -252,7 +252,7 @@ class ClientUser(_BaseUser):
 
     def __init__(self, state: ConnectionState, proto: UserProto):
         super().__init__(state, proto)
-        self._friends: dict[ID64, Friend] = {}
+        self._friends: dict[ID32, Friend] = {}
         self._inventory_locks = weakref.WeakValueDictionary[AppID, asyncio.Lock]()
 
     async def friends(self) -> Sequence[Friend]:
@@ -261,8 +261,8 @@ class ClientUser(_BaseUser):
 
     def get_friend(self, id: Intable) -> Friend | None:
         """Get a friend from the client user's friends list."""
-        id64 = utils.parse_id64(id, type=Type.Individual)
-        return self._friends.get(id64)
+        id32 = _ID64_TO_ID32(utils.parse_id64(id, type=Type.Individual))
+        return self._friends.get(id32)
 
     async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
         try:

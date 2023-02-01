@@ -1232,8 +1232,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientPersonaState)
     def parse_persona_state_update(self, msg: friends.CMsgClientPersonaState) -> None:
         for friend in msg.friends:
-            steam_id = ID(friend.friendid)
-            after = self.get_user(steam_id.id)
+            after = self.get_user(_ID64_TO_ID32(friend.friendid))
             if after is None:
                 continue
 
@@ -1246,7 +1245,7 @@ class ConnectionState(Registerable):
                 self.dispatch("user_update", before, after)
 
     def _add_friend(self, user: User) -> Friend:
-        self.user._friends[user.id64] = friend = Friend(self, user)
+        self.user._friends[user.id] = friend = Friend(self, user)
         return friend
 
     @register(EMsg.ClientFriendsList)
@@ -1317,7 +1316,7 @@ class ConnectionState(Registerable):
                             try:
                                 invite = self.invites.pop(id.id64)
                             except KeyError:
-                                friend = self.user._friends.pop(id.id64, None)
+                                friend = self.user._friends.pop(id.id, None)
                                 if friend is None:
                                     return log.debug("Unknown friend %s removed", id)
                                 self.dispatch("friend_remove", friend)
@@ -1337,7 +1336,7 @@ class ConnectionState(Registerable):
 
         if is_load:
             await self.login_complete.wait()
-            self.user._friends = {user.id64: Friend(self, user) for user in await self.fetch_users(client_user_friends)}
+            self.user._friends = {user.id: Friend(self, user) for user in await self.fetch_users(client_user_friends)}
             self.handled_friends.set()
 
     async def set_chat_group_active(self, chat_group_id: ChatGroupID) -> chat.GroupState:
