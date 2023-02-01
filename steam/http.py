@@ -812,6 +812,14 @@ class HTTPClient:
     ) -> None:
         info = await self.user.profile_info()
 
+        if not self.logged_in:
+            if self._client.ws is None:
+                raise RuntimeError("Not logged in and not connected to CM")
+            await self.login(self._client.ws.refresh_token)
+
+        async with self._session.get(URL.COMMUNITY / "my") as r:
+            current_url = r.url
+
         payload = {
             "sessionID": self.session_id,
             "type": "profileSave",
@@ -822,15 +830,16 @@ class HTTPClient:
             "weblink_3_title": "",
             "weblink_3_url": "",
             "personaName": name or self.user.name,
-            "real_name": real_name or info.real_name,
-            "customURL": url or self.user.community_url,
+            "real_name": real_name or info.real_name or "",
+            "customURL": (url if url is not None else current_url.parts[-2]) or "",
             "country": country or info.country_name,
             "state": state or info.state_name,
             "city": city or info.city_name,
             "summary": summary or info.summary,
+            "json": "1",
         }
 
-        await self.post(URL.COMMUNITY / "my/edit", data=payload)
+        await self.post(f"{self.user.community_url}/edit", data=payload)
 
     async def update_avatar(self, avatar: Media) -> None:
         with avatar:
