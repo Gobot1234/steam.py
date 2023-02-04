@@ -60,10 +60,15 @@ class _PartialMemberProto(Protocol):
         self.kick_expires = DateTime.from_timestamp(member.time_kick_expire)
 
     @property
-    def roles(self) -> list[Role]:
-        """The member's roles."""
+    def _chat_group(self) -> Clan | ChatGroup:
         chat_group = self.group or self.clan
         assert chat_group is not None
+        return chat_group
+
+    @property
+    def roles(self) -> list[Role]:
+        """The member's roles."""
+        chat_group = self._chat_group
         return [chat_group._roles[role_id] for role_id in self._role_ids]
 
     # async def add_role(self, role: Role):
@@ -109,6 +114,20 @@ class PartialMember(PartialUser, _PartialMemberProto):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id!r} {f'clan={self.clan!r}' if self.clan else f'group={self.group!r}'} rank={self.rank!r}>"
 
+    def copy(self) -> Self:
+        return self.__class__(
+            self._state,
+            self.clan,
+            self.group,
+            chat.Member(
+                self.id,
+                chat.EChatRoomJoinState.Joined,
+                self.rank,  # type: ignore
+                int(self.kick_expires.timestamp()),
+                list(self._role_ids),
+            ),
+        )
+
 
 if TYPE_CHECKING:
 
@@ -141,6 +160,7 @@ class Member(_BaseMember):
 
     if not TYPE_CHECKING:
         roles = PartialMember.roles
+        __repr__ = PartialMember.__repr__  # type: ignore
 
     def copy(self) -> Self:
         return self.__class__(
@@ -344,7 +364,7 @@ class Chat(Channel[ChatMessageT]):
         return chat_group
 
     @utils.classproperty
-    def _type_args(cls: type[Chat]) -> tuple[type[ChatMessageT]]:  # type: ignore
+    def _type_args(cls: type[Chat[ChatMessageT]]) -> tuple[type[ChatMessageT]]:  # type: ignore
         return cls.__orig_bases__[0].__args__  # type: ignore
 
     def _message_func(self, content: str) -> Coroutine[Any, Any, ChatMessageT]:
@@ -363,7 +383,6 @@ class Chat(Channel[ChatMessageT]):
         after = after or UNIX_EPOCH
         before = before or DateTime.now()
 
-        chat_group = self._chat_group
         after_timestamp = int(after.timestamp())
         before_timestamp = int(before.timestamp())
         last_message_timestamp = before_timestamp
@@ -524,11 +543,14 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
                     if permissions.role_id == role.role_id
                 }
                 member_cls, _, _ = self._type_args
-                self._members = {
-                    self._state.user.id: member_cls(
-                        self._state, self, self._state.user, self._partial_members[self._state.user.id]  # type: ignore
-                    )
-                }
+                try:
+                    self._members = {
+                        self._state.user.id: member_cls(
+                            self._state, self, self._state.user, self._partial_members[self._state.user.id]  # type: ignore
+                        )
+                    }
+                except KeyError:
+                    self._members = {}  # we aren't a member
 
             if self._state.auto_chunk_chat_groups:
                 await self.chunk()

@@ -12,7 +12,7 @@ from operator import itemgetter
 from typing import TYPE_CHECKING, Literal, TypeVar, overload
 
 from bs4 import BeautifulSoup
-from typing_extensions import Never, Self
+from typing_extensions import Self
 from yarl import URL
 
 from . import utils
@@ -21,7 +21,7 @@ from .abc import Commentable, PartialUser, _CommentableKwargs, _CommentableThrea
 from .app import App, PartialApp
 from .channel import ClanChannel
 from .chat import ChatGroup, Member, PartialMember
-from .enums import EventType, Language, Type
+from .enums import ClanAccountFlags, EventType, Language, Type
 from .errors import HTTPException
 from .event import Announcement, Event
 from .id import ID, parse_id64
@@ -30,12 +30,14 @@ from .types.id import ID32, ID64, Intable
 from .utils import BBCodeStr, DateTime, parse_bb_code
 
 if TYPE_CHECKING:
-    from .role import Role
     from .state import ConnectionState
     from .types.http import IPAdress
     from .user import User
 
-__all__ = ("Clan", "ClanMember")
+__all__ = (
+    "Clan",
+    "ClanMember",
+)
 
 BoringEvents = Literal[
     EventType.Other,
@@ -295,8 +297,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
 
     # V1
     # Clan.headline
-    # Clan.flags https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L526
-    # or more likely https://cs.github.com/SteamDatabase/SteamTracking/blob/5c4420496f18384bea932f4535ee1a87fd9271e4/Structs/enums.steamd#L3177
 
     summary: BBCodeStr
     """The summary of the clan."""
@@ -318,10 +318,13 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     """A list of the clan's administrators."""
     is_app_clan: bool
     """Whether the clan is an app clan."""
+    flags: ClanAccountFlags | None
+    """The flags"""
 
     def __init__(self, state: ConnectionState, id: Intable) -> None:
         PartialClan.__init__(self, state, id)
         self._init()
+        self.flags = None
 
     async def _load(self, *, from_proto: bool = False) -> Self:
         community_url = self.community_url
@@ -419,8 +422,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             return self.members
 
         self._members = dict.fromkeys(self._partial_members)  # type: ignore
-        if len(self._partial_members) <= 100:
-            # TODO might be if self.flags & ClanFlags.Large (2)?
+        if self.flags & ClanAccountFlags.Large if self.flags is not None else len(self._partial_members) <= 100:
             for user, member in zip(
                 await self._state._maybe_users(parse_id64(id, type=Type.Individual) for id in self._partial_members),
                 self._partial_members.values(),
@@ -455,8 +457,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
                 user = users[id]
             except KeyError:
                 user = await self._state._maybe_user(parse_id64(id))
-                if not isinstance(user, User):
-                    continue
             self._members[user.id] = ClanMember(self._state, self, user, member)
         return await super().chunk()
 

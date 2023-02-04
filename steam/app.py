@@ -21,11 +21,11 @@ from ._const import DOCS_BUILDING, HTML_PARSER, JSON_LOADS, MISSING, STATE, STEA
 from .achievement import AppAchievement, AppStats
 from .badge import AppBadge
 from .enums import *
-from .id import id64_from_url
+from .id import _ID64_TO_ID32, id64_from_url
 from .models import CDNAsset, _IOMixin
 from .protobufs import client_server, player
 from .protobufs.encrypted_app_ticket import EncryptedAppTicket as EncryptedAppTicketProto
-from .types.id import ID64, AppID, ContextID, DepotID, Intable, LeaderboardID, ManifestID
+from .types.id import ID32, ID64, AppID, ContextID, DepotID, Intable, LeaderboardID, ManifestID
 from .types.user import Author
 from .utils import DateTime
 
@@ -632,7 +632,7 @@ class PartialApp(App[NameT]):
     async def friends_who_own(self) -> list[Friend]:
         """Fetch the users in your friend list who own this app."""
         id64s = await self._state.fetch_friends_who_own(self.id)
-        return [self._state.get_friend(id64) for id64 in id64s]
+        return [self._state.get_friend(_ID64_TO_ID32(id64)) for id64 in id64s]
 
     async def review(
         self,
@@ -743,8 +743,8 @@ class PartialApp(App[NameT]):
         """
         proto = await self._state.fetch_friend_thoughts(self.id)
         return FriendThoughts(
-            [self._state.get_friend(utils.parse_id64(id)) for id in proto.accountids_recommended],
-            [self._state.get_friend(utils.parse_id64(id)) for id in proto.accountids_not_recommended],
+            [self._state.get_friend(id) for id in cast("list[ID32]", proto.accountids_recommended)],
+            [self._state.get_friend(id) for id in cast("list[ID32]", proto.accountids_not_recommended)],
         )
 
     # async def fetch(self) -> Self & FetchedApp:  # TODO update signature to this when types.Intersection is done

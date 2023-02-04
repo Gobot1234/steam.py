@@ -427,7 +427,7 @@ class HTTPClient:
         }
         return self.get(api_route("ISteamDirectory/GetCMListForConnect"), params=params)
 
-    async def join_clan(self, clan_id64: ID64) -> Coro[None]:
+    def join_clan(self, clan_id64: ID64) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
             "action": "join",

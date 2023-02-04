@@ -31,6 +31,7 @@ __all__ = (
     "TradeOfferState",
     "ChatMemberRank",
     "ChatEntryType",
+    "ClanAccountFlags",
     "UIMode",
     "ReviewType",
     "GameServerRegion",
@@ -1180,6 +1181,20 @@ class ChatEntryType(IntEnum):
     """A chat message from user's chat history or offline message."""
     LinkBlocked      = 14
     """A link was removed by the chat filter."""
+
+
+class ClanAccountFlags(Flags):
+    """Represents """
+    Public   = 1 << 0
+    """A public clan."""
+    Large    = 1 << 1
+    """A large clan."""
+    Locked   = 1 << 2
+    """The clan is locked."""
+    Disabled = 1 << 3
+    """The clan is disabled."""
+    OGG      = 1 << 4
+    """An "Official Game Group" (an app clan)."""
 
 
 class UIMode(IntEnum):

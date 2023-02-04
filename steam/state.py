@@ -272,16 +272,15 @@ class ConnectionState(Registerable):
         friends = await self.ws.fetch_users(user_id64s)
         return [self._store_user(user) for user in friends]
 
-    async def _maybe_user(self, id: Intable) -> User | PartialUser:
+    async def _maybe_user(self, id: Intable) -> User:
         steam_id = ID(id, type=Type.Individual)
         return self.get_user(steam_id.id) or await self.fetch_user(steam_id.id64) or PartialUser(self, steam_id.id64)
 
-    async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User | PartialUser]:
-        ret: list[User | PartialUser] = []
+    async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User]:
+        ret: list[User | None] = []
         to_fetch: dict[ID64, list[int]] = {}
         for idx, id64 in enumerate(id64s):
-            partial_user = PartialUser(self, id64)
-            user = self.get_user(partial_user.id)
+            user = self.get_user(_ID64_TO_ID32(id64))
             if user is not None:
                 ret.append(user)
             else:
@@ -290,15 +289,14 @@ class ConnectionState(Registerable):
                     idxs = to_fetch[id64] = []
 
                 idxs.append(idx)
-                ret.append(partial_user)
+                ret.append(None)
 
         if to_fetch:
             for idxs, user in zip(to_fetch.values(), await self.fetch_users(to_fetch)):
-                if user is not None:
-                    for idx in idxs:
-                        ret[idx] = user
+                for idx in idxs:
+                    ret[idx] = user
 
-        return ret
+        return cast("list[User]", ret)
 
     def _store_user(self, proto: friends.CMsgClientPersonaStateFriend) -> User:
         try:
@@ -310,8 +308,8 @@ class ConnectionState(Registerable):
             user._update(proto)
         return user
 
-    def get_friend(self, id64: ID64) -> Friend:
-        return self.user._friends[id64]
+    def get_friend(self, id: ID32) -> Friend:
+        return self.user._friends[id]
 
     def get_group(self, id: ChatGroupID) -> Group | None:
         return self._groups.get(id)
@@ -1070,7 +1068,7 @@ class ConnectionState(Registerable):
         try:
             destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
         except KeyError:
-            return log.debug(f"Got a message for a chat we aren't in {msg.chat_group_id}")
+            return log.debug("Got a message for a chat we aren't in %s", msg.chat_group_id)
 
         channel = destination._channels[ChatID(msg.chat_id)]
         channel._update(msg)
@@ -1089,7 +1087,7 @@ class ConnectionState(Registerable):
         try:
             destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
         except KeyError:
-            return log.debug(f"Got a message reaction for a chat we aren't in {msg.chat_group_id}")
+            return log.debug("Got a message reaction for a chat we aren't in %s", msg.chat_group_id)
         ordinal = msg.ordinal
         created_at = DateTime.from_timestamp(msg.server_timestamp)
         location = (destination._id, msg.chat_id)
@@ -1139,7 +1137,7 @@ class ConnectionState(Registerable):
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.header_state.chat_group_id)]
         except KeyError:
-            return log.debug(f"Updating a group that isn't cached {msg.header_state.chat_group_id}")
+            return log.debug("Updating a group that isn't cached %s", msg.header_state.chat_group_id)
 
         before = copy(chat_group)
         before._roles = {r_id: copy(r) for r_id, r in before._roles.items()}
@@ -1762,8 +1760,10 @@ class ConnectionState(Registerable):
 
         user_counts = msg.user_counts
         name_info = msg.name_info
+        flags_changed = clan.flags != msg.clan_account_flags
+        dispatch_update = user_counts or name_info or flags_changed
 
-        if user_counts or name_info:
+        if dispatch_update:
             before = copy(clan)
         if user_counts:
             clan.member_count = user_counts.members
@@ -1773,8 +1773,10 @@ class ConnectionState(Registerable):
         if name_info:
             clan.name = name_info.clan_name
             clan._avatar_sha = name_info.sha_avatar
+        if flags_changed:
+            clan.flags = ClanAccountFlags.try_value(msg.clan_account_flags)
 
-        if user_counts or name_info:
+        if dispatch_update:
             self.dispatch("clan_update", before, clan)
 
     @register(EMsg.ClientLicenseList)
