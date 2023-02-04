@@ -122,7 +122,7 @@ class PartialPackage(Package[NameT]):
 
         .. code:: python
 
-            (item,) = await client.fetch_store_item(apps=[app])
+            (item,) = await client.fetch_store_item(packages=[package])
         """
         (item,) = await self._state.client.fetch_store_item(packages=(self,))
         return item

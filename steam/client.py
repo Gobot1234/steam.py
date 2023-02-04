@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import inspect
 import logging
 import math
 import random
@@ -273,7 +274,7 @@ class Client:
         """
 
         def decorator(coro: E) -> E:
-            if not asyncio.iscoroutinefunction(coro):
+            if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
 
             setattr(self, coro.__name__, coro)

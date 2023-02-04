@@ -18,7 +18,7 @@ from .id import ID_ZERO
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .clan import Clan, PartialClan
+    from .clan import BoringEvents, Clan, CreateableEvents, PartialClan
     from .game_server import GameServer
     from .state import ConnectionState
     from .types.http import IPAdress
@@ -111,7 +111,9 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         """The number of down votes on the event."""
         self.comment_count: int = data.get("comment_count", 0)
         """The number of comments on the event."""
-        self.server_address: str | None = data.get("server_address")
+        self.server_address: IPv4Address | None = (
+            IPv4Address(data["server_address"]) if "server_address" in data else None
+        )
         """The event's server address."""
         self.server_password: str | None = data.get("server_password")
         """The event's server password."""
@@ -189,17 +191,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         name: str,
         description: str,
         *,
-        type: Literal[
-            EventType.Other,
-            EventType.Chat,
-            EventType.Party,
-            EventType.Meeting,
-            EventType.SpecialCause,
-            EventType.MusicAndArts,
-            EventType.Sports,
-            EventType.Trip,
-        ]
-        | None = None,
+        type: BoringEvents | None = None,
         starts_at: datetime | None = None,
     ) -> None:
         ...
@@ -223,19 +215,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         name: str,
         description: str,
         *,
-        type: Literal[
-            EventType.Other,
-            EventType.Chat,
-            EventType.Game,
-            # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
-            EventType.Party,
-            EventType.Meeting,
-            EventType.SpecialCause,
-            EventType.MusicAndArts,
-            EventType.Sports,
-            EventType.Trip,
-        ]
-        | None = None,
+        type: CreateableEvents | None = None,
         app: App | None = None,
         starts_at: datetime | None = None,
         server_address: IPAdress | str | None = None,

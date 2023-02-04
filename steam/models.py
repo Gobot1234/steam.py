@@ -35,6 +35,7 @@ __all__ = (
     "PriceOverview",
     "Ban",
     "Avatar",
+    "Wallet",
 )
 
 F = TypeVar("F", bound="Callable[..., Any]")
