@@ -215,9 +215,12 @@ async def ainput(prompt: object = MISSING, /) -> str:
         print(prompt, end="", flush=True)  # I'm not implementing aprint lol
 
     reader = asyncio.StreamReader()
-    await asyncio.get_running_loop().connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), sys.stdin)
+    transport, _ = await asyncio.get_running_loop().connect_read_pipe(
+        lambda: asyncio.StreamReaderProtocol(reader), sys.stdin
+    )
 
     line = await reader.readline()
+    transport.close()
     if not line.endswith(b"\n"):
         raise EOFError
     return line.removesuffix(b"\n").decode()
