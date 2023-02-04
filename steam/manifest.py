@@ -418,6 +418,14 @@ class Manifest:
         .. describe:: len(x)
 
             Returns the number of files this manifest holds.
+
+        .. describe:: bytes(x)
+
+            Returns the manifest's binary data.
+
+            Note
+            ----
+            This will be the uncompressed data.
     """
 
     __slots__ = (
@@ -464,6 +472,26 @@ class Manifest:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id} depot_id={self.depot_id}>"
+
+    def __bytes__(self) -> bytes:
+        with utils.StructIO() as io:
+            io.write_u32(PAYLOAD_MAGIC)
+            payload = bytes(self._payload)
+            io.write_u32(len(payload))
+            io.write(payload)
+
+            io.write_u32(METADATA_MAGIC)
+            metadata = bytes(self._metadata)
+            io.write_u32(len(metadata))
+            io.write(metadata)
+
+            io.write_u32(SIGNATURE_MAGIC)
+            signature = bytes(self._signature)
+            io.write_u32(len(signature))
+            io.write(signature)
+
+            io.write_u32(END_OF_MANIFEST_MAGIC)
+            return io.buffer
 
     def __eq__(self, other: object) -> bool:
         return self.id == other.id if isinstance(other, self.__class__) else NotImplemented
