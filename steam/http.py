@@ -848,7 +848,7 @@ class HTTPClient:
             "summary": summary or info.summary,
         }
 
-        await self.post(URL.COMMUNITY / "my/edit", data=payload)
+        await self.post(f"{self.user.community_url}/edit", data=payload)
 
     async def update_avatar(self, avatar: Image) -> None:
         with avatar:

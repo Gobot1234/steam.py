@@ -285,7 +285,7 @@ class BaseInventory(Generic[ItemT_co]):
     ):
         self._state = state
         self.owner = owner
-        self.game = StatefulGame(state, id=game.id, name=game.name)
+        self.game = StatefulGame(state, id=game.id, name=game.name, context_id=game.context_id)
         self._language = language
         self._update(data)
 

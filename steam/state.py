@@ -184,6 +184,7 @@ class ConnectionState(Registerable):
         self.licenses: dict[int, License] = {}
         self._manifest_passwords: dict[int, dict[str, str]] = {}
         self.cs_servers: list[ContentServer] = []
+        self.cs_lock = asyncio.Lock()
 
         self.handled_friends.clear()
         self.handled_emoticons.clear()
@@ -1562,19 +1563,22 @@ class ConnectionState(Registerable):
         branch: str = "public",
         password_hash: str = "",
     ) -> Manifest:
-        if not self.cs_servers:
-            self.cs_servers = sorted(
-                (
-                    ContentServer(
-                        self,
-                        URL_.build(scheme=f"http{'s' if server.https_support != 'none' else ''}", host=server.vhost),
-                        server.weighted_load,
-                    )
-                    for server in await self.fetch_cs_list(limit=20)
-                    if server.type in ("CDN", "SteamCache")
-                ),
-                key=attrgetter("weighted_load"),
-            )
+        async with self.cs_lock:
+            if not self.cs_servers:
+                self.cs_servers = sorted(
+                    (
+                        ContentServer(
+                            self,
+                            URL_.build(
+                                scheme=f"http{'s' if server.https_support != 'none' else ''}", host=server.vhost
+                            ),
+                            server.weighted_load,
+                        )
+                        for server in await self.fetch_cs_list(limit=20)
+                        if server.type in ("CDN", "SteamCache")
+                    ),
+                    key=attrgetter("weighted_load"),
+                )
 
         for server in tuple(self.cs_servers):
             try:
