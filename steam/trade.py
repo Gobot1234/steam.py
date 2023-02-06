@@ -252,7 +252,7 @@ class InventoryGenericAlias(types.GenericAlias):
         return (BaseInventory,)
 
 
-ItemT = TypeVar("ItemT", bound="Item[PartialUser]", default="Item[BaseUser]", covariant=True)
+ItemT = TypeVar("ItemT", bound=Item["PartialUser"], default=Item["BaseUser"], covariant=True)
 
 
 class Inventory(Generic[ItemT, OwnerT]):
