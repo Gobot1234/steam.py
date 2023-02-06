@@ -8,5 +8,8 @@ venv
 .mypy_cache
 .pytest_cache
 
+.DS_Store
+Thumbs.db
+
 steam/__metadata__.py
-poetry.lock
+docs/_build
