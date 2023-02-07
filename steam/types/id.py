@@ -29,6 +29,7 @@ class ChatGroupID(int):
 ChatID = _NewType("ChatID", int)  # u64
 RoleID = _NewType("RoleID", int)  # u32
 
+
 # this relationship may seem a little weird but it makes type checking easier
 class ID32(ChatGroupID):  # u32
     ...
