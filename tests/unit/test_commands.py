@@ -170,12 +170,10 @@ class TheTestBot(commands.Bot):
         self.to_finish.append(message.content)
 
         if exception is not None:
-
             async with self.raises_command_error(exception, message.content):
                 await super().process_commands(message)
 
         else:
-
             async with self.returns_command_completion(message.content):
                 await super().process_commands(message)
 

@@ -47,7 +47,6 @@ def make_link_role(resource_links: dict[str, str]) -> RoleFunction:
         options: dict = {},  # noqa
         content: list[str] = [],  # noqa
     ) -> tuple[list[Node], list[system_message]]:
-
         text = utils.unescape(text)
         has_explicit_title, title, key = split_explicit_title(text)
         full_url = resource_links[key]
