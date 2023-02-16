@@ -1077,7 +1077,7 @@ class ConnectionState(Registerable):
         message = message_cls(
             proto=msg,
             channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
-            author=destination._maybe_member(ID64(msg.steamid_sender)),
+            author=destination._maybe_member(_ID64_TO_ID32(msg.steamid_sender)),
         )
         channel.last_message = message  # type: ignore  # same as above
         self._messages.append(message)
@@ -1114,7 +1114,7 @@ class ConnectionState(Registerable):
                     message,
                     Emoticon(self, msg.reaction),
                     None,
-                    destination._maybe_member(ID64(msg.reactor)),
+                    destination._maybe_member(_ID64_TO_ID32(msg.reactor)),
                     created_at,
                     ordinal,
                 )
@@ -1124,7 +1124,7 @@ class ConnectionState(Registerable):
                     message,
                     None,
                     Sticker(self, msg.reaction),
-                    destination._maybe_member(ID64(msg.reactor)),
+                    destination._maybe_member(_ID64_TO_ID32(msg.reactor)),
                     created_at,
                     ordinal,
                 )

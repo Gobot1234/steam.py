@@ -521,7 +521,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         self._id = ChatGroupID(proto.chat_group_id)
         self.active_member_count = proto.active_member_count
         self._owner_id = ID32(proto.accountid_owner)
-        self._top_members = [ID32(id) for id in proto.top_members]
+        self._top_members = cast(list[ID32], proto.top_members)
         self.tagline = proto.chat_group_tagline
         self.app = PartialApp(state, id=proto.appid) if proto.appid else self.app
         self._avatar_sha = proto.chat_group_avatar_sha
@@ -535,9 +535,11 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
             except WSException:
                 pass
             else:
-                self._partial_members = {ID32(member.accountid): member for member in group_state.members}
+                self._partial_members = cast(
+                    dict[ID32, chat.Member], {member.accountid: member for member in group_state.members}
+                )
                 self._roles = {
-                    RoleID(role.role_id): Role(self._state, self, role, permissions)  # type: ignore
+                    RoleID(role.role_id): Role(self._state, self, role, permissions)
                     for role in group_state.header_state.roles
                     for permissions in group_state.header_state.role_actions
                     if permissions.role_id == role.role_id
@@ -546,7 +548,10 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
                 try:
                     self._members = {
                         self._state.user.id: member_cls(
-                            self._state, self, self._state.user, self._partial_members[self._state.user.id]  # type: ignore
+                            self._state,
+                            self,
+                            cast("User", self._state.user),
+                            self._partial_members[self._state.user.id],
                         )
                     }
                 except KeyError:
@@ -565,20 +570,18 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         member_cls, _, _ = self._type_args
         id32 = ID32(member.accountid)
         user = await self._state._maybe_user(id32)
-        assert isinstance(user, User)
         new_member = member_cls(self._state, self, user, member)
-        if self.chunked:
-            self._members[id32] = new_member
-        else:
-            self._partial_members[id32] = member
+        self._members[id32] = new_member
         return new_member
 
-    def _remove_member(self, member: chat.Member) -> MemberT | None:
+    def _remove_member(self, member: chat.Member) -> MemberT | PartialMember | None:
         id32 = ID32(member.accountid)
         if self.chunked:
             return self._members.pop(id32, None)
         else:
-            self._partial_members.pop(id32, None)
+            member_ = self._get_partial_member(id32)
+            del self._partial_members[id32]
+            return member_
 
     def _update_channels(
         self, channels: list[chat.State] | list[chat.ChatRoomState], *, default_channel_id: int | None = None
@@ -635,21 +638,41 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     def _get_partial_member(self, id: ID32) -> PartialMember:
         raise NotImplementedError
 
-    def _maybe_member(self, id64: ID64) -> MemberT | PartialMember:
-        # TODO consider using cached users even if auto_chunk is off
-        id = _ID64_TO_ID32(id64)
-        return self._members.get(id) or self._get_partial_member(id)
+    def _maybe_member(self, id: ID32) -> MemberT | PartialMember:
+        if self.chunked:
+            return self._members[id]
+
+        if (member := self._members.get(id)) is not None:
+            return member
+
+        if (user := self._state.get_user(id)) is not None:
+            member_cls, _, _ = self._type_args
+            self._members[id] = member = member_cls(self._state, self, user, self._partial_members.pop(id))
+            return member
+
+        return self._get_partial_member(id)
 
     def _maybe_members(self, ids: Iterable[ID32]) -> list[MemberT | PartialMember]:
         if self.chunked:
-            return [self._members[id] for id in ids if id in self._members]
-        else:
-            return [self._get_partial_member(id) for id in ids if id in self._partial_members]
+            return [self._members[id] for id in ids]
+
+        members: list[MemberT | PartialMember] = []
+        member_cls, _, _ = self._type_args
+        for id in ids:
+            if (member := self._members.get(id)) is not None:
+                members.append(member)
+            elif (user := self._state.get_user(id)) is not None:
+                self._members[id] = member = member_cls(self._state, self, user, self._partial_members.pop(id))
+                members.append(member)
+            else:
+                members.append(self._get_partial_member(id))
+
+        return members
 
     @property
     def owner(self) -> MemberT | PartialMember:
         """The chat group's owner."""
-        return self._members.get(self._owner_id) or self._get_partial_member(self._owner_id)
+        return self._maybe_member(self._owner_id)
 
     @property
     def top_members(self) -> Sequence[MemberT | PartialMember]:
@@ -731,9 +754,12 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         if self.chunked:
             return [self._members[ID32(user.accountid)] for user in msg.matching_members]
 
-        member_cls, _, _ = self._type_args
-        users = [User(self._state, user.persona) for user in msg.matching_members]
-        return [member_cls(self._state, self, user, self._partial_members[user.id]) for user in users]
+        return cast(
+            list[MemberT],
+            self._maybe_members(
+                user.id for user in [self._state._store_user(user.persona) for user in msg.matching_members]
+            ),
+        )
 
     async def invite(self, user: User) -> None:
         """Invites a :class:`~steam.User` to the chat group.
