@@ -170,7 +170,7 @@ class HTTPClient:
             data={
                 "nonce": refresh_token,
                 "sessionid": self.session_id,
-                "redir": URL.COMMUNITY / "login/home/?goto=",
+                "redir": URL.COMMUNITY / "login/home",
             },
         )
 
@@ -405,7 +405,7 @@ class HTTPClient:
             "trade_offer_create_params": JSON_DUMPS({"trade_offer_access_token": token}) if token is not None else "{}",
             **kwargs,
         }
-        referer = URL.COMMUNITY / f"tradeoffer/new/?partner={user.id}"
+        referer = URL.COMMUNITY / f"tradeoffer/new/" % {"partner": str(user.id)}
         if token is not None:
             referer %= {"token": token}
         headers = {"Referer": str(referer)}

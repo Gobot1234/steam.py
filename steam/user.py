@@ -66,7 +66,7 @@ class _BaseUser(BaseUser):
         self.name = proto.player_name
         """The user's username."""
         self._avatar_sha = proto.avatar_hash
-        self.trade_url = URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}"
+        self.trade_url = URL.COMMUNITY / f"tradeoffer/new/" % {"partner": str(self.id)}
         """The trade url of the user."""
 
         self.game_server_ip = IPv4Address(proto.game_server_ip) if proto.game_server_ip else None
