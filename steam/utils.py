@@ -18,6 +18,7 @@ import itertools
 import re
 import struct
 import sys
+import threading
 from collections.abc import (
     AsyncGenerator,
     AsyncIterable,
@@ -214,16 +215,17 @@ async def ainput(prompt: object = MISSING, /) -> str:
     if prompt is not MISSING:
         print(prompt, end="", flush=True)  # I'm not implementing aprint lol
 
-    reader = asyncio.StreamReader()
-    transport, _ = await asyncio.get_running_loop().connect_read_pipe(
-        lambda: asyncio.StreamReaderProtocol(reader), sys.stdin
-    )
+    queue = asyncio.Queue[str](1)
+    loop = asyncio.get_running_loop()
 
-    line = await reader.readline()
-    transport.close()
-    if not line.endswith(b"\n"):
-        raise EOFError
-    return line.removesuffix(b"\n").decode()
+    def _read_line_from_stdin() -> None:
+        line = sys.stdin.readline()
+        if not line.endswith("\n"):
+            raise EOFError
+        asyncio.run_coroutine_threadsafe(queue.put(line.removesuffix("\n")), loop=loop).result()
+
+    threading.Thread(target=_read_line_from_stdin, daemon=True).start()
+    return await queue.get()
 
 
 def _int_chunks(len: int, size: int) -> Generator[tuple[int, int], None, None]:
